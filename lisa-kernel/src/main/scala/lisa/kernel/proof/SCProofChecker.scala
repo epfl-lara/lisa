@@ -6,6 +6,50 @@ import lisa.kernel.proof.SequentCalculus._
 
 object SCProofChecker {
 
+  /**
+    * The chosen equality for general checks in proof steps. 
+    * 
+    * Syntactic equality is expected to be sound, but strong algorithms
+    * are fine and increase the expressiveness of steps.
+    */
+  @inline
+  private def expEq(s: Expression, t: Expression): Boolean =
+    // s == t // syntactic eq
+    isSame(s, t) // OL eq
+    // or some other weaker eq...
+
+  /**
+    * Checks whether a formula is contained in a set wrt either syntactic or
+    * expEq equality.
+    */
+  @inline
+  private def containsEq(set: Set[Expression], formula: Expression): Boolean =
+    set.contains(formula) || set.exists(expEq(_, formula))
+
+  /**
+    * Chosen subset check for sets of formulas. Can be weakeened to allow more
+    * than syntactic equality.
+    */
+  @inline
+  private def subset(subset: Set[Expression], superset: Set[Expression]): Boolean =
+    subset.subsetOf(superset)
+
+  /**
+    * Checks whether `set` is contained in `target` *syntactically*  except for
+    * removing a formula `expEq` to `exception``.
+    */
+  @inline
+  private def allContainedExcept(set: Set[Expression], target: Set[Expression], exception: Expression): Boolean =
+    set.forall(formula => target.contains(formula) || expEq(formula, exception))
+
+  /**
+    * Checks whether `set` is contained in `target` *syntactically* except for
+    * removing formulas `expEq` to `exception1` or `exception2`.
+    */
+  @inline
+  private def allContainedExceptEither(set: Set[Expression], target: Set[Expression], exception1: Expression, exception2: Expression): Boolean =
+    set.forall(formula => target.contains(formula) || expEq(formula, exception1) || expEq(formula, exception2))
+
   private def sortMismatch(
       expected: Sort,
       actual: Sort,
@@ -24,7 +68,7 @@ object SCProofChecker {
   }
 
   private def variableIsFreeInSequent(sequent: Sequent, variable: Variable): Boolean = {
-    (sequent.left union sequent.right).exists(_.freeVariables.contains(variable))
+    sequent.left.exists(_.freeVariables.contains(variable)) || sequent.right.exists(_.freeVariables.contains(variable))
   }
 
   /**
