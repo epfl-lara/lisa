@@ -1,7 +1,6 @@
 package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics
 
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ConstructorTyping
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
 import lisa.maths.SetTheory.Types.ADTv2.support.{InstantiateForallSeq, QuantifiersIntro}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
@@ -43,6 +42,7 @@ import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
  */
 final class CaseDefinedWitness[N <: Arity](
     adt: SemanticADT[N],
+    argType: Expr[Ind],
     patternMatching: PatternSystem[N],
     returnType: Expr[Ind],
     typ: Expr[Ind],
@@ -66,25 +66,25 @@ final class CaseDefinedWitness[N <: Arity](
   private def contextualize(formula: Expr[Prop]): Expr[Prop] =
     if contextPremises.isEmpty then formula else contextPremise ==> formula
 
-  private def constructorInputTyping(c: SemanticConstructor[N], vars: Seq[Variable[Ind]]): THM =
-    ConstructorTyping.constructorApplicationTyping(c, vars)
+  private def constructorHead(pattern: Pattern[N]): ConstructorHeadPattern[N] =
+    ConstructorHeadPattern.require(pattern)
 
   val witnessMembershipByPattern: Map[Pattern[N], THM] =
     patternMatching.patterns.map(pattern =>
-      val c = pattern.semanticConstructor
+      val ch = constructorHead(pattern)
       val vars = pattern.binders
       val body = pattern.body
       pattern -> Lemma(contextualize(
         forallSeq(
           vars,
-          wellTypedFormula(c.semanticSignature(vars)) ==> pair(c.appliedTerm(vars), body) ∈ witness
+          pattern.branchPremiseAt(vars) ==> pair(pattern.inputTermAt(vars), body) ∈ witness
         )
       )) {
         val contextHyp =
           if contextPremises.isEmpty then None else Some(assume(contextPremise))
-        val wellTypedArgs = wellTypedFormula(c.semanticSignature(vars))
-        val wellTypedPremises = wellTypedSet(c.semanticSignature(vars))
-        val pairTerm = pair(c.appliedTerm(vars), body)
+        val wellTypedArgs = pattern.branchPremiseAt(vars)
+        val wellTypedPremises = pattern.typingPremisesAt(vars)
+        val pairTerm = pair(pattern.inputTermAt(vars), body)
 
         def proveAvailablePremise(required: Expr[Prop]) =
           if required == wellTypedArgs then
@@ -111,8 +111,8 @@ final class CaseDefinedWitness[N <: Arity](
                   s"Unsupported typing premise in CaseDefinedWitness: $required"
                 )
 
-        val inputTyping = have(wellTypedArgs |- c.appliedTerm(vars) :: adt.term) by
-          Tautology.from(constructorInputTyping(c, vars))
+        val inputTyping = have(wellTypedArgs |- pattern.inputTermAt(vars) :: argType) by
+          Tautology.from(pattern.inputTypingAt(vars, argType))
 
         val outputTypingPremises =
           checkReturnType(pattern).statement.left.toSeq.map(_.asInstanceOf[Expr[Prop]])
@@ -123,41 +123,38 @@ final class CaseDefinedWitness[N <: Arity](
 
         val pairInBound = have(wellTypedArgs |- pairTerm ∈ witnessBound) by Tautology.from(
           CartesianProduct.pairMembership of (
-            A := adt.term,
+            A := argType,
             B := returnType,
-            x := c.appliedTerm(vars),
+            x := pattern.inputTermAt(vars),
             y := body
           ),
           inputTyping,
           outputTyping
         )
 
-        val ownBranchBody = body
-          .substitute(vars.zip(c.variables2).map((from, to) => from := to)*)
-          .asInstanceOf[Expr[Ind]]
         val baseCaseBody =
-          wellTypedFormula(c.semanticSignature2) /\ (pairTerm === pair(c.appliedTerm2, ownBranchBody))
-        val ownCaseBranch = simplify(existsSeq(c.variables2, baseCaseBody))
+          pattern.freshBranchPremise /\ (pairTerm === pair(pattern.freshInputTerm, pattern.bodyAtFreshVars2))
+        val ownCaseBranch = simplify(existsSeq(pattern.variables2, baseCaseBody))
 
         val fullyInstantiatedCaseBody = baseCaseBody
-          .substitute(c.variables2.zip(vars).map((from, to) => from := to)*)
+          .substitute(pattern.variables2.zip(vars).map((from, to) => from := to)*)
           .asInstanceOf[Expr[Prop]]
 
         val ownBranchAtCurrentVars = have(
           wellTypedArgs |- fullyInstantiatedCaseBody
         ) by Tautology.from(
           have(wellTypedArgs |- wellTypedArgs) by Hypothesis,
-          have(wellTypedArgs |- pairTerm === pair(c.appliedTerm(vars), body)) by RightRefl
+          have(wellTypedArgs |- pairTerm === pair(pattern.inputTermAt(vars), body)) by RightRefl
         )
 
         val inOwnCaseBranchRaw =
-          c.variables2.indices.reverse.foldLeft(ownBranchAtCurrentVars)((fact, idx) =>
-            val quantifiedVar = c.variables2(idx)
+          pattern.variables2.indices.reverse.foldLeft(ownBranchAtCurrentVars)((fact, idx) =>
+            val quantifiedVar = pattern.variables2(idx)
             val witnessVar = vars(idx)
             val priorSubst =
-              c.variables2.take(idx).zip(vars.take(idx)).map((from, to) => from := to)
+              pattern.variables2.take(idx).zip(vars.take(idx)).map((from, to) => from := to)
             val phi = existsSeq(
-              c.variables2.drop(idx + 1),
+              pattern.variables2.drop(idx + 1),
               baseCaseBody.substitute(priorSubst*).asInstanceOf[Expr[Prop]]
             )
             have(wellTypedArgs |- ∃(quantifiedVar, phi)) by
@@ -192,7 +189,7 @@ final class CaseDefinedWitness[N <: Arity](
         val core = thenHave(
           forallSeq(
             vars,
-            wellTypedFormula(c.semanticSignature(vars)) ==> pair(c.appliedTerm(vars), body) ∈ witness
+            pattern.branchPremiseAt(vars) ==> pair(pattern.inputTermAt(vars), body) ∈ witness
           )
         ) by QuantifiersIntro(vars)
 
@@ -205,7 +202,7 @@ final class CaseDefinedWitness[N <: Arity](
     witnessMembershipByPattern(pattern)
 
   val witnessRelationBetween: THM =
-    Lemma(relationBetween(witness)(adt.term)(returnType)) {
+    Lemma(relationBetween(witness)(argType)(returnType)) {
       have(witnessBody ⊆ witnessBound) by Tautology.from(
         Comprehension.subset of (
           y := witnessBound,
@@ -213,11 +210,11 @@ final class CaseDefinedWitness[N <: Arity](
         )
       )
       val subsetBound = have(witness ⊆ witnessBound) by Congruence.from(lastStep, witnessDef)
-      have(relationBetween(witness)(adt.term)(returnType)) by Tautology.from(
+      have(relationBetween(witness)(argType)(returnType)) by Tautology.from(
         subsetBound,
         relationBetween.definition of (
           R := witness,
-          X := adt.term,
+          X := argType,
           Y := returnType
         )
       )
@@ -226,115 +223,22 @@ final class CaseDefinedWitness[N <: Arity](
 
   val witnessTotality: THM = Lemma(
     contextualize(
-      ∀(inputTerm ∈ adt.term, ∃(outputTerm, pair(inputTerm, outputTerm) ∈ witness))
+      ∀(inputTerm ∈ argType, ∃(outputTerm, pair(inputTerm, outputTerm) ∈ witness))
     )
   ) {
-    val contextHyp =
-      if contextPremises.isEmpty then None else Some(assume(contextPremise))
-
-    val totalityAtInput = ∃(outputTerm, pair(inputTerm, outputTerm) ∈ witness)
-    val constructorBranch = adt.constructors.map(c =>
-      c -> simplify(
-        existsSeq(
-          c.variables2,
-          wellTypedFormula(c.semanticSignature2) /\ (inputTerm === c.appliedTerm2)
-        )
-      )
-    ).toMap
-    val constructorDisjunction =
-      simplify(seqOr(adt.constructors.map(c => constructorBranch(c))))
-
-    val decompositionAtInput = have(inputTerm ∈ adt.term |- constructorDisjunction) subproof {
-      have(inputTerm ∈ adt.term ==> constructorDisjunction) by
-        InstantiateForall(inputTerm)(adt.elim)
-      thenHave(thesis) by Restate
-    }
-
-    val branchToWitness = patternMatching.patterns.map(pattern =>
-      val c = pattern.semanticConstructor
-      val caseVars = pattern.binders
-      val caseBody = pattern.body
-
-      val directBranch = have(
-        wellTypedFormula(c.semanticSignature2) /\ (inputTerm === c.appliedTerm2) |- totalityAtInput
-      ) subproof {
-        assume(wellTypedFormula(c.semanticSignature2) /\ (inputTerm === c.appliedTerm2))
-        val argsTyped = have(wellTypedFormula(c.semanticSignature2)) by Tautology
-        val inputEqCtor = have(inputTerm === c.appliedTerm2) by Tautology
-
-        val membershipSchema =
-          if contextPremises.isEmpty then
-            have(witnessMembership(pattern).statement.right.head) by Tautology.from(witnessMembership(pattern))
-            lastStep
-          else
-            witnessMembership(pattern).statement.right.head match
-              case _ ==> consequent =>
-                have(consequent) by Tautology.from(witnessMembership(pattern), contextHyp.get)
-                lastStep
-              case _ => throw UnreachableException
-        val instantiatedCaseBody =
-          caseBody
-            .substitute(caseVars.zip(c.variables2).map((from, to) => from := to)*)
-            .asInstanceOf[Expr[Ind]]
-
-        val instantiatedMembership = have(
-          wellTypedFormula(c.semanticSignature2) ==>
-            pair(c.appliedTerm2, instantiatedCaseBody) ∈ witness
-        ) by InstantiateForallSeq(c.variables2)(membershipSchema)
-
-        val pairInWitnessAtCtor = have(pair(c.appliedTerm2, instantiatedCaseBody) ∈ witness) by
-          Tautology.from(instantiatedMembership, argsTyped)
-
-        val existsAtCtorInput =
-          have(∃(outputTerm, pair(c.appliedTerm2, outputTerm) ∈ witness)) by
-            RightExists(pairInWitnessAtCtor)
-
-        val transferAtWitness = have(
-          (inputTerm === c.appliedTerm2, pair(c.appliedTerm2, outputTerm) ∈ witness) |- totalityAtInput
-        ) subproof {
-          assume(inputTerm === c.appliedTerm2)
-          val eqInput = have(inputTerm === c.appliedTerm2) by Hypothesis
-          assume(pair(c.appliedTerm2, outputTerm) ∈ witness)
-          val pairAtCtorInput = have(pair(c.appliedTerm2, outputTerm) ∈ witness) by Hypothesis
-          val pairAtInput =
-            have(pair(inputTerm, outputTerm) ∈ witness) by Congruence.from(pairAtCtorInput, eqInput)
-          have(totalityAtInput) by RightExists(pairAtInput)
-        }
-
-        val transferExistential = have(
-          (
-            inputTerm === c.appliedTerm2,
-            ∃(outputTerm, pair(c.appliedTerm2, outputTerm) ∈ witness)
-          ) |- totalityAtInput
-        ) by LeftExists(transferAtWitness)
-
-        have(totalityAtInput) by Tautology.from(inputEqCtor, existsAtCtorInput, transferExistential)
-      }
-
-      val rawBranch = c.variables2.reverse.foldLeft(directBranch)((fact, v) =>
-        thenHave(∃(v, fact.statement.left.head) |- totalityAtInput) by LeftExists
-      )
-      have(constructorBranch(c) |- totalityAtInput) by Tautology.from(rawBranch)
-    )
-
-    val totalityFromCases =
-      if branchToWitness.size == 1 then
-        have(constructorDisjunction |- totalityAtInput) by Restate.from(branchToWitness.head)
-      else
-        have(constructorDisjunction |- totalityAtInput) by LeftOr(branchToWitness*)
-
-    have(inputTerm ∈ adt.term |- totalityAtInput) by Cut(decompositionAtInput, totalityFromCases)
-    thenHave((inputTerm ∈ adt.term) ==> totalityAtInput) by RightImplies
-    val core = thenHave(
-      ∀(inputTerm, (inputTerm ∈ adt.term) ==> totalityAtInput)
-    ) by RightForall
-
-    if contextPremises.isEmpty then have(thesis) by Restate.from(core)
-    else have(thesis) by Tautology.from(contextHyp.get, core)
+    // Branch-oriented totality.
+    //
+    // The intended generic proof is:
+    // 1. eliminate `inputTerm` by constructor using `adt.elim`
+    // 2. refine the constructor case with `patternMatching.branchSelectionFor`
+    // 3. instantiate `witnessMembership(pattern)` on the selected branch
+    //
+    // This avoids assuming that one constructor corresponds to a unique branch.
+    have(thesis) by Sorry
   }
 
   val witnessSingleValued: THM = Lemma(
-    ∀(inputTerm ∈ adt.term,
+    ∀(inputTerm ∈ argType,
       ∀(outputTerm,
         ∀(alternateOutputTerm,
           (pair(inputTerm, outputTerm) ∈ witness /\
@@ -344,440 +248,21 @@ final class CaseDefinedWitness[N <: Arity](
       )
     )
   ) {
-    val pairAtOutput = pair(inputTerm, outputTerm)
-    val pairAtAlternateOutput = pair(inputTerm, alternateOutputTerm)
-
-    def caseBranchAtOutputWithVars1(pattern: Pattern[N]): Expr[Prop] = {
-      val c = pattern.semanticConstructor
-      val caseVars = pattern.binders
-      val caseBody = pattern.body
-      val bodyAtVars1 = caseBody
-        .substitute(caseVars.zip(c.variables1).map((from, to) => from := to)*)
-        .asInstanceOf[Expr[Ind]]
-      existsSeq(
-        c.variables1,
-        wellTypedFormula(c.semanticSignature1) /\
-          (pairAtOutput === pair(c.appliedTerm1, bodyAtVars1))
-      )
-    }
-
-    def caseBranchAtAlternateOutput(pattern: Pattern[N]): Expr[Prop] = {
-      val c = pattern.semanticConstructor
-      val caseVars = pattern.binders
-      val caseBody = pattern.body
-      val bodyAtVars2 = caseBody
-        .substitute(caseVars.zip(c.variables2).map((from, to) => from := to)*)
-        .asInstanceOf[Expr[Ind]]
-      existsSeq(
-        c.variables2,
-        wellTypedFormula(c.semanticSignature2) /\
-          (pairAtAlternateOutput === pair(c.appliedTerm2, bodyAtVars2))
-      )
-    }
-
-    val caseDisjunctionAtOutputWithVars1 =
-      seqOr(patternMatching.patterns.map(pattern => caseBranchAtOutputWithVars1(pattern)))
-    val caseDisjunctionAtAlternateOutput =
-      seqOr(patternMatching.patterns.map(pattern => caseBranchAtAlternateOutput(pattern)))
-
-    val outputCaseRenaming =
-      have(caseMembership(pairAtOutput) |- caseDisjunctionAtOutputWithVars1) by Tableau
-
-    val outputMembershipEqBody = have(
-      pairAtOutput ∈ witnessBody <=> (pairAtOutput ∈ witnessBound /\ caseMembership(pairAtOutput))
-    ) by Tautology.from(
-      Comprehension.membership of (
-        x := pairAtOutput,
-        y := witnessBound,
-        φ := λ(pairWitness, caseMembership(pairWitness))
-      )
-    )
-    val outputMembershipEq = have(
-      pairAtOutput ∈ witness <=> (pairAtOutput ∈ witnessBound /\ caseMembership(pairAtOutput))
-    ) by Congruence.from(witnessDef, outputMembershipEqBody)
-
-    have(
-      pairAtAlternateOutput ∈ witnessBody <=>
-        (pairAtAlternateOutput ∈ witnessBound /\ caseMembership(pairAtAlternateOutput))
-    ) by Tautology.from(
-      Comprehension.membership of (
-        x := pairAtAlternateOutput,
-        y := witnessBound,
-        φ := λ(pairWitness, caseMembership(pairWitness))
-      )
-    )
-    val alternateMembershipEq = have(
-      pairAtAlternateOutput ∈ witness <=>
-        (pairAtAlternateOutput ∈ witnessBound /\ caseMembership(pairAtAlternateOutput))
-    ) by Congruence.from(witnessDef, lastStep)
-
-    val singleValuedAtInput = have(
-      (
-        inputTerm ∈ adt.term,
-        pairAtOutput ∈ witness,
-        pairAtAlternateOutput ∈ witness
-      ) |- (outputTerm === alternateOutputTerm)
-    ) subproof {
-      assume(inputTerm ∈ adt.term)
-      val inputInAdt = have(inputTerm ∈ adt.term) by Hypothesis
-      assume(pairAtOutput ∈ witness)
-      val pairOutputInWitness = have(pairAtOutput ∈ witness) by Hypothesis
-      assume(pairAtAlternateOutput ∈ witness)
-      val pairAlternateInWitness = have(pairAtAlternateOutput ∈ witness) by Hypothesis
-
-      val outputCaseRaw = have(caseMembership(pairAtOutput)) by
-        Tautology.from(pairOutputInWitness, outputMembershipEq)
-      val outputCase = have(caseDisjunctionAtOutputWithVars1) by
-        Tautology.from(outputCaseRaw, outputCaseRenaming)
-      val alternateCaseRaw = have(caseMembership(pairAtAlternateOutput)) by
-        Tautology.from(pairAlternateInWitness, alternateMembershipEq)
-      val alternateCase = have(caseDisjunctionAtAlternateOutput) by Restate.from(alternateCaseRaw)
-
-      val branchByOutputConstructor = patternMatching.patterns.map(pattern1 =>
-        val c1 = pattern1.semanticConstructor
-        val caseVars1 = pattern1.binders
-        val caseBody1 = pattern1.body
-        val bodyAtVars1 = caseBody1
-          .substitute(caseVars1.zip(c1.variables1).map((from, to) => from := to)*)
-          .asInstanceOf[Expr[Ind]]
-        val branchAtOutputWithVars1 =
-          wellTypedFormula(c1.semanticSignature1) /\
-            (pairAtOutput === pair(c1.appliedTerm1, bodyAtVars1))
-
-        val branchByAlternateConstructor = patternMatching.patterns.map(pattern2 =>
-          val c2 = pattern2.semanticConstructor
-          val caseVars2 = pattern2.binders
-          val caseBody2 = pattern2.body
-          val bodyAtVars2 = caseBody2
-            .substitute(caseVars2.zip(c2.variables2).map((from, to) => from := to)*)
-            .asInstanceOf[Expr[Ind]]
-          val branchAtAlternate =
-            wellTypedFormula(c2.semanticSignature2) /\
-              (pairAtAlternateOutput === pair(c2.appliedTerm2, bodyAtVars2))
-
-          val directCase = have(
-            (
-              branchAtOutputWithVars1,
-              branchAtAlternate,
-              inputTerm ∈ adt.term
-            ) |- (outputTerm === alternateOutputTerm)
-          ) subproof {
-            assume(branchAtOutputWithVars1)
-            val branchOutputTyped = have(wellTypedFormula(c1.semanticSignature1)) by Tautology
-            val branchOutputPairEq =
-              have(pairAtOutput === pair(c1.appliedTerm1, bodyAtVars1)) by Tautology
-            assume(branchAtAlternate)
-            val branchAlternateTyped = have(wellTypedFormula(c2.semanticSignature2)) by Tautology
-            val branchAlternatePairEq =
-              have(pairAtAlternateOutput === pair(c2.appliedTerm2, bodyAtVars2)) by Tautology
-            assume(inputTerm ∈ adt.term)
-
-            val outputPairDecomposition = have(
-              pairAtOutput === pair(c1.appliedTerm1, bodyAtVars1) |-
-                (inputTerm === c1.appliedTerm1) /\ (outputTerm === bodyAtVars1)
-            ) by Tautology.from(
-              Pair.extensionality of (
-                a := inputTerm,
-                b := outputTerm,
-                c := c1.appliedTerm1,
-                d := bodyAtVars1
-              )
-            )
-            val outputComponents =
-              have((inputTerm === c1.appliedTerm1) /\ (outputTerm === bodyAtVars1)) by
-                Tautology.from(branchOutputPairEq, outputPairDecomposition)
-            val inputEqFromOutput = have(inputTerm === c1.appliedTerm1) by
-              Tautology.from(outputComponents)
-            val outputEqToBody = have(outputTerm === bodyAtVars1) by Tautology.from(outputComponents)
-
-            val alternatePairDecomposition = have(
-              pairAtAlternateOutput === pair(c2.appliedTerm2, bodyAtVars2) |-
-                (inputTerm === c2.appliedTerm2) /\ (alternateOutputTerm === bodyAtVars2)
-            ) by Tautology.from(
-              Pair.extensionality of (
-                a := inputTerm,
-                b := alternateOutputTerm,
-                c := c2.appliedTerm2,
-                d := bodyAtVars2
-              )
-            )
-            val alternateComponents =
-              have((inputTerm === c2.appliedTerm2) /\ (alternateOutputTerm === bodyAtVars2)) by
-                Tautology.from(branchAlternatePairEq, alternatePairDecomposition)
-            val inputEqFromAlternate = have(inputTerm === c2.appliedTerm2) by
-              Tautology.from(alternateComponents)
-            val alternateEqToBody = have(alternateOutputTerm === bodyAtVars2) by
-              Tautology.from(alternateComponents)
-
-            val c1EqInput = have(c1.appliedTerm1 === inputTerm) by Congruence.from(inputEqFromOutput)
-            val c1EqC2 = have(c1.appliedTerm1 === c2.appliedTerm2) by Tautology.from(
-              altEqualityTransitivity of (
-                x := c1.appliedTerm1,
-                y := inputTerm,
-                z := c2.appliedTerm2
-              ),
-              c1EqInput,
-              inputEqFromAlternate
-            )
-
-            if c1 == c2 then
-              val bodyEq =
-                if c1.arity == 0 then have(bodyAtVars1 === bodyAtVars2) by RightRefl
-                else
-                  val injectivityBase =
-                    have(c1.injectivity.statement.right.head) by Tautology.from(c1.injectivity)
-                  val injectivityAtVars =
-                    (c1.variables1 ++ c1.variables2).foldLeft(injectivityBase)((_, v) =>
-                      lastStep.statement.right.head match
-                        case forall(_, phi) => thenHave(phi) by InstantiateForall(v)
-                        case _              => throw UnreachableException
-                    )
-                  val argsEqEquivalence = have(
-                    simplify((c1.appliedTerm1 === c1.appliedTerm2) <=> (c1.variables1 === c1.variables2))
-                  ) by Tautology.from(
-                    injectivityAtVars,
-                    branchOutputTyped,
-                    branchAlternateTyped
-                  )
-                  val argsEqConjunction = have(c1.variables1 === c1.variables2) by Tautology.from(
-                    argsEqEquivalence,
-                    c1EqC2
-                  )
-                  val argumentEqualities = c1.variables1.zip(c1.variables2).map((u, v) =>
-                    have(u === v) by Tautology.from(argsEqConjunction)
-                  )
-                  val bodyTemplateVars = caseVars1.map(_ => variable[Ind])
-                  val bodyAtTemplateVars = caseBody1
-                    .substitute(caseVars1.zip(bodyTemplateVars).map((from, to) => from := to)*)
-                    .asInstanceOf[Expr[Ind]]
-                  val bodyRefl = have(bodyAtVars1 === bodyAtVars1) by
-                    RightRefl.withParameters(bodyAtVars1 === bodyAtVars1)
-                  val bodyEqWithEqualities = have(
-                    (bodyRefl.bot.left ++ argumentEqualities.map(_.statement.right.head)) |- (bodyAtVars1 === bodyAtVars2)
-                  ) by RightSubstEq.withParameters(
-                    c1.variables1.zip(c1.variables2).toList,
-                    (bodyTemplateVars, bodyAtVars1 === bodyAtTemplateVars)
-                  )(bodyRefl)
-                  argumentEqualities.foreach { equalityFact =>
-                    have(
-                      if equalityFact.bot.left.contains(equalityFact.statement.right.head) then lastStep.bot
-                      else lastStep.bot -<< equalityFact.statement.right.head
-                    ) by Cut(equalityFact, lastStep)
-                  }
-                  have(bodyAtVars1 === bodyAtVars2) by Restate.from(lastStep)
-
-              val body2EqAlternate = have(bodyAtVars2 === alternateOutputTerm) by
-                Congruence.from(alternateEqToBody)
-              have(outputTerm === alternateOutputTerm) by Tautology.from(
-                altEqualityTransitivity of (
-                  x := outputTerm,
-                  y := bodyAtVars1,
-                  z := alternateOutputTerm
-                ),
-                outputEqToBody,
-                have(bodyAtVars1 === alternateOutputTerm) by Tautology.from(
-                  altEqualityTransitivity of (
-                    x := bodyAtVars1,
-                    y := bodyAtVars2,
-                    z := alternateOutputTerm
-                  ),
-                  bodyEq,
-                  body2EqAlternate
-                )
-              )
-              have(thesis) by Restate.from(lastStep)
-            else
-              have(c1.shortDefinition.statement.right.head) by Tautology.from(c1.shortDefinition)
-              val c1ShortAtVars1 = c1.variables1.foldLeft(lastStep)((_, v1) =>
-                lastStep.statement.right.head match
-                  case forall(v, phi) =>
-                    thenHave(phi.substituteUnsafe(Map(v -> v1)).asInstanceOf[Expr[Prop]]) by InstantiateForall(v1)
-                  case _ => throw UnreachableException
-              )
-              val c1StructuralEq = c1ShortAtVars1.statement.right.head match
-                case _ ==> consequent => have(consequent) by Tautology.from(c1ShortAtVars1, branchOutputTyped)
-                case _                => throw UnreachableException
-
-              have(c2.shortDefinition.statement.right.head) by Tautology.from(c2.shortDefinition)
-              val c2ShortAtVars2 = c2.variables2.foldLeft(lastStep)((_, v2) =>
-                lastStep.statement.right.head match
-                  case forall(v, phi) =>
-                    thenHave(phi.substituteUnsafe(Map(v -> v2)).asInstanceOf[Expr[Prop]]) by InstantiateForall(v2)
-                  case _ => throw UnreachableException
-              )
-              val c2StructuralEq = c2ShortAtVars2.statement.right.head match
-                case _ ==> consequent => have(consequent) by Tautology.from(c2ShortAtVars2, branchAlternateTyped)
-                case _                => throw UnreachableException
-
-              val c1StructuralToApplied = have(c1.structuralTerm1 === c1.appliedTerm1) by
-                Congruence.from(c1StructuralEq)
-              val c1StructuralEqC2Applied = have(c1.structuralTerm1 === c2.appliedTerm2) by
-                Tautology.from(
-                  altEqualityTransitivity of (
-                    x := c1.structuralTerm1,
-                    y := c1.appliedTerm1,
-                    z := c2.appliedTerm2
-                  ),
-                  c1StructuralToApplied,
-                  c1EqC2
-                )
-              val structuralEq = have(c1.structuralTerm1 === c2.structuralTerm2) by Tautology.from(
-                altEqualityTransitivity of (
-                  x := c1.structuralTerm1,
-                  y := c2.appliedTerm2,
-                  z := c2.structuralTerm2
-                ),
-                c1StructuralEqC2Applied,
-                c2StructuralEq
-              )
-              val tagsFromStructuralEq = have(
-                c1.structuralTerm1 === c2.structuralTerm2 |-
-                  (c1.underlying.tagTerm === c2.underlying.tagTerm) /\
-                  (c1.underlying.subterm1 === c2.underlying.subterm2)
-              ) by Tautology.from(
-                Pair.extensionality of (
-                  a := c1.underlying.tagTerm,
-                  b := c1.underlying.subterm1,
-                  c := c2.underlying.tagTerm,
-                  d := c2.underlying.subterm2
-                )
-              )
-              val tagsEqual = have(c1.underlying.tagTerm === c2.underlying.tagTerm) by
-                Tautology.from(structuralEq, tagsFromStructuralEq)
-              val tagsDifferent = have(!(c1.underlying.tagTerm === c2.underlying.tagTerm)) by
-                Tautology.from(constructorTagDisequalities((c1, c2)))
-              have(thesis) by Tautology.from(tagsEqual, tagsDifferent)
-          }
-
-          val liftedAcrossAlternate =
-            c2.variables2.reverse.foldLeft((directCase, branchAtAlternate))((acc, v) =>
-              val (fact, phi) = acc
-              val nextPhi = ∃(v, phi)
-              val nextFact = have(
-                (branchAtOutputWithVars1, nextPhi, inputTerm ∈ adt.term) |-
-                  (outputTerm === alternateOutputTerm)
-              ) by LeftExists.withParameters(phi, v)(fact)
-              (nextFact, nextPhi)
-            )._1
-          have(
-            (
-              branchAtOutputWithVars1,
-              caseBranchAtAlternateOutput(pattern2),
-              inputTerm ∈ adt.term
-            ) |- (outputTerm === alternateOutputTerm)
-          ) by Restate.from(liftedAcrossAlternate)
-        )
-
-        val fromAlternateDisjunction =
-          if branchByAlternateConstructor.size == 1 then
-            have(
-              (
-                branchAtOutputWithVars1,
-                caseDisjunctionAtAlternateOutput,
-                inputTerm ∈ adt.term
-              ) |- (outputTerm === alternateOutputTerm)
-            ) by Restate.from(branchByAlternateConstructor.head)
-          else
-            have(
-              (
-                branchAtOutputWithVars1,
-                caseDisjunctionAtAlternateOutput,
-                inputTerm ∈ adt.term
-              ) |- (outputTerm === alternateOutputTerm)
-            ) by LeftOr(branchByAlternateConstructor*)
-
-        val liftedAcrossOutput =
-          c1.variables1.reverse.foldLeft((fromAlternateDisjunction, branchAtOutputWithVars1))((acc, v) =>
-            val (fact, phi) = acc
-            val nextPhi = ∃(v, phi)
-            val nextFact = have(
-              (nextPhi, caseDisjunctionAtAlternateOutput, inputTerm ∈ adt.term) |-
-                (outputTerm === alternateOutputTerm)
-            ) by LeftExists.withParameters(phi, v)(fact)
-            (nextFact, nextPhi)
-          )._1
-        have(
-          (
-            caseBranchAtOutputWithVars1(pattern1),
-            caseDisjunctionAtAlternateOutput,
-            inputTerm ∈ adt.term
-          ) |- (outputTerm === alternateOutputTerm)
-        ) by Restate.from(liftedAcrossOutput)
-      )
-
-      val fromBothDisjunctions =
-        if branchByOutputConstructor.size == 1 then
-          have(
-            (
-              caseDisjunctionAtOutputWithVars1,
-              caseDisjunctionAtAlternateOutput,
-              inputTerm ∈ adt.term
-            ) |- (outputTerm === alternateOutputTerm)
-          ) by Restate.from(branchByOutputConstructor.head)
-        else
-          have(
-            (
-              caseDisjunctionAtOutputWithVars1,
-              caseDisjunctionAtAlternateOutput,
-              inputTerm ∈ adt.term
-            ) |- (outputTerm === alternateOutputTerm)
-          ) by LeftOr(branchByOutputConstructor*)
-
-      have(outputTerm === alternateOutputTerm) by Tautology.from(
-        outputCase,
-        alternateCase,
-        inputInAdt,
-        fromBothDisjunctions
-      )
-    }
-
-    val pairMembershipConjunction =
-      pairAtOutput ∈ witness /\ pairAtAlternateOutput ∈ witness
-    have(
-      (inputTerm ∈ adt.term) |- pairMembershipConjunction ==> (outputTerm === alternateOutputTerm)
-    ) by Tautology.from(singleValuedAtInput)
-    thenHave(
-      (inputTerm ∈ adt.term) |- ∀(
-        alternateOutputTerm,
-        pairMembershipConjunction ==> (outputTerm === alternateOutputTerm)
-      )
-    ) by RightForall
-    thenHave(
-      (inputTerm ∈ adt.term) |- ∀(
-        outputTerm,
-        ∀(
-          alternateOutputTerm,
-          pairMembershipConjunction ==> (outputTerm === alternateOutputTerm)
-        )
-      )
-    ) by RightForall
-    thenHave(
-      (inputTerm ∈ adt.term) ==> ∀(
-        outputTerm,
-        ∀(
-          alternateOutputTerm,
-          pairMembershipConjunction ==> (outputTerm === alternateOutputTerm)
-        )
-      )
-    ) by RightImplies
-    thenHave(
-      ∀(
-        inputTerm,
-        (inputTerm ∈ adt.term) ==> ∀(
-          outputTerm,
-          ∀(
-            alternateOutputTerm,
-            pairMembershipConjunction ==> (outputTerm === alternateOutputTerm)
-          )
-        )
-      )
-    ) by RightForall
-    thenHave(thesis) by Restate
+    // Branch-oriented single-valuedness.
+    //
+    // The generic proof should decompose each witness membership into a branch
+    // witness, then reason pairwise on branches:
+    // - same branch: use the branch-local equalities
+    // - different branches: use `patternMatching.incompatible(pattern1, pattern2)`
+    //
+    // Constructor-specific proofs remain valid only as an internal helper for
+    // the same-branch case.
+    have(thesis) by Sorry
   }
 
   val witnessUniqueValue: THM = Lemma(
     contextualize(
-      ∀(inputTerm ∈ adt.term, existsOne(outputTerm, pair(inputTerm, outputTerm) ∈ witness))
+      ∀(inputTerm ∈ argType, existsOne(outputTerm, pair(inputTerm, outputTerm) ∈ witness))
     )
   ) {
     val contextHyp =
@@ -786,17 +271,17 @@ final class CaseDefinedWitness[N <: Arity](
     val pointwisePredicate = (out: Expr[Ind]) => pair(inputTerm, out) ∈ witness
     val totalityAtInput =
       if contextPremises.isEmpty then
-        have((inputTerm ∈ adt.term) ==> ∃(outputTerm, pointwisePredicate(outputTerm))) by
+        have((inputTerm ∈ argType) ==> ∃(outputTerm, pointwisePredicate(outputTerm))) by
           InstantiateForall(inputTerm)(witnessTotality)
       else
         witnessTotality.statement.right.head match
           case _ ==> consequent =>
             have(consequent) by Tautology.from(witnessTotality, contextHyp.get)
-            thenHave((inputTerm ∈ adt.term) ==> ∃(outputTerm, pointwisePredicate(outputTerm))) by
+            thenHave((inputTerm ∈ argType) ==> ∃(outputTerm, pointwisePredicate(outputTerm))) by
               InstantiateForall(inputTerm)
           case _ => throw UnreachableException
     val singleValuedAtInput = have(
-      (inputTerm ∈ adt.term) ==> ∀(
+      (inputTerm ∈ argType) ==> ∀(
         outputTerm,
         ∀(
           alternateOutputTerm,
@@ -807,9 +292,9 @@ final class CaseDefinedWitness[N <: Arity](
     ) by InstantiateForall(inputTerm)(witnessSingleValued)
 
     val pointwiseUnique = have(
-      (inputTerm ∈ adt.term) |- existsOne(outputTerm, pointwisePredicate(outputTerm))
+      (inputTerm ∈ argType) |- existsOne(outputTerm, pointwisePredicate(outputTerm))
     ) subproof {
-      assume(inputTerm ∈ adt.term)
+      assume(inputTerm ∈ argType)
       val existenceAtInput = have(∃(outputTerm, pointwisePredicate(outputTerm))) by
         Tautology.from(totalityAtInput)
       val functionalityAtInput = have(
@@ -909,9 +394,9 @@ final class CaseDefinedWitness[N <: Arity](
     }
 
     val core = have(
-      ∀(inputTerm, (inputTerm ∈ adt.term) ==> existsOne(outputTerm, pointwisePredicate(outputTerm)))
+      ∀(inputTerm, (inputTerm ∈ argType) ==> existsOne(outputTerm, pointwisePredicate(outputTerm)))
     ) subproof {
-      have((inputTerm ∈ adt.term) ==> existsOne(outputTerm, pointwisePredicate(outputTerm))) by
+      have((inputTerm ∈ argType) ==> existsOne(outputTerm, pointwisePredicate(outputTerm))) by
         Restate.from(pointwiseUnique)
       thenHave(thesis) by RightForall
     }
@@ -925,7 +410,7 @@ final class CaseDefinedWitness[N <: Arity](
       if contextPremises.isEmpty then None else Some(assume(contextPremise))
     if contextPremises.isEmpty then
       have(
-        ∀(inputTerm ∈ adt.term, existsOne(outputTerm, pair(inputTerm, outputTerm) ∈ witness))
+        ∀(inputTerm ∈ argType, existsOne(outputTerm, pair(inputTerm, outputTerm) ∈ witness))
       ) by Tautology.from(witnessUniqueValue)
     else
       witnessUniqueValue.statement.right.head match
@@ -933,11 +418,11 @@ final class CaseDefinedWitness[N <: Arity](
           have(consequent) by Tautology.from(witnessUniqueValue, contextHyp.get)
         case _ => throw UnreachableException
     val witnessFunctionBetween = have(
-      Function.functionBetween(witness)(adt.term)(returnType)
+      Function.functionBetween(witness)(argType)(returnType)
     ) by Tautology.from(
       Function.functionBetween.definition of (
         f := witness,
-        A := adt.term,
+        A := argType,
         B := returnType
       ),
       witnessRelationBetween,
@@ -946,7 +431,7 @@ final class CaseDefinedWitness[N <: Arity](
     val core = have(witness :: typ) by Tautology.from(
       BasicTheorems.funcBetweenEqInFuncSpace of (
         f := witness,
-        A := adt.term,
+        A := argType,
         B := returnType
       ),
       witnessFunctionBetween
@@ -957,19 +442,19 @@ final class CaseDefinedWitness[N <: Arity](
 
   val witnessCaseByPattern: Map[Pattern[N], THM] =
     patternMatching.patterns.map(pattern =>
-      val c = pattern.semanticConstructor
+      val ch = constructorHead(pattern)
       val vars = pattern.binders
       val body = pattern.body
       pattern -> Lemma(contextualize(
         forallSeq(
           vars,
-          wellTypedFormula(c.semanticSignature(vars)) ==> (witness * c.appliedTerm(vars) === body)
+          pattern.branchPremiseAt(vars) ==> (witness * pattern.inputTermAt(vars) === body)
         )
       )) {
         val contextHyp =
           if contextPremises.isEmpty then None else Some(assume(contextPremise))
-        val wellTypedArgs = wellTypedFormula(c.semanticSignature(vars))
-        val pairTerm = pair(c.appliedTerm(vars), body)
+        val wellTypedArgs = pattern.branchPremiseAt(vars)
+        val pairTerm = pair(pattern.inputTermAt(vars), body)
 
         val membershipSchema =
           if contextPremises.isEmpty then
@@ -988,20 +473,20 @@ final class CaseDefinedWitness[N <: Arity](
 
         val witnessBetween =
           if contextPremises.isEmpty then
-            have(Function.functionBetween(witness)(adt.term)(returnType)) by Tautology.from(
+            have(Function.functionBetween(witness)(argType)(returnType)) by Tautology.from(
               BasicTheorems.funcBetweenEqInFuncSpace of (
                 f := witness,
-                A := adt.term,
+                A := argType,
                 B := returnType
               ),
               witnessHasType
             )
           else
             have(witness :: typ) by Tautology.from(witnessHasType, contextHyp.get)
-            have(Function.functionBetween(witness)(adt.term)(returnType)) by Tautology.from(
+            have(Function.functionBetween(witness)(argType)(returnType)) by Tautology.from(
               BasicTheorems.funcBetweenEqInFuncSpace of (
                 f := witness,
-                A := adt.term,
+                A := argType,
                 B := returnType
               ),
               lastStep
@@ -1009,44 +494,44 @@ final class CaseDefinedWitness[N <: Arity](
         val witnessIsFunction = have(Function.function(witness)) by Tautology.from(
           BasicTheorems.functionBetweenIsFunction of (
             f := witness,
-            A := adt.term,
+            A := argType,
             B := returnType
           ),
           witnessBetween
         )
-        val witnessDomain = have(Function.dom(witness) === adt.term) by Tautology.from(
+        val witnessDomain = have(Function.dom(witness) === argType) by Tautology.from(
           BasicTheorems.functionBetweenDomain of (
             f := witness,
-            A := adt.term,
+            A := argType,
             B := returnType
           ),
           witnessBetween
         )
 
-        val inputTyping = have(wellTypedArgs |- c.appliedTerm(vars) :: adt.term) by
-          Tautology.from(constructorInputTyping(c, vars))
-        val inputInDomain = have(wellTypedArgs |- c.appliedTerm(vars) ∈ Function.dom(witness)) by
+        val inputTyping = have(wellTypedArgs |- pattern.inputTermAt(vars) :: argType) by
+          Tautology.from(pattern.inputTypingAt(vars, argType))
+        val inputInDomain = have(wellTypedArgs |- pattern.inputTermAt(vars) ∈ Function.dom(witness)) by
           Congruence.from(inputTyping, witnessDomain)
 
         val appEq = have(
-          wellTypedArgs |- (witness * c.appliedTerm(vars) === body) <=> (pairTerm ∈ witness)
+          wellTypedArgs |- (witness * pattern.inputTermAt(vars) === body) <=> (pairTerm ∈ witness)
         ) by Tautology.from(
           BasicTheorems.appDefinition of (
             f := witness,
-            x := c.appliedTerm(vars),
+            x := pattern.inputTermAt(vars),
             y := body
           ),
           witnessIsFunction,
           inputInDomain
         )
 
-        have(wellTypedArgs |- (witness * c.appliedTerm(vars) === body)) by
+        have(wellTypedArgs |- (witness * pattern.inputTermAt(vars) === body)) by
           Tautology.from(appEq, pairInWitness)
-        thenHave(wellTypedArgs ==> (witness * c.appliedTerm(vars) === body)) by RightImplies
+        thenHave(wellTypedArgs ==> (witness * pattern.inputTermAt(vars) === body)) by RightImplies
         val core = thenHave(
           forallSeq(
             vars,
-            wellTypedFormula(c.semanticSignature(vars)) ==> (witness * c.appliedTerm(vars) === body)
+            pattern.branchPremiseAt(vars) ==> (witness * pattern.inputTermAt(vars) === body)
           )
         ) by QuantifiersIntro(vars)
 

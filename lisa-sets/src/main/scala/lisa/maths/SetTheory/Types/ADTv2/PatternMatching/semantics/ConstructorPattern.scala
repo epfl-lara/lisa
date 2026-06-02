@@ -22,6 +22,12 @@ final case class ConstructorPattern[N <: Arity](
 final case class ConstructorPatternSystem[N <: Arity](
     override val patterns: Seq[ConstructorHeadPattern[N]]
 ) extends PatternSystem[N] {
+  override def constructors: Seq[SemanticConstructor[N]] =
+    patterns.map(_.semanticConstructor).distinct
+
+  override def patternsFor(constructor: SemanticConstructor[N]): Seq[Pattern[N]] =
+    patterns.filter(_.semanticConstructor == constructor)
+
   override def coverage(domain: SemanticADT[N]): THM = {
     require(
       supportsAutomaticCoverage,
@@ -37,11 +43,6 @@ final case class ConstructorPatternSystem[N <: Arity](
 
   override def incompatible(pattern1: Pattern[N], pattern2: Pattern[N]): THM = {
     require(pattern1 != pattern2, "incompatible is only meaningful for distinct patterns.")
-    require(
-      !pattern1.hasSameHeadAs(pattern2),
-      s"ConstructorPatternSystem cannot derive incompatibility for same-head patterns (${pattern1.name}); this system expects at most one pattern per constructor."
-    )
-
     val constructorPattern1 = pattern1 match
       case pattern: ConstructorHeadPattern[N] => pattern
       case _ =>
@@ -55,6 +56,10 @@ final case class ConstructorPatternSystem[N <: Arity](
         throw new IllegalArgumentException(
           s"Pattern ${pattern2.name} is not constructor-headed."
         )
+    require(
+      !constructorPattern1.hasSameHeadAs(constructorPattern2),
+      s"ConstructorPatternSystem cannot derive incompatibility for same-head patterns (${pattern1.name}); this system expects at most one pattern per constructor."
+    )
 
     Lemma(
       (constructorPattern1.branchPremise1 /\ constructorPattern2.freshBranchPremise) ==>

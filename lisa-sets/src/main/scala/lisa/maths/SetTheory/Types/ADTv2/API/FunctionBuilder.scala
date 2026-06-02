@@ -45,8 +45,6 @@ def fun[N <: Arity](adt: SpecializedADT[N], returnType: Expr[Ind])(using
     case Left(msg) => throw new IllegalArgumentException(msg)
 }
 
-/** Second version of REC ------------------------------------------------- */
-
 def recFun[N <: Arity](adt: SpecializedADT[N], returnType: Expr[Ind])(using
     name: sourcecode.Name,
     valueOfN: ValueOf[N]
@@ -74,6 +72,8 @@ def recFun[N <: Arity](adt: SpecializedADT[N], returnType: Expr[Ind])(using
       val semantic = recursion.RecFunSemantics[N](
         name.value,
         adt.base.semantic,
+        adt.term,
+        effectiveTypeSubstitutions,
         self,
         specializedPatternSystem,
         returnType

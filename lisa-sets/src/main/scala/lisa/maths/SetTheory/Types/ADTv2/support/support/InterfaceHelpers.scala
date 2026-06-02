@@ -190,6 +190,27 @@ object InterfaceHelpers {
     }
   }
 
+  def instantiatedTheorem(using
+      line: sourcecode.Line,
+      file: sourcecode.File
+  )(
+      theoremOwner: String,
+      suffix: String,
+      substitutions: Seq[TypeSubstitution],
+      baseTheorem: THM
+  ): THM = {
+    val theoremName = s"$theoremOwner/$suffix"
+    THM(
+      baseTheorem.statement.substitute(substitutions*),
+      theoremName,
+      line.value,
+      file.value,
+      Theorem
+    ) {
+      have(thesis) by Restate.from(baseTheorem.of(substitutions*))
+    }
+  }
+
   def introAppAt(using
       line: sourcecode.Line,
       file: sourcecode.File

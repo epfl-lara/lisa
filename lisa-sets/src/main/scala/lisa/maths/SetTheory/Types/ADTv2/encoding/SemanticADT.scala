@@ -8,6 +8,7 @@ import lisa.maths.Quantifiers
 
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{TypeSubstitution, instantiatedTheorem, normalizeTypeSubstitutions, resolvedTypeArguments, theoremAt}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
 import lisa.maths.SetTheory.Types.ADTv2.support.core.`**`
@@ -37,6 +38,14 @@ class SemanticADT[N <: Arity](
     val constructors: Seq[SemanticConstructor[N]]
 ) {
 
+  private def normalizedTypeArguments(
+      substitutions: Seq[TypeSubstitution]
+  ): Seq[Expr[Ind]] =
+    resolvedTypeArguments(
+      typeVariablesSeq,
+      normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions)
+    )
+
   final class HeightAdapter private[SemanticADT] () {
     def predicate(h: Expr[Ind]): Expr[Prop] = underlying.isHeight(h)
     lazy val function: Expr[Ind] = underlying.height
@@ -48,6 +57,83 @@ class SemanticADT[N <: Arity](
     val termHasHeight: THM = underlying.termHasHeight
     def termsHaveHeight(c: SyntacticConstructor): THM = underlying.termsHaveHeight(c)
     def termsHaveHeight(c: SemanticConstructor[N]): THM = underlying.termsHaveHeight(c.underlying)
+
+    def validAt(
+        substitutions: Seq[TypeSubstitution]
+    )(using sourcecode.Line, sourcecode.File): THM =
+      instantiatedTheorem(
+        theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
+        suffix = "height/valid",
+        substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
+        baseTheorem = valid
+      )
+
+    def existsAt(
+        substitutions: Seq[TypeSubstitution]
+    )(using sourcecode.Line, sourcecode.File): THM =
+      instantiatedTheorem(
+        theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
+        suffix = "height/exists",
+        substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
+        baseTheorem = exists
+      )
+
+    def monotonicAt(
+        substitutions: Seq[TypeSubstitution]
+    )(using sourcecode.Line, sourcecode.File): THM =
+      instantiatedTheorem(
+        theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
+        suffix = "height/monotonic",
+        substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
+        baseTheorem = monotonic
+      )
+
+    def zeroAt(
+        substitutions: Seq[TypeSubstitution]
+    )(using sourcecode.Line, sourcecode.File): THM =
+      instantiatedTheorem(
+        theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
+        suffix = "height/zero",
+        substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
+        baseTheorem = zero
+      )
+
+    def successorStrongAt(
+        substitutions: Seq[TypeSubstitution]
+    )(using sourcecode.Line, sourcecode.File): THM =
+      instantiatedTheorem(
+        theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
+        suffix = "height/successorStrong",
+        substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
+        baseTheorem = successorStrong
+      )
+
+    def termHasHeightAt(
+        substitutions: Seq[TypeSubstitution]
+    )(using sourcecode.Line, sourcecode.File): THM =
+      instantiatedTheorem(
+        theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
+        suffix = "height/termHasHeight",
+        substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
+        baseTheorem = termHasHeight
+      )
+
+    def termsHaveHeightAt(
+        c: SyntacticConstructor,
+        substitutions: Seq[TypeSubstitution]
+    )(using sourcecode.Line, sourcecode.File): THM =
+      instantiatedTheorem(
+        theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
+        suffix = "height/termsHaveHeight",
+        substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
+        baseTheorem = termsHaveHeight(c)
+      )
+
+    def termsHaveHeightAt(
+        c: SemanticConstructor[N],
+        substitutions: Seq[TypeSubstitution]
+    )(using sourcecode.Line, sourcecode.File): THM =
+      termsHaveHeightAt(c.underlying, substitutions)
   }
 
   val height = HeightAdapter()
@@ -419,5 +505,40 @@ class SemanticADT[N <: Arity](
     }
     thenHave(thesis) by RightForall
   }
+
+  def inductionAt(
+      substitutions: Seq[TypeSubstitution]
+  )(using sourcecode.Line, sourcecode.File): THM =
+    theoremAt(
+      displayName = name,
+      typeVariables = typeVariablesSeq,
+      typeArgs = normalizedTypeArguments(substitutions),
+      suffix = "induction",
+      baseTheorem = induction
+    )
+
+  def elimAt(
+      substitutions: Seq[TypeSubstitution]
+  )(using sourcecode.Line, sourcecode.File): THM =
+    theoremAt(
+      displayName = name,
+      typeVariables = typeVariablesSeq,
+      typeArgs = normalizedTypeArguments(substitutions),
+      suffix = "elimination",
+      baseTheorem = elim
+    )
+
+  def injectivityAt(
+      c1: SemanticConstructor[N],
+      c2: SemanticConstructor[N],
+      substitutions: Seq[TypeSubstitution]
+  )(using sourcecode.Line, sourcecode.File): THM =
+    theoremAt(
+      displayName = name,
+      typeVariables = typeVariablesSeq,
+      typeArgs = normalizedTypeArguments(substitutions),
+      suffix = s"${c1.name}-${c2.name}/injectivity",
+      baseTheorem = injectivity(c1, c2)
+    )
 
 }

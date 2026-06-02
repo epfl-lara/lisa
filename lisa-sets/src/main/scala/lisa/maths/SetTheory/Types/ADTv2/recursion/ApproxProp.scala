@@ -1,6 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{specializeFormula, specializeTerm}
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.{altEqualityTransitivity, equivalenceApply, unionOfTwoNats}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
@@ -18,10 +19,11 @@ import lisa.maths.SetTheory.Types.TypingHelpers.*
 import lisa.maths.SetTheory.Types.TypingRules.TAbs
 
 import lisa.maths.Quantifiers
+import lisa.maths.SetTheory.Types.ADTv2.support.InstantiateForallSeq
 import lisa.utils.prooflib.BasicStepTactic.{LeftExists, Cut}
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
-import ApproxPropShared.{TAbsConstOn, constructorBranchesAtHeight, constructorDisjunctionAtHeight, subsetBelowSuccN, substitutedCaseBody}
+import ApproxPropShared.{TAbsConstOn, constructorBranchesAtHeight, constructorDisjunctionAtHeight, specializedConstructors, subsetBelowSuccN, substitutedCaseBody}
 
 /**
  * Approximant properties.
@@ -52,17 +54,21 @@ private[recursion] final class ApproxProp[N <: Arity](
   // Height function — ε-chosen concrete height function
   // ─────────────────────────────────────────────────────────────────────────
 
-  def isHeightPred(hh: Expr[Ind]): Expr[Prop] = spec.adt.height.predicate(hh)
+  def isHeightPred(hh: Expr[Ind]): Expr[Prop] =
+    specializeFormula(spec.adt.height.predicate(hh), spec.typeSubstitutions)
 
-  val heightFun: Expr[Ind] = spec.adt.height.function
+  val heightFun: Expr[Ind] =
+    specializeTerm(spec.adt.height.function, spec.typeSubstitutions)
 
-  val heightFunValid: THM = spec.adt.height.valid
+  val heightFunValid: THM = spec.adt.height.validAt(spec.typeSubstitutions)
 
-  private val heightSuccStrong = spec.adt.height.successorStrong
-  private val heightMonotonic  = spec.adt.height.monotonic
-  private val termHasHeight    = spec.adt.height.termHasHeight
+  private val heightZero       = spec.adt.height.zeroAt(spec.typeSubstitutions)
+  private val heightSuccStrong = spec.adt.height.successorStrongAt(spec.typeSubstitutions)
+  private val heightMonotonic  = spec.adt.height.monotonicAt(spec.typeSubstitutions)
+  private val termHasHeight    = spec.adt.height.termHasHeightAt(spec.typeSubstitutions)
 
   private val predVar = variable[Ind >>: Prop]
+  private val constructorsAt = specializedConstructors(spec.adt.constructors, spec.typeSubstitutions)
 
   // ─────────────────────────────────────────────────────────────────────────
   // Lemma D — stabilization
@@ -80,7 +86,7 @@ private[recursion] final class ApproxProp[N <: Arity](
     val zeroDef = have(Zero === ∅) by Restate.from(Zero.definition)
     val noElemAtEmpty = have(!in(a, app(heightFun)(∅))) by Cut(
       hValid,
-      spec.adt.height.zero of (h := heightFun, x := a)
+      heightZero of (h := heightFun, x := a)
     )
     val noElemAtZero = have(!in(a, app(heightFun)(Zero))) by Congruence.from(noElemAtEmpty, zeroDef)
 
@@ -114,10 +120,10 @@ private[recursion] final class ApproxProp[N <: Arity](
             Congruence.from(aInHeightSucc, succEq)
 
           val constructorBranch =
-            constructorBranchesAtHeight(spec.adt.constructors, app(heightFun)(nVar), a)
+            constructorBranchesAtHeight(constructorsAt, app(heightFun)(nVar), a)
 
           val constructorDisjunction =
-            constructorDisjunctionAtHeight(spec.adt.constructors, app(heightFun)(nVar), a)
+            constructorDisjunctionAtHeight(constructorsAt, app(heightFun)(nVar), a)
 
           val decomposeAtA = have(constructorDisjunction) by Tautology.from(
             hValid,
@@ -154,156 +160,187 @@ private[recursion] final class ApproxProp[N <: Arity](
             approxTypeAtSuccN
           )
 
-          val branchEqualities = spec.adt.constructors.map(c =>
-            val pattern = spec.patternMatching.patternFor(c)
-            val bodyAtGn = substitutedCaseBody(spec, c, G(nVar))
-            val bodyAtGSucc = substitutedCaseBody(spec, c, G(Succ(nVar)))
+          val branchEqualities = constructorsAt.map(sc =>
+            val c = sc.underlying
+            val constructorPatterns = spec.patternMatching.patternsFor(c)
 
             val directBranch = have(
-              c.branchPremiseAtHeight(app(heightFun)(nVar), a) |- goalAtA
+              sc.branchPremiseAtHeight(app(heightFun)(nVar), a) |- goalAtA
             ) subproof {
-              assume(c.branchPremiseAtHeight(app(heightFun)(nVar), a))
-              val branchPremise = have(c.branchPremiseAtHeight(app(heightFun)(nVar), a)) by Hypothesis
-              val argsTypedAtHeight = have(c.heightTypingFormula(app(heightFun)(nVar))) by Tautology
-              val argsTypedSemantic = have(wellTypedFormula(c.semanticSignature2)) by
+              assume(sc.branchPremiseAtHeight(app(heightFun)(nVar), a))
+              val branchPremise = have(sc.branchPremiseAtHeight(app(heightFun)(nVar), a)) by Hypothesis
+              val argsTypedAtHeight = have(sc.heightTypingFormula(app(heightFun)(nVar))) by Tautology
+              val argsTypedSemantic = have(wellTypedFormula(sc.semanticSignature2)) by
                 Tautology.from(
                   hValid,
                   nInN,
                   argsTypedAtHeight,
-                  c.semanticTypingFromHeight(heightFun, nVar)
+                  sc.semanticTypingFromHeight(heightFun, nVar)
                 )
-              val aEqApplied = have(a === c.appliedTerm2) by
+              val aEqApplied = have(a === sc.appliedTerm2) by
                 Tautology.from(
                   hValid,
                   nInN,
                   branchPremise,
-                  c.appliedEqualityFromStructural(heightFun, nVar, a)
+                  sc.appliedEqualityFromStructural(heightFun, nVar, a)
                 )
 
-              val selfArgEqualities = c.selfRefVariables2.map(v =>
-                  val ihAtN = have(
-                    ∀(a, (a ∈ app(heightFun)(nVar)) ==> (app(G(nVar))(a) === app(G(Succ(nVar)))(a)))
-                  ) by Restate.from(ih)
-                  val ihAtV = have(
-                    (v ∈ app(heightFun)(nVar)) ==> (app(G(nVar))(v) === app(G(Succ(nVar)))(v))
-                  ) by InstantiateForall(v)(ihAtN)
-                  have(app(G(nVar))(v) === app(G(Succ(nVar)))(v)) by
-                    Tautology.from(argsTypedAtHeight, ihAtV)
+              val selectionSchema = spec.patternMatching.branchSelectionFor(c, a)
+              val selectionSchemaInContext = have(selectionSchema.statement.right.head) by
+                Tautology.from(selectionSchema)
+              val selectionAtCtorVars = have(
+                (wellTypedFormula(sc.semanticSignature2) /\ (a === sc.appliedTerm2)) |-
+                  seqOr(constructorPatterns.map(pattern =>
+                    pattern.freshBranchCondition /\ (a === pattern.freshInputTerm)
+                  ))
+              ) by InstantiateForallSeq(c.variables2)(selectionSchemaInContext)
+              val selectedBranch = have(
+                seqOr(constructorPatterns.map(pattern =>
+                  pattern.freshBranchCondition /\ (a === pattern.freshInputTerm)
+                ))
+              ) by Tautology.from(selectionAtCtorVars, argsTypedSemantic, aEqApplied)
+
+              val selfArgEqualities = sc.selfRefVariables2.map(v =>
+                val ihAtN = have(
+                  ∀(a, (a ∈ app(heightFun)(nVar)) ==> (app(G(nVar))(a) === app(G(Succ(nVar)))(a)))
+                ) by Restate.from(ih)
+                val ihAtV = have(
+                  (v ∈ app(heightFun)(nVar)) ==> (app(G(nVar))(v) === app(G(Succ(nVar)))(v))
+                ) by InstantiateForall(v)(ihAtN)
+                have(app(G(nVar))(v) === app(G(Succ(nVar)))(v)) by
+                  Tautology.from(argsTypedAtHeight, ihAtV)
               )
 
-              val bodyEq =
-                LambdaBodyEquality.prove(bodyAtGn, bodyAtGSucc, selfArgEqualities)
+              val patternEqualities = constructorPatterns.map(pattern =>
+                val bodyAtGn = substitutedCaseBody(pattern, spec.selfPlaceholder, G(nVar), pattern.variables2)
+                val bodyAtGSucc = substitutedCaseBody(pattern, spec.selfPlaceholder, G(Succ(nVar)), pattern.variables2)
 
-              val witnessCaseNSchema = recWitness.witnessCase(pattern).of(spec.selfPlaceholder := G(nVar))
-              val witnessCaseNBase = witnessCaseNSchema.statement.right.head match
-                case _ ==> consequent =>
-                  have(consequent) by Tautology.from(witnessCaseNSchema, gNHasType)
-                case _ => throw UnreachableException
-              val witnessCaseNAtVars2 = c.variables2.foldLeft(witnessCaseNBase)((_, v2) =>
-                lastStep.statement.right.head match
-                  case forall(v, phi) =>
-                    thenHave(phi.substituteUnsafe(Map(v -> v2)).asInstanceOf[Expr[Prop]]) by
-                      InstantiateForall(v2)
-                  case _ => throw UnreachableException
-              )
-              val witnessAtCtorN = witnessCaseNAtVars2.statement.right.head match
-                case _ ==> consequent =>
-                  have(consequent) by Tautology.from(witnessCaseNAtVars2, argsTypedSemantic)
-                case _ => throw UnreachableException
+                have(
+                  (pattern.freshBranchCondition /\ (a === pattern.freshInputTerm)) |- goalAtA
+                ) subproof {
+                  val selectedPattern = assume(pattern.freshBranchCondition /\ (a === pattern.freshInputTerm))
+                  val patternGuard = have(pattern.freshBranchCondition) by Tautology.from(selectedPattern)
+                  val aEqPattern = have(a === pattern.freshInputTerm) by Tautology.from(selectedPattern)
+                  val patternPremise = have(pattern.freshBranchPremise) by Tautology.from(
+                    argsTypedSemantic,
+                    patternGuard
+                  )
 
-              val witnessCaseSuccSchema = recWitness.witnessCase(pattern).of(spec.selfPlaceholder := G(Succ(nVar)))
-              val witnessCaseSuccBase = witnessCaseSuccSchema.statement.right.head match
-                case _ ==> consequent =>
-                  have(consequent) by Tautology.from(witnessCaseSuccSchema, gSuccHasType)
-                case _ => throw UnreachableException
-              val witnessCaseSuccAtVars2 = c.variables2.foldLeft(witnessCaseSuccBase)((_, v2) =>
-                lastStep.statement.right.head match
-                  case forall(v, phi) =>
-                    thenHave(phi.substituteUnsafe(Map(v -> v2)).asInstanceOf[Expr[Prop]]) by
-                      InstantiateForall(v2)
-                  case _ => throw UnreachableException
-              )
-              val witnessAtCtorSucc = witnessCaseSuccAtVars2.statement.right.head match
-                case _ ==> consequent =>
-                  have(consequent) by Tautology.from(witnessCaseSuccAtVars2, argsTypedSemantic)
-                case _ => throw UnreachableException
+                  val bodyEq =
+                    LambdaBodyEquality.prove(bodyAtGn, bodyAtGSucc, selfArgEqualities)
 
-              val gSuccAtAIsWitness = have(app(G(Succ(nVar)))(a) === app(recWitness(G(nVar)))(a)) by
-                Congruence.from(gSuccEq)
-              val witnessAtGnInput = have(
-                app(recWitness(G(nVar)))(a) === app(recWitness(G(nVar)))(c.appliedTerm2)
-              ) by Congruence.from(aEqApplied)
-              val witnessAtGnAtA = have(app(recWitness(G(nVar)))(a) === bodyAtGn) by Tautology.from(
-                altEqualityTransitivity of (
-                  x := app(recWitness(G(nVar)))(a),
-                  y := app(recWitness(G(nVar)))(c.appliedTerm2),
-                  z := bodyAtGn
-                ),
-                witnessAtGnInput,
-                witnessAtCtorN
-              )
-              val gSuccAtA = have(app(G(Succ(nVar)))(a) === bodyAtGn) by Tautology.from(
-                altEqualityTransitivity of (
-                  x := app(G(Succ(nVar)))(a),
-                  y := app(recWitness(G(nVar)))(a),
-                  z := bodyAtGn
-                ),
-                gSuccAtAIsWitness,
-                witnessAtGnAtA
+                  val witnessCaseNSchema = recWitness.witnessCase(pattern).of(spec.selfPlaceholder := G(nVar))
+                  val witnessCaseNBase = witnessCaseNSchema.statement.right.head match
+                    case _ ==> consequent =>
+                      have(consequent) by Tautology.from(witnessCaseNSchema, gNHasType)
+                    case _ => throw UnreachableException
+                  val witnessCaseNAtVars2 = have(
+                    pattern.freshBranchPremise ==> (recWitness(G(nVar)) * pattern.freshInputTerm === bodyAtGn)
+                  ) by InstantiateForallSeq(pattern.variables2)(witnessCaseNBase)
+                  val witnessAtPatternN = witnessCaseNAtVars2.statement.right.head match
+                    case _ ==> consequent =>
+                      have(consequent) by Tautology.from(witnessCaseNAtVars2, patternPremise)
+                    case _ => throw UnreachableException
+
+                  val witnessCaseSuccSchema = recWitness.witnessCase(pattern).of(spec.selfPlaceholder := G(Succ(nVar)))
+                  val witnessCaseSuccBase = witnessCaseSuccSchema.statement.right.head match
+                    case _ ==> consequent =>
+                      have(consequent) by Tautology.from(witnessCaseSuccSchema, gSuccHasType)
+                    case _ => throw UnreachableException
+                  val witnessCaseSuccAtVars2 = have(
+                    pattern.freshBranchPremise ==> (recWitness(G(Succ(nVar))) * pattern.freshInputTerm === bodyAtGSucc)
+                  ) by InstantiateForallSeq(pattern.variables2)(witnessCaseSuccBase)
+                  val witnessAtPatternSucc = witnessCaseSuccAtVars2.statement.right.head match
+                    case _ ==> consequent =>
+                      have(consequent) by Tautology.from(witnessCaseSuccAtVars2, patternPremise)
+                    case _ => throw UnreachableException
+
+                  val gSuccAtAIsWitness = have(app(G(Succ(nVar)))(a) === app(recWitness(G(nVar)))(a)) by
+                    Congruence.from(gSuccEq)
+                  val witnessAtGnInput = have(
+                    app(recWitness(G(nVar)))(a) === app(recWitness(G(nVar)))(pattern.freshInputTerm)
+                  ) by Congruence.from(aEqPattern)
+                  val witnessAtGnAtA = have(app(recWitness(G(nVar)))(a) === bodyAtGn) by Tautology.from(
+                    altEqualityTransitivity of (
+                      x := app(recWitness(G(nVar)))(a),
+                      y := app(recWitness(G(nVar)))(pattern.freshInputTerm),
+                      z := bodyAtGn
+                    ),
+                    witnessAtGnInput,
+                    witnessAtPatternN
+                  )
+                  val gSuccAtA = have(app(G(Succ(nVar)))(a) === bodyAtGn) by Tautology.from(
+                    altEqualityTransitivity of (
+                      x := app(G(Succ(nVar)))(a),
+                      y := app(recWitness(G(nVar)))(a),
+                      z := bodyAtGn
+                    ),
+                    gSuccAtAIsWitness,
+                    witnessAtGnAtA
+                  )
+
+                  val gSuccSuccAtAIsWitness = have(
+                    app(G(Succ(Succ(nVar))))(a) === app(recWitness(G(Succ(nVar))))(a)
+                  ) by Congruence.from(gSuccSuccEq)
+                  val witnessAtGSuccInput = have(
+                    app(recWitness(G(Succ(nVar))))(a) === app(recWitness(G(Succ(nVar))))(pattern.freshInputTerm)
+                  ) by Congruence.from(aEqPattern)
+                  val witnessAtGSuccAtA = have(app(recWitness(G(Succ(nVar))))(a) === bodyAtGSucc) by
+                    Tautology.from(
+                      altEqualityTransitivity of (
+                        x := app(recWitness(G(Succ(nVar))))(a),
+                        y := app(recWitness(G(Succ(nVar))))(pattern.freshInputTerm),
+                        z := bodyAtGSucc
+                      ),
+                      witnessAtGSuccInput,
+                      witnessAtPatternSucc
+                    )
+                  val gSuccSuccAtA = have(app(G(Succ(Succ(nVar))))(a) === bodyAtGSucc) by Tautology.from(
+                    altEqualityTransitivity of (
+                      x := app(G(Succ(Succ(nVar))))(a),
+                      y := app(recWitness(G(Succ(nVar))))(a),
+                      z := bodyAtGSucc
+                    ),
+                    gSuccSuccAtAIsWitness,
+                    witnessAtGSuccAtA
+                  )
+                  val gSuccSuccAtARev = have(bodyAtGSucc === app(G(Succ(Succ(nVar))))(a)) by
+                    Congruence.from(gSuccSuccAtA)
+
+                  have(goalAtA) by Tautology.from(
+                    altEqualityTransitivity of (
+                      x := app(G(Succ(nVar)))(a),
+                      y := bodyAtGn,
+                      z := app(G(Succ(Succ(nVar))))(a)
+                    ),
+                    gSuccAtA,
+                    have(bodyAtGn === app(G(Succ(Succ(nVar))))(a)) by Tautology.from(
+                      altEqualityTransitivity of (
+                        x := bodyAtGn,
+                        y := bodyAtGSucc,
+                        z := app(G(Succ(Succ(nVar))))(a)
+                      ),
+                      bodyEq,
+                      gSuccSuccAtARev
+                    )
+                  )
+                }
               )
 
-              val gSuccSuccAtAIsWitness = have(
-                app(G(Succ(Succ(nVar))))(a) === app(recWitness(G(Succ(nVar))))(a)
-              ) by Congruence.from(gSuccSuccEq)
-              val witnessAtGSuccInput = have(
-                app(recWitness(G(Succ(nVar))))(a) === app(recWitness(G(Succ(nVar))))(c.appliedTerm2)
-              ) by Congruence.from(aEqApplied)
-              val witnessAtGSuccAtA = have(app(recWitness(G(Succ(nVar))))(a) === bodyAtGSucc) by
-                Tautology.from(
-                  altEqualityTransitivity of (
-                    x := app(recWitness(G(Succ(nVar))))(a),
-                    y := app(recWitness(G(Succ(nVar))))(c.appliedTerm2),
-                    z := bodyAtGSucc
-                  ),
-                  witnessAtGSuccInput,
-                  witnessAtCtorSucc
-                )
-              val gSuccSuccAtA = have(app(G(Succ(Succ(nVar))))(a) === bodyAtGSucc) by Tautology.from(
-                altEqualityTransitivity of (
-                  x := app(G(Succ(Succ(nVar))))(a),
-                  y := app(recWitness(G(Succ(nVar))))(a),
-                  z := bodyAtGSucc
-                ),
-                gSuccSuccAtAIsWitness,
-                witnessAtGSuccAtA
-              )
-              val gSuccSuccAtARev = have(bodyAtGSucc === app(G(Succ(Succ(nVar))))(a)) by
-                Congruence.from(gSuccSuccAtA)
+              val branchesToGoal =
+                if patternEqualities.size == 1 then
+                  have(selectedBranch.statement.right.head |- goalAtA) by Restate.from(patternEqualities.head)
+                else
+                  have(selectedBranch.statement.right.head |- goalAtA) by LeftOr(patternEqualities*)
 
-              have(goalAtA) by Tautology.from(
-                altEqualityTransitivity of (
-                  x := app(G(Succ(nVar)))(a),
-                  y := bodyAtGn,
-                  z := app(G(Succ(Succ(nVar))))(a)
-                ),
-                gSuccAtA,
-                have(bodyAtGn === app(G(Succ(Succ(nVar))))(a)) by Tautology.from(
-                  altEqualityTransitivity of (
-                    x := bodyAtGn,
-                    y := bodyAtGSucc,
-                    z := app(G(Succ(Succ(nVar))))(a)
-                  ),
-                  bodyEq,
-                  gSuccSuccAtARev
-                )
-              )
+              have(goalAtA) by Cut(selectedBranch, branchesToGoal)
             }
 
             val rawBranch = c.variables2.reverse.foldLeft(directBranch)((fact, v) =>
               thenHave(∃(v, fact.statement.left.head) |- goalAtA) by LeftExists
             )
 
-            have(constructorBranch(c) |- goalAtA) by Tautology.from(rawBranch)
+            have(constructorBranch(sc) |- goalAtA) by Tautology.from(rawBranch)
           )
 
           val branchesToGoal =

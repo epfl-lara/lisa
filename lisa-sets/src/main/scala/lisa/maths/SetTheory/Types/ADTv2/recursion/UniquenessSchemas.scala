@@ -1,14 +1,13 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
-import lisa.maths.SetTheory.Types.ADTv2.encoding.*
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.TypingHelpers.*
 import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.utils.fol.FOL.App
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
-type ConstructorSchemas[N <: Arity] =
-  Map[SemanticConstructor[N], (Seq[Variable[Ind]], Expr[Prop])]
+type PatternSchemas[N <: Arity] =
+  Map[Pattern[N], (Seq[Variable[Ind]], Expr[Prop])]
 
 def asIndEquality(formula: Expr[Prop]): Option[(Expr[Ind], Expr[Ind])] = formula match
   case App(App(eqFun, lhs: Expr[Ind]), rhs: Expr[Ind]) if eqFun == equality => Some((lhs, rhs))
@@ -24,29 +23,36 @@ def stripForalls(formula: Expr[Prop]): (Seq[Variable[Ind]], Expr[Prop]) = formul
     (v +: restVars, core)
   case other => (Seq.empty, other)
 
-def extractConstructorCaseSchema[N <: Arity](
+def splitImplication(formula: Expr[Prop]): (Expr[Prop], Expr[Prop]) = formula match
+  case antecedent ==> consequent =>
+    (
+      simplify(antecedent.asInstanceOf[Expr[Prop]]),
+      consequent.asInstanceOf[Expr[Prop]]
+    )
+  case other => (⊤, other)
+
+def extractPatternCaseSchema[N <: Arity](
     definition: Expr[Prop],
     functionHead: Expr[Ind],
-    constructor: SemanticConstructor[N]
+    pattern: Pattern[N]
 ): (Seq[Variable[Ind]], Expr[Prop]) = {
   val maybeSchema = splitConjunctions(definition).iterator.flatMap(candidate =>
     val (vars, core) = stripForalls(candidate)
-    val maybeEquality = core match
-      case _ ==> equalityFormula => asIndEquality(equalityFormula)
-      case equalityFormula       => asIndEquality(equalityFormula)
+    val (antecedent, conclusion) = splitImplication(core)
+    val maybeEquality = asIndEquality(conclusion)
 
-    maybeEquality.flatMap((lhs, _) =>
-      lhs match
-        case Sapp(fun: Expr[Ind], arg: Expr[Ind])
-            if fun == functionHead && arg == constructor.appliedTerm(vars) =>
-          Some(vars -> candidate)
-        case _ => None
+    maybeEquality.flatMap((lhs, rhs) =>
+      val expectedApplication = functionHead * pattern.inputTermAt(vars)
+      val expectedPremise = simplify(pattern.branchPremiseAt(vars))
+      if (lhs == expectedApplication || rhs == expectedApplication) && antecedent == expectedPremise then
+        Some(vars -> candidate)
+      else None
     )
   ).toSeq.headOption
 
   maybeSchema.getOrElse(
     throw IllegalArgumentException(
-      s"Unable to extract constructor case schema for constructor ${constructor.name} and function ${functionHead}."
+      s"Unable to extract pattern case schema for pattern ${pattern.name} and function ${functionHead}."
     )
   )
 }

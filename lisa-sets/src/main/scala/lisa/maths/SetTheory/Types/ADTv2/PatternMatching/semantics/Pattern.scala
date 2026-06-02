@@ -4,7 +4,6 @@ import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Base.Pair
 import lisa.maths.SetTheory.Types.ADTv2.encoding.{SemanticADT, SemanticConstructor}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ConstructorTyping
 import lisa.utils.fol.FOL.SubstPair
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.ProofTacticLib.Arity
@@ -21,25 +20,15 @@ trait Pattern[N <: Arity] {
 
   def body: Expr[Ind]
 
-  def semanticConstructor: SemanticConstructor[N]
+  def name: String
 
-  def name: String = semanticConstructor.name
+  def arity: Int
 
-  def correspondsTo(candidate: SemanticConstructor[N]): Boolean =
-    semanticConstructor == candidate
-
-  def hasSameHeadAs(other: Pattern[N]): Boolean =
-    semanticConstructor == other.semanticConstructor
-
-  def arity: Int = semanticConstructor.arity
-
-  def inputTermAt(vars: Seq[Variable[Ind]]): Expr[Ind] =
-    semanticConstructor.appliedTerm(vars)
+  def inputTermAt(vars: Seq[Variable[Ind]]): Expr[Ind]
 
   def inputTerm: Expr[Ind] = inputTermAt(binders)
 
-  def typingSignatureAt(vars: Seq[Variable[Ind]]): Seq[(Variable[Ind], Expr[Ind])] =
-    semanticConstructor.semanticSignature(vars)
+  def typingSignatureAt(vars: Seq[Variable[Ind]]): Seq[(Variable[Ind], Expr[Ind])]
 
   def typingPremisesAt(vars: Seq[Variable[Ind]]): Set[Expr[Prop]] =
     wellTypedSet(typingSignatureAt(vars))
@@ -55,7 +44,7 @@ trait Pattern[N <: Arity] {
 
   def branchPremise: Expr[Prop] = simplify(typingFormula /\ branchCondition)
 
-  def variables2: Seq[Variable[Ind]] = semanticConstructor.variables2
+  def variables2: Seq[Variable[Ind]]
 
   def freshInputTerm: Expr[Ind] = inputTermAt(variables2)
 
@@ -79,10 +68,7 @@ trait Pattern[N <: Arity] {
 
   def bodyAtFreshVars2: Expr[Ind] = bodyAt(variables2)
 
-  def inputTypingAt(vars: Seq[Variable[Ind]], adtTerm: Expr[Ind]): THM = {
-    require(adtTerm == semanticConstructor.adt.term, "Pattern.inputTypingAt currently expects the owning ADT term.")
-    ConstructorTyping.constructorApplicationTyping(semanticConstructor, vars)
-  }
+  def inputTypingAt(vars: Seq[Variable[Ind]], adtTerm: Expr[Ind]): THM
 
   def withBody(newBody: Expr[Ind]): Pattern[N]
 }
@@ -94,11 +80,9 @@ trait PatternSystem[N <: Arity] {
 
   def patterns: Seq[Pattern[N]]
 
-  def constructors: Seq[SemanticConstructor[N]] =
-    patterns.map(_.semanticConstructor).distinct
+  def constructors: Seq[SemanticConstructor[N]]
 
-  def patternsFor(constructor: SemanticConstructor[N]): Seq[Pattern[N]] =
-    patterns.filter(_.semanticConstructor == constructor)
+  def patternsFor(constructor: SemanticConstructor[N]): Seq[Pattern[N]]
 
   def patternFor(constructor: SemanticConstructor[N]): Pattern[N] =
     patternsFor(constructor) match
@@ -137,15 +121,45 @@ trait PatternSystem[N <: Arity] {
   def branchSelectionFor(constructor: SemanticConstructor[N], term: Expr[Ind]): THM
 
   def incompatible(pattern1: Pattern[N], pattern2: Pattern[N]): THM
+
+  def debugTheorems(domain: SemanticADT[N]): Seq[(String, Either[String, THM])] = {
+    val coverageFact = "coverage" -> Right(coverage(domain))
+    val selectorFacts = constructors.map(constructor =>
+      val term = variable[Ind](s"${constructor.name}/debugTerm")
+      s"branchSelectionFor(${constructor.name})" -> Right(branchSelectionFor(constructor, term))
+    )
+    val incompatibilityFacts = patterns.zipWithIndex.flatMap { case (pattern1, index1) =>
+      patterns.zipWithIndex.collect {
+        case (pattern2, index2) if index1 < index2 =>
+          val label = s"incompatible(${pattern1.name}#$index1, ${pattern2.name}#$index2)"
+          try label -> Right(incompatible(pattern1, pattern2))
+          catch
+            case exception: IllegalArgumentException => label -> Left(exception.getMessage)
+      }
+    }
+    coverageFact +: (selectorFacts ++ incompatibilityFacts)
+  }
+
+  def debugDump(domain: SemanticADT[N]): Unit = {
+    println(s"===== PatternSystem Debug (${getClass.getSimpleName}) =====")
+    println(s"constructors: ${constructors.map(_.name).mkString(", ")}")
+    println(s"patterns: ${patterns.map(_.name).mkString(", ")}")
+    debugTheorems(domain).foreach {
+      case (label, Right(theorem)) =>
+        println(s"[$label] ${theorem.statement}")
+      case (label, Left(message)) =>
+        println(s"[$label] skipped: $message")
+    }
+    println("")
+  }
 }
 
 final case class SpecializedPattern[N <: Arity](
     underlying: Pattern[N],
     typeSubstitutions: Seq[SubstPair { type S = Ind }],
-    specializedAdtTerm: Expr[Ind]
+    specializedAdtTerm: Expr[Ind],
+    bodyOverride: Option[Expr[Ind]] = None
 ) extends Pattern[N] {
-  override def semanticConstructor: SemanticConstructor[N] = underlying.semanticConstructor
-
   private def specializeTerm(term: Expr[Ind]): Expr[Ind] =
     term.substitute(typeSubstitutions*)
 
@@ -153,8 +167,11 @@ final case class SpecializedPattern[N <: Arity](
     formula.substitute(typeSubstitutions*)
 
   override lazy val binders: Seq[Variable[Ind]] = underlying.binders
-  override lazy val body: Expr[Ind] = specializeTerm(underlying.body)
+  override lazy val name: String = underlying.name
+  override lazy val arity: Int = underlying.arity
+  override lazy val body: Expr[Ind] = bodyOverride.getOrElse(specializeTerm(underlying.body))
   override lazy val branchCondition: Expr[Prop] = specializeProp(underlying.branchCondition)
+  override lazy val variables2: Seq[Variable[Ind]] = underlying.variables2
   override lazy val typingPremises: Set[Expr[Prop]] =
     underlying.typingPremises.map(specializeProp)
   override lazy val typingFormula: Expr[Prop] =
@@ -171,14 +188,14 @@ final case class SpecializedPattern[N <: Arity](
       adtTerm == specializedAdtTerm,
       "SpecializedPattern.inputTypingAt expects the specialized ADT term."
     )
-    val base = ConstructorTyping.constructorApplicationTyping(semanticConstructor, vars)
+    val base = ConstructorHeadPattern.require(underlying).inputTypingAt(vars, ConstructorHeadPattern.require(underlying).semanticConstructor.adt.term)
     Lemma(base.statement.substitute(typeSubstitutions*)) {
       have(thesis) by Restate.from(base.of(typeSubstitutions*))
     }
   }
 
   override def withBody(newBody: Expr[Ind]): Pattern[N] =
-    copy(underlying = underlying.withBody(newBody), specializedAdtTerm = specializedAdtTerm)
+    copy(bodyOverride = Some(newBody))
 }
 
 final case class SpecializedPatternSystem[N <: Arity](
@@ -194,6 +211,12 @@ final case class SpecializedPatternSystem[N <: Arity](
 
   override lazy val patterns: Seq[Pattern[N]] =
     underlying.patterns.map(specializedPatternsByUnderlying)
+
+  override def constructors: Seq[SemanticConstructor[N]] =
+    underlying.constructors
+
+  override def patternsFor(constructor: SemanticConstructor[N]): Seq[Pattern[N]] =
+    underlying.patternsFor(constructor).map(specializedPatternsByUnderlying)
 
   override def supportsAutomaticCoverage: Boolean =
     underlying.supportsAutomaticCoverage

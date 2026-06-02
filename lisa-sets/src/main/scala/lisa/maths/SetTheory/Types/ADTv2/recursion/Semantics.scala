@@ -1,7 +1,8 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{Pattern, PatternSystem}
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{ConstructorHeadPattern, Pattern, PatternSystem}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.UniqueCharacterizedSymbol
 import lisa.maths.SetTheory.Types.TypingHelpers.*
@@ -15,6 +16,8 @@ import lisa.maths.SetTheory.Types.ADTv2.support.core.`**`
 final class RecFunSemantics[N <: Arity](
     val name: String,
     val adt: SemanticADT[N],
+    val argType: Expr[Ind],
+    val typeSubstitutions: Seq[TypeSubstitution],
     selfPlaceholder: Variable[Ind],
     patternMatching: PatternSystem[N],
     val returnType: Expr[Ind]
@@ -23,6 +26,8 @@ final class RecFunSemantics[N <: Arity](
   private val spec = FunSpec[N](
     functionName = name,
     adt = adt,
+    argType = argType,
+    typeSubstitutions = typeSubstitutions,
     selfPlaceholder = selfPlaceholder,
     patternMatching = patternMatching,
     returnType = returnType
@@ -31,17 +36,23 @@ final class RecFunSemantics[N <: Arity](
   val typeVariables: Variable[Ind] ** N = adt.typeVariables
   val typeVariablesSeq: Seq[Variable[Ind]] = spec.typeVariablesSeq
   val typeArity: N = spec.typeArity
-  val argType: Expr[Ind] = spec.argType
   val typ: Expr[Ind] = spec.typ
   val rawPatterns: Seq[Pattern[N]] = spec.cases
 
+  println(s"=== RecFunSemantics for $name ===")
+
   private val witness: Witness[N] = new Witness[N](spec)
 
+  println(s"=== Witness for $name ===")
   private val approx = new Approx[N](spec, witness)
+  println(s"=== Approx for $name ===")
   private val approxProp = new ApproxProp[N](spec, witness, approx)
+  println(s"=== ApproxProp for $name ===")
   val existence: Existence[N] = new Existence[N](spec, witness, approx, approxProp)
+  println(s"=== Existence for $name ===")
 
   private val functionUniquenessProof = new Uniqueness[N](spec)
+  println(s"=== Uniqueness for $name ===")
 
   private val untypedDef: Expr[Prop] = spec.untypedDefinition(f)
 
@@ -98,7 +109,9 @@ final class RecFunSemantics[N <: Arity](
   val cases: Seq[Pattern[N]] = patterns
 
   private def compiledPatternFor(constructor: SemanticConstructor[N]): Pattern[N] =
-    compiledCases.find(_.correspondsTo(constructor)).getOrElse(
+    compiledCases.find(pattern =>
+      ConstructorHeadPattern.require(pattern).correspondsTo(constructor)
+    ).getOrElse(
       throw new IllegalArgumentException(s"No compiled pattern registered for constructor ${constructor.name}.")
     )
 

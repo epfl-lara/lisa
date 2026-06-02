@@ -56,6 +56,12 @@ object NestedConstructorPattern {
 final case class NestedPatternSystem[N <: Arity](
     override val patterns: Seq[ConstructorHeadPattern[N]]
 ) extends PatternSystem[N] {
+  override def constructors: Seq[SemanticConstructor[N]] =
+    patterns.map(_.semanticConstructor).distinct
+
+  override def patternsFor(constructor: SemanticConstructor[N]): Seq[Pattern[N]] =
+    patterns.filter(_.semanticConstructor == constructor)
+
   override def supportsAutomaticCoverage: Boolean = false
 
   override def coverage(domain: SemanticADT[N]): THM = {

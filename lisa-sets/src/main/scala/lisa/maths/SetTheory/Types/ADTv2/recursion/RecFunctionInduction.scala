@@ -1,7 +1,10 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{Pattern, PatternSystem}
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{TypeSubstitution, instantiatedSemanticSignature, specializeFormula, specializeTerm}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.core.InstantiateForallSeq
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
 import lisa.maths.SetTheory.Types.TypingHelpers.*
@@ -15,21 +18,21 @@ import lisa.utils.prooflib.BasicStepTactic.Restate
 private[recursion] object RecFunctionInduction {
 
   private def requireSchemaCoverage[N <: Arity](
-      adt: SemanticADT[N],
-      schemas: ConstructorSchemas[N],
+      patternMatching: PatternSystem[N],
+      schemas: PatternSchemas[N],
       schemaLabel: String,
       functionName: String
   ): Unit = {
-    val expectedConstructors = adt.constructors.toSet
+    val expectedPatterns = patternMatching.patterns.toSet
     require(
-      schemas.keySet == expectedConstructors,
-      s"$schemaLabel($functionName): constructor schemas do not cover the ADT constructors."
+      schemas.keySet == expectedPatterns,
+      s"$schemaLabel($functionName): pattern schemas do not cover the pattern system."
     )
-    adt.constructors.foreach(c =>
-      val (vars, _) = schemas(c)
+    patternMatching.patterns.foreach(pattern =>
+      val (vars, _) = schemas(pattern)
       require(
-        vars.length == c.variables1.length,
-        s"$schemaLabel($functionName): constructor schema for ${c.name} has arity ${vars.length}, expected ${c.variables1.length}."
+        vars.length == pattern.binders.length,
+        s"$schemaLabel($functionName): pattern schema for ${pattern.name} has arity ${vars.length}, expected ${pattern.binders.length}."
       )
     )
   }
@@ -37,7 +40,7 @@ private[recursion] object RecFunctionInduction {
   private def instantiateSchemaAtBranch(using proof: lisa.SetTheoryLibrary.Proof)(
       localAssumptions: Set[Expr[Prop]],
       branchVars: Seq[Variable[Ind]],
-      argsTyped: proof.Fact,
+      branchPremise: proof.Fact,
       schema: (Seq[Variable[Ind]], Expr[Prop]),
       schemaFact: proof.Fact,
       errorContext: String
@@ -58,30 +61,36 @@ private[recursion] object RecFunctionInduction {
     )
 
     schemaAtBranch.statement.right.head match
-      case _ ==> consequent =>
-        have(localAssumptions |- consequent.asInstanceOf[Expr[Prop]]) by Tautology.from(schemaAtBranch, argsTyped)
+      case antecedent ==> consequent =>
+        val normalizedAntecedent = simplify(antecedent.asInstanceOf[Expr[Prop]])
+        val normalizedBranchPremise = simplify(branchPremise.statement.right.head.asInstanceOf[Expr[Prop]])
+        require(
+          normalizedAntecedent == normalizedBranchPremise,
+          s"$errorContext: schema antecedent does not match branch premise.\nSchema antecedent: $normalizedAntecedent\nBranch premise: $normalizedBranchPremise"
+        )
+        have(localAssumptions |- consequent.asInstanceOf[Expr[Prop]]) by Tautology.from(schemaAtBranch, branchPremise)
       case equalityFormula =>
         have(localAssumptions |- equalityFormula.asInstanceOf[Expr[Prop]]) by Restate.from(schemaAtBranch)
   }
 
-  private def extractBodyAtConstructor(using proof: lisa.SetTheoryLibrary.Proof)(
-      equalityAtConstructor: proof.Fact,
+  private def extractBodyAtBranch(using proof: lisa.SetTheoryLibrary.Proof)(
+      equalityAtBranch: proof.Fact,
       functionHead: Expr[Ind],
-      constructorTerm: Expr[Ind],
-      constructorName: String,
+      inputTerm: Expr[Ind],
+      branchName: String,
       sideLabel: String
   ): Expr[Ind] = {
-    asIndEquality(equalityAtConstructor.statement.right.head.asInstanceOf[Expr[Prop]]) match
+    asIndEquality(equalityAtBranch.statement.right.head.asInstanceOf[Expr[Prop]]) match
       case Some((leftEq, rightEq)) =>
-        if leftEq == (functionHead * constructorTerm) then rightEq
-        else if rightEq == (functionHead * constructorTerm) then leftEq
+        if leftEq == (functionHead * inputTerm) then rightEq
+        else if rightEq == (functionHead * inputTerm) then leftEq
         else
           throw IllegalArgumentException(
-            s"Unexpected $sideLabel-constructor equality shape for $constructorName: ${equalityAtConstructor.statement.right.head}"
+            s"Unexpected $sideLabel-branch equality shape for $branchName: ${equalityAtBranch.statement.right.head}"
           )
       case _ =>
         throw IllegalArgumentException(
-          s"Unexpected $sideLabel-constructor equality shape for $constructorName: ${equalityAtConstructor.statement.right.head}"
+          s"Unexpected $sideLabel-branch equality shape for $branchName: ${equalityAtBranch.statement.right.head}"
         )
   }
 
@@ -103,6 +112,7 @@ private[recursion] object RecFunctionInduction {
 
   private def liftBranchToInductiveCase[N <: Arity](using proof: lisa.SetTheoryLibrary.Proof)(
       adt: SemanticADT[N],
+      argType: Expr[Ind],
       syntacticSignature: Seq[(Variable[Ind], ConstructorArg)],
       propertyAt: Expr[Ind] => Expr[Prop],
       branchEquality: proof.Fact,
@@ -117,8 +127,8 @@ private[recursion] object RecFunctionInduction {
         case SelfRef =>
           val ihAssumptionAtVar = selectSelfRefAssumption(v, liftedInductiveCase.statement.left)
           val selfTypingAtVar = liftedInductiveCase.statement.left.find(typing =>
-            typing == (v ∈ adt.term) || typing == (v :: adt.term)
-          ).getOrElse(v ∈ adt.term)
+            typing == (v ∈ argType) || typing == (v :: argType)
+          ).getOrElse(v ∈ argType)
           val ihLifted = have((liftedInductiveCase.statement -<? ihAssumptionAtVar).left |- ihAssumptionAtVar ==> accRight) by
             RightImplies.withParameters(ihAssumptionAtVar, accRight)(liftedInductiveCase)
           val typingLifted = have((ihLifted.statement -<? selfTypingAtVar).left |- selfTypingAtVar ==> (ihAssumptionAtVar ==> accRight)) by
@@ -127,10 +137,15 @@ private[recursion] object RecFunctionInduction {
             RightForall(typingLifted)
 
         case TypeArg(typeName) =>
-          val t = typeExprToTerm(typeName)
           val typingAtVar = liftedInductiveCase.statement.left.find(typing =>
-            typing == (v ∈ t) || typing == (v :: t)
-          ).getOrElse(v ∈ t)
+            typing match
+              case VarTypeAssign(variable, _) => variable == v
+              case _                          => false
+          ).getOrElse(
+            throw IllegalArgumentException(
+              s"Missing specialized typing assumption for $v in constructor argument of type $typeName."
+            )
+          )
           val typingLifted = have((liftedInductiveCase.statement -<? typingAtVar).left |- typingAtVar ==> accRight) by
             RightImplies.withParameters(typingAtVar, accRight)(liftedInductiveCase)
           liftedInductiveCase = have(typingLifted.statement.left |- forall(v, typingAtVar ==> accRight)) by
@@ -141,6 +156,7 @@ private[recursion] object RecFunctionInduction {
 
   private def assemblePointwiseFromConstructorCases[N <: Arity](using proof: lisa.SetTheoryLibrary.Proof)(
       adt: SemanticADT[N],
+      typeSubstitutions: Seq[TypeSubstitution],
       assumptions: Set[Expr[Prop]],
       pointwiseGoal: Expr[Prop],
       prop: Expr[lisa.utils.fol.FOL.Arrow[Ind, Prop]],
@@ -149,12 +165,13 @@ private[recursion] object RecFunctionInduction {
   ): proof.Fact = {
     val rawInductionGoal =
       adt.constructors.foldRight[Expr[Prop]](pointwiseGoal)((c, fc) =>
-        c.inductiveCase.substitute(P := prop).asInstanceOf[Expr[Prop]] ==> fc
+        specializeFormula(c.inductiveCase.substitute(P := prop).asInstanceOf[Expr[Prop]], typeSubstitutions) ==> fc
       )
-    val inductionInstantiation = have(rawInductionGoal) by Restate.from(adt.induction of (P := prop))
+    val inductionInstantiation = have(rawInductionGoal) by Restate.from(adt.inductionAt(typeSubstitutions) of (P := prop))
 
     val constructorImplications: Seq[proof.Fact] = constructorCases.map { case (constructor, caseFact) =>
-      val expectedCase = constructor.inductiveCase.substitute(P := prop).asInstanceOf[Expr[Prop]]
+      val expectedCase =
+        specializeFormula(constructor.inductiveCase.substitute(P := prop).asInstanceOf[Expr[Prop]], typeSubstitutions)
       val normalizedExpectedCase = normalForm(expectedCase)
       val normalizedCase = have(assumptions |- normalizedExpectedCase) by Tableau.from(caseFact)
       have(assumptions |- expectedCase) by Restate.from(normalizedCase)
@@ -175,6 +192,9 @@ private[recursion] object RecFunctionInduction {
 
   def pointwiseUniquenessAt[N <: Arity](
       adt: SemanticADT[N],
+      patternMatching: PatternSystem[N],
+      argType: Expr[Ind],
+      typeSubstitutions: Seq[TypeSubstitution],
       inductionVariable: Variable[Ind],
       assumptions: Set[Expr[Prop]],
       propertyAt: Expr[Ind] => Expr[Prop],
@@ -182,112 +202,164 @@ private[recursion] object RecFunctionInduction {
       yFun: Expr[Ind],
       xDefinitionFormula: Expr[Prop],
       yDefinitionFormula: Expr[Prop],
-      xConstructorSchemas: ConstructorSchemas[N],
-      yConstructorSchemas: ConstructorSchemas[N]
+      xPatternSchemas: PatternSchemas[N],
+      yPatternSchemas: PatternSchemas[N]
   ): JUSTIFICATION = {
-    requireSchemaCoverage(adt, xConstructorSchemas, "pointwiseUniquenessAt/x", "<anonymous>")
-    requireSchemaCoverage(adt, yConstructorSchemas, "pointwiseUniquenessAt/y", "<anonymous>")
+    requireSchemaCoverage(patternMatching, xPatternSchemas, "pointwiseUniquenessAt/x", "<anonymous>")
+    requireSchemaCoverage(patternMatching, yPatternSchemas, "pointwiseUniquenessAt/y", "<anonymous>")
 
-    val pointwiseGoal = ∀(inductionVariable, inductionVariable ∈ adt.term ==> propertyAt(inductionVariable))
+    val pointwiseGoal = ∀(inductionVariable, inductionVariable ∈ argType ==> propertyAt(inductionVariable))
 
     Lemma(assumptions |- pointwiseGoal) {
       val prop = λ(inductionVariable, propertyAt(inductionVariable))
 
       val constructorCases = adt.constructors.map(c =>
         val branchVars = c.variables1
-        val branchTarget = propertyAt(c.appliedTerm(branchVars))
-        val constructorCaseGoal = normalForm(c.inductiveCase.substitute(P := prop).asInstanceOf[Expr[Prop]])
+        val branchInput = specializeTerm(c.appliedTerm(branchVars), typeSubstitutions)
+        val branchTarget = propertyAt(branchInput)
+        val constructorCaseGoal = normalForm(
+          specializeFormula(c.inductiveCase.substitute(P := prop).asInstanceOf[Expr[Prop]], typeSubstitutions)
+        )
+        val specializedSignature = instantiatedSemanticSignature(c.semanticSignature(branchVars), typeSubstitutions)
         val localAssumptions = assumptions ++
-          wellTypedSet(c.semanticSignature(branchVars)) ++
+          wellTypedSet(specializedSignature) ++
           c.syntacticSignature(branchVars).collect {
             case (v, SelfRef) => propertyAt(v)
           }.toSet
 
         c -> Lemma(assumptions |- constructorCaseGoal) {
-          val argsTyped = have(localAssumptions |- wellTypedFormula(c.semanticSignature(branchVars))) by Tautology
+          val argsTyped = have(localAssumptions |- wellTypedFormula(specializedSignature)) by Tautology
+          val constructorPatterns = patternMatching.patternsFor(c)
+          val selectionSchema = patternMatching.branchSelectionFor(c, branchInput)
+          val selectionSchemaInContext = have(selectionSchema.statement.right.head) by Tautology.from(selectionSchema)
+          val selectionAtBranchVars = have(
+            localAssumptions |- seqOr(constructorPatterns.map(pattern =>
+              pattern.branchConditionAt(branchVars) /\ (branchInput === pattern.inputTermAt(branchVars))
+            ))
+          ) by InstantiateForallSeq(branchVars)(selectionSchemaInContext)
 
-          def instantiateCaseFromDefinition(
+          def instantiateCaseFromDefinition(using proof: lisa.SetTheoryLibrary.Proof)(
+              contextAssumptions: Set[Expr[Prop]],
               definition: Expr[Prop],
-              schema: (Seq[Variable[Ind]], Expr[Prop])
-          ) = {
+              schema: (Seq[Variable[Ind]], Expr[Prop]),
+              branchPremise: proof.Fact
+          ): proof.Fact = {
             val (caseVars, caseSchemaFormula) = schema
-            val definitionFact = have(localAssumptions |- definition) by Tautology
+            val definitionFact = have(contextAssumptions |- definition) by Tautology
             val schemaFromDefinition = have(definition |- caseSchemaFormula) by Tautology
-            val caseSchema = have(localAssumptions |- caseSchemaFormula) by
+            val caseSchema = have(contextAssumptions |- caseSchemaFormula) by
               Cut.withParameters(definition)(definitionFact, schemaFromDefinition)
             instantiateSchemaAtBranch(
-              localAssumptions = localAssumptions,
+              localAssumptions = contextAssumptions,
               branchVars = branchVars,
-              argsTyped = argsTyped,
+              branchPremise = branchPremise,
               schema = caseVars -> caseSchemaFormula,
               schemaFact = caseSchema,
               errorContext = s"pointwiseUniquenessAt/${c.name}"
             )
           }
 
-          val xAtConstructor = instantiateCaseFromDefinition(
-            definition = xDefinitionFormula,
-            schema = xConstructorSchemas(c)
+          val branchEqualities = constructorPatterns.map(pattern =>
+            have(
+              localAssumptions + (pattern.branchConditionAt(branchVars) /\ (branchInput === pattern.inputTermAt(branchVars))) |- branchTarget
+            ) subproof {
+              val selectedPattern = assume(pattern.branchConditionAt(branchVars) /\ (branchInput === pattern.inputTermAt(branchVars)))
+              val branchAssumptions = localAssumptions + selectedPattern.statement.left.head
+              val patternGuard = have(pattern.branchConditionAt(branchVars)) by Tautology.from(selectedPattern)
+              val branchInputEqPattern = have(branchInput === pattern.inputTermAt(branchVars)) by Tautology.from(selectedPattern)
+              val patternPremise = have(branchAssumptions |- pattern.branchPremiseAt(branchVars)) by
+                Tautology.from(argsTyped, patternGuard)
+
+              val xAtBranch = instantiateCaseFromDefinition(
+                contextAssumptions = branchAssumptions,
+                definition = xDefinitionFormula,
+                schema = xPatternSchemas(pattern),
+                branchPremise = patternPremise
+              )
+
+              val yAtBranch = instantiateCaseFromDefinition(
+                contextAssumptions = branchAssumptions,
+                definition = yDefinitionFormula,
+                schema = yPatternSchemas(pattern),
+                branchPremise = patternPremise
+              )
+
+              val xBody = extractBodyAtBranch(
+                equalityAtBranch = xAtBranch,
+                functionHead = xFun,
+                inputTerm = pattern.inputTermAt(branchVars),
+                branchName = pattern.name,
+                sideLabel = "x"
+              )
+
+              val yBody = extractBodyAtBranch(
+                equalityAtBranch = yAtBranch,
+                functionHead = yFun,
+                inputTerm = pattern.inputTermAt(branchVars),
+                branchName = pattern.name,
+                sideLabel = "y"
+              )
+
+              val recursiveEqualityFacts = c.syntacticSignature(branchVars).collect {
+                case (v, SelfRef) =>
+                  have(branchAssumptions |- propertyAt(v)) by Tautology
+              }
+
+              val bodyEquality = proveBodyEqualityFromRecursiveFacts(
+                localAssumptions = branchAssumptions,
+                leftBody = xBody,
+                rightBody = yBody,
+                recursiveFacts = recursiveEqualityFacts,
+                constructorName = s"${c.name}/${pattern.name}",
+                contextLabel = "pointwiseUniquenessAt"
+              )
+
+              val xCtorToPattern = have(branchAssumptions |- (xFun * branchInput) === (xFun * pattern.inputTermAt(branchVars))) by
+                Congruence.from(branchInputEqPattern)
+              val yPatternToCtor = have(branchAssumptions |- (yFun * pattern.inputTermAt(branchVars)) === (yFun * branchInput)) by
+                Congruence.from(branchInputEqPattern)
+
+              val xBodyToYCtor = have(branchAssumptions |- xBody === (yFun * branchInput)) by Tautology.from(
+                altEqualityTransitivity of (
+                  x := xBody,
+                  y := yBody,
+                  z := yFun * branchInput
+                ),
+                bodyEquality,
+                yAtBranch,
+                yPatternToCtor
+              )
+
+              val branchEquality = have(branchAssumptions |- branchTarget) by Tautology.from(
+                altEqualityTransitivity of (
+                  x := xFun * branchInput,
+                  y := xBody,
+                  z := yFun * branchInput
+                ),
+                xCtorToPattern,
+                xAtBranch,
+                xBodyToYCtor
+              )
+
+              have(thesis) by Tautology.from(branchEquality)
+            }
           )
 
-          val yAtConstructor = instantiateCaseFromDefinition(
-            definition = yDefinitionFormula,
-            schema = yConstructorSchemas(c)
-          )
-
-          val xBody = extractBodyAtConstructor(
-            equalityAtConstructor = xAtConstructor,
-            functionHead = xFun,
-            constructorTerm = c.appliedTerm(branchVars),
-            constructorName = c.name,
-            sideLabel = "x"
-          )
-
-          val yBody = extractBodyAtConstructor(
-            equalityAtConstructor = yAtConstructor,
-            functionHead = yFun,
-            constructorTerm = c.appliedTerm(branchVars),
-            constructorName = c.name,
-            sideLabel = "y"
-          )
-
-          val recursiveEqualityFacts = c.syntacticSignature(branchVars).collect {
-            case (v, SelfRef) =>
-              have(localAssumptions |- propertyAt(v)) by Tautology
-          }
-
-          val bodyEquality = proveBodyEqualityFromRecursiveFacts(
-            localAssumptions = localAssumptions,
-            leftBody = xBody,
-            rightBody = yBody,
-            recursiveFacts = recursiveEqualityFacts,
-            constructorName = c.name,
-            contextLabel = "pointwiseUniquenessAt"
-          )
-
-          val yBodyToYConstructor = have(localAssumptions |- yBody === (yFun * c.appliedTerm(branchVars))) by Congruence.from(yAtConstructor)
-          val xBodyToYConstructor = have(localAssumptions |- xBody === (yFun * c.appliedTerm(branchVars))) by Tautology.from(
-            altEqualityTransitivity of (
-              x := xBody,
-              y := yBody,
-              z := yFun * c.appliedTerm(branchVars)
-            ),
-            bodyEquality,
-            yBodyToYConstructor
-          )
-
-          val branchEquality = have(localAssumptions |- branchTarget) by Tautology.from(
-            altEqualityTransitivity of (
-              x := xFun * c.appliedTerm(branchVars),
-              y := xBody,
-              z := yFun * c.appliedTerm(branchVars)
-            ),
-            xAtConstructor,
-            xBodyToYConstructor
-          )
+          val branchEquality =
+            if branchEqualities.size == 1 then
+              have(localAssumptions |- branchTarget) by Tautology.from(selectionAtBranchVars, branchEqualities.head)
+            else
+              val branchDisjunctionCase = have(
+                localAssumptions + selectionAtBranchVars.statement.right.head.asInstanceOf[Expr[Prop]] |- branchTarget
+              ) by LeftOr(branchEqualities*)
+              have(localAssumptions |- branchTarget) by Tautology.from(
+                selectionAtBranchVars,
+                branchDisjunctionCase
+              )
 
           val liftedInductiveCase = liftBranchToInductiveCase(
             adt = adt,
+            argType = argType,
             syntacticSignature = c.syntacticSignature(branchVars),
             propertyAt = propertyAt,
             branchEquality = branchEquality,
@@ -305,6 +377,7 @@ private[recursion] object RecFunctionInduction {
 
       val pointwiseFromInduction = assemblePointwiseFromConstructorCases(
         adt = adt,
+        typeSubstitutions = typeSubstitutions,
         assumptions = assumptions,
         pointwiseGoal = pointwiseGoal,
         prop = prop,

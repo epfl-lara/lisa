@@ -6,6 +6,7 @@ import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{TypeSubstitution, instantiatedTheorem, normalizeTypeSubstitutions, resolvedTypeArguments, theoremAt}
 import lisa.maths.SetTheory.Types.ADTv2.support.UniqueCharacterizedSymbol
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
@@ -45,6 +46,14 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
     val underlying: SyntacticConstructor,
     val adt: SyntacticADT[N]
 ) {
+
+  private def normalizedTypeArguments(
+      substitutions: Seq[TypeSubstitution]
+  ): Seq[Expr[Ind]] =
+    resolvedTypeArguments(
+      typeVariablesSeq,
+      normalizeTypeSubstitutions("constructor", fullName, typeVariablesSeq, substitutions)
+    )
 
   /**
    *  Full name of this constructor, i.e. concatenation of the ADT name and this
@@ -316,6 +325,30 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
       )
     }
 
+  def semanticTypingFromHeightAt(
+      substitutions: Seq[TypeSubstitution]
+  )(heightFun: Expr[Ind], n: Expr[Ind])(using sourcecode.Line, sourcecode.File): THM = {
+    val normalized = normalizeTypeSubstitutions("constructor", fullName, typeVariablesSeq, substitutions)
+    instantiatedTheorem(
+      theoremOwner = renderAppliedSymbol(fullName, typeVariablesSeq.size, normalizedTypeArguments(normalized)),
+      suffix = "semanticTypingFromHeight",
+      substitutions = normalized,
+      baseTheorem = semanticTypingFromHeight(heightFun, n)
+    )
+  }
+
+  def appliedEqualityFromStructuralAt(
+      substitutions: Seq[TypeSubstitution]
+  )(heightFun: Expr[Ind], n: Expr[Ind], term0: Expr[Ind])(using sourcecode.Line, sourcecode.File): THM = {
+    val normalized = normalizeTypeSubstitutions("constructor", fullName, typeVariablesSeq, substitutions)
+    instantiatedTheorem(
+      theoremOwner = renderAppliedSymbol(fullName, typeVariablesSeq.size, normalizedTypeArguments(normalized)),
+      suffix = "appliedEqualityFromStructural",
+      substitutions = normalized,
+      baseTheorem = appliedEqualityFromStructural(heightFun, n, term0)
+    )
+  }
+
   /**
    *  Theorem --- Injectivity of constructors.
    *
@@ -459,4 +492,37 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
         // case RegularArg(t) => forall(v, (v :: typeExprToTerm(t)) ==> fc)
         case TypeArg(name) => forall(v, (v :: typeExprToTerm(name)) ==> fc)
     }
+
+  def shortDefinitionAt(
+      substitutions: Seq[TypeSubstitution]
+  )(using sourcecode.Line, sourcecode.File): THM =
+    theoremAt(
+      displayName = fullName,
+      typeVariables = typeVariablesSeq,
+      typeArgs = normalizedTypeArguments(substitutions),
+      suffix = "shortDefinition",
+      baseTheorem = shortDefinition
+    )
+
+  def introAt(
+      substitutions: Seq[TypeSubstitution]
+  )(using sourcecode.Line, sourcecode.File): THM =
+    theoremAt(
+      displayName = fullName,
+      typeVariables = typeVariablesSeq,
+      typeArgs = normalizedTypeArguments(substitutions),
+      suffix = "intro",
+      baseTheorem = intro
+    )
+
+  def injectivityAt(
+      substitutions: Seq[TypeSubstitution]
+  )(using sourcecode.Line, sourcecode.File): THM =
+    theoremAt(
+      displayName = fullName,
+      typeVariables = typeVariablesSeq,
+      typeArgs = normalizedTypeArguments(substitutions),
+      suffix = "injectivity",
+      baseTheorem = injectivity
+    )
 }

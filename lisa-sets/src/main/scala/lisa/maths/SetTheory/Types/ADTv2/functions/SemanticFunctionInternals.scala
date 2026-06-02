@@ -105,6 +105,7 @@ private[functions] final class SemanticFunctionInternals[N <: Arity](
 
   private val witnessSemantics = new CaseDefinedWitness[N](
     adt = adt,
+    argType = adt.term,
     patternMatching = patternMatching,
     returnType = returnType,
     typ = typ,

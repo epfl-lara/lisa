@@ -69,14 +69,14 @@ object NestedPatterns extends lisa.Main {
   // ── Show theorems ──────────────────────────────────────────────────────
 
   section("countTrue on List[Bool]")
-  show(countTrue.intro)
-  show(countTrue.elim(nil))
-  show(countTrue.elim(cons))
+  show(countTrue.intro(bool))
+  show(countTrue.elim(bool)(nil))
+  show(countTrue.elim(bool)(cons))
 
   section("allTrue on List[Bool]")
-  show(allTrue.intro)
-  show(allTrue.elim(nil))
-  show(allTrue.elim(cons))
+  show(allTrue.intro(bool))
+  show(allTrue.elim(bool)(nil))
+  show(allTrue.elim(bool)(cons))
 
   // section("headIsZero on List[Nat]")
   // show(headIsZero.intro(nat))

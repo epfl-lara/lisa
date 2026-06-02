@@ -2,7 +2,7 @@ package lisa.maths.SetTheory.Types.ADTv2.interface
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Functions.Function.app
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{ConstructorHeadPattern, Pattern}
 import lisa.maths.SetTheory.Types.TypingHelpers.{::, FunctionalClass, TypedConstantFunctional}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.`**`
 import lisa.maths.SetTheory.Types.ADTv2.support.core.toSeq
@@ -41,8 +41,10 @@ final class ADTFunction[N <: Arity](using val line: sourcecode.Line, val file: s
   lazy val functionType: Expr[Ind] = semantic.typ
   lazy val patterns: Seq[Pattern[N]] = semantic.patterns
 
-  def patternsFor(constructor: Constructor[N]): Seq[Pattern[N]] =
-    patterns.filter(_.correspondsTo(constructor.semantic))
+  // def patternsFor(constructor: Constructor[N]): Seq[Pattern[N]] =
+  //   patterns.filter(pattern =>
+  //     ConstructorHeadPattern.require(pattern).correspondsTo(constructor.semantic)
+  //   )
 
   private lazy val patternIndices: Map[Pattern[N], Int] =
     patterns.zipWithIndex.toMap
@@ -52,7 +54,7 @@ final class ADTFunction[N <: Arity](using val line: sourcecode.Line, val file: s
       pattern,
       throw new IllegalArgumentException(s"Pattern ${pattern.name} does not belong to function $name.")
     )
-    s"elimination/${pattern.semanticConstructor.name}/$index"
+    s"elimination/${pattern.name}/$index"
   }
 
   def intro: THM = {

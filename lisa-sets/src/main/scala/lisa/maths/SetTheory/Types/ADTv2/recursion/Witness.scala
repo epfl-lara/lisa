@@ -48,13 +48,13 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
   private val witnessClass = new DefinedSymbol(
     name = s"${spec.functionName}/witness",
     parametersSeq = typeVariablesSeq :+ selfPlaceholder,
-    body = { pairWitness ∈ (spec.adt.term × spec.returnType) | caseMembership(pairWitness) }
+    body = { pairWitness ∈ (spec.argType × spec.returnType) | caseMembership(pairWitness) }
   )
 
   /** The witness set W(selfPlaceholder) — has selfPlaceholder free. */
   val witness: Expr[Ind] = witnessClass.term
 
-  private val witnessBound: Expr[Ind] = spec.adt.term × spec.returnType
+  private val witnessBound: Expr[Ind] = spec.argType × spec.returnType
 
   /** Definitional equation for the witness: W(selfPlaceholder) = witnessBody. */
   val witnessDef: JUSTIFICATION = witnessClass.definition
@@ -95,6 +95,7 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
 
   private val witnessSemantics = new CaseDefinedWitness[N](
     adt = spec.adt,
+    argType = spec.argType,
     patternMatching = spec.patternMatching,
     returnType = spec.returnType,
     typ = spec.typ,
