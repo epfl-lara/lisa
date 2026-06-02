@@ -10,6 +10,8 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class SCProofCheckerSuite extends AnyFunSuite {
 
+  type StepCase = (Seq[Sequent], SCProofStep)
+
   def singleStepTest(failing: Boolean)(
       name: String,
       premises: Seq[Sequent],
@@ -53,6 +55,13 @@ class SCProofCheckerSuite extends AnyFunSuite {
       step: SCProofStep
   )(implicit pos: Position): Unit =
     singleStepTest(failing = true)(name, premises, step)(using pos)
+
+  def stepTests(name: String, positiveCases: Seq[StepCase], negativeCases: Seq[StepCase])(implicit pos: Position): Unit = {
+    for (((premises, step), i) <- positiveCases.zipWithIndex)
+      posTest(s"$name: positive case #${i + 1}", premises, step)(using pos)
+    for (((premises, step), i) <- negativeCases.zipWithIndex)
+      negTest(s"$name: negative case #${i + 1}", premises, step)(using pos)
+  }
 
   // ## all steps to check
 
@@ -148,20 +157,10 @@ class SCProofCheckerSuite extends AnyFunSuite {
       )
     )
 
-    for (((prem, bot), i) <- positivePairs.zipWithIndex) {
-      posTest(
-        name = s"Restate: positive pair #${i + 1}",
-        premises = Seq(prem),
-        step = Restate(bot, 0)
-      )
-    }
-    for (((prem, bot), i) <- negativePairs.zipWithIndex) {
-      negTest(
-        name = s"Restate: negative pair #${i + 1}",
-        premises = Seq(prem),
-        step = Restate(bot, 0)
-      )
-    }
+    val positiveCases = positivePairs.map { case (prem, bot) => (Seq(prem), Restate(bot, 0)) }
+    val negativeCases = negativePairs.map { case (prem, bot) => (Seq(prem), Restate(bot, 0)) }
+
+    stepTests("Restate", positiveCases, negativeCases)
   }
 
   // ## case RestateTrue(s) =>
@@ -187,20 +186,10 @@ class SCProofCheckerSuite extends AnyFunSuite {
       Sequent(Set(and(p)(q)), Set(r))
     )
 
-    for ((bot, i) <- positiveSequents.zipWithIndex) {
-      posTest(
-        name = s"RestateTrue: positive case #${i + 1}",
-        premises = Seq.empty,
-        step = RestateTrue(bot)
-      )
-    }
-    for ((bot, i) <- negativeSequents.zipWithIndex) {
-      negTest(
-        name = s"RestateTrue: negative case #${i + 1}",
-        premises = Seq.empty,
-        step = RestateTrue(bot)
-      )
-    }
+    val positiveCases = positiveSequents.map(bot => (Seq.empty, RestateTrue(bot)))
+    val negativeCases = negativeSequents.map(bot => (Seq.empty, RestateTrue(bot)))
+
+    stepTests("RestateTrue", positiveCases, negativeCases)
   }
 
   // ## case Hypothesis(Sequent(left, right), phi) =>
@@ -213,14 +202,14 @@ class SCProofCheckerSuite extends AnyFunSuite {
     )
     val c = Constant(Identifier("c"), Ind)
 
-    val positiveCases = Seq(
+    val positivePairs = Seq(
       (Sequent(Set(p), Set(p)), p),
       (Sequent(Set(and(p)(q)), Set(and(q)(p))), and(p)(q)),
       (Sequent(Set(neg(neg(p))), Set(p)), p),
       (Sequent(Set(p, q), Set(r, p)), p),
       (Sequent(Set(neg(or(neg(p))(neg(q)))), Set(and(p)(q))), and(p)(q))
     )
-    val negativeCases = Seq(
+    val negativePairs = Seq(
       (Sequent(Set(p), Set(q)), p),
       (Sequent(Set(q), Set(p)), p),
       (Sequent(Set(q), Set(r)), p),
@@ -228,20 +217,10 @@ class SCProofCheckerSuite extends AnyFunSuite {
       (Sequent(Set.empty, Set.empty), c)
     )
 
-    for (((bot, phi), i) <- positiveCases.zipWithIndex) {
-      posTest(
-        name = s"Hypothesis: positive case #${i + 1}",
-        premises = Seq.empty,
-        step = Hypothesis(bot, phi)
-      )
-    }
-    for (((bot, phi), i) <- negativeCases.zipWithIndex) {
-      negTest(
-        name = s"Hypothesis: negative case #${i + 1}",
-        premises = Seq.empty,
-        step = Hypothesis(bot, phi)
-      )
-    }
+    val positiveCases = positivePairs.map { case (bot, phi) => (Seq.empty, Hypothesis(bot, phi)) }
+    val negativeCases = negativePairs.map { case (bot, phi) => (Seq.empty, Hypothesis(bot, phi)) }
+
+    stepTests("Hypothesis", positiveCases, negativeCases)
   }
 
   // ## case Cut(b, t1, t2, phi) =>
@@ -316,20 +295,7 @@ class SCProofCheckerSuite extends AnyFunSuite {
       )
     )
 
-    for (((premises, step), i) <- positiveCases.zipWithIndex) {
-      posTest(
-        name = s"Cut: positive case #${i + 1}",
-        premises = premises,
-        step = step
-      )
-    }
-    for (((premises, step), i) <- negativeCases.zipWithIndex) {
-      negTest(
-        name = s"Cut: negative case #${i + 1}",
-        premises = premises,
-        step = step
-      )
-    }
+    stepTests("Cut", positiveCases, negativeCases)
   }
 
   // ## case LeftAnd(b, t1, phi, psi) =>
@@ -355,8 +321,7 @@ class SCProofCheckerSuite extends AnyFunSuite {
       (Seq(Sequent(Set(p), Set(and(q)(r)))), LeftAnd(Sequent(Set(and(p)(q)), Set(and(r)(q))), 0, p, q))
     )
 
-    for (((premises, step), i) <- positiveCases.zipWithIndex) posTest(s"LeftAnd: positive case #${i + 1}", premises, step)
-    for (((premises, step), i) <- negativeCases.zipWithIndex) negTest(s"LeftAnd: negative case #${i + 1}", premises, step)
+    stepTests("LeftAnd", positiveCases, negativeCases)
   }
 
   // ## case LeftOr(b, t, disjuncts) =>
@@ -388,8 +353,7 @@ class SCProofCheckerSuite extends AnyFunSuite {
       (Seq(Sequent(Set(p), Set(r)), Sequent(Set(q), Set(s))), LeftOr(Sequent(Set(and(p)(q)), Set(r, s)), Seq(0, 1), Seq(p, q)))
     )
 
-    for (((premises, step), i) <- positiveCases.zipWithIndex) posTest(s"LeftOr: positive case #${i + 1}", premises, step)
-    for (((premises, step), i) <- negativeCases.zipWithIndex) negTest(s"LeftOr: negative case #${i + 1}", premises, step)
+    stepTests("LeftOr", positiveCases, negativeCases)
   }
 
   // ## case LeftImplies(b, t1, t2, phi, psi) =>
@@ -420,8 +384,7 @@ class SCProofCheckerSuite extends AnyFunSuite {
       (Seq(Sequent(Set(r), Set(p)), Sequent(Set(q), Set(s))), LeftImplies(Sequent(Set(r, implies(p)(q)), Set(s)), 0, 1, c, q))
     )
 
-    for (((premises, step), i) <- positiveCases.zipWithIndex) posTest(s"LeftImplies: positive case #${i + 1}", premises, step)
-    for (((premises, step), i) <- negativeCases.zipWithIndex) negTest(s"LeftImplies: negative case #${i + 1}", premises, step)
+    stepTests("LeftImplies", positiveCases, negativeCases)
   }
 
   // ## case LeftIff(b, t1, phi, psi) =>
@@ -446,8 +409,7 @@ class SCProofCheckerSuite extends AnyFunSuite {
       (Seq(Sequent(Set(implies(p)(q)), Set(r))), LeftIff(Sequent(Set(iff(p)(q)), Set(r)), 0, c, q))
     )
 
-    for (((premises, step), i) <- positiveCases.zipWithIndex) posTest(s"LeftIff: positive case #${i + 1}", premises, step)
-    for (((premises, step), i) <- negativeCases.zipWithIndex) negTest(s"LeftIff: negative case #${i + 1}", premises, step)
+    stepTests("LeftIff", positiveCases, negativeCases)
   }
 
   // ## case LeftNot(b, t1, phi) =>
@@ -471,8 +433,7 @@ class SCProofCheckerSuite extends AnyFunSuite {
       (Seq(Sequent(Set(q), Set(p, r))), LeftNot(Sequent(Set(q, neg(p)), Set(r)), 0, c))
     )
 
-    for (((premises, step), i) <- positiveCases.zipWithIndex) posTest(s"LeftNot: positive case #${i + 1}", premises, step)
-    for (((premises, step), i) <- negativeCases.zipWithIndex) negTest(s"LeftNot: negative case #${i + 1}", premises, step)
+    stepTests("LeftNot", positiveCases, negativeCases)
   }
 
   // ## case LeftForall(b, t1, phi, x, t) =>
@@ -503,8 +464,7 @@ class SCProofCheckerSuite extends AnyFunSuite {
       (Seq(Sequent(Set(P(c), q), Set(p))), LeftForall(Sequent(Set(forall(Lambda(x, phi)), q), Set(p)), 0, phi, x, C))
     )
 
-    for (((premises, step), i) <- positiveCases.zipWithIndex) posTest(s"LeftForall: positive case #${i + 1}", premises, step)
-    for (((premises, step), i) <- negativeCases.zipWithIndex) negTest(s"LeftForall: negative case #${i + 1}", premises, step)
+    stepTests("LeftForall", positiveCases, negativeCases)
   }
 
   // ## case LeftExists(b, t1, phi, x) =>
@@ -530,8 +490,7 @@ class SCProofCheckerSuite extends AnyFunSuite {
       (Seq(Sequent(Set(P(x)), Set(p))), LeftExists(Sequent(Set(exists(Lambda(x, phi))), Set(p)), 0, c, x))
     )
 
-    for (((premises, step), i) <- positiveCases.zipWithIndex) posTest(s"LeftExists: positive case #${i + 1}", premises, step)
-    for (((premises, step), i) <- negativeCases.zipWithIndex) negTest(s"LeftExists: negative case #${i + 1}", premises, step)
+    stepTests("LeftExists", positiveCases, negativeCases)
   }
 
   // ## case RightAnd(b, t, cunjuncts) =>
@@ -563,8 +522,7 @@ class SCProofCheckerSuite extends AnyFunSuite {
       (Seq(Sequent(Set(r), Set(p)), Sequent(Set(s), Set(q))), RightAnd(Sequent(Set(r, s), Set(or(p)(q))), Seq(0, 1), Seq(p, q)))
     )
 
-    for (((premises, step), i) <- positiveCases.zipWithIndex) posTest(s"RightAnd: positive case #${i + 1}", premises, step)
-    for (((premises, step), i) <- negativeCases.zipWithIndex) negTest(s"RightAnd: negative case #${i + 1}", premises, step)
+    stepTests("RightAnd", positiveCases, negativeCases)
   }
 
   // ## case RightOr(b, t1, phi, psi) =>
@@ -590,8 +548,7 @@ class SCProofCheckerSuite extends AnyFunSuite {
       (Seq(Sequent(Set(and(q)(r)), Set(p))), RightOr(Sequent(Set(and(r)(q)), Set(or(p)(q))), 0, p, q))
     )
 
-    for (((premises, step), i) <- positiveCases.zipWithIndex) posTest(s"RightOr: positive case #${i + 1}", premises, step)
-    for (((premises, step), i) <- negativeCases.zipWithIndex) negTest(s"RightOr: negative case #${i + 1}", premises, step)
+    stepTests("RightOr", positiveCases, negativeCases)
   }
 
   // ## case RightImplies(b, t1, phi, psi) =>
@@ -616,8 +573,7 @@ class SCProofCheckerSuite extends AnyFunSuite {
       (Seq(Sequent(Set(p, r), Set(q, s))), RightImplies(Sequent(Set(r), Set(implies(p)(q), s)), 0, c, q))
     )
 
-    for (((premises, step), i) <- positiveCases.zipWithIndex) posTest(s"RightImplies: positive case #${i + 1}", premises, step)
-    for (((premises, step), i) <- negativeCases.zipWithIndex) negTest(s"RightImplies: negative case #${i + 1}", premises, step)
+    stepTests("RightImplies", positiveCases, negativeCases)
   }
 
   // ## case RightIff(b, t1, t2, phi, psi) =>
@@ -648,8 +604,7 @@ class SCProofCheckerSuite extends AnyFunSuite {
       (Seq(Sequent(Set(r), Set(implies(p)(q))), Sequent(Set(s), Set(implies(q)(p)))), RightIff(Sequent(Set(r, s), Set(iff(p)(q))), 0, 1, c, q))
     )
 
-    for (((premises, step), i) <- positiveCases.zipWithIndex) posTest(s"RightIff: positive case #${i + 1}", premises, step)
-    for (((premises, step), i) <- negativeCases.zipWithIndex) negTest(s"RightIff: negative case #${i + 1}", premises, step)
+    stepTests("RightIff", positiveCases, negativeCases)
   }
 
   // ## case RightNot(b, t1, phi) =>
@@ -673,8 +628,7 @@ class SCProofCheckerSuite extends AnyFunSuite {
       (Seq(Sequent(Set(p), Set(and(q)(r)))), RightNot(Sequent(Set.empty, Set(neg(p), and(r)(q))), 0, p))
     )
 
-    for (((premises, step), i) <- positiveCases.zipWithIndex) posTest(s"RightNot: positive case #${i + 1}", premises, step)
-    for (((premises, step), i) <- negativeCases.zipWithIndex) negTest(s"RightNot: negative case #${i + 1}", premises, step)
+    stepTests("RightNot", positiveCases, negativeCases)
   }
 
   // ## case RightForall(b, t1, phi, x) =>
@@ -700,8 +654,7 @@ class SCProofCheckerSuite extends AnyFunSuite {
       (Seq(Sequent(Set(p), Set(P(x)))), RightForall(Sequent(Set(p), Set(forall(Lambda(x, phi)))), 0, c, x))
     )
 
-    for (((premises, step), i) <- positiveCases.zipWithIndex) posTest(s"RightForall: positive case #${i + 1}", premises, step)
-    for (((premises, step), i) <- negativeCases.zipWithIndex) negTest(s"RightForall: negative case #${i + 1}", premises, step)
+    stepTests("RightForall", positiveCases, negativeCases)
   }
 
   // ## case RightExists(b, t1, phi, x, t) =>
@@ -728,8 +681,7 @@ class SCProofCheckerSuite extends AnyFunSuite {
       (Seq(Sequent(Set(p), Set(P(c)))), RightExists(Sequent(Set(p), Set(exists(Lambda(x, phi)))), 0, c, x, c))
     )
 
-    for (((premises, step), i) <- positiveCases.zipWithIndex) posTest(s"RightExists: positive case #${i + 1}", premises, step)
-    for (((premises, step), i) <- negativeCases.zipWithIndex) negTest(s"RightExists: negative case #${i + 1}", premises, step)
+    stepTests("RightExists", positiveCases, negativeCases)
   }
 
   // ## case RightEpsilon(b, t1, phi, x, t) =>
@@ -753,8 +705,7 @@ class SCProofCheckerSuite extends AnyFunSuite {
       (Seq(Sequent(Set(p), Set(P(c)))), RightEpsilon(Sequent(Set(p), Set(P(epsPhi))), 0, c, x, c))
     )
 
-    for (((premises, step), i) <- positiveCases.zipWithIndex) posTest(s"RightEpsilon: positive case #${i + 1}", premises, step)
-    for (((premises, step), i) <- negativeCases.zipWithIndex) negTest(s"RightEpsilon: negative case #${i + 1}", premises, step)
+    stepTests("RightEpsilon", positiveCases, negativeCases)
   }
 
   // ## case Weakening(b, t1) =>
@@ -776,8 +727,7 @@ class SCProofCheckerSuite extends AnyFunSuite {
       (Seq(Sequent(Set(p), Set(q))), Weakening(Sequent(Set(p), Set.empty), 0))
     )
 
-    for (((premises, step), i) <- positiveCases.zipWithIndex) posTest(s"Weakening: positive case #${i + 1}", premises, step)
-    for (((premises, step), i) <- negativeCases.zipWithIndex) negTest(s"Weakening: negative case #${i + 1}", premises, step)
+    stepTests("Weakening", positiveCases, negativeCases)
   }
 
   // ## case LeftRefl(b, t1, phi) =>
@@ -802,8 +752,7 @@ class SCProofCheckerSuite extends AnyFunSuite {
       (Seq(Sequent(Set(p), Set(p))), LeftRefl(Sequent(Set.empty, Set(p)), 0, p))
     )
 
-    for (((premises, step), i) <- positiveCases.zipWithIndex) posTest(s"LeftRefl: positive case #${i + 1}", premises, step)
-    for (((premises, step), i) <- negativeCases.zipWithIndex) negTest(s"LeftRefl: negative case #${i + 1}", premises, step)
+    stepTests("LeftRefl", positiveCases, negativeCases)
   }
 
   // ## case RightRefl(b, phi) =>
@@ -819,17 +768,16 @@ class SCProofCheckerSuite extends AnyFunSuite {
     val epsY = epsilon(Lambda(y, P(y)))
 
     val positiveCases = Seq(
-      RightRefl(Sequent(Set.empty, Set(equality(x)(x))), equality(x)(x)),
-      RightRefl(Sequent(Set.empty, Set(equality(epsX)(epsY))), equality(epsX)(epsY))
+      (Seq.empty, RightRefl(Sequent(Set.empty, Set(equality(x)(x))), equality(x)(x))),
+      (Seq.empty, RightRefl(Sequent(Set.empty, Set(equality(epsX)(epsY))), equality(epsX)(epsY)))
     )
     val negativeCases = Seq(
-      RightRefl(Sequent(Set.empty, Set(equality(x)(y))), equality(x)(y)),
-      RightRefl(Sequent(Set.empty, Set.empty), equality(x)(x)),
-      RightRefl(Sequent(Set.empty, Set(p)), p)
+      (Seq.empty, RightRefl(Sequent(Set.empty, Set(equality(x)(y))), equality(x)(y))),
+      (Seq.empty, RightRefl(Sequent(Set.empty, Set.empty), equality(x)(x))),
+      (Seq.empty, RightRefl(Sequent(Set.empty, Set(p)), p))
     )
 
-    for ((step, i) <- positiveCases.zipWithIndex) posTest(s"RightRefl: positive case #${i + 1}", Seq.empty, step)
-    for ((step, i) <- negativeCases.zipWithIndex) negTest(s"RightRefl: negative case #${i + 1}", Seq.empty, step)
+    stepTests("RightRefl", positiveCases, negativeCases)
   }
 
   // ## case LeftSubstEq(b, t1, equals, lambdaPhi) =>
@@ -866,8 +814,7 @@ class SCProofCheckerSuite extends AnyFunSuite {
       (Seq(Sequent(Set(P(f(x))), Set(p))), LeftSubstEq(Sequent(Set(P(g(x)), equality(f(x))(g(x))), Set(p)), 0, Seq((f, g)), (Seq(F), P(F(x)))))
     )
 
-    for (((premises, step), i) <- positiveCases.zipWithIndex) posTest(s"LeftSubstEq: positive case #${i + 1}", premises, step)
-    for (((premises, step), i) <- negativeCases.zipWithIndex) negTest(s"LeftSubstEq: negative case #${i + 1}", premises, step)
+    stepTests("LeftSubstEq", positiveCases, negativeCases)
   }
 
   // ## case RightSubstEq(b, t1, equals, lambdaPhi) =>
@@ -904,8 +851,7 @@ class SCProofCheckerSuite extends AnyFunSuite {
       (Seq(Sequent(Set(p), Set(P(f(x))))), RightSubstEq(Sequent(Set(p, equality(f(x))(g(x))), Set(P(g(x)))), 0, Seq((f, g)), (Seq(F), P(F(x)))))
     )
 
-    for (((premises, step), i) <- positiveCases.zipWithIndex) posTest(s"RightSubstEq: positive case #${i + 1}", premises, step)
-    for (((premises, step), i) <- negativeCases.zipWithIndex) negTest(s"RightSubstEq: negative case #${i + 1}", premises, step)
+    stepTests("RightSubstEq", positiveCases, negativeCases)
   }
 
   // ## case InstSchema(bot, t1, subst) =>
@@ -928,8 +874,7 @@ class SCProofCheckerSuite extends AnyFunSuite {
       (Seq(Sequent(Set(X), Set(X))), InstSchema(Sequent(Set(X), Set(X)), 0, Map(X -> x)))
     )
 
-    for (((premises, step), i) <- positiveCases.zipWithIndex) posTest(s"InstSchema: positive case #${i + 1}", premises, step)
-    for (((premises, step), i) <- negativeCases.zipWithIndex) negTest(s"InstSchema: negative case #${i + 1}", premises, step)
+    stepTests("InstSchema", positiveCases, negativeCases)
   }
 
   val subproofTests = {
@@ -938,18 +883,29 @@ class SCProofCheckerSuite extends AnyFunSuite {
       Constant(Identifier("q"), Prop)
     )
     val sp = SCProof(IndexedSeq(Restate(Sequent(Set(p), Set(q)), -1)), IndexedSeq(Sequent(Set(p), Set(q))))
+    val positiveCases = Seq(
+      (Seq(Sequent(Set(p), Set(q))), SCSubproof(sp, Seq(0))),
+      (
+        Seq(Sequent(Set(and(p)(q)), Set(p))),
+        SCSubproof(SCProof(IndexedSeq(Restate(Sequent(Set(and(q)(p)), Set(p)), -1)), IndexedSeq(Sequent(Set(and(q)(p)), Set(p)))), Seq(0))
+      )
+    )
+    val negativeCases = Seq(
+      (Seq(Sequent(Set(q), Set(p))), SCSubproof(sp, Seq(0))),
+      (Seq(Sequent(Set(p), Set(q))), SCSubproof(sp, Seq.empty))
+    )
 
-    posTest("SCSubproof: positive case #1", Seq(Sequent(Set(p), Set(q))), SCSubproof(sp, Seq(0)))
-    posTest("SCSubproof: positive case #2", Seq(Sequent(Set(and(p)(q)), Set(p))), SCSubproof(SCProof(IndexedSeq(Restate(Sequent(Set(and(q)(p)), Set(p)), -1)), IndexedSeq(Sequent(Set(and(q)(p)), Set(p)))), Seq(0)))
-    negTest("SCSubproof: negative case #1", Seq(Sequent(Set(q), Set(p))), SCSubproof(sp, Seq(0)))
-    negTest("SCSubproof: negative case #2", Seq(Sequent(Set(p), Set(q))), SCSubproof(sp, Seq.empty))
+    stepTests("SCSubproof", positiveCases, negativeCases)
   }
 
   // ## case Sorry(b) =>
 
   val sorryTests = {
     val p = Constant(Identifier("p"), Prop)
-    posTest("Sorry: positive case #1", Seq.empty, Sorry(Sequent(Set.empty, Set(p))))
+    val positiveCases = Seq((Seq.empty, Sorry(Sequent(Set.empty, Set(p)))))
+    val negativeCases = Seq.empty
+
+    stepTests("Sorry", positiveCases, negativeCases)
   }
 
 }
