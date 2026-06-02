@@ -148,8 +148,8 @@ object SCProofChecker {
             if (phi.sort != Prop)
               sortMismatch(Prop, phi.sort, step)
             // logical checks
-            else if (contains(left, phi))
-              if (contains(right, phi)) SCValidProof(SCProof(step))
+            else if (containsEq(left, phi))
+              if (containsEq(right, phi)) SCValidProof(SCProof(step))
               else SCInvalidProof(SCProof(step), Nil, s"Right-hand side does not contain formula φ")
             else SCInvalidProof(SCProof(step), Nil, s"Left-hand side does not contain formula φ")
 
@@ -167,17 +167,16 @@ object SCProofChecker {
               val prem1 = ref(t1)
               val prem2 = ref(t2)
 
-              if (!prem1.right.contains(phi))
-                error(step, s"First premise does not contain the cut pivot on the right-hand side.")
-              else if (!prem2.left.contains(phi))
-                error(step, s"Second premise does not contain the cut pivot on the left-hand side.")
-              else if (b.left + phi != (prem1.left union prem2.left))
-                error(step, s"Left-hand side of conclusion + cut pivot is not the union of the left-hand sides of the premises.")
-              else if (b.right + phi != (prem1.right union prem2.right))
-                error(step, s"Right-hand side of conclusion + cut pivot is not the union of the right-hand sides of the premises.")
-              else {
+              if (!subset(prem1.left, b.left))
+                error(step, "Left-hand side of first premise is not contained in the conclusion.")
+              else if (!subset(prem2.right, b.right))
+                error(step, "Right-hand side of second premise is not contained in the conclusion.")
+              else if (!allContainedExcept(prem1.right, b.right, phi))
+                error(step, "Right-hand side of first premise contains a formula absent from the conclusion other than the cut pivot.")
+              else if (!allContainedExcept(prem2.left, b.left, phi))
+                error(step, "Left-hand side of second premise contains a formula absent from the conclusion other than the cut pivot.")
+              else
                 SCValidProof(SCProof(step))
-              }
             }
 
           // Left rules
