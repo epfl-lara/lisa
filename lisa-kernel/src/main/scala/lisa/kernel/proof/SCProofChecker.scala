@@ -384,42 +384,30 @@ object SCProofChecker {
            *    Γ, Σ |- φ∧ψ, Π, Δ
            */
           case RightAnd(b, ts, conjuncts) =>
-            if (conjuncts.exists(_.sort != Prop)) {
-              val culprit = conjuncts.find(_.sort != Prop).get
+            val illSortedConjunct = conjuncts.find(_.sort != Prop)
+            if (illSortedConjunct.nonEmpty) {
+              val culprit = illSortedConjunct.get
               sortMismatch(Prop, culprit.sort, step)
+            } else if (ts.isEmpty) {
+              error(step, "RightAnd requires at least one premise.")
             } else if (ts.size != conjuncts.size) {
               error(step, s"Number of premises (${ts.size}) is not the same as number of conjuncts (${conjuncts.size}).")
             } else {
-              val prems = ts.map(ref(_))
-              val premiseLeftUnion = prems.map(_.left).reduce(_ union _)
-              val premiseRightUnion = prems.map(_.right).reduce(_ union _)
-              val conjunction = conjuncts.reduce(and(_)(_))
-
-              // a conjunct which is NOT in the claimed premise
-              lazy val violatingConjunct = prems.zipWithIndex
-                .find { case (prem, i) =>
-                  val conjunct = conjuncts(i)
-                  !prem.right.contains(conjunct)
-                }
-                .map(_._2)
-
-              // a premise which is NOT contained in the conclusion
-              val violatingPremise = prems.zipWithIndex.find { case (prem, idx) =>
-                !prem.right.subsetOf(b.right + conjuncts(idx))
+              val invalidPremise = ts.iterator.zip(conjuncts.iterator).zipWithIndex.find { case ((t, conjunct), _) =>
+                val prem = ref(t)
+                !subset(prem.left, b.left) || !allContainedExcept(prem.right, b.right, conjunct)
               }
 
-              if (b.left != premiseLeftUnion)
-                error(step, "Left-hand side of conclusion is not the union of the left-hand sides of the premises.")
-              else if (violatingConjunct.nonEmpty) {
-                val idx = violatingConjunct.get
-                error(step, s"Premise #$idx does not contain the corresponding conjunct on the right-hand side.")
-              } else if (violatingPremise.nonEmpty) {
-                val idx = violatingPremise.get._2
-                error(step, s"Premise #$idx right-hand side is not a subset of conclusion right-hand side + the corresponding conjunct.")
-              } else if (!(b.right ++ conjuncts).subsetOf(premiseRightUnion + conjunction))
-                error(step, "Right-hand side of conclusion + conjuncts is not a subset of the union of the right-hand sides of the premises + the conjunction.")
-              else
-                SCValidProof(SCProof(step))
+              if (invalidPremise.nonEmpty) {
+                val idx = invalidPremise.get._2
+                error(step, s"Premise #$idx is not preserved by the conclusion except for its corresponding conjunct.")
+              } else {
+                val conjunction = conjuncts.reduce(and(_)(_))
+                if (!containsEq(b.right, conjunction))
+                  error(step, "Right-hand side of conclusion does not contain the conjunction.")
+                else
+                  SCValidProof(SCProof(step))
+              }
             }
 
           /*
@@ -436,15 +424,14 @@ object SCProofChecker {
               val prem1 = ref(t1)
               val phiOrPsi = or(phi)(psi)
 
-              if (prem1.left != b.left)
-                error(step, "Left-hand side of premise is not the same as left-hand side of conclusion.")
-              else {
-                val targetSet = prem1.right + phiOrPsi
-                if (!(targetSet == b.right + phi || targetSet == b.right + psi || targetSet == b.right + phi + psi))
-                  error(step, "Right-hand side of premise + φ∨ψ is not the same as right-hand side of conclusion + either φ, ψ, or both.")
-                else
-                  SCValidProof(SCProof(step))
-              }
+              if (!subset(prem1.left, b.left))
+                error(step, "Left-hand side of premise is not contained in the conclusion.")
+              else if (!allContainedExceptEither(prem1.right, b.right, phi, psi))
+                error(step, "Right-hand side of premise contains a formula absent from the conclusion other than φ or ψ.")
+              else if (!containsEq(b.right, phiOrPsi))
+                error(step, "Right-hand side of conclusion does not contain φ∨ψ.")
+              else
+                SCValidProof(SCProof(step))
             }
 
           /*
@@ -461,10 +448,12 @@ object SCProofChecker {
               val prem1 = ref(t1)
               val phiImpPsi = implies(phi)(psi)
 
-              if (b.left + phi != prem1.left)
-                error(step, "Left-hand side of conclusion + φ is not the same as left-hand side of premise.")
-              else if (b.right + psi != prem1.right + phiImpPsi)
-                error(step, "Right-hand side of conclusion + ψ is not the same as right-hand side of premise + φ⇒ψ.")
+              if (!allContainedExcept(prem1.left, b.left, phi))
+                error(step, "Left-hand side of premise contains a formula absent from the conclusion other than φ.")
+              else if (!allContainedExcept(prem1.right, b.right, psi))
+                error(step, "Right-hand side of premise contains a formula absent from the conclusion other than ψ.")
+              else if (!containsEq(b.right, phiImpPsi))
+                error(step, "Right-hand side of conclusion does not contain φ⇒ψ.")
               else
                 SCValidProof(SCProof(step))
             }
@@ -486,14 +475,16 @@ object SCProofChecker {
               val psiImpPhi = implies(psi)(phi)
               val phiIffPsi = iff(phi)(psi)
 
-              if (b.left != (prem1.left union prem2.left))
-                error(step, "Left-hand side of conclusion is not the union of the left-hand sides of the premises.")
-              else if (!prem1.right.subsetOf(b.right + phiImpPsi))
-                error(step, "Right-hand side of first premise is not a subset of conclusion right-hand side + φ⇒ψ.")
-              else if (!prem2.right.subsetOf(b.right + psiImpPhi))
-                error(step, "Right-hand side of second premise is not a subset of conclusion right-hand side + ψ⇒φ.")
-              else if (!b.right.subsetOf((prem1.right union prem2.right) + phiIffPsi))
-                error(step, "Right-hand side of conclusion is not a subset of the union of the right-hand sides of the premises + φ⇔ψ.")
+              if (!subset(prem1.left, b.left))
+                error(step, "Left-hand side of first premise is not contained in the conclusion.")
+              else if (!subset(prem2.left, b.left))
+                error(step, "Left-hand side of second premise is not contained in the conclusion.")
+              else if (!allContainedExcept(prem1.right, b.right, phiImpPsi))
+                error(step, "Right-hand side of first premise contains a formula absent from the conclusion other than φ⇒ψ.")
+              else if (!allContainedExcept(prem2.right, b.right, psiImpPhi))
+                error(step, "Right-hand side of second premise contains a formula absent from the conclusion other than ψ⇒φ.")
+              else if (!containsEq(b.right, phiIffPsi))
+                error(step, "Right-hand side of conclusion does not contain φ⇔ψ.")
               else
                 SCValidProof(SCProof(step))
             }
@@ -510,10 +501,12 @@ object SCProofChecker {
               val prem1 = ref(t1)
               val nPhi = neg(phi)
 
-              if (b.right != prem1.right + nPhi)
-                error(step, "Right-hand side of conclusion is not the same as right-hand side of premise + ¬φ.")
-              else if (b.left + phi != prem1.left)
-                error(step, "Left-hand side of conclusion + φ is not the same as left-hand side of premise.")
+              if (!subset(prem1.right, b.right))
+                error(step, "Right-hand side of premise is not contained in the conclusion.")
+              else if (!allContainedExcept(prem1.left, b.left, phi))
+                error(step, "Left-hand side of premise contains a formula absent from the conclusion other than φ.")
+              else if (!containsEq(b.right, nPhi))
+                error(step, "Right-hand side of conclusion does not contain ¬φ.")
               else
                 SCValidProof(SCProof(step))
             }
@@ -530,12 +523,16 @@ object SCProofChecker {
               sortMismatch(Ind, x.sort, step)
             else {
               val prem1 = ref(t1)
+              // due to alpha-eq + capture avoidance, these should always be
+              // compared with originals via OLEq
               val quantified = forall(Lambda(x, phi))
 
-              if (b.left != prem1.left)
-                error(step, "Left-hand side of conclusion is not the same as left-hand side of premise.")
-              else if (b.right + phi != prem1.right + quantified)
-                error(step, "Right-hand side of conclusion + φ is not the same as right-hand side of premise + ∀x. φ.")
+              if (!subset(prem1.left, b.left))
+                error(step, "Left-hand side of premise is not contained in the conclusion.")
+              else if (!allContainedExcept(prem1.right, b.right, phi))
+                error(step, "Right-hand side of premise contains a formula absent from the conclusion other than φ.")
+              else if (!containsEq(b.right, quantified))
+                error(step, "Right-hand side of conclusion does not contain ∀x. φ.")
               else if (variableIsFreeInSequent(b, x))
                 error(step, "Variable x is free in the resulting sequent.")
               else
@@ -556,13 +553,17 @@ object SCProofChecker {
               sortMismatch(Ind, t.sort, step)
             else {
               val prem1 = ref(t1)
+              // due to alpha-eq + capture avoidance, these should always be
+              // compared with originals via OLEq
               val quantified = exists(Lambda(x, phi))
               val instantiated = substituteVariables(phi, Map(x -> t))
 
-              if (b.left != prem1.left)
-                error(step, "Left-hand side of conclusion is not the same as left-hand side of premise.")
-              else if (b.right + instantiated != prem1.right + quantified)
-                error(step, "Right-hand side of conclusion + φ[t/x] is not the same as right-hand side of premise + ∃x. φ.")
+              if (!subset(prem1.left, b.left))
+                error(step, "Left-hand side of premise is not contained in the conclusion.")
+              else if (!allContainedExcept(prem1.right, b.right, instantiated))
+                error(step, "Right-hand side of premise contains a formula absent from the conclusion other than φ[t/x].")
+              else if (!containsEq(b.right, quantified))
+                error(step, "Right-hand side of conclusion does not contain ∃x. φ.")
               else
                 SCValidProof(SCProof(step))
             }
@@ -581,14 +582,18 @@ object SCProofChecker {
               sortMismatch(Ind, t.sort, step)
             else {
               val prem1 = ref(t1)
+              // due to alpha-eq + capture avoidance, these should always be
+              // compared with originals via OLEq
               val epsilonTerm = epsilon(Lambda(x, phi))
               val expectedTop = substituteVariables(phi, Map(x -> t))
               val expectedBot = substituteVariables(phi, Map(x -> epsilonTerm))
 
-              if (b.left != prem1.left)
-                error(step, "Left-hand side of conclusion is not the same as left-hand side of premise.")
-              else if (b.right + expectedTop != prem1.right + expectedBot)
-                error(step, "Right-hand side of conclusion + φ[t/x] is not the same as right-hand side of premise + φ[(εx. φ)/x].")
+              if (!subset(prem1.left, b.left))
+                error(step, "Left-hand side of premise is not contained in the conclusion.")
+              else if (!allContainedExcept(prem1.right, b.right, expectedTop))
+                error(step, "Right-hand side of premise contains a formula absent from the conclusion other than φ[t/x].")
+              else if (!containsEq(b.right, expectedBot))
+                error(step, "Right-hand side of conclusion does not contain φ[(εx. φ)/x].")
               else
                 SCValidProof(SCProof(step))
             }
