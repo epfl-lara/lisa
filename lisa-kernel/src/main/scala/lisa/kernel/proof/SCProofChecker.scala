@@ -26,21 +26,26 @@ object SCProofChecker {
   private def containsEq(set: Set[Expression], formula: Expression): Boolean =
     set.contains(formula) || set.exists(expEq(_, formula))
 
+  @inline
+  private def containsAsSimple(set: Set[SimpleExpression])(expr: Expression): Boolean =
+    set.contains(simpleReducedForm(expr))
+
   /**
    * Chosen subset check for sets of formulas. Can be weakeened to allow more
    * than syntactic equality.
    */
   @inline
   private def subset(subset: Set[Expression], superset: Set[Expression]): Boolean =
-    subset.subsetOf(superset)
+    subset.forall(containsAsSimple(superset.map(simpleReducedForm)))
 
   /**
    * Checks whether `set` is contained in `target` *syntactically*  except for
    * removing a formula `expEq` to `exception``.
    */
   @inline
-  private def allContainedExcept(set: Set[Expression], target: Set[Expression], exception: Expression): Boolean =
-    set.forall(formula => target.contains(formula) || expEq(formula, exception))
+  private def allContainedExcept(set: Set[Expression], target: Set[Expression], exception: Expression): Boolean ={
+    val simplifiedTarget = target.map(simpleReducedForm)
+    set.forall(formula => containsAsSimple(simplifiedTarget)(formula) || expEq(formula, exception))}
 
   /**
    * Checks whether `set` is contained in `target` *syntactically* except for
