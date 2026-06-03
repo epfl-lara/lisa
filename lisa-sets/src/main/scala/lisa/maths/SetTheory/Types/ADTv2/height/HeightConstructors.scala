@@ -5,6 +5,7 @@ import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
+import lisa.maths.SetTheory.Base.Subset
 import lisa.maths.SetTheory.Base.Pair.given
 import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.maths.Quantifiers.existsOneAlternativeDefinition
@@ -244,6 +245,47 @@ final class HeightConstructors[N <: Arity](
       introFunctionMonoHyp,
       HeightKernel.heightMonotonic of (HeightKernel.isConstructor := isConstructor)
     )
+  }
+
+  val heightMembershipMonotonic = Lemma(
+    (base.isHeight(h), in(n, N), in(m, N), subset(m, n), in(x, app(h, m))) |- in(x, app(h, n))
+  ) {
+    val hIsHeight = assume(base.isHeight(h))
+    val nInN = assume(in(n, N))
+    val mInN = assume(in(m, N))
+    val mSubN = assume(subset(m, n))
+    val xInHm = assume(in(x, app(h, m)))
+
+    val hSubset = have(subset(app(h, m), app(h, n))) by
+      Tautology.from(hIsHeight, nInN, mInN, mSubN, heightMonotonic)
+
+    have(in(x, app(h, n))) by Tautology.from(
+      hSubset,
+      xInHm,
+      Subset.membership of (x := app(h, m), y := app(h, n), z := x)
+    )
+    thenHave(thesis) by Restate
+  }
+
+  val heightSuccessorInclusion = Lemma(
+    (base.isHeight(h), in(n, N), in(x, app(h, n))) |- in(x, app(h, successor(n)))
+  ) {
+    val hIsHeight = assume(base.isHeight(h))
+    val nInN = assume(in(n, N))
+    val xInHn = assume(in(x, app(h, n)))
+    val succInN = have(in(successor(n), N)) by Tautology.from(
+      successorIsNat of (n := n),
+      nInN
+    )
+    have(in(x, app(h, successor(n)))) by Tautology.from(
+      hIsHeight,
+      succInN,
+      nInN,
+      subsetSuccessor of (n := n),
+      xInHn,
+      heightMembershipMonotonic of (m := n, n := successor(n))
+    )
+    thenHave(thesis) by Restate
   }
 
   /**

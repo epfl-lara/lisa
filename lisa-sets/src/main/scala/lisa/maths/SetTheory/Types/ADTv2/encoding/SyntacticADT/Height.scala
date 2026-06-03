@@ -68,6 +68,8 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
   val heightValid = definedClassFunction.definitionFact
   val heightZero = heightTHY.heightZero
   val heightMonotonic = heightConstructorsTHY.heightMonotonic
+  val heightMembershipMonotonic = heightConstructorsTHY.heightMembershipMonotonic
+  val heightSuccessorInclusion = heightConstructorsTHY.heightSuccessorInclusion
   val heightSuccessorWeak = heightConstructorsTHY.heightSuccessorWeak
   val heightSuccessorStrong = heightConstructorsTHY.heightSuccessorStrong
 

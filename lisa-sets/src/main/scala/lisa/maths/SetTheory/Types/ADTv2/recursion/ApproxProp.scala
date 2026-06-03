@@ -24,7 +24,7 @@ import lisa.maths.SetTheory.Types.ADTv2.support.InstantiateForallSeq
 import lisa.utils.prooflib.BasicStepTactic.{LeftExists, Cut}
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
-import ApproxPropShared.{TAbsConstOn, constructorBranchesAtHeight, constructorDisjunctionAtHeight, specializedConstructors, subsetBelowSuccN}
+import ApproxPropShared.{TAbsConstOn, constructorBranchesAtHeight, constructorDisjunctionAtHeight, specializedConstructors}
 
 /**
  * Approximant properties.
@@ -66,6 +66,7 @@ private[recursion] final class ApproxProp[N <: Arity](
   private val heightZero       = spec.adt.height.zeroAt(spec.typeSubstitutions)
   private val heightSuccStrong = spec.adt.height.successorStrongAt(spec.typeSubstitutions)
   private val heightMonotonic  = spec.adt.height.monotonicAt(spec.typeSubstitutions)
+  private val heightMembershipMonotonic = spec.adt.height.membershipMonotonicAt(spec.typeSubstitutions)
   private val termHasHeight    = spec.adt.height.termHasHeightAt(spec.typeSubstitutions)
 
   private val predVar = variable[Ind >>: Prop]
@@ -368,7 +369,7 @@ private[recursion] final class ApproxProp[N <: Arity](
               nInN,
               uInNStep,
               nSubSuccU,
-              subsetBelowSuccN.of(nVar := nVar, kVar := uVar)
+              NatFacts.subsetBelowSucc.of(m := nVar, n := uVar)
             )
 
             val caseEq = have(
@@ -385,20 +386,13 @@ private[recursion] final class ApproxProp[N <: Arity](
                 aInHeightN
               )
 
-              val hSubset = have(
-                subset(app(heightFun)(nVar), app(heightFun)(uVar))
-              ) by Tautology.from(
+              val aInHu = have(a ∈ app(heightFun)(uVar)) by Tautology.from(
                 hValid,
                 uInNStep,
                 nInN,
                 nSubUCase,
-                heightMonotonic.of(h := heightFun, n := uVar, m := nVar)
-              )
-
-              val aInHu = have(a ∈ app(heightFun)(uVar)) by Tautology.from(
-                hSubset,
                 aInHeightN,
-                Subset.membership of (x := app(heightFun)(nVar), y := app(heightFun)(uVar), z := a)
+                heightMembershipMonotonic.of(h := heightFun, n := uVar, m := nVar, x := a)
               )
 
               val stabAtU = have(

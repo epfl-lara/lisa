@@ -52,6 +52,8 @@ class SemanticADT[N <: Arity](
     lazy val valid: THM = underlying.heightValid
     val exists: THM = underlying.heightExists
     val monotonic: THM = underlying.heightMonotonic
+    val membershipMonotonic: THM = underlying.heightMembershipMonotonic
+    val successorInclusion: THM = underlying.heightSuccessorInclusion
     val zero: THM = underlying.heightZero
     val successorStrong: THM = underlying.heightSuccessorStrong
     val termHasHeight: THM = underlying.termHasHeight
@@ -96,6 +98,26 @@ class SemanticADT[N <: Arity](
         suffix = "height/zero",
         substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
         baseTheorem = zero
+      )
+
+    def membershipMonotonicAt(
+        substitutions: Seq[TypeSubstitution]
+    )(using sourcecode.Line, sourcecode.File): THM =
+      instantiatedTheorem(
+        theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
+        suffix = "height/membershipMonotonic",
+        substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
+        baseTheorem = membershipMonotonic
+      )
+
+    def successorInclusionAt(
+        substitutions: Seq[TypeSubstitution]
+    )(using sourcecode.Line, sourcecode.File): THM =
+      instantiatedTheorem(
+        theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
+        suffix = "height/successorInclusion",
+        substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
+        baseTheorem = successorInclusion
       )
 
     def successorStrongAt(

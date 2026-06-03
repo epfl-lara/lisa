@@ -49,7 +49,7 @@ private[recursion] final class Existence[N <: Arity](
   val kVar = variable[Ind]
   private val constructorsAt = specializedConstructors(spec.adt.constructors, spec.typeSubstitutions)
   private val heightSuccStrong = spec.adt.height.successorStrongAt(spec.typeSubstitutions)
-  private val heightMonotonic  = spec.adt.height.monotonicAt(spec.typeSubstitutions)
+  private val heightSuccessorInclusion = spec.adt.height.successorInclusionAt(spec.typeSubstitutions)
   private val termHasHeight    = spec.adt.height.termHasHeightAt(spec.typeSubstitutions)
   
   import approx.G
@@ -109,33 +109,21 @@ private[recursion] final class Existence[N <: Arity](
       val succEqN0    = have(Succ(n0) === successor(n0)) by
         Tautology.from(Succ.definition of (x := n0))
 
-      // n0 ⊆ Succ(n0)  (n0 ∈ Succ(n0) + Succ(n0) is transitive)
       val n0InSuccN0 = have(n0 ∈ Succ(n0)) by Weakening(NatFacts.nInSucc.of(n := n0))
-      val succN0Trans = have(TransitiveSet.transitiveSet(Succ(n0))) by
-        Tautology.from(succN0InN, NatFacts.elementsTransitive.of(n := Succ(n0)))
       val n0SubSuccN0 = have(n0 ⊆ Succ(n0)) by Tautology.from(
         n0InSuccN0,
-        succN0Trans,
+        have(TransitiveSet.transitiveSet(Succ(n0))) by
+          Tautology.from(succN0InN, NatFacts.elementsTransitive.of(n := Succ(n0))),
         TransitiveSet.elementIsSubset.of(A := Succ(n0), x := n0)
       )
 
-      // h(n0) ⊆ h(Succ(n0))  (heightMonotonic)
-      val hN0SubHSuccN0 = have(app(heightFun)(n0) ⊆ app(heightFun)(Succ(n0))) by Tautology.from(
+      // a ∈ h(successor(n0))
+      val aInHeightOrd = have(a ∈ app(heightFun)(successor(n0))) by Tautology.from(
         hValid,
-        succN0InN,
         indexInN,
-        n0SubSuccN0,
-        heightMonotonic of (h := heightFun, n := Succ(n0), m := n0)
-      )
-
-      // a ∈ h(Succ(n0))
-      val aInHeightSuccN0 = have(a ∈ app(heightFun)(Succ(n0))) by Tautology.from(
-        hN0SubHSuccN0,
         aInHeightN0,
-        Subset.membership of (x := app(heightFun)(n0), y := app(heightFun)(Succ(n0)), z := a)
+        heightSuccessorInclusion.of(h := heightFun, n := n0, x := a)
       )
-      val aInHeightOrd = have(a ∈ app(heightFun)(successor(n0))) by
-        Congruence.from(aInHeightSuccN0, succEqN0)
 
       // ── Decompose a into constructor form ───────────────────────────────────
       val constructorBranch =

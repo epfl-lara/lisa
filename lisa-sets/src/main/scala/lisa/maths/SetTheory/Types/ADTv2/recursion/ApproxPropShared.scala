@@ -5,13 +5,9 @@ import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{TypeSubstitution, instantiatedSemanticSignature, specializeFormula, specializeTerm}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.FunctionAbstractions.TAbsConstOn
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Succ
-import lisa.maths.SetTheory.Base.{FoundationAxiom, Subset}
 import lisa.maths.SetTheory.Functions.Predef.*
-import lisa.maths.SetTheory.Ordinals.TransitiveSet
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.utils.prooflib.ProofTacticLib.Arity
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
 
 object ApproxPropShared {
   private val nVar = variable[Ind]
@@ -99,71 +95,4 @@ object ApproxPropShared {
       .substitute(selfPlaceholder := selfTerm)
       .substitute(pattern.binders.zip(vars).map((from, to) => from := to)*)
       .asInstanceOf[Expr[Ind]]
-
-  lazy val subsetBelowSuccN: THM = Lemma(
-    (nVar ∈ N, kVar ∈ N, nVar ⊆ Succ(kVar)) |- (nVar === Succ(kVar)) \/ (nVar ⊆ kVar)
-  ) {
-    val nInN = assume(nVar ∈ N)
-    val kInN = assume(kVar ∈ N)
-    val nSubSk = assume(nVar ⊆ Succ(kVar))
-
-    val SkInN = have(Succ(kVar) ∈ N) by
-      Tautology.from(kInN, NatFacts.succIntro.of(n := kVar))
-
-    val cmp = have(
-      (nVar === Succ(kVar)) \/ (nVar ∈ Succ(kVar)) \/ (Succ(kVar) ∈ nVar)
-    ) by Tautology.from(
-      nInN,
-      SkInN,
-      NatFacts.comparability of (m := nVar, n := Succ(kVar))
-    )
-
-    val caseEq = have(
-      nVar === Succ(kVar) |- (nVar === Succ(kVar)) \/ (nVar ⊆ kVar)
-    ) by Tautology
-
-    val caseIn = have(
-      nVar ∈ Succ(kVar) |- (nVar === Succ(kVar)) \/ (nVar ⊆ kVar)
-    ) subproof {
-      val nInSk = assume(nVar ∈ Succ(kVar))
-      val split = have((nVar ∈ kVar) \/ (nVar === kVar)) by Tautology.from(
-        nInSk,
-        NatFacts.succMembership.of(k := nVar, n := kVar)
-      )
-
-      val fromIn = have(nVar ∈ kVar |- nVar ⊆ kVar) subproof {
-        val nInK = assume(nVar ∈ kVar)
-        val kTrans = have(TransitiveSet.transitiveSet(kVar)) by
-          Tautology.from(kInN, NatFacts.elementsTransitive.of(n := kVar))
-        have(nVar ⊆ kVar) by Tautology.from(
-          nInK,
-          kTrans,
-          TransitiveSet.elementIsSubset.of(A := kVar, x := nVar)
-        )
-      }
-
-      val fromEq = have(nVar === kVar |- nVar ⊆ kVar) by
-        Congruence.from(Subset.reflexivity of (x := kVar))
-
-      have(nVar ⊆ kVar) by Tautology.from(split, fromIn, fromEq)
-      thenHave(thesis) by Tautology
-    }
-
-    val caseGt = have(
-      Succ(kVar) ∈ nVar |- (nVar === Succ(kVar)) \/ (nVar ⊆ kVar)
-    ) subproof {
-      val SkInN = assume(Succ(kVar) ∈ nVar)
-      val SkInSk = have(Succ(kVar) ∈ Succ(kVar)) by Tautology.from(
-        nSubSk,
-        SkInN,
-        Subset.membership of (x := nVar, y := Succ(kVar), z := Succ(kVar))
-      )
-      have(thesis) by Tautology.from(
-        SkInSk,
-        FoundationAxiom.selfNonInclusion of (x := Succ(kVar))
-      )
-    }
-
-    have(thesis) by Tautology.from(cmp, caseEq, caseIn, caseGt)
-  }
 }
