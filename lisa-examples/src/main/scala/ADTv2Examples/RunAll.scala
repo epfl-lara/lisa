@@ -6,6 +6,11 @@ import ADTv2Examples.proofs.{InductionOnBool, InductionOnNat, TypecheckIntegrati
 import ADTv2Examples.endtoend.NatAndListLibrary
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 
+
+import lisa.maths.SetTheory.Types.ADTv2.height.HeightKernel
+import lisa.maths.SetTheory.Types.ADTv2.height.HeightKernelSuccessor
+import lisa.maths.SetTheory.Types.ADTv2.height.HeightKernelUniqueness
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ProofsInitialization
 object RunAll {
 
 
@@ -28,6 +33,15 @@ object RunAll {
   def main(args: Array[String]): Unit = {
 
     Time.reset()
+
+    Time.measure("Initialization"){
+
+      HeightKernel.domNImpliesNonEmpty
+      HeightKernelSuccessor.heightSuccessorStrong
+      HeightKernelUniqueness.uniqueness
+      ProofsInitialization.initialize()
+
+    }
     
     entries.foreach { (name, action) =>
       println(s"===== $name =====")
@@ -37,7 +51,7 @@ object RunAll {
           run(Array.empty)
           val finishedAt = Time.get()
           println(s"Execution of $name: ${finishedAt - startedAt}")
-          Time.register(s"Execution of $name", finishedAt - startedAt)
+          // Time.register(s"Execution of $name", finishedAt - startedAt)
         case reason: String =>
           println("Skipped: " + reason)
       println()

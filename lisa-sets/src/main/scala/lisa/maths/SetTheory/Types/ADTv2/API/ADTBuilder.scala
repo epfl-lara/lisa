@@ -59,7 +59,7 @@ private def ADTBuilder[N <: Arity](
     )
   )
 
-  val adtSyntactic = Time.measure(s"$name syntactic", false)(SyntacticADT[N](
+  val adtSyntactic = Time.measure(s"ADT syntactic")(SyntacticADT[N](
     name,
     constructorsSyntactic,
     **.fromSeq[Variable[Ind], N](typeVars.map(Variable[Ind](_)))

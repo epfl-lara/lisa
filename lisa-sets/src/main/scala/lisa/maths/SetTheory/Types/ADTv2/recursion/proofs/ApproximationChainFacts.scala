@@ -1,6 +1,5 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion.proofs
 
-import lisa.maths.SetTheory.Types.ADTv2.recursion.{Approx, ApproxProp, FunSpec}
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
@@ -10,33 +9,44 @@ import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.maths.SetTheory.Base.{Subset, Union}
 import lisa.maths.SetTheory.Base.Union.∪
 import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.utils.prooflib.ProofTacticLib.Arity
+import lisa.utils.prooflib.BasicStepTactic.{RightForall, RightImplies}
 
-private[recursion] final class ApproximationChainFacts[N <: Arity](
-  val spec: FunSpec[N],
-  val approx: Approx[N],
-  val approxProp: ApproxProp[N]
-) {
+private[recursion] object ApproximationChainFacts {
 
-  val nVar = variable[Ind]
-  val mVar = variable[Ind]
-  val kVar = variable[Ind]
-  val uVar = variable[Ind]
-  import approx.G
-  import approxProp.{heightFun, heightFunValid, isHeightPred, stabilization}
+  private val heightFun = variable[Ind]
+  private val G = variable[Ind >>: Ind]
 
-  private val heightMembershipMonotonic = spec.adt.height.membershipMonotonicAt(spec.typeSubstitutions)
+  private val nVar = variable[Ind]
+  private val mVar = variable[Ind]
+  private val uVar = variable[Ind]
+  private val aVar = variable[Ind]
+  private val upperVar = variable[Ind]
+  private val lowerVar = variable[Ind]
+  private val pointVar = variable[Ind]
+  private val stabVar = variable[Ind]
 
-  val approximantsAgreeFromSubset: THM = Time.measure(s"AppCF/approximantsAgreeFromSubset for ${spec.functionName}")(Lemma(
-    (nVar ∈ N, mVar ∈ N, nVar ⊆ mVar, a ∈ app(heightFun)(nVar)) |-
-      app(G(nVar))(a) === app(G(mVar))(a)
+  private def stabilizationSchema(heightFun0: Expr[Ind], G0: Expr[Ind >>: Ind]): Expr[Prop] =
+    ∀(stabVar, (stabVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun0)(stabVar)) ==> (app(G0(stabVar))(pointVar) === app(G0(Succ(stabVar)))(pointVar))))
+
+  private def heightMembershipMonotonicSchema(heightFun0: Expr[Ind]): Expr[Prop] =
+    ∀(upperVar, (upperVar ∈ N) ==> ∀(lowerVar, (lowerVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun0)(lowerVar)) ==> ((lowerVar ⊆ upperVar) ==> (pointVar ∈ app(heightFun0)(upperVar))))))
+
+  val approximantsAgreeFromSubset: THM = Time.measure(s"AppCF/approximantsAgreeFromSubset")(Lemma(
+    (
+      stabilizationSchema(heightFun, G),
+      heightMembershipMonotonicSchema(heightFun),
+      nVar ∈ N,
+      mVar ∈ N,
+      nVar ⊆ mVar,
+      a ∈ app(heightFun)(nVar)
+    ) |- app(G(nVar))(a) === app(G(mVar))(a)
   ) {
+    val stabilization = assume(stabilizationSchema(heightFun, G))
+    val heightMonotonic = assume(heightMembershipMonotonicSchema(heightFun))
     val nInN = assume(nVar ∈ N)
     val mInN = assume(mVar ∈ N)
     val nSubM = assume(nVar ⊆ mVar)
     val aInHn = assume(a ∈ app(heightFun)(nVar))
-
-    val hValid = have(isHeightPred(heightFun)) by Weakening(heightFunValid)
 
     val propM = λ(
       uVar,
@@ -102,23 +112,42 @@ private[recursion] final class ApproximationChainFacts[N <: Arity](
                 aInHeightN
               )
 
+              val heightMonoAtUpper = have(
+                (uVar ∈ N) ==> ∀(lowerVar, (lowerVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun)(lowerVar)) ==> ((lowerVar ⊆ uVar) ==> (pointVar ∈ app(heightFun)(uVar)))))
+              ) by InstantiateForall(uVar)(heightMonotonic)
+              val heightMonoUpper = have(
+                ∀(lowerVar, (lowerVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun)(lowerVar)) ==> ((lowerVar ⊆ uVar) ==> (pointVar ∈ app(heightFun)(uVar)))))
+              ) by Tautology.from(uInNStep, heightMonoAtUpper)
+              val heightMonoAtNInst = have(
+                (nVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun)(nVar)) ==> ((nVar ⊆ uVar) ==> (pointVar ∈ app(heightFun)(uVar))))
+              ) by InstantiateForall(nVar)(heightMonoUpper)
+              val heightMonoAtLower = have(
+                (nVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun)(nVar)) ==> ((nVar ⊆ uVar) ==> (pointVar ∈ app(heightFun)(uVar))))
+              ) by Restate.from(heightMonoAtNInst)
+              val heightMonoAtN = have(
+                (nVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun)(nVar)) ==> ((nVar ⊆ uVar) ==> (pointVar ∈ app(heightFun)(uVar))))
+              ) by Restate.from(heightMonoAtLower)
+              val heightMonoAtPoint = have(
+                ∀(pointVar, (pointVar ∈ app(heightFun)(nVar)) ==> ((nVar ⊆ uVar) ==> (pointVar ∈ app(heightFun)(uVar))))
+              ) by Tautology.from(nInN, heightMonoAtN)
+              val heightMonoAtA = have(
+                (a ∈ app(heightFun)(nVar)) ==> ((nVar ⊆ uVar) ==> (a ∈ app(heightFun)(uVar)))
+              ) by InstantiateForall(a)(heightMonoAtPoint)
+
               val aInHu = have(a ∈ app(heightFun)(uVar)) by Tautology.from(
-                hValid,
-                uInNStep,
-                nInN,
-                nSubUCase,
                 aInHeightN,
-                heightMembershipMonotonic.of(h := heightFun, n := uVar, m := nVar, x := a)
+                nSubUCase,
+                heightMonoAtA
               )
 
               val stabAtU = have(
-                uVar ∈ N ==> ∀(a ∈ app(heightFun)(uVar), app(G(uVar))(a) === app(G(Succ(uVar)))(a))
+                (uVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun)(uVar)) ==> (app(G(uVar))(pointVar) === app(G(Succ(uVar)))(pointVar)))
               ) by InstantiateForall(uVar)(stabilization)
               val stabU = have(
-                ∀(a ∈ app(heightFun)(uVar), app(G(uVar))(a) === app(G(Succ(uVar)))(a))
+                ∀(pointVar, (pointVar ∈ app(heightFun)(uVar)) ==> (app(G(uVar))(pointVar) === app(G(Succ(uVar)))(pointVar)))
               ) by Tautology.from(uInNStep, stabAtU)
               val stabAtA = have(
-                a ∈ app(heightFun)(uVar) ==> (app(G(uVar))(a) === app(G(Succ(uVar)))(a))
+                (a ∈ app(heightFun)(uVar)) ==> (app(G(uVar))(a) === app(G(Succ(uVar)))(a))
               ) by InstantiateForall(a)(stabU)
               val eqUSu = have(app(G(uVar))(a) === app(G(Succ(uVar)))(a)) by
                 Tautology.from(aInHu, stabAtA)
@@ -164,10 +193,18 @@ private[recursion] final class ApproximationChainFacts[N <: Arity](
     thenHave(thesis) by Restate
   })
 
-  val approximantsAgreeAcrossHeights: THM = Time.measure(s"approximantsAgreeAcrossHeights for ${spec.functionName}")(Lemma(
-    (nVar ∈ N, mVar ∈ N, a ∈ app(heightFun)(nVar), a ∈ app(heightFun)(mVar)) |-
-      app(G(nVar))(a) === app(G(mVar))(a)
+  val approximantsAgreeAcrossHeights: THM = Time.measure(s"AppCF/approximantsAgreeAcrossHeights")(Lemma(
+    (
+      stabilizationSchema(heightFun, G),
+      heightMembershipMonotonicSchema(heightFun),
+      nVar ∈ N,
+      mVar ∈ N,
+      a ∈ app(heightFun)(nVar),
+      a ∈ app(heightFun)(mVar)
+    ) |- app(G(nVar))(a) === app(G(mVar))(a)
   ) {
+    val stabilization = assume(stabilizationSchema(heightFun, G))
+    val heightMonotonic = assume(heightMembershipMonotonicSchema(heightFun))
     val nInN = assume(nVar ∈ N)
     val mInN = assume(mVar ∈ N)
     val aInHn = assume(a ∈ app(heightFun)(nVar))
@@ -185,6 +222,8 @@ private[recursion] final class ApproximationChainFacts[N <: Arity](
       Tautology.from(Union.rightSubset of (x := nVar, y := mVar))
 
     val eqNUpper = have(app(G(nVar))(a) === app(G(nVar ∪ mVar))(a)) by Tautology.from(
+      stabilization,
+      heightMonotonic,
       nInN,
       upperInN,
       nSubUpper,
@@ -192,6 +231,8 @@ private[recursion] final class ApproximationChainFacts[N <: Arity](
       approximantsAgreeFromSubset.of(nVar := nVar, mVar := nVar ∪ mVar)
     )
     val eqMUpper = have(app(G(mVar))(a) === app(G(nVar ∪ mVar))(a)) by Tautology.from(
+      stabilization,
+      heightMonotonic,
       mInN,
       upperInN,
       mSubUpper,
@@ -212,4 +253,90 @@ private[recursion] final class ApproximationChainFacts[N <: Arity](
     )
     thenHave(thesis) by Restate
   })
+
+  def stabilizationSchemaAt(
+      heightFun0: Expr[Ind],
+      G0: Expr[Ind >>: Ind],
+      stabilization0: THM
+  )(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+    have(stabilizationSchema(heightFun0, G0)) by Restate.from(stabilization0)
+
+  def heightMembershipMonotonicSchemaAt(
+      heightFun0: Expr[Ind],
+      heightMembershipMonotonic0: THM
+  )(using proof: lisa.SetTheoryLibrary.Proof)(isHeightPredFact: proof.Fact): proof.Fact = {
+    val monoAtVars = have(
+      (upperVar ∈ N, lowerVar ∈ N, lowerVar ⊆ upperVar, pointVar ∈ app(heightFun0)(lowerVar)) |- pointVar ∈ app(heightFun0)(upperVar)
+    ) by Tautology.from(
+      isHeightPredFact,
+      heightMembershipMonotonic0.of(h := heightFun0, n := upperVar, m := lowerVar, x := pointVar)
+    )
+
+    val monoImp = have(
+      (upperVar ∈ N, lowerVar ∈ N, pointVar ∈ app(heightFun0)(lowerVar)) |- (lowerVar ⊆ upperVar) ==> (pointVar ∈ app(heightFun0)(upperVar))
+    ) by RightImplies(monoAtVars)
+
+    val monoPointImp = have(
+      (upperVar ∈ N, lowerVar ∈ N) |- (pointVar ∈ app(heightFun0)(lowerVar)) ==> ((lowerVar ⊆ upperVar) ==> (pointVar ∈ app(heightFun0)(upperVar)))
+    ) by RightImplies(monoImp)
+
+    val monoForallA = have(
+      (upperVar ∈ N, lowerVar ∈ N) |- ∀(pointVar, (pointVar ∈ app(heightFun0)(lowerVar)) ==> ((lowerVar ⊆ upperVar) ==> (pointVar ∈ app(heightFun0)(upperVar))))
+    ) by RightForall(monoPointImp)
+
+    val monoImpM = have(
+      (upperVar ∈ N) |- (lowerVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun0)(lowerVar)) ==> ((lowerVar ⊆ upperVar) ==> (pointVar ∈ app(heightFun0)(upperVar))))
+    ) by RightImplies(monoForallA)
+
+    val monoForallM = have(
+      (upperVar ∈ N) |- ∀(lowerVar, (lowerVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun0)(lowerVar)) ==> ((lowerVar ⊆ upperVar) ==> (pointVar ∈ app(heightFun0)(upperVar)))))
+    ) by RightForall(monoImpM)
+
+    val monoImpU = have(
+      (upperVar ∈ N) ==> ∀(lowerVar, (lowerVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun0)(lowerVar)) ==> ((lowerVar ⊆ upperVar) ==> (pointVar ∈ app(heightFun0)(upperVar)))))
+    ) by RightImplies(monoForallM)
+
+    have(heightMembershipMonotonicSchema(heightFun0)) by RightForall(monoImpU)
+  }
+
+  def approximantsAgreeFromSubsetAt(
+      heightFun0: Expr[Ind],
+      G0: Expr[Ind >>: Ind],
+      n0: Expr[Ind],
+      m0: Expr[Ind],
+      point0: Expr[Ind]
+  )(using proof: lisa.SetTheoryLibrary.Proof)(
+      stabilization0: proof.Fact,
+      heightMembershipMonotonic0: proof.Fact
+  ): proof.Fact =
+    have(
+      (n0 ∈ N, m0 ∈ N, n0 ⊆ m0, point0 ∈ app(heightFun0)(n0)) |- app(G0(n0))(point0) === app(G0(m0))(point0)
+    ) by Tautology.from(
+      stabilization0,
+      heightMembershipMonotonic0,
+      approximantsAgreeFromSubset.of(heightFun := heightFun0, G := G0, nVar := n0, mVar := m0, a := point0)
+    )
+
+  def approximantsAgreeAcrossHeightsAt(
+      heightFun0: Expr[Ind],
+      G0: Expr[Ind >>: Ind],
+      n0: Expr[Ind],
+      m0: Expr[Ind],
+      point0: Expr[Ind]
+  )(using proof: lisa.SetTheoryLibrary.Proof)(
+      stabilization0: proof.Fact,
+      heightMembershipMonotonic0: proof.Fact
+  ): proof.Fact =
+    have(
+      (n0 ∈ N, m0 ∈ N, point0 ∈ app(heightFun0)(n0), point0 ∈ app(heightFun0)(m0)) |- app(G0(n0))(point0) === app(G0(m0))(point0)
+    ) by Tautology.from(
+      stabilization0,
+      heightMembershipMonotonic0,
+      approximantsAgreeAcrossHeights.of(heightFun := heightFun0, G := G0, nVar := n0, mVar := m0, a := point0)
+    )
+
+  def initialize(): Unit = {
+    val _ = approximantsAgreeFromSubset
+    val _ = approximantsAgreeAcrossHeights
+  }
 }

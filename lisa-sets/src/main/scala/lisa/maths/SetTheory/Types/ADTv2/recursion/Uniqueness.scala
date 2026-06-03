@@ -33,44 +33,30 @@ private[recursion] final class Uniqueness[N <: Arity](
   val recursivePointwisePlan: THM =
     Lemma(definitionFormula(x) /\ definitionFormula(y) ==> (x === y)) {
       assume(definitionFormula(x) /\ definitionFormula(y))
-      val xDefinition = have(definitionFormula(x)) by Tautology
-      val yDefinition = have(definitionFormula(y)) by Tautology
-
-      val xTyped = have(x :: typ) by Tautology.from(xDefinition)
-      val yTyped = have(y :: typ) by Tautology.from(yDefinition)
-
-      val xBetween = have(Function.functionBetween(x)(argType)(returnType)) by Tautology.from(
-        BasicTheorems.funcBetweenEqInFuncSpace of (
-          f := x,
-          A := argType,
-          B := returnType
-        ),
-        xTyped
-      )
-      val yBetween = have(Function.functionBetween(y)(argType)(returnType)) by Tautology.from(
-        BasicTheorems.funcBetweenEqInFuncSpace of (
-          f := y,
-          A := argType,
-          B := returnType
-        ),
-        yTyped
-      )
 
       val xOnDomain = have(Function.functionOn(x)(argType)) by Tautology.from(
-        BasicTheorems.functionBetweenIsFunctionOn of (
+        BasicTheorems.funcBetweenEqInFuncSpace of (
           f := x,
           A := argType,
           B := returnType
         ),
-        xBetween
+        BasicTheorems.functionBetweenIsFunctionOn of (
+          f := x,
+          A := argType,
+          B := returnType
+        )
       )
       val yOnDomain = have(Function.functionOn(y)(argType)) by Tautology.from(
-        BasicTheorems.functionBetweenIsFunctionOn of (
+        BasicTheorems.funcBetweenEqInFuncSpace of (
           f := y,
           A := argType,
           B := returnType
         ),
-        yBetween
+        BasicTheorems.functionBetweenIsFunctionOn of (
+          f := y,
+          A := argType,
+          B := returnType
+        )
       )
 
       val pointInput = variable[Ind]
@@ -97,7 +83,7 @@ private[recursion] final class Uniqueness[N <: Arity](
 
       val pointwiseByHeight = have(
         ∀(pointInput ∈ argType, (x * pointInput === y * pointInput))
-      ) by Tautology.from(pointwiseCoreLemma, xDefinition, yDefinition)
+      ) by Restate.from(pointwiseCoreLemma)
 
       have(x === y) by Tautology.from(
         BasicTheorems.extensionality of (
@@ -110,6 +96,6 @@ private[recursion] final class Uniqueness[N <: Arity](
         yOnDomain,
         pointwiseByHeight
       )
-      thenHave(thesis) by Tautology
+      thenHave(thesis) by Restate
     }
 }

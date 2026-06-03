@@ -17,7 +17,7 @@ def fun[N <: Arity](adt: SpecializedADT[N], returnType: Expr[Ind])(using
     valueOfN: ValueOf[N]
 )(
   cases: CaseAccumulator[N, Expr[Ind], Unit] ?=> Unit
-): ADTFunction[N] = {
+): ADTFunction[N] = Time.measure(s"Building Function"){
   val builder = CaseAccumulator[N, Expr[Ind], Unit](())
   cases(using builder)
 
@@ -50,7 +50,7 @@ def recFun[N <: Arity](adt: SpecializedADT[N], returnType: Expr[Ind])(using
     valueOfN: ValueOf[N]
 )(
     cases: Expr[Ind] => (CaseAccumulator[N, Expr[Ind], Unit] ?=> Unit)
-): RecFunction[N] = Time.measure(s"Building RecFunction ${name.value}"){
+): RecFunction[N] = Time.measure(s"Building RecFunction"){
   val builder = CaseAccumulator[N, Expr[Ind], Unit](())
   val self = RecFunction.selfPlaceholder(name.value)
   cases(self)(using builder)
@@ -63,13 +63,13 @@ def recFun[N <: Arity](adt: SpecializedADT[N], returnType: Expr[Ind])(using
 
   builder.compile(adt.base) match
     case Right(patternSystem) =>
-      val specializedPatternSystem = Time.measure(s"SpecializedPatternSystem for ${name.value}")(SpecializedPatternSystem(
+      val specializedPatternSystem = Time.measure(s"SpecializedPatternSystem")(SpecializedPatternSystem(
         underlying = patternSystem,
         domain = adt.base.semantic,
         typeSubstitutions = effectiveTypeSubstitutions,
         specializedAdtTerm = adt.term
       ))
-      val semantic = Time.measure(s"Semantic for ${name.value}")(recursion.RecFunSemantics[N](
+      val semantic = Time.measure(s"RecFunction Semantic")(recursion.RecFunSemantics[N](
         name.value,
         adt.base.semantic,
         adt.term,

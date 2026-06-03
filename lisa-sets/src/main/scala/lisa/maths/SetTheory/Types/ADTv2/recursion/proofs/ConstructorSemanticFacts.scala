@@ -11,7 +11,7 @@ import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
-object ConstructorSemanticFacts {
+private[recursion] object ConstructorSemanticFacts {
 
   final case class SpecializedConstructorFacts[N <: Arity](
       underlying: SemanticConstructor[N],

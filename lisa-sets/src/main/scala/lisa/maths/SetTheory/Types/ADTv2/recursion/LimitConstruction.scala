@@ -34,7 +34,7 @@ private[recursion] final class LimitConstruction[N <: Arity](
   val limitFun: Expr[Ind] =
     abs(spec.argType)(λ(a, app(G(limitIndex(a)))(a)))
 
-  val limitHasType: THM = Time.measure(s"limitHasType for ${spec.functionName}")(Lemma(limitFun :: spec.typ) {
+  val limitHasType: THM = Time.measure(s"limitHasType")(Lemma(limitFun :: spec.typ) {
     val hValid = have(isHeightPred(heightFun)) by Restate.from(heightFunValid)
 
     val everyValueTyped = have(
