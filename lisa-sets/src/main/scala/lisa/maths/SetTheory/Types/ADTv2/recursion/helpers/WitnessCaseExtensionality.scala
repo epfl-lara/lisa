@@ -1,6 +1,7 @@
-package lisa.maths.SetTheory.Types.ADTv2.recursion
+package lisa.maths.SetTheory.Types.ADTv2.recursion.helpers
 
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
+import lisa.maths.SetTheory.Types.ADTv2.recursion.{FunSpec, Witness}
 import lisa.maths.SetTheory.Types.TypingHelpers.*
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.core.InstantiateForallSeq
@@ -9,7 +10,7 @@ import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
-import ApproxPropShared.substitutedCaseBody
+import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.CaseBodySubstitution.substitutedCaseBody
 
 private[recursion] object WitnessCaseExtensionality {
 

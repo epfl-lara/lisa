@@ -1,4 +1,4 @@
-package lisa.maths.SetTheory.Types.ADTv2.recursion
+package lisa.maths.SetTheory.Types.ADTv2.recursion.helpers
 
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{Pattern, PatternSystem}
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
@@ -14,6 +14,7 @@ import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Functions.{BasicTheorems, Function}
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.utils.prooflib.BasicStepTactic.Restate
+import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.LambdaBodyEquality
 
 private[recursion] object RecFunctionInduction {
 

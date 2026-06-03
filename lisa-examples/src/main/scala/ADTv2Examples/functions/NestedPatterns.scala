@@ -40,17 +40,17 @@ object NestedPatterns extends lisa.Main {
   println("countTrue defined")
 
   // Check whether all elements of a list of booleans are `tru`.
-  val allTrue = recFun(boolList, bool) { self =>
-    Case(nil):
-      tru
-    Case(cons, tru, tl):
-      self * tl
-    Case(cons, fals, tl):
-      fals
-  }
+  // val allTrue = recFun(boolList, bool) { self =>
+  //   Case(nil):
+  //     tru
+  //   Case(cons, tru, tl):
+  //     self * tl
+  //   Case(cons, fals, tl):
+  //     fals
+  // }
   
 
-  println("allTrue defined")
+  // println("allTrue defined")
 
   // ── List[Nat] examples ─────────────────────────────────────────────────
 
@@ -73,13 +73,15 @@ object NestedPatterns extends lisa.Main {
   show(countTrue.elim(bool)(nil))
   show(countTrue.elim(bool)(cons))
 
-  section("allTrue on List[Bool]")
-  show(allTrue.intro(bool))
-  show(allTrue.elim(bool)(nil))
-  show(allTrue.elim(bool)(cons))
+  // section("allTrue on List[Bool]")
+  // show(allTrue.intro(bool))
+  // show(allTrue.elim(bool)(nil))
+  // show(allTrue.elim(bool)(cons))
 
   // section("headIsZero on List[Nat]")
   // show(headIsZero.intro(nat))
   // show(headIsZero.elim(nat)(nil))
   // show(headIsZero.elim(nat)(cons))
+
+  Time.printSummary()
 }

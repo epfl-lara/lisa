@@ -7,6 +7,8 @@ import lisa.maths.SetTheory.Types.TypingHelpers.*
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Functions.{BasicTheorems, Function}
 import lisa.utils.prooflib.ProofTacticLib.Arity
+import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.RecFunctionInduction
+import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.{PatternSchemas, extractPatternCaseSchema}
 
 private[recursion] final class Uniqueness[N <: Arity](
   spec: FunSpec[N]

@@ -29,12 +29,16 @@ object Time {
     totalsSquared.update(label, totalsSquared.getOrElse(label, 0.0) + nanos * nanos)
   }
 
-  def measure[A](label: String)(body: => A): A = {
-    val start = get()
-    val result = body
-    val end = get()
-    register(label, end - start)
-    result
+  def measure[A](label: String, is_active: Boolean = true)(body: => A): A = {
+    if (is_active) {
+      val start = get()
+      val result = body
+      val end = get()
+      register(label, end - start)
+      result
+    } else {
+      body
+    }
   }
 
   def measureNow[A](label: String)(body: => A): A = {

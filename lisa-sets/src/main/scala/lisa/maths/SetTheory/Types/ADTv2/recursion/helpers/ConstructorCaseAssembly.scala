@@ -1,14 +1,14 @@
-package lisa.maths.SetTheory.Types.ADTv2.recursion
+package lisa.maths.SetTheory.Types.ADTv2.recursion.helpers
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.utils.prooflib.BasicStepTactic.{Cut, LeftExists}
 
-import ApproxPropShared.{constructorBranchAtHeight, SpecializedSemanticConstructor}
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.{constructorBranchAtHeight, SpecializedConstructorFacts}
 
 private[recursion] object ConstructorCaseAssembly {
 
   def liftConstructorCase[N <: lisa.utils.prooflib.ProofTacticLib.Arity](using proof: lisa.SetTheoryLibrary.Proof)(
-      sc: SpecializedSemanticConstructor[N],
+      sc: SpecializedConstructorFacts[N],
       heightSet: Expr[Ind],
       ambientTerm: Expr[Ind],
       goal: Expr[Prop],

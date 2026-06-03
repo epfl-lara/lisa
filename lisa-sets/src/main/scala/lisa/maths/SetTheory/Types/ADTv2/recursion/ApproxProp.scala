@@ -2,43 +2,36 @@ package lisa.maths.SetTheory.Types.ADTv2.recursion
 
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{specializeFormula, specializeTerm}
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.{altEqualityTransitivity, equivalenceApply, unionOfTwoNats}
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.{altEqualityTransitivity, equivalenceApply}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.{Zero, Succ}
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 
-import lisa.maths.SetTheory.Base.{Union, Comprehension,FoundationAxiom,Subset}
+import lisa.maths.SetTheory.Base.{Comprehension,FoundationAxiom}
 import lisa.maths.SetTheory.Base.Comprehension.{|}
-import lisa.maths.SetTheory.Base.Union.∪
-import lisa.maths.SetTheory.Functions.BasicTheorems.{appTyping, funcBetweenEqInFuncSpace}
-import lisa.maths.SetTheory.Functions.Function.abs
 import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.maths.SetTheory.Ordinals.TransitiveSet
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Types.TypingHelpers.*
-import lisa.maths.SetTheory.Types.TypingRules.TAbs
 
-import lisa.maths.Quantifiers
 import lisa.maths.SetTheory.Types.ADTv2.support.InstantiateForallSeq
+import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.{ConstructorCaseAssembly, WitnessCaseExtensionality}
 import lisa.utils.prooflib.BasicStepTactic.{LeftExists, Cut}
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
-import ApproxPropShared.{TAbsConstOn, constructorBranchesAtHeight, constructorDisjunctionAtHeight, specializedConstructors}
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.{constructorBranchesAtHeight, constructorDisjunctionAtHeight, specializedConstructors}
 
 /**
- * Approximant properties.
+ * Approximant stabilization.
  *
- * Proves stabilization of the approximant sequence and constructs the limit function:
+ * Proves stabilization of the approximant sequence:
  *
  *   stabilization : ∀n ∈ ω, ∀a ∈ h(n), G(n)(a) = G(Succ(n))(a)
- *   limitFun      : λ(a). G(ε n. a ∈ h(n))(a)
- *   limitHasType  : limitFun :: spec.typ
  *
  * Exports:
  *   - [[heightFun]], [[heightFunValid]]
- *   - [[approximantsAgreeFromSubset]], [[approximantsAgreeAcrossHeights]]
- *   - [[limitFun]], [[limitHasType]]
+ *   - [[stabilization]]
  */
 private[recursion] final class ApproxProp[N <: Arity](
   val spec: FunSpec[N],
@@ -65,11 +58,7 @@ private[recursion] final class ApproxProp[N <: Arity](
 
   private val heightZero       = spec.adt.height.zeroAt(spec.typeSubstitutions)
   private val heightSuccStrong = spec.adt.height.successorStrongAt(spec.typeSubstitutions)
-  private val heightMonotonic  = spec.adt.height.monotonicAt(spec.typeSubstitutions)
   private val heightMembershipMonotonic = spec.adt.height.membershipMonotonicAt(spec.typeSubstitutions)
-  private val termHasHeight    = spec.adt.height.termHasHeightAt(spec.typeSubstitutions)
-
-  private val predVar = variable[Ind >>: Prop]
   private val constructorsAt = specializedConstructors(spec.adt.constructors, spec.typeSubstitutions)
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -77,7 +66,7 @@ private[recursion] final class ApproxProp[N <: Arity](
   // ∀n ∈ ω, ∀a ∈ h(n), G(n)(a) = G(Succ(n))(a)
   // ─────────────────────────────────────────────────────────────────────────
 
-  private val stabilization: THM = Time.measure(s"Stabilization for ${spec.functionName}")(Lemma(
+  private[recursion] val stabilization: THM = Time.measure(s"AP/stabilization for ${spec.functionName}")(Lemma(
     ∀(nVar ∈ N, ∀(a ∈ app(heightFun)(nVar), app(G(nVar))(a) === app(G(Succ(nVar)))(a)))
   ) {
     val Pred = variable[Ind >>: Prop]
@@ -306,295 +295,4 @@ private[recursion] final class ApproxProp[N <: Arity](
     thenHave(thesis) by Restate
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // subsetBelowSuccN, approximantsAgreeFromSubset, approximantsAgreeAcrossHeights
-  // ─────────────────────────────────────────────────────────────────────────
-
-  val approximantsAgreeFromSubset: THM = Time.measure(s"approximantsAgreeFromSubset for ${spec.functionName}")(Lemma(
-    (nVar ∈ N, mVar ∈ N, nVar ⊆ mVar, a ∈ app(heightFun)(nVar)) |-
-      app(G(nVar))(a) === app(G(mVar))(a)
-  ) {
-    val nInN = assume(nVar ∈ N)
-    val mInN = assume(mVar ∈ N)
-    val nSubM = assume(nVar ⊆ mVar)
-    val aInHn = assume(a ∈ app(heightFun)(nVar))
-
-    val hValid = have(isHeightPred(heightFun)) by Weakening(heightFunValid)
-
-    val uVar = variable[Ind]
-    val propM = λ(
-      uVar,
-      (nVar ⊆ uVar) ==> (
-        (a ∈ app(heightFun)(nVar)) ==> (app(G(nVar))(a) === app(G(uVar))(a))
-      )
-    )
-
-    val base = have(propM(Zero)) subproof {
-      val zeroDef = have(Zero === ∅) by Weakening(Zero.definition)
-      have((nVar ⊆ Zero) ==> ((a ∈ app(heightFun)(nVar)) ==> (app(G(nVar))(a) === app(G(Zero))(a)))) subproof {
-        val nSubZero = assume(nVar ⊆ Zero)
-        val nSubEmpty = have(nVar ⊆ ∅) by Congruence.from(nSubZero, zeroDef)
-        val nEqEmpty = have(nVar === ∅) by Tautology.from(
-          nSubEmpty,
-          Subset.rightEmpty of (x := nVar),
-          equivalenceApply of (p1 := subset(nVar, ∅), p2 := nVar === ∅)
-        )
-        val emptyEqZero = have(∅ === Zero) by Congruence.from(zeroDef)
-        val nEqZero = have(nVar === Zero) by Tautology.from(
-          altEqualityTransitivity of (x := nVar, y := ∅, z := Zero),
-          nEqEmpty,
-          emptyEqZero
-        )
-        val eqAtZero = have(app(G(nVar))(a) === app(G(Zero))(a)) by Congruence.from(nEqZero)
-        have(thesis) by Tautology.from(eqAtZero)
-      }
-      thenHave(thesis) by Restate
-    }
-
-    val step = have(∀(uVar, (uVar ∈ N) ==> (propM(uVar) ==> propM(Succ(uVar))))) subproof {
-      have((uVar ∈ N) ==> (propM(uVar) ==> propM(Succ(uVar)))) subproof {
-        val uInNStep = assume(uVar ∈ N)
-        val ih = assume(propM(uVar))
-
-        val goalAtSucc = have(propM(Succ(uVar))) subproof {
-          have(
-            (nVar ⊆ Succ(uVar)) ==> (
-              (a ∈ app(heightFun)(nVar)) ==> (app(G(nVar))(a) === app(G(Succ(uVar)))(a))
-            )
-          ) subproof {
-            val nSubSuccU = assume(nVar ⊆ Succ(uVar))
-            val aInHeightN = assume(a ∈ app(heightFun)(nVar))
-
-            val split = have((nVar === Succ(uVar)) \/ (nVar ⊆ uVar)) by Tautology.from(
-              nInN,
-              uInNStep,
-              nSubSuccU,
-              NatFacts.subsetBelowSucc.of(m := nVar, n := uVar)
-            )
-
-            val caseEq = have(
-              nVar === Succ(uVar) |- app(G(nVar))(a) === app(G(Succ(uVar)))(a)
-            ) by Congruence
-
-            val caseSub = have(
-              nVar ⊆ uVar |- app(G(nVar))(a) === app(G(Succ(uVar)))(a)
-            ) subproof {
-              val nSubUCase = assume(nVar ⊆ uVar)
-              val eqNu = have(app(G(nVar))(a) === app(G(uVar))(a)) by Tautology.from(
-                ih,
-                nSubUCase,
-                aInHeightN
-              )
-
-              val aInHu = have(a ∈ app(heightFun)(uVar)) by Tautology.from(
-                hValid,
-                uInNStep,
-                nInN,
-                nSubUCase,
-                aInHeightN,
-                heightMembershipMonotonic.of(h := heightFun, n := uVar, m := nVar, x := a)
-              )
-
-              val stabAtU = have(
-                uVar ∈ N ==> ∀(a ∈ app(heightFun)(uVar), app(G(uVar))(a) === app(G(Succ(uVar)))(a))
-              ) by InstantiateForall(uVar)(stabilization)
-              val stabU = have(
-                ∀(a ∈ app(heightFun)(uVar), app(G(uVar))(a) === app(G(Succ(uVar)))(a))
-              ) by Tautology.from(uInNStep, stabAtU)
-              val stabAtA = have(
-                a ∈ app(heightFun)(uVar) ==> (app(G(uVar))(a) === app(G(Succ(uVar)))(a))
-              ) by InstantiateForall(a)(stabU)
-              val eqUSu = have(app(G(uVar))(a) === app(G(Succ(uVar)))(a)) by
-                Tautology.from(aInHu, stabAtA)
-
-              have(thesis) by Tautology.from(
-                altEqualityTransitivity of (
-                  x := app(G(nVar))(a),
-                  y := app(G(uVar))(a),
-                  z := app(G(Succ(uVar)))(a)
-                ),
-                eqNu,
-                eqUSu
-              )
-            }
-
-            have(app(G(nVar))(a) === app(G(Succ(uVar)))(a)) by
-              Tautology.from(split, caseEq, caseSub)
-            have(
-              (a ∈ app(heightFun)(nVar)) ==> (app(G(nVar))(a) === app(G(Succ(uVar)))(a))
-            ) by Tautology.from(lastStep)
-            thenHave(thesis) by Restate
-          }
-          thenHave(thesis) by Restate
-        }
-
-        val imp = have(propM(uVar) ==> propM(Succ(uVar))) by Tautology.from(goalAtSucc)
-        have(thesis) by Tautology.from(imp)
-      }
-      thenHave(thesis) by RightForall
-    }
-
-    val Pred = variable[Ind >>: Prop]
-    val indInst = have(
-      (propM(Zero), ∀(uVar, (uVar ∈ N) ==> (propM(uVar) ==> propM(Succ(uVar))))) |-
-        ∀(uVar, (uVar ∈ N) ==> propM(uVar))
-    ) by Weakening(NatFacts.induction of (Pred := propM))
-    val all = have(∀(uVar, (uVar ∈ N) ==> propM(uVar))) by
-      Tautology.from(base, step, indInst)
-    val atM = have(mVar ∈ N ==> propM(mVar)) by InstantiateForall(mVar)(all)
-    val propAtM = have(propM(mVar)) by Tautology.from(mInN, atM)
-
-    have(app(G(nVar))(a) === app(G(mVar))(a)) by Tautology.from(propAtM, nSubM, aInHn)
-    thenHave(thesis) by Restate
-  })
-
-  val approximantsAgreeAcrossHeights: THM = Time.measure(s"approximantsAgreeAcrossHeights for ${spec.functionName}")(Lemma(
-    (nVar ∈ N, mVar ∈ N, a ∈ app(heightFun)(nVar), a ∈ app(heightFun)(mVar)) |-
-      app(G(nVar))(a) === app(G(mVar))(a)
-  ) {
-    val nInN = assume(nVar ∈ N)
-    val mInN = assume(mVar ∈ N)
-    val aInHn = assume(a ∈ app(heightFun)(nVar))
-    val aInHm = assume(a ∈ app(heightFun)(mVar))
-
-    val upperInN = have((nVar ∪ mVar) ∈ N) by Tautology.from(
-      nInN,
-      mInN,
-      unionOfTwoNats.of(a := nVar, b := mVar)
-    )
-
-    val nSubUpper = have(nVar ⊆ (nVar ∪ mVar)) by
-      Tautology.from(Union.leftSubset of (x := nVar, y := mVar))
-    val mSubUpper = have(mVar ⊆ (nVar ∪ mVar)) by
-      Tautology.from(Union.rightSubset of (x := nVar, y := mVar))
-
-    val eqNUpper = have(app(G(nVar))(a) === app(G(nVar ∪ mVar))(a)) by Tautology.from(
-      nInN,
-      upperInN,
-      nSubUpper,
-      aInHn,
-      approximantsAgreeFromSubset.of(nVar := nVar, mVar := nVar ∪ mVar)
-    )
-    val eqMUpper = have(app(G(mVar))(a) === app(G(nVar ∪ mVar))(a)) by Tautology.from(
-      mInN,
-      upperInN,
-      mSubUpper,
-      aInHm,
-      approximantsAgreeFromSubset.of(nVar := mVar, mVar := nVar ∪ mVar)
-    )
-    val eqUpperM = have(app(G(nVar ∪ mVar))(a) === app(G(mVar))(a)) by
-      Congruence.from(eqMUpper)
-
-    have(app(G(nVar))(a) === app(G(mVar))(a)) by Tautology.from(
-      altEqualityTransitivity of (
-        x := app(G(nVar))(a),
-        y := app(G(nVar ∪ mVar))(a),
-        z := app(G(mVar))(a)
-      ),
-      eqNUpper,
-      eqUpperM
-    )
-    thenHave(thesis) by Restate
-  })
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Helper
-  // ─────────────────────────────────────────────────────────────────────────
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Lemma E — limit function
-  // limitFun := λ(a ∈ argType). G(ε n. a ∈ h(n))(a)
-  // ─────────────────────────────────────────────────────────────────────────
-
-  def limitIndex(point: Expr[Ind]): Expr[Ind] =
-    ε(nVar, (nVar ∈ N) /\ (point ∈ app(heightFun)(nVar)))
-
-  val limitFun: Expr[Ind] =
-    abs(spec.argType)(λ(a, app(G(limitIndex(a)))(a)))
-
-  val limitHasType: THM = Time.measure(s"limitHasType for ${spec.functionName}")(Lemma(limitFun :: spec.typ) {
-    val hValid = have(isHeightPred(heightFun)) by Restate.from(heightFunValid)
-
-    val everyValueTyped = have(
-      ∀(a ∈ spec.argType, app(G(limitIndex(a)))(a) ∈ spec.returnType)
-    ) subproof {
-      val pointwiseAtA = have(
-        (a ∈ spec.argType) ==> (app(G(limitIndex(a)))(a) ∈ spec.returnType)
-      ) subproof {
-        val aInArgType = assume(a ∈ spec.argType)
-
-        val hasSomeHeight = have(
-          ∃(nVar, (nVar ∈ N) /\ (a ∈ app(heightFun)(nVar)))
-        ) by Tautology.from(
-          hValid,
-          aInArgType,
-          termHasHeight of (x := a, h := heightFun),
-          equivalenceApply of (
-            p1 := in(a, spec.argType),
-            p2 := ∃(nVar, in(nVar, N) /\ in(a, app(heightFun)(nVar)))
-          )
-        )
-
-        val indexWitness = have(
-          (limitIndex(a) ∈ N) /\ (a ∈ app(heightFun)(limitIndex(a)))
-        ) by Cut(
-          hasSomeHeight,
-          Quantifiers.existsEpsilon.of(
-            x := nVar,
-            P := λ(nVar, (nVar ∈ N) /\ (a ∈ app(heightFun)(nVar)))
-          )
-        )
-
-        val indexInN = have(limitIndex(a) ∈ N) by Tautology.from(indexWitness)
-
-        val approxAtIndex = have(limitIndex(a) ∈ N ==> (G(limitIndex(a)) :: spec.typ)) by
-          InstantiateForall(limitIndex(a))(approx.approxHasType)
-        val approxTyped = have(G(limitIndex(a)) :: spec.typ) by
-          Tautology.from(indexInN, approxAtIndex)
-
-        val approxBetween = have(
-          functionBetween(G(limitIndex(a)))(spec.argType)(spec.returnType)
-        ) by Tautology.from(
-          funcBetweenEqInFuncSpace of (
-            f := G(limitIndex(a)),
-            A := spec.argType,
-            B := spec.returnType
-          ),
-          approxTyped
-        )
-
-        have(app(G(limitIndex(a)))(a) ∈ spec.returnType) by Tautology.from(
-          approxBetween,
-          aInArgType,
-          appTyping of (
-            f := G(limitIndex(a)),
-            A := spec.argType,
-            B := spec.returnType,
-            x := a
-          )
-        )
-        thenHave(thesis) by RightImplies.withParameters(
-          a ∈ spec.argType,
-          app(G(limitIndex(a)))(a) ∈ spec.returnType
-        )
-      }
-      have(
-        (a ∈ spec.argType) ==> (app(G(limitIndex(a)))(a) ∈ spec.returnType)
-      ) by Restate.from(pointwiseAtA)
-      thenHave(
-        ∀(a, (a ∈ spec.argType) ==> (app(G(limitIndex(a)))(a) ∈ spec.returnType))
-      ) by RightForall
-      thenHave(thesis) by Restate
-    }
-
-    val absTypedAtPi = have(
-      abs(spec.argType)(λ(a, app(G(limitIndex(a)))(a))) ∈ Pi(spec.argType)(λ(y, spec.returnType))
-    ) by Tautology.from(
-      everyValueTyped,
-      TAbsConstOn(spec.argType, spec.returnType, λ(a, app(G(limitIndex(a)))(a)))
-    )
-
-    have(limitFun :: spec.typ) by Congruence.from(absTypedAtPi)
-    thenHave(thesis) by Restate
-  })
 }

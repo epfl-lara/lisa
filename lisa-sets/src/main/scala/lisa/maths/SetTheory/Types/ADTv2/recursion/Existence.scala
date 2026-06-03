@@ -20,8 +20,10 @@ import lisa.maths.SetTheory.Types.TypingRules.BetaReduction //On
 import lisa.maths.Quantifiers
 import lisa.utils.prooflib.BasicStepTactic.{LeftExists, Cut, RightForall}
 import lisa.utils.prooflib.ProofTacticLib.Arity
+import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.{ConstructorCaseAssembly, WitnessCaseExtensionality}
 
-import ApproxPropShared.{constructorBranchesAtHeight, constructorDisjunctionAtHeight, specializedConstructors}
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.{constructorBranchesAtHeight, constructorDisjunctionAtHeight, specializedConstructors}
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ApproximationChainFacts
 
 /**
  * Layer 3 — Existence without circularity.
@@ -41,7 +43,9 @@ private[recursion] final class Existence[N <: Arity](
   val spec: FunSpec[N],
   val recWitness: Witness[N],
   val approx: Approx[N],
-  val approxProp: ApproxProp[N]
+  val approxProp: ApproxProp[N],
+  val chainFacts: ApproximationChainFacts[N],
+  val limitConstruction: LimitConstruction[N]
 ) {
 
   val nVar = variable[Ind]
@@ -53,17 +57,15 @@ private[recursion] final class Existence[N <: Arity](
   private val termHasHeight    = spec.adt.height.termHasHeightAt(spec.typeSubstitutions)
   
   import approx.G
-  import approxProp.{
-    heightFun, heightFunValid, isHeightPred,
-    approximantsAgreeFromSubset, approximantsAgreeAcrossHeights,
-    limitFun, limitHasType, limitIndex
-  }
+  import approxProp.{heightFun, heightFunValid, isHeightPred}
+  import chainFacts.{approximantsAgreeAcrossHeights, approximantsAgreeFromSubset}
+  import limitConstruction.{limitFun, limitHasType, limitIndex}
 
   // ─────────────────────────────────────────────────────────────────────────
   // Lemma F — limitIsFixedPoint: W(limitFun) = limitFun
   // ─────────────────────────────────────────────────────────────────────────
 
-  private val limitIsFixedPoint: THM = Time.measure(s"limitIsFixedPoint for ${spec.functionName}")(Lemma(recWitness(limitFun) === limitFun) {
+  private val limitIsFixedPoint: THM = Time.measure(s"Ex/limitIsFixedPoint for ${spec.functionName}")(Lemma(recWitness(limitFun) === limitFun) {
     val hValid = have(isHeightPred(heightFun)) by Restate.from(heightFunValid)
 
     val T, e2 = variable[Ind]
@@ -346,7 +348,7 @@ private[recursion] final class Existence[N <: Arity](
   // Lemma G — fixedPointExists: ∃f :: A→T, W(f) = f
   // ─────────────────────────────────────────────────────────────────────────
 
-  private val fixedPointExists: THM = Time.measure(s"fixedPointExists for ${spec.functionName}")(Lemma(
+  private val fixedPointExists: THM = Time.measure(s"Ex/fixedPointExists for ${spec.functionName}")(Lemma(
     ∃(f, (f :: spec.typ) /\ (recWitness(f) === f))
   ) {
     have(((limitFun :: spec.typ) /\ (recWitness(limitFun) === limitFun))) by
@@ -358,7 +360,7 @@ private[recursion] final class Existence[N <: Arity](
   // defAtFixedPoint: (f :: A→T) ∧ W(f) = f ⊢ Def(f)
   // ─────────────────────────────────────────────────────────────────────────
 
-  private val defAtFixedPoint: THM = Time.measure(s"defAtFixedPoint for ${spec.functionName}")(Lemma(
+  private val defAtFixedPoint: THM = Time.measure(s"Ex/defAtFixedPoint for ${spec.functionName}")(Lemma(
     ((f :: spec.typ) /\ (recWitness(f) === f)) |- spec.untypedDefinition(f)
   ) {
 
@@ -399,7 +401,7 @@ private[recursion] final class Existence[N <: Arity](
   // witnessExists: ∃f, Def(f)
   // ─────────────────────────────────────────────────────────────────────────
 
-  val witnessExists: THM = Time.measure(s"witnessExists for ${spec.functionName}")(Lemma(∃(f, spec.untypedDefinition(f))) {
+  val witnessExists: THM = Lemma(∃(f, spec.untypedDefinition(f))) {
 
     have(((f :: spec.typ) /\ (recWitness(f) === f)) |- spec.untypedDefinition(f)) by
       Restate.from(defAtFixedPoint)
@@ -409,5 +411,5 @@ private[recursion] final class Existence[N <: Arity](
       LeftExists
 
     have(thesis) by Cut(fixedPointExists, lastStep)
-  })
+  }
 }

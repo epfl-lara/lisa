@@ -24,7 +24,7 @@ final class RecFunSemantics[N <: Arity](
     val returnType: Expr[Ind]
 ) {
 
-  private val spec = FunSpec[N](
+  private val spec = new FunSpec[N](
     functionName = name,
     adt = adt,
     argType = argType,
@@ -45,7 +45,9 @@ final class RecFunSemantics[N <: Arity](
 
   private val approx = new Approx[N](spec, witness)
   private val approxProp = Time.measure(s"ApproxProp for $name")(new ApproxProp[N](spec, witness, approx))
-  val existence: Existence[N] = Time.measure(s"Existence for $name")(new Existence[N](spec, witness, approx, approxProp))
+  private val chainFacts = Time.measure(s"ApproximationChainFacts for $name")(new proofs.ApproximationChainFacts[N](spec, approx, approxProp))
+  private val limitConstruction = new LimitConstruction[N](spec, approx, approxProp)
+  val existence: Existence[N] = Time.measure(s"Existence for $name")(new Existence[N](spec, witness, approx, approxProp, chainFacts, limitConstruction))
 
   private val functionUniquenessProof = Time.measure(s"Uniqueness for $name")(new Uniqueness[N](spec))
 
