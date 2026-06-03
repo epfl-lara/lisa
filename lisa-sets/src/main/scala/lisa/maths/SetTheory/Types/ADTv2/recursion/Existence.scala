@@ -7,6 +7,7 @@ import lisa.maths.SetTheory.Types.ADTv2.encoding.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Succ
 import lisa.maths.SetTheory.Types.ADTv2.support.core.InstantiateForallSeq
+import lisa.maths.SetTheory.Types.ADTv2.support.Time
 
 import lisa.maths.SetTheory.Base.Subset
 import lisa.maths.SetTheory.Functions.BasicTheorems.{funcBetweenEqInFuncSpace, functionalExtentionality}
@@ -20,7 +21,7 @@ import lisa.maths.Quantifiers
 import lisa.utils.prooflib.BasicStepTactic.{LeftExists, Cut, RightForall}
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
-import ApproxPropShared.{constructorBranchesAtHeight, constructorDisjunctionAtHeight, specializedConstructors, substitutedCaseBody}
+import ApproxPropShared.{constructorBranchesAtHeight, constructorDisjunctionAtHeight, specializedConstructors}
 
 /**
  * Layer 3 — Existence without circularity.
@@ -62,7 +63,7 @@ private[recursion] final class Existence[N <: Arity](
   // Lemma F — limitIsFixedPoint: W(limitFun) = limitFun
   // ─────────────────────────────────────────────────────────────────────────
 
-  private val limitIsFixedPoint: THM = Lemma(recWitness(limitFun) === limitFun) {
+  private val limitIsFixedPoint: THM = Time.measure(s"limitIsFixedPoint for ${spec.functionName}")(Lemma(recWitness(limitFun) === limitFun) {
     val hValid = have(isHeightPred(heightFun)) by Restate.from(heightFunValid)
 
     val T, e2 = variable[Ind]
@@ -166,11 +167,11 @@ private[recursion] final class Existence[N <: Arity](
         aInHeightN0,
         approximantsAgreeFromSubset.of(nVar := n0, mVar := Succ(n0))
       )
-      val gN0AtAEqWitness = have(app(G(n0))(a) === app(recWitness(G(n0)))(a)) by
+      val gN0AtAEqWitness = have(app(recWitness(G(n0)))(a) === app(G(n0))(a)) by
         Congruence.from(stabAtAFact, gSuccN0EqWitness)
 
       // ── Beta reduction: app(limitFun)(a) = app(G(n0))(a) ───────────────────
-      val limitAtAEqGN0 = have(app(limitFun)(a) === app(G(n0))(a)) by
+      val limitAtAEqGN0 = have(app(G(n0))(a) === app(limitFun)(a)) by
         Tautology.from(
           aInArgType,
           BetaReduction of (T := spec.argType, e := λ(a, app(G(limitIndex(a)))(a)), e2 := a)
@@ -202,21 +203,6 @@ private[recursion] final class Existence[N <: Arity](
               branchPremise,
               sc.appliedEqualityFromStructural(heightFun, n0, a)
             )
-
-          val selectionSchema = spec.patternMatching.branchSelectionFor(c, a)
-          val selectionSchemaInContext = have(selectionSchema.statement.right.head) by
-            Tautology.from(selectionSchema)
-          val selectionAtCtorVars = have(
-            (wellTypedFormula(sc.semanticSignature2) /\ (a === sc.appliedTerm2)) |-
-              seqOr(constructorPatterns.map(pattern =>
-                pattern.freshBranchCondition /\ (a === pattern.freshInputTerm)
-              ))
-          ) by InstantiateForallSeq(c.variables2)(selectionSchemaInContext)
-          val selectedBranch = have(
-            seqOr(constructorPatterns.map(pattern =>
-              pattern.freshBranchCondition /\ (a === pattern.freshInputTerm)
-            ))
-          ) by Tautology.from(selectionAtCtorVars, argsTypedSemantic, aEqApplied)
 
           // Recursive arg equalities: app(limitFun)(v) = app(G(n0))(v) for each SelfRef v
           val selfArgEqualities = sc.selfRefVariables2.map(v =>
@@ -273,10 +259,22 @@ private[recursion] final class Existence[N <: Arity](
               )
           )
 
-          val patternEqualities = constructorPatterns.map(pattern =>
-            val bodyAtLimitFun = substitutedCaseBody(pattern, spec.selfPlaceholder, limitFun, pattern.variables2)
-            val bodyAtGN0 = substitutedCaseBody(pattern, spec.selfPlaceholder, G(n0), pattern.variables2)
+          val selectionSchema = spec.patternMatching.branchSelectionFor(c, a)
+          val selectionSchemaInContext = have(selectionSchema.statement.right.head) by
+            Tautology.from(selectionSchema)
+          val selectionAtCtorVars = have(
+            (wellTypedFormula(sc.semanticSignature2) /\ (a === sc.appliedTerm2)) |-
+              seqOr(constructorPatterns.map(pattern =>
+                pattern.freshBranchCondition /\ (a === pattern.freshInputTerm)
+              ))
+          ) by InstantiateForallSeq(c.variables2)(selectionSchemaInContext)
+          val selectedBranch = have(
+            seqOr(constructorPatterns.map(pattern =>
+              pattern.freshBranchCondition /\ (a === pattern.freshInputTerm)
+            ))
+          ) by Tautology.from(selectionAtCtorVars, argsTypedSemantic, aEqApplied)
 
+          val patternEqualities = constructorPatterns.map(pattern =>
             have(
               (pattern.freshBranchCondition /\ (a === pattern.freshInputTerm)) |- pointwiseGoal
             ) subproof {
@@ -287,87 +285,34 @@ private[recursion] final class Existence[N <: Arity](
                 argsTypedSemantic,
                 patternGuard
               )
-
-              val bodyEq =
-                LambdaBodyEquality.prove(bodyAtLimitFun, bodyAtGN0, selfArgEqualities)
-
-              val witnessCaseLimitSchema = recWitness.witnessCase(pattern).of(spec.selfPlaceholder := limitFun)
-              val witnessCaseLimitBase = witnessCaseLimitSchema.statement.right.head match
-                case _ ==> consequent =>
-                  have(consequent) by Tautology.from(witnessCaseLimitSchema, limitHasType)
-                case _ => throw UnreachableException
-              val witnessCaseLimitAtVars2 = have(
-                pattern.freshBranchPremise ==> (recWitness(limitFun) * pattern.freshInputTerm === bodyAtLimitFun)
-              ) by InstantiateForallSeq(pattern.variables2)(witnessCaseLimitBase)
-              val witnessAtLimit = witnessCaseLimitAtVars2.statement.right.head match
-                case _ ==> consequent =>
-                  have(consequent) by Tautology.from(witnessCaseLimitAtVars2, patternPremise)
-                case _ => throw UnreachableException
-
-              val witnessCaseGN0Schema = recWitness.witnessCase(pattern).of(spec.selfPlaceholder := G(n0))
-              val witnessCaseGN0Base = witnessCaseGN0Schema.statement.right.head match
-                case _ ==> consequent =>
-                  have(consequent) by Tautology.from(witnessCaseGN0Schema, gN0HasType)
-                case _ => throw UnreachableException
-              val witnessCaseGN0AtVars2 = have(
-                pattern.freshBranchPremise ==> (recWitness(G(n0)) * pattern.freshInputTerm === bodyAtGN0)
-              ) by InstantiateForallSeq(pattern.variables2)(witnessCaseGN0Base)
-              val witnessAtGN0 = witnessCaseGN0AtVars2.statement.right.head match
-                case _ ==> consequent =>
-                  have(consequent) by Tautology.from(witnessCaseGN0AtVars2, patternPremise)
-                case _ => throw UnreachableException
-
-              val step1 = have(app(recWitness(limitFun))(a) === app(recWitness(limitFun))(pattern.freshInputTerm)) by
-                Congruence.from(aEqPattern)
-              val step2 = have(app(recWitness(limitFun))(a) === bodyAtLimitFun) by Tautology.from(
-                altEqualityTransitivity of (
-                  x := app(recWitness(limitFun))(a),
-                  y := app(recWitness(limitFun))(pattern.freshInputTerm),
-                  z := bodyAtLimitFun
-                ),
-                step1,
-                witnessAtLimit
+              val witnessesAgreeAtA = WitnessCaseExtensionality.proveOnSelectedPattern(
+                spec = spec,
+                recWitness = recWitness,
+                pattern = pattern,
+                ambientTerm = a,
+                leftSelf = limitFun,
+                rightSelf = G(n0),
+                leftSelfTyped = limitHasType,
+                rightSelfTyped = gN0HasType,
+                patternPremise = patternPremise,
+                ambientEqInput = aEqPattern,
+                selfArgEqualities = selfArgEqualities
               )
-              val step3 = have(app(recWitness(limitFun))(a) === bodyAtGN0) by Tautology.from(
-                altEqualityTransitivity of (
-                  x := app(recWitness(limitFun))(a), y := bodyAtLimitFun, z := bodyAtGN0
-                ),
-                step2, bodyEq
-              )
-              val step4 = have(bodyAtGN0 === app(recWitness(G(n0)))(pattern.freshInputTerm)) by
-                Congruence.from(witnessAtGN0)
-              val step5 = have(app(recWitness(limitFun))(a) === app(recWitness(G(n0)))(pattern.freshInputTerm)) by
-                Tautology.from(
-                  altEqualityTransitivity of (
-                    x := app(recWitness(limitFun))(a), y := bodyAtGN0, z := app(recWitness(G(n0)))(pattern.freshInputTerm)
-                  ),
-                  step3, step4
-                )
-              val step6 = have(app(recWitness(G(n0)))(pattern.freshInputTerm) === app(recWitness(G(n0)))(a)) by
-                Congruence.from(aEqPattern)
-              val step7 = have(app(recWitness(limitFun))(a) === app(recWitness(G(n0)))(a)) by Tautology.from(
-                altEqualityTransitivity of (
-                  x := app(recWitness(limitFun))(a),
-                  y := app(recWitness(G(n0)))(pattern.freshInputTerm),
-                  z := app(recWitness(G(n0)))(a)
-                ),
-                step5, step6
-              )
-              val step8 = have(app(recWitness(G(n0)))(a) === app(G(n0))(a)) by
-                Congruence.from(gN0AtAEqWitness)
-              val step9 = have(app(recWitness(limitFun))(a) === app(G(n0))(a)) by Tautology.from(
-                altEqualityTransitivity of (
-                  x := app(recWitness(limitFun))(a), y := app(recWitness(G(n0)))(a), z := app(G(n0))(a)
-                ),
-                step7, step8
-              )
-              val step10 = have(app(G(n0))(a) === app(limitFun)(a)) by Congruence.from(limitAtAEqGN0)
 
               have(pointwiseGoal) by Tautology.from(
                 altEqualityTransitivity of (
-                  x := app(recWitness(limitFun))(a), y := app(G(n0))(a), z := app(limitFun)(a)
+                  x := app(recWitness(limitFun))(a), 
+                  y := app(recWitness(G(n0)))(a), 
+                  z := app(G(n0))(a)
                 ),
-                step9, step10
+                altEqualityTransitivity of (
+                  x := app(recWitness(limitFun))(a), 
+                  y := app(G(n0))(a), 
+                  z := app(limitFun)(a)
+                ),
+                witnessesAgreeAtA,
+                gN0AtAEqWitness,
+                limitAtAEqGN0
               )
             }
           )
@@ -380,21 +325,22 @@ private[recursion] final class Existence[N <: Arity](
 
           have(pointwiseGoal) by Cut(selectedBranch, branchesToGoal)
         }
-
-        val rawBranch = c.variables2.reverse.foldLeft(directBranch)((fact, v) =>
-          thenHave(∃(v, fact.statement.left.head) |- pointwiseGoal) by LeftExists
+        ConstructorCaseAssembly.liftConstructorCase(
+          sc = sc,
+          heightSet = app(heightFun)(n0),
+          ambientTerm = a,
+          goal = pointwiseGoal,
+          directBranch = directBranch
         )
-        have(constructorBranch(sc) |- pointwiseGoal) by Tautology.from(rawBranch)
       )
 
-      val branchesToGoal =
-        if branchEqualities.size == 1 then
-          have(constructorDisjunction |- pointwiseGoal) by Restate.from(branchEqualities.head)
-        else
-          have(constructorDisjunction |- pointwiseGoal) by LeftOr(branchEqualities*)
-
-      have(pointwiseGoal) by Cut(decomposeAtA, branchesToGoal)
-      thenHave(thesis) by RightImplies.withParameters(a ∈ spec.argType, pointwiseGoal)
+      ConstructorCaseAssembly.assemblePointwiseFromConstructors(
+        constructorDisjunction = constructorDisjunction,
+        decomposeFact = decomposeAtA,
+        constructorFacts = branchEqualities,
+        antecedent = a ∈ spec.argType,
+        goal = pointwiseGoal
+      )
     }
 
     thenHave(∀(a, (a ∈ spec.argType) ==> pointwiseGoal)) by RightForall
@@ -406,25 +352,25 @@ private[recursion] final class Existence[N <: Arity](
       functionalExtentionality of (f := recWitness(limitFun), g := limitFun, A := spec.argType, B := spec.returnType)
     )
     thenHave(thesis) by Restate
-  }
+  })
 
   // ─────────────────────────────────────────────────────────────────────────
   // Lemma G — fixedPointExists: ∃f :: A→T, W(f) = f
   // ─────────────────────────────────────────────────────────────────────────
 
-  private val fixedPointExists: THM = Lemma(
+  private val fixedPointExists: THM = Time.measure(s"fixedPointExists for ${spec.functionName}")(Lemma(
     ∃(f, (f :: spec.typ) /\ (recWitness(f) === f))
   ) {
     have(((limitFun :: spec.typ) /\ (recWitness(limitFun) === limitFun))) by
       Tautology.from(limitHasType, limitIsFixedPoint)
     thenHave(thesis) by RightExists
-  }
+  })
 
   // ─────────────────────────────────────────────────────────────────────────
   // defAtFixedPoint: (f :: A→T) ∧ W(f) = f ⊢ Def(f)
   // ─────────────────────────────────────────────────────────────────────────
 
-  private val defAtFixedPoint: THM = Lemma(
+  private val defAtFixedPoint: THM = Time.measure(s"defAtFixedPoint for ${spec.functionName}")(Lemma(
     ((f :: spec.typ) /\ (recWitness(f) === f)) |- spec.untypedDefinition(f)
   ) {
 
@@ -459,13 +405,13 @@ private[recursion] final class Existence[N <: Arity](
     ).toSeq
 
     have(thesis) by Tautology.from((fTyped +: caseFacts)*)
-  }
+  })
 
   // ─────────────────────────────────────────────────────────────────────────
   // witnessExists: ∃f, Def(f)
   // ─────────────────────────────────────────────────────────────────────────
 
-  val witnessExists: THM = Lemma(∃(f, spec.untypedDefinition(f))) {
+  val witnessExists: THM = Time.measure(s"witnessExists for ${spec.functionName}")(Lemma(∃(f, spec.untypedDefinition(f))) {
 
     have(((f :: spec.typ) /\ (recWitness(f) === f)) |- spec.untypedDefinition(f)) by
       Restate.from(defAtFixedPoint)
@@ -475,5 +421,5 @@ private[recursion] final class Existence[N <: Arity](
       LeftExists
 
     have(thesis) by Cut(fixedPointExists, lastStep)
-  }
+  })
 }

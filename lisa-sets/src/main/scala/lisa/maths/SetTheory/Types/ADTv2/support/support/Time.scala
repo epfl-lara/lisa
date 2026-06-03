@@ -10,7 +10,7 @@ final case class Time private (nanos: Long) {
     val millis = nanos / 1000000L
     val seconds = millis / 1000L
     val remainingMillis = millis % 1000L
-    s"${seconds}.${remainingMillis.toString.reverse.padTo(3, '0').reverse} s"
+    s"${seconds}.${remainingMillis.toString.reverse.padTo(3, '0').reverse}s"
   }
 }
 
@@ -37,16 +37,28 @@ object Time {
     result
   }
 
+  def measureNow[A](label: String)(body: => A): A = {
+    val start = get()
+    val result = body
+    val end = get()
+    println(s"Measured $label: ${end - start}")
+    result
+  }
+
+  def log(message: String): Unit = {
+    println(s"[${get() - resetTime}] $message")
+  }
+
   def printSummary(): Unit = {
     println("===== ADTv2 timing summary =====")
-    totals.toSeq.sortBy(_._1).foreach { (label, totalNanos) =>
+    totals.toSeq.sortBy(_._2).foreach { (label, totalNanos) =>
       val total = Time(totalNanos)
       val n = counts(label)
       val mean = Time(totalNanos / n)
       val variance = math.max(0.0, (totalsSquared(label) / n) - math.pow(totalNanos.toDouble / n, 2))
       val stddev = Time(math.sqrt(variance).toLong)
 
-      if (total.millis > 900L) {
+      if (total.millis > 200L) {
         println(s"$total ($n calls, mean: $mean, stddev: $stddev)\t - $label")
       }
     }

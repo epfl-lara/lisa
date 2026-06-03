@@ -50,7 +50,7 @@ def recFun[N <: Arity](adt: SpecializedADT[N], returnType: Expr[Ind])(using
     valueOfN: ValueOf[N]
 )(
     cases: Expr[Ind] => (CaseAccumulator[N, Expr[Ind], Unit] ?=> Unit)
-): RecFunction[N] = {
+): RecFunction[N] = Time.measure(s"Building RecFunction ${name.value}"){
   val builder = CaseAccumulator[N, Expr[Ind], Unit](())
   val self = RecFunction.selfPlaceholder(name.value)
   cases(self)(using builder)
@@ -63,13 +63,13 @@ def recFun[N <: Arity](adt: SpecializedADT[N], returnType: Expr[Ind])(using
 
   builder.compile(adt.base) match
     case Right(patternSystem) =>
-      val specializedPatternSystem = SpecializedPatternSystem(
+      val specializedPatternSystem = Time.measure(s"SpecializedPatternSystem for ${name.value}")(SpecializedPatternSystem(
         underlying = patternSystem,
         domain = adt.base.semantic,
         typeSubstitutions = effectiveTypeSubstitutions,
         specializedAdtTerm = adt.term
-      )
-      val semantic = recursion.RecFunSemantics[N](
+      ))
+      val semantic = Time.measure(s"Semantic for ${name.value}")(recursion.RecFunSemantics[N](
         name.value,
         adt.base.semantic,
         adt.term,
@@ -77,7 +77,7 @@ def recFun[N <: Arity](adt: SpecializedADT[N], returnType: Expr[Ind])(using
         self,
         specializedPatternSystem,
         returnType
-      )
+      ))
       new RecFunction[N](semantic, adt.base)
     case Left(msg) => throw new IllegalArgumentException(msg)
 }

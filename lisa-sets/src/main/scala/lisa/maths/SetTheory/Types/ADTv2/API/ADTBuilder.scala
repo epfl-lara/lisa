@@ -15,8 +15,7 @@ private def ADTBuilder[N <: Arity](
   constructors: Seq[
     (String, Seq[(String, String | ConstructorArg)])
   ]
-)(using ValueOf[N]) = {
-  val t0 = Time.get()
+)(using ValueOf[N]) : ADT[N] = Time.measure(s"Building ADT $name") {
 
   require(
     typeVars.distinct.size == typeVars.size,
@@ -52,42 +51,33 @@ private def ADTBuilder[N <: Arity](
     }
   }
 
-  val constructorsSyntactic = constructorsArgs.map(args =>
+  val constructorsSyntactic = Time.measure(s"$name constructors syntactic")(constructorsArgs.map(args =>
     SyntacticConstructor(
       args.map(arg => arg._2),
       args.map(arg => Variable[Ind](arg._1)),
       args.map(arg => Variable[Ind](s"${arg._1}2"))
     )
-  )
-  val t1 = Time.get()
-  val adtSyntactic = SyntacticADT[N](
+  ))
+
+  val adtSyntactic = Time.measure(s"$name syntactic")(SyntacticADT[N](
     name,
     constructorsSyntactic,
     **.fromSeq[Variable[Ind], N](typeVars.map(Variable[Ind](_)))
-  )
-  val t2 = Time.get()
+  ))
 
-  val constructorsSemantic = constructorsSyntactic.zip(constructorsName).map {
+  val constructorsSemantic = Time.measure(s"$name constructors semantic")(constructorsSyntactic.zip(constructorsName).map {
     case (ctor, name) =>
       SemanticConstructor[N](
         name,
         ctor,
         adtSyntactic
       )
-  }
-  val t3 = Time.get()
-  val adtSemantic = SemanticADT[N](adtSyntactic, constructorsSemantic)
-  val t4 = Time.get()
+  })
 
-  val res = new ADT[N](adtSemantic)
-  // val t5 = Time.get()
-  // val consSyn = t1 - t0
-  // val adtSyn = t2 - t1
-  // val consSem = t3 - t2
-  // val adtSem = t4 - t3
-  // val buildADT = t5 - t4
-  // println(s"Building ADT $name took ${t5 - t0} (consSyn: $consSyn, adtSyn: $adtSyn, consSem: $consSem, adtSem: $adtSem, buildADT: $buildADT)")
-  res
+  val adtSemantic = Time.measure(s"$name semantic")(SemanticADT[N](adtSyntactic, constructorsSemantic))
+
+
+  new ADT[N](adtSemantic)
 }
 
 def adt[N <: Arity](

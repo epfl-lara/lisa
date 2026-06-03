@@ -4,6 +4,7 @@ import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{ConstructorHe
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.UniqueCharacterizedSymbol
 import lisa.maths.SetTheory.Types.TypingHelpers.*
 
@@ -39,20 +40,14 @@ final class RecFunSemantics[N <: Arity](
   val typ: Expr[Ind] = spec.typ
   val rawPatterns: Seq[Pattern[N]] = spec.cases
 
-  println(s"=== RecFunSemantics for $name ===")
 
   private val witness: Witness[N] = new Witness[N](spec)
 
-  println(s"=== Witness for $name ===")
   private val approx = new Approx[N](spec, witness)
-  println(s"=== Approx for $name ===")
-  private val approxProp = new ApproxProp[N](spec, witness, approx)
-  println(s"=== ApproxProp for $name ===")
-  val existence: Existence[N] = new Existence[N](spec, witness, approx, approxProp)
-  println(s"=== Existence for $name ===")
+  private val approxProp = Time.measure(s"ApproxProp for $name")(new ApproxProp[N](spec, witness, approx))
+  val existence: Existence[N] = Time.measure(s"Existence for $name")(new Existence[N](spec, witness, approx, approxProp))
 
-  private val functionUniquenessProof = new Uniqueness[N](spec)
-  println(s"=== Uniqueness for $name ===")
+  private val functionUniquenessProof = Time.measure(s"Uniqueness for $name")(new Uniqueness[N](spec))
 
   private val untypedDef: Expr[Prop] = spec.untypedDefinition(f)
 
