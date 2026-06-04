@@ -1,7 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.API
 
 import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, ADTFunction, RecFunction, SpecializedADT}
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{PatternSystem, SpecializedPatternSystem}
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.syntax.CaseAccumulator
 import lisa.maths.SetTheory.Types.ADTv2.functions.SemanticFunction
 import lisa.maths.SetTheory.Types.ADTv2.recursion
@@ -27,18 +27,12 @@ def fun[N <: Arity](adt: SpecializedADT[N], returnType: Expr[Ind])(using
         substitution._2.asInstanceOf[Expr[Ind]] != substitution._1.asInstanceOf[Variable[Ind]]
       )
 
-  builder.compile(adt.base) match
+  builder.compile(adt) match
     case Right(patternSystem) =>
-      val specializedPatternSystem = SpecializedPatternSystem(
-        underlying = patternSystem,
-        domain = adt.base.semantic,
-        typeSubstitutions = effectiveTypeSubstitutions,
-        specializedAdtTerm = adt.term
-      )
       val semantic = SemanticFunction[N](
         name.value,
         adt.base.semantic,
-        specializedPatternSystem,
+        patternSystem,
         returnType
       )
       new ADTFunction[N](semantic, adt.base)
@@ -61,21 +55,15 @@ def recFun[N <: Arity](adt: SpecializedADT[N], returnType: Expr[Ind])(using
         substitution._2.asInstanceOf[Expr[Ind]] != substitution._1.asInstanceOf[Variable[Ind]]
       )
 
-  builder.compile(adt.base) match
+  builder.compile(adt) match
     case Right(patternSystem) =>
-      val specializedPatternSystem = Time.measure(s"SpecializedPatternSystem")(SpecializedPatternSystem(
-        underlying = patternSystem,
-        domain = adt.base.semantic,
-        typeSubstitutions = effectiveTypeSubstitutions,
-        specializedAdtTerm = adt.term
-      ))
       val semantic = Time.measure(s"RecFunction Semantic")(recursion.RecFunSemantics[N](
         name.value,
         adt.base.semantic,
         adt.term,
         effectiveTypeSubstitutions,
         self,
-        specializedPatternSystem,
+        patternSystem,
         returnType
       ))
       new RecFunction[N](semantic, adt.base)

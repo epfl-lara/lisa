@@ -4,6 +4,7 @@ import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
 import lisa.maths.SetTheory.Types.ADTv2.support.{InstantiateForallSeq, QuantifiersIntro}
+import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.TypingHelpers.*
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
@@ -19,6 +20,8 @@ import lisa.utils.prooflib.BasicStepTactic.LeftExists
 import lisa.automation.Substitution
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
+
+
 private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMembership[N] {
 
   private def branchWitnessAt(
@@ -303,7 +306,7 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
   }
 
   val samePatternBodyEquality: Map[Pattern[N], THM] =
-    patternMatching.patterns.map(pattern =>
+    Time.measure("WFP/samePatternBodyEquality")(patternMatching.patterns.map(pattern =>
       val ch = constructorHead(pattern)
       // The *statement* of this lemma is the bare implication over the pattern's
       // own `binders` / `variables2`, because that is exactly the shape
@@ -373,10 +376,10 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
 
         have(thesis) by InstantiateForallSeq(canon1 ++ canon2)(quantified)
       })
-    ).toMap
+    ).toMap)
 
   val branchAgreement: Map[(Pattern[N], Pattern[N]), THM] =
-    (for
+    Time.measure("WFP/branchAgreement")(for
       pattern1 <- patternMatching.patterns
       pattern2 <- patternMatching.patterns
     yield (pattern1, pattern2) -> {
@@ -566,7 +569,7 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
       have(thesis) by Restate.from(lastStep)
     }
 
-  val witnessTotality: THM = Lemma(
+  val witnessTotality: THM = Time.measure("WFP/witnessTotality")(Lemma(
     contextualize(
       ∀(inputTerm ∈ argType, ∃(outputTerm, pair(inputTerm, outputTerm) ∈ witness))
     )
@@ -657,9 +660,9 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
 
     if contextPremises.isEmpty then have(thesis) by Restate.from(core)
     else have(thesis) by Tautology.from(contextHyp.get, core)
-  }
+  })
 
-  val witnessSingleValued: THM = Lemma(
+  val witnessSingleValued: THM = Time.measure("WFP/witnessSingleValued")(Lemma(
     ∀(inputTerm ∈ argType,
       ∀(outputTerm,
         ∀(alternateOutputTerm,
@@ -886,7 +889,7 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
     }
 
     have(thesis) by Restate.from(core)
-  }
+  })
 
   val witnessUniqueValue: THM = Lemma(
     contextualize(

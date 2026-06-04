@@ -18,6 +18,7 @@ object Time {
   private val counts = scala.collection.mutable.LinkedHashMap.empty[String, Int]
   private val totals = scala.collection.mutable.LinkedHashMap.empty[String, Long]
   private val totalsSquared = scala.collection.mutable.LinkedHashMap.empty[String, Double]
+  private val maxes = scala.collection.mutable.LinkedHashMap.empty[String, Long]
   private var resetTime = get()
 
   def get(): Time = Time(System.nanoTime())
@@ -25,6 +26,7 @@ object Time {
   def register(label: String, elapsed: Time): Unit = {
     counts.update(label, counts.getOrElse(label, 0) + 1)
     totals.update(label, totals.getOrElse(label, 0L) + elapsed.nanos)
+    maxes.update(label, math.max(maxes.getOrElse(label, 0L), elapsed.nanos))
     val nanos = elapsed.nanos.toDouble
     totalsSquared.update(label, totalsSquared.getOrElse(label, 0.0) + nanos * nanos)
   }
@@ -60,18 +62,35 @@ object Time {
 
   def printSummary(): Unit = {
     println("===== ADTv2 timing summary =====")
-    totals.toSeq.sortBy(_._2).foreach { (label, totalNanos) =>
+
+    // Build the rows as column tuples, then render them as an aligned table.
+    val header = Seq("Total", "Calls", "Mean", "Max", "Stddev", "Label")
+    val rows = totals.toSeq.sortBy(_._2).flatMap { (label, totalNanos) =>
       val total = Time(totalNanos)
       val n = counts(label)
       val mean = Time(totalNanos / n)
+      val max = Time(maxes(label))
       val variance = math.max(0.0, (totalsSquared(label) / n) - math.pow(totalNanos.toDouble / n, 2))
-      val stddev = Time(math.sqrt(variance).toLong)
       val stddevInPercent = round((math.sqrt(variance) * n * 100.0) / totalNanos, 2)
 
       if (total.millis > 500L) {
-        println(s"$total ($n calls, mean: $mean, stddev: $stddevInPercent%)\t - $label")
+        Some(Seq(total.toString, n.toString, mean.toString, max.toString, s"$stddevInPercent%", label))
+      } else {
+        None
       }
     }
+
+    if (rows.nonEmpty) {
+      val widths = (header +: rows).transpose.map(_.map(_.length).max)
+      def renderRow(cols: Seq[String]): String =
+        cols.zip(widths).map((s, w) => s.padTo(w, ' ')).mkString("| ", " | ", " |")
+      val separator = widths.map(w => "-" * (w + 2)).mkString("|", "|", "|")
+
+      println(renderRow(header))
+      println(separator)
+      rows.foreach(cols => println(renderRow(cols)))
+    }
+
     println("")
     // println(s"Measured total (overlapping): ${Time(totals.values.sum)}")
     println(s"Real time: ${get() - resetTime}")
@@ -81,6 +100,7 @@ object Time {
     totals.clear()
     counts.clear()
     totalsSquared.clear()
+    maxes.clear()
     resetTime = get()
   }
 }

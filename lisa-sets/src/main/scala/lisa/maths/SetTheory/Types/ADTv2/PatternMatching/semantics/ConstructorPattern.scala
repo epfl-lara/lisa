@@ -3,6 +3,8 @@ package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Base.Pair
 import lisa.maths.SetTheory.Types.ADTv2.encoding.{SemanticADT, SemanticConstructor}
+import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.{altEqualityTransitivity, constructorTagDisequality}
 import lisa.maths.SetTheory.Types.TypingHelpers.::
@@ -14,13 +16,17 @@ final case class ConstructorPattern[N <: Arity](
     semanticConstructor: SemanticConstructor[N],
     binders: Seq[Variable[Ind]],
     body: Expr[Ind],
-    override val branchCondition: Expr[Prop] = ⊤
+    override val branchCondition: Expr[Prop] = ⊤,
+    override val typeSubstitutions: Seq[TypeSubstitution] = Seq.empty,
+    override val specializedAdtTerm: Expr[Ind]
 ) extends ConstructorHeadPattern[N] {
   override def withBody(newBody: Expr[Ind]): Pattern[N] = copy(body = newBody)
 }
 
 final case class ConstructorPatternSystem[N <: Arity](
-    override val patterns: Seq[ConstructorHeadPattern[N]]
+    domain: SemanticADT[N],
+    override val patterns: Seq[ConstructorHeadPattern[N]],
+    specializedAdtTerm: Expr[Ind]
 ) extends PatternSystem[N] {
   override def constructors: Seq[SemanticConstructor[N]] =
     patterns.map(_.semanticConstructor).distinct
@@ -29,14 +35,15 @@ final case class ConstructorPatternSystem[N <: Arity](
     patterns.filter(_.semanticConstructor == constructor)
 
   override def coverage(domain: SemanticADT[N]): THM = {
+    require(domain == this.domain, "ConstructorPatternSystem.coverage expects its compiled base domain.")
     require(
       supportsAutomaticCoverage,
       "Automatic coverage is only available for constructor-only pattern systems with one unconditional branch per constructor."
     )
     val coveredTerm = variable[Ind]
-    Lemma(∀(coveredTerm :: domain.term, simplify(caseCoverage(coveredTerm)))) { sp ?=>
+    Lemma(∀(coveredTerm :: specializedAdtTerm, simplify(caseCoverage(coveredTerm)))) { sp ?=>
       have(coveredTerm :: domain.term ==> simplify(caseCoverage(coveredTerm))) by
-        InstantiateForall(coveredTerm)(domain.elim)
+        InstantiateForall(coveredTerm)(ConstructorPatternSystem.domainElim(domain, specializedAdtTerm))
       thenHave(thesis) by RightForall
     }
   }
@@ -158,10 +165,23 @@ final case class ConstructorPatternSystem[N <: Arity](
 }
 
 object ConstructorPatternSystem {
+  private def domainElim[N <: Arity](domain: SemanticADT[N], specializedAdtTerm: Expr[Ind]): THM =
+    if specializedAdtTerm == domain.term then domain.elim
+    else
+      val base = domain.elim
+      val substitutions = domain.typeVariablesSeq.zip(ADT.unapply(specializedAdtTerm).map(_._2).getOrElse(Seq.empty)).map((v, arg) => v := arg)
+      Lemma(base.statement.substitute(substitutions*)) { sp ?=>
+        have(thesis) by Restate.from(base.of(substitutions*))
+      }
+
   def apply[N <: Arity](
       rawCases: Map[SemanticConstructor[N], (Seq[Variable[Ind]], Expr[Ind])]
   ): ConstructorPatternSystem[N] =
-    ConstructorPatternSystem(rawCases.toSeq.map((constructor, value) =>
-      ConstructorPattern(constructor, value._1, value._2)
-    ))
+    ConstructorPatternSystem(
+      ADT.getADT(rawCases.head._1.adt.name).get.semantic.asInstanceOf[SemanticADT[N]],
+      rawCases.toSeq.map((constructor, value) =>
+        ConstructorPattern(constructor, value._1, value._2, specializedAdtTerm = constructor.adt.term)
+      ),
+      rawCases.head._1.adt.term
+    )
 }

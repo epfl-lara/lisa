@@ -105,12 +105,14 @@ final class RecFunSemantics[N <: Arity](
   val patterns: Seq[Pattern[N]] = compiledCases
   val cases: Seq[Pattern[N]] = patterns
 
-  private def compiledPatternFor(constructor: SemanticConstructor[N]): Pattern[N] =
-    compiledCases.find(pattern =>
+  private def compiledPatternsFor(constructor: SemanticConstructor[N]): Seq[Pattern[N]] = {
+    val matching = compiledCases.filter(pattern =>
       ConstructorHeadPattern.require(pattern).correspondsTo(constructor)
-    ).getOrElse(
-      throw new IllegalArgumentException(s"No compiled pattern registered for constructor ${constructor.name}.")
     )
+    if matching.isEmpty then
+      throw new IllegalArgumentException(s"No compiled pattern registered for constructor ${constructor.name}.")
+    matching
+  }
 
   private val shortDefinitionByPattern: Map[Pattern[N], THM] =
     patterns.map(pattern =>
@@ -158,8 +160,29 @@ final class RecFunSemantics[N <: Arity](
   def elimByPattern(pattern: Pattern[N]): THM =
     shortDefinition(pattern)
 
+  private val elimByConstThm: Map[SemanticConstructor[N], THM] =
+    compiledCases
+      .map(pattern => ConstructorHeadPattern.require(pattern).semanticConstructor)
+      .distinct
+      .map { constructor =>
+        val patternsForConst = compiledPatternsFor(constructor)
+        constructor -> Lemma(
+          seqAnd(patternsForConst.map(pattern =>
+            simplify(pattern.branchPremise ==> (term * pattern.inputTerm === pattern.body))
+          ))
+        ) {
+          have(thesis) by Tautology.from(
+            patternsForConst.map(pattern => shortDefinitionByPattern(pattern))*
+          )
+        }
+      }
+      .toMap
+
   def elimByConst(constructor: SemanticConstructor[N]): THM =
-    shortDefinitionByPattern(compiledPatternFor(constructor))
+    elimByConstThm.getOrElse(
+      constructor,
+      throw new IllegalArgumentException(s"No compiled pattern registered for constructor ${constructor.name}.")
+    )
 
   def elim(pattern: Pattern[N]): THM =
     elimByPattern(pattern)

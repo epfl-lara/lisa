@@ -7,7 +7,8 @@ import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{
   NestedPatternSystem,
   PatternSystem
 }
-import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, Constructor}
+import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, Constructor, SpecializedADT}
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.substitutionsFromArgs
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
@@ -37,14 +38,19 @@ class CaseAccumulator[N <: Arity, T, R](val comp: R) {
    * Falls back to a [[NestedPatternSystem]] when at least one case contains a concrete
    * term argument (e.g. `cons(tru, tl)`).
    */
-  def compile(adt: ADT[N])(using ev: T =:= Expr[Ind]): Either[String, PatternSystem[N]] =
-    validateCoverage(adt) match
+  def compile(adt: SpecializedADT[N])(using ev: T =:= Expr[Ind]): Either[String, PatternSystem[N]] =
+    validateCoverage(adt.base) match
       case Some(err) => Left(err)
       case None =>
+        val typeSubstitutions =
+          substitutionsFromArgs("ADT", adt.base.name, adt.base.typeVariablesSeq, adt.typeArgs)
+            .filter(substitution =>
+              substitution._2.asInstanceOf[Expr[Ind]] != substitution._1.asInstanceOf[Variable[Ind]]
+            )
         val isNested = underlying.exists { case (_, args, _) =>
           args.exists(!_.isInstanceOf[Variable[Ind]])
         }
-        Right(if isNested then buildNestedSystem(ev) else buildConstructorSystem(ev))
+        Right(if isNested then buildNestedSystem(adt, typeSubstitutions, ev) else buildConstructorSystem(adt, typeSubstitutions, ev))
 
   /**
    * Validates coverage and builds a constructor-keyed map for use in induction proofs.
@@ -92,22 +98,47 @@ class CaseAccumulator[N <: Arity, T, R](val comp: R) {
         )
       }
 
-  private def buildConstructorSystem(ev: T =:= Expr[Ind]): ConstructorPatternSystem[N] =
-    ConstructorPatternSystem(underlying.toSeq.map { case (cons, args, body) =>
-      ConstructorPattern(cons.semantic, args.map(_.asInstanceOf[Variable[Ind]]), ev(body))
-    })
+  private def buildConstructorSystem(
+      adt: SpecializedADT[N],
+      typeSubstitutions: Seq[lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution],
+      ev: T =:= Expr[Ind]
+  ): ConstructorPatternSystem[N] =
+    ConstructorPatternSystem(
+      domain = adt.base.semantic,
+      patterns = underlying.toSeq.map { case (cons, args, body) =>
+        ConstructorPattern(
+          cons.semantic,
+          args.map(_.asInstanceOf[Variable[Ind]]),
+          ev(body).substitute(typeSubstitutions*),
+          typeSubstitutions = typeSubstitutions,
+          specializedAdtTerm = adt.term
+        )
+      },
+      specializedAdtTerm = adt.term
+    )
 
-  private def buildNestedSystem(ev: T =:= Expr[Ind]): NestedPatternSystem[N] =
-    NestedPatternSystem(underlying.toSeq.map { case (cons, args, body) =>
-      NestedConstructorPattern.fromArgs(
-        cons.semantic,
-        args.map {
-          case v: Variable[Ind] => Left(v)
-          case t                => Right(t)
-        },
-        ev(body)
-      )
-    })
+  private def buildNestedSystem(
+      adt: SpecializedADT[N],
+      typeSubstitutions: Seq[lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution],
+      ev: T =:= Expr[Ind]
+  ): NestedPatternSystem[N] =
+    NestedPatternSystem(
+      domain = adt.base.semantic,
+      patterns = underlying.toSeq.map { case (cons, args, body) =>
+        NestedConstructorPattern.fromArgs(
+          cons.semantic,
+          args.map {
+            case v: Variable[Ind] => Left(v)
+            case t                => Right(t.substitute(typeSubstitutions*).asInstanceOf[Expr[Ind]])
+          },
+          ev(body).substitute(typeSubstitutions*).asInstanceOf[Expr[Ind]],
+          typeSubstitutions,
+          adt.term
+        )
+      },
+      typeSubstitutions = typeSubstitutions,
+      specializedAdtTerm = adt.term
+    )
 }
 
 @deprecated("Use CaseAccumulator", "ADTv2")

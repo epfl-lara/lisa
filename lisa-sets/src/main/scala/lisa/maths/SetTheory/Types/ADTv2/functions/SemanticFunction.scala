@@ -1,6 +1,6 @@
 package lisa.maths.SetTheory.Types.ADTv2.functions
 
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{Pattern, PatternSystem}
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{ConstructorHeadPattern, Pattern, PatternSystem}
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
@@ -98,8 +98,29 @@ class SemanticFunction[N <: Arity](
   def elimByPattern(pattern: Pattern[N]): THM =
     shortDefinition(pattern)
 
+  private val elimByConstThm: Map[SemanticConstructor[N], THM] =
+    patterns
+      .map(pattern => ConstructorHeadPattern.require(pattern).semanticConstructor)
+      .distinct
+      .map { constructor =>
+        val patternsForConst = patternMatching.patternsFor(constructor)
+        constructor -> Lemma(
+          seqAnd(patternsForConst.map(pattern =>
+            simplify(pattern.branchPremise) ==> (term * pattern.inputTerm === pattern.body)
+          ))
+        ) {
+          have(thesis) by Tautology.from(
+            patternsForConst.map(pattern => shortDefinitionByPattern(pattern))*
+          )
+        }
+      }
+      .toMap
+
   def elimByConst(constructor: SemanticConstructor[N]): THM =
-    shortDefinitionByPattern(patternMatching.patternFor(constructor))
+    elimByConstThm.getOrElse(
+      constructor,
+      throw new IllegalArgumentException(s"No pattern registered for constructor ${constructor.name}.")
+    )
 
   def elim(pattern: Pattern[N]): THM =
     elimByPattern(pattern)

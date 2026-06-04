@@ -15,8 +15,6 @@ import lisa.maths.SetTheory.Types.ADTv2.library.Nat.*
  */
 object NestedPatterns extends lisa.Main {
 
-  println("launching NestedPatterns...")
-
   private val hd = variable[Ind]
   private val tl = variable[Ind]
   private val boolList = list.specialize(bool)
@@ -37,20 +35,16 @@ object NestedPatterns extends lisa.Main {
   }
 
 
-  println("countTrue defined")
-
-  // Check whether all elements of a list of booleans are `tru`.
-  // val allTrue = recFun(boolList, bool) { self =>
-  //   Case(nil):
-  //     tru
-  //   Case(cons, tru, tl):
-  //     self * tl
-  //   Case(cons, fals, tl):
-  //     fals
-  // }
+  // Check whether any element of a list of booleans is `tru`.
+  val existsTrue = recFun(boolList, bool) { self =>
+    Case(nil):
+      fals
+    Case(cons, tru, tl):
+      tru
+    Case(cons, fals, tl):
+      self * tl
+  }
   
-
-  // println("allTrue defined")
 
   // ── List[Nat] examples ─────────────────────────────────────────────────
 
@@ -72,11 +66,13 @@ object NestedPatterns extends lisa.Main {
   show(countTrue.intro(bool))
   show(countTrue.elim(bool)(nil))
   show(countTrue.elim(bool)(cons))
+  show(countTrue.elimTotal(bool))
 
-  // section("allTrue on List[Bool]")
-  // show(allTrue.intro(bool))
-  // show(allTrue.elim(bool)(nil))
-  // show(allTrue.elim(bool)(cons))
+  section("existsTrue on List[Bool]")
+  show(existsTrue.intro(bool))
+  show(existsTrue.elim(bool)(nil))
+  show(existsTrue.elim(bool)(cons))
+  show(existsTrue.elimTotal(bool))
 
   // section("headIsZero on List[Nat]")
   // show(headIsZero.intro(nat))

@@ -4,6 +4,7 @@ import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
+import lisa.maths.SetTheory.Types.ADTv2.support.Time
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Base.Pair.given
@@ -28,7 +29,7 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
     )
   ).toMap
 
-  val induction = Lemma(using name = s"ADT_${name}_induction")(
+  val induction = Time.measure("ADT induction")(Lemma(using name = s"${name}/induction")(
     constructors.foldRight[Expr[Prop]](forall(x, in(x, term) ==> P(x)))((c, f) =>
       inductiveCase(c) ==> f
     )
@@ -383,5 +384,5 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
     thenHave(structuralInductionPreconditions |- forall(x, in(x, term) ==> P(x))) by
       RightForall
     thenHave(thesis) by Restate
-  }
+  })
 }
