@@ -1,14 +1,14 @@
-package lisa.maths.SetTheory.Types.ADTv2.height
+package lisa.maths.SetTheory.Types.ADTv2.height.proofs
 
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UnionRangeCollapse.unionRangeCollapse
-import lisa.maths.SetTheory.Types.ADTv2.height.HeightKernel.* //{isHeightCore, inExtIntroImage, isConstructorMono, introFunctionMono}
+import lisa.maths.SetTheory.Types.ADTv2.height.proofs.CoreFacts.*
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Functions.Predef.*
 
-object HeightKernelSuccessor {
+private[height] object SuccessorFacts {
 
   protected inline final def app(f: Expr[Ind], x: Expr[Ind]): Expr[Ind] =
     lisa.maths.SetTheory.Functions.Predef.app(f)(x)
@@ -18,7 +18,7 @@ object HeightKernelSuccessor {
       isHeightCore(h) |-
         in(x, app(h, ∅)) <=>
         inExtIntroImage(h ↾ ∅)(x)
-    ) by Cut(zeroIsNat, heightApplication of (n := ∅))
+    ) by Cut(zeroIsNat, CoreFacts.heightApplication.of(n := ∅))
     thenHave(
       (h ↾ ∅ === ∅, isHeightCore(h)) |- !in(x, app(h, ∅))
     ) by RightSubstEq.withParameters(
@@ -52,9 +52,13 @@ object HeightKernelSuccessor {
       )
 
     have(
+      (introFunctionMono, isHeightCore(h), in(n, N), in(m, N), subset(m, n)) |-
+        subset(app(h, m), app(h, n))
+    ) by Restate.from(CoreFacts.heightMonotonic)
+    thenHave(
       (introFunctionMono, isHeightCore(h), in(n, N), in(m, N)) |-
         subset(m, n) ==> subset(app(h, m), app(h, n))
-    ) by RightImplies(heightMonotonic)
+    ) by RightImplies.withParameters(subset(m, n), subset(app(h, m), app(h, n)))
     thenHave(
       (introFunctionMono, isHeightCore(h), in(n, N)) |-
         in(m, N) ==> (subset(m, n) ==> subset(app(h, m), app(h, n)))
@@ -89,7 +93,7 @@ object HeightKernelSuccessor {
       (isHeightCore(h), in(n, N)) |-
         in(x, app(h, successor(n))) <=>
         inExtIntroImage(h ↾ successor(n))(x)
-    ) by Cut(succIsNatStep, heightApplication of (n := successor(n)))
+    ) by Cut(succIsNatStep, CoreFacts.heightApplication.of(n := successor(n)))
 
     thenHave(
       (
@@ -175,7 +179,7 @@ object HeightKernelSuccessor {
         have(
           (introFunctionMono, isHeightCore(h), in(n, N), subset(n, successor(n))) |-
             subset(app(h, n), app(h, successor(n)))
-        ) by Cut(lastStep, heightMonotonic of (n := successor(n), m := n))
+        ) by Cut(lastStep, CoreFacts.heightMonotonic.of(n := successor(n), m := n))
         val heightSubset = have(
           (isConstructorMono, introFunctionMono, isHeightCore(h), in(n, N)) |-
             subset(app(h, n), app(h, successor(n)))
@@ -186,7 +190,7 @@ object HeightKernelSuccessor {
             isConstructorXHSuccN
         ) by Tautology.from(
           heightSubset,
-          isConstructorMonotonic of (s := app(h, n), t := app(h, successor(n)))
+          CoreFacts.isConstructorMonotonic.of(s := app(h, n), t := app(h, successor(n)))
         )
 
         val heightSuccessorWeakForward = have(
@@ -271,4 +275,32 @@ object HeightKernelSuccessor {
     have(thesis) by Tautology.from(equivalenceRewriting, lastStep, heightSuccessorWeak)
   }
 
+  def heightZeroAt(
+      isConstructor0: Expr[Ind >>: Ind >>: Prop],
+      h0: Expr[Ind],
+      x0: Expr[Ind]
+  )(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+    heightZero.of(isConstructor := isConstructor0, h := h0, x := x0)
+
+  def heightSuccessorWeakAt(
+      isConstructor0: Expr[Ind >>: Ind >>: Prop],
+      h0: Expr[Ind],
+      n0: Expr[Ind],
+      x0: Expr[Ind]
+  )(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+    heightSuccessorWeak.of(isConstructor := isConstructor0, h := h0, n := n0, x := x0)
+
+  def heightSuccessorStrongAt(
+      isConstructor0: Expr[Ind >>: Ind >>: Prop],
+      h0: Expr[Ind],
+      n0: Expr[Ind],
+      x0: Expr[Ind]
+  )(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+    heightSuccessorStrong.of(isConstructor := isConstructor0, h := h0, n := n0, x := x0)
+
+  def initialize(): Unit = {
+    val _ = heightZero
+    val _ = heightSuccessorWeak
+    val _ = heightSuccessorStrong
+  }
 }

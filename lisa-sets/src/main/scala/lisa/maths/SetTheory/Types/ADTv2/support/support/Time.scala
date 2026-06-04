@@ -53,6 +53,11 @@ object Time {
     println(s"[${get() - resetTime}] $message")
   }
 
+  private def round(x: Double, decimals: Int): Double = {
+    val factor = math.pow(10, decimals)
+    math.round(x * factor) / factor
+  }
+
   def printSummary(): Unit = {
     println("===== ADTv2 timing summary =====")
     totals.toSeq.sortBy(_._2).foreach { (label, totalNanos) =>
@@ -61,9 +66,10 @@ object Time {
       val mean = Time(totalNanos / n)
       val variance = math.max(0.0, (totalsSquared(label) / n) - math.pow(totalNanos.toDouble / n, 2))
       val stddev = Time(math.sqrt(variance).toLong)
+      val stddevInPercent = round((math.sqrt(variance) * n * 100.0) / totalNanos, 2)
 
-      if (total.millis > 200L) {
-        println(s"$total ($n calls, mean: $mean, stddev: $stddev)\t - $label")
+      if (total.millis > 500L) {
+        println(s"$total ($n calls, mean: $mean, stddev: $stddevInPercent%)\t - $label")
       }
     }
     println("")

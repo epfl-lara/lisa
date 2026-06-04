@@ -15,6 +15,7 @@ import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.maths.SetTheory.Cardinal.Universe
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.utils.prooflib.SimpleDeducedSteps.*
+import lisa.maths.SetTheory.Types.ADTv2.height.proofs.CoreFacts
 
 final class HeightStageSet[N <: Arity](
   base: HeightADT[N],
@@ -299,9 +300,9 @@ final class HeightStageSet[N <: Arity](
     λ(f, ε(s, ∀(x, in(x, s) <=> base.inExtIntroImage(f)(x))))
 
   private lazy val stageSetSpecInst: THM = Lemma(
-    HeightKernel.stageSetSpec.substitute(
-      HeightKernel.stageSet := stageSetTerm,
-      HeightKernel.isConstructor := isConstructor
+    CoreFacts.stageSetSpec.substitute(
+      CoreFacts.stageSet := stageSetTerm,
+      CoreFacts.isConstructor := isConstructor
     )
   ) {
     val body = ∀(x, in(x, s) <=> base.inExtIntroImage(f)(x))
@@ -316,13 +317,10 @@ final class HeightStageSet[N <: Arity](
 
   val heightExists = Lemma(exists(h, base.isHeight(h))) {
     val existsCore = have(
-      exists(h, HeightKernel.isHeightCore(h).substitute(HeightKernel.isConstructor := isConstructor))
+      exists(h, CoreFacts.isHeightCore(h).substitute(CoreFacts.isConstructor := isConstructor))
     ) by Cut(
       stageSetSpecInst,
-      HeightKernel.heightExists.of(
-        HeightKernel.stageSet := stageSetTerm,
-        HeightKernel.isConstructor := isConstructor
-      )
+      CoreFacts.heightExistsAt(stageSetTerm, isConstructor)
     )
     have(thesis) by Restate.from(existsCore)
   }

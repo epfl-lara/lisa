@@ -5,6 +5,7 @@ import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.utils.prooflib.SimpleDeducedSteps.*
+import lisa.maths.SetTheory.Types.ADTv2.height.proofs.{CoreFacts, SuccessorFacts}
 
 final class HeightADT[N <: Arity](
   name: String,
@@ -47,7 +48,7 @@ final class HeightADT[N <: Arity](
    *  `height ≠ ∅`
    */
   val heightFunctionNonEmpty = Lemma(isHeight(h) |- !(h === ∅)) {
-    have(thesis) by Tautology.from(heightIsCore, HeightKernel.domNImpliesNonEmpty)
+    have(thesis) by Tautology.from(heightIsCore, CoreFacts.domNImpliesNonEmptyAt(h))
   }
 
   /**
@@ -63,7 +64,7 @@ final class HeightADT[N <: Arity](
   ) {
     have(thesis) by Tautology.from(
       heightIsCore,
-      HeightKernel.heightApplication of (HeightKernel.isConstructor := isConstructor)
+      CoreFacts.heightApplicationAt(isConstructor, h, n, x)
     )
   }
 
@@ -75,7 +76,7 @@ final class HeightADT[N <: Arity](
   val heightZero = Lemma(isHeight(h) |- !in(x, app(h, ∅))) {
     have(thesis) by Tautology.from(
       heightIsCore,
-      HeightKernelSuccessor.heightZero of (HeightKernel.isConstructor := isConstructor)
+      SuccessorFacts.heightZeroAt(isConstructor, h, x)
     )
   }
 }

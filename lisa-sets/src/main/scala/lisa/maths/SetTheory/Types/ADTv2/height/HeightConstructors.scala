@@ -11,6 +11,7 @@ import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.maths.Quantifiers.existsOneAlternativeDefinition
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.utils.prooflib.SimpleDeducedSteps.*
+import lisa.maths.SetTheory.Types.ADTv2.height.proofs.{CoreFacts, SuccessorFacts, UniquenessFacts}
 
 final class HeightConstructors[N <: Arity](
   base: HeightADT[N],
@@ -44,7 +45,7 @@ final class HeightConstructors[N <: Arity](
   val heightUniqueness = Lemma((base.isHeight(f), base.isHeight(h)) |- f === h) {
 
     have(thesis) by Tautology.from(
-      HeightKernelUniqueness.uniqueness.of(g := h, HeightKernel.isConstructor := isConstructor),
+      UniquenessFacts.uniquenessAt(isConstructor, f, h),
       introFunctionMonoHyp,
       base.heightIsCore of (h := f),
       base.heightIsCore of (h := h)
@@ -147,7 +148,7 @@ final class HeightConstructors[N <: Arity](
   }
 
   private lazy val introFunctionMonoHyp: THM = Lemma(
-    HeightKernel.introFunctionMono.substitute(HeightKernel.isConstructor := isConstructor)
+    CoreFacts.introFunctionMono.substitute(CoreFacts.isConstructor := isConstructor)
   ) {
     have(introductionFunctionMononotic.statement) by
       Restate.from(introductionFunctionMononotic)
@@ -162,7 +163,7 @@ final class HeightConstructors[N <: Arity](
   }
 
   private lazy val isConstructorMonoHyp: THM = Lemma(
-    HeightKernel.isConstructorMono.substitute(HeightKernel.isConstructor := isConstructor)
+    CoreFacts.isConstructorMono.substitute(CoreFacts.isConstructor := isConstructor)
   ) {
     val subsetST = s ⊆ t
     val isConstructorXS = isConstructor(x)(s)
@@ -230,7 +231,7 @@ final class HeightConstructors[N <: Arity](
   ) {
     have(thesis) by Tautology.from(
       introFunctionMonoHyp,
-      HeightKernel.extIntroMonotonic of (HeightKernel.isConstructor := isConstructor)
+      CoreFacts.extIntroMonotonicAt(isConstructor, f, g, x)
     )
   }
 
@@ -243,7 +244,7 @@ final class HeightConstructors[N <: Arity](
     have(thesis) by Tautology.from(
       base.heightIsCore,
       introFunctionMonoHyp,
-      HeightKernel.heightMonotonic of (HeightKernel.isConstructor := isConstructor)
+      CoreFacts.heightMonotonicAt(isConstructor, h, n, m)
     )
   }
 
@@ -298,7 +299,7 @@ final class HeightConstructors[N <: Arity](
     have(thesis) by Tautology.from(
       base.heightIsCore,
       introFunctionMonoHyp,
-      HeightKernelSuccessor.heightSuccessorWeak of (HeightKernel.isConstructor := isConstructor)
+      SuccessorFacts.heightSuccessorWeakAt(isConstructor, h, n, x)
     )
   }
 
@@ -330,7 +331,7 @@ final class HeightConstructors[N <: Arity](
       base.heightIsCore,
       introFunctionMonoHyp,
       isConstructorMonoHyp,
-      HeightKernelSuccessor.heightSuccessorStrong of (HeightKernel.isConstructor := isConstructor)
+      SuccessorFacts.heightSuccessorStrongAt(isConstructor, h, n, x)
     )
   }
 }

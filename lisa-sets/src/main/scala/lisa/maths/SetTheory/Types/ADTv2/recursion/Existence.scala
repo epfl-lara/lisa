@@ -103,7 +103,7 @@ private[recursion] final class Existence[N <: Arity](
   // Lemma F — limitIsFixedPoint: W(limitFun) = limitFun
   // ─────────────────────────────────────────────────────────────────────────
 
-  private val limitIsFixedPoint: THM = Time.measure(s"Ex/limitIsFixedPoint for ${spec.functionName}")(Lemma(recWitness(limitFun) === limitFun) {
+  private val limitIsFixedPoint: THM = Time.measure(s"Ex/limitIsFixedPoint")(Lemma(recWitness(limitFun) === limitFun) {
     val hValid = have(isHeightPred(heightFun)) by Restate.from(heightFunValid)
     val stabilizationSchema = ApproximationChainFacts.stabilizationSchemaAt(heightFun, approximantFamily, stabilization)
     val heightMembershipMonotonicSchema = ApproximationChainFacts.heightMembershipMonotonicSchemaAt(
@@ -238,7 +238,7 @@ private[recursion] final class Existence[N <: Arity](
       )
 
       // ── Per-constructor branches ────────────────────────────────────────────
-      val branchEqualities = constructorsAt.map(sc =>
+      val branchEqualities = constructorsAt.map { sc =>
         val c = sc.underlying
         val constructorPatterns = spec.patternMatching.patternsFor(c)
 
@@ -369,14 +369,16 @@ private[recursion] final class Existence[N <: Arity](
 
           have(pointwiseGoal) by Cut(selectedBranch, branchesToGoal)
         }
-        ConstructorCaseAssembly.liftConstructorCase(
+        val liftedBranch = ConstructorCaseAssembly.liftConstructorCase(
           sc = sc,
           heightSet = app(heightFun)(n0),
           ambientTerm = a,
+          branchPremise = sc.branchPremiseAtHeight(app(heightFun)(n0), a),
           goal = pointwiseGoal,
           directBranch = directBranch
         )
-      )
+        liftedBranch
+      }
 
       ConstructorCaseAssembly.assemblePointwiseFromConstructors(
         constructorDisjunction = constructorDisjunction,
@@ -402,7 +404,7 @@ private[recursion] final class Existence[N <: Arity](
   // Lemma G — fixedPointExists: ∃f :: A→T, W(f) = f
   // ─────────────────────────────────────────────────────────────────────────
 
-  private val fixedPointExists: THM = Time.measure(s"Ex/fixedPointExists for ${spec.functionName}")(Lemma(
+  private val fixedPointExists: THM = Time.measure(s"Ex/fixedPointExists")(Lemma(
     ∃(f, (f :: spec.typ) /\ (recWitness(f) === f))
   ) {
     have(((limitFun :: spec.typ) /\ (recWitness(limitFun) === limitFun))) by

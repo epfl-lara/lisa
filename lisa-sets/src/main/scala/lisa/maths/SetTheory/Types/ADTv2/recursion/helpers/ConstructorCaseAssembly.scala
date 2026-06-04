@@ -11,14 +11,19 @@ private[recursion] object ConstructorCaseAssembly {
       sc: SpecializedConstructorFacts[N],
       heightSet: Expr[Ind],
       ambientTerm: Expr[Ind],
+      branchPremise: Expr[Prop],
       goal: Expr[Prop],
       directBranch: proof.Fact
   ): proof.Fact = {
-    val rawBranch = sc.underlying.variables2.reverse.foldLeft(directBranch)((fact, v) =>
-      thenHave(∃(v, fact.statement.left.head) |- goal) by LeftExists
-    )
+    val rawBranch = sc.underlying.variables2.reverse.foldLeft(directBranch -> branchPremise) {
+      case ((fact, premise), v) =>
+        val wrappedPremise = ∃(v, premise)
+        val lifted = have(fact.statement -<? premise +<? wrappedPremise) by
+          LeftExists.withParameters(premise, v)(fact)
+        (lifted, wrappedPremise)
+    }
 
-    have(constructorBranchAtHeight(sc, heightSet, ambientTerm) |- goal) by Tautology.from(rawBranch)
+    have(constructorBranchAtHeight(sc, heightSet, ambientTerm) |- goal) by Tautology.from(rawBranch._1)
   }
 
   def assemblePointwiseFromConstructors(using proof: lisa.SetTheoryLibrary.Proof)(

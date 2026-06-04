@@ -44,11 +44,12 @@ final class RecFunSemantics[N <: Arity](
   private val witness: Witness[N] = new Witness[N](spec)
 
   private val approx = new Approx[N](spec, witness)
-  private val approxProp = Time.measure(s"ApproxProp for $name")(new ApproxProp[N](spec, witness, approx))
+  private val approxProp = Time.measure(s"ApproxProp")(new ApproxProp[N](spec, witness, approx))
+  private val witnessAgreementCheck = Time.measure(s"WitnessAgreement")(new helpers.WitnessAgreement[N](spec, witness))
   private val limitConstruction = new LimitConstruction[N](spec, approx, approxProp)
-  val existence: Existence[N] = Time.measure(s"Existence for $name")(new Existence[N](spec, witness, approx, approxProp, limitConstruction))
+  val existence: Existence[N] = Time.measure(s"Existence")(new Existence[N](spec, witness, approx, approxProp, limitConstruction))
 
-  private val functionUniquenessProof = Time.measure(s"Uniqueness for $name")(new Uniqueness[N](spec))
+  private val functionUniquenessProof = Time.measure(s"Uniqueness")(new Uniqueness[N](spec))
 
   private val untypedDef: Expr[Prop] = spec.untypedDefinition(f)
 

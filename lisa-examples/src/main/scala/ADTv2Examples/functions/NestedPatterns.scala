@@ -83,5 +83,4 @@ object NestedPatterns extends lisa.Main {
   // show(headIsZero.elim(nat)(nil))
   // show(headIsZero.elim(nat)(cons))
 
-  Time.printSummary()
 }

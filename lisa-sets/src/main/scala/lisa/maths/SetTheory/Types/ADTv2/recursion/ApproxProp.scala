@@ -107,7 +107,7 @@ private[recursion] final class ApproxProp[N <: Arity](
   // ∀n ∈ ω, ∀a ∈ h(n), G(n)(a) = G(Succ(n))(a)
   // ─────────────────────────────────────────────────────────────────────────
 
-  private[recursion] val stabilization: THM = Time.measure(s"AP/stabilization")(Time.measure(s"AP/stabilization ${spec.functionName}")(Lemma(
+  private[recursion] val stabilization: THM = Time.measure(s"AP/stabilization")(Lemma(
     ∀(nVar ∈ N, ∀(a ∈ app(heightFun)(nVar), app(G(nVar))(a) === app(G(Succ(nVar)))(a)))
   ) {
     val Pred = variable[Ind >>: Prop]
@@ -122,7 +122,7 @@ private[recursion] final class ApproxProp[N <: Arity](
     )
     val noElemAtZero = have(!in(a, app(heightFun)(Zero))) by Congruence.from(noElemAtEmpty, zeroDef)
 
-    val base = Time.measure(s"AP/stab ${spec.functionName}/base") { have(P(Zero)) subproof {
+    val base = Time.measure(s"AP/stab base") { have(P(Zero)) subproof {
       have(a ∈ app(heightFun)(Zero) |- app(G(Zero))(a) === app(G(Succ(Zero)))(a)) by
         Tautology.from(noElemAtZero)
       thenHave(
@@ -197,11 +197,11 @@ private[recursion] final class ApproxProp[N <: Arity](
             approxTypeAtSuccN
           )
 
-          val branchEqualities = constructorsAt.map(sc =>
+          val branchEqualities = constructorsAt.map { sc =>
             val c = sc.underlying
             val constructorPatterns = spec.patternMatching.patternsFor(c)
 
-            val directBranch = Time.measure(s"AP/stab ${spec.functionName}/ctor-${c.name}") { have(
+            val directBranch = have(
               sc.branchPremiseAtHeight(app(heightFun)(nVar), a) |- goalAtA
             ) subproof {
               assume(sc.branchPremiseAtHeight(app(heightFun)(nVar), a))
@@ -246,7 +246,7 @@ private[recursion] final class ApproxProp[N <: Arity](
               ) by Tautology.from(selectionAtCtorVars, argsTypedSemantic, aEqApplied)
 
               val patternEqualities = constructorPatterns.map(pattern =>
-                Time.measure(s"AP/stab ${spec.functionName}/pat-${c.name}-${pattern.branchCondition}") { have(
+                Time.measure(s"AP/stab") { have(
                   (pattern.freshBranchCondition /\ (a === pattern.freshInputTerm)) |- goalAtA
                 ) subproof {
                   val selectedPattern = assume(pattern.freshBranchCondition /\ (a === pattern.freshInputTerm))
@@ -258,19 +258,18 @@ private[recursion] final class ApproxProp[N <: Arity](
                   val bodyEq = LambdaBodyEquality.prove(bodyLeft, bodyRight, selfArgEqualities)
                   val witnessAtLeft  = instantiateWitnessAtPattern(pattern, G(nVar),        gNHasType,    patternPremise, bodyLeft)
                   val witnessAtRight = instantiateWitnessAtPattern(pattern, G(Succ(nVar)), gSuccHasType, patternPremise, bodyRight)
-                  val witnessesAgreeAtA = Time.measure(s"AP/stab ${spec.functionName}/witnessExt-${c.name}-${pattern.branchCondition}") {
-                    have(app(recWitness(G(nVar)))(a) === app(recWitness(G(Succ(nVar))))(a)) by Tautology.from(
-                      WitnessCaseExtensionality.extensionalityAt(
-                        leftWitness = recWitness(G(nVar)),
-                        rightWitness = recWitness(G(Succ(nVar))),
-                        ambientTerm = a,
-                        inputTerm = pattern.freshInputTerm,
-                        leftBody = bodyLeft,
-                        rightBody = bodyRight
-                      ),
-                      aEqPattern, witnessAtLeft, witnessAtRight, bodyEq
-                    )
-                  }
+                  val witnessesAgreeAtA = have(app(recWitness(G(nVar)))(a) === app(recWitness(G(Succ(nVar))))(a)) by Tautology.from(
+                    WitnessCaseExtensionality.extensionalityAt(
+                      leftWitness = recWitness(G(nVar)),
+                      rightWitness = recWitness(G(Succ(nVar))),
+                      ambientTerm = a,
+                      inputTerm = pattern.freshInputTerm,
+                      leftBody = bodyLeft,
+                      rightBody = bodyRight
+                    ),
+                    aEqPattern, witnessAtLeft, witnessAtRight, bodyEq
+                  )
+                  
                   val gSuccAtAIsWitness = have(app(G(Succ(nVar)))(a) === app(recWitness(G(nVar)))(a)) by
                     Congruence.from(gSuccEq)
                   val witnessSuccAtARev = have(
@@ -302,15 +301,17 @@ private[recursion] final class ApproxProp[N <: Arity](
                   have(selectedBranch.statement.right.head |- goalAtA) by LeftOr(patternEqualities*)
 
               have(goalAtA) by Cut(selectedBranch, branchesToGoal)
-            } }
-            ConstructorCaseAssembly.liftConstructorCase(
+            }
+            val liftedBranch = ConstructorCaseAssembly.liftConstructorCase(
               sc = sc,
               heightSet = app(heightFun)(nVar),
               ambientTerm = a,
+              branchPremise = sc.branchPremiseAtHeight(app(heightFun)(nVar), a),
               goal = goalAtA,
               directBranch = directBranch
             )
-          )
+            liftedBranch
+          }
 
           ConstructorCaseAssembly.assemblePointwiseFromConstructors(
             constructorDisjunction = constructorDisjunction,
@@ -333,6 +334,6 @@ private[recursion] final class ApproxProp[N <: Arity](
     have(∀(nVar, (nVar ∈ N) ==> P(nVar))) by
       Tautology.from(NatFacts.induction of (Pred := P), base, step)
     thenHave(thesis) by Restate
-  }))
+  })
 
 }
