@@ -2,14 +2,16 @@ package lisa.maths.SetTheory.Types.ADTv2.interface
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Functions.Function.app
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{ConstructorHeadPattern, Pattern}
 import lisa.maths.SetTheory.Types.TypingHelpers.{::, FunctionalClass, TypedConstantFunctional}
+import lisa.utils.prooflib.ProofTacticLib.Arity
+
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{ConstructorHeadPattern, Pattern}
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.syntax.Case
+import lisa.maths.SetTheory.Types.ADTv2.recursion.RecFunSemantics
 import lisa.maths.SetTheory.Types.ADTv2.support.core.`**`
 import lisa.maths.SetTheory.Types.ADTv2.support.core.toSeq
-import lisa.maths.SetTheory.Types.ADTv2.recursion.RecFunSemantics
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{introAppAt as buildIntroAppAt, requireMonomorphicAccess, theoremAt}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.renderAppliedSymbol
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
 final class RecFunction[N <: Arity](using val line: sourcecode.Line, val file: sourcecode.File, valueOfN: ValueOf[N])(
     val semantic: RecFunSemantics[N],
@@ -35,7 +37,7 @@ final class RecFunction[N <: Arity](using val line: sourcecode.Line, val file: s
   lazy val argType: Expr[Ind] = semantic.argType
   lazy val returnType: Expr[Ind] = semantic.returnType
   lazy val functionType: Expr[Ind] = semantic.typ
-  lazy val patterns: Seq[Pattern[N]] = semantic.patterns
+  private lazy val patterns: Seq[Pattern[N]] = semantic.patterns
 
   // def patternsFor(constructor: Constructor[N]): Seq[Pattern[N]] =
   //   patterns.filter(pattern =>
@@ -143,6 +145,21 @@ final class RecFunction[N <: Arity](using val line: sourcecode.Line, val file: s
     )
   }
 
+  def elimTotal: THM = {
+    requireMonomorphicAccess("recursive function", name, typeVariablesSeq)
+    theoremAt(name, typeVariablesSeq, Seq.empty, "eliminationTotal", semantic.elimTotal)
+  }
+
+  def elimTotal(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*): THM =
+    theoremAt(name, typeVariablesSeq, firstTypeArg +: otherTypeArgs, "eliminationTotal", semantic.elimTotal)
+
+
+  def elim(): THM =
+    elimTotal
+
+  def elim(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*): THM =
+    elimTotal(firstTypeArg, otherTypeArgs*)
+
   def elim(pattern: Pattern[N]): THM =
     elimByPattern(pattern)
 
@@ -155,13 +172,29 @@ final class RecFunction[N <: Arity](using val line: sourcecode.Line, val file: s
   def elim(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*)(constructor: Constructor[N]): THM =
     elimByConst(firstTypeArg, otherTypeArgs*)(constructor)
 
-  def elimTotal: THM = {
-    requireMonomorphicAccess("recursive function", name, typeVariablesSeq)
-    theoremAt(name, typeVariablesSeq, Seq.empty, "eliminationTotal", semantic.elimTotal)
-  }
+  def elim(c: Case[N]): THM =
+    elimByPattern(patternFor(c))
 
-  def elimTotal(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*): THM =
-    theoremAt(name, typeVariablesSeq, firstTypeArg +: otherTypeArgs, "eliminationTotal", semantic.elimTotal)
+  def elim(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*)(c: Case[N]): THM =
+    elimByPattern(firstTypeArg, otherTypeArgs*)(patternFor(c))
+
+  /**
+   * Order- and binder-name-independent lookup of the branch matching `c`.
+   *
+   * The case is matched against the registered patterns by constructor identity
+   * plus its concrete (guard) arguments, so it does not depend on the order in
+   * which the branches were declared.
+   */
+  def patternFor(c: Case[N]): Pattern[N] =
+    patterns
+      .collectFirst { case p if p.matchesConstructorCase(c.cons.semantic, c.args) => p }
+      .getOrElse(
+        throw new IllegalArgumentException(
+          s"No branch of $name matches case ${c.cons.name}(${c.args.mkString(", ")})."
+        )
+      )
+
+  
 
   def termAt(args: Seq[Expr[Ind]]): Expr[Ind] =
     (this #@@ args).asInstanceOf[Expr[Ind]]

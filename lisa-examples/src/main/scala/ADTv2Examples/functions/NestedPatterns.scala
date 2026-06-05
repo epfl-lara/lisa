@@ -1,9 +1,11 @@
 package ADTv2Examples.functions
 
 import lisa.maths.SetTheory.Types.ADTv2.*
+import lisa.maths.SetTheory.Types.ADTv2.API.`*`
 import lisa.maths.SetTheory.Types.ADTv2.library.Bool.*
 import lisa.maths.SetTheory.Types.ADTv2.library.List.*
 import lisa.maths.SetTheory.Types.ADTv2.library.Nat.*
+import lisa.maths.SetTheory.Types.ADTv2.library.*
 
 /**
  * Examples of recursive functions defined with nested pattern matching.
@@ -44,7 +46,7 @@ object NestedPatterns extends lisa.Main {
     Case(cons, fals, tl):
       self * tl
   }
-  
+
 
   // ── List[Nat] examples ─────────────────────────────────────────────────
 
@@ -57,6 +59,16 @@ object NestedPatterns extends lisa.Main {
   //   Case(cons, zero, tl):
   //     tru
   //   Case(cons, hd, tl):
+  //     fals
+  // }
+  
+  // val k = variable[Ind]
+  // val isOptionZero = fun(Option.option.specialize(nat), bool) {
+  //   Case(Option.none):
+  //     fals
+  //   Case(Option.some, zero):
+  //     tru
+  //   Case(Option.some, succ * k):
   //     fals
   // }
 
@@ -72,7 +84,13 @@ object NestedPatterns extends lisa.Main {
   show(existsTrue.intro(bool))
   show(existsTrue.elim(bool)(nil))
   show(existsTrue.elim(bool)(cons))
+  show(existsTrue.elim(bool)(Case(cons, tru, tl)))
+  show(existsTrue.elim(bool)(Case(cons, fals, tl)))
   show(existsTrue.elimTotal(bool))
+
+  section("countTrue on List[Bool]")
+  show(existsTrue.elimTotal(unit))
+  show(existsTrue.elimTotal(void))
 
   // section("headIsZero on List[Nat]")
   // show(headIsZero.intro(nat))

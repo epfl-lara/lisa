@@ -42,6 +42,21 @@ trait Pattern[N <: Arity] {
 
   def branchPremise: Expr[Prop] = simplify(typingFormula /\ branchCondition)
 
+  /**
+   * Concrete (guard) arguments of this branch, as `(position -> term)`.
+   *
+   * Plain patterns guard on nothing, so the default is empty.
+   */
+  def guardSignature: Set[(Int, Expr[Ind])] = Set.empty
+
+  /**
+   * Whether this branch is the one for `constructor` applied to `args`, treating
+   * non-variable args as guards. Order- and binder-name-independent.
+   *
+   * The default never matches; constructor-headed patterns override it.
+   */
+  def matchesConstructorCase(constructor: SemanticConstructor[N], args: Seq[Expr[Ind]]): Boolean = false
+
   def variables2: Seq[Variable[Ind]]
 
   def freshInputTerm: Expr[Ind] = inputTermAt(variables2)

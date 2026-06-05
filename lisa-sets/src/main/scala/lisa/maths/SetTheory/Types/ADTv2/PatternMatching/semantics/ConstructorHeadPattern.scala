@@ -26,6 +26,12 @@ trait ConstructorHeadPattern[N <: Arity] extends Pattern[N] {
   def correspondsTo(candidate: SemanticConstructor[N]): Boolean =
     semanticConstructor == candidate
 
+  override def matchesConstructorCase(constructor: SemanticConstructor[N], args: Seq[Expr[Ind]]): Boolean =
+    semanticConstructor == constructor &&
+      guardSignature == args.zipWithIndex.collect {
+        case (t, i) if !t.isInstanceOf[Variable[Ind]] => (i, t)
+      }.toSet
+
   def hasSameHeadAs(other: ConstructorHeadPattern[N]): Boolean =
     semanticConstructor == other.semanticConstructor
 

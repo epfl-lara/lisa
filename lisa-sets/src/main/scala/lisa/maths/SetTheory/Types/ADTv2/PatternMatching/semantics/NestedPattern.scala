@@ -53,6 +53,9 @@ final case class NestedConstructorPattern[N <: Arity](
 
   def freshGuards: Seq[BranchGuard] = guardsAt(variables2)
 
+  override def guardSignature: Set[(Int, Expr[Ind])] =
+    guards.map(g => (g.position, g.guardTerm)).toSet
+
   override def withBody(newBody: Expr[Ind]): Pattern[N] = copy(body = newBody)
 }
 

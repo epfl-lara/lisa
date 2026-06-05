@@ -3,6 +3,7 @@ package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.syntax
 import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.{appSeq, wellTypedSet}
+import lisa.maths.SetTheory.Types.TypingHelpers.::
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.utils.prooflib.ProofTacticLib.Arity
@@ -13,8 +14,8 @@ case class Case[N <: Arity](cons: Constructor[N], args: Expr[Ind]*) {
    *  Used in the context of an induction proof. Adds the subproof corresponding to this
    *  case into a builder.
    *
-   *  All arguments must be binder variables — nested patterns (concrete terms as arguments)
-   *  are not supported in structural induction proofs.
+   *  Concrete terms are compiled to fresh binders plus equality assumptions, so nested
+   *  constructor-headed patterns such as `cons(tru, tl)` are accepted here as well.
    *
    *  @see [[lisa.maths.SetTheory.Types.ADTv2.tactics.Induction]]
    */
@@ -24,12 +25,9 @@ case class Case[N <: Arity](cons: Constructor[N], args: Expr[Ind]*) {
       file: sourcecode.File,
       builder: CaseAccumulator[N, proof.ProofStep, (Sequent, Seq[Expr[Ind]], Variable[Ind])]
   )(subproof: proof.InnerProof ?=> Unit): Unit =
-    val vars: Seq[Variable[Ind]] = args.map {
-      case v: Variable[Ind] => v
-      case t =>
-        throw IllegalArgumentException(
-          s"Case ${cons.name}: induction subproofs require all arguments to be binder variables, found concrete term $t."
-        )
+    val vars: Seq[Variable[Ind]] = args.zipWithIndex.map {
+      case (v: Variable[Ind], _) => v
+      case (_, i)                => variable[Ind](s"${cons.semantic.name}/arg$i")
     }
 
     val (bot, typeArgs, adtVar) = builder.comp
@@ -43,7 +41,12 @@ case class Case[N <: Arity](cons: Constructor[N], args: Expr[Ind]*) {
         p._2.substitute(cons.semantic.typeVariablesSeq.zip(typeArgs).map(SubstPair(_, _))*)
       )
     )) ++ cons.semantic.syntacticSignature(vars).filter(_._2 == SelfRef)
+      .map((v, _) => v :: cons.semantic.adt.termAt(typeArgs))
+      ++ cons.semantic.syntacticSignature(vars).filter(_._2 == SelfRef)
       .map((v, _) => prop.substitute(adtVar -> v))
+      ++ args.zip(vars).collect {
+        case (t, v) if !t.isInstanceOf[Variable[Ind]] => v === t
+      }
 
     val botWithAssumptions = bot.substitute(subst) ++ (assumptions |- ())
 
@@ -61,7 +64,7 @@ case class Case[N <: Arity](cons: Constructor[N], args: Expr[Ind]*) {
             .name} is invalid.\nExpected: ${botWithAssumptions}.")
     }
 
-    builder += (cons, vars, subproofWithExtraStep.validate(line, file))
+    builder += (cons, args, subproofWithExtraStep.validate(line, file))
 
   /**
    *  Used in the context of a function definition. Adds the body of the case to a

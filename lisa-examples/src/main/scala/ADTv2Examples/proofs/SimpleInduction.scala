@@ -5,11 +5,31 @@ import lisa.maths.SetTheory.Types.ADTv2.library.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.funEqDef
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.{a, b, f, x}
 
-object InductionOnNat extends lisa.Main {
+object SimpleInduction extends lisa.Main {
 
   val n = variable[Ind]
   val prev = variable[Ind]
   val natDoubleN = variable[Ind]
+  val b = variable[Ind]
+
+  section("Induction on Bool")
+
+  val negNegIsId = Theorem((b :: bool) |- not * (not * b) === b) {
+    val negFalse = have(not * fals === tru) by Restate.from(not.elim(fals))
+    val negTrue = have(not * tru === fals) by Restate.from(not.elim(tru))
+
+    have(thesis) by Induction(b, bool) {
+      Case(tru) subproof {
+        have(not * (not * tru) === tru) by Congruence.from(negTrue, negFalse)
+      }
+      Case(fals) subproof {
+        have(not * (not * fals) === fals) by Congruence.from(negTrue, negFalse)
+      }
+    }
+  }
+
+
+  section("Induction on Nat")
 
   val natReflexive = Theorem((n :: nat) |- n === n) {
     have(thesis) by Induction(n, nat) {
@@ -45,5 +65,4 @@ object InductionOnNat extends lisa.Main {
       }
     }
   }
-
 }
