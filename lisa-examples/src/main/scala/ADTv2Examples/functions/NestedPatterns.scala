@@ -62,15 +62,34 @@ object NestedPatterns extends lisa.Main {
   //     fals
   // }
   
-  // val k = variable[Ind]
+  val k = variable[Ind]
   // val isOptionZero = fun(Option.option.specialize(nat), bool) {
   //   Case(Option.none):
   //     fals
   //   Case(Option.some, zero):
   //     tru
-  //   Case(Option.some, succ * k):
+  //   Case(Option.some, k):
+  //   // Case(Option.some, succ * k):
   //     fals
   // }
+  val isGreaterThanOne = fun(nat, bool) {
+    Case(zero):
+      fals
+    Case(succ, zero):
+      fals
+    Case(succ, succ * k):
+      tru
+  }
+  val isGreaterThanTwo = fun(nat, bool) {
+    Case(zero):
+      fals
+    Case(succ, zero):
+      fals
+    Case(succ, succ * zero):
+      fals
+    Case(succ, succ * (succ * k)):
+      tru
+  }
 
   // ── Show theorems ──────────────────────────────────────────────────────
 
