@@ -84,6 +84,19 @@ trait Pattern[N <: Arity] {
   def inputTypingAt(vars: Seq[Variable[Ind]], adtTerm: Expr[Ind]): THM
 
   def withBody(newBody: Expr[Ind]): Pattern[N]
+
+  // Selection disjunct used by `branchSelectionFor` and its consumers. The inner
+  // (non-constructor-argument) binders are existentially bound and carry their
+  // typing; for plain/nullary patterns there are no inner binders, so this reduces
+  // to `freshBranchCondition ∧ (term = freshInputTerm)`.
+  def branchSelectionBody(term: Expr[Ind]): Expr[Prop] =
+    val inner = variables2.drop(arity)
+    val cond  = freshBranchCondition /\ (term === freshInputTerm)
+    if inner.isEmpty then cond
+    else wellTypedFormula(typingSignatureAt(variables2).drop(arity)) /\ cond
+
+  def branchSelectionDisjunct(term: Expr[Ind]): Expr[Prop] =
+    existsSeq(variables2.drop(arity), branchSelectionBody(term))
 }
 
 /**

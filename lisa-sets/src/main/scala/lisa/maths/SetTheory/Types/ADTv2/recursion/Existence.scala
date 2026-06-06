@@ -304,26 +304,22 @@ private[recursion] final class Existence[N <: Arity](
             Tautology.from(selectionSchema)
           val selectionAtCtorVars = have(
             (wellTypedFormula(sc.semanticSignature2) /\ (a === sc.appliedTerm2)) |-
-              seqOr(constructorPatterns.map(pattern =>
-                pattern.freshBranchCondition /\ (a === pattern.freshInputTerm)
-              ))
+              seqOr(constructorPatterns.map(pattern => pattern.branchSelectionDisjunct(a)))
           ) by InstantiateForallSeq(c.variables2)(selectionSchemaInContext)
           val selectedBranch = have(
-            seqOr(constructorPatterns.map(pattern =>
-              pattern.freshBranchCondition /\ (a === pattern.freshInputTerm)
-            ))
+            seqOr(constructorPatterns.map(pattern => pattern.branchSelectionDisjunct(a)))
           ) by Tautology.from(selectionAtCtorVars, argsTypedSemantic, aEqApplied)
 
           val patternEqualities = constructorPatterns.map(pattern =>
-            have(
-              (pattern.freshBranchCondition /\ (a === pattern.freshInputTerm)) |- pointwiseGoal
+            val rawEq = have(
+              pattern.branchSelectionBody(a) |- pointwiseGoal
             ) subproof {
-              val selectedPattern = assume(pattern.freshBranchCondition /\ (a === pattern.freshInputTerm))
+              val selectedPattern = assume(pattern.branchSelectionBody(a))
               val patternGuard = have(pattern.freshBranchCondition) by Tautology.from(selectedPattern)
               val aEqPattern = have(a === pattern.freshInputTerm) by Tautology.from(selectedPattern)
               val patternPremise = have(pattern.freshBranchPremise) by Tautology.from(
                 argsTypedSemantic,
-                patternGuard
+                selectedPattern
               )
               val bodyLeft  = substitutedCaseBody(pattern, spec.selfPlaceholder, limitFun, pattern.variables2)
               val bodyRight = substitutedCaseBody(pattern, spec.selfPlaceholder, G(n0),   pattern.variables2)
@@ -359,6 +355,8 @@ private[recursion] final class Existence[N <: Arity](
                 limitAtAEqGN0
               )
             }
+            pattern.variables2.drop(pattern.arity).reverse.foldLeft(rawEq)((f, v) =>
+              thenHave(∃(v, f.statement.left.head) |- pointwiseGoal) by LeftExists)
           )
 
           val branchesToGoal =

@@ -3,6 +3,7 @@ package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.syntax
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{
   ConstructorPattern,
   ConstructorPatternSystem,
+  MultiLevelNestedPatternSystem,
   NestedConstructorPattern,
   NestedPatternSystem,
   PatternSystem
@@ -131,24 +132,26 @@ class CaseAccumulator[N <: Arity, T, R](val comp: R) {
       adt: SpecializedADT[N],
       typeSubstitutions: Seq[lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution],
       bodyAt: T => Expr[Ind]
-  ): NestedPatternSystem[N] =
-    NestedPatternSystem(
-      domain = adt.base.semantic,
-      patterns = underlying.toSeq.map { case (cons, args, body) =>
-        NestedConstructorPattern.fromArgs(
-          cons.semantic,
-          args.map {
-            case v: Variable[Ind] => Left(v)
-            case t                => Right(t.substitute(typeSubstitutions*).asInstanceOf[Expr[Ind]])
-          },
-          bodyAt(body).substitute(typeSubstitutions*).asInstanceOf[Expr[Ind]],
-          typeSubstitutions,
-          adt.term
-        )
-      },
-      typeSubstitutions = typeSubstitutions,
-      specializedAdtTerm = adt.term
-    )
+  ): PatternSystem[N] =
+    val patterns = underlying.toSeq.map { case (cons, args, body) =>
+      NestedConstructorPattern.fromArgs(
+        cons.semantic,
+        args.map {
+          case v: Variable[Ind] => Left(v)
+          case t                => Right(t.substitute(typeSubstitutions*).asInstanceOf[Expr[Ind]])
+        },
+        bodyAt(body).substitute(typeSubstitutions*).asInstanceOf[Expr[Ind]],
+        typeSubstitutions,
+        adt.term
+      )
+    }
+    // A non-nullary (deeply nested) guard ⇒ multi-level system; otherwise the
+    // restricted nullary-split system (which also supports recursion).
+    val isMultiLevel = patterns.exists(_.guards.exists(_.resolvedNullary.isEmpty))
+    if isMultiLevel then
+      MultiLevelNestedPatternSystem(adt.base.semantic, patterns, typeSubstitutions, adt.term)
+    else
+      NestedPatternSystem(adt.base.semantic, patterns, typeSubstitutions, adt.term)
 
   private def buildPatternSystem(
       adt: SpecializedADT[N],

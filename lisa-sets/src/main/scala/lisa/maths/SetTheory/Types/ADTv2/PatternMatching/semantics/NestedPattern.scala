@@ -4,7 +4,7 @@ import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Base.Pair
 import lisa.maths.SetTheory.Types.ADTv2.encoding.{SemanticADT, SemanticConstructor}
 import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, Constructor}
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{TypeSubstitution, instantiatedSemanticSignature, specializeTerm}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.core.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.{altEqualityTransitivity, constructorTagDisequality}
@@ -34,13 +34,51 @@ final case class BranchGuard(
 
 final case class NestedConstructorPattern[N <: Arity](
     semanticConstructor: SemanticConstructor[N],
-    binders: Seq[Variable[Ind]],
+    topBinders: Seq[Variable[Ind]],
+    innerBinders: Seq[Variable[Ind]],
+    innerTypes: Seq[Expr[Ind]],
     body: Expr[Ind],
     override val branchCondition: Expr[Prop],
     guards: Seq[BranchGuard],
     override val typeSubstitutions: Seq[TypeSubstitution] = Seq.empty,
     override val specializedAdtTerm: Expr[Ind]
 ) extends ConstructorHeadPattern[N] {
+
+  // All existentially-bound variables: the top constructor-argument binders plus
+  // the free variables appearing inside (possibly non-nullary) guard terms.
+  // For nullary / ground guards `innerBinders` is empty, so this reduces to the
+  // previous behaviour and the four overrides below are no-ops.
+  override def binders: Seq[Variable[Ind]] = topBinders ++ innerBinders
+
+  private val innerVariables1: Seq[Variable[Ind]] =
+    innerBinders.indices.map(i => variable[Ind](s"${semanticConstructor.name}/inner1$i"))
+  private val innerVariables2: Seq[Variable[Ind]] =
+    innerBinders.indices.map(i => variable[Ind](s"${semanticConstructor.name}/inner2$i"))
+
+  override def variables1: Seq[Variable[Ind]] = semanticConstructor.variables1 ++ innerVariables1
+  override def variables2: Seq[Variable[Ind]] = semanticConstructor.variables2 ++ innerVariables2
+
+  // The input term consumes only the top (constructor-argument) binders; inner
+  // binders live inside the guard terms and the branch condition.
+  override def inputTermAt(vars: Seq[Variable[Ind]]): Expr[Ind] =
+    specializeTerm(semanticConstructor.appliedTerm(vars.take(arity)), typeSubstitutions)
+
+  override def typingSignatureAt(vars: Seq[Variable[Ind]]): Seq[(Variable[Ind], Expr[Ind])] =
+    val (top, inner) = vars.splitAt(arity)
+    instantiatedSemanticSignature(semanticConstructor.semanticSignature(top), typeSubstitutions) ++
+      inner.zip(innerTypes)
+
+  // The constructor-application typing concerns only the top arguments.
+  override def inputTypingAt(vars: Seq[Variable[Ind]], adtTerm: Expr[Ind]): THM =
+    super.inputTypingAt(vars.take(arity), adtTerm)
+
+  // With inner binders, well-definedness needs the *pattern* injectivity (input
+  // equal ⇔ all binders equal, under the branch premises); without, the plain
+  // constructor injectivity (super) is exactly right.
+  override def injectivity: THM =
+    if innerBinders.isEmpty then super.injectivity
+    else NestedTrieProofs.injectivityCaseShape(this)
+
   def guardsAt(vars: Seq[Variable[Ind]]): Seq[BranchGuard] = {
     val subst = binders.zip(vars).map((from, to) => from := to)
     guards.map(guard =>
@@ -89,7 +127,7 @@ object NestedConstructorPattern {
       typeSubstitutions: Seq[TypeSubstitution] = Seq.empty,
       specializedAdtTerm: Expr[Ind]
   ): NestedConstructorPattern[N] =
-    val binders: Seq[Variable[Ind]] = args.zipWithIndex.map {
+    val topBinders: Seq[Variable[Ind]] = args.zipWithIndex.map {
       case (Left(v), _)  => v
       case (Right(_), i) => variable[Ind](s"${constructor.name}/arg$i")
     }
@@ -97,18 +135,28 @@ object NestedConstructorPattern {
       case (Right(term), i) =>
         BranchGuard(
           position = i,
-          binder = binders(i),
+          binder = topBinders(i),
           guardTerm = term,
           resolvedNullary = resolveNullaryGuard(term)
         )
     }
-    val conditions: Seq[Expr[Prop]] = args.zip(binders).collect {
+    val conditions: Seq[Expr[Prop]] = args.zip(topBinders).collect {
       case (Right(term), binder) => binder === term
     }
     val condition = conditions match
       case Nil          => ⊤
       case head +: tail => tail.foldLeft(head)(_ /\ _)
-    NestedConstructorPattern(constructor, binders, body, condition, guards, typeSubstitutions, specializedAdtTerm)
+    // Free variables inside (possibly non-nullary) guard terms become binders too,
+    // typed from the guarded argument position. Empty for nullary / ground guards.
+    val innerTyped: Seq[(Variable[Ind], Expr[Ind])] = guards.flatMap { g =>
+      val argType = constructor.semanticSignature2(g.position)._2
+        .substitute(typeSubstitutions*).asInstanceOf[Expr[Ind]]
+      NestedTrieProofs.guardBinders(g.guardTerm, argType)
+    }.distinctBy(_._1)
+    NestedConstructorPattern(
+      constructor, topBinders, innerTyped.map(_._1), innerTyped.map(_._2),
+      body, condition, guards, typeSubstitutions, specializedAdtTerm
+    )
 }
 
 /**

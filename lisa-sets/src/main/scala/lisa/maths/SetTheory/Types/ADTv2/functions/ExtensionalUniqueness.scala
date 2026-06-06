@@ -68,14 +68,6 @@ private[functions] final class ExtensionalUniqueness[N <: Arity](
       )
 
       val pointInput = variable[Ind]
-      val constructorBranch = adt.constructors.map(c =>
-        c -> simplify(
-          existsSeq(
-            c.variables2,
-            wellTypedFormula(c.semanticSignature2) /\ (pointInput === c.appliedTerm2)
-          )
-        )
-      ).toMap
       val constructorDisjunction = simplify(patternMatching.caseCoverage(pointInput))
 
       val decompositionAtInput = have(pointInput ∈ adt.term |- constructorDisjunction) subproof {
@@ -84,75 +76,47 @@ private[functions] final class ExtensionalUniqueness[N <: Arity](
         thenHave(thesis) by Restate
       }
 
-      val branchEqualities = adt.constructors.map(c =>
-        val pattern = patternMatching.patternFor(c)
+      // Pattern-based (handles split constructors: several patterns per constructor).
+      val branchEqualities = patternMatching.patterns.map(pattern =>
         val caseVars = pattern.binders
         val caseBody = pattern.body
+        val branchCase =
+          existsSeq(pattern.variables2, pattern.freshBranchPremise /\ (pointInput === pattern.freshInputTerm))
 
         val directBranch = have(
-          wellTypedFormula(c.semanticSignature2) /\ (pointInput === c.appliedTerm2) |- (x * pointInput === y * pointInput)
+          pattern.freshBranchPremise /\ (pointInput === pattern.freshInputTerm) |- (x * pointInput === y * pointInput)
         ) subproof {
-          assume(wellTypedFormula(c.semanticSignature2) /\ (pointInput === c.appliedTerm2))
-          val argsTyped = have(wellTypedFormula(c.semanticSignature2)) by Tautology
-          val pointEqCtor = have(pointInput === c.appliedTerm2) by Tautology
+          assume(pattern.freshBranchPremise /\ (pointInput === pattern.freshInputTerm))
+          val premise = have(pattern.freshBranchPremise) by Tautology
+          val pointEq = have(pointInput === pattern.freshInputTerm) by Tautology
 
           val xCaseSchema = have(
-            forallSeq(
-              caseVars,
-              pattern.branchPremise ==> (x * pattern.inputTerm === caseBody)
-            )
+            forallSeq(caseVars, pattern.branchPremise ==> (x * pattern.inputTerm === caseBody))
           ) by Tautology.from(xDefinition)
           val yCaseSchema = have(
-            forallSeq(
-              caseVars,
-              pattern.branchPremise ==> (y * pattern.inputTerm === caseBody)
-            )
+            forallSeq(caseVars, pattern.branchPremise ==> (y * pattern.inputTerm === caseBody))
           ) by Tautology.from(yDefinition)
 
-          val substitutions = caseVars.zip(c.variables2).map((from, to) =>
-            lisa.utils.fol.FOL.SubstPair(from, to)
-          )
-          val instantiatedCaseBody: Expr[Ind] =
-            caseBody.substitute(substitutions*).asInstanceOf[Expr[Ind]]
+          val xAt = have(
+            pattern.freshBranchPremise ==> (x * pattern.freshInputTerm === pattern.bodyAtFreshVars2)
+          ) by InstantiateForallSeq(pattern.variables2)(xCaseSchema)
+          val xBody = have(x * pattern.freshInputTerm === pattern.bodyAtFreshVars2) by Tautology.from(xAt, premise)
 
-          val xCaseAtVars2 = have(
-            wellTypedFormula(c.semanticSignature2) ==> (x * c.appliedTerm2 === instantiatedCaseBody)
-          ) by InstantiateForallSeq(c.variables2)(xCaseSchema)
-          val xAtCtor = have(x * c.appliedTerm2 === instantiatedCaseBody) by
-            Tautology.from(xCaseAtVars2, argsTyped)
+          val yAt = have(
+            pattern.freshBranchPremise ==> (y * pattern.freshInputTerm === pattern.bodyAtFreshVars2)
+          ) by InstantiateForallSeq(pattern.variables2)(yCaseSchema)
+          val yBody = have(y * pattern.freshInputTerm === pattern.bodyAtFreshVars2) by Tautology.from(yAt, premise)
 
-          val yCaseAtVars2 = have(
-            wellTypedFormula(c.semanticSignature2) ==> (y * c.appliedTerm2 === instantiatedCaseBody)
-          ) by InstantiateForallSeq(c.variables2)(yCaseSchema)
-          val yAtCtor = have(y * c.appliedTerm2 === instantiatedCaseBody) by
-            Tautology.from(yCaseAtVars2, argsTyped)
-
-          val xAtInputArg = have(x * pointInput === x * c.appliedTerm2) by Congruence.from(pointEqCtor)
-          val xAtInput = have(x * pointInput === instantiatedCaseBody) by
-            Congruence.from(xAtInputArg, xAtCtor)
-
-          val yAtInputArg = have(y * pointInput === y * c.appliedTerm2) by Congruence.from(pointEqCtor)
-          val yAtInput = have(y * pointInput === instantiatedCaseBody) by
-            Congruence.from(yAtInputArg, yAtCtor)
-          val yAtInputRev = have(instantiatedCaseBody === y * pointInput) by
-            Congruence.from(yAtInput)
-
-          have(x * pointInput === y * pointInput) by Tautology.from(
-            altEqualityTransitivity of (
-              x := x * pointInput,
-              y := instantiatedCaseBody,
-              z := y * pointInput
-            ),
-            xAtInput,
-            yAtInputRev
-          )
+          val xAtPoint = have(x * pointInput === pattern.bodyAtFreshVars2) by Congruence.from(pointEq, xBody)
+          val yAtPoint = have(y * pointInput === pattern.bodyAtFreshVars2) by Congruence.from(pointEq, yBody)
+          have(x * pointInput === y * pointInput) by Congruence.from(xAtPoint, yAtPoint)
         }
 
-        val rawBranch = c.variables2.reverse.foldLeft(directBranch)((fact, v) =>
+        val rawBranch = pattern.variables2.reverse.foldLeft(directBranch)((fact, v) =>
           thenHave(∃(v, fact.statement.left.head) |- (x * pointInput === y * pointInput)) by LeftExists
         )
 
-        have(constructorBranch(c) |- (x * pointInput === y * pointInput)) by Tautology.from(rawBranch)
+        have(branchCase |- (x * pointInput === y * pointInput)) by Tautology.from(rawBranch)
       )
 
       val equalityFromCases =
