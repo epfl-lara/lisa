@@ -19,6 +19,7 @@ import lisa.maths.SetTheory.Types.ADTv2.support.InstantiateForallSeq
 import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.ConstructorCaseAssembly
 import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.CaseBodySubstitution.substitutedCaseBody
 import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.LambdaBodyEquality
+import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.RecursiveAgreement
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.utils.prooflib.BasicStepTactic.{LeftExists, Cut}
 import lisa.utils.prooflib.ProofTacticLib.Arity
@@ -212,6 +213,7 @@ private[recursion] final class ApproxProp[N <: Arity](
                   nInN,
                   sc.semanticTypingFromHeight(heightFun, nVar)
                 )
+              val argsTypedAtHeight = have(sc.heightTypingFormula(app(heightFun)(nVar))) by Tautology
               val aEqApplied = have(a === sc.appliedTerm2) by
                 Tautology.from(
                   hValid,
@@ -223,11 +225,16 @@ private[recursion] final class ApproxProp[N <: Arity](
                 ∀(a, (a ∈ app(heightFun)(nVar)) ==> (app(G(nVar))(a) === app(G(Succ(nVar)))(a)))
               ) by Restate.from(ih)
               val selfArgEqualities = sc.selfRefVariables2.map(v =>
-                val ihAtV = have(
-                  (v ∈ app(heightFun)(nVar)) ==> (app(G(nVar))(v) === app(G(Succ(nVar)))(v))
-                ) by InstantiateForall(v)(ihAtN)
-                have(app(G(nVar))(v) === app(G(Succ(nVar)))(v)) by
-                  Restate.from(ihAtV)
+                val vInHeight = have(v ∈ app(heightFun)(nVar)) by Tautology.from(argsTypedAtHeight)
+                RecursiveAgreement.selfAgreementFromForall(
+                  heightFun = heightFun,
+                  currentIndex = nVar,
+                  leftFun = G(nVar),
+                  rightFun = G(Succ(nVar)),
+                  agreeForall = ihAtN,
+                  point = v,
+                  pointInHeight = vInHeight
+                )
               )
 
               val selectionSchema = spec.patternMatching.branchSelectionFor(c, a)
@@ -246,12 +253,34 @@ private[recursion] final class ApproxProp[N <: Arity](
                   pattern.branchSelectionBody(a) |- goalAtA
                 ) subproof {
                   val selectedPattern = assume(pattern.branchSelectionBody(a))
+                  val patternGuard = have(pattern.freshBranchCondition) by Tautology.from(selectedPattern)
                   val aEqPattern = have(a === pattern.freshInputTerm) by Tautology.from(selectedPattern)
                   val patternPremise = have(pattern.freshBranchPremise) by Tautology.from(argsTypedSemantic, selectedPattern)
+                  val innerAgreementContext = RecursiveAgreement.innerAgreementContext(
+                    heightFun = heightFun,
+                    hValid = hValid,
+                    currentIndex = nVar,
+                    currentIndexInN = nInN
+                  )
+                  val innerAgreements = RecursiveAgreement.innerAgreementsFor(
+                    pattern = pattern,
+                    recursiveType = spec.argType,
+                    heightMembershipMonotonic = heightMembershipMonotonic,
+                    argsTypedAtHeight = argsTypedAtHeight,
+                    leafTyping = patternPremise,
+                    patternGuard = patternGuard,
+                    context = innerAgreementContext
+                  )(
+                    RecursiveAgreement.selfAgreementFromForallAt(
+                      leftFun = G(nVar),
+                      rightFun = G(Succ(nVar)),
+                      agreeForall = ihAtN
+                    )
+                  )
 
                   val bodyLeft  = substitutedCaseBody(pattern, spec.selfPlaceholder, G(nVar),        pattern.variables2)
                   val bodyRight = substitutedCaseBody(pattern, spec.selfPlaceholder, G(Succ(nVar)), pattern.variables2)
-                  val bodyEq = LambdaBodyEquality.prove(bodyLeft, bodyRight, selfArgEqualities)
+                  val bodyEq = LambdaBodyEquality.prove(bodyLeft, bodyRight, selfArgEqualities ++ innerAgreements)
                   val witnessAtLeft  = instantiateWitnessAtPattern(pattern, G(nVar),        gNHasType,    patternPremise, bodyLeft)
                   val witnessAtRight = instantiateWitnessAtPattern(pattern, G(Succ(nVar)), gSuccHasType, patternPremise, bodyRight)
                   val witnessesAgreeAtA = have(app(recWitness(G(nVar)))(a) === app(recWitness(G(Succ(nVar))))(a)) by Tautology.from(
@@ -288,8 +317,12 @@ private[recursion] final class ApproxProp[N <: Arity](
                     witnessSuccAtARev
                   )
                 } }
-                pattern.variables2.drop(pattern.arity).reverse.foldLeft(rawEq)((f, v) =>
-                  thenHave(∃(v, f.statement.left.head) |- goalAtA) by LeftExists)
+                pattern.variables2.drop(pattern.arity).reverse.foldLeft(
+                  (pattern.branchSelectionBody(a), rawEq)
+                ) { case ((body, _), v) =>
+                  val quantified = ∃(v, body)
+                  (quantified, thenHave(quantified |- goalAtA) by LeftExists)
+                }._2
               )
 
               val branchesToGoal =

@@ -117,16 +117,23 @@ private[recursion] final class WitnessAgreement[N <: Arity](
         ) subproof {
           assume(branchPremise)
 
+          val argsTypedAtHeight = have(sc.heightTypingFormula(app(heightFun)(nVar))) by Tautology
           val argsTypedSemantic = have(wellTypedFormula(sc.semanticSignature2)) by
             Tautology.from(hValid, nInN, sc.semanticTypingFromHeight(heightFun, nVar))
           val aEqApplied = have(a === sc.appliedTerm2) by
             Tautology.from(hValid, nInN, sc.appliedEqualityFromStructural(heightFun, nVar, a))
 
           val selfArgEqualities = sc.selfRefVariables2.map(v =>
-            val atV = have(
-              (v ∈ app(heightFun)(nVar)) ==> (app(leftFun)(v) === app(rightFun)(v))
-            ) by InstantiateForall(v)(agreeForall)
-            have(app(leftFun)(v) === app(rightFun)(v)) by Restate.from(atV)
+            val vInHeight = have(v ∈ app(heightFun)(nVar)) by Tautology.from(argsTypedAtHeight)
+            RecursiveAgreement.selfAgreementFromForall(
+              heightFun = heightFun,
+              currentIndex = nVar,
+              leftFun = leftFun,
+              rightFun = rightFun,
+              agreeForall = agreeForall,
+              point = v,
+              pointInHeight = vInHeight
+            )
           )
 
           val selectionSchema = spec.patternMatching.branchSelectionFor(c, a)
@@ -145,12 +152,34 @@ private[recursion] final class WitnessAgreement[N <: Arity](
               pattern.branchSelectionBody(a) |- goalW
             ) subproof {
               val selectedPattern = assume(pattern.branchSelectionBody(a))
+              val patternGuard = have(pattern.freshBranchCondition) by Tautology.from(selectedPattern)
               val aEqPattern = have(a === pattern.freshInputTerm) by Tautology.from(selectedPattern)
               val patternPremise = have(pattern.freshBranchPremise) by Tautology.from(argsTypedSemantic, selectedPattern)
+              val innerAgreementContext = RecursiveAgreement.innerAgreementContext(
+                heightFun = heightFun,
+                hValid = hValid,
+                currentIndex = nVar,
+                currentIndexInN = nInN
+              )
+              val innerAgreements = RecursiveAgreement.innerAgreementsFor(
+                pattern = pattern,
+                recursiveType = spec.argType,
+                heightMembershipMonotonic = spec.adt.height.membershipMonotonicAt(spec.typeSubstitutions),
+                argsTypedAtHeight = argsTypedAtHeight,
+                leafTyping = patternPremise,
+                patternGuard = patternGuard,
+                context = innerAgreementContext
+              )(
+                RecursiveAgreement.selfAgreementFromForallAt(
+                  leftFun = leftFun,
+                  rightFun = rightFun,
+                  agreeForall = agreeForall
+                )
+              )
 
               val bodyLeft  = substitutedCaseBody(pattern, spec.selfPlaceholder, leftFun,  pattern.variables2)
               val bodyRight = substitutedCaseBody(pattern, spec.selfPlaceholder, rightFun, pattern.variables2)
-              val bodyEq = LambdaBodyEquality.prove(bodyLeft, bodyRight, selfArgEqualities)
+              val bodyEq = LambdaBodyEquality.prove(bodyLeft, bodyRight, selfArgEqualities ++ innerAgreements)
               val witnessAtLeft  = instantiateWitnessAtPattern(pattern, leftFun,  leftTyped,  patternPremise, bodyLeft)
               val witnessAtRight = instantiateWitnessAtPattern(pattern, rightFun, rightTyped, patternPremise, bodyRight)
 
@@ -166,8 +195,12 @@ private[recursion] final class WitnessAgreement[N <: Arity](
                 aEqPattern, witnessAtLeft, witnessAtRight, bodyEq
               )
             }
-            pattern.variables2.drop(pattern.arity).reverse.foldLeft(rawEq)((f, v) =>
-              thenHave(∃(v, f.statement.left.head) |- goalW) by LeftExists)
+            pattern.variables2.drop(pattern.arity).reverse.foldLeft(
+              (pattern.branchSelectionBody(a), rawEq)
+            ) { case ((body, _), v) =>
+              val quantified = ∃(v, body)
+              (quantified, thenHave(quantified |- goalW) by LeftExists)
+            }._2
           )
 
           val branchesToGoal =

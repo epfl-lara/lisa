@@ -91,16 +91,16 @@ object NestedPatterns extends lisa.Main {
       tru
   }
 
-  // val isMultipleOfThree = recFun(nat, bool) { self =>
-  //   Case(zero):
-  //     tru
-  //   Case(succ, zero):
-  //     fals
-  //   Case(succ, succ * zero):
-  //     fals
-  //   Case(succ, succ * (succ * k)):
-  //     self * k
-  // }
+  val isMultipleOfThree = recFun(nat, bool) { self =>
+    Case(zero):
+      tru
+    Case(succ, zero):
+      fals
+    Case(succ, succ * zero):
+      fals
+    Case(succ, succ * (succ * k)):
+      self * k
+  }
 
   // ── Show theorems ──────────────────────────────────────────────────────
 
@@ -127,8 +127,8 @@ object NestedPatterns extends lisa.Main {
   show(isGreaterThanOne.elimTotal)
   show(isGreaterThanTwo.intro)
   show(isGreaterThanTwo.elimTotal)
-  // show(isMultipleOfThree.intro)
-  // show(isMultipleOfThree.elimTotal)
+  show(isMultipleOfThree.intro)
+  show(isMultipleOfThree.elimTotal)
 
   // section("headIsZero on List[Nat]")
   // show(headIsZero.intro(nat))

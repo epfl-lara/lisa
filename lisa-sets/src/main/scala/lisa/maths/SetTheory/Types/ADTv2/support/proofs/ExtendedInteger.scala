@@ -365,6 +365,46 @@ object ExtendedInteger extends lisa.Main {
   }
 
   /**
+   * Bridge theorem --- Every nonzero natural is a successor of a natural.
+   */
+  val nonZeroOmegaHasPredecessor = Theorem(
+    (α ∈ ω, α =/= ∅) |- ∃(β, β ∈ ω /\ (α === S(β)))
+  ) {
+    assume(α ∈ ω)
+    assume(α =/= ∅)
+
+    val alphaIsInteger = have(integer(α)) by InstantiateForall(α)(omegaCharacterization)
+    val intPreds = have(∀(β, β <= α ==> (β === ∅) \/ successorOrdinal(β))) by
+      Substitute(integer.definition.of(α := α))(alphaIsInteger)
+    val succSplit = have((α === ∅) \/ successorOrdinal(α)) by Tautology.from(
+      have(α <= α ==> (α === ∅) \/ successorOrdinal(α)) by InstantiateForall(α)(intPreds)
+    )
+    val succOrdinalAtAlpha = have(successorOrdinal(α)) by Tautology.from(succSplit, have(!(α === ∅)) by Tautology)
+
+    val succWitness = have(∃(γ, ordinal(γ) /\ (α === S(γ)))) by Tautology.from(
+      succOrdinalAtAlpha,
+      have(successorOrdinal(α) ==> ∃(γ, ordinal(γ) /\ (α === S(γ)))) by
+        Tautology.from(successorOrdinal.definition.of(α := α))
+    )
+
+    val omegaWitnessBranch = have((ordinal(γ) /\ (α === S(γ))) |- ∃(β, β ∈ ω /\ (α === S(β)))) subproof {
+      assume(ordinal(γ) /\ (α === S(γ)))
+      val alphaEqSucc = have(α === S(γ)) by Tautology
+      val succInOmega = have(S(γ) ∈ ω) by Congruence.from(have(α ∈ ω) by Tautology, alphaEqSucc)
+      val gammaInOmega = have(γ ∈ ω) by Tautology.from(
+        succInOmega,
+        omegaPredecessor.of(α := γ)
+      )
+      have(γ ∈ ω /\ (α === S(γ))) by Tautology.from(gammaInOmega, alphaEqSucc)
+      thenHave(∃(β, β ∈ ω /\ (α === S(β)))) by RightExists
+    }
+    val omegaWitness = have(∃(γ, ordinal(γ) /\ (α === S(γ))) |- ∃(β, β ∈ ω /\ (α === S(β)))) by
+      LeftExists.withParameters(ordinal(γ) /\ (α === S(γ)), γ)(omegaWitnessBranch)
+
+    have(thesis) by Cut(succWitness, omegaWitness)
+  }
+
+  /**
    * Bridge theorem --- Induction on `ω` with successor `S`.
    */
   val omegaInduction = Theorem(

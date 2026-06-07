@@ -158,35 +158,19 @@ object NestedTrieDemo extends lisa.Main {
   private val bsf = NestedTrieProofs.branchSelectionForCaseShape(succ.semantic, succ, aTerm, halveSuccPats, Seq.empty)
   println(s"  ✓ ⊢ ${bsf.statement}")
 
-  // ── recFun + multi-level nested patterns (TARGET for branchSelectionFor) ─────
-  // `fun` (non-recursive) with multi-level patterns already works end-to-end (see
-  // `isGreaterThanTwo` in NestedPatterns). `recFun` additionally needs
-  // MultiLevelNestedPatternSystem.branchSelectionFor, which is not yet implemented.
-  // This is the target test for that work: it reports "not yet supported" today,
-  // and should print `halve`'s theorems once branchSelectionFor is implemented.
-  println("══════════ recFun + multi-level patterns (next step) ══════════")
+  // ── recFun + multi-level nested patterns — end-to-end verification ───────────
+  println("══════════ recFun + multi-level patterns ══════════")
   private val kk = variable[Ind]
-  try
-    // halve : 0,1 ↦ 0 ;  n+2 ↦ halve(n)+1   (multi-level guard `succ(succ k)` + recursion)
-    val halve = recFun(nat, nat) { self =>
-      Case(zero):
-        zero
-      Case(succ, zero):
-        zero
-      Case(succ, succ * kk):
-        succ * (self * kk)
-    }
-    show(halve.intro)
-    show(halve.elimTotal)
-    println("  ✓ recFun with multi-level patterns WORKS")
-  catch
-    case e: NotImplementedError =>
-      println(s"  ⏳ recFun + multi-level not yet supported: ${e.getMessage}")
-    case e: Throwable =>
-      // branchSelectionFor + existence now succeed (halve/witness is defined);
-      // remaining blocker: well-foundedness for self-calls on INNER binders
-      // (halve recurses on a grandchild), which needs height-inversion-derived
-      // agreement added to `selfArgEqualities` (Existence/ApproxProp/WitnessAgreement).
-      println("  ⏳ recFun + multi-level: existence proof passes (halve/witness defined);")
-      println("     remaining: self-call-on-inner-binder well-foundedness (selfArgEqualities).")
+  // halve : 0,1 ↦ 0 ;  n+2 ↦ halve(n)+1   (multi-level guard `succ(succ k)` + recursion)
+  val halve = recFun(nat, nat) { self =>
+    Case(zero):
+      zero
+    Case(succ, zero):
+      zero
+    Case(succ, succ * kk):
+      succ * (self * kk)
+  }
+  show(halve.intro)
+  show(halve.elimTotal)
+  println("  ✓ recFun with multi-level patterns WORKS")
 }

@@ -20,6 +20,7 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.ConstructorCaseAssembly
 import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.CaseBodySubstitution.substitutedCaseBody
 import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.LambdaBodyEquality
+import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.RecursiveAgreement
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.{constructorBranchesAtHeight, constructorDisjunctionAtHeight, specializedConstructors}
@@ -267,35 +268,21 @@ private[recursion] final class Existence[N <: Arity](
           // Recursive arg equalities: app(limitFun)(v) = app(G(n0))(v) for each SelfRef v
           val selfArgEqualities = sc.selfRefVariables2.map(v =>
               val vInHn0 = have(v ∈ app(heightFun)(n0)) by Tautology.from(argsTypedAtHeight)
-              val vHeightChar = have(LimitKernel.pointHeightCharAt(spec.argType, heightFun, v)) by
-                Tautology.from(hValid, termHasHeight of (x := v, h := heightFun))
-
-              // Combine: app(limitFun)(v) = app(G(n0))(v)
-              have(app(limitFun)(v) === app(G(n0))(v)) by Tautology.from(
-                vHeightChar,
-                have(LimitKernel.limitIndexDefinitionAt(heightFun, chosenIndexFamily, v)) by Restate,
-                have(limitFunDef) by Restate,
-                have(LimitKernel.approxAgreementAt(heightFun, approximantFamily, v, limitIndex(v), n0)) by
-                  Tautology.from(
-                    ApproximationChainFacts.approximantsAgreeAcrossHeightsAt(
-                      heightFun,
-                      approximantFamily,
-                      limitIndex(v),
-                      n0,
-                      v
-                    )(stabilizationSchema, heightMembershipMonotonicSchema)
-                  ),
-                indexInN,
-                vInHn0,
-                LimitKernel.limitAtHeightAt(
-                  spec.argType,
-                  heightFun,
-                  limitFun,
-                  approximantFamily,
-                  chosenIndexFamily,
-                  v,
-                  n0
-                )
+              RecursiveAgreement.selfAgreementWithLimit(
+                argType = spec.argType,
+                heightFun = heightFun,
+                limitFun = limitFun,
+                approximantFamily = approximantFamily,
+                chosenIndexFamily = chosenIndexFamily,
+                limitFunDef = limitFunDef,
+                termHasHeight = termHasHeight,
+                stabilizationSchema = stabilizationSchema,
+                heightMembershipMonotonicSchema = heightMembershipMonotonicSchema,
+                hValid = hValid,
+                currentIndex = n0,
+                currentIndexInN = indexInN,
+                point = v,
+                pointInHeight = vInHn0
               )
           )
 
@@ -321,9 +308,35 @@ private[recursion] final class Existence[N <: Arity](
                 argsTypedSemantic,
                 selectedPattern
               )
+              val innerAgreementContext = RecursiveAgreement.innerAgreementContext(
+                heightFun = heightFun,
+                hValid = hValid,
+                currentIndex = n0,
+                currentIndexInN = indexInN
+              )
+              val innerAgreements = RecursiveAgreement.innerAgreementsFor(
+                pattern = pattern,
+                recursiveType = spec.argType,
+                heightMembershipMonotonic = heightMembershipMonotonic,
+                argsTypedAtHeight = argsTypedAtHeight,
+                leafTyping = patternPremise,
+                patternGuard = patternGuard,
+                context = innerAgreementContext
+              )(
+                RecursiveAgreement.selfAgreementWithLimitAt(
+                  argType = spec.argType,
+                  limitFun = limitFun,
+                  approximantFamily = approximantFamily,
+                  chosenIndexFamily = chosenIndexFamily,
+                  limitFunDef = limitFunDef,
+                  termHasHeight = termHasHeight,
+                  stabilizationSchema = stabilizationSchema,
+                  heightMembershipMonotonicSchema = heightMembershipMonotonicSchema
+                )
+              )
               val bodyLeft  = substitutedCaseBody(pattern, spec.selfPlaceholder, limitFun, pattern.variables2)
               val bodyRight = substitutedCaseBody(pattern, spec.selfPlaceholder, G(n0),   pattern.variables2)
-              val bodyEq = LambdaBodyEquality.prove(bodyLeft, bodyRight, selfArgEqualities)
+              val bodyEq = LambdaBodyEquality.prove(bodyLeft, bodyRight, selfArgEqualities ++ innerAgreements)
               val witnessAtLeft  = instantiateWitnessAtPattern(pattern, limitFun, limitHasType,  patternPremise, bodyLeft)
               val witnessAtRight = instantiateWitnessAtPattern(pattern, G(n0),    gN0HasType,    patternPremise, bodyRight)
               val witnessesAgreeAtA =
@@ -355,8 +368,12 @@ private[recursion] final class Existence[N <: Arity](
                 limitAtAEqGN0
               )
             }
-            pattern.variables2.drop(pattern.arity).reverse.foldLeft(rawEq)((f, v) =>
-              thenHave(∃(v, f.statement.left.head) |- pointwiseGoal) by LeftExists)
+            pattern.variables2.drop(pattern.arity).reverse.foldLeft(
+              (pattern.branchSelectionBody(a), rawEq)
+            ) { case ((body, _), v) =>
+              val quantified = ∃(v, body)
+              (quantified, thenHave(quantified |- pointwiseGoal) by LeftExists)
+            }._2
           )
 
           val branchesToGoal =

@@ -32,6 +32,8 @@ private[recursion] object ConstructorSemanticFacts {
       specializeTerm(underlying.appliedTerm2, typeSubstitutions)
     def semanticTypingFromHeight(heightFun: Expr[Ind], n: Expr[Ind])(using sourcecode.Line, sourcecode.File): THM =
       underlying.semanticTypingFromHeightAt(typeSubstitutions)(heightFun, n)
+    def recursiveArgInHeight(heightFun: Expr[Ind], n: Expr[Ind])(using sourcecode.Line, sourcecode.File): THM =
+      underlying.recursiveArgInHeightAt(typeSubstitutions)(heightFun, n)
     def appliedEqualityFromStructural(heightFun: Expr[Ind], n: Expr[Ind], term0: Expr[Ind])(using sourcecode.Line, sourcecode.File): THM =
       underlying.appliedEqualityFromStructuralAt(typeSubstitutions)(heightFun, n, term0)
   }

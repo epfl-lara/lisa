@@ -60,6 +60,9 @@ object NestedTrieProofs {
       ADT.unapply(tyTerm.substitute(subst*).asInstanceOf[Expr[Ind]])
     }
 
+  def resolvedChildTypes(c: Constructor[?], targs: Seq[Expr[Ind]]): Seq[Option[Ty]] =
+    childTypes(c, targs)
+
   def termOf(p: RPat, ty: Ty): Expr[Ind] = p match
     case RVar(v) => v
     case RCon(c, args) =>

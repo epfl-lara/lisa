@@ -109,6 +109,30 @@ private[recursion] object WitnessCaseExtensionality {
       bodyR := rightBody
     )
 
+  def pointwiseAgreementAt(using proof: lisa.SetTheoryLibrary.Proof)(
+      leftWitness: Expr[Ind],
+      rightWitness: Expr[Ind],
+      ambientTerm: Expr[Ind],
+      inputTerm: Expr[Ind],
+      leftBody: Expr[Ind],
+      rightBody: Expr[Ind],
+      ambientEqInput: proof.Fact,
+      leftAtInput: proof.Fact,
+      rightAtInput: proof.Fact,
+      bodyEquality: proof.Fact
+  ): proof.Fact = {
+    val extensionality = extensionalityAt(
+      leftWitness = leftWitness,
+      rightWitness = rightWitness,
+      ambientTerm = ambientTerm,
+      inputTerm = inputTerm,
+      leftBody = leftBody,
+      rightBody = rightBody
+    )
+    have(ambientEqInput.statement.left |- (app(leftWitness)(ambientTerm) === app(rightWitness)(ambientTerm))) by
+      Tautology.from(extensionality, ambientEqInput, leftAtInput, rightAtInput, bodyEquality)
+  }
+
   def initialize(): Unit = {
     val _ = extensionality
   }

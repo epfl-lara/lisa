@@ -6,7 +6,7 @@ import lisa.maths.SetTheory.Types.ADTv2.encoding.{SemanticADT, SemanticConstruct
 import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.{altEqualityTransitivity, constructorTagDisequality}
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.altEqualityTransitivity
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.ProofTacticLib.Arity
@@ -122,26 +122,10 @@ final case class ConstructorPatternSystem[N <: Arity](
         p1StructuralEqP2Applied,
         p2StructuralEq
       )
-      val tagsFromStructuralEq = have(
-        constructorPattern1.structuralTerm1 === constructorPattern2.structuralTerm2 |-
-          (constructorPattern1.tagTerm1 === constructorPattern2.tagTerm2) /\
-          (constructorPattern1.subterm1 === constructorPattern2.subterm2)
-      ) by Tautology.from(
-        Pair.extensionality of (
-          a := constructorPattern1.tagTerm1,
-          b := constructorPattern1.subterm1,
-          c := constructorPattern2.tagTerm2,
-          d := constructorPattern2.subterm2
-        )
+      val structuralDifferent = have(!(constructorPattern1.structuralTerm1 === constructorPattern2.structuralTerm2)) by Tautology.from(
+        constructorPattern1.semanticConstructor.structuralDisjointness(constructorPattern2.semanticConstructor)
       )
-      val tagsEqual = have(constructorPattern1.tagTerm1 === constructorPattern2.tagTerm2) by
-        Tautology.from(structuralEq, tagsFromStructuralEq)
-      val minTag = Math.min(constructorPattern1.semanticConstructor.underlying.tag, constructorPattern2.semanticConstructor.underlying.tag)
-      val maxTag = Math.max(constructorPattern1.semanticConstructor.underlying.tag, constructorPattern2.semanticConstructor.underlying.tag)
-      val tagsDifferent = have(!(constructorPattern1.tagTerm1 === constructorPattern2.tagTerm2)) by Tautology.from(
-        constructorTagDisequality(constructorPattern1.tagTerm1, constructorPattern2.tagTerm2, minTag, maxTag)
-      )
-      have(thesis) by Tautology.from(tagsEqual, tagsDifferent)
+      have(thesis) by Tautology.from(structuralEq, structuralDifferent)
     }
   }
 
