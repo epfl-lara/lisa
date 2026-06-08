@@ -1,6 +1,6 @@
 package lisa.kernel.fol
 
-import java.util.concurrent.ConcurrentHashMap
+import scala.collection.mutable
 
 /**
  * Defines the syntax of statements Lisa's kernel
@@ -178,20 +178,15 @@ private[fol] trait Syntax {
     private case class ApplicationKey(f: Long, arg: Long)
     private case class LambdaKey(v: Long, body: Long)
 
-    private val variables = new ConcurrentHashMap[VariableKey, Variable]()
-    private val constants = new ConcurrentHashMap[ConstantKey, Constant]()
-    private val applications = new ConcurrentHashMap[ApplicationKey, Application]()
-    private val lambdas = new ConcurrentHashMap[LambdaKey, Lambda]()
+    private type Cache[K, V] = mutable.HashMap[K, V]
+    private def cache[K, V]: Cache[K, V] = mutable.HashMap.empty[K, V]
+    private def getOrCreate[K, V](map: Cache[K, V], key: K, create: => V): V =
+      map.getOrElseUpdate(key, create)
 
-    private def getOrCreate[K, V](map: ConcurrentHashMap[K, V], key: K, create: => V): V = {
-      val cached = map.get(key)
-      if (cached != null) cached
-      else {
-        val created = create
-        val previous = map.putIfAbsent(key, created)
-        if (previous == null) created else previous
-      }
-    }
+    private val variables = cache[VariableKey, Variable]
+    private val constants = cache[ConstantKey, Constant]
+    private val applications = cache[ApplicationKey, Application]
+    private val lambdas = cache[LambdaKey, Lambda]
 
     def variable(id: Identifier, sort: Sort): Variable =
       if (enabled) getOrCreate(variables, VariableKey(id, sort), new Variable(id, sort))
