@@ -1,7 +1,5 @@
 package lisa.kernel.fol
 
-import scala.collection.mutable
-
 /**
  * Defines the syntax of statements Lisa's kernel
  *
@@ -167,11 +165,13 @@ private[fol] trait Syntax {
   }
 
   private object ExpressionCache {
+    import scala.collection.mutable
+    
     val enabled: Boolean =
       !sys.props.get("lisa.hashcons").contains("false") &&
-        !sys.props.get("lisa.hashcons").contains("0") &&
-        !sys.env.get("LISA_HASHCONS").contains("false") &&
-        !sys.env.get("LISA_HASHCONS").contains("0")
+      !sys.props.get("lisa.hashcons").contains("0") &&
+      !sys.env.get("LISA_HASHCONS").contains("false") &&
+      !sys.env.get("LISA_HASHCONS").contains("0")
 
     private case class VariableKey(id: Identifier, sort: Sort)
     private case class ConstantKey(id: Identifier, sort: Sort)
