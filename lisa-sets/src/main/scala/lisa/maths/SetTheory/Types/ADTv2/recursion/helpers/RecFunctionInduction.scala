@@ -5,6 +5,7 @@ import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{TypeSubstitution, instantiatedSemanticSignature, specializeFormula, specializeTerm}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.core.InstantiateForallSeq
+import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
 import lisa.maths.SetTheory.Types.TypingHelpers.*
@@ -15,9 +16,7 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.utils.prooflib.BasicStepTactic.{Cut, LeftExists, LeftOr, Restate}
 import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.CaseBodySubstitution.substitutedCaseBody
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.{constructorDisjunctionAtHeight, specializedConstructors}
-import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.EqualityFacts
-import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.LimitKernel
-import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.WitnessCaseExtensionality
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.{LimitKernel,WitnessCaseExtensionality}
 
 private[recursion] object RecFunctionInduction {
 
@@ -66,16 +65,25 @@ private[recursion] object RecFunctionInduction {
           have(fact.statement.left |- instantiated) by InstantiateForall(varsPair._2)(fact)
         case _ => throw UnreachableException
     )
-
     schemaAtBranch.statement.right.head match
       case antecedent ==> consequent =>
-        val normalizedAntecedent = simplify(antecedent.asInstanceOf[Expr[Prop]])
-        val normalizedBranchPremise = simplify(branchPremise.statement.right.head.asInstanceOf[Expr[Prop]])
+        // val A = antecedent //.asInstanceOf[Expr[Prop]]
+        // val B = consequent //.asInstanceOf[Expr[Prop]]
         require(
-          normalizedAntecedent == normalizedBranchPremise,
-          s"$errorContext: schema antecedent does not match branch premise.\nSchema antecedent: $normalizedAntecedent\nBranch premise: $normalizedBranchPremise"
+          simplify(antecedent) == simplify(branchPremise.statement.right.head.asInstanceOf[Expr[Prop]]),
+          s"$errorContext: schema antecedent does not match branch premise."
         )
-        have(localAssumptions |- consequent.asInstanceOf[Expr[Prop]]) by Tautology.from(schemaAtBranch, branchPremise)
+        // 1. Re-derive the branch premise in the schema's (simplified) antecedent form.
+        //    OL-normalization is polynomial — no propositional search.
+        val premiseAsAnte = have(branchPremise.statement.left |- antecedent) by Restate.from(branchPremise)
+        // 2. Modus ponens via kernel rules: antecedent and consequent stay atomic, so cost is linear in formula size.
+        val mp = have( (antecedent ==> consequent, antecedent) |- consequent) by LeftImplies.withParameters(antecedent, consequent)(
+          have(antecedent |- antecedent) by Hypothesis,
+          have(consequent |- consequent) by Hypothesis
+        )
+        val viaImpl  = have((schemaAtBranch.statement.left + antecedent) |- consequent) by Cut(schemaAtBranch, mp)
+        val combined = have((schemaAtBranch.statement.left ++ branchPremise.statement.left) |- consequent) by Cut(premiseAsAnte, viaImpl)
+        have(localAssumptions |- consequent) by Weakening(combined)
       case equalityFormula =>
         have(localAssumptions |- equalityFormula.asInstanceOf[Expr[Prop]]) by Restate.from(schemaAtBranch)
   }
@@ -112,10 +120,7 @@ private[recursion] object RecFunctionInduction {
         have(equalityAtBranch.statement.left |- (expectedLeft === expectedRight)) by Restate.from(equalityAtBranch)
       case Some((leftEq, rightEq)) if leftEq == expectedRight && rightEq == expectedLeft =>
         have(equalityAtBranch.statement.left |- (expectedLeft === expectedRight)) by
-          Tautology.from(
-            EqualityFacts.symmetryAt(expectedRight, expectedLeft),
-            equalityAtBranch
-          )
+          Congruence.from(equalityAtBranch)
       case _ =>
         throw IllegalArgumentException(
           s"$errorContext: could not orient equality ${equalityAtBranch.statement.right.head} as $expectedLeft === $expectedRight."
@@ -147,7 +152,7 @@ private[recursion] object RecFunctionInduction {
       xBody: Expr[Ind],
       yBody: Expr[Ind],
       errorContext: String
-  ): (Set[Expr[Prop]], proof.Fact, proof.Fact, proof.Fact, proof.Fact) = {
+  ): (Set[Expr[Prop]], proof.Fact, proof.Fact, proof.Fact, proof.Fact) = Time.measureNow(s"normalizeBranchFacts for $errorContext") {
     val pointEqInput = normalizeFactInContext(
       localContext = localContext,
       fact = pointEqInputFact,
@@ -270,7 +275,7 @@ private[recursion] object RecFunctionInduction {
           errorContext: String
       ): proof.Fact = {
         val (caseVars, caseSchemaFormula) = schema
-        val definitionFact = have(contextAssumptions |- definition) by Tautology
+        val definitionFact =  have(contextAssumptions |- definition) by Tautology
         val schemaFromDefinition = have(definition |- caseSchemaFormula) by Tautology
         val caseSchema = have(contextAssumptions |- caseSchemaFormula) by
           Cut.withParameters(definition)(definitionFact, schemaFromDefinition)
@@ -372,11 +377,12 @@ private[recursion] object RecFunctionInduction {
                   val rawEq = have(
                     pattern.branchSelectionBody(slicePoint) |- propertyAt(slicePoint)
                   ) subproof {
+                    Time.log(s"Proving branch ${pattern.name} of constructor ${c.name} at height $nVar")
                     val selectedPattern = assume(pattern.branchSelectionBody(slicePoint))
-                    val patternGuard = have(pattern.freshBranchCondition) by Tautology.from(selectedPattern)
-                    val pointEqPattern = have(slicePoint === pattern.freshInputTerm) by Tautology.from(selectedPattern)
-                    val patternPremise = have(pattern.freshBranchPremise) by
-                      Tautology.from(argsTypedSemantic, selectedPattern)
+                    val patternGuard = Time.measureNow(s"patternGuard"){have(pattern.freshBranchCondition) by Tautology.from(selectedPattern)}
+                    val pointEqPattern = Time.measureNow(s"pointEqPattern"){have(slicePoint === pattern.freshInputTerm) by Tautology.from(selectedPattern)}
+                    val patternPremise = Time.measureNow(s"patternPremise"){have(pattern.freshBranchPremise) by Tautology.from(argsTypedSemantic, selectedPattern)}
+                    Time.log(s"Step 0")
                     val innerAgreementContext = RecursiveAgreement.innerAgreementContext(
                       heightFun = heightFun,
                       hValid = hValid,
@@ -398,7 +404,7 @@ private[recursion] object RecFunctionInduction {
                         agreeForall = ihAtN
                       )
                     )
-
+                    Time.log(s"Step 1")
                     val selectedPatternFormula = pattern.branchSelectionBody(slicePoint)
                     val baseContext = Set[Expr[Prop]](
                       slicePoint ∈ app(heightFun)(Succ(nVar)),
@@ -410,6 +416,8 @@ private[recursion] object RecFunctionInduction {
                       if simplify(pattern.freshBranchCondition) == ⊤ then baseContext
                       else baseContext + pattern.freshBranchCondition
                     val instantiationContext = assumptions ++ localContext
+
+                    Time.log(s"Step 2")
 
                     val xAtBranch = instantiateCaseFromDefinition(
                       contextAssumptions = instantiationContext,
@@ -454,6 +462,7 @@ private[recursion] object RecFunctionInduction {
                       expectedRight = yBody,
                       errorContext = s"pointwiseUniquenessAt/y/${c.name}/${pattern.name}"
                     )
+                    Time.log(s"Step 3")
 
                     val bodyEquality = proveBodyEqualityFromRecursiveFacts(
                       localAssumptions = localContext,
@@ -485,6 +494,7 @@ private[recursion] object RecFunctionInduction {
                       yBody = yBody,
                       errorContext = s"pointwiseUniquenessAt/${c.name}/${pattern.name}"
                     )
+                    Time.log(s"Step 4")
 
                     proveBranchPointwiseAgreement(
                       normalized = normalizedFacts,
@@ -496,6 +506,7 @@ private[recursion] object RecFunctionInduction {
                       xBody = xBody,
                       yBody = yBody
                     )
+                    Time.log(s"Step 5")
                   }
                   pattern.variables2.drop(pattern.arity).reverse.foldLeft(
                     (pattern.branchSelectionBody(slicePoint), rawEq)

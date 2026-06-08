@@ -579,7 +579,7 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
 
     val coverageAtInput = have(
       (inputTerm ∈ argType) ==> simplify(patternMatching.caseCoverage(inputTerm))
-    ) by InstantiateForall(inputTerm)(patternMatching.coverage(adt))
+    ) by InstantiateForall(inputTerm)(patternMatching.coverage)
 
     val pointwise = have(
       (inputTerm ∈ argType) |- ∃(outputTerm, pair(inputTerm, outputTerm) ∈ witness)

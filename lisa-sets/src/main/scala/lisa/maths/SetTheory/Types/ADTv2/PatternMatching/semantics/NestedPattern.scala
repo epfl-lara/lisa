@@ -8,6 +8,7 @@ import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{TypeSubstituti
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.core.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.altEqualityTransitivity
+import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.utils.prooflib.BasicStepTactic.{LeftExists, LeftOr, RightExists, RightForall}
 import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
 import lisa.maths.SetTheory.Types.TypingHelpers.::
@@ -180,8 +181,7 @@ final case class NestedPatternSystem[N <: Arity](
 
   override def supportsAutomaticCoverage: Boolean = false
 
-  override def coverage(domain: SemanticADT[N]): THM = {
-    require(domain == this.domain, "NestedPatternSystem.coverage expects its compiled base domain.")
+  override lazy val coverage: THM = Time.measure(s"Pattern/Coverage") {
     val coveredTerm = variable[Ind]
     val specializedDomainTerm = specializedAdtTerm
     val specializedDomainElim = domainElim()
@@ -311,7 +311,8 @@ final case class NestedPatternSystem[N <: Arity](
   override def branchSelectionFor(
       constructor: SemanticConstructor[N],
       term: Expr[Ind]
-  ): THM = {
+  ): THM = branchSelectionCache.getOrElseUpdate(
+      (constructor, term), Time.measure(s"Pattern/Branch selection"){
     val genericStatement = forallSeq(
       constructor.variables2,
       (wellTypedFormula(constructor.semanticSignature2) /\ (term === constructor.appliedTerm2)) ==>
@@ -359,9 +360,11 @@ final case class NestedPatternSystem[N <: Arity](
           quantified = thenHave(∀(v, quantified.statement.right.head)) by RightForall
         have(thesis) by Tautology.from(quantified)
       }
-  }
+  })
 
-  override def incompatible(pattern1: Pattern[N], pattern2: Pattern[N]): THM = {
+  override def incompatible(pattern1: Pattern[N], pattern2: Pattern[N]): THM =
+    incompatibleCache.getOrElseUpdate(
+      (pattern1, pattern2), Time.measure(s"Pattern/Incompatible") {
     require(pattern1 != pattern2, "incompatible is only meaningful for distinct patterns.")
     val constructorPattern1 = pattern1 match
       case pattern: NestedConstructorPattern[N] => pattern
@@ -435,7 +438,7 @@ final case class NestedPatternSystem[N <: Arity](
 
         have(thesis) by Tautology.from(guardTermsEqual, distinctGuardTerms)
       }
-  }
+  })
 
   private def validateRestrictedShape(): Unit =
     constructors.foreach(constructor => validateConstructorPatterns(constructor, patternsForNested(constructor)))

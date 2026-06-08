@@ -7,6 +7,7 @@ import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.altEqualityTransitivity
+import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.ProofTacticLib.Arity
@@ -34,8 +35,7 @@ final case class ConstructorPatternSystem[N <: Arity](
   override def patternsFor(constructor: SemanticConstructor[N]): Seq[Pattern[N]] =
     patterns.filter(_.semanticConstructor == constructor)
 
-  override def coverage(domain: SemanticADT[N]): THM = {
-    require(domain == this.domain, "ConstructorPatternSystem.coverage expects its compiled base domain.")
+  override lazy val coverage: THM = Time.measure(s"Pattern/Coverage") {
     require(
       supportsAutomaticCoverage,
       "Automatic coverage is only available for constructor-only pattern systems with one unconditional branch per constructor."
@@ -48,7 +48,9 @@ final case class ConstructorPatternSystem[N <: Arity](
     }
   }
 
-  override def incompatible(pattern1: Pattern[N], pattern2: Pattern[N]): THM = {
+  override def incompatible(pattern1: Pattern[N], pattern2: Pattern[N]): THM = 
+    incompatibleCache.getOrElseUpdate(
+      (pattern1, pattern2), Time.measure(s"Pattern/Incompatible") {
     require(pattern1 != pattern2, "incompatible is only meaningful for distinct patterns.")
     val constructorPattern1 = pattern1 match
       case pattern: ConstructorHeadPattern[N] => pattern
@@ -127,9 +129,11 @@ final case class ConstructorPatternSystem[N <: Arity](
       )
       have(thesis) by Tautology.from(structuralEq, structuralDifferent)
     }
-  }
+  })
 
-  override def branchSelectionFor(constructor: SemanticConstructor[N], term: Expr[Ind]): THM = {
+  override def branchSelectionFor(constructor: SemanticConstructor[N], term: Expr[Ind]): THM =
+    branchSelectionCache.getOrElseUpdate(
+      (constructor, term), Time.measure(s"Pattern/Branch selection"){
     val constructorPatterns = patternsFor(constructor)
     require(
       constructorPatterns.size == 1,
@@ -145,7 +149,7 @@ final case class ConstructorPatternSystem[N <: Arity](
     ) {
       have(thesis) by Tautology
     }
-  }
+  })
 }
 
 object ConstructorPatternSystem {

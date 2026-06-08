@@ -107,9 +107,14 @@ private[recursion] object RecursiveAgreement {
         // binder and degenerate into the false `predVar === S(predVar)`.
         val predVar = Variable[Ind](freshId(Seq(currentIndex, target, heightFun), "predVar"))
         val currentTerm = NestedTrieProofs.termOf(currentPat, currentTy)
+        // `heightZero` must be specialized to *this* level's type arguments: `hValid`
+        // is the type-instantiated height predicate (e.g. `isHeight` at `bool/term`),
+        // so the abstract `underlying.heightZero` (over the type variable `A`) would
+        // leave Tautology with an undischargeable `isHeight[A]` precondition.
+        val levelSubsts = currentTy._1.semantic.typeVariablesSeq.zip(currentTy._2).map((v, a) => v := a)
         val currentInZero = have(!(currentTerm ∈ app(heightFun)(∅))) by Tautology.from(
           hValid,
-          currentTy._1.semantic.underlying.heightZero.of(h := heightFun, x := currentTerm)
+          currentTy._1.semantic.height.zeroAt(levelSubsts).of(h := heightFun, x := currentTerm)
         )
 
         val currentIndexNonZero = have(currentIndex =/= ∅) subproof {

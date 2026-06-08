@@ -365,7 +365,12 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
       )
 
       val constructorBranches = adt.constructors.map { other =>
-        val branchVars = other.variables2.map(_ => variable[Ind])
+        // Distinct fresh names per argument: `variable[Ind]` derives its identifier
+        // from the enclosing val (`branchVars`), so `.map(_ => variable[Ind])` would
+        // give every argument the *same* identifier — collapsing e.g. `cons(a)(b)`
+        // into `cons(branchVars)(branchVars)` and breaking the injectivity/Congruence
+        // reasoning below for any constructor of arity ≥ 2.
+        val branchVars = other.variables2.indices.map(i => Variable[Ind](s"branchVar$i")).toSeq
         val branchSubsts = other.variables2.zip(branchVars).map { case (v, fresh) => v := fresh }
         val branchSignature = branchVars.zip(other.signature2.map(_._2))
         val branchTerm = other.term2.substitute(branchSubsts*).asInstanceOf[Expr[Ind]]
@@ -394,11 +399,16 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
             val transportedTyping = syntacticSignature.zipWithIndex.map { case ((v1, arg), idx) =>
               val v2 = branchVars(idx)
               val vEq = have(v1 === v2) by Tautology.from(varsEqual)
+              // `argsTypedAtHeight` is a conjunction of all argument typings; Congruence
+              // only inspects top-level hypotheses, so first split out *this* argument's
+              // typing with Tautology, then transport it across `v1 = v2`.
               arg match
                 case lisa.maths.SetTheory.Types.ADTv2.syntax.AST.SelfRef =>
-                  have(v1 ∈ app(heightFun)(heightIndex)) by Congruence.from(argsTypedAtHeight, vEq)
+                  val v2Typed = have(v2 ∈ app(heightFun)(heightIndex)) by Tautology.from(argsTypedAtHeight)
+                  have(v1 ∈ app(heightFun)(heightIndex)) by Congruence.from(v2Typed, vEq)
                 case lisa.maths.SetTheory.Types.ADTv2.syntax.AST.TypeArg(name) =>
-                  have(v1 ∈ typeExprToTerm(name)) by Congruence.from(argsTypedAtHeight, vEq)
+                  val v2Typed = have(v2 ∈ typeExprToTerm(name)) by Tautology.from(argsTypedAtHeight)
+                  have(v1 ∈ typeExprToTerm(name)) by Congruence.from(v2Typed, vEq)
             }
             have(wellTypedFormula(underlying.signature1)(app(heightFun)(heightIndex))) by Tautology.from(
               transportedTyping*

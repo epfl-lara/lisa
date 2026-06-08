@@ -72,7 +72,7 @@ private[functions] final class ExtensionalUniqueness[N <: Arity](
 
       val decompositionAtInput = have(pointInput ∈ adt.term |- constructorDisjunction) subproof {
         have(pointInput ∈ adt.term ==> constructorDisjunction) by
-          InstantiateForall(pointInput)(patternMatching.coverage(adt))
+          InstantiateForall(pointInput)(patternMatching.coverage)
         thenHave(thesis) by Restate
       }
 

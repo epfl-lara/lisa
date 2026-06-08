@@ -47,7 +47,7 @@ object Time {
     val start = get()
     val result = body
     val end = get()
-    println(s"Measured $label: ${end - start}")
+    log(s"Measured $label: ${end - start}")
     result
   }
 

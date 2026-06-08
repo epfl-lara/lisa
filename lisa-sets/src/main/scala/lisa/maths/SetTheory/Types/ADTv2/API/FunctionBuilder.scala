@@ -57,6 +57,7 @@ def recFun[N <: Arity](adt: SpecializedADT[N], returnType: Expr[Ind])(using
 
   builder.compile(adt) match
     case Right(patternSystem) =>
+      Time.log(s"Pattern system for ${name.value} is defined")
       val semantic = Time.measure(s"RecFunction Semantic")(recursion.RecFunSemantics[N](
         name.value,
         adt.base.semantic,
@@ -66,6 +67,7 @@ def recFun[N <: Arity](adt: SpecializedADT[N], returnType: Expr[Ind])(using
         patternSystem,
         returnType
       ))
+      Time.log(s"RecFunSemantics for ${name.value} is defined")
       new RecFunction[N](semantic, adt.base)
     case Left(msg) => throw new IllegalArgumentException(msg)
 }
