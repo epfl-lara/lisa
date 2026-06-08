@@ -112,7 +112,7 @@ object Congruence extends ProofTactic with ProofSequentTactic with ProofFactSequ
             val base = have((bot.left) |- (bot.right + !rf)) by Restate
             val eq = have(egraph.proveExpr[Prop](lf.asInstanceOf, rf, bot))
             val a = variable[Prop]
-            have((bot.left + makeEq(lf, rf)) |- (bot.right)) by RightSubstEq.withParameters(Seq((lf, rf)), (Seq(a), !a))(base)
+            have((bot.left + makeEq(lf, rf)) |- (bot.right)) by RightSubstEq.withParameters(Seq((rf, lf)), (Seq(a), !a))(base)
             have(bot) by Cut(eq, lastStep)
             true
           case _ => false
