@@ -73,6 +73,50 @@ object NestedTrieProofs {
     case RVar(v)       => List(v)
     case RCon(_, args) => args.flatMap(bindersOf)
 
+  private def caseArgs(pp: NestedConstructorPattern[?]): Seq[Expr[Ind]] =
+    (0 until pp.arity).map(i =>
+      pp.guards.find(_.position == i).map(_.guardTerm).getOrElse(pp.topBinders(i))
+    )
+
+  private def renderCase(pp: NestedConstructorPattern[?]): String =
+    val args = caseArgs(pp).map(arg => NestedTrie.show(NestedTrie.parsePat(arg)))
+    if args.isEmpty then pp.semanticConstructor.name
+    else s"${pp.semanticConstructor.name}(${args.mkString(", ")})"
+
+  private def interfaceConstructor(pp: NestedConstructorPattern[?]): Constructor[?] =
+    ADT.allADTs.toSeq
+      .flatMap(_.constructors)
+      .find(_.id == pp.semanticConstructor.id)
+      .getOrElse(
+        throw new IllegalArgumentException(
+          s"No interface constructor found for ${pp.semanticConstructor.name}."
+        )
+      )
+
+  private def renderAlignedGuards(
+      p1: NestedConstructorPattern[?],
+      p2: NestedConstructorPattern[?]
+  ): String =
+    val byPos1 = p1.guards.map(g => g.position -> g.guardTerm).toMap
+    val byPos2 = p2.guards.map(g => g.position -> g.guardTerm).toMap
+    val sharedPositions = byPos1.keySet.intersect(byPos2.keySet).toSeq.sorted
+    if sharedPositions.isEmpty then "none"
+    else
+      sharedPositions.map { pos =>
+        val left = NestedTrie.show(NestedTrie.parsePat(byPos1(pos)))
+        val right = NestedTrie.show(NestedTrie.parsePat(byPos2(pos)))
+        s"arg $pos: $left vs $right"
+      }.mkString("; ")
+
+  private def renderOverlapTrie(
+      p1: NestedConstructorPattern[?],
+      p2: NestedConstructorPattern[?]
+  ): String =
+    val (adt, targs) = ADT.unapply(p1.specializedAdtTerm).get
+    val clauses = Seq(p1, p2).map(pp => (interfaceConstructor(pp), caseArgs(pp)))
+    val tree = NestedTrie.buildTree(adt, targs, clauses)
+    NestedTrie.render(tree)
+
   // (variable, typeTerm) for every binder of a pattern — the typing hypotheses.
   private def bindersTyped(p: RPat, ty: Ty): Seq[(Expr[Ind], Expr[Ind])] = p match
     case RVar(v)       => Seq((v, ty._1.termAt(ty._2)))
@@ -611,7 +655,13 @@ object NestedTrieProofs {
           )
       }.getOrElse(
         throw new IllegalArgumentException(
-          "incompatibleCaseShape: no divergent aligned guard pair found; the guards overlap."
+          s"""incompatibleCaseShape rejected two overlapping nested cases for constructor ${p1.semanticConstructor.name}.
+             |case 1: ${renderCase(p1)}
+             |case 2: ${renderCase(p2)}
+             |No divergent aligned guard pair was found, so the two cases still overlap.
+             |Aligned guarded positions: ${renderAlignedGuards(p1, p2)}
+             |Decision trie for the two cases:
+             |${renderOverlapTrie(p1, p2)}""".stripMargin
         )
       )
       val (guard1, guard2, guardPath) = selectedGuardsAndPath

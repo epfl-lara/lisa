@@ -20,6 +20,7 @@ object Time {
   private val totalsSquared = scala.collection.mutable.LinkedHashMap.empty[String, Double]
   private val maxes = scala.collection.mutable.LinkedHashMap.empty[String, Long]
   private var resetTime = get()
+  private var lastTime = get()
 
   def get(): Time = Time(System.nanoTime())
 
@@ -52,7 +53,9 @@ object Time {
   }
 
   def log(message: String): Unit = {
-    println(s"[${get() - resetTime}] $message")
+    val t = get()
+    println(s"[${t - resetTime} | ${t - lastTime}] $message")
+    lastTime = t
   }
 
   private def round(x: Double, decimals: Int): Double = {
@@ -102,5 +105,6 @@ object Time {
     totalsSquared.clear()
     maxes.clear()
     resetTime = get()
+    lastTime = get()
   }
 }

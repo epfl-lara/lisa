@@ -152,7 +152,7 @@ private[recursion] object RecFunctionInduction {
       xBody: Expr[Ind],
       yBody: Expr[Ind],
       errorContext: String
-  ): (Set[Expr[Prop]], proof.Fact, proof.Fact, proof.Fact, proof.Fact) = Time.measureNow(s"normalizeBranchFacts for $errorContext") {
+  ): (Set[Expr[Prop]], proof.Fact, proof.Fact, proof.Fact, proof.Fact) = {
     val pointEqInput = normalizeFactInContext(
       localContext = localContext,
       fact = pointEqInputFact,
@@ -377,19 +377,19 @@ private[recursion] object RecFunctionInduction {
                   val rawEq = have(
                     pattern.branchSelectionBody(slicePoint) |- propertyAt(slicePoint)
                   ) subproof {
+                    Time.log(s" ")
                     Time.log(s"Proving branch ${pattern.name} of constructor ${c.name} at height $nVar")
                     val selectedPattern = assume(pattern.branchSelectionBody(slicePoint))
-                    val patternGuard = Time.measureNow(s"patternGuard"){have(pattern.freshBranchCondition) by Tautology.from(selectedPattern)}
-                    val pointEqPattern = Time.measureNow(s"pointEqPattern"){have(slicePoint === pattern.freshInputTerm) by Tautology.from(selectedPattern)}
+                    val patternGuard = have(pattern.freshBranchCondition) by Tautology.from(selectedPattern)
+                    val pointEqPattern = have(slicePoint === pattern.freshInputTerm) by Tautology.from(selectedPattern)
                     val patternPremise = Time.measureNow(s"patternPremise"){have(pattern.freshBranchPremise) by Tautology.from(argsTypedSemantic, selectedPattern)}
-                    Time.log(s"Step 0")
                     val innerAgreementContext = RecursiveAgreement.innerAgreementContext(
                       heightFun = heightFun,
                       hValid = hValid,
                       currentIndex = nVar,
                       currentIndexInN = nInN
                     )
-                    val innerAgreements = RecursiveAgreement.innerAgreementsFor(
+                    val innerAgreements = Time.measureNow(s"innerAgreements"){RecursiveAgreement.innerAgreementsFor(
                       pattern = pattern,
                       recursiveType = argType,
                       heightMembershipMonotonic = heightMembershipMonotonic,
@@ -403,8 +403,7 @@ private[recursion] object RecFunctionInduction {
                         rightFun = yFun,
                         agreeForall = ihAtN
                       )
-                    )
-                    Time.log(s"Step 1")
+                    )}
                     val selectedPatternFormula = pattern.branchSelectionBody(slicePoint)
                     val baseContext = Set[Expr[Prop]](
                       slicePoint ∈ app(heightFun)(Succ(nVar)),
@@ -417,7 +416,6 @@ private[recursion] object RecFunctionInduction {
                       else baseContext + pattern.freshBranchCondition
                     val instantiationContext = assumptions ++ localContext
 
-                    Time.log(s"Step 2")
 
                     val xAtBranch = instantiateCaseFromDefinition(
                       contextAssumptions = instantiationContext,
@@ -524,6 +522,7 @@ private[recursion] object RecFunctionInduction {
 
                 have(propertyAt(slicePoint)) by Cut(selectedBranch, branchesToGoal)
               }
+              Time.log(s"Proved all branches of constructor ${c.name}")
 
               ConstructorCaseAssembly.liftConstructorCase(
                 sc = sc,
@@ -534,6 +533,7 @@ private[recursion] object RecFunctionInduction {
                 directBranch = directBranch
               )
             }
+            Time.log("Proved all constructors")
 
             ConstructorCaseAssembly.assemblePointwiseFromConstructors(
               constructorDisjunction = constructorDisjunction,
@@ -543,6 +543,7 @@ private[recursion] object RecFunctionInduction {
               goal = propertyAt(slicePoint)
             )
           }
+          Time.log("Proved pointwise property")
 
           have((slicePoint ∈ app(heightFun)(Succ(nVar))) ==> propertyAt(slicePoint)) by
             Restate.from(pointwiseAtSucc)
@@ -550,10 +551,11 @@ private[recursion] object RecFunctionInduction {
         }
         thenHave(thesis) by RightForall
       }
+      Time.log("Proved step case for nVar")
 
       val allHeights = have(∀(nVar, (nVar ∈ N) ==> P(nVar))) by
         Tautology.from(NatFacts.induction of (Pred := P), base, step)
-
+      Time.log("Proved induction on heights")
       val pointwiseAtArg = have(inductionVariable ∈ argType ==> propertyAt(inductionVariable)) subproof {
         val inArg = assume(inductionVariable ∈ argType)
         val someHeight = have(∃(nVar, (nVar ∈ N) /\ (inductionVariable ∈ app(heightFun)(nVar)))) by
@@ -581,7 +583,7 @@ private[recursion] object RecFunctionInduction {
           LeftExists
         have(propertyAt(inductionVariable)) by Cut(someHeight, fromExists)
       }
-
+      Time.log("Proved property at arbitrary element of argType")
       thenHave(∀(inductionVariable, inductionVariable ∈ argType ==> propertyAt(inductionVariable))) by RightForall
       thenHave(thesis) by Restate
     }

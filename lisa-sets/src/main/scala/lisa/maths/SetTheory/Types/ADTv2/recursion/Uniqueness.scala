@@ -3,6 +3,7 @@ package lisa.maths.SetTheory.Types.ADTv2.recursion
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.TypingHelpers.*
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Functions.{BasicTheorems, Function}
@@ -81,9 +82,11 @@ private[recursion] final class Uniqueness[N <: Arity](
         yPatternSchemas = yPatternSchemas
       )
 
+      Time.log("Proved pointwise property at all heights")
       val pointwiseByHeight = have(
         ∀(pointInput ∈ argType, (x * pointInput === y * pointInput))
       ) by Restate.from(pointwiseCoreLemma)
+      Time.log("Proved pointwiseByHeight")
 
       have(x === y) by Tautology.from(
         BasicTheorems.extensionality of (
@@ -96,6 +99,7 @@ private[recursion] final class Uniqueness[N <: Arity](
         yOnDomain,
         pointwiseByHeight
       )
+      Time.log("Proved uniqueness at all points")
       thenHave(thesis) by Restate
     }
 }
