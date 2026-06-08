@@ -1,5 +1,6 @@
 package lisa.utils.prooflib
 
+import lisa.kernel.Profiling
 import lisa.kernel.proof.SCProofChecker.checkSCProof
 import lisa.utils.K.Identifier
 import lisa.utils.KernelHelpers._
@@ -15,6 +16,14 @@ trait ProofsHelpers {
 
   import lisa.utils.fol.FOL.{given, *}
 
+  private def tacticLabel(tactic: Any): String = tactic match {
+    case t: ProofTactic => t.name
+    case _ => "lambda"
+  }
+
+  private inline def timed[A](name: String)(inline body: A): A =
+    if (Profiling.enabled) Profiling.time(name)(body) else body
+
   class HaveSequent(val bot: Sequent) {
 
     inline infix def by(using proof: library.Proof, line: sourcecode.Line, file: sourcecode.File): By { val _proof: proof.type } = By(proof, line, file).asInstanceOf
@@ -23,17 +32,23 @@ trait ProofsHelpers {
 
       val bot = HaveSequent.this.bot ++ (F.toFormulaSet(_proof.getAssumptions) |- ())
       inline infix def apply(tactic: Sequent => _proof.ProofTacticJudgement): _proof.ProofStep & _proof.Fact = {
-        tactic(bot).validate(line, file)
+        timed("front.tactic.lambda") {
+          tactic(bot).validate(line, file)
+        }
       }
       inline infix def apply(tactic: ProofSequentTactic): _proof.ProofStep = {
-        tactic(using library, _proof)(bot).validate(line, file)
+        timed("front.tactic." + tacticLabel(tactic)) {
+          tactic(using library, _proof)(bot).validate(line, file)
+        }
       }
     }
 
     infix def subproof(using proof: Library#Proof, line: sourcecode.Line, file: sourcecode.File)(computeProof: proof.InnerProof ?=> Unit): proof.ProofStep = {
       val botWithAssumptions = HaveSequent.this.bot ++ (proof.getAssumptions |- ())
       val iProof: proof.InnerProof = new proof.InnerProof(Some(botWithAssumptions))
-      computeProof(using iProof)
+      timed("front.subproof.compute") {
+        computeProof(using iProof)
+      }
       (new BasicStepTactic.SUBPROOF(using proof)(Some(botWithAssumptions))(iProof)).judgement.validate(line, file).asInstanceOf[proof.ProofStep]
     }
 
@@ -47,11 +62,15 @@ trait ProofsHelpers {
     class By(val _proof: library.Proof, line: sourcecode.Line, file: sourcecode.File) {
       private val bot = AndThenSequent.this.bot ++ (_proof.getAssumptions |- ())
       inline infix def apply(tactic: _proof.Fact => Sequent => _proof.ProofTacticJudgement): _proof.ProofStep = {
-        tactic(_proof.mostRecentStep)(bot).validate(line, file)
+        timed("front.tactic.lambda") {
+          tactic(_proof.mostRecentStep)(bot).validate(line, file)
+        }
       }
 
       inline infix def apply(tactic: ProofFactSequentTactic): _proof.ProofStep = {
-        tactic(using library, _proof)(_proof.mostRecentStep)(bot).validate(line, file)
+        timed("front.tactic." + tacticLabel(tactic)) {
+          tactic(using library, _proof)(_proof.mostRecentStep)(bot).validate(line, file)
+        }
       }
 
     }
@@ -63,8 +82,8 @@ trait ProofsHelpers {
   def have(using proof: library.Proof)(res: Sequent): HaveSequent = HaveSequent(res)
 
   def have(using line: sourcecode.Line, file: sourcecode.File)(using proof: library.Proof)(v: proof.Fact | proof.ProofTacticJudgement) = v match {
-    case judg: proof.ProofTacticJudgement => judg.validate(line, file)
-    case fact: proof.Fact @unchecked => HaveSequent(proof.sequentOfFact(fact)).by(using proof, line, file)(Weakening(using library, proof)(fact))
+    case judg: proof.ProofTacticJudgement => timed("front.tactic." + judg.tactic.name)(judg.validate(line, file))
+    case fact: proof.Fact @unchecked => timed("front.tactic.Weakening")(HaveSequent(proof.sequentOfFact(fact)).by(using proof, line, file)(Weakening(using library, proof)(fact)))
   }
 
   /**
@@ -77,10 +96,14 @@ trait ProofsHelpers {
 
   class AndThen private[ProofsHelpers] (val _proof: library.Proof, line: sourcecode.Line, file: sourcecode.File) {
     inline infix def apply(tactic: _proof.Fact => _proof.ProofTacticJudgement): _proof.ProofStep = {
-      tactic(_proof.mostRecentStep).validate(line, file)
+      timed("front.tactic.lambda") {
+        tactic(_proof.mostRecentStep).validate(line, file)
+      }
     }
     inline infix def apply(tactic: ProofFactTactic): _proof.ProofStep = {
-      tactic(using library, _proof)(_proof.mostRecentStep).validate(line, file)
+      timed("front.tactic." + tacticLabel(tactic)) {
+        tactic(using library, _proof)(_proof.mostRecentStep).validate(line, file)
+      }
     }
   }
 

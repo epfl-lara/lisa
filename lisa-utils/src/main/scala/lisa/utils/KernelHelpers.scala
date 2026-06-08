@@ -1,6 +1,7 @@
 package lisa.utils
 
 import lisa.kernel.fol.FOL._
+import lisa.kernel.Profiling
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
 import lisa.kernel.proof.RunningTheoryJudgement.ValidJustification
 import lisa.kernel.proof.SCProofCheckerJudgement.SCInvalidProof
@@ -436,9 +437,17 @@ object KernelHelpers {
      * of the theorem to have more explicit writing and for sanity check.
      */
     def theorem(name: String, statement: Sequent, proof: SCProof, justifications: Seq[theory.Justification]): RunningTheoryJudgement[theory.Theorem] = {
-      if (statement == proof.conclusion) theory.makeTheorem(name, statement, proof, justifications)
-      else if (isSameSequent(statement, proof.conclusion)) theory.makeTheorem(name, statement, proof.appended(Restate(statement, proof.length - 1)), justifications)
-      else InvalidJustification(s"The proof proves \n    ${proof.conclusion.repr}\ninstead of claimed \n    ${statement.repr}", None)
+      val sameConclusion =
+        if (Profiling.enabled) Profiling.time("utils.theorem.conclusionEq")(statement == proof.conclusion)
+        else statement == proof.conclusion
+      if (sameConclusion) theory.makeTheorem(name, statement, proof, justifications)
+      else {
+        val sameSequent =
+          if (Profiling.enabled) Profiling.time("utils.theorem.isSameSequent")(isSameSequent(statement, proof.conclusion))
+          else isSameSequent(statement, proof.conclusion)
+        if (sameSequent) theory.makeTheorem(name, statement, proof.appended(Restate(statement, proof.length - 1)), justifications)
+        else InvalidJustification(s"The proof proves \n    ${proof.conclusion.repr}\ninstead of claimed \n    ${statement.repr}", None)
+      }
     }
 
     /**

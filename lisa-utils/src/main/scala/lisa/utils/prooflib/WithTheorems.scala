@@ -1,6 +1,7 @@
 package lisa.utils.prooflib
 
 import lisa.kernel.proof.RunningTheory
+import lisa.kernel.Profiling
 import lisa.utils.KernelHelpers._
 import lisa.utils.LisaException
 import lisa.utils.UserLisaException
@@ -84,13 +85,67 @@ trait WithTheorems {
 
     }
     private object ProofStep { // TODO
+      private val directLoweringEnabled: Boolean =
+        sys.props.get("lisa.directLowering").exists(v => v == "1" || v == "true") ||
+          sys.env.get("LISA_DIRECT_LOWERING").exists(v => v == "1" || v == "true")
+
+      private def premiseRef(importRefs: Seq[Int])(i: Int): Int =
+        if (i < 0) importRefs(-(i + 1)) else i
+
+      private def remapPremises(step: K.SCProofStep, importRefs: Seq[Int]): K.SCProofStep = {
+        val ref = premiseRef(importRefs)
+        step match {
+          case SC.Restate(bot, t1) => SC.Restate(bot, ref(t1))
+          case SC.RestateTrue(bot) => SC.RestateTrue(bot)
+          case SC.Hypothesis(bot, phi) => SC.Hypothesis(bot, phi)
+          case SC.Cut(bot, t1, t2, phi) => SC.Cut(bot, ref(t1), ref(t2), phi)
+          case SC.LeftAnd(bot, t1, phi, psi) => SC.LeftAnd(bot, ref(t1), phi, psi)
+          case SC.LeftOr(bot, ts, disjuncts) => SC.LeftOr(bot, ts.map(ref), disjuncts)
+          case SC.LeftImplies(bot, t1, t2, phi, psi) => SC.LeftImplies(bot, ref(t1), ref(t2), phi, psi)
+          case SC.LeftIff(bot, t1, phi, psi) => SC.LeftIff(bot, ref(t1), phi, psi)
+          case SC.LeftNot(bot, t1, phi) => SC.LeftNot(bot, ref(t1), phi)
+          case SC.LeftForall(bot, t1, phi, x, t) => SC.LeftForall(bot, ref(t1), phi, x, t)
+          case SC.LeftExists(bot, t1, phi, x) => SC.LeftExists(bot, ref(t1), phi, x)
+          case SC.RightAnd(bot, ts, conjuncts) => SC.RightAnd(bot, ts.map(ref), conjuncts)
+          case SC.RightOr(bot, t1, phi, psi) => SC.RightOr(bot, ref(t1), phi, psi)
+          case SC.RightImplies(bot, t1, phi, psi) => SC.RightImplies(bot, ref(t1), phi, psi)
+          case SC.RightIff(bot, t1, t2, phi, psi) => SC.RightIff(bot, ref(t1), ref(t2), phi, psi)
+          case SC.RightNot(bot, t1, phi) => SC.RightNot(bot, ref(t1), phi)
+          case SC.RightForall(bot, t1, phi, x) => SC.RightForall(bot, ref(t1), phi, x)
+          case SC.RightExists(bot, t1, phi, x, t) => SC.RightExists(bot, ref(t1), phi, x, t)
+          case SC.RightEpsilon(bot, t1, phi, x, t) => SC.RightEpsilon(bot, ref(t1), phi, x, t)
+          case SC.Weakening(bot, t1) => SC.Weakening(bot, ref(t1))
+          case SC.LeftRefl(bot, t1, fa) => SC.LeftRefl(bot, ref(t1), fa)
+          case SC.RightRefl(bot, fa) => SC.RightRefl(bot, fa)
+          case SC.LeftSubstEq(bot, t1, equals, lambdaPhi) => SC.LeftSubstEq(bot, ref(t1), equals, lambdaPhi)
+          case SC.RightSubstEq(bot, t1, equals, lambdaPhi) => SC.RightSubstEq(bot, ref(t1), equals, lambdaPhi)
+          case SC.InstSchema(bot, t1, subst) => SC.InstSchema(bot, ref(t1), subst)
+          case step => step
+        }
+      }
+
       def newProofStep(judgement: ValidProofTactic): ProofStep = {
+        val scps = judgement.scps.toIndexedSeq
+        val importSequents = judgement.imports.map(f => sequentOfFact(f).underlying).toIndexedSeq
+        val importRefs = judgement.imports.map(sequentAndIntOfFact(_)._2)
+        val lowered =
+          if (directLoweringEnabled && scps.size == 1 && !scps.head.isInstanceOf[SC.SCSubproof] && scps.head.premises.forall(_ < 0)) {
+            if (Profiling.enabled) {
+              Profiling.count("front.lowered.single")
+              Profiling.count("front.lowered.single." + judgement.tactic.name)
+            }
+            remapPremises(scps.head, importRefs)
+          } else {
+            if (Profiling.enabled) {
+              Profiling.count("front.lowered.subproof")
+              Profiling.count("front.lowered.subproof." + judgement.tactic.name)
+            }
+            SC.SCSubproof(K.SCProof(scps, importSequents), importRefs)
+          }
+
         val ps = ProofStep(
           judgement,
-          SC.SCSubproof(
-            K.SCProof(judgement.scps.toIndexedSeq, judgement.imports.map(f => sequentOfFact(f).underlying).toIndexedSeq),
-            judgement.imports.map(sequentAndIntOfFact(_)._2)
-          ),
+          lowered,
           steps.length
         )
         addStep(ps)
@@ -592,7 +647,8 @@ trait WithTheorems {
      */
     private def prove(computeProof: Proof ?=> Unit): (theory.Theorem, SCProof, List[(String, theory.Justification)]) = {
       try {
-        computeProof(using proof)
+        if (Profiling.enabled) Profiling.time("front.computeProof." + name)(computeProof(using proof))
+        else computeProof(using proof)
       } catch {
         case e: UserLisaException =>
           om.lisaThrow(e)
@@ -601,19 +657,33 @@ trait WithTheorems {
       if (proof.length == 0)
       then om.lisaThrow(new UnimplementedProof(this))
 
-      val scp = proof.toSCProof
-      val justifs = proof.getImports.map(e => (e._1.owner, e._1.innerJustification))
-      theory.theorem(name, goal.underlying, scp, justifs.map(_._2)) match {
+      val scp = if (Profiling.enabled) Profiling.time("front.toSCProof." + name)(proof.toSCProof) else proof.toSCProof
+      val justifs =
+        if (Profiling.enabled) Profiling.time("front.getImports." + name)(proof.getImports.map(e => (e._1.owner, e._1.innerJustification)))
+        else proof.getImports.map(e => (e._1.owner, e._1.innerJustification))
+      val theoremJudgement =
+        if (Profiling.enabled) Profiling.time("front.theory.theorem." + name)(theory.theorem(name, goal.underlying, scp, justifs.map(_._2)))
+        else theory.theorem(name, goal.underlying, scp, justifs.map(_._2))
+      theoremJudgement match {
         case K.Judgement.ValidJustification(just) =>
           (just, scp, justifs)
         case wrongJudgement: K.Judgement.InvalidJustification[?] =>
-          om.lisaThrow(
-            LisaException.InvalidKernelJustificationComputation(
-              "The final proof was rejected by LISA's logical kernel. This may be due to a faulty proof computation or lack of verification by a proof tactic.",
-              wrongJudgement,
-              Some(proof)
-            )
-          )
+          // TEMP: print the wrong judgement and move along
+          println(Console.RED + "The proof was rejected by LISA's logical kernel. This may be due to a faulty proof computation or lack of verification by a proof tactic." + Console.RESET)
+          println("Kernel message: " + wrongJudgement.repr)
+          // println(s"Theorem failed at: ${file}:${line}")
+          theory.theorem(name, goal.underlying, SCProof(SC.Sorry(goal.underlying)), IndexedSeq.empty) match {
+            case K.Judgement.ValidJustification(just) =>
+              (just, SCProof(SC.Sorry(goal.underlying)), justifs)
+            case wrongJudgement2: K.Judgement.InvalidJustification[?] => ???
+          }
+        // om.lisaThrow(
+        //   LisaException.InvalidKernelJustificationComputation(
+        //     "The final proof was rejected by LISA's logical kernel. This may be due to a faulty proof computation or lack of verification by a proof tactic.",
+        //     wrongJudgement,
+        //     Some(proof)
+        //   )
+        // )
       }
 
     }

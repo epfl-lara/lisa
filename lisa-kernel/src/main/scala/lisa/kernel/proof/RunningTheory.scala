@@ -1,5 +1,6 @@
 package lisa.kernel.proof
 
+import lisa.kernel.Profiling
 import lisa.kernel.fol.FOL._
 import lisa.kernel.proof.RunningTheoryJudgement._
 import lisa.kernel.proof.SequentCalculus._
@@ -69,15 +70,23 @@ class RunningTheory {
    * @param proof          The proof of the desired Theorem.
    * @return A Theorem if the proof is correct, None else
    */
-  def makeTheorem(name: String, statement: Sequent, proof: SCProof, justifications: Seq[Justification]): RunningTheoryJudgement[this.Theorem] = {
-    if (proof.conclusion == statement) proofToTheorem(name, proof, justifications)
+  def makeTheorem(name: String, statement: Sequent, proof: SCProof, justifications: Seq[Justification]): RunningTheoryJudgement[this.Theorem] =
+    if (Profiling.enabled) Profiling.time("theory.makeTheorem")(makeTheoremImpl(name, statement, proof, justifications))
+    else makeTheoremImpl(name, statement, proof, justifications)
+
+  private def makeTheoremImpl(name: String, statement: Sequent, proof: SCProof, justifications: Seq[Justification]): RunningTheoryJudgement[this.Theorem] = {
+    val sameConclusion =
+      if (Profiling.enabled) Profiling.time("theory.conclusionEq")(proof.conclusion == statement)
+      else proof.conclusion == statement
+    if (sameConclusion) proofToTheorem(name, proof, justifications)
     else InvalidJustification("The proof does not prove the claimed statement", None)
   }
 
   private def proofToTheorem(name: String, proof: SCProof, justifications: Seq[Justification]): RunningTheoryJudgement[this.Theorem] =
-    if (proof.imports.forall(i => justifications.exists(j => isSameSequent(i, sequentFromJustification(j)))))
-      if (belongsToTheory(proof.conclusion)) {
-        val r = SCProofChecker.checkSCProof(proof)
+    if ((if (Profiling.enabled) Profiling.time("theory.importsJustified")(proof.imports.forall(i => justifications.exists(j => isSameSequent(i, sequentFromJustification(j)))))
+         else proof.imports.forall(i => justifications.exists(j => isSameSequent(i, sequentFromJustification(j))))))
+      if ((if (Profiling.enabled) Profiling.time("theory.belongsToTheory")(belongsToTheory(proof.conclusion)) else belongsToTheory(proof.conclusion))) {
+        val r = if (Profiling.enabled) Profiling.time("theory.checkSCProof")(SCProofChecker.checkSCProof(proof)) else SCProofChecker.checkSCProof(proof)
         r match {
           case SCProofCheckerJudgement.SCValidProof(_, sorry) =>
             val usesSorry = sorry || justifications.exists(_ match {
