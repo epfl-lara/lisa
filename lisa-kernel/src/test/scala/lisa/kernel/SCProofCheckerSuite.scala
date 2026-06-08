@@ -63,6 +63,30 @@ class SCProofCheckerSuite extends AnyFunSuite {
       negTest(s"$name: negative case #${i + 1}", premises, step)(using pos)
   }
 
+  test("Expression constructors are hashconsed") {
+    val x = Variable(Identifier("x"), Ind)
+    val x2 = Variable(Identifier("x"), Ind)
+    val y = Variable(Identifier("y"), Ind)
+    val p = Constant(Identifier("P"), Ind -> Prop)
+    val p2 = Constant(Identifier("P"), Ind -> Prop)
+    val pAa = Constant(Identifier("Aa"), Ind)
+    val pBB = Constant(Identifier("BB"), Ind)
+    val px = p(x)
+    val px2 = p2(x2)
+    val l = Lambda(x, px)
+    val l2 = Lambda(x2, px2)
+
+    assert(x.eq(x2))
+    assert(p.eq(p2))
+    assert(px.eq(px2))
+    assert(l.eq(l2))
+    assert(!x.eq(y))
+    assert(!pAa.eq(pBB))
+    assert(pAa != pBB)
+    assert(px.uniqueNumber == px2.uniqueNumber)
+    assert(isSame(Lambda(x, p(x))(y), p(y)))
+  }
+
   // ## all steps to check
 
   // ## case Restate(s, t1) =>
