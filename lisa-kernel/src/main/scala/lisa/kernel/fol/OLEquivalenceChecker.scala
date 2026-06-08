@@ -1,6 +1,5 @@
 package lisa.kernel.fol
 
-import lisa.kernel.Profiling
 import lisa.kernel.fol.Syntax
 
 import scala.collection.mutable
@@ -11,11 +10,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
    * Returns the αβ-normal form of the given epression as a
    * [[SimpleExpression]].
    */
-  def simpleReducedForm(expr: Expression): SimpleExpression =
-    if (Profiling.enabled) Profiling.time("ol.simpleReducedForm")(simpleReducedFormImpl(expr))
-    else simpleReducedFormImpl(expr)
-
-  private def simpleReducedFormImpl(expr: Expression): SimpleExpression = {
+  def simpleReducedForm(expr: Expression): SimpleExpression = {
     simplify(expr.betaNormalForm)
   }
 
@@ -76,11 +71,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
    * The expressions are simplified and reduced to their orthologic normal form, and then compared.
    * This takes into account all the laws of ortholattices, symmetry and reflexivity of equality, alpha-beta-eta-equivalence, and unfolds ⇒, ⇔, ∃ using other connectives.
    */
-  def isSame(e1: Expression, e2: Expression): Boolean =
-    if (Profiling.enabled) Profiling.time("ol.isSame")(isSameImpl(e1, e2))
-    else isSameImpl(e1, e2)
-
-  private def isSameImpl(e1: Expression, e2: Expression): Boolean = {
+  def isSame(e1: Expression, e2: Expression): Boolean = {
     val nf1 = computeNormalForm(simplify(e1.betaNormalForm))
     val nf2 = computeNormalForm(simplify(e2.betaNormalForm))
     latticesEQ(nf1, nf2)

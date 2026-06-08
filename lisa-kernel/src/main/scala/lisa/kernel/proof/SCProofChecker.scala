@@ -1,6 +1,5 @@
 package lisa.kernel.proof
 
-import lisa.kernel.Profiling
 import lisa.kernel.fol.FOL._
 import lisa.kernel.proof.SCProofCheckerJudgement._
 import lisa.kernel.proof.SequentCalculus._
@@ -817,21 +816,11 @@ object SCProofChecker {
    * @return SCValidProof(SCProof(step)) if the proof is correct, else SCInvalidProof with the path to the incorrect proof step
    *         and an explanation.
    */
-  def checkSCProof(proof: SCProof): SCProofCheckerJudgement =
-    if (Profiling.enabled) Profiling.time("kernel.checkSCProof")(checkSCProofImpl(proof))
-    else checkSCProofImpl(proof)
-
-  private def checkSCProofImpl(proof: SCProof): SCProofCheckerJudgement = {
+  def checkSCProof(proof: SCProof): SCProofCheckerJudgement = {
     var isSorry = false
     val possibleError = proof.steps.view.zipWithIndex
       .map { case (step, no) =>
-        val judgement =
-          if (Profiling.enabled)
-            Profiling.time("kernel.step." + step.getClass.getSimpleName.stripSuffix("$")) {
-              checkSingleSCStep(no, step, (i: Int) => proof.getSequent(i), proof.imports.size)
-            }
-          else checkSingleSCStep(no, step, (i: Int) => proof.getSequent(i), proof.imports.size)
-        judgement match {
+        checkSingleSCStep(no, step, (i: Int) => proof.getSequent(i), proof.imports.size) match {
           case SCInvalidProof(_, path, message) => SCInvalidProof(proof, no +: path, message)
           case SCValidProof(_, sorry) =>
             isSorry = isSorry || sorry
