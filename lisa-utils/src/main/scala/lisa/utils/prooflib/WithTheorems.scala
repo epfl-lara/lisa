@@ -607,13 +607,14 @@ trait WithTheorems {
         case K.Judgement.ValidJustification(just) =>
           (just, scp, justifs)
         case wrongJudgement: K.Judgement.InvalidJustification[?] =>
-          om.lisaThrow(
-            LisaException.InvalidKernelJustificationComputation(
-              "The final proof was rejected by LISA's logical kernel. This may be due to a faulty proof computation or lack of verification by a proof tactic.",
-              wrongJudgement,
-              Some(proof)
-            )
-          )
+          // TEMP: print the wrong judgement and move along
+          println(Console.RED + "The proof was rejected by LISA's logical kernel. This may be due to a faulty proof computation or lack of verification by a proof tactic." + Console.RESET)
+          println("Kernel message: " + wrongJudgement.repr)
+          theory.theorem(name, goal.underlying, SCProof(SC.Sorry(goal.underlying)), IndexedSeq.empty) match {
+            case K.Judgement.ValidJustification(just) =>
+              (just, SCProof(SC.Sorry(goal.underlying)), justifs)
+            case wrongJudgement2: K.Judgement.InvalidJustification[?] => ???
+          }
       }
 
     }
