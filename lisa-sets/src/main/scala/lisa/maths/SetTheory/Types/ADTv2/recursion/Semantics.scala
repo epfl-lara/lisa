@@ -33,7 +33,6 @@ final class RecFunSemantics[N <: Arity](
     patternMatching = patternMatching,
     returnType = returnType
   )
-  Time.log(s"Spec for ${name} is defined")
 
   val typeVariables: Variable[Ind] ** N = adt.typeVariables
   val typeVariablesSeq: Seq[Variable[Ind]] = spec.typeVariablesSeq
@@ -42,22 +41,15 @@ final class RecFunSemantics[N <: Arity](
   val rawPatterns: Seq[Pattern[N]] = spec.cases
 
 
-  private val witness: Witness[N] = new Witness[N](spec)
-  Time.log(s"Witness for ${name} is defined")
+  private val witness: Witness[N] = Time.measure(s"Witness", true)(new Witness[N](spec))
 
-  private val approx = new Approx[N](spec, witness)
-  Time.log(s"Approx for ${name} is defined")
-  private val approxProp = Time.measure(s"ApproxProp")(new ApproxProp[N](spec, witness, approx))
-  Time.log(s"ApproxProp for ${name} is defined")
-  private val witnessAgreementCheck = Time.measure(s"WitnessAgreement")(new helpers.WitnessAgreement[N](spec, witness))
-  Time.log(s"WitnessAgreement for ${name} is defined")
-  private val limitConstruction = new LimitConstruction[N](spec, approx, approxProp)
-  Time.log(s"LimitConstruction for ${name} is defined")
-  val existence: Existence[N] = Time.measure(s"Existence")(new Existence[N](spec, witness, approx, approxProp, limitConstruction))
-  Time.log(s"Existence for ${name} is defined")
+  private val approx = Time.measure(s"Approx")(new Approx[N](spec, witness))
+  private val approxProp = Time.measure(s"ApproxProp", true)(new ApproxProp[N](spec, witness, approx))
+  private val witnessAgreementCheck = Time.measure(s"WitnessAgreement", true)(new helpers.WitnessAgreement[N](spec, witness))
+  private val limitConstruction = Time.measure(s"LimitConstruction")(new LimitConstruction[N](spec, approx, approxProp))
+  val existence: Existence[N] = Time.measure(s"Existence", true)(new Existence[N](spec, witness, approx, approxProp, limitConstruction))
 
-  private val functionUniquenessProof = Time.measure(s"Uniqueness")(new Uniqueness[N](spec))
-  Time.log(s"Uniqueness for ${name} is defined")
+  private val functionUniquenessProof = Time.measure(s"Uniqueness", true)(new Uniqueness[N](spec))
 
   private val untypedDef: Expr[Prop] = spec.untypedDefinition(f)
 
@@ -113,7 +105,6 @@ final class RecFunSemantics[N <: Arity](
   val patterns: Seq[Pattern[N]] = compiledCases
   val cases: Seq[Pattern[N]] = patterns
 
-  Time.log(s"internal patterns for ${name} are defined")
 
   private def compiledPatternsFor(constructor: SemanticConstructor[N]): Seq[Pattern[N]] = {
     val matching = compiledCases.filter(pattern =>
@@ -163,7 +154,6 @@ final class RecFunSemantics[N <: Arity](
         thenHave(thesis) by Tautology
       }
     ).toMap
-  Time.log(s"Short definitions for ${name} are defined")
 
   def shortDefinition(pattern: Pattern[N]): THM =
     shortDefinitionByPattern(pattern)
@@ -195,7 +185,6 @@ final class RecFunSemantics[N <: Arity](
       throw new IllegalArgumentException(s"No compiled pattern registered for constructor ${constructor.name}.")
     )
 
-  Time.log(s"Elimination theorems for ${name} are defined")
 
   def elim(pattern: Pattern[N]): THM =
     elimByPattern(pattern)
@@ -232,5 +221,4 @@ final class RecFunSemantics[N <: Arity](
     thenHave(term :: spec.typ) by Weakening
     thenHave(thesis) by Restate
   }
-  Time.log(s"END of RecFunSemantics for ${name}")
 }

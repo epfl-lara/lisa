@@ -86,7 +86,7 @@ final class HeightTerms[N <: Arity](
     have(
       base.isHeight(h) |- (in(x, term) <=> ∃(n, in(n, dom(h)) /\ in(x, app(h, n)))) /\
         (in(x, unionRange(h)) <=> exists(n, in(n, dom(h)) /\ in(x, app(h, n))))
-    ) by Tautology.from(lastStep, unionRangeMembership of (z := x), base.unfoldIsHeight)
+    ) by Tautology.from(lastStep, unionRangeMembership of (z := x), base.heightIsCore)
     have(base.isHeight(h) |- in(x, term) <=> ∃(n, in(n, dom(h)) /\ in(x, app(h, n)))) by
       Tautology.from(
         lastStep,
@@ -103,7 +103,7 @@ final class HeightTerms[N <: Arity](
       List((dom(h), ω)),
       (Seq(z), in(x, term) <=> ∃(n, in(n, z) /\ in(x, app(h, n))))
     )
-    have(thesis) by Tautology.from(lastStep, base.unfoldIsHeight)
+    have(thesis) by Tautology.from(lastStep, base.heightIsCore)
   }
 
   val termsHaveHeight = constructors.map(c =>

@@ -6,6 +6,7 @@ import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.utils.prooflib.SimpleDeducedSteps.*
 import lisa.maths.SetTheory.Types.ADTv2.height.proofs.{CoreFacts, SuccessorFacts}
+import lisa.maths.SetTheory.Types.ADTv2.support.DefinedProperty
 
 final class HeightADT[N <: Arity](
   name: String,
@@ -27,20 +28,26 @@ final class HeightADT[N <: Arity](
       (dom(h) === N) /\
       ∀(n ∈ N, ∀(x, in(x, app(h, n)) <=> inExtIntroImage(h ↾ n)(x)))
 
-  def isHeight(h: Expr[Ind]): Expr[Prop] = isHeightCore(h)
+  // `isHeight` is an *opaque* defined predicate `${name}/isHeight[typeVars](h)` whose
+  // definition unfolds to `isHeightCore(h)`. Keeping it opaque stops tactics (Tautology)
+  // and the kernel checker from decomposing the ~400-char `isHeightCore` conjunction at
+  // every use; we unfold/fold only via `heightIsCore`/`coreIsHeight`/`unfoldIsHeight`
+  // where the body is actually needed.
+  private val isHeightSym = DefinedProperty(
+    s"$name/isHeight",
+    typeVariablesSeq,
+    // λ(h, isHeightCore(h))
+    h,
+    isHeightCore
+  )
 
-  /** Unfold isHeight(h). */
-  def unfoldIsHeight(using
-      lib: lisa.utils.prooflib.Library,
-      proof: lib.Proof
-  ): proof.Fact = {
-    lib.have(isHeight(h) |- isHeightCore(h)) by
-      Restate
-  }
+  def isHeight(h: Expr[Ind]): Expr[Prop] = isHeightSym.term #@ h
 
-  private[ADTv2] val heightIsCore = Lemma(isHeight(h) |- isHeightCore(h)) {
-    have(thesis) by Restate.from(unfoldIsHeight)
-  }
+  /** Unfold `isHeight(h)` to its core conjunction. */
+  private[ADTv2] val heightIsCore = isHeightSym.unfold
+
+  /** Fold the core conjunction back into the opaque `isHeight(h)`. */
+  private[ADTv2] val coreIsHeight = isHeightSym.fold
 
   /**
    *  Lemma --- The height function is not empty.

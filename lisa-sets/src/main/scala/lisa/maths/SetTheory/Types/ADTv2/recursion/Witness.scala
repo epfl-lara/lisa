@@ -3,6 +3,7 @@ package lisa.maths.SetTheory.Types.ADTv2.recursion
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
 import lisa.maths.SetTheory.Types.ADTv2.support.DefinedSymbol
+import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.proofs.CaseDefinedWitness
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
@@ -94,7 +95,7 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
       }
     ).toMap
 
-  private val witnessSemantics = new CaseDefinedWitness[N](
+  private val witnessSemantics = Time.measure("Witness/CaseDefinedWitness")(new CaseDefinedWitness[N](
     adt = spec.adt,
     argType = spec.argType,
     patternMatching = spec.patternMatching,
@@ -108,7 +109,7 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
     checkReturnType = checkReturnType,
     constructorTagDisequalities = constructorTagDisequalities,
     contextPremises = Seq(typingPremise)
-  )
+  ))
 
   /** selfPlaceholder :: A→T ⊢ W(selfPlaceholder) :: A→T */
   val witnessHasType: THM = witnessSemantics.witnessHasType

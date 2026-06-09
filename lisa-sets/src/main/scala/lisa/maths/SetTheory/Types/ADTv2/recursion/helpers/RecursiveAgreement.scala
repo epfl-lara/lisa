@@ -113,7 +113,7 @@ private[recursion] object RecursiveAgreement {
         // so the abstract `underlying.heightZero` (over the type variable `A`) would
         // leave Tautology with an undischargeable `isHeight[A]` precondition.
         val levelSubsts = currentTy._1.semantic.typeVariablesSeq.zip(currentTy._2).map((v, a) => v := a)
-        val currentInZero = Time.measureNow(s"currentInZero"){have(!(currentTerm ∈ app(heightFun)(∅))) by Tautology.from(
+        val currentInZero = Time.measure(s"currentInZero"){have(!(currentTerm ∈ app(heightFun)(∅))) by Tautology.from(
           hValid,
           currentTy._1.semantic.height.zeroAt(levelSubsts).of(h := heightFun, x := currentTerm)
         )}
@@ -165,14 +165,14 @@ private[recursion] object RecursiveAgreement {
           val semanticSubsts = c.semantic.adt.typeVariablesSeq.zip(currentTy._2).map((v, a) => v := a)
           val semanticSigAtArgs =
             argTerms.zip(c.semantic.semanticSignature2.map(_._2.substitute(semanticSubsts*).asInstanceOf[Expr[Ind]]))
-          val argsTypedSemantic = Time.measureNow(s"argsTypedSemantic"){have(wellTypedFormula(semanticSigAtArgs)) by Tautology.from(argTypings*)}
+          val argsTypedSemantic = Time.measure(s"argsTypedSemantic"){have(wellTypedFormula(semanticSigAtArgs)) by Tautology.from(argTypings*)}
           val heightSigAtArgs = argTerms.zip(c.semantic.underlying.signature2.map(_._2)).map {
             case (term, SelfRef)       => term -> app(heightFun)(predVar)
             case (term, TypeArg(name)) => term -> typeExprToTerm(name).substitute(semanticSubsts*).asInstanceOf[Expr[Ind]]
           }
           val recursiveAtPred = c.semantic.recursiveArgInHeightAt(semanticSubsts)(heightFun, predVar)
           val valueSubsts = c.semantic.variables2.zip(argTerms).map((v, t) => v := t)
-          val childTypingsAtPred = Time.measureNow(s"childTypingsAtPred"){have(wellTypedFormula(heightSigAtArgs)) by Tautology.from(
+          val childTypingsAtPred = Time.measure(s"childTypingsAtPred"){have(wellTypedFormula(heightSigAtArgs)) by Tautology.from(
             hValid,
             predInN,
             argsTypedSemantic,
@@ -199,7 +199,7 @@ private[recursion] object RecursiveAgreement {
 
           val predSubSucc = have(predVar ⊆ successor(predVar)) by Tautology.from(subsetSuccessor.of(n := predVar))
           val predSubCurrent = have(predVar ⊆ currentIndex) by Congruence.from(predSubSucc, currentEqSucc, succEq)
-          Time.measureNow(s"targetInHeight"){have(target ∈ app(heightFun)(currentIndex)) by Tautology.from(
+          Time.measure(s"targetInHeight"){have(target ∈ app(heightFun)(currentIndex)) by Tautology.from(
             hValid,
             currentIndexInN,
             predInN,
@@ -213,7 +213,7 @@ private[recursion] object RecursiveAgreement {
         ) by LeftExists
         have(target ∈ app(heightFun)(currentIndex)) by Cut(predWitnessAtIndex, fromPredWitness)
 
-  def innerBinderInHeight[N <: lisa.utils.prooflib.ProofTacticLib.Arity](using
+  private def innerBinderInHeight[N <: lisa.utils.prooflib.ProofTacticLib.Arity](using
       proof: lisa.SetTheoryLibrary.Proof,
       line: sourcecode.Line,
       file: sourcecode.File
@@ -242,7 +242,7 @@ private[recursion] object RecursiveAgreement {
     val guardEq = have(guard.binder === guard.guardTerm) by Tautology.from(patternGuard)
     val guardInHeight = have(guard.guardTerm ∈ app(heightFun)(currentIndex)) by Congruence.from(binderInHeight, guardEq)
 
-    Time.measureNow(s"Descend to inner binder $target") {descendToBinder(
+    Time.measure(s"Descend to inner binder $target") {descendToBinder(
       heightFun = heightFun,
       hValid = hValid,
       heightMembershipMonotonic = heightMembershipMonotonic,

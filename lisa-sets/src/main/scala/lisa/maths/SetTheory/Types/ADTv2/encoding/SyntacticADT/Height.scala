@@ -73,9 +73,4 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
   val heightSuccessorInclusion = heightConstructorsTHY.heightSuccessorInclusion
   val heightSuccessorWeak = heightConstructorsTHY.heightSuccessorWeak
   val heightSuccessorStrong = heightConstructorsTHY.heightSuccessorStrong
-
-  def unfoldIsHeight(using
-      lib: lisa.utils.prooflib.Library,
-      proof: lib.Proof
-  ): proof.Fact = heightTHY.unfoldIsHeight
 }

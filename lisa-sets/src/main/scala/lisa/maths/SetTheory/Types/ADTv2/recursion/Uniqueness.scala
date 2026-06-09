@@ -10,6 +10,7 @@ import lisa.maths.SetTheory.Functions.{BasicTheorems, Function}
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.RecFunctionInduction
 import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.{PatternSchemas, extractPatternCaseSchema}
+import lisa.maths.SetTheory.Types.ADTv2.support.DefinedProperty
 
 private[recursion] final class Uniqueness[N <: Arity](
   spec: FunSpec[N]
@@ -31,9 +32,41 @@ private[recursion] final class Uniqueness[N <: Arity](
   private def definitionFormula(v: Variable[Ind]): Expr[Prop] =
     spec.untypedDefinition(v)
 
+  // Opaque view of the (~1.5k-char) function-definition formula. Used as the ambient
+  // assumption inside `pointwiseUniquenessAt`, so every sequent there carries a small
+  // atom instead of the full `untypedDefinition`; we unfold only where the per-case
+  // schema is extracted (`instantiateCaseFromDefinition`). `definition` shape from `DEF`
+  // is `Def(v) <=> untypedDefinition(v)`.
+  private val defVar = variable[Ind]
+  private val defSym = DefinedProperty(
+    s"${spec.functionName}/def",
+    spec.typeVariablesSeq,
+    defVar,
+    // λ(defVar, spec.untypedDefinition(defVar))
+    spec.untypedDefinition
+  )
+  private def Def(v: Expr[Ind]): Expr[Prop] = defSym.term #@ v
+
+  // `defSym.unfold`/`fold` are stated at the canonical bound var; instantiate at `x`/`y`
+  // (the `.of` needs a proof context, hence the thin `Lemma` wrappers).
+  private val xDefUnfold: THM = Lemma(Def(x) |- spec.untypedDefinition(x)) {
+    have(thesis) by Restate.from(defSym.unfold of (defVar := x))
+  }
+  private val yDefUnfold: THM = Lemma(Def(y) |- spec.untypedDefinition(y)) {
+    have(thesis) by Restate.from(defSym.unfold of (defVar := y))
+  }
+  private val xDefFold: THM = Lemma(spec.untypedDefinition(x) |- Def(x)) {
+    have(thesis) by Restate.from(defSym.fold of (defVar := x))
+  }
+  private val yDefFold: THM = Lemma(spec.untypedDefinition(y) |- Def(y)) {
+    have(thesis) by Restate.from(defSym.fold of (defVar := y))
+  }
+
   val recursivePointwisePlan: THM =
-    Lemma(definitionFormula(x) /\ definitionFormula(y) ==> (x === y)) {
-      assume(definitionFormula(x) /\ definitionFormula(y))
+    val xDefFormula = definitionFormula(x)
+    val yDefFormula = definitionFormula(y)
+    Lemma(xDefFormula /\ yDefFormula ==> (x === y)) {
+      assume(xDefFormula /\ yDefFormula)
 
       val xOnDomain = have(Function.functionOn(x)(argType)) by Tautology.from(
         BasicTheorems.funcBetweenEqInFuncSpace of (
@@ -61,32 +94,35 @@ private[recursion] final class Uniqueness[N <: Arity](
       )
 
       val pointInput = variable[Ind]
-      val xDefFormula = definitionFormula(x)
-      val yDefFormula = definitionFormula(y)
+      
       val xPatternSchemas = extractPatternSchemas(xDefFormula, x)
       val yPatternSchemas = extractPatternSchemas(yDefFormula, y)
 
-      val pointwiseCoreLemma = RecFunctionInduction.pointwiseUniquenessAt(
+      val pointwiseCoreLemma = Time.measure("Uniqueness/Pointwise uniqueness"){RecFunctionInduction.pointwiseUniquenessAt(
         adt = adt,
         patternMatching = spec.patternMatching,
         argType = argType,
         typeSubstitutions = spec.typeSubstitutions,
         inductionVariable = pointInput,
-        assumptions = Set(definitionFormula(x), definitionFormula(y)),
+        assumptions = Set(Def(x), Def(y)),
         propertyAt = t => x * t === y * t,
         xFun = x,
         yFun = y,
         xDefinitionFormula = xDefFormula,
         yDefinitionFormula = yDefFormula,
         xPatternSchemas = xPatternSchemas,
-        yPatternSchemas = yPatternSchemas
-      )
+        yPatternSchemas = yPatternSchemas,
+        xDefUnfold = defSym.unfoldAt(x),
+        yDefUnfold = defSym.unfoldAt(y)
+      )}
 
-      Time.log("Proved pointwise property at all heights")
+      // `pointwiseCoreLemma` is stated over the opaque `Def(x)`, `Def(y)`; discharge them
+      // by folding the ambient `untypedDefinition(x)`, `untypedDefinition(y)`.
+      val defX = have(Def(x)) by Tautology.from(defSym.foldAt(x))
+      val defY = have(Def(y)) by Tautology.from(defSym.foldAt(y))
       val pointwiseByHeight = have(
         ∀(pointInput ∈ argType, (x * pointInput === y * pointInput))
-      ) by Restate.from(pointwiseCoreLemma)
-      Time.log("Proved pointwiseByHeight")
+      ) by Tautology.from(pointwiseCoreLemma, defX, defY)
 
       have(x === y) by Tautology.from(
         BasicTheorems.extensionality of (
@@ -99,7 +135,6 @@ private[recursion] final class Uniqueness[N <: Arity](
         yOnDomain,
         pointwiseByHeight
       )
-      Time.log("Proved uniqueness at all points")
       thenHave(thesis) by Restate
     }
 }

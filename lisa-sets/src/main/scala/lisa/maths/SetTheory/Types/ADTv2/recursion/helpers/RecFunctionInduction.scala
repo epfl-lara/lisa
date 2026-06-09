@@ -13,7 +13,7 @@ import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.{Succ, Zero}
 import lisa.utils.prooflib.ProofTacticLib.Arity
-import lisa.utils.prooflib.BasicStepTactic.{Cut, LeftExists, LeftOr, Restate}
+import lisa.utils.prooflib.BasicStepTactic.{Cut, LeftExists, LeftOr, Restate, Weakening}
 import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.CaseBodySubstitution.substitutedCaseBody
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.{constructorDisjunctionAtHeight, specializedConstructors}
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.{LimitKernel,WitnessCaseExtensionality}
@@ -136,7 +136,7 @@ private[recursion] object RecFunctionInduction {
       simplify(fact.statement.right.head.asInstanceOf[Expr[Prop]]) == simplify(expectedFormula),
       s"$errorContext: expected $expectedFormula but got ${fact.statement.right.head}."
     )
-    have(localContext |- expectedFormula) by Tautology.from(fact)
+    have(localContext |- expectedFormula) by Restate.from(fact)
   }
 
   private def normalizeBranchFacts(using proof: lisa.SetTheoryLibrary.Proof)(
@@ -241,14 +241,19 @@ private[recursion] object RecFunctionInduction {
       xDefinitionFormula: Expr[Prop],
       yDefinitionFormula: Expr[Prop],
       xPatternSchemas: PatternSchemas[N],
-      yPatternSchemas: PatternSchemas[N]
-  ): JUSTIFICATION = {
+      yPatternSchemas: PatternSchemas[N],
+      // `Def(x) ⊢ xDefinitionFormula` / `Def(y) ⊢ yDefinitionFormula`: the assumptions are
+      // the opaque `Def(·)`; these unfold them to the real definition only where a case
+      // schema is extracted.
+      xDefUnfold: THM,
+      yDefUnfold: THM
+  ): THM = {
     requireSchemaCoverage(patternMatching, xPatternSchemas, "pointwiseUniquenessAt/x", "<anonymous>")
     requireSchemaCoverage(patternMatching, yPatternSchemas, "pointwiseUniquenessAt/y", "<anonymous>")
 
     val pointwiseGoal = ∀(inductionVariable, inductionVariable ∈ argType ==> propertyAt(inductionVariable))
 
-    val l = Lemma(assumptions |- pointwiseGoal) {
+    Lemma(assumptions |- pointwiseGoal) {
       // Make the recursion hypotheses (the Lemma antecedents) ambient, so that
       // facts derived from the function definitions inside nested subproofs can
       // be re-normalized under a restricted local context without losing them
@@ -268,10 +273,14 @@ private[recursion] object RecFunctionInduction {
           schema: (Seq[Variable[Ind]], Expr[Prop]),
           branchVars: Seq[Variable[Ind]],
           branchPremise: proof.Fact,
+          defUnfold: proof.Fact,
           errorContext: String
       ): proof.Fact = {
         val (caseVars, caseSchemaFormula) = schema
-        val definitionFact =  have(contextAssumptions |- definition) by Tautology
+        // `contextAssumptions` carries the opaque `Def(·)`; unfold it to `definition` here
+        // (the only place the real definition is needed). `Weakening` keeps the rest of the
+        // context atomic instead of decomposing it.
+        val definitionFact =  have(contextAssumptions |- definition) by Weakening(defUnfold)
         val schemaFromDefinition = have(definition |- caseSchemaFormula) by Tautology
         val caseSchema = have(contextAssumptions |- caseSchemaFormula) by
           Cut.withParameters(definition)(definitionFact, schemaFromDefinition)
@@ -303,7 +312,7 @@ private[recursion] object RecFunctionInduction {
         thenHave(thesis) by Restate
       }
 
-      val step = have(∀(nVar, (nVar ∈ N) ==> (P(nVar) ==> P(Succ(nVar))))) subproof {
+      val step = Time.measure("Uniqueness/pointwise/step"){ have(∀(nVar, (nVar ∈ N) ==> (P(nVar) ==> P(Succ(nVar))))) subproof {
         have((nVar ∈ N) ==> (P(nVar) ==> P(Succ(nVar)))) subproof {
           val nInN = assume(nVar ∈ N)
           val ih = assume(P(nVar))
@@ -369,23 +378,21 @@ private[recursion] object RecFunctionInduction {
                   seqOr(constructorPatterns.map(pattern => pattern.branchSelectionDisjunct(slicePoint)))
                 ) by Tautology.from(selectionAtCtorVars, argsTypedSemantic, pointEqApplied)
 
-                val patternEqualities = constructorPatterns.map(pattern =>
+                val patternEqualities = constructorPatterns.map(pattern => Time.measure("Uniqueness/pointwise/patternEqualities"){
                   val rawEq = have(
                     pattern.branchSelectionBody(slicePoint) |- propertyAt(slicePoint)
                   ) subproof {
-                    Time.log(s" ")
-                    Time.log(s"Proving branch ${pattern.name} of constructor ${c.name} at height $nVar")
                     val selectedPattern = assume(pattern.branchSelectionBody(slicePoint))
-                    val patternGuard = have(pattern.freshBranchCondition) by Tautology.from(selectedPattern)
-                    val pointEqPattern = have(slicePoint === pattern.freshInputTerm) by Tautology.from(selectedPattern)
-                    val patternPremise = Time.measureNow(s"patternPremise"){have(pattern.freshBranchPremise) by Tautology.from(argsTypedSemantic, selectedPattern)}
+                    val patternGuard = have(pattern.freshBranchCondition) by Restate.from(selectedPattern)
+                    val pointEqPattern = have(slicePoint === pattern.freshInputTerm) by Restate.from(selectedPattern)
+                    val patternPremise = Time.measure(s"Uniqueness/patternPremise"){have(pattern.freshBranchPremise) by Tautology.from(argsTypedSemantic, patternGuard)}
                     val innerAgreementContext = RecursiveAgreement.innerAgreementContext(
                       heightFun = heightFun,
                       hValid = hValid,
                       currentIndex = nVar,
                       currentIndexInN = nInN
                     )
-                    val innerAgreements = Time.measureNow(s"innerAgreements"){RecursiveAgreement.innerAgreementsFor(
+                    val innerAgreements = Time.measure(s"Uniqueness/innerAgreements"){RecursiveAgreement.innerAgreementsFor(
                       pattern = pattern,
                       recursiveType = argType,
                       heightMembershipMonotonic = heightMembershipMonotonic,
@@ -419,6 +426,7 @@ private[recursion] object RecFunctionInduction {
                       schema = xPatternSchemas(pattern),
                       branchVars = pattern.variables2,
                       branchPremise = patternPremise,
+                      defUnfold = xDefUnfold,
                       errorContext = s"pointwiseUniquenessAt/x/${c.name}/${pattern.name}"
                     )
                     val yAtBranch = instantiateCaseFromDefinition(
@@ -427,6 +435,7 @@ private[recursion] object RecFunctionInduction {
                       schema = yPatternSchemas(pattern),
                       branchVars = pattern.variables2,
                       branchPremise = patternPremise,
+                      defUnfold = yDefUnfold,
                       errorContext = s"pointwiseUniquenessAt/y/${c.name}/${pattern.name}"
                     )
 
@@ -505,7 +514,7 @@ private[recursion] object RecFunctionInduction {
                     val quantified = ∃(v, body)
                     (quantified, thenHave(quantified |- propertyAt(slicePoint)) by LeftExists)
                   }._2
-                )
+                })
 
                 val branchesToGoal =
                   if patternEqualities.size == 1 then
@@ -540,22 +549,20 @@ private[recursion] object RecFunctionInduction {
           thenHave(∀(slicePoint ∈ app(heightFun)(Succ(nVar)), propertyAt(slicePoint))) by RightForall
         }
         thenHave(thesis) by RightForall
-      }
+      }}
 
       val allHeights = have(∀(nVar, (nVar ∈ N) ==> P(nVar))) by
         Tautology.from(NatFacts.induction of (Pred := P), base, step)
-      Time.log(" ")
       val pointwiseAtArg = have(inductionVariable ∈ argType ==> propertyAt(inductionVariable)) subproof {
         val inArg = assume(inductionVariable ∈ argType)
-        val someHeight = Time.measureNow(s"Find height for $inductionVariable") {
-          have(∃(nVar, (nVar ∈ N) /\ (inductionVariable ∈ app(heightFun)(nVar)))) by
-            Tautology.from(
-              hValid,
-              inArg,
-              adt.height.termHasHeightAt(typeSubstitutions) of (x := inductionVariable, h := heightFun),
-              LimitKernel.pointHasSomeHeightAt(argType, heightFun, inductionVariable)
-          )
-        }
+        val someHeight = have(∃(nVar, (nVar ∈ N) /\ (inductionVariable ∈ app(heightFun)(nVar)))) by
+          Tautology.from(
+            hValid,
+            inArg,
+            adt.height.termHasHeightAt(typeSubstitutions) of (x := inductionVariable, h := heightFun),
+            LimitKernel.pointHasSomeHeightAt(argType, heightFun, inductionVariable)
+        )
+        
 
         have((nVar ∈ N) /\ (inductionVariable ∈ app(heightFun)(nVar)) |- propertyAt(inductionVariable)) subproof {
           assume((nVar ∈ N) /\ (inductionVariable ∈ app(heightFun)(nVar)))
@@ -576,9 +583,6 @@ private[recursion] object RecFunctionInduction {
       }
       thenHave(∀(inductionVariable, inductionVariable ∈ argType ==> propertyAt(inductionVariable))) by RightForall
       thenHave(thesis) by Restate
-      Time.log("Lemma pointwiseUniquenessAt thesis proved")
     }
-    Time.log("Lemma pointwiseUniquenessAt proof complete")
-    l
   }
 }

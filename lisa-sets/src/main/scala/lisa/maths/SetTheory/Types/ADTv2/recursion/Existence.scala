@@ -431,7 +431,7 @@ private[recursion] final class Existence[N <: Arity](
   // defAtFixedPoint: (f :: A→T) ∧ W(f) = f ⊢ Def(f)
   // ─────────────────────────────────────────────────────────────────────────
 
-  private val defAtFixedPoint: THM = Time.measure(s"Ex/defAtFixedPoint for ${spec.functionName}")(Lemma(
+  private val defAtFixedPoint: THM = Time.measure(s"Ex/defAtFixedPoint")(Lemma(
     ((f :: spec.typ) /\ (recWitness(f) === f)) |- spec.untypedDefinition(f)
   ) {
 

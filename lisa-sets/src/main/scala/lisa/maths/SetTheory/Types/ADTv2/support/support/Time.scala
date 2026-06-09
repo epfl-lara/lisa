@@ -21,6 +21,7 @@ object Time {
   private val maxes = scala.collection.mutable.LinkedHashMap.empty[String, Long]
   private var resetTime = get()
   private var lastTime = get()
+  private var active = true
 
   def get(): Time = Time(System.nanoTime())
 
@@ -32,16 +33,17 @@ object Time {
     totalsSquared.update(label, totalsSquared.getOrElse(label, 0.0) + nanos * nanos)
   }
 
-  def measure[A](label: String, is_active: Boolean = true)(body: => A): A = {
-    if (is_active) {
-      val start = get()
-      val result = body
-      val end = get()
+  def measure[A](label: String, is_active: Boolean = false)(body: => A): A = {
+    // active = false
+    val start = get()
+    val result = body
+    val end = get()
+    // active = true
+    if (active){
       register(label, end - start)
-      result
-    } else {
-      body
+      if (is_active) log(s"Measured $label: ${end - start}")
     }
+    result
   }
 
   def measureNow[A](label: String)(body: => A): A = {
@@ -53,9 +55,11 @@ object Time {
   }
 
   def log(message: String): Unit = {
-    val t = get()
-    println(s"[${t - resetTime} | ${t - lastTime}] $message")
-    lastTime = t
+    if (active) {
+      val t = get()
+      println(s"[${t - resetTime} | ${t - lastTime}] $message")
+      lastTime = t
+    }
   }
 
   private def round(x: Double, decimals: Int): Double = {
@@ -76,7 +80,7 @@ object Time {
       val variance = math.max(0.0, (totalsSquared(label) / n) - math.pow(totalNanos.toDouble / n, 2))
       val stddevInPercent = round((math.sqrt(variance) * n * 100.0) / totalNanos, 2)
 
-      if (total.millis > 500L) {
+      if (total.millis > 900L) {
         Some(Seq(total.toString, n.toString, mean.toString, max.toString, s"$stddevInPercent%", label))
       } else {
         None
