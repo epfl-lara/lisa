@@ -178,9 +178,8 @@ private[fol] trait Syntax {
     private case class ApplicationKey(f: Long, arg: Long)
     private case class LambdaKey(v: Long, body: Long)
 
-    private type Cache[K, V] = mutable.HashMap[K, V]
-    private def cache[K, V]: Cache[K, V] = mutable.HashMap.empty[K, V]
-    private def getOrCreate[K, V](map: Cache[K, V], key: K, create: => V): V =
+    private def cache[K, V]: mutable.Map[K, V] = mutable.Map.empty[K, V]
+    private def getOrCreate[K, V](map: mutable.Map[K, V], key: K, create: => V): V =
       map.getOrElseUpdate(key, create)
 
     private val variables = cache[VariableKey, Variable]
