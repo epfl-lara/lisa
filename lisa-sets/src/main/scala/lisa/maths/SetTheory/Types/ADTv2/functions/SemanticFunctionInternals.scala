@@ -20,6 +20,7 @@ import lisa.utils.prooflib.BasicStepTactic.Restate
 private[functions] final class SemanticFunctionInternals[N <: Arity](
     functionName: String,
     adt: SemanticADT[N],
+    argType: Expr[Ind],
     patternMatching: PatternSystem[N],
     returnType: Expr[Ind],
     checkReturnType: Map[Pattern[N], THM],
@@ -40,7 +41,7 @@ private[functions] final class SemanticFunctionInternals[N <: Arity](
 
   private val caseMembership = (p: Expr[Ind]) => patternMatching.caseMembership(p)
 
-  private val witnessBody = { pairWitness ∈ (adt.term × returnType) | caseMembership(pairWitness) }
+  private val witnessBody = { pairWitness ∈ (argType × returnType) | caseMembership(pairWitness) }
 
   private val witnessClass = new DefinedSymbol(
     name = s"${functionName}/witness",
@@ -106,13 +107,13 @@ private[functions] final class SemanticFunctionInternals[N <: Arity](
 
   private val witnessSemantics = new CaseDefinedWitness[N](
     adt = adt,
-    argType = adt.term,
+    argType = argType,
     patternMatching = patternMatching,
     returnType = returnType,
     typ = typ,
     witness = witness,
     witnessDef = witnessClass.definition,
-    witnessBound = adt.term × returnType,
+    witnessBound = argType × returnType,
     pairWitness = pairWitness,
     caseMembership = caseMembership,
     checkReturnType = checkReturnType,
@@ -126,6 +127,7 @@ private[functions] final class SemanticFunctionInternals[N <: Arity](
 
   private val extensionalUniqueness = new ExtensionalUniqueness[N](
     adt = adt,
+    argType = argType,
     patternMatching = patternMatching,
     returnType = returnType,
     typ = typ,

@@ -120,10 +120,12 @@ private[recursion] object RecursiveAgreement {
 
         val currentIndexNonZero = have(currentIndex =/= ∅) subproof {
           val currentIsZero = assume(currentIndex === ∅)
-          val currentInCurrent = have(currentTerm ∈ app(heightFun)(currentIndex)) by Tautology.from(currentInHeight)
-          val currentInCurrentImpossible = have(!(currentTerm ∈ app(heightFun)(currentIndex))) by
-            Congruence.from(currentInZero, currentIsZero)
-          have(thesis) by Tautology.from(currentInCurrent, currentInCurrentImpossible)
+          // `currentIndex = ∅` ⇒ `h(currentIndex) = h(∅)`, so `currentInHeight` gives
+          // `currentTerm ∈ h(∅)`, contradicting `currentInZero`. This is a pure
+          // congruence/contradiction argument — `Congruence` handles it atomically via its
+          // e-graph, whereas the previous `Tautology.from(currentInHeight, …)` decomposed
+          // currentInHeight's deep ambient context (~13.6s).
+          have(thesis) by Congruence.from(currentInHeight, currentInZero, currentIsZero)
         }
 
         val predecessorTheoremAtIndex = have(
@@ -151,15 +153,15 @@ private[recursion] object RecursiveAgreement {
           )
           val predInN = have(predVar ∈ N) by Tautology
 
-          val currentInSuccPred = Time.measureNow(s"currentInSuccPred"){have(currentTerm ∈ app(heightFun)(successor(predVar))) by Congruence.from(
+          val currentInSuccPred = have(currentTerm ∈ app(heightFun)(successor(predVar))) by Congruence.from(
             currentInHeight,
             currentEqSucc,
             succEq
-          )}
+          )
 
           val cts = NestedTrieProofs.resolvedChildTypes(c, currentTy._2)
           val argTerms = args.zip(cts).map((a, t) => NestedTrieProofs.termOf(a, t.get))
-          val argTypings = Time.measureNow(s"argTypings"){args.zip(cts).map((a, t) => typeProof(leafTyping, a, t.get))}
+          val argTypings = args.zip(cts).map((a, t) => typeProof(leafTyping, a, t.get))
           val semanticSubsts = c.semantic.adt.typeVariablesSeq.zip(currentTy._2).map((v, a) => v := a)
           val semanticSigAtArgs =
             argTerms.zip(c.semantic.semanticSignature2.map(_._2.substitute(semanticSubsts*).asInstanceOf[Expr[Ind]]))
@@ -301,18 +303,18 @@ private[recursion] object RecursiveAgreement {
     val pIn: Expr[Prop] = point ∈ app(heightFun)(currentIndex)
     val pEq: Expr[Prop] = app(leftFun)(point) === app(rightFun)(point)
     val atPoint = have(pIn ==> pEq) by InstantiateForall(point)(agreeForall)
-    Time.measureNow(s"selfAgreementFromForall"){
-      // Modus ponens via kernel rules instead of `Tautology.from(pointInHeight, atPoint)`:
-      // `pointInHeight` carries the deep ~1.5k-char branchSelectionBody in its context, and
-      // Tautology would decompose it (~30s). With `pIn`/`pEq` kept atomic, that context is
-      // carried untouched through the cut.
-      val mp = have(Set[Expr[Prop]](pIn ==> pEq, pIn) |- pEq) by LeftImplies.withParameters(pIn, pEq)(
-        have(pIn |- pIn) by Hypothesis,
-        have(pEq |- pEq) by Hypothesis
-      )
-      val viaImpl = have((atPoint.statement.left + pIn) |- pEq) by Cut(atPoint, mp)
-      have((atPoint.statement.left ++ pointInHeight.statement.left) |- pEq) by Cut(pointInHeight, viaImpl)
-    }
+    
+    // Modus ponens via kernel rules instead of `Tautology.from(pointInHeight, atPoint)`:
+    // `pointInHeight` carries the deep ~1.5k-char branchSelectionBody in its context, and
+    // Tautology would decompose it (~30s). With `pIn`/`pEq` kept atomic, that context is
+    // carried untouched through the cut.
+    val mp = have(Set[Expr[Prop]](pIn ==> pEq, pIn) |- pEq) by LeftImplies.withParameters(pIn, pEq)(
+      have(pIn |- pIn) by Hypothesis,
+      have(pEq |- pEq) by Hypothesis
+    )
+    val viaImpl = have((atPoint.statement.left + pIn) |- pEq) by Cut(atPoint, mp)
+    have((atPoint.statement.left ++ pointInHeight.statement.left) |- pEq) by Cut(pointInHeight, viaImpl)
+    
   }
 
   def selfAgreementFromForallAt(using proof: lisa.SetTheoryLibrary.Proof)(

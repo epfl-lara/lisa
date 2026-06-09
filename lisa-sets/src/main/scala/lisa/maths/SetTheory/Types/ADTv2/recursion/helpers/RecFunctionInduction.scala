@@ -248,18 +248,14 @@ private[recursion] object RecFunctionInduction {
 
     val pointwiseGoal = ∀(inductionVariable, inductionVariable ∈ argType ==> propertyAt(inductionVariable))
 
-    Lemma(assumptions |- pointwiseGoal) {
+    val l = Lemma(assumptions |- pointwiseGoal) {
       // Make the recursion hypotheses (the Lemma antecedents) ambient, so that
       // facts derived from the function definitions inside nested subproofs can
       // be re-normalized under a restricted local context without losing them
       // (mirrors WitnessAgreement, which assumes all its antecedents up front).
       assumptions.foreach(a => assume(a))
       val heightFun = specializeTerm(adt.height.function, typeSubstitutions)
-      val heightFunValid = adt.height.validAt(typeSubstitutions)
-      val heightZero = adt.height.zeroAt(typeSubstitutions)
-      val heightSuccStrong = adt.height.successorStrongAt(typeSubstitutions)
       val heightMembershipMonotonic = adt.height.membershipMonotonicAt(typeSubstitutions)
-      val termHasHeight = adt.height.termHasHeightAt(typeSubstitutions)
       val constructorsAt = specializedConstructors(adt.constructors, typeSubstitutions)
       val nVar = variable[Ind]
       val slicePoint = inductionVariable
@@ -290,12 +286,12 @@ private[recursion] object RecFunctionInduction {
       }
 
       val hValid = have(specializeFormula(adt.height.predicate(heightFun), typeSubstitutions)) by
-        Weakening(heightFunValid)
+        Weakening(adt.height.validAt(typeSubstitutions))
 
       val zeroDef = have(Zero === ∅) by Weakening(Zero.definition)
       val noElemAtEmpty = have(!(slicePoint ∈ app(heightFun)(∅))) by Cut(
         hValid,
-        heightZero of (h := heightFun, x := slicePoint)
+        adt.height.zeroAt(typeSubstitutions) of (h := heightFun, x := slicePoint)
       )
       val noElemAtZero = have(!(slicePoint ∈ app(heightFun)(Zero))) by Congruence.from(noElemAtEmpty, zeroDef)
 
@@ -324,7 +320,7 @@ private[recursion] object RecFunctionInduction {
               hValid,
               nInN,
               sliceInOrd,
-              heightSuccStrong of (h := heightFun, n := nVar, x := slicePoint),
+              adt.height.successorStrongAt(typeSubstitutions) of (h := heightFun, n := nVar, x := slicePoint),
               equivalenceApply of (
                 p1 := in(slicePoint, app(heightFun)(successor(nVar))),
                 p2 := constructorDisjunction
@@ -460,7 +456,6 @@ private[recursion] object RecFunctionInduction {
                       expectedRight = yBody,
                       errorContext = s"pointwiseUniquenessAt/y/${c.name}/${pattern.name}"
                     )
-                    Time.log(s"Step 3")
 
                     val bodyEquality = proveBodyEqualityFromRecursiveFacts(
                       localAssumptions = localContext,
@@ -492,8 +487,7 @@ private[recursion] object RecFunctionInduction {
                       yBody = yBody,
                       errorContext = s"pointwiseUniquenessAt/${c.name}/${pattern.name}"
                     )
-                    Time.log(s"Step 4")
-
+                    
                     proveBranchPointwiseAgreement(
                       normalized = normalizedFacts,
                       propertyAt = propertyAt,
@@ -504,7 +498,6 @@ private[recursion] object RecFunctionInduction {
                       xBody = xBody,
                       yBody = yBody
                     )
-                    Time.log(s"Step 5")
                   }
                   pattern.variables2.drop(pattern.arity).reverse.foldLeft(
                     (pattern.branchSelectionBody(slicePoint), rawEq)
@@ -522,7 +515,6 @@ private[recursion] object RecFunctionInduction {
 
                 have(propertyAt(slicePoint)) by Cut(selectedBranch, branchesToGoal)
               }
-              Time.log(s"Proved all branches of constructor ${c.name}")
 
               ConstructorCaseAssembly.liftConstructorCase(
                 sc = sc,
@@ -533,7 +525,6 @@ private[recursion] object RecFunctionInduction {
                 directBranch = directBranch
               )
             }
-            Time.log("Proved all constructors")
 
             ConstructorCaseAssembly.assemblePointwiseFromConstructors(
               constructorDisjunction = constructorDisjunction,
@@ -543,7 +534,6 @@ private[recursion] object RecFunctionInduction {
               goal = propertyAt(slicePoint)
             )
           }
-          Time.log("Proved pointwise property")
 
           have((slicePoint ∈ app(heightFun)(Succ(nVar))) ==> propertyAt(slicePoint)) by
             Restate.from(pointwiseAtSucc)
@@ -551,20 +541,21 @@ private[recursion] object RecFunctionInduction {
         }
         thenHave(thesis) by RightForall
       }
-      Time.log("Proved step case for nVar")
 
       val allHeights = have(∀(nVar, (nVar ∈ N) ==> P(nVar))) by
         Tautology.from(NatFacts.induction of (Pred := P), base, step)
-      Time.log("Proved induction on heights")
+      Time.log(" ")
       val pointwiseAtArg = have(inductionVariable ∈ argType ==> propertyAt(inductionVariable)) subproof {
         val inArg = assume(inductionVariable ∈ argType)
-        val someHeight = have(∃(nVar, (nVar ∈ N) /\ (inductionVariable ∈ app(heightFun)(nVar)))) by
-          Tautology.from(
-            hValid,
-            inArg,
-            termHasHeight of (x := inductionVariable, h := heightFun),
-            LimitKernel.pointHasSomeHeightAt(argType, heightFun, inductionVariable)
+        val someHeight = Time.measureNow(s"Find height for $inductionVariable") {
+          have(∃(nVar, (nVar ∈ N) /\ (inductionVariable ∈ app(heightFun)(nVar)))) by
+            Tautology.from(
+              hValid,
+              inArg,
+              adt.height.termHasHeightAt(typeSubstitutions) of (x := inductionVariable, h := heightFun),
+              LimitKernel.pointHasSomeHeightAt(argType, heightFun, inductionVariable)
           )
+        }
 
         have((nVar ∈ N) /\ (inductionVariable ∈ app(heightFun)(nVar)) |- propertyAt(inductionVariable)) subproof {
           assume((nVar ∈ N) /\ (inductionVariable ∈ app(heightFun)(nVar)))
@@ -583,9 +574,11 @@ private[recursion] object RecFunctionInduction {
           LeftExists
         have(propertyAt(inductionVariable)) by Cut(someHeight, fromExists)
       }
-      Time.log("Proved property at arbitrary element of argType")
       thenHave(∀(inductionVariable, inductionVariable ∈ argType ==> propertyAt(inductionVariable))) by RightForall
       thenHave(thesis) by Restate
+      Time.log("Lemma pointwiseUniquenessAt thesis proved")
     }
+    Time.log("Lemma pointwiseUniquenessAt proof complete")
+    l
   }
 }
