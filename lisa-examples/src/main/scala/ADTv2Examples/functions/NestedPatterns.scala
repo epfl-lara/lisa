@@ -37,10 +37,10 @@ object NestedPatterns extends lisa.Main {
     Case(cons, fals, tl):
       self * tl
   }
-  // show(countTrue.intro(bool))
-  // show(countTrue.elim(bool)(nil))
-  // show(countTrue.elim(bool)(cons))
-  // show(countTrue.elimTotal(bool))
+  show(countTrue.intro(bool))
+  show(countTrue.elim(bool)(nil))
+  show(countTrue.elim(bool)(cons))
+  show(countTrue.elimTotal(bool))
 
 
   // Check whether any element of a list of booleans is `tru`.
@@ -53,12 +53,12 @@ object NestedPatterns extends lisa.Main {
       self * tl
   }
   section("existsTrue on List[Bool]")
-  // show(existsTrue.intro(bool))
-  // show(existsTrue.elim(bool)(nil))
-  // show(existsTrue.elim(bool)(cons))
-  // show(existsTrue.elim(bool)(Case(cons, tru, tl)))
-  // show(existsTrue.elim(bool)(Case(cons, fals, tl)))
-  // show(existsTrue.elimTotal(bool))
+  show(existsTrue.intro(bool))
+  show(existsTrue.elim(bool)(nil))
+  show(existsTrue.elim(bool)(cons))
+  show(existsTrue.elim(bool)(Case(cons, tru, tl)))
+  show(existsTrue.elim(bool)(Case(cons, fals, tl)))
+  show(existsTrue.elimTotal(bool))
 
 
   // ── List[Nat] examples ─────────────────────────────────────────────────

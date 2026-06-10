@@ -242,7 +242,7 @@ private[recursion] object RecursiveAgreement {
     val guardEq = have(guard.binder === guard.guardTerm) by Tautology.from(patternGuard)
     val guardInHeight = have(guard.guardTerm ∈ app(heightFun)(currentIndex)) by Congruence.from(binderInHeight, guardEq)
 
-    Time.measure(s"Descend to inner binder $target") {descendToBinder(
+    Time.measure(s"RecArg/descendToBinder") {descendToBinder(
       heightFun = heightFun,
       hValid = hValid,
       heightMembershipMonotonic = heightMembershipMonotonic,

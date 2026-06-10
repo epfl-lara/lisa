@@ -1,4 +1,5 @@
 package lisa.maths.SetTheory.Types.ADTv2.support
+import lisa.maths.SetTheory.SetTheory.*
 
 final case class Time private (nanos: Long) {
   def -(other: Time): Time = Time(nanos - other.nanos)
@@ -21,45 +22,54 @@ object Time {
   private val maxes = scala.collection.mutable.LinkedHashMap.empty[String, Long]
   private var resetTime = get()
   private var lastTime = get()
-  private var active = true
+  // private var active = true
 
-  def get(): Time = Time(System.nanoTime())
+  inline def get(): Time = Time(System.nanoTime())
 
-  def register(label: String, elapsed: Time): Unit = {
+  def register(label: String, elapsed: Time, is_logged: Boolean = false): Unit = {
     counts.update(label, counts.getOrElse(label, 0) + 1)
     totals.update(label, totals.getOrElse(label, 0L) + elapsed.nanos)
     maxes.update(label, math.max(maxes.getOrElse(label, 0L), elapsed.nanos))
     val nanos = elapsed.nanos.toDouble
     totalsSquared.update(label, totalsSquared.getOrElse(label, 0.0) + nanos * nanos)
+    if (is_logged) log(s"Register $label: $elapsed")
+  }
+  def register(label: String, content: String, elapsed: Time): Unit = {
+    register(label, elapsed)
+    log(s"Register $label: $elapsed with $content")
   }
 
-  def measure[A](label: String, is_active: Boolean = false)(body: => A): A = {
-    // active = false
+  def measure[A](label: String, is_logged: Boolean = false)(body: => A): A = {
     val start = get()
     val result = body
     val end = get()
-    // active = true
-    if (active){
-      register(label, end - start)
-      if (is_active) log(s"Measured $label: ${end - start}")
-    }
+    register(label, end - start)
+    if (is_logged) log(s"Measured $label: ${end - start}")
     result
   }
-
-  def measureNow[A](label: String)(body: => A): A = {
+  def measure[A](label: String, content: String)(body: => A): A = {
     val start = get()
     val result = body
     val end = get()
-    log(s"Measured $label: ${end - start}")
+    register(label, end - start)
+    log(s"Measured $label: ${end - start} with $content")
     result
   }
+
+  // def measureNow[A](label: String)(body: => A): A = {
+  //   val start = get()
+  //   val result = body
+  //   val end = get()
+  //   log(s"Measured $label: ${end - start}")
+  //   result
+  // }
 
   def log(message: String): Unit = {
-    if (active) {
-      val t = get()
-      println(s"[${t - resetTime} | ${t - lastTime}] $message")
-      lastTime = t
-    }
+    // if (active) {
+    val t = get()
+    println(s"[${t - resetTime} | ${t - lastTime}] $message")
+    lastTime = t
+    // }
   }
 
   private def round(x: Double, decimals: Int): Double = {
@@ -111,4 +121,9 @@ object Time {
     resetTime = get()
     lastTime = get()
   }
+
+  def size(expr : Expr[?] | Sequent): Int =
+    expr.toString.length
+
+  
 }
