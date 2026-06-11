@@ -13,7 +13,7 @@ import lisa.maths.SetTheory.Types.TypingHelpers
  * proofs — it emits the decision trie that the coverage / incompatible proof
  * generators would consume.
  */
-object NestedTrie {
+private[semantics] object NestedTrie {
 
   // ── Pattern AST ────────────────────────────────────────────────────────────
   enum Pat:

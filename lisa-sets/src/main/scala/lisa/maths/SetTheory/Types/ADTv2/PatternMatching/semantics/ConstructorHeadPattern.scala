@@ -11,7 +11,7 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  * Constructor-headed patterns expose extra proof data coming from the semantic
  * constructor encoding.
  */
-trait ConstructorHeadPattern[N <: Arity] extends Pattern[N] {
+private[PatternMatching] trait ConstructorHeadPattern[N <: Arity] extends Pattern[N] {
 
   def semanticConstructor: SemanticConstructor[N]
 
@@ -99,7 +99,7 @@ trait ConstructorHeadPattern[N <: Arity] extends Pattern[N] {
   }
 }
 
-object ConstructorHeadPattern {
+private[PatternMatching] object ConstructorHeadPattern {
   def require[N <: Arity](pattern: Pattern[N]): ConstructorHeadPattern[N] =
     pattern match
       case constructorHead: ConstructorHeadPattern[N] => constructorHead

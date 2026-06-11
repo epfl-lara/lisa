@@ -25,7 +25,7 @@ import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
  * Patterns retain their real `Constructor`/`Variable` objects so generated terms
  * match what the eliminators speak about.
  */
-object NestedTrieProofs {
+private[semantics] object NestedTrieProofs {
 
   enum RPat:
     case RVar(v: Variable[Ind])

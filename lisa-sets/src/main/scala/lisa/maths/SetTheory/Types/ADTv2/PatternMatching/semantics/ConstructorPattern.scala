@@ -13,7 +13,7 @@ import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
 
-final case class ConstructorPattern[N <: Arity](
+private[PatternMatching] final case class ConstructorPattern[N <: Arity](
     semanticConstructor: SemanticConstructor[N],
     binders: Seq[Variable[Ind]],
     body: Expr[Ind],
@@ -24,7 +24,7 @@ final case class ConstructorPattern[N <: Arity](
   override def withBody(newBody: Expr[Ind]): Pattern[N] = copy(body = newBody)
 }
 
-final case class ConstructorPatternSystem[N <: Arity](
+private[PatternMatching] final case class ConstructorPatternSystem[N <: Arity](
     domain: SemanticADT[N],
     override val patterns: Seq[ConstructorHeadPattern[N]],
     specializedAdtTerm: Expr[Ind]
@@ -152,7 +152,7 @@ final case class ConstructorPatternSystem[N <: Arity](
   })
 }
 
-object ConstructorPatternSystem {
+private[PatternMatching] object ConstructorPatternSystem {
   private def domainElim[N <: Arity](domain: SemanticADT[N], specializedAdtTerm: Expr[Ind]): THM =
     if specializedAdtTerm == domain.term then domain.elim
     else

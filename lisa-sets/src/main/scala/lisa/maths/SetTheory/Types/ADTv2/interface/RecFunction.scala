@@ -5,7 +5,7 @@ import lisa.maths.SetTheory.Functions.Function.app
 import lisa.maths.SetTheory.Types.TypingHelpers.{::, FunctionalClass, TypedConstantFunctional}
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{ConstructorHeadPattern, Pattern}
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.syntax.Case
 import lisa.maths.SetTheory.Types.ADTv2.recursion.RecFunSemantics
 import lisa.maths.SetTheory.Types.ADTv2.support.core.`**`
@@ -38,11 +38,6 @@ final class RecFunction[N <: Arity](using val line: sourcecode.Line, val file: s
   lazy val returnType: Expr[Ind] = semantic.returnType
   lazy val functionType: Expr[Ind] = semantic.typ
   private lazy val patterns: Seq[Pattern[N]] = semantic.patterns
-
-  // def patternsFor(constructor: Constructor[N]): Seq[Pattern[N]] =
-  //   patterns.filter(pattern =>
-  //     ConstructorHeadPattern.require(pattern).correspondsTo(constructor.semantic)
-  //   )
 
   private lazy val patternIndices: Map[Pattern[N], Int] =
     patterns.zipWithIndex.toMap

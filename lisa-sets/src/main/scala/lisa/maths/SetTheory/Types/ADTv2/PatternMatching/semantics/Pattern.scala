@@ -2,6 +2,7 @@ package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Base.Pair
+import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.maths.SetTheory.Types.ADTv2.encoding.{SemanticADT, SemanticConstructor}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.utils.prooflib.ProofTacticLib.Arity
@@ -84,6 +85,34 @@ trait Pattern[N <: Arity] {
   def inputTypingAt(vars: Seq[Variable[Ind]], adtTerm: Expr[Ind]): THM
 
   def withBody(newBody: Expr[Ind]): Pattern[N]
+
+  def recursiveAgreementPoints(recursiveType: Expr[Ind]): Seq[Variable[Ind]] =
+    typingSignatureAt(variables2).drop(arity).collect {
+      case (v, ty) if ty == recursiveType => v
+    }
+
+  def recursiveAgreementPointInHeight(using
+      proof: lisa.SetTheoryLibrary.Proof,
+      line: sourcecode.Line,
+      file: sourcecode.File
+  )(
+      target: Variable[Ind],
+      recursiveType: Expr[Ind],
+      heightFun: Expr[Ind],
+      hValid: proof.Fact,
+      heightMembershipMonotonic: THM,
+      currentIndex: Expr[Ind],
+      currentIndexInN: proof.Fact,
+      argsTypedAtHeight: proof.Fact,
+      leafTyping: proof.Fact,
+      patternGuard: proof.Fact
+  ): proof.Fact = {
+    require(
+      recursiveAgreementPoints(recursiveType).contains(target),
+      s"Pattern $name does not expose $target as a recursive agreement point."
+    )
+    have(target ∈ app(heightFun)(currentIndex)) by Tautology.from(argsTypedAtHeight)
+  }
 
   // Selection disjunct used by `branchSelectionFor` and its consumers. The inner
   // (non-constructor-argument) binders are existentially bound and carry their
@@ -181,4 +210,21 @@ trait PatternSystem[N <: Arity] {
     }
     println("")
   }
+}
+
+object PatternSystem {
+  def constructorCases[N <: Arity](
+    patterns: Seq[Pattern[N]]
+  ): Map[SemanticConstructor[N], Seq[Pattern[N]]] =
+    patterns.foldLeft(Map.empty[SemanticConstructor[N], Vector[Pattern[N]]]) {
+      case (acc, pattern) =>
+        pattern match
+          case constructorHead: ConstructorHeadPattern[N] =>
+            val c = constructorHead.semanticConstructor
+            acc.updated(c, acc.getOrElse(c, Vector.empty) :+ pattern)
+          case _ =>
+            throw new IllegalArgumentException(
+              s"Pattern ${pattern.name} is not constructor-headed."
+            )
+    }.iterator.map((c, ps) => c -> ps.toSeq).toMap
 }

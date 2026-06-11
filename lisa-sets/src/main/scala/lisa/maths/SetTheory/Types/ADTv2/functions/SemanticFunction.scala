@@ -1,6 +1,6 @@
 package lisa.maths.SetTheory.Types.ADTv2.functions
 
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{ConstructorHeadPattern, Pattern, PatternSystem}
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{Pattern, PatternSystem}
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
@@ -101,14 +101,11 @@ class SemanticFunction[N <: Arity](
     shortDefinition(pattern)
 
   private val elimByConstThm: Map[SemanticConstructor[N], THM] =
-    patterns
-      .map(pattern => ConstructorHeadPattern.require(pattern).semanticConstructor)
-      .distinct
-      .map { constructor =>
-        val patternsForConst = patternMatching.patternsFor(constructor)
+    PatternSystem.constructorCases(patterns)
+      .map { (constructor, patternsForConst) =>
         constructor -> Lemma(
           seqAnd(patternsForConst.map(pattern =>
-            simplify(pattern.branchPremise) ==> (term * pattern.inputTerm === pattern.body)
+            simplify(pattern.branchPremise ==> (term * pattern.inputTerm === pattern.body))
           ))
         ) {
           have(thesis) by Tautology.from(

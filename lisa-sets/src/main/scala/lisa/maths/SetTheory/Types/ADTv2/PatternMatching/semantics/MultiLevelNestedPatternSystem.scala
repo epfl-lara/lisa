@@ -19,7 +19,7 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  * `WitnessFunctionProofs`. `branchSelectionFor` (recursion only) is not yet
  * implemented.
  */
-final case class MultiLevelNestedPatternSystem[N <: Arity](
+private[PatternMatching] final case class MultiLevelNestedPatternSystem[N <: Arity](
     domain: SemanticADT[N],
     override val patterns: Seq[NestedConstructorPattern[N]],
     typeSubstitutions: Seq[TypeSubstitution] = Seq.empty,

@@ -1,6 +1,6 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{ConstructorHeadPattern, Pattern, PatternSystem}
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{Pattern, PatternSystem}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
@@ -106,15 +106,6 @@ final class RecFunSemantics[N <: Arity](
   val cases: Seq[Pattern[N]] = patterns
 
 
-  private def compiledPatternsFor(constructor: SemanticConstructor[N]): Seq[Pattern[N]] = {
-    val matching = compiledCases.filter(pattern =>
-      ConstructorHeadPattern.require(pattern).correspondsTo(constructor)
-    )
-    if matching.isEmpty then
-      throw new IllegalArgumentException(s"No compiled pattern registered for constructor ${constructor.name}.")
-    matching
-  }
-
   private val shortDefinitionByPattern: Map[Pattern[N], THM] =
     patterns.map(pattern =>
       pattern -> Lemma(
@@ -162,11 +153,8 @@ final class RecFunSemantics[N <: Arity](
     shortDefinition(pattern)
 
   private val elimByConstThm: Map[SemanticConstructor[N], THM] =
-    compiledCases
-      .map(pattern => ConstructorHeadPattern.require(pattern).semanticConstructor)
-      .distinct
-      .map { constructor =>
-        val patternsForConst = compiledPatternsFor(constructor)
+    PatternSystem.constructorCases(compiledCases)
+      .map { (constructor, patternsForConst) =>
         constructor -> Lemma(
           seqAnd(patternsForConst.map(pattern =>
             simplify(pattern.branchPremise ==> (term * pattern.inputTerm === pattern.body))
@@ -182,9 +170,8 @@ final class RecFunSemantics[N <: Arity](
   def elimByConst(constructor: SemanticConstructor[N]): THM =
     elimByConstThm.getOrElse(
       constructor,
-      throw new IllegalArgumentException(s"No compiled pattern registered for constructor ${constructor.name}.")
+      throw new IllegalArgumentException(s"No pattern registered for constructor ${constructor.name}.")
     )
-
 
   def elim(pattern: Pattern[N]): THM =
     elimByPattern(pattern)

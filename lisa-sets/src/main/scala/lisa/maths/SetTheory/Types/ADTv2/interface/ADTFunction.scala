@@ -2,7 +2,7 @@ package lisa.maths.SetTheory.Types.ADTv2.interface
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Functions.Function.app
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{ConstructorHeadPattern, Pattern}
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.syntax.Case
 import lisa.maths.SetTheory.Types.TypingHelpers.{::, FunctionalClass, TypedConstantFunctional}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.`**`
@@ -41,11 +41,6 @@ final class ADTFunction[N <: Arity](using val line: sourcecode.Line, val file: s
   lazy val returnType: Expr[Ind] = semantic.returnTypeExpr
   lazy val functionType: Expr[Ind] = semantic.typ
   lazy val patterns: Seq[Pattern[N]] = semantic.patterns
-
-  // def patternsFor(constructor: Constructor[N]): Seq[Pattern[N]] =
-  //   patterns.filter(pattern =>
-  //     ConstructorHeadPattern.require(pattern).correspondsTo(constructor.semantic)
-  //   )
 
   private lazy val patternIndices: Map[Pattern[N], Int] =
     patterns.zipWithIndex.toMap
