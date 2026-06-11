@@ -44,10 +44,10 @@ final class RecFunSemantics[N <: Arity](
   private val witness: Witness[N] = Time.measure(s"Witness", true)(new Witness[N](spec))
 
   private val approx = Time.measure(s"Approx")(new Approx[N](spec, witness))
-  private val approxProp = Time.measure(s"ApproxProp", true)(new ApproxProp[N](spec, witness, approx))
-  private val witnessAgreementCheck = Time.measure(s"WitnessAgreement", true)(new helpers.WitnessAgreement[N](spec, witness))
+  private val witnessAgreement = Time.measure(s"WitnessAgreement", true)(new helpers.WitnessAgreement[N](spec, witness))
+  private val approxProp = Time.measure(s"ApproxProp", true)(new ApproxProp[N](spec, witness, approx, witnessAgreement))
   private val limitConstruction = Time.measure(s"LimitConstruction")(new LimitConstruction[N](spec, approx, approxProp))
-  val existence: Existence[N] = Time.measure(s"Existence", true)(new Existence[N](spec, witness, approx, approxProp, limitConstruction))
+  val existence: Existence[N] = Time.measure(s"Existence", true)(new Existence[N](spec, witness, approx, approxProp, limitConstruction, witnessAgreement))
 
   private val functionUniquenessProof = Time.measure(s"Uniqueness", true)(new Uniqueness[N](spec))
 

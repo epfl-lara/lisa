@@ -1,15 +1,16 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{specializeFormula, specializeTerm}
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.{altEqualityTransitivity, equivalenceApply}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
+import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.RecursiveAgreement
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.{specializedConstructors}
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.{ApproximationChainFacts, LimitKernel}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.{altEqualityTransitivity}
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Succ
-import lisa.maths.SetTheory.Types.ADTv2.support.core.InstantiateForallSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 
-import lisa.maths.SetTheory.Base.Subset
+
 import lisa.maths.SetTheory.Functions.BasicTheorems.{funcBetweenEqInFuncSpace, functionalExtentionality}
 import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.maths.SetTheory.Ordinals.TransitiveSet
@@ -17,15 +18,7 @@ import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Types.TypingHelpers.*
 import lisa.utils.prooflib.BasicStepTactic.{LeftExists, Cut, RightForall}
 import lisa.utils.prooflib.ProofTacticLib.Arity
-import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.ConstructorCaseAssembly
-import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.CaseBodySubstitution.substitutedCaseBody
-import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.LambdaBodyEquality
-import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.RecursiveAgreement
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 
-import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.{constructorBranchesAtHeight, constructorDisjunctionAtHeight, specializedConstructors}
-import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.{ApproximationChainFacts, LimitKernel}
-import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.WitnessCaseExtensionality
 
 /**
  * Layer 3 — Existence without circularity.
@@ -46,14 +39,11 @@ private[recursion] final class Existence[N <: Arity](
   val recWitness: Witness[N],
   val approx: Approx[N],
   val approxProp: ApproxProp[N],
-  val limitConstruction: LimitConstruction[N]
+  val limitConstruction: LimitConstruction[N],
+  val witnessAgreement: lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.WitnessAgreement[N]
 ) {
 
   val nVar = variable[Ind]
-  val mVar = variable[Ind]
-  val kVar = variable[Ind]
-  private val constructorsAt = specializedConstructors(spec.adt.constructors, spec.typeSubstitutions)
-  private val heightSuccStrong = spec.adt.height.successorStrongAt(spec.typeSubstitutions)
   private val heightSuccessorInclusion = spec.adt.height.successorInclusionAt(spec.typeSubstitutions)
   private val heightMembershipMonotonic = spec.adt.height.membershipMonotonicAt(spec.typeSubstitutions)
   private val termHasHeight = spec.adt.height.termHasHeightAt(spec.typeSubstitutions)
@@ -72,33 +62,6 @@ private[recursion] final class Existence[N <: Arity](
     approximantFamily,
     chosenIndexFamily
   )
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Private helper — witness case instantiation
-  // ─────────────────────────────────────────────────────────────────────────
-
-  private def instantiateWitnessAtPattern(using proof: lisa.SetTheoryLibrary.Proof)(
-      pattern: Pattern[N],
-      selfTerm: Expr[Ind],
-      selfTyped: proof.Fact,
-      patternPremise: proof.Fact,
-      body: Expr[Ind]
-  ): proof.Fact = {
-    val witnessSchema = recWitness.witnessCase(pattern).of(spec.selfPlaceholder := selfTerm)
-    val witnessBase = witnessSchema.statement.right.head match
-      case _ ==> consequent =>
-        have(consequent) by Tautology.from(witnessSchema, selfTyped)
-      case _ => throw UnreachableException
-
-    val witnessAtVars = have(
-      pattern.freshBranchPremise ==> (recWitness(selfTerm) * pattern.freshInputTerm === body)
-    ) by InstantiateForallSeq(pattern.variables2)(witnessBase)
-
-    witnessAtVars.statement.right.head match
-      case _ ==> consequent =>
-        have(consequent) by Tautology.from(witnessAtVars, patternPremise)
-      case _ => throw UnreachableException
-  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // Lemma F — limitIsFixedPoint: W(limitFun) = limitFun
@@ -169,20 +132,6 @@ private[recursion] final class Existence[N <: Arity](
         heightSuccessorInclusion.of(h := heightFun, n := n0, x := a)
       )
 
-      // ── Decompose a into constructor form ───────────────────────────────────
-      val constructorBranch =
-        constructorBranchesAtHeight(constructorsAt, app(heightFun)(n0), a)
-      val constructorDisjunction =
-        constructorDisjunctionAtHeight(constructorsAt, app(heightFun)(n0), a)
-
-      val decomposeAtA = have(constructorDisjunction) by Tautology.from(
-        hValid,
-        indexInN,
-        aInHeightOrd,
-        heightSuccStrong of (h := heightFun, n := n0, x := a),
-        equivalenceApply of (p1 := in(a, app(heightFun)(successor(n0))), p2 := constructorDisjunction)
-      )
-
       // ── G(n0) type and stabilization chain ─────────────────────────────────
       val approxAtN0Inst = have(n0 ∈ N ==> (G(n0) :: spec.typ)) by InstantiateForall(n0)(approx.approxHasType)
       val gN0HasType = have(G(n0) :: spec.typ) by Tautology.from(indexInN, approxAtN0Inst)
@@ -238,169 +187,77 @@ private[recursion] final class Existence[N <: Arity](
         )
       )
 
-      // ── Per-constructor branches ────────────────────────────────────────────
-      val branchEqualities = constructorsAt.map { sc =>
-        val c = sc.underlying
-        val constructorPatterns = spec.patternMatching.patternsFor(c)
-
-        val directBranch = have(
-          sc.branchPremiseAtHeight(app(heightFun)(n0), a) |- pointwiseGoal
-        ) subproof {
-          assume(sc.branchPremiseAtHeight(app(heightFun)(n0), a))
-          val branchPremise = have(sc.branchPremiseAtHeight(app(heightFun)(n0), a)) by Hypothesis
-          val argsTypedAtHeight =
-            have(sc.heightTypingFormula(app(heightFun)(n0))) by Tautology
-          val argsTypedSemantic = have(wellTypedFormula(sc.semanticSignature2)) by
-            Tautology.from(
-              hValid,
-              indexInN,
-              argsTypedAtHeight,
-              sc.semanticTypingFromHeight(heightFun, n0)
-            )
-          val aEqApplied = have(a === sc.appliedTerm2) by
-            Tautology.from(
-              hValid,
-              indexInN,
-              branchPremise,
-              sc.appliedEqualityFromStructural(heightFun, n0, a)
-            )
-
-          // Recursive arg equalities: app(limitFun)(v) = app(G(n0))(v) for each SelfRef v
-          val selfArgEqualities = sc.selfRefVariables2.map(v =>
-              val vInHn0 = have(v ∈ app(heightFun)(n0)) by Tautology.from(argsTypedAtHeight)
-              RecursiveAgreement.selfAgreementWithLimit(
-                argType = spec.argType,
-                heightFun = heightFun,
-                limitFun = limitFun,
-                approximantFamily = approximantFamily,
-                chosenIndexFamily = chosenIndexFamily,
-                limitFunDef = limitFunDef,
-                termHasHeight = termHasHeight,
-                stabilizationSchema = stabilizationSchema,
-                heightMembershipMonotonicSchema = heightMembershipMonotonicSchema,
-                hValid = hValid,
-                currentIndex = n0,
-                currentIndexInN = indexInN,
-                point = v,
-                pointInHeight = vInHn0
-              )
+      // ── Witness agreement at a via the shared WitnessAgreement lemma ────────
+      // limitFun and G(n0) agree on the height slice h(n0): at each point the
+      // limit value is the stabilized approximant value G(n0). This is exactly
+      // the slice-agreement premise of WitnessAgreement.witnessAgreementAtSucc.
+      val sliceVar = variable[Ind]
+      val sliceAgreement = have(
+        ∀(sliceVar ∈ app(heightFun)(n0), app(limitFun)(sliceVar) === app(G(n0))(sliceVar))
+      ) subproof {
+        have((sliceVar ∈ app(heightFun)(n0)) ==> (app(limitFun)(sliceVar) === app(G(n0))(sliceVar))) subproof {
+          val vInSlice = assume(sliceVar ∈ app(heightFun)(n0))
+          val limitEqApprox = RecursiveAgreement.selfAgreementWithLimit(
+            argType = spec.argType,
+            heightFun = heightFun,
+            limitFun = limitFun,
+            approximantFamily = approximantFamily,
+            chosenIndexFamily = chosenIndexFamily,
+            limitFunDef = limitFunDef,
+            termHasHeight = termHasHeight,
+            stabilizationSchema = stabilizationSchema,
+            heightMembershipMonotonicSchema = heightMembershipMonotonicSchema,
+            hValid = hValid,
+            currentIndex = n0,
+            currentIndexInN = indexInN,
+            point = sliceVar,
+            pointInHeight = vInSlice
           )
-
-          val selectionSchema = spec.patternMatching.branchSelectionFor(c, a)
-          val selectionSchemaInContext = have(selectionSchema.statement.right.head) by
-            Tautology.from(selectionSchema)
-          val selectionAtCtorVars = have(
-            (wellTypedFormula(sc.semanticSignature2) /\ (a === sc.appliedTerm2)) |-
-              seqOr(constructorPatterns.map(pattern => pattern.branchSelectionDisjunct(a)))
-          ) by InstantiateForallSeq(c.variables2)(selectionSchemaInContext)
-          val selectedBranch = have(
-            seqOr(constructorPatterns.map(pattern => pattern.branchSelectionDisjunct(a)))
-          ) by Tautology.from(selectionAtCtorVars, argsTypedSemantic, aEqApplied)
-
-          val patternEqualities = constructorPatterns.map(pattern =>
-            val rawEq = have(
-              pattern.branchSelectionBody(a) |- pointwiseGoal
-            ) subproof {
-              val selectedPattern = assume(pattern.branchSelectionBody(a))
-              val patternGuard = have(pattern.freshBranchCondition) by Tautology.from(selectedPattern)
-              val aEqPattern = have(a === pattern.freshInputTerm) by Tautology.from(selectedPattern)
-              val patternPremise = have(pattern.freshBranchPremise) by Tautology.from(
-                argsTypedSemantic,
-                selectedPattern
-              )
-              val innerAgreementContext = RecursiveAgreement.innerAgreementContext(
-                heightFun = heightFun,
-                hValid = hValid,
-                currentIndex = n0,
-                currentIndexInN = indexInN
-              )
-              val innerAgreements = RecursiveAgreement.innerAgreementsFor(
-                pattern = pattern,
-                recursiveType = spec.argType,
-                heightMembershipMonotonic = heightMembershipMonotonic,
-                argsTypedAtHeight = argsTypedAtHeight,
-                leafTyping = patternPremise,
-                patternGuard = patternGuard,
-                context = innerAgreementContext
-              )(
-                RecursiveAgreement.selfAgreementWithLimitAt(
-                  argType = spec.argType,
-                  limitFun = limitFun,
-                  approximantFamily = approximantFamily,
-                  chosenIndexFamily = chosenIndexFamily,
-                  limitFunDef = limitFunDef,
-                  termHasHeight = termHasHeight,
-                  stabilizationSchema = stabilizationSchema,
-                  heightMembershipMonotonicSchema = heightMembershipMonotonicSchema
-                )
-              )
-              val bodyLeft  = substitutedCaseBody(pattern, spec.selfPlaceholder, limitFun, pattern.variables2)
-              val bodyRight = substitutedCaseBody(pattern, spec.selfPlaceholder, G(n0),   pattern.variables2)
-              val bodyEq = LambdaBodyEquality.prove(bodyLeft, bodyRight, selfArgEqualities ++ innerAgreements)
-              val witnessAtLeft  = instantiateWitnessAtPattern(pattern, limitFun, limitHasType,  patternPremise, bodyLeft)
-              val witnessAtRight = instantiateWitnessAtPattern(pattern, G(n0),    gN0HasType,    patternPremise, bodyRight)
-              val witnessesAgreeAtA =
-                have(app(recWitness(limitFun))(a) === app(recWitness(G(n0)))(a)) by Tautology.from(
-                  WitnessCaseExtensionality.extensionalityAt(
-                    leftWitness = recWitness(limitFun),
-                    rightWitness = recWitness(G(n0)),
-                    ambientTerm = a,
-                    inputTerm = pattern.freshInputTerm,
-                    leftBody = bodyLeft,
-                    rightBody = bodyRight
-                  ),
-                  aEqPattern, witnessAtLeft, witnessAtRight, bodyEq
-                )
-
-              have(pointwiseGoal) by Tautology.from(
-                altEqualityTransitivity of (
-                  x := app(recWitness(limitFun))(a), 
-                  y := app(recWitness(G(n0)))(a), 
-                  z := app(G(n0))(a)
-                ),
-                altEqualityTransitivity of (
-                  x := app(recWitness(limitFun))(a), 
-                  y := app(G(n0))(a), 
-                  z := app(limitFun)(a)
-                ),
-                witnessesAgreeAtA,
-                gN0AtAEqWitness,
-                limitAtAEqGN0
-              )
-            }
-            pattern.variables2.drop(pattern.arity).reverse.foldLeft(
-              (pattern.branchSelectionBody(a), rawEq)
-            ) { case ((body, _), v) =>
-              val quantified = ∃(v, body)
-              (quantified, thenHave(quantified |- pointwiseGoal) by LeftExists)
-            }._2
-          )
-
-          val branchesToGoal =
-            if patternEqualities.size == 1 then
-              have(selectedBranch.statement.right.head |- pointwiseGoal) by Restate.from(patternEqualities.head)
-            else
-              have(selectedBranch.statement.right.head |- pointwiseGoal) by LeftOr(patternEqualities*)
-
-          have(pointwiseGoal) by Cut(selectedBranch, branchesToGoal)
+          have(app(limitFun)(sliceVar) === app(G(n0))(sliceVar)) by Restate.from(limitEqApprox)
         }
-        val liftedBranch = ConstructorCaseAssembly.liftConstructorCase(
-          sc = sc,
-          heightSet = app(heightFun)(n0),
-          ambientTerm = a,
-          branchPremise = sc.branchPremiseAtHeight(app(heightFun)(n0), a),
-          goal = pointwiseGoal,
-          directBranch = directBranch
-        )
-        liftedBranch
+        thenHave(thesis) by RightForall
       }
 
-      ConstructorCaseAssembly.assemblePointwiseFromConstructors(
-        constructorDisjunction = constructorDisjunction,
-        decomposeFact = decomposeAtA,
-        constructorFacts = branchEqualities,
-        antecedent = a ∈ spec.argType,
-        goal = pointwiseGoal
+      val aInHeightSuccN0 = have(a ∈ app(heightFun)(Succ(n0))) by
+        Congruence.from(aInHeightOrd, succEqN0)
+
+      // ∀x ∈ h(Succ n0), W(limitFun)(x) = W(G(n0))(x).
+      // n0 = limitIndex(a) mentions the free variable `a`, so we must not rebind
+      // `a` here: take the lemma's conclusion verbatim (its bound variable is
+      // already renamed away from `a`) and instantiate it at `a`.
+      val witnessAgreeLemma = witnessAgreement.witnessAgreementAtSucc.of(
+        witnessAgreement.leftFun := limitFun,
+        witnessAgreement.rightFun := G(n0),
+        witnessAgreement.nVar := n0
+      )
+      val witnessAgreeOnSucc = have(witnessAgreeLemma.statement.right.head) by Tautology.from(
+        witnessAgreeLemma,
+        limitHasType,
+        gN0HasType,
+        indexInN,
+        sliceAgreement
+      )
+      val witnessAgreeImpl = have(
+        (a ∈ app(heightFun)(Succ(n0))) ==> (app(recWitness(limitFun))(a) === app(recWitness(G(n0)))(a))
+      ) by InstantiateForall(a)(witnessAgreeOnSucc)
+      val witnessesAgreeAtA = have(
+        app(recWitness(limitFun))(a) === app(recWitness(G(n0)))(a)
+      ) by Tautology.from(witnessAgreeImpl, aInHeightSuccN0)
+
+      have(pointwiseGoal) by Tautology.from(
+        altEqualityTransitivity of (
+          x := app(recWitness(limitFun))(a),
+          y := app(recWitness(G(n0)))(a),
+          z := app(G(n0))(a)
+        ),
+        altEqualityTransitivity of (
+          x := app(recWitness(limitFun))(a),
+          y := app(G(n0))(a),
+          z := app(limitFun)(a)
+        ),
+        witnessesAgreeAtA,
+        gN0AtAEqWitness,
+        limitAtAEqGN0
       )
     }
 

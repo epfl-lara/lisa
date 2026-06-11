@@ -1,10 +1,5 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion.helpers
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Functions.Predef.*
-import lisa.maths.SetTheory.Types.TypingHelpers.*
-import lisa.maths.SetTheory.Ordinals.Integer
-import lisa.maths.SetTheory.Ordinals.Ordinal.{S, successorOrdinal, ordinal, <=}
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{NestedConstructorPattern, NestedTrieProofs, Pattern}
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.NestedTrieProofs.{RPat, Ty}
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.NestedTrieProofs.RPat.{RCon, RVar}
@@ -12,32 +7,20 @@ import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.{ApproximationChainFacts, LimitKernel}
 import lisa.maths.SetTheory.Types.ADTv2.support.InstantiateForallSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.{ExtendedInteger, NatFacts}
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.{equivalenceApply, subsetSuccessor}
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
+
+import lisa.maths.SetTheory.SetTheory.{*, given}
+import lisa.maths.SetTheory.Functions.Predef.*
+import lisa.maths.SetTheory.Types.TypingHelpers.*
+import lisa.maths.SetTheory.Ordinals.Integer
+import lisa.maths.SetTheory.Ordinals.Ordinal.{S, successorOrdinal, ordinal, <=}
+import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[recursion] object RecursiveAgreement {
 
-  final case class InnerAgreementContext[Fact](
-      heightFun: Expr[Ind],
-      hValid: Fact,
-      currentIndex: Expr[Ind],
-      currentIndexInN: Fact
-  )
-
-  def innerAgreementContext(using proof: lisa.SetTheoryLibrary.Proof)(
-      heightFun: Expr[Ind],
-      hValid: proof.Fact,
-      currentIndex: Expr[Ind],
-      currentIndexInN: proof.Fact
-  ): InnerAgreementContext[proof.Fact] =
-    InnerAgreementContext(
-      heightFun = heightFun,
-      hValid = hValid,
-      currentIndex = currentIndex,
-      currentIndexInN = currentIndexInN
-    )
 
   private val h = variable[Ind]
   private val x = variable[Ind]
@@ -256,40 +239,6 @@ private[recursion] object RecursiveAgreement {
     )}
   }
 
-  def innerAgreementsFor[N <: lisa.utils.prooflib.ProofTacticLib.Arity](using
-      proof: lisa.SetTheoryLibrary.Proof,
-      line: sourcecode.Line,
-      file: sourcecode.File
-  )(
-      pattern: Pattern[N],
-      recursiveType: Expr[Ind],
-      heightMembershipMonotonic: THM,
-      argsTypedAtHeight: proof.Fact,
-      leafTyping: proof.Fact,
-      patternGuard: proof.Fact,
-      context: InnerAgreementContext[proof.Fact]
-  )(
-      agreementBuilder: InnerAgreementContext[proof.Fact] => ((Variable[Ind], proof.Fact) => proof.Fact)
-  ): Seq[proof.Fact] =
-    pattern match
-      case nested: NestedConstructorPattern[?] =>
-        val agreementAt = agreementBuilder(context)
-        recursiveInnerBinders(nested, recursiveType).map { iv =>
-          val ivInHeight = innerBinderInHeight(
-            heightFun = context.heightFun,
-            hValid = context.hValid,
-            heightMembershipMonotonic = heightMembershipMonotonic,
-            currentIndex = context.currentIndex,
-            currentIndexInN = context.currentIndexInN,
-            argsTypedAtHeight = argsTypedAtHeight,
-            leafTyping = leafTyping,
-            patternGuard = patternGuard,
-            pattern = nested.asInstanceOf[NestedConstructorPattern[N]],
-            target = iv
-          )
-          agreementAt(iv, ivInHeight)
-        }
-      case _ => Seq.empty
 
   def selfAgreementFromForall(using proof: lisa.SetTheoryLibrary.Proof)(
       heightFun: Expr[Ind],
@@ -317,21 +266,48 @@ private[recursion] object RecursiveAgreement {
     
   }
 
-  def selfAgreementFromForallAt(using proof: lisa.SetTheoryLibrary.Proof)(
-      leftFun: Expr[Ind],
-      rightFun: Expr[Ind],
-      agreeForall: proof.Fact
-  )(context: InnerAgreementContext[proof.Fact]): (Variable[Ind], proof.Fact) => proof.Fact =
-    (point, pointInHeight) =>
-      selfAgreementFromForall(
-        heightFun = context.heightFun,
-        currentIndex = context.currentIndex,
-        leftFun = leftFun,
-        rightFun = rightFun,
-        agreeForall = agreeForall,
-        point = point,
-        pointInHeight = pointInHeight
-      )
+  def selfAgreementFromForallAt2[N <: Arity](using proof: lisa.SetTheoryLibrary.Proof)(
+    pattern: Pattern[N],
+    recursiveType: Expr[Ind],
+    heightMembershipMonotonic: THM,
+    argsTypedAtHeight: proof.Fact,
+    leafTyping: proof.Fact,
+    patternGuard: proof.Fact,
+    heightFun: Expr[Ind],
+    hValid: proof.Fact,
+    currentIndex: Expr[Ind],
+    currentIndexInN: proof.Fact,
+    leftFun: Expr[Ind],
+    rightFun: Expr[Ind],
+    agreeForall: proof.Fact
+  ): Seq[proof.Fact] = {
+    pattern match
+      case nested: NestedConstructorPattern[?] =>
+        recursiveInnerBinders(nested, recursiveType).map { iv =>
+          val ivInHeight = innerBinderInHeight(
+            heightFun = heightFun,
+            hValid = hValid,
+            heightMembershipMonotonic = heightMembershipMonotonic,
+            currentIndex = currentIndex,
+            currentIndexInN = currentIndexInN,
+            argsTypedAtHeight = argsTypedAtHeight,
+            leafTyping = leafTyping,
+            patternGuard = patternGuard,
+            pattern = nested.asInstanceOf[NestedConstructorPattern[N]],
+            target = iv
+          )
+          selfAgreementFromForall(
+            heightFun,
+            currentIndex,
+            leftFun,
+            rightFun,
+            agreeForall,
+            iv,
+            ivInHeight
+          )
+        }
+      case _ => Seq.empty
+  }
 
   def selfAgreementWithLimit(using proof: lisa.SetTheoryLibrary.Proof)(
       argType: Expr[Ind],
@@ -379,31 +355,4 @@ private[recursion] object RecursiveAgreement {
     )
   }
 
-  def selfAgreementWithLimitAt(using proof: lisa.SetTheoryLibrary.Proof)(
-      argType: Expr[Ind],
-      limitFun: Expr[Ind],
-      approximantFamily: Expr[Ind >>: Ind],
-      chosenIndexFamily: Expr[Ind >>: Ind],
-      limitFunDef: Expr[Prop],
-      termHasHeight: THM,
-      stabilizationSchema: proof.Fact,
-      heightMembershipMonotonicSchema: proof.Fact
-  )(context: InnerAgreementContext[proof.Fact]): (Variable[Ind], proof.Fact) => proof.Fact =
-    (point, pointInHeight) =>
-      selfAgreementWithLimit(
-        argType = argType,
-        heightFun = context.heightFun,
-        limitFun = limitFun,
-        approximantFamily = approximantFamily,
-        chosenIndexFamily = chosenIndexFamily,
-        limitFunDef = limitFunDef,
-        termHasHeight = termHasHeight,
-        stabilizationSchema = stabilizationSchema,
-        heightMembershipMonotonicSchema = heightMembershipMonotonicSchema,
-        hValid = context.hValid,
-        currentIndex = context.currentIndex,
-        currentIndexInN = context.currentIndexInN,
-        point = point,
-        pointInHeight = pointInHeight
-      )
 }
