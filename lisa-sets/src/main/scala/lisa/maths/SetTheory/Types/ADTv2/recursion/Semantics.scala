@@ -41,15 +41,15 @@ final class RecFunSemantics[N <: Arity](
   val rawPatterns: Seq[Pattern[N]] = spec.cases
 
 
-  private val witness: Witness[N] = new Witness[N](spec)
+  private val witness: Witness[N] = Time.measure(s"Witness", true)(new Witness[N](spec))
 
-  private val approx = new Approx[N](spec, witness)
-  private val approxProp = Time.measure(s"ApproxProp")(new ApproxProp[N](spec, witness, approx))
-  private val witnessAgreementCheck = Time.measure(s"WitnessAgreement")(new helpers.WitnessAgreement[N](spec, witness))
-  private val limitConstruction = new LimitConstruction[N](spec, approx, approxProp)
-  val existence: Existence[N] = Time.measure(s"Existence")(new Existence[N](spec, witness, approx, approxProp, limitConstruction))
+  private val approx = Time.measure(s"Approx")(new Approx[N](spec, witness))
+  private val witnessAgreement = Time.measure(s"WitnessAgreement", true)(new helpers.WitnessAgreement[N](spec, witness))
+  private val approxProp = Time.measure(s"ApproxProp", true)(new ApproxProp[N](spec, witness, approx, witnessAgreement))
+  private val limitConstruction = Time.measure(s"LimitConstruction")(new LimitConstruction[N](spec, approx, approxProp))
+  val existence: Existence[N] = Time.measure(s"Existence", true)(new Existence[N](spec, witness, approx, approxProp, limitConstruction, witnessAgreement))
 
-  private val functionUniquenessProof = Time.measure(s"Uniqueness")(new Uniqueness[N](spec))
+  private val functionUniquenessProof = Time.measure(s"Uniqueness", true)(new Uniqueness[N](spec))
 
   private val untypedDef: Expr[Prop] = spec.untypedDefinition(f)
 
@@ -79,7 +79,7 @@ final class RecFunSemantics[N <: Arity](
       existsOneAlternativeDefinition of (x := f, P := λ(f, untypedDef))
     )
   }
-
+  
   private val definedClassFunction = UniqueCharacterizedSymbol(
     name = name,
     typeVariablesSeq = typeVariablesSeq,
@@ -104,6 +104,7 @@ final class RecFunSemantics[N <: Arity](
 
   val patterns: Seq[Pattern[N]] = compiledCases
   val cases: Seq[Pattern[N]] = patterns
+
 
   private def compiledPatternsFor(constructor: SemanticConstructor[N]): Seq[Pattern[N]] = {
     val matching = compiledCases.filter(pattern =>
@@ -183,6 +184,7 @@ final class RecFunSemantics[N <: Arity](
       constructor,
       throw new IllegalArgumentException(s"No compiled pattern registered for constructor ${constructor.name}.")
     )
+
 
   def elim(pattern: Pattern[N]): THM =
     elimByPattern(pattern)

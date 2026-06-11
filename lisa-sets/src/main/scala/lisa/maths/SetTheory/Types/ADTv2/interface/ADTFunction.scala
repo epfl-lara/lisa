@@ -3,6 +3,7 @@ package lisa.maths.SetTheory.Types.ADTv2.interface
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Functions.Function.app
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{ConstructorHeadPattern, Pattern}
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.syntax.Case
 import lisa.maths.SetTheory.Types.TypingHelpers.{::, FunctionalClass, TypedConstantFunctional}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.`**`
 import lisa.maths.SetTheory.Types.ADTv2.support.core.toSeq
@@ -147,6 +148,12 @@ final class ADTFunction[N <: Arity](using val line: sourcecode.Line, val file: s
     )
   }
 
+  def elim(): THM =
+    elimTotal
+
+  def elim(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*): THM =
+    elimTotal(firstTypeArg, otherTypeArgs*)
+
   def elim(pattern: Pattern[N]): THM =
     elimByPattern(pattern)
 
@@ -158,6 +165,21 @@ final class ADTFunction[N <: Arity](using val line: sourcecode.Line, val file: s
 
   def elim(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*)(constructor: Constructor[N]): THM =
     elimByConst(firstTypeArg, otherTypeArgs*)(constructor)
+
+  def elim(c: Case[N]): THM =
+    elimByPattern(patternFor(c))
+
+  def elim(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*)(c: Case[N]): THM =
+    elimByPattern(firstTypeArg, otherTypeArgs*)(patternFor(c))
+
+  def patternFor(c: Case[N]): Pattern[N] =
+    patterns
+      .collectFirst { case p if p.matchesConstructorCase(c.cons.semantic, c.args) => p }
+      .getOrElse(
+        throw new IllegalArgumentException(
+          s"No branch of $name matches case ${c.cons.name}(${c.args.mkString(", ")})."
+        )
+      )
 
   def elimTotal: THM = {
     requireMonomorphicAccess("function", name, typeVariablesSeq)

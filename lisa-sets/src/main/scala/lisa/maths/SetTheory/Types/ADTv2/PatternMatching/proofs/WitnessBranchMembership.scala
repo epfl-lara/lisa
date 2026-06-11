@@ -4,6 +4,7 @@ import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
 import lisa.maths.SetTheory.Types.ADTv2.support.{InstantiateForallSeq, QuantifiersIntro}
+import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.TypingHelpers.*
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
@@ -15,7 +16,7 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
 private[proofs] trait WitnessBranchMembership[N <: Arity] extends WitnessProofContext[N] {
 
   val witnessMembershipByPattern: Map[Pattern[N], THM] =
-    patternMatching.patterns.map(pattern =>
+    patternMatching.patterns.map(pattern => Time.measure("witness/MembershipByPattern") {
       val vars = pattern.binders
       val body = pattern.body
       pattern -> (Lemma(contextualize(
@@ -142,7 +143,7 @@ private[proofs] trait WitnessBranchMembership[N <: Arity] extends WitnessProofCo
         if contextPremises.isEmpty then have(thesis) by Restate.from(core)
         else have(thesis) by Tautology.from(contextHyp.get, core)
       })
-    ).toMap
+    }).toMap
 
   def witnessMembership(pattern: Pattern[N]): THM =
     witnessMembershipByPattern(pattern)

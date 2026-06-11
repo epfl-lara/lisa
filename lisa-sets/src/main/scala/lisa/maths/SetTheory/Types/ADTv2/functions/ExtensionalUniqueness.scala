@@ -15,6 +15,7 @@ import lisa.utils.prooflib.BasicStepTactic.Restate
 
 private[functions] final class ExtensionalUniqueness[N <: Arity](
     adt: SemanticADT[N],
+    argType: Expr[Ind],
     patternMatching: PatternSystem[N],
     returnType: Expr[Ind],
     typ: Expr[Ind],
@@ -33,35 +34,35 @@ private[functions] final class ExtensionalUniqueness[N <: Arity](
       val xTyped = have(x :: typ) by Tautology.from(xDefinition)
       val yTyped = have(y :: typ) by Tautology.from(yDefinition)
 
-      val xBetween = have(Function.functionBetween(x)(adt.term)(returnType)) by Tautology.from(
+      val xBetween = have(Function.functionBetween(x)(argType)(returnType)) by Tautology.from(
         BasicTheorems.funcBetweenEqInFuncSpace of (
           f := x,
-          A := adt.term,
+          A := argType,
           B := returnType
         ),
         xTyped
       )
-      val yBetween = have(Function.functionBetween(y)(adt.term)(returnType)) by Tautology.from(
+      val yBetween = have(Function.functionBetween(y)(argType)(returnType)) by Tautology.from(
         BasicTheorems.funcBetweenEqInFuncSpace of (
           f := y,
-          A := adt.term,
+          A := argType,
           B := returnType
         ),
         yTyped
       )
 
-      val xOnDomain = have(Function.functionOn(x)(adt.term)) by Tautology.from(
+      val xOnDomain = have(Function.functionOn(x)(argType)) by Tautology.from(
         BasicTheorems.functionBetweenIsFunctionOn of (
           f := x,
-          A := adt.term,
+          A := argType,
           B := returnType
         ),
         xBetween
       )
-      val yOnDomain = have(Function.functionOn(y)(adt.term)) by Tautology.from(
+      val yOnDomain = have(Function.functionOn(y)(argType)) by Tautology.from(
         BasicTheorems.functionBetweenIsFunctionOn of (
           f := y,
-          A := adt.term,
+          A := argType,
           B := returnType
         ),
         yBetween
@@ -70,9 +71,9 @@ private[functions] final class ExtensionalUniqueness[N <: Arity](
       val pointInput = variable[Ind]
       val constructorDisjunction = simplify(patternMatching.caseCoverage(pointInput))
 
-      val decompositionAtInput = have(pointInput ∈ adt.term |- constructorDisjunction) subproof {
-        have(pointInput ∈ adt.term ==> constructorDisjunction) by
-          InstantiateForall(pointInput)(patternMatching.coverage(adt))
+      val decompositionAtInput = have(pointInput ∈ argType |- constructorDisjunction) subproof {
+        have(pointInput ∈ argType ==> constructorDisjunction) by
+          InstantiateForall(pointInput)(patternMatching.coverage)
         thenHave(thesis) by Restate
       }
 
@@ -127,18 +128,18 @@ private[functions] final class ExtensionalUniqueness[N <: Arity](
           have(constructorDisjunction |- (x * pointInput === y * pointInput)) by
             LeftOr(branchEqualities*)
 
-      have(pointInput ∈ adt.term |- (x * pointInput === y * pointInput)) by
+      have(pointInput ∈ argType |- (x * pointInput === y * pointInput)) by
         Cut(decompositionAtInput, equalityFromCases)
-      thenHave(pointInput ∈ adt.term ==> (x * pointInput === y * pointInput)) by RightImplies
+      thenHave(pointInput ∈ argType ==> (x * pointInput === y * pointInput)) by RightImplies
       val pointwiseOnDomain = thenHave(
-        ∀(pointInput, pointInput ∈ adt.term ==> (x * pointInput === y * pointInput))
+        ∀(pointInput, pointInput ∈ argType ==> (x * pointInput === y * pointInput))
       ) by RightForall
 
       have(x === y) by Tautology.from(
         BasicTheorems.extensionality of (
           f := x,
           g := y,
-          A := adt.term,
+          A := argType,
           x := pointInput
         ),
         xOnDomain,

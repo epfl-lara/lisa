@@ -18,6 +18,7 @@ import lisa.maths.SetTheory.Types.ADTv2.support.core.`**`
 class SemanticFunction[N <: Arity](
     name: String,
     adt: SemanticADT[N],
+    argType: Expr[Ind],
     patternMatching: PatternSystem[N],
     returnType: Expr[Ind]
 )(using line: sourcecode.Line, file: sourcecode.File) {
@@ -32,7 +33,7 @@ class SemanticFunction[N <: Arity](
   val returnTypeExpr: Expr[Ind] = returnType
 
   val fullName = s"$name"
-  val typ: Expr[Ind] = adt.term ->: returnType
+  val typ: Expr[Ind] = argType ->: returnType
 
   private val checkReturnType: Map[Pattern[N], THM] =
     patterns.map(pattern =>
@@ -44,6 +45,7 @@ class SemanticFunction[N <: Arity](
   private val proofInternals = new SemanticFunctionInternals[N](
     functionName = fullName,
     adt = adt,
+    argType = argType,
     patternMatching = patternMatching,
     returnType = returnType,
     checkReturnType = checkReturnType,

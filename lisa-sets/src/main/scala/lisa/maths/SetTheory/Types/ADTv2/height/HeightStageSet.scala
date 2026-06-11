@@ -316,13 +316,16 @@ final class HeightStageSet[N <: Arity](
   }
 
   val heightExists = Lemma(exists(h, base.isHeight(h))) {
-    val existsCore = have(
-      exists(h, CoreFacts.isHeightCore(h).substitute(CoreFacts.isConstructor := isConstructor))
-    ) by Cut(
+    val coreForm = CoreFacts.isHeightCore(h).substitute(CoreFacts.isConstructor := isConstructor)
+    val existsCore = have(exists(h, coreForm)) by Cut(
       stageSetSpecInst,
       CoreFacts.heightExistsAt(stageSetTerm, isConstructor)
     )
-    have(thesis) by Restate.from(existsCore)
+    // `isHeight` is now opaque, so fold the core conjunction into it and lift through ∃.
+    have(coreForm |- base.isHeight(h)) by Tautology.from(base.coreIsHeight)
+    thenHave(coreForm |- exists(h, base.isHeight(h))) by RightExists
+    thenHave(exists(h, coreForm) |- exists(h, base.isHeight(h))) by LeftExists
+    have(thesis) by Cut(existsCore, lastStep)
   }
 
 }

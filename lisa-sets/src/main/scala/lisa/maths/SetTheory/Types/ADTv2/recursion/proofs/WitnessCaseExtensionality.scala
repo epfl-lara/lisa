@@ -120,18 +120,16 @@ private[recursion] object WitnessCaseExtensionality {
       leftAtInput: proof.Fact,
       rightAtInput: proof.Fact,
       bodyEquality: proof.Fact
-  ): proof.Fact = {
-    val extensionality = extensionalityAt(
-      leftWitness = leftWitness,
-      rightWitness = rightWitness,
-      ambientTerm = ambientTerm,
-      inputTerm = inputTerm,
-      leftBody = leftBody,
-      rightBody = rightBody
-    )
+  ): proof.Fact =
+    // `wL(ambT) = wR(ambT)` is a pure congruence/transitivity chain over the four
+    // supplied equalities:
+    //   wL(ambT) = wL(inpT) = leftBody = rightBody = wR(inpT) = wR(ambT)
+    // `Congruence` closes it via e-graph reasoning, polynomial in term size. The
+    // previous `Tautology.from(extensionality, …)` instead decomposed the facts'
+    // left context (which carries the deep nested-pattern `branchSelectionBody`)
+    // propositionally, which blew up exponentially for depth-2 patterns.
     have(ambientEqInput.statement.left |- (app(leftWitness)(ambientTerm) === app(rightWitness)(ambientTerm))) by
-      Tautology.from(extensionality, ambientEqInput, leftAtInput, rightAtInput, bodyEquality)
-  }
+      Congruence.from(ambientEqInput, leftAtInput, rightAtInput, bodyEquality)
 
   def initialize(): Unit = {
     val _ = extensionality

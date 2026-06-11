@@ -73,6 +73,50 @@ object NestedTrieProofs {
     case RVar(v)       => List(v)
     case RCon(_, args) => args.flatMap(bindersOf)
 
+  private def caseArgs(pp: NestedConstructorPattern[?]): Seq[Expr[Ind]] =
+    (0 until pp.arity).map(i =>
+      pp.guards.find(_.position == i).map(_.guardTerm).getOrElse(pp.topBinders(i))
+    )
+
+  private def renderCase(pp: NestedConstructorPattern[?]): String =
+    val args = caseArgs(pp).map(arg => NestedTrie.show(NestedTrie.parsePat(arg)))
+    if args.isEmpty then pp.semanticConstructor.name
+    else s"${pp.semanticConstructor.name}(${args.mkString(", ")})"
+
+  private def interfaceConstructor(pp: NestedConstructorPattern[?]): Constructor[?] =
+    ADT.allADTs.toSeq
+      .flatMap(_.constructors)
+      .find(_.id == pp.semanticConstructor.id)
+      .getOrElse(
+        throw new IllegalArgumentException(
+          s"No interface constructor found for ${pp.semanticConstructor.name}."
+        )
+      )
+
+  private def renderAlignedGuards(
+      p1: NestedConstructorPattern[?],
+      p2: NestedConstructorPattern[?]
+  ): String =
+    val byPos1 = p1.guards.map(g => g.position -> g.guardTerm).toMap
+    val byPos2 = p2.guards.map(g => g.position -> g.guardTerm).toMap
+    val sharedPositions = byPos1.keySet.intersect(byPos2.keySet).toSeq.sorted
+    if sharedPositions.isEmpty then "none"
+    else
+      sharedPositions.map { pos =>
+        val left = NestedTrie.show(NestedTrie.parsePat(byPos1(pos)))
+        val right = NestedTrie.show(NestedTrie.parsePat(byPos2(pos)))
+        s"arg $pos: $left vs $right"
+      }.mkString("; ")
+
+  private def renderOverlapTrie(
+      p1: NestedConstructorPattern[?],
+      p2: NestedConstructorPattern[?]
+  ): String =
+    val (adt, targs) = ADT.unapply(p1.specializedAdtTerm).get
+    val clauses = Seq(p1, p2).map(pp => (interfaceConstructor(pp), caseArgs(pp)))
+    val tree = NestedTrie.buildTree(adt, targs, clauses)
+    NestedTrie.render(tree)
+
   // (variable, typeTerm) for every binder of a pattern — the typing hypotheses.
   private def bindersTyped(p: RPat, ty: Ty): Seq[(Expr[Ind], Expr[Ind])] = p match
     case RVar(v)       => Seq((v, ty._1.termAt(ty._2)))
@@ -363,9 +407,17 @@ object NestedTrieProofs {
             val body       = p.freshBranchPremise /\ (x === p.freshInputTerm)
 
             val eqFacts = eqForms.map(ef => have(ef) by Tautology)
+            def proveByCongruence(formula: Expr[Prop]): proof.Fact =
+              formula match
+                case lhs /\ rhs =>
+                  val leftFact = proveByCongruence(lhs)
+                  val rightFact = proveByCongruence(rhs)
+                  have(formula) by Tautology.from(leftFact, rightFact)
+                case _ =>
+                  have(formula) by Congruence.from(eqFacts*)
             // body at the chosen witnesses: typing from the context, equalities by Congruence.
             val inputEq = have((x === p.freshInputTerm).substitute(sub*)) by Congruence.from(eqFacts*)
-            val condEq  = have(p.freshBranchCondition.substitute(sub*).asInstanceOf[Expr[Prop]]) by Congruence.from(eqFacts*)
+            val condEq  = proveByCongruence(p.freshBranchCondition.substitute(sub*).asInstanceOf[Expr[Prop]])
             val typ     = have(p.freshTypingFormula.substitute(sub*).asInstanceOf[Expr[Prop]]) by Tautology
             have(body.substitute(sub*).asInstanceOf[Expr[Prop]]) by Tautology.from(inputEq, condEq, typ)
             // introduce the existentials over variables2 with these witnesses
@@ -436,22 +488,33 @@ object NestedTrieProofs {
   ): THM =
     val arity   = cSem.arity
     val topVars = cSem.variables2.toList
-    val guardPos = patterns.head.guards.head.position
-    val gv       = cSem.variables2(guardPos)
-    val guardTy: Ty =
-      ADT.unapply(cSem.semanticSignature2(guardPos)._2.substitute(typeSubst*).asInstanceOf[Expr[Ind]]).get
+    // Every argument position guarded by some pattern (ascending). The decision
+    // trie is rooted at *all* of them, so guards on several arguments of the same
+    // constructor (e.g. `cons(tru, nil)`) each get their equation threaded into
+    // `eqForms`; rooting at only the first guard leaves the others unprovable.
+    val guardPositions: List[Int] =
+      patterns.flatMap(_.guards.map(_.position)).distinct.sorted.toList
+    def guardTyAt(pos: Int): Ty =
+      ADT.unapply(cSem.semanticSignature2(pos)._2.substitute(typeSubst*).asInstanceOf[Expr[Ind]]).get
     val typedPart = wellTypedFormula(cSem.semanticSignature2).substitute(typeSubst*).asInstanceOf[Expr[Prop]]
     val inputEqC  = (term === cSem.appliedTerm2).substitute(typeSubst*).asInstanceOf[Expr[Prop]]
 
-    // clause = each pattern's (fresh) guard term;  disjunct = ∃inner. (cond ∧ term=freshInput)
-    val guardPats = patterns.map(p => parse(p.freshGuards.head.guardTerm)).toList
+    // Each clause's (fresh) guard terms, keyed by argument position. A clause that
+    // does not guard a column carries the constructor's own binder there (an RVar,
+    // so the trie never switches on it). Disjunct = ∃inner. (cond ∧ term=freshInput).
+    def guardsByPos(p: NestedConstructorPattern[?]): Map[Int, RPat] =
+      p.freshGuards.map(g => g.position -> parse(g.guardTerm)).toMap
     val innerVarsOf = patterns.map(p => p.variables2.drop(arity).toList)
     val disjuncts = patterns.map(p => p.branchSelectionDisjunct(term)).toList
     val bigOr = seqOr(disjuncts)
 
+    // Root occurrences `List(pos)` resolve to the constructor's argument binders
+    // (which `typedPart`/`inputEqC` speak about); deeper occurrences get fresh vars.
+    val rootVars: Map[List[Int], Variable[Ind]] =
+      guardPositions.map(pos => List(pos) -> cSem.variables2(pos)).toMap
     val fvMemo = scala.collection.mutable.Map[List[Int], Variable[Ind]]()
     def fv(occ: List[Int]): Variable[Ind] =
-      if occ.isEmpty then gv else fvMemo.getOrElseUpdate(occ, Variable[Ind](s"bsf${fvMemo.size}"))
+      rootVars.getOrElse(occ, fvMemo.getOrElseUpdate(occ, Variable[Ind](s"bsf${fvMemo.size}")))
 
     def switchIdx(cols: List[ColP], rows: List[RowP]): Option[Int] =
       cols.indices.find(j => rows.exists(_.pats(j) match { case RCon(_, _) => true; case _ => false }))
@@ -464,12 +527,24 @@ object NestedTrieProofs {
             val r        = rows.head
             val p        = patterns(r.clause)
             val inner    = innerVarsOf(r.clause)
-            val occs     = rvarOccs(guardPats(r.clause), Nil)
+            // Leaf occurrences across *all* of this clause's guards, prefixed by
+            // each guard's position so they line up with the trie's `fv` keys (and
+            // with `inner`, which lists the inner binders guard-by-guard in order).
+            val occs     = p.freshGuards
+              .flatMap(g => rvarOccs(parse(g.guardTerm), List(g.position))).toList
             val wits     = occs.map(fv(_): Expr[Ind])
             val sub      = inner.zip(wits).map((f, t) => f := t)
             val body     = p.branchSelectionBody(term)
             val eqFacts  = eqForms.map(ef => have(ef) by Tautology)
-            val condEq   = have(p.freshBranchCondition.substitute(sub*).asInstanceOf[Expr[Prop]]) by Congruence.from(eqFacts*)
+            def proveByCongruence(formula: Expr[Prop]): proof.Fact =
+              formula match
+                case lhs /\ rhs =>
+                  val leftFact = proveByCongruence(lhs)
+                  val rightFact = proveByCongruence(rhs)
+                  have(formula) by Tautology.from(leftFact, rightFact)
+                case _ =>
+                  have(formula) by Congruence.from(eqFacts*)
+            val condEq   = proveByCongruence(p.freshBranchCondition.substitute(sub*).asInstanceOf[Expr[Prop]])
             val inEq     = have(term === p.freshInputTerm) by Tautology
             // inner-binder typings come from the context (the eliminator's wellTyped conjuncts).
             have(body.substitute(sub*).asInstanceOf[Expr[Prop]]) by Tautology.from(condEq, inEq)
@@ -519,7 +594,12 @@ object NestedTrieProofs {
 
       have((typedPart /\ inputEqC) ==> bigOr) subproof {
         assume(typedPart); assume(inputEqC)
-        cover(List(ColP(Nil, gv, guardTy)), guardPats.zipWithIndex.map((p, i) => RowP(List(p), i)), Nil)
+        val rootCols = guardPositions.map(pos => ColP(List(pos), cSem.variables2(pos), guardTyAt(pos)))
+        val rootRows = patterns.zipWithIndex.map { (p, i) =>
+          val byPos = guardsByPos(p)
+          RowP(guardPositions.map(pos => byPos.getOrElse(pos, RVar(cSem.variables2(pos)))), i)
+        }.toList
+        cover(rootCols, rootRows, Nil)
       }
       for vv <- topVars.reverse do
         thenHave(∀(vv, lastStep.statement.right.head)) by RightForall
@@ -562,8 +642,29 @@ object NestedTrieProofs {
         have(!(p1.inputTerm1 === p2.inputTerm2)) by Tautology.from(fact, b1, b2)
       }
     else
-      val guard1 = p1.guardsAt(p1.variables1).head
-      val guard2 = p2.freshGuards.head
+      val guards1 = p1.guardsAt(p1.variables1)
+      val guards2 = p2.freshGuards
+      val selectedGuardsAndPath = guards1.zip(guards2).collectFirst {
+        case (guard1, guard2)
+            if guard1.position == guard2.position &&
+              divergePath(parse(guard1.guardTerm), parse(guard2.guardTerm)).nonEmpty =>
+          (
+            guard1,
+            guard2,
+            divergePath(parse(guard1.guardTerm), parse(guard2.guardTerm)).get
+          )
+      }.getOrElse(
+        throw new IllegalArgumentException(
+          s"""incompatibleCaseShape rejected two overlapping nested cases for constructor ${p1.semanticConstructor.name}.
+             |case 1: ${renderCase(p1)}
+             |case 2: ${renderCase(p2)}
+             |No divergent aligned guard pair was found, so the two cases still overlap.
+             |Aligned guarded positions: ${renderAlignedGuards(p1, p2)}
+             |Decision trie for the two cases:
+             |${renderOverlapTrie(p1, p2)}""".stripMargin
+        )
+      )
+      val (guard1, guard2, guardPath) = selectedGuardsAndPath
       val guardTy: Ty =
         val t = p1.semanticConstructor.semanticSignature2(guard1.position)._2
           .substitute(p1.typeSubstitutions*).asInstanceOf[Expr[Ind]]
@@ -645,8 +746,7 @@ object NestedTrieProofs {
 
         // the new part: guard terms are distinct by the recursive peel
         val rp1 = parse(guard1.guardTerm); val rp2 = parse(guard2.guardTerm)
-        disprove(rp1, rp2, guardTy, divergePath(rp1, rp2).getOrElse(
-          throw new IllegalArgumentException("incompatibleCaseShape: guards overlap.")))
+        disprove(rp1, rp2, guardTy, guardPath)
         have(thesis) by Tautology.from(guardTermsEqual, lastStep)
       }
 
@@ -665,12 +765,8 @@ object NestedTrieProofs {
     val A      = pp.inputTermAt(v1) === pp.inputTermAt(v2)
     val seqEqV = seqEq(v1, v2)
     val bp1 = pp.branchPremiseAt(v1); val bp2 = pp.branchPremiseAt(v2)
-    val guard1 = pp.guardsAt(pp.variables1).head
-    val guard2 = pp.freshGuards.head
-    val guardTy: Ty =
-      val t = pp.semanticConstructor.semanticSignature2(guard1.position)._2
-        .substitute(pp.typeSubstitutions*).asInstanceOf[Expr[Ind]]
-      ADT.unapply(t).get
+    val guards1 = pp.guardsAt(pp.variables1)
+    val guards2 = pp.freshGuards
     val topInjThm: THM = constructorInjectivity(pp)
 
     Lemma(forallSeq(v1 ++ v2, (bp1 /\ bp2) ==> simplify(A <=> seqEqV))) {
@@ -693,11 +789,12 @@ object NestedTrieProofs {
             val substs   = c.semantic.variables.zip(args.map(termOf(_, ty))).map((v, t) => v := t)
             val introInst: proof.Fact = if substs.isEmpty then intro else intro.of(substs*)
             have(goal) by Tautology.from((introInst +: argFacts)*)
-      // From `termOf(rp1) = termOf(rp2)` derive the leaf (inner-binder) equalities.
+      // From `termOf(rp1) = termOf(rp2)` derive the leaf (inner-binder) equalities,
+      // indexed by the exact binder pair they justify.
       def injectEq(rp1: RPat, rp2: RPat, ty: Ty, eqFact: lisa.SetTheoryLibrary.Proof#Fact)(using
-          proof: lisa.SetTheoryLibrary.Proof): List[proof.Fact] =
+          proof: lisa.SetTheoryLibrary.Proof): Map[(Variable[Ind], Variable[Ind]), proof.Fact] =
         (rp1, rp2) match
-          case (RVar(_), RVar(_)) => List(eqFact.asInstanceOf[proof.Fact])
+          case (RVar(vl), RVar(vr)) => Map((vl, vr) -> eqFact.asInstanceOf[proof.Fact])
           case (RCon(c, as1), RCon(_, as2)) =>
             val cts = childTypes(c, ty._2)
             val t1  = as1.zip(cts).map((a, t) => termOf(a, t.get))
@@ -705,11 +802,39 @@ object NestedTrieProofs {
             instAll(sameInj(c, ty._2), t1 ++ t2)
             val injInst = lastStep
             val tys = as1.zip(cts).map((a, t) => typeProof(a, t.get)) ++ as2.zip(cts).map((a, t) => typeProof(a, t.get))
-            as1.indices.toList.flatMap { i =>
+            as1.indices.toList.foldLeft(Map.empty[(Variable[Ind], Variable[Ind]), proof.Fact]) { (acc, i) =>
               val argEq = have(t1(i) === t2(i)) by Tautology.from((injInst +: eqFact.asInstanceOf[proof.Fact] +: tys)*)
-              injectEq(as1(i), as2(i), cts(i).get, argEq.asInstanceOf[lisa.SetTheoryLibrary.Proof#Fact])
+              acc ++ injectEq(as1(i), as2(i), cts(i).get, argEq.asInstanceOf[lisa.SetTheoryLibrary.Proof#Fact])
             }
           case _ => throw new IllegalArgumentException("injectEq: mismatched guard structure.")
+
+      def topBinderEqualities(topEq: lisa.SetTheoryLibrary.Proof#Fact)(using
+          proof: lisa.SetTheoryLibrary.Proof): Map[(Variable[Ind], Variable[Ind]), proof.Fact] =
+        top1.zip(top2).map { (left, right) =>
+          val eqFact: proof.Fact = have((left: Expr[Ind]) === (right: Expr[Ind])) by Tautology.from(topEq.asInstanceOf[proof.Fact])
+          (left, right) -> eqFact
+        }.toMap
+
+      def orderedBinderEqualities(
+          topEqMap: Map[(Variable[Ind], Variable[Ind]), lisa.SetTheoryLibrary.Proof#Fact],
+          leafEqMap: Map[(Variable[Ind], Variable[Ind]), lisa.SetTheoryLibrary.Proof#Fact]
+      )(using proof: lisa.SetTheoryLibrary.Proof): Seq[proof.Fact] =
+        v1.zip(v2).map { (left, right) =>
+          topEqMap
+            .get((left, right))
+            .orElse(leafEqMap.get((left, right)))
+            .map(_.asInstanceOf[proof.Fact])
+            .getOrElse(
+              throw new IllegalArgumentException(
+                s"injectivityCaseShape: missing equality proof for binder pair (${left}, ${right}). \n ${topEqMap.keys} \n ${leafEqMap.keys}"
+              )
+            )
+        }
+
+      def guardType(guard: BranchGuard): Ty =
+        val t = pp.semanticConstructor.semanticSignature2(guard.position)._2
+          .substitute(pp.typeSubstitutions*).asInstanceOf[Expr[Ind]]
+        ADT.unapply(t).get
 
       have((bp1 /\ bp2) ==> simplify(A <=> seqEqV)) subproof {
         assume(bp1); assume(bp2)
@@ -722,18 +847,31 @@ object NestedTrieProofs {
           instAll(topInjThm, top1.map(x => x: Expr[Ind]) ++ top2.map(x => x: Expr[Ind]))
           val topInj = lastStep
           val topEq = have(seqEq(top1, top2)) by Tautology.from(topInj, typed1, typed2)
-          // guard terms equal:  g(inner1) = guard1.binder = guard2.binder = g(inner2)
-          val gb = have(guard1.binder === guard2.binder) by Tautology.from(topEq)
-          val g1 = have(guard1.binder === guard1.guardTerm) by Tautology
-          val g2 = have(guard2.binder === guard2.guardTerm) by Tautology
-          val g1r = have(guard1.guardTerm === guard1.binder) by Congruence.from(g1)
-          val g1b2 = have(guard1.guardTerm === guard2.binder) by Tautology.from(
-            altEqualityTransitivity of (x := guard1.guardTerm, y := guard1.binder, z := guard2.binder), g1r, gb)
-          val guardEq = have(guard1.guardTerm === guard2.guardTerm) by Tautology.from(
-            altEqualityTransitivity of (x := guard1.guardTerm, y := guard2.binder, z := guard2.guardTerm), g1b2, g2)
-          val leafEqs = injectEq(parse(guard1.guardTerm), parse(guard2.guardTerm), guardTy,
-            guardEq.asInstanceOf[lisa.SetTheoryLibrary.Proof#Fact])
-          have(seqEqV) by Tautology.from((topEq +: leafEqs)*)
+          val leafEqMap = guards1.zip(guards2).foldLeft(Map.empty[(Variable[Ind], Variable[Ind]), lisa.SetTheoryLibrary.Proof#Fact]) {
+            case (acc, (guard1, guard2)) =>
+              require(
+                guard1.position == guard2.position,
+                s"injectivityCaseShape: guard positions do not align (${guard1.position} vs ${guard2.position})."
+              )
+              // guard terms equal:  g(inner1) = guard1.binder = guard2.binder = g(inner2)
+              val gb = have(guard1.binder === guard2.binder) by Tautology.from(topEq)
+              val g1 = have(guard1.binder === guard1.guardTerm) by Tautology
+              val g2 = have(guard2.binder === guard2.guardTerm) by Tautology
+              val g1r = have(guard1.guardTerm === guard1.binder) by Congruence.from(g1)
+              val g1b2 = have(guard1.guardTerm === guard2.binder) by Tautology.from(
+                altEqualityTransitivity of (x := guard1.guardTerm, y := guard1.binder, z := guard2.binder), g1r, gb)
+              val guardEq = have(guard1.guardTerm === guard2.guardTerm) by Tautology.from(
+                altEqualityTransitivity of (x := guard1.guardTerm, y := guard2.binder, z := guard2.guardTerm), g1b2, g2)
+              acc ++ injectEq(
+                parse(guard1.guardTerm),
+                parse(guard2.guardTerm),
+                guardType(guard1),
+                guardEq.asInstanceOf[lisa.SetTheoryLibrary.Proof#Fact]
+              )
+          }
+          val topEqMap = topBinderEqualities(topEq.asInstanceOf[lisa.SetTheoryLibrary.Proof#Fact])
+          val componentEqs = orderedBinderEqualities(topEqMap, leafEqMap)
+          have(seqEqV) by Tautology.from(componentEqs*)
         }
         val bwd = have(seqEqV ==> A) subproof {
           assume(seqEqV)

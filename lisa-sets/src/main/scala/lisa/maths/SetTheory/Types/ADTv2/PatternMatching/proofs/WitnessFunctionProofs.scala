@@ -20,6 +20,7 @@ import lisa.utils.prooflib.BasicStepTactic.LeftExists
 import lisa.automation.Substitution
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
+import lisa.utils.prooflib.BasicStepTactic.Hypothesis
 
 
 private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMembership[N] {
@@ -29,17 +30,20 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
       vars: Seq[Variable[Ind]],
       ambientInput: Expr[Ind],
       ambientOutput: Expr[Ind]
-  ): Expr[Prop] =
-    pattern.branchPremiseAt(vars) /\
-      (pair(ambientInput, ambientOutput) === pair(pattern.inputTermAt(vars), pattern.bodyAt(vars)))
+  ): Expr[Prop] = {
+    pattern.branchPremiseAt(vars) /\ (
+      pair(ambientInput, ambientOutput) === 
+      pair(pattern.inputTermAt(vars), pattern.bodyAt(vars))
+    )
+  }
 
-  val caseMembershipInvariant: THM = Lemma(
+  private val caseMembershipInvariant: THM = Lemma(
     ∀(pairWitness, caseMembership(pairWitness) <=> patternCaseMembership(pairWitness))
   ) {
     have(thesis) by Tautology
   }
 
-  val witnessMembershipExpanded: THM = Lemma(
+  private val witnessMembershipExpanded: THM = Lemma(
     ∀(
       inputTerm,
       ∀(
@@ -89,7 +93,7 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
     have(thesis) by Restate.from(quantified)
   }
 
-  val witnessMembershipByCases: THM = Lemma(
+  private val witnessMembershipByCases: THM = Lemma(
     ∀(
       inputTerm ∈ argType,
       ∀(
@@ -159,7 +163,7 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
     have(thesis) by Restate.from(quantified)
   }
 
-  val witnessMembershipByNamedCases: THM = Lemma(
+  private val witnessMembershipByNamedCases: THM = Lemma(
     ∀(
       inputTerm ∈ argType,
       ∀(
@@ -305,8 +309,8 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
     have(thesis) by Restate.from(quantified)
   }
 
-  val samePatternBodyEquality: Map[Pattern[N], THM] =
-    Time.measure("WFP/samePatternBodyEquality")(patternMatching.patterns.map(pattern =>
+  private val samePatternBodyEquality: Map[Pattern[N], THM] =
+    patternMatching.patterns.map(pattern =>
       val ch = constructorHead(pattern)
       // The *statement* of this lemma is the bare implication over the pattern's
       // own `binders` / `variables2`, because that is exactly the shape
@@ -376,13 +380,71 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
 
         have(thesis) by InstantiateForallSeq(canon1 ++ canon2)(quantified)
       })
-    ).toMap)
+    ).toMap
 
-  val branchAgreement: Map[(Pattern[N], Pattern[N]), THM] =
-    Time.measure("WFP/branchAgreement")(for
+  // Decompose a branch witness into its parts. Proved once per pattern (2N lemmas) and
+  // cited from `branchAgreement` so the `Pair.extensionality` split is not re-derived in
+  // every one of the N² pair lemmas (it depends only on the single pattern).
+  private val namedBranchDecomposition: Map[Pattern[N], THM] =
+    patternMatching.patterns.map(pattern =>
+      pattern -> Lemma(
+        branchWitnessAt(pattern, pattern.binders, inputTerm, outputTerm) ==>
+          (pattern.branchPremiseAt(pattern.binders) /\
+            (inputTerm === pattern.inputTermAt(pattern.binders)) /\
+            (outputTerm === pattern.bodyAt(pattern.binders)))
+      ) {
+        assume(branchWitnessAt(pattern, pattern.binders, inputTerm, outputTerm))
+        val pairEq = have(
+          pair(inputTerm, outputTerm) === pair(pattern.inputTermAt(pattern.binders), pattern.bodyAt(pattern.binders))
+        ) by Tautology.from(lastStep)
+        val pairSplit = have(
+          (inputTerm === pattern.inputTermAt(pattern.binders)) /\
+            (outputTerm === pattern.bodyAt(pattern.binders))
+        ) by Tautology.from(
+          pairEq,
+          Pair.extensionality of (
+            a := inputTerm,
+            b := outputTerm,
+            c := pattern.inputTermAt(pattern.binders),
+            d := pattern.bodyAt(pattern.binders)
+          )
+        )
+        have(thesis) by Tautology.from(lastStep, pairSplit)
+      }
+    ).toMap
+
+  private val freshBranchDecomposition: Map[Pattern[N], THM] =
+    patternMatching.patterns.map(pattern =>
+      pattern -> Lemma(
+        branchWitnessAt(pattern, pattern.variables2, inputTerm, alternateOutputTerm) ==>
+          (pattern.branchPremiseAt(pattern.variables2) /\
+            (inputTerm === pattern.inputTermAt(pattern.variables2)) /\
+            (alternateOutputTerm === pattern.bodyAt(pattern.variables2)))
+      ) {
+        assume(branchWitnessAt(pattern, pattern.variables2, inputTerm, alternateOutputTerm))
+        val pairEq = have(
+          pair(inputTerm, alternateOutputTerm) === pair(pattern.inputTermAt(pattern.variables2), pattern.bodyAt(pattern.variables2))
+        ) by Tautology.from(lastStep)
+        val pairSplit = have(
+          (inputTerm === pattern.inputTermAt(pattern.variables2)) /\
+            (alternateOutputTerm === pattern.bodyAt(pattern.variables2))
+        ) by Tautology.from(
+          pairEq,
+          Pair.extensionality of (
+            a := inputTerm,
+            b := alternateOutputTerm,
+            c := pattern.inputTermAt(pattern.variables2),
+            d := pattern.bodyAt(pattern.variables2)
+          )
+        )
+        have(thesis) by Tautology.from(lastStep, pairSplit)
+      }
+    ).toMap
+
+  private val branchAgreement: Map[(Pattern[N], Pattern[N]), THM] = (for
       pattern1 <- patternMatching.patterns
       pattern2 <- patternMatching.patterns
-    yield (pattern1, pattern2) -> {
+    yield (pattern1, pattern2) ->  Time.measure("witness/BranchAgreement inner") {
       val namedBranch = existsSeq(
         pattern1.binders,
         branchWitnessAt(pattern1, pattern1.binders, inputTerm, outputTerm)
@@ -392,12 +454,13 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
         branchWitnessAt(pattern2, pattern2.variables2, inputTerm, alternateOutputTerm)
       )
 
-      Lemma(
+      var t0 = Time.get()
+      val l = Lemma(
         (namedBranch /\ freshBranch) ==> (outputTerm === alternateOutputTerm)
       ) {
-        assume(namedBranch /\ freshBranch)
-        val namedBranchFact = have(namedBranch) by Tautology.from(lastStep)
-        val freshBranchFact = have(freshBranch) by Tautology.from(lastStep)
+        val hyp = assume(namedBranch /\ freshBranch)
+        val namedBranchFact = have(namedBranch) by Weakening(hyp)
+        val freshBranchFact = have(freshBranch) by Weakening(hyp)
 
         val namedToGoal = have(namedBranch |- (outputTerm === alternateOutputTerm)) subproof {
           // As with `freshToGoal` below, do not `assume(namedBranch)` here, so
@@ -408,26 +471,16 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
           ) subproof {
             assume(branchWitnessAt(pattern1, pattern1.binders, inputTerm, outputTerm))
             val branch1 = have(branchWitnessAt(pattern1, pattern1.binders, inputTerm, outputTerm)) by Hypothesis
-            val branch1Premise = have(pattern1.branchPremiseAt(pattern1.binders)) by Tautology.from(branch1)
-            val pairEq1 = have(
-              pair(inputTerm, outputTerm) === pair(pattern1.inputTermAt(pattern1.binders), pattern1.bodyAt(pattern1.binders))
-            ) by Tautology.from(branch1)
-            val pairSplit1 = have(
-              (inputTerm === pattern1.inputTermAt(pattern1.binders)) /\
+            val namedParts = have(
+              pattern1.branchPremiseAt(pattern1.binders) /\
+                (inputTerm === pattern1.inputTermAt(pattern1.binders)) /\
                 (outputTerm === pattern1.bodyAt(pattern1.binders))
-            ) by Tautology.from(
-              pairEq1,
-              Pair.extensionality of (
-                a := inputTerm,
-                b := outputTerm,
-                c := pattern1.inputTermAt(pattern1.binders),
-                d := pattern1.bodyAt(pattern1.binders)
-              )
-            )
-            val inputEq1 = have(inputTerm === pattern1.inputTermAt(pattern1.binders)) by Tautology.from(pairSplit1)
-            val outputEq1 = have(outputTerm === pattern1.bodyAt(pattern1.binders)) by Tautology.from(pairSplit1)
+            ) by Tautology.from(namedBranchDecomposition(pattern1), branch1)
+            val branch1Premise = have(pattern1.branchPremiseAt(pattern1.binders)) by Tautology.from(namedParts)
+            val inputEq1 = have(inputTerm === pattern1.inputTermAt(pattern1.binders)) by Tautology.from(namedParts)
+            val outputEq1 = have(outputTerm === pattern1.bodyAt(pattern1.binders)) by Tautology.from(namedParts)
 
-            val freshToGoal = have(freshBranch |- (outputTerm === alternateOutputTerm)) subproof {
+            val freshToGoal = Time.measure("witness/BranchAgreement/freshToGoal") { have(freshBranch |- (outputTerm === alternateOutputTerm)) subproof {
               // Do NOT `assume(freshBranch)` here: that would seed `freshBranch`
               // (= ∃(variables2, branchWitnessAt)) into the context, so it would
               // already sit on `freshDirect`'s left.  QuantifiersIntro then sees
@@ -439,39 +492,22 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
               ) subproof {
                 assume(branchWitnessAt(pattern2, pattern2.variables2, inputTerm, alternateOutputTerm))
                 val branch2 = have(branchWitnessAt(pattern2, pattern2.variables2, inputTerm, alternateOutputTerm)) by Hypothesis
-                val branch2Premise = have(pattern2.branchPremiseAt(pattern2.variables2)) by Tautology.from(branch2)
-                val pairEq2 = have(
-                  pair(inputTerm, alternateOutputTerm) === pair(pattern2.inputTermAt(pattern2.variables2), pattern2.bodyAt(pattern2.variables2))
-                ) by Tautology.from(branch2)
-                val pairSplit2 = have(
-                  (inputTerm === pattern2.inputTermAt(pattern2.variables2)) /\
+                val freshParts = have(
+                  pattern2.branchPremiseAt(pattern2.variables2) /\
+                    (inputTerm === pattern2.inputTermAt(pattern2.variables2)) /\
                     (alternateOutputTerm === pattern2.bodyAt(pattern2.variables2))
-                ) by Tautology.from(
-                  pairEq2,
-                  Pair.extensionality of (
-                    a := inputTerm,
-                    b := alternateOutputTerm,
-                    c := pattern2.inputTermAt(pattern2.variables2),
-                    d := pattern2.bodyAt(pattern2.variables2)
-                  )
-                )
-                val inputEq2 = have(inputTerm === pattern2.inputTermAt(pattern2.variables2)) by Tautology.from(pairSplit2)
-                val altEq2 = have(alternateOutputTerm === pattern2.bodyAt(pattern2.variables2)) by Tautology.from(pairSplit2)
+                ) by Tautology.from(freshBranchDecomposition(pattern2), branch2)
+                val branch2Premise = have(pattern2.branchPremiseAt(pattern2.variables2)) by Weakening(freshParts)
+                val inputEq2 = have(inputTerm === pattern2.inputTermAt(pattern2.variables2)) by Weakening(freshParts)
+                val altEq2 = have(alternateOutputTerm === pattern2.bodyAt(pattern2.variables2)) by Weakening(freshParts)
+
+                // `inputTerm = p1.input` and `inputTerm = p2.input` give `p1.input = p2.input`
+                // directly by congruence (no explicit transitivity lemma / symmetry step).
+                val branchInputsEqual = have(
+                  pattern1.inputTermAt(pattern1.binders) === pattern2.inputTermAt(pattern2.variables2)
+                ) by Congruence.from(inputEq1, inputEq2)
 
                 if pattern1 == pattern2 then
-                  val inputEq1Rev = have(pattern1.inputTermAt(pattern1.binders) === inputTerm) by Congruence.from(inputEq1)
-                  val branchInputsEqual = have(
-                    pattern1.inputTermAt(pattern1.binders) === pattern2.inputTermAt(pattern2.variables2)
-                  ) by Tautology.from(
-                    altEqualityTransitivity of (
-                      x := pattern1.inputTermAt(pattern1.binders),
-                      y := inputTerm,
-                      z := pattern2.inputTermAt(pattern2.variables2)
-                    ),
-                    inputEq1Rev,
-                    inputEq2
-                  )
-
                   val sameBody = have(
                     pattern1.bodyAt(pattern1.binders) === pattern2.bodyAt(pattern2.variables2)
                   ) by Tautology.from(
@@ -480,46 +516,14 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
                     branch2Premise,
                     branchInputsEqual
                   )
-
-                  val bodyToAlt = have(
-                    pattern1.bodyAt(pattern1.binders) === alternateOutputTerm
-                  ) by Tautology.from(
-                    altEqualityTransitivity of (
-                      x := pattern1.bodyAt(pattern1.binders),
-                      y := pattern2.bodyAt(pattern2.variables2),
-                      z := alternateOutputTerm
-                    ),
-                    sameBody,
-                    have(pattern2.bodyAt(pattern2.variables2) === alternateOutputTerm) by Congruence.from(altEq2)
-                  )
-
-                  have(outputTerm === alternateOutputTerm) by Tautology.from(
-                    altEqualityTransitivity of (
-                      x := outputTerm,
-                      y := pattern1.bodyAt(pattern1.binders),
-                      z := alternateOutputTerm
-                    ),
-                    outputEq1,
-                    bodyToAlt
-                  )
+                  // output = p1.body = p2.body = alt, chained in one congruence step.
+                  have(outputTerm === alternateOutputTerm) by Congruence.from(outputEq1, sameBody, altEq2)
                 else
-                  val inputEq1Rev = have(pattern1.inputTermAt(pattern1.binders) === inputTerm) by Congruence.from(inputEq1)
-                  val branchInputsEqual = have(
-                    pattern1.inputTermAt(pattern1.binders) === pattern2.inputTermAt(pattern2.variables2)
-                  ) by Tautology.from(
-                    altEqualityTransitivity of (
-                      x := pattern1.inputTermAt(pattern1.binders),
-                      y := inputTerm,
-                      z := pattern2.inputTermAt(pattern2.variables2)
-                    ),
-                    inputEq1Rev,
-                    inputEq2
-                  )
-
                   // `incompatible` states its pattern1 side over `variables1`
                   // (the constructor's canonical variables), whereas here
                   // pattern1 appears over its `binders`.  Rename
                   // `variables1 -> binders` before using it.
+                  Time.measure("witness/BranchAgreement/freshToGoal/inner") {
                   val pattern1Rename =
                     constructorHead(pattern1).variables1.zip(pattern1.binders).map((from, to) => from := to)
                   val incompatibleAtBranches = have(
@@ -531,11 +535,11 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
                     !(pattern1.inputTermAt(pattern1.binders) === pattern2.inputTermAt(pattern2.variables2))
                   ) by Tautology.from(incompatibleAtBranches, branch1Premise, branch2Premise)
 
-                  have(outputTerm === alternateOutputTerm) by Tautology.from(branchInputsEqual, branchInputsDifferent)
+                  have(outputTerm === alternateOutputTerm) by Tautology.from(branchInputsEqual, branchInputsDifferent)}
               }
 
               have(thesis) by QuantifiersIntro(pattern2.variables2)(freshDirect)
-            }
+            }}
 
             have(outputTerm === alternateOutputTerm) by Cut(freshBranchFact, freshToGoal)
             thenHave(thesis) by Restate
@@ -546,10 +550,13 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
 
         have(outputTerm === alternateOutputTerm) by Cut(namedBranchFact, namedToGoal)
         have(thesis) by Tautology.from(lastStep)
+        t0 = Time.get()
       }
-    }).toMap
+      Time.register("witness/BranchAgreement verification", Time.get() - t0)
+      l
+  }).toMap
 
-  val witnessRelationBetween: THM =
+  private val witnessRelationBetween: THM =
     Lemma(relationBetween(witness)(argType)(returnType)) {
       have(witnessBody ⊆ witnessBound) by Tautology.from(
         Comprehension.subset of (
@@ -569,7 +576,7 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
       have(thesis) by Restate.from(lastStep)
     }
 
-  val witnessTotality: THM = Time.measure("WFP/witnessTotality")(Lemma(
+  private val witnessTotality: THM = Lemma(
     contextualize(
       ∀(inputTerm ∈ argType, ∃(outputTerm, pair(inputTerm, outputTerm) ∈ witness))
     )
@@ -579,7 +586,7 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
 
     val coverageAtInput = have(
       (inputTerm ∈ argType) ==> simplify(patternMatching.caseCoverage(inputTerm))
-    ) by InstantiateForall(inputTerm)(patternMatching.coverage(adt))
+    ) by InstantiateForall(inputTerm)(patternMatching.coverage)
 
     val pointwise = have(
       (inputTerm ∈ argType) |- ∃(outputTerm, pair(inputTerm, outputTerm) ∈ witness)
@@ -660,9 +667,9 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
 
     if contextPremises.isEmpty then have(thesis) by Restate.from(core)
     else have(thesis) by Tautology.from(contextHyp.get, core)
-  })
+  }
 
-  val witnessSingleValued: THM = Time.measure("WFP/witnessSingleValued")(Lemma(
+  private val witnessSingleValued: THM = Lemma(
     ∀(inputTerm ∈ argType,
       ∀(outputTerm,
         ∀(alternateOutputTerm,
@@ -889,9 +896,9 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
     }
 
     have(thesis) by Restate.from(core)
-  })
+  }
 
-  val witnessUniqueValue: THM = Lemma(
+  private val witnessUniqueValue: THM = Lemma(
     contextualize(
       ∀(inputTerm ∈ argType, existsOne(outputTerm, pair(inputTerm, outputTerm) ∈ witness))
     )

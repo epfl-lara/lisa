@@ -32,6 +32,7 @@ def fun[N <: Arity](adt: SpecializedADT[N], returnType: Expr[Ind])(using
       val semantic = SemanticFunction[N](
         name.value,
         adt.base.semantic,
+        adt.term,
         patternSystem,
         returnType
       )

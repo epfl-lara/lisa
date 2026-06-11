@@ -1,10 +1,5 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion.helpers
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Functions.Predef.*
-import lisa.maths.SetTheory.Types.TypingHelpers.*
-import lisa.maths.SetTheory.Ordinals.Integer
-import lisa.maths.SetTheory.Ordinals.Ordinal.{S, successorOrdinal, ordinal, <=}
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{NestedConstructorPattern, NestedTrieProofs, Pattern}
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.NestedTrieProofs.{RPat, Ty}
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.NestedTrieProofs.RPat.{RCon, RVar}
@@ -12,31 +7,20 @@ import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.{ApproximationChainFacts, LimitKernel}
 import lisa.maths.SetTheory.Types.ADTv2.support.InstantiateForallSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.{ExtendedInteger, NatFacts}
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.{equivalenceApply, subsetSuccessor}
+import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
+
+import lisa.maths.SetTheory.SetTheory.{*, given}
+import lisa.maths.SetTheory.Functions.Predef.*
+import lisa.maths.SetTheory.Types.TypingHelpers.*
+import lisa.maths.SetTheory.Ordinals.Integer
+import lisa.maths.SetTheory.Ordinals.Ordinal.{S, successorOrdinal, ordinal, <=}
+import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[recursion] object RecursiveAgreement {
 
-  final case class InnerAgreementContext[Fact](
-      heightFun: Expr[Ind],
-      hValid: Fact,
-      currentIndex: Expr[Ind],
-      currentIndexInN: Fact
-  )
-
-  def innerAgreementContext(using proof: lisa.SetTheoryLibrary.Proof)(
-      heightFun: Expr[Ind],
-      hValid: proof.Fact,
-      currentIndex: Expr[Ind],
-      currentIndexInN: proof.Fact
-  ): InnerAgreementContext[proof.Fact] =
-    InnerAgreementContext(
-      heightFun = heightFun,
-      hValid = hValid,
-      currentIndex = currentIndex,
-      currentIndexInN = currentIndexInN
-    )
 
   private val h = variable[Ind]
   private val x = variable[Ind]
@@ -107,17 +91,24 @@ private[recursion] object RecursiveAgreement {
         // binder and degenerate into the false `predVar === S(predVar)`.
         val predVar = Variable[Ind](freshId(Seq(currentIndex, target, heightFun), "predVar"))
         val currentTerm = NestedTrieProofs.termOf(currentPat, currentTy)
-        val currentInZero = have(!(currentTerm ∈ app(heightFun)(∅))) by Tautology.from(
+        // `heightZero` must be specialized to *this* level's type arguments: `hValid`
+        // is the type-instantiated height predicate (e.g. `isHeight` at `bool/term`),
+        // so the abstract `underlying.heightZero` (over the type variable `A`) would
+        // leave Tautology with an undischargeable `isHeight[A]` precondition.
+        val levelSubsts = currentTy._1.semantic.typeVariablesSeq.zip(currentTy._2).map((v, a) => v := a)
+        val currentInZero = Time.measure(s"currentInZero"){have(!(currentTerm ∈ app(heightFun)(∅))) by Tautology.from(
           hValid,
-          currentTy._1.semantic.underlying.heightZero.of(h := heightFun, x := currentTerm)
-        )
+          currentTy._1.semantic.height.zeroAt(levelSubsts).of(h := heightFun, x := currentTerm)
+        )}
 
         val currentIndexNonZero = have(currentIndex =/= ∅) subproof {
           val currentIsZero = assume(currentIndex === ∅)
-          val currentInCurrent = have(currentTerm ∈ app(heightFun)(currentIndex)) by Tautology.from(currentInHeight)
-          val currentInCurrentImpossible = have(!(currentTerm ∈ app(heightFun)(currentIndex))) by
-            Congruence.from(currentInZero, currentIsZero)
-          have(thesis) by Tautology.from(currentInCurrent, currentInCurrentImpossible)
+          // `currentIndex = ∅` ⇒ `h(currentIndex) = h(∅)`, so `currentInHeight` gives
+          // `currentTerm ∈ h(∅)`, contradicting `currentInZero`. This is a pure
+          // congruence/contradiction argument — `Congruence` handles it atomically via its
+          // e-graph, whereas the previous `Tautology.from(currentInHeight, …)` decomposed
+          // currentInHeight's deep ambient context (~13.6s).
+          have(thesis) by Congruence.from(currentInHeight, currentInZero, currentIsZero)
         }
 
         val predecessorTheoremAtIndex = have(
@@ -157,20 +148,20 @@ private[recursion] object RecursiveAgreement {
           val semanticSubsts = c.semantic.adt.typeVariablesSeq.zip(currentTy._2).map((v, a) => v := a)
           val semanticSigAtArgs =
             argTerms.zip(c.semantic.semanticSignature2.map(_._2.substitute(semanticSubsts*).asInstanceOf[Expr[Ind]]))
-          val argsTypedSemantic = have(wellTypedFormula(semanticSigAtArgs)) by Tautology.from(argTypings*)
+          val argsTypedSemantic = Time.measure(s"argsTypedSemantic"){have(wellTypedFormula(semanticSigAtArgs)) by Tautology.from(argTypings*)}
           val heightSigAtArgs = argTerms.zip(c.semantic.underlying.signature2.map(_._2)).map {
             case (term, SelfRef)       => term -> app(heightFun)(predVar)
             case (term, TypeArg(name)) => term -> typeExprToTerm(name).substitute(semanticSubsts*).asInstanceOf[Expr[Ind]]
           }
           val recursiveAtPred = c.semantic.recursiveArgInHeightAt(semanticSubsts)(heightFun, predVar)
           val valueSubsts = c.semantic.variables2.zip(argTerms).map((v, t) => v := t)
-          val childTypingsAtPred = have(wellTypedFormula(heightSigAtArgs)) by Tautology.from(
+          val childTypingsAtPred = Time.measure(s"childTypingsAtPred"){have(wellTypedFormula(heightSigAtArgs)) by Tautology.from(
             hValid,
             predInN,
             argsTypedSemantic,
             currentInSuccPred,
             recursiveAtPred.of(valueSubsts*)
-          )
+          )}
 
           val childIdx = childIndexForBinder(args, target)
           val childTy = cts(childIdx).get
@@ -191,21 +182,21 @@ private[recursion] object RecursiveAgreement {
 
           val predSubSucc = have(predVar ⊆ successor(predVar)) by Tautology.from(subsetSuccessor.of(n := predVar))
           val predSubCurrent = have(predVar ⊆ currentIndex) by Congruence.from(predSubSucc, currentEqSucc, succEq)
-          have(target ∈ app(heightFun)(currentIndex)) by Tautology.from(
+          Time.measure(s"targetInHeight"){have(target ∈ app(heightFun)(currentIndex)) by Tautology.from(
             hValid,
             currentIndexInN,
             predInN,
             predSubCurrent,
             innerAtPred,
             heightMembershipMonotonic.of(h := heightFun, n := currentIndex, m := predVar, x := target)
-          )
+          )}
         }
         val fromPredWitness = thenHave(
           ∃(predVar, predVar ∈ N /\ (currentIndex === S(predVar))) |- target ∈ app(heightFun)(currentIndex)
         ) by LeftExists
         have(target ∈ app(heightFun)(currentIndex)) by Cut(predWitnessAtIndex, fromPredWitness)
 
-  def innerBinderInHeight[N <: lisa.utils.prooflib.ProofTacticLib.Arity](using
+  private def innerBinderInHeight[N <: lisa.utils.prooflib.ProofTacticLib.Arity](using
       proof: lisa.SetTheoryLibrary.Proof,
       line: sourcecode.Line,
       file: sourcecode.File
@@ -234,7 +225,7 @@ private[recursion] object RecursiveAgreement {
     val guardEq = have(guard.binder === guard.guardTerm) by Tautology.from(patternGuard)
     val guardInHeight = have(guard.guardTerm ∈ app(heightFun)(currentIndex)) by Congruence.from(binderInHeight, guardEq)
 
-    descendToBinder(
+    Time.measure(s"RecArg/descendToBinder") {descendToBinder(
       heightFun = heightFun,
       hValid = hValid,
       heightMembershipMonotonic = heightMembershipMonotonic,
@@ -245,43 +236,9 @@ private[recursion] object RecursiveAgreement {
       currentTy = guardTy,
       currentInHeight = guardInHeight,
       target = target
-    )
+    )}
   }
 
-  def innerAgreementsFor[N <: lisa.utils.prooflib.ProofTacticLib.Arity](using
-      proof: lisa.SetTheoryLibrary.Proof,
-      line: sourcecode.Line,
-      file: sourcecode.File
-  )(
-      pattern: Pattern[N],
-      recursiveType: Expr[Ind],
-      heightMembershipMonotonic: THM,
-      argsTypedAtHeight: proof.Fact,
-      leafTyping: proof.Fact,
-      patternGuard: proof.Fact,
-      context: InnerAgreementContext[proof.Fact]
-  )(
-      agreementBuilder: InnerAgreementContext[proof.Fact] => ((Variable[Ind], proof.Fact) => proof.Fact)
-  ): Seq[proof.Fact] =
-    pattern match
-      case nested: NestedConstructorPattern[?] =>
-        val agreementAt = agreementBuilder(context)
-        recursiveInnerBinders(nested, recursiveType).map { iv =>
-          val ivInHeight = innerBinderInHeight(
-            heightFun = context.heightFun,
-            hValid = context.hValid,
-            heightMembershipMonotonic = heightMembershipMonotonic,
-            currentIndex = context.currentIndex,
-            currentIndexInN = context.currentIndexInN,
-            argsTypedAtHeight = argsTypedAtHeight,
-            leafTyping = leafTyping,
-            patternGuard = patternGuard,
-            pattern = nested.asInstanceOf[NestedConstructorPattern[N]],
-            target = iv
-          )
-          agreementAt(iv, ivInHeight)
-        }
-      case _ => Seq.empty
 
   def selfAgreementFromForall(using proof: lisa.SetTheoryLibrary.Proof)(
       heightFun: Expr[Ind],
@@ -292,27 +249,65 @@ private[recursion] object RecursiveAgreement {
       point: Expr[Ind],
       pointInHeight: proof.Fact
   ): proof.Fact = {
-    val atPoint = have(
-      (point ∈ app(heightFun)(currentIndex)) ==> (app(leftFun)(point) === app(rightFun)(point))
-    ) by InstantiateForall(point)(agreeForall)
-    have(app(leftFun)(point) === app(rightFun)(point)) by Tautology.from(pointInHeight, atPoint)
+    val pIn: Expr[Prop] = point ∈ app(heightFun)(currentIndex)
+    val pEq: Expr[Prop] = app(leftFun)(point) === app(rightFun)(point)
+    val atPoint = have(pIn ==> pEq) by InstantiateForall(point)(agreeForall)
+    
+    // Modus ponens via kernel rules instead of `Tautology.from(pointInHeight, atPoint)`:
+    // `pointInHeight` carries the deep ~1.5k-char branchSelectionBody in its context, and
+    // Tautology would decompose it (~30s). With `pIn`/`pEq` kept atomic, that context is
+    // carried untouched through the cut.
+    val mp = have(Set[Expr[Prop]](pIn ==> pEq, pIn) |- pEq) by LeftImplies.withParameters(pIn, pEq)(
+      have(pIn |- pIn) by Hypothesis,
+      have(pEq |- pEq) by Hypothesis
+    )
+    val viaImpl = have((atPoint.statement.left + pIn) |- pEq) by Cut(atPoint, mp)
+    have((atPoint.statement.left ++ pointInHeight.statement.left) |- pEq) by Cut(pointInHeight, viaImpl)
+    
   }
 
-  def selfAgreementFromForallAt(using proof: lisa.SetTheoryLibrary.Proof)(
-      leftFun: Expr[Ind],
-      rightFun: Expr[Ind],
-      agreeForall: proof.Fact
-  )(context: InnerAgreementContext[proof.Fact]): (Variable[Ind], proof.Fact) => proof.Fact =
-    (point, pointInHeight) =>
-      selfAgreementFromForall(
-        heightFun = context.heightFun,
-        currentIndex = context.currentIndex,
-        leftFun = leftFun,
-        rightFun = rightFun,
-        agreeForall = agreeForall,
-        point = point,
-        pointInHeight = pointInHeight
-      )
+  def selfAgreementFromForallAt2[N <: Arity](using proof: lisa.SetTheoryLibrary.Proof)(
+    pattern: Pattern[N],
+    recursiveType: Expr[Ind],
+    heightMembershipMonotonic: THM,
+    argsTypedAtHeight: proof.Fact,
+    leafTyping: proof.Fact,
+    patternGuard: proof.Fact,
+    heightFun: Expr[Ind],
+    hValid: proof.Fact,
+    currentIndex: Expr[Ind],
+    currentIndexInN: proof.Fact,
+    leftFun: Expr[Ind],
+    rightFun: Expr[Ind],
+    agreeForall: proof.Fact
+  ): Seq[proof.Fact] = {
+    pattern match
+      case nested: NestedConstructorPattern[?] =>
+        recursiveInnerBinders(nested, recursiveType).map { iv =>
+          val ivInHeight = innerBinderInHeight(
+            heightFun = heightFun,
+            hValid = hValid,
+            heightMembershipMonotonic = heightMembershipMonotonic,
+            currentIndex = currentIndex,
+            currentIndexInN = currentIndexInN,
+            argsTypedAtHeight = argsTypedAtHeight,
+            leafTyping = leafTyping,
+            patternGuard = patternGuard,
+            pattern = nested.asInstanceOf[NestedConstructorPattern[N]],
+            target = iv
+          )
+          selfAgreementFromForall(
+            heightFun,
+            currentIndex,
+            leftFun,
+            rightFun,
+            agreeForall,
+            iv,
+            ivInHeight
+          )
+        }
+      case _ => Seq.empty
+  }
 
   def selfAgreementWithLimit(using proof: lisa.SetTheoryLibrary.Proof)(
       argType: Expr[Ind],
@@ -360,31 +355,4 @@ private[recursion] object RecursiveAgreement {
     )
   }
 
-  def selfAgreementWithLimitAt(using proof: lisa.SetTheoryLibrary.Proof)(
-      argType: Expr[Ind],
-      limitFun: Expr[Ind],
-      approximantFamily: Expr[Ind >>: Ind],
-      chosenIndexFamily: Expr[Ind >>: Ind],
-      limitFunDef: Expr[Prop],
-      termHasHeight: THM,
-      stabilizationSchema: proof.Fact,
-      heightMembershipMonotonicSchema: proof.Fact
-  )(context: InnerAgreementContext[proof.Fact]): (Variable[Ind], proof.Fact) => proof.Fact =
-    (point, pointInHeight) =>
-      selfAgreementWithLimit(
-        argType = argType,
-        heightFun = context.heightFun,
-        limitFun = limitFun,
-        approximantFamily = approximantFamily,
-        chosenIndexFamily = chosenIndexFamily,
-        limitFunDef = limitFunDef,
-        termHasHeight = termHasHeight,
-        stabilizationSchema = stabilizationSchema,
-        heightMembershipMonotonicSchema = heightMembershipMonotonicSchema,
-        hValid = context.hValid,
-        currentIndex = context.currentIndex,
-        currentIndexInN = context.currentIndexInN,
-        point = point,
-        pointInHeight = pointInHeight
-      )
 }

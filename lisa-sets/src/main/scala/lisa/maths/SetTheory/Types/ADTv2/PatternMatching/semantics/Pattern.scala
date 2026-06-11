@@ -142,14 +142,17 @@ trait PatternSystem[N <: Arity] {
     patterns.forall(pattern => simplify(pattern.branchCondition) == ⊤) &&
       constructors.forall(constructor => patternsFor(constructor).size == 1)
 
-  def coverage(domain: SemanticADT[N]): THM
+  protected val incompatibleCache = collection.mutable.Map.empty[(Pattern[N], Pattern[N]), THM]
+  protected val branchSelectionCache = collection.mutable.Map.empty[(SemanticConstructor[N], Expr[Ind]), THM]
+
+  lazy val coverage: THM
 
   def branchSelectionFor(constructor: SemanticConstructor[N], term: Expr[Ind]): THM
 
   def incompatible(pattern1: Pattern[N], pattern2: Pattern[N]): THM
 
   def debugTheorems(domain: SemanticADT[N]): Seq[(String, Either[String, THM])] = {
-    val coverageFact = "coverage" -> Right(coverage(domain))
+    val coverageFact = "coverage" -> Right(coverage)
     val selectorFacts = constructors.map(constructor =>
       val term = variable[Ind](s"${constructor.name}/debugTerm")
       s"branchSelectionFor(${constructor.name})" -> Right(branchSelectionFor(constructor, term))
