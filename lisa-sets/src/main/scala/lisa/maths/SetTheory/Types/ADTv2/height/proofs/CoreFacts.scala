@@ -1,4 +1,4 @@
-package lisa.maths.SetTheory.Types.ADTv2.height
+package lisa.maths.SetTheory.Types.ADTv2.height.proofs
 
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
@@ -11,7 +11,7 @@ import lisa.maths.SetTheory.Base.Extensionality
 import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.maths.SetTheory.Functions.BasicTheorems.{functionOnDomain, functionOnIsFunction}
 
-object HeightKernel {
+private[height] object CoreFacts {
 
   protected inline final def app(f: Expr[Ind], x: Expr[Ind]): Expr[Ind] =
     lisa.maths.SetTheory.Functions.Predef.app(f)(x)
@@ -31,20 +31,13 @@ object HeightKernel {
     ∀(n ∈ N, ∀(x, in(x, app(h, n)) <=> inExtIntroImage(h ↾ n)(x)))
 
   val introFunctionMono: Expr[Prop] =
-    // proven by introFunctionMonoHyp in HeightConstructors
     forall(s, forall(t, subset(s, t) ==> forall(x, inIntroImage(s)(x) ==> inIntroImage(t)(x))))
 
   val isConstructorMono: Expr[Prop] =
     forall(s, forall(t, forall(x, subset(s, t) ==> (isConstructor(x)(s) ==> isConstructor(x)(t)))))
 
-  /**
-   * Assumption witnessing that the stage predicate is represented by a
-   * set-valued operator.
-   */
   val stageSetSpec: Expr[Prop] =
     forall(f, forall(x, in(x, stageSet(f)) <=> inExtIntroImage(f)(x)))
-
-  // ––––––––––––––––––––––––––––––––––––––––––––––––
 
   val stageSetExists = Lemma(
     stageSetSpec |- exists(s, forall(x, in(x, s) <=> inExtIntroImage(f)(x)))
@@ -58,10 +51,6 @@ object HeightKernel {
     thenHave(thesis) by Restate
   }
 
-  /**
-   * Generic existence of a height-core function from a set-valued stage
-   * operator.
-   */
   val heightExists = Lemma(stageSetSpec |- exists(h, isHeightCore(h))) {
     val Func = variable[Ind >>: Ind >>: Ind]
     val stepFunc: Expr[Ind >>: Ind >>: Ind] = λ(n, stageSet)
@@ -304,4 +293,70 @@ object HeightKernel {
     )
   }
 
+  def stageSetExistsAt(
+      stageSet0: Expr[Ind >>: Ind],
+      isConstructor0: Expr[Ind >>: Ind >>: Prop],
+      f0: Expr[Ind]
+  )(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+    stageSetExists.of(stageSet := stageSet0, isConstructor := isConstructor0, f := f0)
+
+  def heightExistsAt(
+      stageSet0: Expr[Ind >>: Ind],
+      isConstructor0: Expr[Ind >>: Ind >>: Prop]
+  )(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+    heightExists.of(stageSet := stageSet0, isConstructor := isConstructor0)
+
+  def isConstructorMonotonicAt(
+      isConstructor0: Expr[Ind >>: Ind >>: Prop],
+      s0: Expr[Ind],
+      t0: Expr[Ind],
+      x0: Expr[Ind]
+  )(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+    isConstructorMonotonic.of(isConstructor := isConstructor0, s := s0, t := t0, x := x0)
+
+  def introductionFunctionMononoticAt(
+      isConstructor0: Expr[Ind >>: Ind >>: Prop],
+      s0: Expr[Ind],
+      t0: Expr[Ind],
+      x0: Expr[Ind]
+  )(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+    introductionFunctionMononotic.of(isConstructor := isConstructor0, s := s0, t := t0, x := x0)
+
+  def domNImpliesNonEmptyAt(h0: Expr[Ind])(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+    domNImpliesNonEmpty.of(h := h0)
+
+  def extIntroMonotonicAt(
+      isConstructor0: Expr[Ind >>: Ind >>: Prop],
+      f0: Expr[Ind],
+      g0: Expr[Ind],
+      x0: Expr[Ind]
+  )(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+    extIntroMonotonic.of(isConstructor := isConstructor0, f := f0, g := g0, x := x0)
+
+  def heightApplicationAt(
+      isConstructor0: Expr[Ind >>: Ind >>: Prop],
+      h0: Expr[Ind],
+      n0: Expr[Ind],
+      x0: Expr[Ind]
+  )(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+    heightApplication.of(isConstructor := isConstructor0, h := h0, n := n0, x := x0)
+
+  def heightMonotonicAt(
+      isConstructor0: Expr[Ind >>: Ind >>: Prop],
+      h0: Expr[Ind],
+      n0: Expr[Ind],
+      m0: Expr[Ind]
+  )(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+    heightMonotonic.of(isConstructor := isConstructor0, h := h0, n := n0, m := m0)
+
+  def initialize(): Unit = {
+    val _ = stageSetExists
+    val _ = heightExists
+    val _ = isConstructorMonotonic
+    val _ = introductionFunctionMononotic
+    val _ = domNImpliesNonEmpty
+    val _ = extIntroMonotonic
+    val _ = heightApplication
+    val _ = heightMonotonic
+  }
 }

@@ -32,10 +32,10 @@ import lisa.utils.prooflib.BasicStepTactic.RightForall
  *   - [[id]]: the identifier of the constant
  *   - [[term(args)]] / [[term]]: instantiated views of the symbol
  */
-class DefinedSymbol(
+class DefinedSymbol[S](
     protected val name: String,
     protected val parametersSeq: Seq[Variable[Ind]],
-    protected val body: Expr[Ind]
+    protected val body: Expr[S]
 ) {
 
   protected val classFunction: Constant[?] = {
@@ -43,10 +43,10 @@ class DefinedSymbol(
       xs = parametersSeq,
       t = body
     )
-    type S
-    given lisa.utils.fol.FOL.IsSort[S] =
+    type T
+    given lisa.utils.fol.FOL.IsSort[T] =
       lisa.utils.fol.FOL.unsafeSortEvidence(classFunctionExpr.sort)
-    DEF(using name = name)(classFunctionExpr.asInstanceOf[Expr[S]])
+    DEF(using name = name)(classFunctionExpr.asInstanceOf[Expr[T]])
   }
   classFunction.printAs(args => renderAppliedSymbol(name, parametersSeq.size, args))
 
@@ -54,9 +54,85 @@ class DefinedSymbol(
   val definition: JUSTIFICATION = classFunction.definition
   val id: Identifier = classFunction.id
 
-  def term(args: Seq[Expr[Ind]]): Expr[Ind] = (classFunction #@@ args).asInstanceOf[Expr[Ind]]
+  // Parameters are always `Ind`; only the *result* sort `S` varies (`Ind` for a
+  // class function, `Prop` for a defined predicate).
+  def term(args: Seq[Expr[Ind]]): Expr[S] = (classFunction #@@ args).asInstanceOf[Expr[S]]
 
-  val term: Expr[Ind] = term(parametersSeq)
+  val term: Expr[S] = term(parametersSeq)
+
+}
+
+/**
+ * Plain parameterized predicate symbol.
+ *
+ * This is the predicate-specialized counterpart of [[DefinedSymbol]]. It packages
+ * a named `DEF`-backed predicate together with its two canonical definitional
+ * directions:
+ *
+ *   `symbol(args)(x) <=> bodyAt(x)`
+ *
+ * The predicate body is provided in decomposed form as a bound variable together
+ * with the formula builder applied at that variable. This keeps the binder explicit
+ * and makes it possible to instantiate the definitional equivalence at arbitrary
+ * arguments through [[unfoldAt]] and [[foldAt]].
+ *
+ * In addition to the base [[DefinedSymbol]] API, this class exposes:
+ *   - [[unfold]]: the theorem `symbol(args)(x) |- bodyAt(x)`
+ *   - [[fold]]: the theorem `bodyAt(x) |- symbol(args)(x)`
+ *   - [[unfoldAt]] / [[foldAt]]: instantiated versions of those two directions
+ */
+class DefinedProperty(
+    name: String,
+    typeVariablesSeq: Seq[Variable[Ind]],
+    bodyVar: Variable[Ind],
+    bodyAt: Expr[Ind] => Expr[Prop]
+) extends DefinedSymbol[Ind >>: Prop](name, typeVariablesSeq, λ(bodyVar, bodyAt(bodyVar))) {
+
+  // Predicate definitions are expected to be definitional equivalences between the
+  // applied symbol and its body. Cache the two sides once so the exported theorems
+  // and their instantiations all share the same decomposition.
+
+  private val lhs: Expr[Prop] = definition.statement.right.head match
+    case lhs <=> rhs => lhs
+    case other       => throw IllegalStateException(s"$name.definition is expected to be an `<=>`, got: $other")
+
+  private val rhs: Expr[Prop] = definition.statement.right.head match
+    case lhs <=> rhs => rhs
+    case other       => throw IllegalStateException(s"$name.definition is expected to be an `<=>`, got: $other")
+
+  /**
+   * The left-to-right definitional direction of this predicate symbol.
+   *
+   * Statement shape:
+   *
+   *   `symbol(args)(x) |- bodyAt(x)`
+   */
+  lazy val unfold: THM = Lemma(lhs |- rhs) { have(thesis) by Tautology.from(definition) }
+
+  /**
+   * The right-to-left definitional direction of this predicate symbol.
+   *
+   * Statement shape:
+   *
+   *   `bodyAt(x) |- symbol(args)(x)`
+   */
+  lazy val fold: THM = Lemma(rhs |- lhs) { have(thesis) by Tautology.from(definition) }
+
+  /**
+   * Instantiates [[unfold]] at the given argument and returns the resulting theorem.
+   */
+  def unfoldAt(using proof: lisa.SetTheoryLibrary.Proof)(arg: Expr[Ind]): THM =
+    Lemma(unfold.statement.substitute(bodyVar := arg)) {
+      have(thesis) by Restate.from(unfold of (bodyVar := arg))
+    }
+
+  /**
+   * Instantiates [[fold]] at the given argument and returns the resulting theorem.
+   */
+  def foldAt(using proof: lisa.SetTheoryLibrary.Proof)(arg: Expr[Ind]): THM =
+    Lemma(fold.statement.substitute(bodyVar := arg)) {
+      have(thesis) by Restate.from(fold of (bodyVar := arg))
+    }
 }
 
 /**
@@ -77,17 +153,13 @@ class DefinedSymbol(
  * characterization.
  */
 class UniqueDefinedSymbol(
-    override protected val name: String,
-    protected val typeVariablesSeq: Seq[Variable[Ind]],
-    protected val witnessVar: Variable[Ind],
-    protected val definitionAt: Expr[Ind] => Expr[Prop]
+    name: String,
+    typeVariablesSeq: Seq[Variable[Ind]],
+    witnessVar: Variable[Ind],
+    definitionAt: Expr[Ind] => Expr[Prop]
 )(
     protected val uniqueness: THM
-) extends DefinedSymbol(
-      name = name,
-      parametersSeq = typeVariablesSeq,
-      body = ε(witnessVar, definitionAt(witnessVar))
-    ) {
+) extends DefinedSymbol[Ind](name, typeVariablesSeq, ε(witnessVar, definitionAt(witnessVar))) {
 
   protected val witnessDefinition: Expr[Prop] = definitionAt(witnessVar)
 

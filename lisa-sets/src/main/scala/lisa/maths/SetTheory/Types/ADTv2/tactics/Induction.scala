@@ -1,10 +1,16 @@
 package lisa.maths.SetTheory.Types.ADTv2.tactics
 
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
-import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, CaseAccumulator, Constructor}
+import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, Constructor, SpecializedADT}
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.induction.{InductionBranch, InductionBranchSystemWithPayload}
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.syntax.CaseAccumulator
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.InstantiateForallSeq
+import lisa.maths.SetTheory.Types.ADTv2.support.Time
 
+import lisa.utils.prooflib.BasicStepTactic.{RightForall, RightImplies}
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.SetTheory.Types.TypingHelpers.{::, TypeAssign}
 import lisa.maths.SetTheory.SetTheory.{*, given}
@@ -33,8 +39,178 @@ import lisa.maths.SetTheory.SetTheory.{*, given}
  */
 class Induction[M <: Arity](
     expectedVar: Option[Variable[Ind]],
-    expectedADT: Option[ADT[M]]
+    expectedADT: Option[SpecializedADT[M]]
 ) extends lisa.utils.prooflib.ProofTacticLib.ProofTactic {
+
+  private def typeSubstitutionMap[N <: Arity](adt: SpecializedADT[N]): Map[String, Expr[Ind]] =
+    adt.base.typeVariablesSeq.map(_.id.name).zip(adt.typeArgs).toMap
+
+  private def constructorTypingAssumptions[N <: Arity](
+      constructor: Constructor[N],
+      adt: SpecializedADT[N],
+      vars: Seq[Variable[Ind]]
+  ): Seq[Expr[Prop]] =
+    val specializedTypeArgs = typeSubstitutionMap(adt)
+    constructor.semantic.underlying.specification.zip(vars).map {
+      case (SelfRef, v) => v :: adt.term
+      case (TypeArg(typeName), v) =>
+        v :: specializedTypeArgs.getOrElse(typeName, typeExprToTerm(typeName))
+    }
+
+  private def constructorRecursiveAssumptions[N <: Arity](
+      constructor: Constructor[N],
+      vars: Seq[Variable[Ind]],
+      propFun: Expr[Ind] => Expr[Prop]
+  ): Seq[Expr[Prop]] =
+    constructor.semantic.underlying.specification.zip(vars).collect {
+      case (SelfRef, v) => propFun(v)
+    }
+
+  private def abstractConstructorCase[N <: Arity](using
+      proof: lisa.SetTheoryLibrary.Proof
+  )(
+      rawCaseProof: proof.Fact,
+      binders: Seq[Variable[Ind]],
+      constructor: Constructor[N],
+      adt: SpecializedADT[N],
+      propFun: Expr[Ind] => Expr[Prop]
+  ): proof.Fact =
+    val prop = λ(x, propFun(x))
+    val specializedTypeArgs = typeSubstitutionMap(adt)
+    binders.zip(constructor.semantic.underlying.specification).foldRight[proof.Fact](rawCaseProof) {
+      case ((v, ty), acc2) =>
+        val accRight: Expr[Prop] = acc2.statement.right.head
+        ty match
+          case SelfRef =>
+            have((acc2.statement -<? prop(v)).left |- prop(v) ==> accRight) by Weakening(acc2)
+            thenHave(
+              (lastStep.statement -<? (v :: adt.term)).left |-
+                v :: adt.term ==> (prop(v) ==> accRight)
+            ) by Weakening
+            thenHave(lastStep.statement.left |- forall(v, v :: adt.term ==> (prop(v) ==> accRight))) by RightForall
+          case TypeArg(typeName) =>
+            val t = specializedTypeArgs.getOrElse(typeName, typeExprToTerm(typeName))
+            thenHave((acc2.statement -<? (v :: t)).left |- v :: t ==> accRight) by Weakening
+            thenHave(lastStep.statement.left |- forall(v, v :: t ==> accRight)) by RightForall
+    }
+
+  private def normalizeConstructorCase[N <: Arity](using
+      proof: lisa.SetTheoryLibrary.Proof
+  )(
+      rawCaseProof: proof.Fact,
+      binders: Seq[Variable[Ind]],
+      constructor: Constructor[N],
+      adt: SpecializedADT[N],
+      propFun: Expr[Ind] => Expr[Prop]
+  ): proof.Fact =
+    val specializedTypeArgs = typeSubstitutionMap(adt)
+    val assumptions = binders.zip(constructor.semantic.underlying.specification).flatMap {
+      case (v, SelfRef) =>
+        Seq(v :: adt.term, propFun(v))
+      case (v, TypeArg(typeName)) =>
+        val t = specializedTypeArgs.getOrElse(typeName, typeExprToTerm(typeName))
+        Seq(v :: t)
+    }
+    val lifted = assumptions.foldRight[proof.Fact](rawCaseProof) { (assumption, acc2) =>
+      val accRight = acc2.statement.right.head
+      have((acc2.statement -<? assumption).left |- assumption ==> accRight) by
+        RightImplies.withParameters(assumption, accRight)(acc2)
+    }
+    binders.reverse.foldLeft[proof.Fact](lifted) { (acc2, binder) =>
+      have(acc2.statement.left |- forall(binder, acc2.statement.right.head)) by RightForall(acc2)
+    }
+
+  private def abstractInductionBranch[N <: Arity](using
+      proof: lisa.SetTheoryLibrary.Proof
+  )(
+      rawBranchProof: proof.Fact,
+      branch: InductionBranch[N],
+      adt: SpecializedADT[N],
+      propFun: Expr[Ind] => Expr[Prop]
+  ): proof.Fact =
+    val guarded = branch.guardAssumptions.foldRight[proof.Fact](rawBranchProof) { (guard, acc2) =>
+      val accRight = acc2.statement.right.head
+      have((acc2.statement -<? guard).left |- guard ==> accRight) by Weakening(acc2)
+    }
+    normalizeConstructorCase(guarded, branch.binders, branch.constructor, adt, propFun)
+
+  private def proveConstructorFromBranches[N <: Arity](using
+      proof: lisa.SetTheoryLibrary.Proof
+  )(
+      constructor: Constructor[N],
+      branches: Seq[(InductionBranch[N], proof.Fact)],
+      patternSystem: PatternSystem[N],
+      adt: SpecializedADT[N],
+      propFun: Expr[Ind] => Expr[Prop],
+      context: Set[Expr[Prop]]
+  ): proof.Fact =
+    val vars = constructor.semantic.variables2
+    val inputTerm = constructor.semantic
+      .appliedTerm(vars)
+      .substitute(adt.base.typeVariablesSeq.zip(adt.typeArgs).map((v, a) => v := a)*)
+      .asInstanceOf[Expr[Ind]]
+    val typingAssumptions = constructorTypingAssumptions(constructor, adt, vars)
+    val recursiveAssumptions = constructorRecursiveAssumptions(constructor, vars, propFun)
+    val genericGoal = propFun(inputTerm)
+
+    val genericCaseProof = have((context ++ typingAssumptions ++ recursiveAssumptions) |- genericGoal) subproof {
+      val selectorSchema = patternSystem.branchSelectionFor(constructor.semantic, inputTerm)
+      val selectorAtConstructor =
+        selectorSchema.statement.right.head match
+          case _ =>
+            val instantiatedSelector = vars.foldLeft(selectorSchema.statement.right.head) { (current, arg) =>
+              current match
+                case forall(v, phi) => phi.substitute(v := arg).asInstanceOf[Expr[Prop]]
+                case _              => current
+            }
+            have(instantiatedSelector) by InstantiateForallSeq(vars)(selectorSchema)
+      val branchGuardDisjunction = selectorAtConstructor.statement.right.head match
+        case premise ==> consequent =>
+          val inputEq = inputTerm match
+            case term => have(term === term) by Congruence
+          val localContext = context ++ typingAssumptions ++ recursiveAssumptions
+          val typingFacts = typingAssumptions.map(assumption =>
+            have(localContext |- assumption) by Hypothesis
+          )
+          val inputEqInContext = have(localContext |- inputEq.statement.right.head) by Tautology.from(inputEq)
+          val selectorPremise = have(localContext |- premise) by Tautology.from((inputEqInContext +: typingFacts)*)
+          have(localContext |- consequent) by Tautology.from(selectorAtConstructor, selectorPremise)
+        case _ => throw UnreachableException
+
+      val guardedConclusions = branches.map { case (branch, payload) =>
+        val abstracted = abstractInductionBranch(payload, branch, adt, propFun)
+        val instantiatedTarget = vars.foldLeft(abstracted.statement.right.head) { (current, arg) =>
+          current match
+            case forall(v, phi) => phi.substitute(v := arg).asInstanceOf[Expr[Prop]]
+            case _              => current
+        }
+        val instantiated = have(instantiatedTarget) by InstantiateForallSeq(vars)(abstracted)
+        val guardSubstitutions = branch.binders.zip(vars).map((from, to) => from := to)
+        val instantiatedGuards = branch.guardAssumptions.map(
+          _.substitute(guardSubstitutions*).asInstanceOf[Expr[Prop]]
+        )
+        val guardFormula = instantiatedGuards match
+          case Nil          => True: Expr[Prop]
+          case head +: tail => tail.foldLeft(head)(_ /\ _)
+        val guardedConclusion =
+          have((context ++ typingAssumptions ++ recursiveAssumptions ++ instantiatedGuards.toSet) |- genericGoal) by
+            Tautology.from(instantiated)
+        (guardFormula, guardedConclusion)
+      }
+
+      if guardedConclusions.size == 1 then
+        have((context ++ typingAssumptions ++ recursiveAssumptions) |- genericGoal) by
+          Tautology.from(guardedConclusions.head._2)
+      else
+        val guardedImplications = guardedConclusions.map((guard, fact) =>
+          have((fact.statement -<? guard).left |- guard ==> genericGoal) by
+            RightImplies.withParameters(guard, genericGoal)(fact)
+        )
+        have((context ++ typingAssumptions ++ recursiveAssumptions) |- genericGoal) by
+          Tautology.from((branchGuardDisjunction +: guardedImplications)*)
+    }
+
+    abstractConstructorCase(genericCaseProof, vars, constructor, adt, propFun)
 
   /**
    *  Given a proof of the claim for each case (possibly using the induction hypothesis),
@@ -53,47 +229,25 @@ class Induction[M <: Arity](
   )(
       cases: Map[Constructor[N], (Seq[Variable[Ind]], proof.Fact)],
       inductionVariable: Variable[Ind],
-      adt: ADT[N],
-      typeVariablesSubst: Seq[Expr[Ind]],
+      adt: SpecializedADT[N],
       propFun: Expr[Ind] => Expr[Prop],
       context: Set[Expr[Prop]]
   ): proof.Fact =
 
     val prop = λ(x, propFun(x))
-    val typeVariablesSubstPairs = adt.typeVariablesSeq.zip(typeVariablesSubst)
+    val typeVariablesSubstPairs = adt.base.typeVariablesSeq.zip(adt.typeArgs)
       .map(SubstPair(_, _))
-    val instTerm = adt.semantic.term(typeVariablesSubst)
+    val specializedTypeArgs =
+      adt.base.typeVariablesSeq.map(_.id.name).zip(adt.typeArgs).toMap
+    val instTerm = adt.term
 
     val instantiatedInduction = have(
-      adt.semantic.induction.statement.substitute((typeVariablesSubstPairs :+ (P := prop))*)
-    ) by Restate.from(adt.semantic.induction.of((typeVariablesSubstPairs :+ (P := prop))*))
+      adt.base.semantic.induction.statement.substitute((typeVariablesSubstPairs :+ (P := prop))*)
+    ) by Restate.from(adt.base.semantic.induction.of((typeVariablesSubstPairs :+ (P := prop))*))
 
-    adt.constructors.foldLeft[proof.Fact](instantiatedInduction)((acc, c) =>
-      val inductiveCaseProof = cases(c)._1.zip(
-        c.semantic.underlying.specification
-      ).foldRight[proof.Fact](cases(c)._2)((el, acc2) =>
-        val (v, ty) = el
-        val accRight: Expr[Prop] = acc2.statement.right.head
-        ty match
-          case SelfRef =>
-            have((acc2.statement -<? prop(v)).left |- prop(v) ==> accRight) by
-              Weakening(acc2)
-            thenHave(
-              (lastStep.statement -<? (v :: instTerm)).left |-
-                v :: instTerm ==> (prop(v) ==> accRight)
-            ) by Weakening
-            thenHave(
-              lastStep.statement.left |-
-                forall(v, v :: instTerm ==> (prop(v) ==> accRight))
-            ) by RightForall
-          // case RegularArg(t_) =>
-          case TypeArg(typeName) =>
-            val t = typeExprToTerm(typeName)
-            thenHave((acc2.statement -<? (v :: t)).left |- v :: t ==> accRight) by
-              Weakening
-            thenHave(lastStep.statement.left |- forall(v, v :: t ==> accRight)) by
-              RightForall
-      )
+    adt.base.constructors.foldLeft[proof.Fact](instantiatedInduction)((acc, c) =>
+      val inductiveCaseProof =
+        abstractConstructorCase(cases(c)._2, cases(c)._1, c, adt, propFun)
       acc.statement.right.head match
         case implies(_, rest) =>
           have((acc.statement.left ++ inductiveCaseProof.statement.left) |- rest) by
@@ -109,12 +263,11 @@ class Induction[M <: Arity](
 
   private def checkFoundArguments(
       foundVar: Variable[Ind],
-      foundADT: ADT[?],
-      args: Seq[Expr[Ind]]
-  ): Option[(Variable[Ind], ADT[?], Seq[Expr[Ind]])] = (expectedVar, expectedADT) match
+      foundADT: SpecializedADT[?]
+  ): Option[(Variable[Ind], SpecializedADT[?])] = (expectedVar, expectedADT) match
     case (Some(v), _) if v != foundVar => None
-    case (_, Some(a)) if a != foundADT => None
-    case _ => Some((foundVar, foundADT, args))
+    case (_, Some(a)) if a.base != foundADT.base || a.typeArgs != foundADT.typeArgs => None
+    case _ => Some((foundVar, foundADT))
 
   private def parseTypeExprRepr(repr: String): Option[TypeExpr] =
     def splitTopLevelArgs(raw: String): Option[Seq[String]] =
@@ -204,9 +357,9 @@ class Induction[M <: Arity](
 
   private def inferADTFromTypeTerm(
       typeTerm: Expr[Ind]
-  ): Option[(ADT[?], Seq[Expr[Ind]])] = typeTermToTypeExpr(typeTerm)
+  ): Option[SpecializedADT[?]] = typeTermToTypeExpr(typeTerm)
     .flatMap((tpe: TypeExpr) => ADT.unapply(tpe)).map { case (adt, typeArgs) =>
-      (adt, typeArgs.map(typeExprToTerm))
+      adt.specialize(typeArgs.map(typeExprToTerm)*)
     }
 
   /**
@@ -215,12 +368,12 @@ class Induction[M <: Arity](
    *
    *  @param f the formula to infer these elements from
    */
-  def inferArguments(f: Expr[Prop]): Option[(Variable[Ind], ADT[?], Seq[Expr[Ind]])] =
+  def inferArguments(f: Expr[Prop]): Option[(Variable[Ind], SpecializedADT[?])] =
 
     f match
       case TypeAssign(Variable[Ind](id), typeTerm) => inferADTFromTypeTerm(typeTerm)
-          .flatMap { case (foundADT, args) =>
-            checkFoundArguments(Variable[Ind](id), foundADT, args)
+          .flatMap { foundADT =>
+            checkFoundArguments(Variable[Ind](id), foundADT)
           }
       case _ => None
 
@@ -232,8 +385,8 @@ class Induction[M <: Arity](
    */
   def inferArguments(
       s: Set[Expr[Prop]]
-  ): Option[(Variable[Ind], ADT[?], Seq[Expr[Ind]])] = s
-    .foldLeft[Option[(Variable[Ind], ADT[?], Seq[Expr[Ind]])]](None)((acc, prem) =>
+  ): Option[(Variable[Ind], SpecializedADT[?])] = s
+    .foldLeft[Option[(Variable[Ind], SpecializedADT[?])]](None)((acc, prem) =>
       acc.orElse(inferArguments(prem))
     )
 
@@ -245,12 +398,12 @@ class Induction[M <: Arity](
    */
   def inferArguments(
       seq: Sequent
-  ): Option[(Variable[Ind], ADT[?], Seq[Expr[Ind]], Option[Expr[Prop]])] = inferArguments(
+  ): Option[(Variable[Ind], SpecializedADT[?], Option[Expr[Prop]])] = inferArguments(
     seq.left
-  ).map(p => (p._1, p._2, p._3, None)).orElse(
+  ).map(p => (p._1, p._2, None)).orElse(
     seq.right.head match
       case forall(x, implies(assignment, prop)) => inferArguments(assignment)
-          .filter(p => p._1 == x).map(p => (p._1, p._2, p._3, Some(prop)))
+          .filter(p => p._1 == x).map(p => (p._1, p._2, Some(prop)))
       case _ => None
   )
 
@@ -261,11 +414,10 @@ class Induction[M <: Arity](
    */
   private def inferArgumentsFromExpected(
       seq: Sequent
-  ): Option[(Variable[Ind], ADT[?], Seq[Expr[Ind]], Option[Expr[Prop]])] =
+  ): Option[(Variable[Ind], SpecializedADT[?], Option[Expr[Prop]])] =
     (expectedVar, expectedADT) match
       case (Some(v), Some(a)) =>
-        // By default instantiate ADT type parameters with their schematic variables.
-        Some((v, a, a.typeVariablesSeq, None))
+        Some((v, a, None))
       case _ => None
 
   /**
@@ -287,14 +439,14 @@ class Induction[M <: Arity](
         proof.ProofStep,
         (Sequent, Seq[Expr[Ind]], Variable[Ind])
       ] ?=> Unit
-  )(bot: Sequent): proof.ProofTacticJudgement = inferArguments(bot)
-    .orElse(inferArgumentsFromExpected(bot)) match
-    case Some((inferedVar, inferedADT, inferedArgs, inferedProp)) =>
+  )(bot: Sequent): proof.ProofTacticJudgement = Time.measure("Induction tactic"){
+    inferArguments(bot).orElse(inferArgumentsFromExpected(bot)) match
+    case Some((inferedVar, inferedADT, inferedProp)) =>
 
       val prop = inferedProp.getOrElse(bot.right.head)
       val propFunction = (t: Expr[Ind]) =>
         inferedProp.getOrElse(bot.right.head).substitute(inferedVar -> t)
-      val assignment = inferedVar :: inferedADT.semantic.term(inferedArgs)
+      val assignment = inferedVar :: inferedADT.term
 
       val missingTypingAssumption =
         inferedProp.isEmpty &&
@@ -311,17 +463,20 @@ class Induction[M <: Arity](
         val context = (if inferedProp.isDefined then bot else bot -<< assignment).left
         val builder =
           CaseAccumulator[N, proof.ProofStep, (Sequent, Seq[Expr[Ind]], Variable[Ind])] (
-            (context |- prop, inferedArgs, inferedVar)
+            (context |- prop, inferedADT.typeArgs, inferedVar)
           )
         cases(using builder)
 
-        builder.isValid(inferedADT.asInstanceOf[ADT[N]]) match
-          case None => TacticSubproof { sp ?=>
+        val maybeSimpleCases = builder.validateAndBuild(inferedADT.base.asInstanceOf[ADT[N]])
+        val compiledPatternSystem = builder.compilePatterns(inferedADT.asInstanceOf[SpecializedADT[N]])
+        val compiledBranchSystem = builder.compileForInduction(inferedADT.asInstanceOf[SpecializedADT[N]])
+
+        (maybeSimpleCases, compiledPatternSystem, compiledBranchSystem) match
+          case (Right(cases), _, _) => TacticSubproof { sp ?=>
               proveForallPredicate(using sp)(
-                builder.build,
+                cases,
                 inferedVar,
-                inferedADT.asInstanceOf[ADT[N]],
-                inferedArgs,
+                inferedADT.asInstanceOf[SpecializedADT[N]],
                 propFunction,
                 context
               )
@@ -333,10 +488,56 @@ class Induction[M <: Arity](
 
               thenHave(bot) by Tautology
             }
-          case Some(msg) => proof.InvalidProofTactic(msg)
+          case (Left(_), Right(patternSystem), Right(branchSystem))
+              if !branchSystem.supportsSingleBranchPerConstructor =>
+            TacticSubproof { sp ?=>
+              val specializedAdt = inferedADT.asInstanceOf[SpecializedADT[N]]
+              val typedPatternSystem = patternSystem.asInstanceOf[PatternSystem[N]]
+              val typedBranchSystem = branchSystem.asInstanceOf[InductionBranchSystemWithPayload[N, proof.ProofStep]]
+              val prop = λ(x, propFunction(x))
+              val typeVariablesSubstPairs =
+                specializedAdt.base.typeVariablesSeq.zip(specializedAdt.typeArgs).map(SubstPair(_, _))
+              val instantiatedInduction = have(
+                specializedAdt.base.semantic.induction.statement.substitute((typeVariablesSubstPairs :+ (P := prop))*)
+              ) by Restate.from(
+                specializedAdt.base.semantic.induction.of((typeVariablesSubstPairs :+ (P := prop))*)
+              )
+
+              specializedAdt.base.constructors.foldLeft[sp.Fact](instantiatedInduction)((acc, constructor) =>
+                val branchPairs = typedBranchSystem.branchesFor(constructor).map(p => (p.branch, p.payload))
+                val inductiveCaseProof = proveConstructorFromBranches(using sp)(
+                  constructor,
+                  branchPairs,
+                  typedPatternSystem,
+                  specializedAdt,
+                  propFunction,
+                  context
+                )
+                acc.statement.right.head match
+                  case implies(_, rest) =>
+                    have((acc.statement.left ++ inductiveCaseProof.statement.left) |- rest) by
+                      Tautology.from(acc, inductiveCaseProof)
+                  case _ => throw UnreachableException
+              )
+              thenHave(
+                context |- forall(
+                  inferedVar,
+                  inferedVar :: specializedAdt.term ==> propFunction(inferedVar)
+                )
+              ) by Tautology
+              if !inferedProp.isDefined then
+                lastStep.statement.right.head match
+                  case forall(_, phi) => thenHave(context |- phi) by InstantiateForall(inferedVar)
+                  case _              => throw UnreachableException
+              thenHave(bot) by Tautology
+            }
+          case (_, Left(msg), _) => proof.InvalidProofTactic(msg)
+          case (_, _, Left(msg)) => proof.InvalidProofTactic(msg)
+          case (Left(msg), _, _) => proof.InvalidProofTactic(msg)
 
     case None => proof
         .InvalidProofTactic("No variable typed with the ADT found in the context.")
+  }
 
 }
 
@@ -345,12 +546,19 @@ object Induction {
   def apply()(using proof: lisa.SetTheoryLibrary.Proof) = new Induction(None, None)
 
   def apply[N <: Arity](adt: ADT[N])(using proof: lisa.SetTheoryLibrary.Proof) =
+    new Induction(None, Some(adt.specialize(adt.typeVariablesSeq*)))
+
+  def apply[N <: Arity](adt: SpecializedADT[N])(using proof: lisa.SetTheoryLibrary.Proof) =
     new Induction(None, Some(adt))
 
   def apply(v: Variable[Ind])(using proof: lisa.SetTheoryLibrary.Proof) =
     new Induction(Some(v), None)
 
   def apply[N <: Arity](v: Variable[Ind], adt: ADT[N])(using
+      proof: lisa.SetTheoryLibrary.Proof
+  ) = new Induction(Some(v), Some(adt.specialize(adt.typeVariablesSeq*)))
+
+  def apply[N <: Arity](v: Variable[Ind], adt: SpecializedADT[N])(using
       proof: lisa.SetTheoryLibrary.Proof
   ) = new Induction(Some(v), Some(adt))
 }

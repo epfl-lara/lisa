@@ -1,27 +1,38 @@
 package ADTv2Examples
 
 import ADTv2Examples.builder.{DebugADTs, MonomorphicADTs, PolymorphicADTs, Specialization}
-import ADTv2Examples.functions.{HigherOrderRecursion, RecursiveFunctions, SimpleFunctions}
-import ADTv2Examples.proofs.{InductionOnBool, InductionOnNat, TypecheckIntegration}
+import ADTv2Examples.functions.{HigherOrderRecursion, RecursiveFunctions, SimpleFunctions, NestedPatterns}
+import ADTv2Examples.proofs.{SimpleInduction, NestedPatternInduction, TypecheckIntegration}
 import ADTv2Examples.endtoend.NatAndListLibrary
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 
 object RunAll {
 
+  sealed trait Entry
+  object Entry {
+    final case class Init(run: () => Unit) extends Entry
+    final case class Main(run: Array[String] => Unit) extends Entry
+    final case class Skip(reason: String) extends Entry
+  }
 
-  private val entries: Seq[(String, (Array[String] => Unit) | String)] = Seq(
-    "ADTv2Examples.builder.MonomorphicADTs" -> MonomorphicADTs.main,
-    "ADTv2Examples.builder.PolymorphicADTs" -> PolymorphicADTs.main,
-    "ADTv2Examples.builder.Specialization" -> Specialization.main,
-    "ADTv2Examples.builder.DebugADTs" -> "debugs ADTs crash for now",
-      //DebugADTs.main,
-    "ADTv2Examples.functions.SimpleFunctions" -> SimpleFunctions.main,
-    "ADTv2Examples.functions.RecursiveFunctions" -> RecursiveFunctions.main,
-    "ADTv2Examples.functions.HigherOrderRecursion" -> HigherOrderRecursion.main,
-    "ADTv2Examples.proofs.InductionOnBool" -> InductionOnBool.main,
-    "ADTv2Examples.proofs.InductionOnNat" -> InductionOnNat.main,
-    "ADTv2Examples.proofs.TypecheckIntegration" -> TypecheckIntegration.main,
-    "ADTv2Examples.endtoend.NatAndListLibrary" -> NatAndListLibrary.main
+
+  private val entries: Seq[(String, Entry)] = Seq(
+    "ADTv2.height.proofs.ProofsInitialization" ->
+      Entry.Init(lisa.maths.SetTheory.Types.ADTv2.height.proofs.ProofsInitialization.initialize),
+    "ADTv2.recursion.proofs.ProofsInitialization" ->
+      Entry.Init(lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ProofsInitialization.initialize),
+    "ADTv2Examples.builder.MonomorphicADTs" -> Entry.Main(MonomorphicADTs.main),
+    "ADTv2Examples.builder.PolymorphicADTs" -> Entry.Main(PolymorphicADTs.main),
+    "ADTv2Examples.builder.Specialization" -> Entry.Main(Specialization.main),
+    "ADTv2Examples.builder.DebugADTs" -> Entry.Skip("Debugs ADTs are only used for performance testing"),
+    "ADTv2Examples.functions.SimpleFunctions" -> Entry.Main(SimpleFunctions.main),
+    "ADTv2Examples.functions.RecursiveFunctions" -> Entry.Main(RecursiveFunctions.main),
+    "ADTv2Examples.functions.HigherOrderRecursion" -> Entry.Main(HigherOrderRecursion.main),
+    "ADTv2Examples.functions.NestedPatterns" -> Entry.Main(NestedPatterns.main),
+    "ADTv2Examples.proofs.TypecheckIntegration" -> Entry.Main(TypecheckIntegration.main),
+    "ADTv2Examples.proofs.SimpleInduction" -> Entry.Main(SimpleInduction.main),
+    "ADTv2Examples.proofs.NestedPatternInduction" -> Entry.Main(NestedPatternInduction.main),
+    "ADTv2Examples.endtoend.NatAndListLibrary" -> Entry.Main(NatAndListLibrary.main)
   )
 
   def main(args: Array[String]): Unit = {
@@ -31,13 +42,19 @@ object RunAll {
     entries.foreach { (name, action) =>
       println(s"===== $name =====")
       action match
-        case run: (Array[String] => Unit) =>
+        case Entry.Init(run) =>
+          val startedAt = Time.get()
+          run()
+          val finishedAt = Time.get()
+          println(s"Initialization of $name: ${finishedAt - startedAt}")
+          Time.register(s"Initialization", finishedAt - startedAt)
+        case Entry.Main(run) =>
           val startedAt = Time.get()
           run(Array.empty)
           val finishedAt = Time.get()
           println(s"Execution of $name: ${finishedAt - startedAt}")
-          Time.register(s"Execution of $name", finishedAt - startedAt)
-        case reason: String =>
+          // Time.register(s"Execution of $name", finishedAt - startedAt)
+        case Entry.Skip(reason) =>
           println("Skipped: " + reason)
       println()
     }

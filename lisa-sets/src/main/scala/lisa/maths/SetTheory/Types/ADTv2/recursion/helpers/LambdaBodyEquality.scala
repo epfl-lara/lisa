@@ -1,11 +1,11 @@
-package lisa.maths.SetTheory.Types.ADTv2.recursion
+package lisa.maths.SetTheory.Types.ADTv2.recursion.helpers
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Functions.BasicTheorems
 import lisa.maths.SetTheory.Functions.Function.Sabs
 import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.maths.SetTheory.Types.TypingHelpers.*
-import lisa.utils.prooflib.BasicStepTactic.{Cut, RightForall}
+import lisa.utils.prooflib.BasicStepTactic.{Cut, RightForall, RightImplies, Weakening}
 
 private[recursion] object LambdaBodyEquality {
 
@@ -33,8 +33,11 @@ private[recursion] object LambdaBodyEquality {
           val pointwiseEq = have(
             assumptions |- forall(boundVar1, (boundVar1 ∈ domain1) ==> (innerBody1 === innerBody2))
           ) subproof {
-            have(assumptions |- (boundVar1 ∈ domain1) ==> (innerBody1 === innerBody2)) by
-              Tautology.from(innerBodyEq)
+            // Add the `boundVar ∈ domain` antecedent with Weakening + RightImplies instead
+            // of Tautology: `assumptions` carries the deep ~1.5k-char branchSelectionBody,
+            // and Tautology would decompose it (≈13s). Weakening/RightImplies leave it atomic.
+            have((assumptions + (boundVar1 ∈ domain1)) |- (innerBody1 === innerBody2)) by Weakening(innerBodyEq)
+            thenHave(assumptions |- (boundVar1 ∈ domain1) ==> (innerBody1 === innerBody2)) by RightImplies
             thenHave(thesis) by RightForall
           }
           have(assumptions |- leftBody === rightBody) by Cut(

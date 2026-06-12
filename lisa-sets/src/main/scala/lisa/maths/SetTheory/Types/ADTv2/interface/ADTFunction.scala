@@ -2,6 +2,8 @@ package lisa.maths.SetTheory.Types.ADTv2.interface
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Functions.Function.app
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.syntax.Case
 import lisa.maths.SetTheory.Types.TypingHelpers.{::, FunctionalClass, TypedConstantFunctional}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.`**`
 import lisa.maths.SetTheory.Types.ADTv2.support.core.toSeq
@@ -38,6 +40,18 @@ final class ADTFunction[N <: Arity](using val line: sourcecode.Line, val file: s
   lazy val argType: Expr[Ind] = semantic.adtDomain.term
   lazy val returnType: Expr[Ind] = semantic.returnTypeExpr
   lazy val functionType: Expr[Ind] = semantic.typ
+  lazy val patterns: Seq[Pattern[N]] = semantic.patterns
+
+  private lazy val patternIndices: Map[Pattern[N], Int] =
+    patterns.zipWithIndex.toMap
+
+  private def eliminationSuffix(pattern: Pattern[N]): String = {
+    val index = patternIndices.getOrElse(
+      pattern,
+      throw new IllegalArgumentException(s"Pattern ${pattern.name} does not belong to function $name.")
+    )
+    s"elimination/${pattern.name}/$index"
+  }
 
   def intro: THM = {
     requireMonomorphicAccess("function", name, typeVariablesSeq)
@@ -85,31 +99,90 @@ final class ADTFunction[N <: Arity](using val line: sourcecode.Line, val file: s
     )
   }
 
-  def elim: Map[Constructor[N], THM] = {
+  def elimByPattern(pattern: Pattern[N]): THM = {
     requireMonomorphicAccess("function", name, typeVariablesSeq)
-    adt.constructors.map(c =>
-      c -> theoremAt(
-        displayName = name,
-        typeVariables = typeVariablesSeq,
-        typeArgs = Seq.empty,
-        suffix = s"elimination/${c.semantic.name}",
-        baseTheorem = semantic.shortDefinition(c.semantic)
-      )
-    ).toMap
+    theoremAt(
+      displayName = name,
+      typeVariables = typeVariablesSeq,
+      typeArgs = Seq.empty,
+      suffix = eliminationSuffix(pattern),
+      baseTheorem = semantic.elimByPattern(pattern)
+    )
   }
 
-  def elim(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*): Map[Constructor[N], THM] = {
+  def elimByPattern(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*)(pattern: Pattern[N]): THM = {
     val typeArgs = firstTypeArg +: otherTypeArgs
-    adt.constructors.map(c =>
-      c -> theoremAt(
-        displayName = name,
-        typeVariables = typeVariablesSeq,
-        typeArgs = typeArgs,
-        suffix = s"elimination/${c.semantic.name}",
-        baseTheorem = semantic.shortDefinition(c.semantic)
-      )
-    ).toMap
+    theoremAt(
+      displayName = name,
+      typeVariables = typeVariablesSeq,
+      typeArgs = typeArgs,
+      suffix = eliminationSuffix(pattern),
+      baseTheorem = semantic.elimByPattern(pattern)
+    )
   }
+
+  def elimByConst(constructor: Constructor[N]): THM = {
+    requireMonomorphicAccess("function", name, typeVariablesSeq)
+    theoremAt(
+      displayName = name,
+      typeVariables = typeVariablesSeq,
+      typeArgs = Seq.empty,
+      suffix = s"elimination/${constructor.semantic.name}",
+      baseTheorem = semantic.elimByConst(constructor.semantic)
+    )
+  }
+
+  def elimByConst(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*)(constructor: Constructor[N]): THM = {
+    val typeArgs = firstTypeArg +: otherTypeArgs
+    theoremAt(
+      displayName = name,
+      typeVariables = typeVariablesSeq,
+      typeArgs = typeArgs,
+      suffix = s"elimination/${constructor.semantic.name}",
+      baseTheorem = semantic.elimByConst(constructor.semantic)
+    )
+  }
+
+  def elim(): THM =
+    elimTotal
+
+  def elim(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*): THM =
+    elimTotal(firstTypeArg, otherTypeArgs*)
+
+  def elim(pattern: Pattern[N]): THM =
+    elimByPattern(pattern)
+
+  def elim(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*)(pattern: Pattern[N]): THM =
+    elimByPattern(firstTypeArg, otherTypeArgs*)(pattern)
+
+  def elim(constructor: Constructor[N]): THM =
+    elimByConst(constructor)
+
+  def elim(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*)(constructor: Constructor[N]): THM =
+    elimByConst(firstTypeArg, otherTypeArgs*)(constructor)
+
+  def elim(c: Case[N]): THM =
+    elimByPattern(patternFor(c))
+
+  def elim(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*)(c: Case[N]): THM =
+    elimByPattern(firstTypeArg, otherTypeArgs*)(patternFor(c))
+
+  def patternFor(c: Case[N]): Pattern[N] =
+    patterns
+      .collectFirst { case p if p.matchesConstructorCase(c.cons.semantic, c.args) => p }
+      .getOrElse(
+        throw new IllegalArgumentException(
+          s"No branch of $name matches case ${c.cons.name}(${c.args.mkString(", ")})."
+        )
+      )
+
+  def elimTotal: THM = {
+    requireMonomorphicAccess("function", name, typeVariablesSeq)
+    theoremAt(name, typeVariablesSeq, Seq.empty, "eliminationTotal", semantic.elimTotal)
+  }
+
+  def elimTotal(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*): THM =
+    theoremAt(name, typeVariablesSeq, firstTypeArg +: otherTypeArgs, "eliminationTotal", semantic.elimTotal)
 
   def termAt(args: Seq[Expr[Ind]]): Expr[Ind] =
     (this #@@ args).asInstanceOf[Expr[Ind]]

@@ -1,8 +1,11 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.{CaseDefinedWitness, DefinedSymbol}
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
+import lisa.maths.SetTheory.Types.ADTv2.support.DefinedSymbol
+import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.proofs.CaseDefinedWitness
 import lisa.maths.SetTheory.Types.ADTv2.encoding.*
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Types.TypingHelpers.*
@@ -34,35 +37,26 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
   /** typingPremise = selfPlaceholder :: A→T (the induction hypothesis on the self-reference). */
   val typingPremise: Expr[Prop] = selfPlaceholder :: spec.typ
 
+  private val patterns: Seq[Pattern[N]] = spec.cases
+
   /**
    * caseMembership(p) ≡ ∨_c ∃x̄. WT(c(x̄)) ∧ p = (c(x̄), body_c[selfPlaceholder]).
    *
    * selfPlaceholder is free — W is parametric in the self-reference.
    */
   private val caseMembership: Expr[Ind] => Expr[Prop] = (p: Expr[Ind]) =>
-    seqOr(spec.rawCases.map((c, caseDef) =>
-      val (vars, body) = caseDef
-      val bodyWithSelf = body.substitute(selfPlaceholder := selfPlaceholder)
-      val freshVars = c.variables2
-      val freshBody = bodyWithSelf
-        .substitute(vars.zip(freshVars).map((from, to) => from := to)*)
-        .asInstanceOf[Expr[Ind]]
-      existsSeq(
-        freshVars,
-        wellTypedFormula(c.semanticSignature2) /\ (p === pair(c.appliedTerm2, freshBody))
-      )
-    ))
+    spec.patternMatching.caseMembership(p)
 
   private val witnessClass = new DefinedSymbol(
     name = s"${spec.functionName}/witness",
     parametersSeq = typeVariablesSeq :+ selfPlaceholder,
-    body = { pairWitness ∈ (spec.adt.term × spec.returnType) | caseMembership(pairWitness) }
+    body = { pairWitness ∈ (spec.argType × spec.returnType) | caseMembership(pairWitness) }
   )
 
   /** The witness set W(selfPlaceholder) — has selfPlaceholder free. */
   val witness: Expr[Ind] = witnessClass.term
 
-  private val witnessBound: Expr[Ind] = spec.adt.term × spec.returnType
+  private val witnessBound: Expr[Ind] = spec.argType × spec.returnType
 
   /** Definitional equation for the witness: W(selfPlaceholder) = witnessBody. */
   val witnessDef: JUSTIFICATION = witnessClass.definition
@@ -92,25 +86,19 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
       if c1 != c2
     yield (c1, c2) -> constructorTagDisequality(c1, c2)).toMap
 
-  private val checkReturnType: Map[SemanticConstructor[N], JUSTIFICATION] =
-    spec.rawCases.map((c, caseDef) =>
-      val (vars, body) = caseDef
-      val bodyWithSelf = body.substitute(selfPlaceholder := selfPlaceholder)
-      val witnessAssumptions = wellTypedSet(c.semanticSignature(vars)) + typingPremise
-      c -> Lemma(witnessAssumptions |- (bodyWithSelf :: spec.returnType)) {
+  private val checkReturnType: Map[Pattern[N], JUSTIFICATION] =
+    patterns.map(pattern =>
+      val bodyWithSelf = pattern.body.substitute(selfPlaceholder := selfPlaceholder)
+      val witnessAssumptions = pattern.typingPremises + typingPremise
+      pattern -> Lemma(witnessAssumptions |- (bodyWithSelf :: spec.returnType)) {
         have(thesis) by Typecheck.prove
       }
-    )
+    ).toMap
 
-  private val caseDefinitions: Map[SemanticConstructor[N], (Seq[Variable[Ind]], Expr[Ind])] =
-    spec.rawCases.map((c, caseDef) =>
-      val (vars, body) = caseDef
-      c -> (vars, body.substitute(selfPlaceholder := selfPlaceholder))
-    )
-
-  private val witnessSemantics = new CaseDefinedWitness[N](
+  private val witnessSemantics = Time.measure("Witness/CaseDefinedWitness")(new CaseDefinedWitness[N](
     adt = spec.adt,
-    cases = caseDefinitions,
+    argType = spec.argType,
+    patternMatching = spec.patternMatching,
     returnType = spec.returnType,
     typ = spec.typ,
     witness = witness,
@@ -121,7 +109,7 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
     checkReturnType = checkReturnType,
     constructorTagDisequalities = constructorTagDisequalities,
     contextPremises = Seq(typingPremise)
-  )
+  ))
 
   /** selfPlaceholder :: A→T ⊢ W(selfPlaceholder) :: A→T */
   val witnessHasType: THM = witnessSemantics.witnessHasType
@@ -129,6 +117,9 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
   /**
    * selfPlaceholder :: A→T ⊢ W(selfPlaceholder)(c(x̄)) = body_c[selfPlaceholder]
    */
-  val witnessCaseByConstructor: Map[SemanticConstructor[N], THM] =
-    witnessSemantics.witnessCaseByConstructor
+  val witnessCaseByPattern: Map[Pattern[N], THM] =
+    witnessSemantics.witnessCaseByPattern
+
+  def witnessCase(pattern: Pattern[N]): THM =
+    witnessSemantics.witnessCase(pattern)
 }

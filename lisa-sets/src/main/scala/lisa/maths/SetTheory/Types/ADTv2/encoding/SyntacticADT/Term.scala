@@ -6,6 +6,7 @@ import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UnionRangeMembership.unionRangeMembership
 import lisa.maths.SetTheory.Types.ADTv2.support.UniqueDefinedSymbol
+import lisa.maths.SetTheory.Types.ADTv2.support.Time
 
 import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Base.*
@@ -182,13 +183,13 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTHeight[
     }
   ).toMap
 
-  private val heightTermsTHY = HeightTerms[N](
+  private val heightTermsTHY = Time.measure("ADT HeightTerms")(HeightTerms[N](
     heightTHY,
     heightConstructorsTHY,
     heightConstructorData,
     term,
     termSatisfiesDefinition
-  )
+  ))
 
   val termHasHeight = heightTermsTHY.termHasHeight
   val termsHaveHeight =

@@ -21,14 +21,14 @@ val nat = adt(
 val zero = nat.constructors(0)
 val succ = nat.constructors(1)
 
-val pred = recFun(nat, nat) { self =>
+lazy val pred = recFun(nat, nat) { self =>
   Case(zero):
     zero
   Case(succ, natPredN):
     natPredN
 }
 
-val double = recFun(nat, nat) { self =>
+lazy val double = recFun(nat, nat) { self =>
   Case(zero):
     zero
   Case(succ, natDoubleN):
@@ -37,7 +37,7 @@ val double = recFun(nat, nat) { self =>
 
 private val natEndo = nat.term ->: nat.term
 
-val add = recFun(nat, natEndo) { self =>
+lazy val add = recFun(nat, natEndo) { self =>
   Case(zero):
     TypingHelpers.fun(natAddRight :: nat.term, natAddRight)
   Case(succ, natAddN):

@@ -147,4 +147,69 @@ object NatFacts {
     have(thesis) by Tautology.from(mOrd, nOrd, Ordinal.comparability of (α := m, β := n))
   }
 
+  val subsetBelowSucc = Theorem((m ∈ N, n ∈ N, m ⊆ Succ(n)) |- (m === Succ(n)) \/ (m ⊆ n)) {
+    val mInN = assume(m ∈ N)
+    val nInN = assume(n ∈ N)
+    val mSubSn = assume(m ⊆ Succ(n))
+
+    val SnInN = have(Succ(n) ∈ N) by
+      Tautology.from(nInN, succIntro.of(n := n))
+
+    val cmp = have(
+      (m === Succ(n)) \/ (m ∈ Succ(n)) \/ (Succ(n) ∈ m)
+    ) by Tautology.from(
+      mInN,
+      SnInN,
+      comparability of (m := m, n := Succ(n))
+    )
+
+    val caseEq = have(
+      m === Succ(n) |- (m === Succ(n)) \/ (m ⊆ n)
+    ) by Tautology
+
+    val caseIn = have(
+      m ∈ Succ(n) |- (m === Succ(n)) \/ (m ⊆ n)
+    ) subproof {
+      val mInSn = assume(m ∈ Succ(n))
+      val split = have((m ∈ n) \/ (m === n)) by Tautology.from(
+        mInSn,
+        succMembership.of(k := m, n := n)
+      )
+
+      val fromIn = have(m ∈ n |- m ⊆ n) subproof {
+        val mInNCase = assume(m ∈ n)
+        val nTrans = have(TransitiveSet.transitiveSet(n)) by
+          Tautology.from(nInN, elementsTransitive.of(n := n))
+        have(m ⊆ n) by Tautology.from(
+          mInNCase,
+          nTrans,
+          TransitiveSet.elementIsSubset.of(A := n, x := m)
+        )
+      }
+
+      val fromEq = have(m === n |- m ⊆ n) by
+        Congruence.from(Subset.reflexivity of (x := n))
+
+      have(m ⊆ n) by Tautology.from(split, fromIn, fromEq)
+      thenHave(thesis) by Tautology
+    }
+
+    val caseGt = have(
+      Succ(n) ∈ m |- (m === Succ(n)) \/ (m ⊆ n)
+    ) subproof {
+      val SnInM = assume(Succ(n) ∈ m)
+      val SnInSn = have(Succ(n) ∈ Succ(n)) by Tautology.from(
+        mSubSn,
+        SnInM,
+        Subset.membership of (x := m, y := Succ(n), z := Succ(n))
+      )
+      have(thesis) by Tautology.from(
+        SnInSn,
+        FoundationAxiom.selfNonInclusion of (x := Succ(n))
+      )
+    }
+
+    have(thesis) by Tautology.from(cmp, caseEq, caseIn, caseGt)
+  }
+
 }
