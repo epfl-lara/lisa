@@ -99,15 +99,6 @@ def adt(
 
 def adt(
   name: String,
-  typeVars: Unit,
-  constructors: Seq[
-    (String, Seq[(String, String | ConstructorArg)])
-  ]
-): ADT[0] =
-  ADTBuilder[0](name, Seq.empty, constructors)
-
-def adt(
-  name: String,
   typeVars: String,
   constructors: Seq[
     (String, Seq[(String, String | ConstructorArg)])

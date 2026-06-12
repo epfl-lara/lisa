@@ -66,7 +66,7 @@ object OmegaFacts {
       () |- ((x ∈ N) /\ (y ∈ N) /\ (z ∈ N) /\ ((x, y) ∈ NatMem) /\ (
         (y, z) ∈ NatMem
       ) ==> (x, z) ∈ NatMem)
-    ) by Tableau
+    ) by Restate
     thenHave(
       () |- ∀(
         z,
@@ -134,7 +134,7 @@ object OmegaFacts {
 
       have(thesis) by Tautology.from(cmp, caseEq, caseMn, caseNm)
     }
-    thenHave(() |- ((m ∈ N) /\ (n ∈ N)) ==> goal) by Tableau
+    thenHave(() |- ((m ∈ N) /\ (n ∈ N)) ==> goal) by Restate
     thenHave(() |- ∀(n, ((m ∈ N) /\ (n ∈ N)) ==> goal)) by RightForall
     thenHave(() |- ∀(m, ∀(n, ((m ∈ N) /\ (n ∈ N)) ==> goal))) by RightForall
     thenHave(∀(m ∈ N, ∀(n ∈ N, goal))) by Tableau
