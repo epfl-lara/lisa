@@ -11,7 +11,6 @@ import lisa.maths.SetTheory.Types.ADTv2.support.core.**
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.UniqueCharacterizedSymbol
 import lisa.maths.SetTheory.Types.TypingHelpers._
-import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 final class RecFunSemantics[N <: Arity](
@@ -47,16 +46,17 @@ final class RecFunSemantics[N <: Arity](
   private val witnessAgreement = Time.measure(s"WitnessAgreement", false)(new helpers.WitnessAgreement[N](spec, witness))
   private val approxProp = Time.measure(s"ApproxProp", false)(new ApproxProp[N](spec, witness, approx, witnessAgreement))
   private val limitConstruction = Time.measure(s"LimitConstruction", false)(new LimitConstruction[N](spec, approx, approxProp))
-  val existence: Existence[N] = Time.measure(s"Existence", false)(new Existence[N](spec, witness, approx, approxProp, limitConstruction, witnessAgreement))
-
+  private val existence: Existence[N] = Time.measure(s"Existence", false)(new Existence[N](spec, witness, approx, approxProp, limitConstruction, witnessAgreement))
   private val functionUniquenessProof = Time.measure(s"Uniqueness", false)(new Uniqueness[N](spec))
 
-  private val untypedDef: Expr[Prop] = spec.untypedDefinition(f)
+  private val untypedDef: Expr[Prop] =
+    spec.untypedDefinition(f)
 
-  private def definitionFormula(v: Expr[Ind]): Expr[Prop] =
-    spec.untypedDefinition(v)
+  private def definitionFormula(f0: Expr[Ind]): Expr[Prop] =
+    spec.untypedDefinition(f0)
 
-  val uniqueness: THM = Lemma(existsOne(f, untypedDef)) {
+  private val uniqueness: THM =
+    Lemma(existsOne(f, untypedDef)) {
 
     val existencePart = have(∃(x, definitionFormula(x))) by
       Restate.from(existence.witnessExists of (f := x))
@@ -97,13 +97,10 @@ final class RecFunSemantics[N <: Arity](
 
   private val classFunctionCharacterization: THM = definedClassFunction.characterization
 
-  private val compiledCases: Seq[Pattern[N]] =
+  val patterns: Seq[Pattern[N]] =
     rawPatterns.map(pattern =>
       pattern.withBody(pattern.body.substitute(spec.selfPlaceholder := term))
     )
-
-  val patterns: Seq[Pattern[N]] = compiledCases
-  val cases: Seq[Pattern[N]] = patterns
 
 
   private val shortDefinitionByPattern: Map[Pattern[N], THM] =
@@ -119,8 +116,8 @@ final class RecFunSemantics[N <: Arity](
 
         thenHave(
           (term === term) <=>
-            (term :: spec.typ) /\
-            (seqAnd(compiledCases.map { branch =>
+            (term :: typ) /\
+            (seqAnd(patterns.map { branch =>
               forallSeq(
                 branch.binders,
                 branch.branchPremise ==>
@@ -142,7 +139,7 @@ final class RecFunSemantics[N <: Arity](
             case forall(v, phi) => thenHave(phi) by InstantiateForall(v)
             case _ => throw UnreachableException
         )
-        thenHave(thesis) by Tautology
+        thenHave(thesis) by Restate
       }
     ).toMap
 
@@ -153,7 +150,7 @@ final class RecFunSemantics[N <: Arity](
     shortDefinition(pattern)
 
   private val elimByConstThm: Map[SemanticConstructor[N], THM] =
-    PatternSystem.constructorCases(compiledCases)
+    PatternSystem.constructorCases(patterns)
       .map { (constructor, patternsForConst) =>
         constructor -> Lemma(
           seqAnd(patternsForConst.map(pattern =>
@@ -190,14 +187,13 @@ final class RecFunSemantics[N <: Arity](
     have(thesis) by Tautology.from(patterns.map(pattern => shortDefinitionByPattern(pattern))*)
   }
 
-  val intro: THM = Lemma(term :: spec.typ) {
+  val intro: THM = Lemma(term :: typ) {
 
     have(forall(f, (term === f) <=> untypedDef)) by
       Restate.from(classFunctionCharacterization)
-
     thenHave(
       (term === term) <=>
-        (term :: spec.typ) /\
+        (term :: typ) /\
         (seqAnd(patterns.map { pattern =>
           forallSeq(
             pattern.binders,
@@ -205,7 +201,6 @@ final class RecFunSemantics[N <: Arity](
           )
         }))
     ) by InstantiateForall(term)
-    thenHave(term :: spec.typ) by Weakening
-    thenHave(thesis) by Restate
+    thenHave(thesis) by Weakening
   }
 }

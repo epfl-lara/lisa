@@ -17,7 +17,8 @@ val union = adt(
 val inl = union.constructors(0)
 val inr = union.constructors(1)
 
-lazy val isLeft = recFun(union, bool) { _ =>
+// lazy val isLeft = recFun(union, bool) { _ =>
+lazy val isLeft = fun(union, bool) {
   Case(inl, unionLeft):
     tru
   Case(inr, unionRight):

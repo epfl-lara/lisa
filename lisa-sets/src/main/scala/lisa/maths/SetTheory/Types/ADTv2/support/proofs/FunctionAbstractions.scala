@@ -60,9 +60,9 @@ object FunctionAbstractions {
       codomain: Expr[Ind],
       body: Expr[Ind >>: Ind]
   ): THM = Lemma(
-    ∀(x ∈ domain, body(x) ∈ codomain) |- abs(domain)(body) ∈ Pi(domain)(λ(y, codomain))
+    ∀(pointVar ∈ domain, body(pointVar) ∈ codomain) |- abs(domain)(body) ∈ Pi(domain)(λ(pointVar, codomain))
   ) {
-    have(thesis) by Restate.from(
+    have(thesis) by Tautology.from(
       TAbsConstOnGeneral.of(
         domainVar := domain,
         codomainVar := codomain,

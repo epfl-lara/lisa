@@ -2,8 +2,9 @@ package ADTv2Examples
 
 import ADTv2Examples.builder.{DebugADTs, MonomorphicADTs, PolymorphicADTs, Specialization}
 import ADTv2Examples.functions.{HigherOrderRecursion, RecursiveFunctions, SimpleFunctions, NestedPatterns}
-import ADTv2Examples.proofs.{SimpleInduction, NestedPatternInduction, TypecheckIntegration}
-import ADTv2Examples.endtoend.NatAndListLibrary
+import ADTv2Examples.proofs.{SimpleInduction, NestedPatternInduction, TypecheckIntegration, Injectivity, Computation}
+import ADTv2Examples.endtoend.{NatAndListLibrary, LibraryFeatures}
+import ADTv2Examples.overview.FeatureTour
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 
 object RunAll {
@@ -32,7 +33,11 @@ object RunAll {
     "ADTv2Examples.proofs.TypecheckIntegration" -> Entry.Main(TypecheckIntegration.main),
     "ADTv2Examples.proofs.SimpleInduction" -> Entry.Main(SimpleInduction.main),
     "ADTv2Examples.proofs.NestedPatternInduction" -> Entry.Main(NestedPatternInduction.main),
-    "ADTv2Examples.endtoend.NatAndListLibrary" -> Entry.Main(NatAndListLibrary.main)
+    "ADTv2Examples.proofs.Injectivity" -> Entry.Main(Injectivity.main),
+    "ADTv2Examples.proofs.Computation" -> Entry.Main(Computation.main),
+    "ADTv2Examples.endtoend.NatAndListLibrary" -> Entry.Main(NatAndListLibrary.main),
+    "ADTv2Examples.endtoend.LibraryFeatures" -> Entry.Main(LibraryFeatures.main),
+    "ADTv2Examples.overview.FeatureTour" -> Entry.Main(FeatureTour.main)
   )
 
   def main(args: Array[String]): Unit = {
