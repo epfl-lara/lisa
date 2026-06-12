@@ -179,8 +179,6 @@ private[fol] trait Syntax {
     private case class LambdaKey(v: Long, body: Long)
 
     private def cache[K, V]: mutable.Map[K, V] = mutable.Map.empty[K, V]
-    private def getOrCreate[K, V](map: mutable.Map[K, V], key: K, create: => V): V =
-      map.getOrElseUpdate(key, create)
 
     private val variables = cache[VariableKey, Variable]
     private val constants = cache[ConstantKey, Constant]
@@ -188,19 +186,19 @@ private[fol] trait Syntax {
     private val lambdas = cache[LambdaKey, Lambda]
 
     def variable(id: Identifier, sort: Sort): Variable =
-      if (enabled) getOrCreate(variables, VariableKey(id, sort), new Variable(id, sort))
+      if (enabled) variables.getOrElseUpdate(VariableKey(id, sort), new Variable(id, sort))
       else new Variable(id, sort)
 
     def constant(id: Identifier, sort: Sort): Constant =
-      if (enabled) getOrCreate(constants, ConstantKey(id, sort), new Constant(id, sort))
+      if (enabled) constants.getOrElseUpdate(ConstantKey(id, sort), new Constant(id, sort))
       else new Constant(id, sort)
 
     def application(f: Expression, arg: Expression): Application =
-      if (enabled) getOrCreate(applications, ApplicationKey(f.uniqueNumber, arg.uniqueNumber), new Application(f, arg))
+      if (enabled) applications.getOrElseUpdate(ApplicationKey(f.uniqueNumber, arg.uniqueNumber), new Application(f, arg))
       else new Application(f, arg)
 
     def lambda(v: Variable, body: Expression): Lambda =
-      if (enabled) getOrCreate(lambdas, LambdaKey(v.uniqueNumber, body.uniqueNumber), new Lambda(v, body))
+      if (enabled) lambdas.getOrElseUpdate(LambdaKey(v.uniqueNumber, body.uniqueNumber), new Lambda(v, body))
       else new Lambda(v, body)
   }
 
