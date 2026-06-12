@@ -3,6 +3,7 @@ package lisa.maths.SetTheory.Types.ADTv2.functions
 import lisa.maths.Quantifiers.existsOneAlternativeDefinition
 import lisa.maths.SetTheory.Base.CartesianProduct.×
 import lisa.maths.SetTheory.Base.Comprehension.|
+import lisa.maths.SetTheory.Functions.Pi.->:
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.proofs.CaseDefinedWitness
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
@@ -20,11 +21,11 @@ private[functions] final class SemanticFunctionInternals[N <: Arity](
     adt: SemanticADT[N],
     argType: Expr[Ind],
     patternMatching: PatternSystem[N],
-    returnType: Expr[Ind],
     checkReturnType: Map[Pattern[N], THM],
-    typ: Expr[Ind]
+    returnType: Expr[Ind]
 ) {
   private val cases: Seq[Pattern[N]] = patternMatching.patterns
+  val typ: Expr[Ind] = argType ->: returnType
 
   private val typeVariablesSeq: Seq[Variable[Ind]] = adt.typeVariablesSeq
 

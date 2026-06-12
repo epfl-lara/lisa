@@ -1,38 +1,25 @@
 package lisa.maths.SetTheory.Types.ADTv2.functions
 
-import lisa.maths.SetTheory.Functions.Pi.->:
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
 import lisa.maths.SetTheory.Types.ADTv2.encoding._
-import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.core.**
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.UniqueCharacterizedSymbol
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Types.TypingHelpers._
-import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 class SemanticFunction[N <: Arity](
-    name: String,
-    adt: SemanticADT[N],
-    argType: Expr[Ind],
+    val name: String,
+    val adt: SemanticADT[N],
+    val argType: Expr[Ind],
     patternMatching: PatternSystem[N],
-    returnType: Expr[Ind]
+    val returnType: Expr[Ind]
 )(using line: sourcecode.Line, file: sourcecode.File) {
 
-  val patterns: Seq[Pattern[N]] = patternMatching.patterns
-  val cases: Seq[Pattern[N]] = patterns
-
-  val typeVariables: Variable[Ind] ** N = adt.typeVariables
-  val typeVariablesSeq: Seq[Variable[Ind]] = adt.typeVariablesSeq
-  val typeArity: N = adt.typeArity
-  val adtDomain: SemanticADT[N] = adt
-  val returnTypeExpr: Expr[Ind] = returnType
-
-  val fullName = s"$name"
-  val typ: Expr[Ind] = argType ->: returnType
+  
 
   private val checkReturnType: Map[Pattern[N], THM] =
     patterns.map(pattern =>
@@ -42,56 +29,84 @@ class SemanticFunction[N <: Arity](
     ).toMap
 
   private val proofInternals = new SemanticFunctionInternals[N](
-    functionName = fullName,
+    functionName = name,
     adt = adt,
     argType = argType,
     patternMatching = patternMatching,
-    returnType = returnType,
     checkReturnType = checkReturnType,
-    typ = typ
+    returnType = returnType
   )
 
-  private val untypedDefinition = proofInternals.untypedDefinition
-  private val uniqueness = proofInternals.uniqueness
+  val typeVariables: Variable[Ind] ** N = adt.typeVariables
+  val typeVariablesSeq: Seq[Variable[Ind]] = adt.typeVariablesSeq
+  val typeArity: N = adt.typeArity
+  val adtDomain: SemanticADT[N] = adt
+  val typ: Expr[Ind] = proofInternals.typ
+
+  private val untypedDef: Expr[Prop] =
+    proofInternals.untypedDefinition
+
+  private def definitionFormula(f0: Expr[Ind]): Expr[Prop] =
+    untypedDef.substitute(f := f0)
+
+  private val uniqueness: THM =
+    proofInternals.uniqueness
 
   private val definedClassFunction = UniqueCharacterizedSymbol(
-    name = fullName,
+    name = name,
     typeVariablesSeq = typeVariablesSeq,
     witnessVar = f,
-    definitionAt = f0 => untypedDefinition.substitute(f := f0)
+    definitionAt = definitionFormula
   )(uniqueness)
 
   val id: Identifier = definedClassFunction.id
+
   val term: Expr[Ind] = definedClassFunction.term
 
   private val classFunctionCharacterization: THM = definedClassFunction.characterization
 
-  private val shortDefinitionByPattern = patterns.map(pattern =>
-    pattern -> Lemma(
-      simplify(pattern.branchPremise) ==> (term * pattern.inputTerm === pattern.body)
-    ) {
-      have(forall(f, (term === f) <=> untypedDefinition)) by
-        Restate.from(classFunctionCharacterization)
-      thenHave(
-        (term === term) <=> (term :: typ) /\
-          (seqAnd(patterns.map { branch =>
-            forallSeq(
-              branch.binders,
-              branch.branchPremise ==> (term * branch.inputTerm === branch.body)
-            )
-          }))
-      ) by InstantiateForall(term)
-      thenHave(forallSeq(
-        pattern.binders,
-        pattern.branchPremise ==> (term * pattern.inputTerm === pattern.body)
-      )) by Weakening
-      pattern.binders.foldLeft(lastStep)((_, _) =>
-        lastStep.statement.right.head match
-          case forall(v, phi) => thenHave(phi) by InstantiateForall(v)
-          case _ => throw UnreachableException
-      )
-    }
-  ).toMap
+  val patterns: Seq[Pattern[N]] =
+    patternMatching.patterns
+
+  private val shortDefinitionByPattern: Map[Pattern[N], THM] =
+    patterns.map(pattern =>
+      pattern -> Lemma(
+        simplify(
+          pattern.branchPremise ==>
+            (term * pattern.inputTerm === pattern.body)
+        )
+      ) {
+        have(forall(f, (term === f) <=> untypedDef)) by
+          Restate.from(classFunctionCharacterization)
+
+        thenHave(
+          (term === term) <=>
+            (term :: typ) /\
+            (seqAnd(patterns.map { branch =>
+              forallSeq(
+                branch.binders,
+                branch.branchPremise ==>
+                  (term * branch.inputTerm === branch.body)
+              )
+            }))
+        ) by InstantiateForall(term)
+
+        thenHave(
+          forallSeq(
+            pattern.binders,
+            pattern.branchPremise ==>
+              (term * pattern.inputTerm === pattern.body)
+          )
+        ) by Weakening
+
+        pattern.binders.foldLeft(lastStep)((_, _) =>
+          lastStep.statement.right.head match
+            case forall(v, phi) => thenHave(phi) by InstantiateForall(v)
+            case _ => throw UnreachableException
+        )
+        thenHave(thesis) by Restate
+      }
+    ).toMap
 
   def shortDefinition(pattern: Pattern[N]): THM =
     shortDefinitionByPattern(pattern)
@@ -131,25 +146,19 @@ class SemanticFunction[N <: Arity](
 
   val elimTotal: THM = Lemma(
     seqAnd(patterns.map(pattern =>
-      (simplify(pattern.branchPremise) /\ (x === pattern.inputTerm)) ==> (term * x === pattern.body)
+      simplify(pattern.branchPremise ==> (term * pattern.inputTerm === pattern.body))
     ))
   ) {
-    val subcases = patterns.map(pattern =>
-      have(
-        x === pattern.inputTerm |- simplify(pattern.branchPremise) ==> (term * x === pattern.body)
-      ) by Congruence.from(shortDefinitionByPattern(pattern))
-      thenHave(
-        (simplify(pattern.branchPremise) /\ (x === pattern.inputTerm)) ==> (term * x === pattern.body)
-      ) by Restate
-    )
-    have(thesis) by Tautology.from(subcases*)
+    have(thesis) by Tautology.from(patterns.map(pattern => shortDefinitionByPattern(pattern))*)
   }
 
-  val intro = Lemma(forallSeq(typeVariablesSeq, term :: typ)) {
-    have(forall(f, (term === f) <=> untypedDefinition)) by
+  val intro: THM = Lemma(term :: typ) {
+
+    have(forall(f, (term === f) <=> untypedDef)) by
       Restate.from(classFunctionCharacterization)
     thenHave(
-      (term === term) <=> (term :: typ) /\
+      (term === term) <=>
+        (term :: typ) /\
         (seqAnd(patterns.map { pattern =>
           forallSeq(
             pattern.binders,
@@ -157,7 +166,6 @@ class SemanticFunction[N <: Arity](
           )
         }))
     ) by InstantiateForall(term)
-    thenHave(term :: typ) by Weakening
-    thenHave(thesis) by QuantifiersIntro(typeVariablesSeq)
+    thenHave(thesis) by Weakening
   }
 }

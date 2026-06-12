@@ -192,7 +192,6 @@ final class RecFunction[N <: Arity](using val line: sourcecode.Line, val file: s
         )
       )
 
-  
 
   def termAt(args: Seq[Expr[Ind]]): Expr[Ind] =
     (this #@@ args).asInstanceOf[Expr[Ind]]
@@ -202,7 +201,6 @@ final class RecFunction[N <: Arity](using val line: sourcecode.Line, val file: s
   def applySeq(args: Seq[Expr[Ind]]): Expr[Ind] = termAt(args)
 
   def apply(args: Expr[Ind]*): Expr[Ind] = termAt(args)
-
 }
 
 object RecFunction {

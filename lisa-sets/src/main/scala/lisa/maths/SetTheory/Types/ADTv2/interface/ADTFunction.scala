@@ -16,10 +16,6 @@ import lisa.maths.SetTheory.Types.TypingHelpers.FunctionalClass
 import lisa.maths.SetTheory.Types.TypingHelpers.TypedConstantFunctional
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
-/**
- * Type theoretic function over algebraic data types. Its definition is the direct sum of
- * the definitions of its constructors. Comes with introduction and elimination rules.
- */
 final class ADTFunction[N <: Arity](using val line: sourcecode.Line, val file: sourcecode.File, valueOfN: ValueOf[N])(
     val semantic: SemanticFunction[N],
     val adt: ADT[N]
@@ -33,18 +29,18 @@ final class ADTFunction[N <: Arity](using val line: sourcecode.Line, val file: s
       ADTFunction.typingJustification(semantic)
     ) {
 
-  printAs(args => renderAppliedSymbol(semantic.fullName, semantic.typeVariablesSeq.size, args))
+  printAs(args => renderAppliedSymbol(semantic.name, semantic.typeVariablesSeq.size, args))
 
-  val name: String = semantic.fullName
+  val name: String = semantic.name
   val typeVariables: Variable[Ind] ** N = semantic.typeVariables
   val typeVariablesSeq: Seq[Variable[Ind]] = semantic.typeVariablesSeq
   val get_arity: Int = valueOfN.value
   val term: Expr[Ind] = termAt(typeVariablesSeq)
 
-  lazy val argType: Expr[Ind] = semantic.adtDomain.term
-  lazy val returnType: Expr[Ind] = semantic.returnTypeExpr
+  lazy val argType: Expr[Ind] = semantic.argType
+  lazy val returnType: Expr[Ind] = semantic.returnType
   lazy val functionType: Expr[Ind] = semantic.typ
-  lazy val patterns: Seq[Pattern[N]] = semantic.patterns
+  private lazy val patterns: Seq[Pattern[N]] = semantic.patterns
 
   private lazy val patternIndices: Map[Pattern[N], Int] =
     patterns.zipWithIndex.toMap
@@ -75,12 +71,12 @@ final class ADTFunction[N <: Arity](using val line: sourcecode.Line, val file: s
       headTermAt = termAt,
       headTypeAt = substitutions => semantic.typ.substitute(substitutions*),
       assumptionsAt = substitutions =>
-        Set(ADTFunction.introAppVariable :: semantic.adtDomain.term.substitute(substitutions*)),
+        Set(ADTFunction.introAppVariable :: semantic.argType.substitute(substitutions*)),
       typingArgsAt = substitutions =>
-        Seq(ADTFunction.introAppVariable -> semantic.adtDomain.term.substitute(substitutions*)),
+        Seq(ADTFunction.introAppVariable -> semantic.argType.substitute(substitutions*)),
       conclusionAt = substitutions =>
         app(termAt(typeVariablesSeq))(ADTFunction.introAppVariable) ::
-          semantic.returnTypeExpr.substitute(substitutions*)
+          semantic.returnType.substitute(substitutions*)
     )
   }
 
@@ -94,12 +90,12 @@ final class ADTFunction[N <: Arity](using val line: sourcecode.Line, val file: s
       headTermAt = termAt,
       headTypeAt = substitutions => semantic.typ.substitute(substitutions*),
       assumptionsAt = substitutions =>
-        Set(ADTFunction.introAppVariable :: semantic.adtDomain.term.substitute(substitutions*)),
+        Set(ADTFunction.introAppVariable :: semantic.argType.substitute(substitutions*)),
       typingArgsAt = substitutions =>
-        Seq(ADTFunction.introAppVariable -> semantic.adtDomain.term.substitute(substitutions*)),
+        Seq(ADTFunction.introAppVariable -> semantic.argType.substitute(substitutions*)),
       conclusionAt = substitutions =>
         app(termAt(typeArgs))(ADTFunction.introAppVariable) ::
-          semantic.returnTypeExpr.substitute(substitutions*)
+          semantic.returnType.substitute(substitutions*)
     )
   }
 
@@ -147,6 +143,15 @@ final class ADTFunction[N <: Arity](using val line: sourcecode.Line, val file: s
     )
   }
 
+  def elimTotal: THM = {
+    requireMonomorphicAccess("recursive function", name, typeVariablesSeq)
+    theoremAt(name, typeVariablesSeq, Seq.empty, "eliminationTotal", semantic.elimTotal)
+  }
+
+  def elimTotal(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*): THM =
+    theoremAt(name, typeVariablesSeq, firstTypeArg +: otherTypeArgs, "eliminationTotal", semantic.elimTotal)
+
+
   def elim(): THM =
     elimTotal
 
@@ -180,13 +185,6 @@ final class ADTFunction[N <: Arity](using val line: sourcecode.Line, val file: s
         )
       )
 
-  def elimTotal: THM = {
-    requireMonomorphicAccess("function", name, typeVariablesSeq)
-    theoremAt(name, typeVariablesSeq, Seq.empty, "eliminationTotal", semantic.elimTotal)
-  }
-
-  def elimTotal(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*): THM =
-    theoremAt(name, typeVariablesSeq, firstTypeArg +: otherTypeArgs, "eliminationTotal", semantic.elimTotal)
 
   def termAt(args: Seq[Expr[Ind]]): Expr[Ind] =
     (this #@@ args).asInstanceOf[Expr[Ind]]
@@ -207,7 +205,7 @@ object ADTFunction {
       file: sourcecode.File
   )(semantic: SemanticFunction[N]): THM =
     theoremAt(
-      displayName = semantic.fullName,
+      displayName = semantic.name,
       typeVariables = semantic.typeVariablesSeq,
       typeArgs = Seq.empty,
       suffix = "introduction",
