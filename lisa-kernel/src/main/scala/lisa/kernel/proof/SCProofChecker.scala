@@ -53,8 +53,10 @@ object SCProofChecker {
    * removing formulas `expEq` to `exception1` or `exception2`.
    */
   @inline
-  private def allContainedExceptEither(set: Set[Expression], target: Set[Expression], exception1: Expression, exception2: Expression): Boolean =
-    set.forall(formula => target.contains(formula) || expEq(formula, exception1) || expEq(formula, exception2))
+  private def allContainedExceptEither(set: Set[Expression], target: Set[Expression], exception1: Expression, exception2: Expression): Boolean = {
+    val simplifiedTarget = target.map(simpleReducedForm)
+    set.forall(formula => containsAsSimple(simplifiedTarget)(formula) || expEq(formula, exception1) || expEq(formula, exception2))
+  }
 
   private def sortMismatch(
       expected: Sort,
