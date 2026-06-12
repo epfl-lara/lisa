@@ -79,7 +79,7 @@ object SCProofChecker {
 
   /**
    * For a given list of equalities s1=t1, ..., sn=tn, produce "lifted"
-   * equalities of the form ∀x1...xn. s1[x1,...,xn] = t1[x1,...,xn] based on the
+   * equalities of the form ∀x1...xn. (s1 x1 ... xn) = (t1 x1 ... xn) based on the
    * expected sorts of the terms.
    *
    * See [[checkSingleSCStep]] at LeftSubstEq and RightSubstEq.
