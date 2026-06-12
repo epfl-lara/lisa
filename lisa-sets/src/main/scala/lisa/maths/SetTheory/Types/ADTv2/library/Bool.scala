@@ -12,7 +12,7 @@ val bool = adt(
 val tru = bool.constructors(0)
 val fals = bool.constructors(1)
 
-lazy val not = recFun(bool, bool) { self =>
+lazy val not = recFun(bool, bool) { _ =>
   Case(tru):
     fals
   Case(fals):

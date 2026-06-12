@@ -195,20 +195,14 @@ private[recursion] object RecFunctionInduction {
       normalized: (Set[Expr[Prop]], proof.Fact, proof.Fact, proof.Fact, proof.Fact),
       propertyAt: Expr[Ind] => Expr[Prop],
       slicePoint: Expr[Ind],
-      inputTerm: Expr[Ind],
       xFun: Expr[Ind],
-      yFun: Expr[Ind],
-      xBody: Expr[Ind],
-      yBody: Expr[Ind]
+      yFun: Expr[Ind]
   ): proof.Fact = {
     val (localContext, pointEqInput, leftAtInput, rightAtInput, bodyEquality) = normalized
     val agreement = WitnessCaseExtensionality.pointwiseAgreementAt(
       leftWitness = xFun,
       rightWitness = yFun,
       ambientTerm = slicePoint,
-      inputTerm = inputTerm,
-      leftBody = xBody,
-      rightBody = yBody,
       ambientEqInput = pointEqInput,
       leftAtInput = leftAtInput,
       rightAtInput = rightAtInput,
@@ -320,7 +314,7 @@ private[recursion] object RecFunctionInduction {
       val step = Time.measure("Uniqueness/pointwise/step"){ have(∀(nVar, (nVar ∈ N) ==> (P(nVar) ==> P(Succ(nVar))))) subproof {
         have((nVar ∈ N) ==> (P(nVar) ==> P(Succ(nVar)))) subproof {
           val nInN = assume(nVar ∈ N)
-          val ih = assume(P(nVar))
+          assume(P(nVar))
           // Shared successor-step orchestration (height decomposition + branch
           // selection + case assembly); only the uniqueness-specific per-pattern
           // proof — case equations from the function definitions + body equality +
@@ -486,11 +480,8 @@ private[recursion] object RecFunctionInduction {
                       normalized = normalizedFacts,
                       propertyAt = propertyAt,
                       slicePoint = slicePoint,
-                      inputTerm = pattern.freshInputTerm,
                       xFun = xFun,
-                      yFun = yFun,
-                      xBody = xBody,
-                      yBody = yBody
+                      yFun = yFun
                     )
                   }
                 }
@@ -502,7 +493,7 @@ private[recursion] object RecFunctionInduction {
 
       val allHeights = have(∀(nVar, (nVar ∈ N) ==> P(nVar))) by
         Tautology.from(NatFacts.induction of (Pred := P), base, step)
-      val pointwiseAtArg = have(inductionVariable ∈ argType ==> propertyAt(inductionVariable)) subproof {
+      have(inductionVariable ∈ argType ==> propertyAt(inductionVariable)) subproof {
         val inArg = assume(inductionVariable ∈ argType)
         val someHeight = have(∃(nVar, (nVar ∈ N) /\ (inductionVariable ∈ app(heightFun)(nVar)))) by
           Tautology.from(

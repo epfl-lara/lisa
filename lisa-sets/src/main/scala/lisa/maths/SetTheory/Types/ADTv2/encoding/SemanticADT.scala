@@ -266,7 +266,7 @@ class SemanticADT[N <: Arity](
         Restate.from(underlying.injectivity(c1.underlying, c2.underlying))
       thenHave(c1.structuralTerm1 === c2.structuralTerm2 |- ()) by Restate
 
-      val contradiction = have(
+      have(
         (vars1WellTyped ++ vars2WellTyped) + (c1.appliedTerm1 === c2.appliedTerm2) |- ()
       ) by Cut(defUnfolding, lastStep)
 
@@ -552,7 +552,7 @@ class SemanticADT[N <: Arity](
       Restate.from(induction of (P := lambda(z, !(x === z))))
     thenHave(inductionPreconditionsIneq |- x :: term ==> !(x === x)) by
       InstantiateForall(x)
-    val ind = thenHave(x :: term |- !inductionPreconditionsIneq) by Restate
+    thenHave(x :: term |- !inductionPreconditionsIneq) by Restate
     val eliminationCase = have(x :: term |- isConstructor) by
       Cut(lastStep, strengtheningOfInductionPreconditions)
 

@@ -124,7 +124,6 @@ private[functions] final class SemanticFunctionInternals[N <: Arity](
     witnessSemantics.witnessCaseByPattern
 
   private val extensionalUniqueness = new ExtensionalUniqueness[N](
-    adt = adt,
     argType = argType,
     patternMatching = patternMatching,
     returnType = returnType,

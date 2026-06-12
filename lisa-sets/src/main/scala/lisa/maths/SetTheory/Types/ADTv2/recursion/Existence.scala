@@ -75,9 +75,6 @@ private[recursion] final class Existence[N <: Arity](
       heightMembershipMonotonic
     )(hValid)
 
-    val T, e2 = variable[Ind]
-    val e = variable[Ind >>: Ind]
-
     val witnessAtLimitTyped = have(recWitness(limitFun) :: spec.typ) by Tautology.from(
       limitHasType,
       recWitness.witnessHasType.of(spec.selfPlaceholder := limitFun)

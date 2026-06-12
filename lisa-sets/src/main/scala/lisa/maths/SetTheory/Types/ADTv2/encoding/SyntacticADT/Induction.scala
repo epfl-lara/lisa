@@ -53,7 +53,7 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
     ) by Cut(zeroCase, natInduction of (P := lam(n, inductionFormulaN)))
 
     // STEP 2: Prove the inductive case
-    val succCase = have(
+    have(
       (isHeight(h), structuralInductionPreconditions) |-
         forall(n, in(n, N) ==> (inductionFormulaN ==> inductionFormula(successor(n))))
     ) subproof {
@@ -157,9 +157,9 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
                     ) by InstantiateForall(v)
 
                     factCclInstantiated match
-                      case implies(membership, subformula) => ty match
+                      case implies(_, subformula) => ty match
                           case SelfRef => subformula match
-                              case implies(hypothesis, subSubFormula) =>
+                              case implies(_, subSubFormula) =>
                                 val proofSubSubFormula = thenHave(
                                   (
                                     isHeight(h),

@@ -8,6 +8,7 @@ import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.RecFunctionInduction
 import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.extractPatternCaseSchema
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.DefinedProperty
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.ProofTacticLib.Arity
 

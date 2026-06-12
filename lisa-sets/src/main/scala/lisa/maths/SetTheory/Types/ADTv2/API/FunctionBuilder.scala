@@ -21,12 +21,6 @@ def fun[N <: Arity](adt: SpecializedADT[N], returnType: Expr[Ind])(using
   val builder = CaseAccumulator[N, Expr[Ind], Unit](())
   cases(using builder)
 
-  val effectiveTypeSubstitutions =
-    substitutionsFromArgs("ADT", adt.base.name, adt.base.typeVariablesSeq, adt.typeArgs)
-      .filter(substitution =>
-        substitution._2.asInstanceOf[Expr[Ind]] != substitution._1.asInstanceOf[Variable[Ind]]
-      )
-
   builder.compile(adt) match
     case Right(patternSystem) =>
       val semantic = SemanticFunction[N](

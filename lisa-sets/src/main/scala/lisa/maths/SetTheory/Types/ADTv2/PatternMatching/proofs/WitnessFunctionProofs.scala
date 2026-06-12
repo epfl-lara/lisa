@@ -633,7 +633,7 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
               pair(pattern.freshInputTerm, pattern.bodyAtFreshVars2) ∈ witness
             ) by Tautology.from(freshMembership, freshPremise)
 
-            val selectedPairInWitness = have(
+            have(
               pair(inputTerm, pattern.bodyAtFreshVars2) ∈ witness
             ) by Congruence.from(inputEqFresh, freshPairInWitness)
 

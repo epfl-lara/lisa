@@ -12,6 +12,7 @@ import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.core.**
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems._
+import lisa.maths.SetTheory.Types.ADTv2.support.UniqueCharacterizedSymbol
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.utils.prooflib.ProofTacticLib.Arity

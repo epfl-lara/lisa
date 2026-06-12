@@ -180,8 +180,8 @@ object FunctionAbstractions {
       ∀(pointVar, pointVar ∈ domainVar ==> ((leftFunVar * pointVar) === (rightFunVar * pointVar)))
     ) |- (leftFunVar === rightFunVar)
   ) {
-    val leftTyped = assume(leftFunVar :: (domainVar ->: tailTypeVar))
-    val rightTyped = assume(rightFunVar :: (domainVar ->: tailTypeVar))
+    assume(leftFunVar :: (domainVar ->: tailTypeVar))
+    assume(rightFunVar :: (domainVar ->: tailTypeVar))
     val pointwiseForall =
       assume(∀(pointVar, pointVar ∈ domainVar ==> ((leftFunVar * pointVar) === (rightFunVar * pointVar))))
     val leftBetween = have(Function.functionBetween(leftFunVar)(domainVar)(tailTypeVar)) by Weakening(
@@ -296,11 +296,11 @@ object FunctionAbstractions {
           val tailRec = rec(tailSig, tailVars, currentLeft * pointArg, currentRight * pointArg)
 
           Lemma((currentLeft :: currentType, currentRight :: currentType, currentSchema) |- (currentLeft === currentRight)) {
-            val leftTyped = assume(currentLeft :: currentType)
-            val rightTyped = assume(currentRight :: currentType)
+            assume(currentLeft :: currentType)
+            assume(currentRight :: currentType)
             val schema = assume(currentSchema)
 
-            val pointwiseAtArg = have(pointArg ∈ domain |- (currentLeft * pointArg === currentRight * pointArg)) subproof {
+            have(pointArg ∈ domain |- (currentLeft * pointArg === currentRight * pointArg)) subproof {
               val argTyped = assume(pointArg ∈ domain)
 
               val leftAppTyped = have((currentLeft * pointArg) :: tailType) by Weakening(

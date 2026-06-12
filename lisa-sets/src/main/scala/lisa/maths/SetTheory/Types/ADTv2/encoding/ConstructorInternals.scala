@@ -7,6 +7,7 @@ import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.FunctionAbstractions
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems._
+import lisa.maths.SetTheory.Types.ADTv2.support.ExistsOneBuilder
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
@@ -34,7 +35,6 @@ private[encoding] final class ConstructorInternals[N <: Arity](
       semanticSignature.drop(index).map(_._2).foldRight[Expr[Ind]](adt.term)((a, b) => a ->: b)
 
     def proveTyping(index: Int): THM = {
-      val prefixVars = variables.take(index)
       val prefixSig = semanticSignature.take(index)
 
       if index == variables.size then

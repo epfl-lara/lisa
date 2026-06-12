@@ -138,7 +138,7 @@ object InterfaceHelpers {
       args: Seq[(Variable[Ind], Expr[Ind])]
   ): proof.Fact =
     args.foldLeft[(proof.Fact, Expr[Ind], Expr[Ind])]((headTyping, headTerm, headType)) {
-      case ((accFact, accTerm, accType), (argument, argumentType)) =>
+      case ((accFact, accTerm, accType), (argument, _)) =>
         accType match
           case domainType ->: codomainType =>
             val argumentTyping = assume(argument :: domainType)

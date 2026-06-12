@@ -140,7 +140,7 @@ final class HeightStageSet[N <: Arity](
       val pairXY = have(
         (Universe.isUniverse(stageBound), in(a0, stageBound), in(b0, stageBound)) |- in(unorderedPair(a0, b0), stageBound)
       ) by Tautology.from(Universe.universePairingClosure of (U := stageBound, x := a0, y := b0))
-      val kuratowskiPair = have(
+      have(
         (
           Universe.isUniverse(stageBound),
           in(a0, stageBound),
@@ -161,7 +161,7 @@ final class HeightStageSet[N <: Arity](
     def constructorTermInUniverse(c: HeightStageConstructorData): THM = {
       val typedArgs = wellTypedFormula(c.signature)(unionRangeF)
       Lemma((typedArgs, Universe.isUniverse(stageBound), in(seed, stageBound)) |- in(c.term, stageBound)) {
-        val typedHyp = have(typedArgs |- typedArgs) by Hypothesis
+        have(typedArgs |- typedArgs) by Hypothesis
 
         def domainInUniverse(d: Expr[Ind]): THM = Lemma(
           (Universe.isUniverse(stageBound), in(seed, stageBound)) |- in(d, stageBound)

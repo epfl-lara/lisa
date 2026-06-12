@@ -8,6 +8,7 @@ import lisa.maths.SetTheory.Types.ADTv2.encoding._
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.core.**
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.UniqueCharacterizedSymbol
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Restate
@@ -84,7 +85,7 @@ class SemanticFunction[N <: Arity](
         pattern.binders,
         pattern.branchPremise ==> (term * pattern.inputTerm === pattern.body)
       )) by Weakening
-      pattern.binders.foldLeft(lastStep)((l, _) =>
+      pattern.binders.foldLeft(lastStep)((_, _) =>
         lastStep.statement.right.head match
           case forall(v, phi) => thenHave(phi) by InstantiateForall(v)
           case _ => throw UnreachableException

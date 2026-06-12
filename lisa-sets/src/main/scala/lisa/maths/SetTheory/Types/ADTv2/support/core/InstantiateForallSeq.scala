@@ -76,6 +76,6 @@ object InstantiateForallSeq extends lisa.utils.prooflib.ProofTacticLib.ProofTact
         lib.have(bot) by Tautology.from(current)
       } match
         case Left(judgement) => break(judgement)
-        case Right(value)    => value
+        case Right(_)    => ()
   }
 }

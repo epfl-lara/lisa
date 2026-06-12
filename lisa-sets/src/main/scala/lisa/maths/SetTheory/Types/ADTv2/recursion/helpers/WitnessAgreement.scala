@@ -83,10 +83,10 @@ private[recursion] final class WitnessAgreement[N <: Arity](
     ) |- ∀(a ∈ app(heightFun)(Succ(nVar)), app(recWitness(leftFun))(a) === app(recWitness(rightFun))(a))
   ) {
    have(thesis) subproof {
-    val leftTyped  = assume(leftFun :: spec.typ)
-    val rightTyped = assume(rightFun :: spec.typ)
-    val nInN       = assume(nVar ∈ N)
-    val agreeHyp   = assume(agreeOnSlice)
+    assume(leftFun :: spec.typ)
+    assume(rightFun :: spec.typ)
+    val nInN = assume(nVar ∈ N)
+    assume(agreeOnSlice)
 
     val hValid = have(isHeightPred(heightFun)) by Weakening(heightFunValid)
 
@@ -171,9 +171,6 @@ private[recursion] final class WitnessAgreement[N <: Arity](
               leftWitness = recWitness(leftFun),
               rightWitness = recWitness(rightFun),
               ambientTerm = a,
-              inputTerm = pattern.freshInputTerm,
-              leftBody = bodyLeft,
-              rightBody = bodyRight,
               ambientEqInput = aEqPattern,
               leftAtInput = witnessAtLeft,
               rightAtInput = witnessAtRight,

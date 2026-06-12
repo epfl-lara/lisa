@@ -230,9 +230,9 @@ object ExtendedInteger extends lisa.Main {
     ) subproof {
       assume(SetTheory.inductive(y))
       have(limitOrdinal(λ_) ==> (∀(β ∈ λ_, PInt(β)) ==> PInt(λ_))) subproof {
-        val hLimit = assume(limitOrdinal(λ_))
-        val hPrev = assume(∀(β ∈ λ_, PInt(β)))
-        val hInt = assume(integer(λ_))
+        assume(limitOrdinal(λ_))
+        assume(∀(β ∈ λ_, PInt(β)))
+        assume(integer(λ_))
 
         have(integer(λ_) |- integer(λ_)) by Restate
         thenHave(integer(λ_) |- ∀(β, β <= λ_ ==> (β === ∅) \/ successorOrdinal(β))) by

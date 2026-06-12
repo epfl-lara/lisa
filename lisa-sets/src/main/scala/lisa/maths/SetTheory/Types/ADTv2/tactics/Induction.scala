@@ -240,8 +240,6 @@ class Induction[M <: Arity](
     val prop = λ(x, propFun(x))
     val typeVariablesSubstPairs = adt.base.typeVariablesSeq.zip(adt.typeArgs)
       .map(SubstPair(_, _))
-    val specializedTypeArgs =
-      adt.base.typeVariablesSeq.map(_.id.name).zip(adt.typeArgs).toMap
     val instTerm = adt.term
 
     val instantiatedInduction = have(
@@ -415,9 +413,7 @@ class Induction[M <: Arity](
    *
    *  This enables calls such as `Induction(x, nat)` on goals of the form `|- P(x)`.
    */
-  private def inferArgumentsFromExpected(
-      seq: Sequent
-  ): Option[(Variable[Ind], SpecializedADT[?], Option[Expr[Prop]])] =
+  private val inferArgumentsFromExpected: Option[(Variable[Ind], SpecializedADT[?], Option[Expr[Prop]])] =
     (expectedVar, expectedADT) match
       case (Some(v), Some(a)) =>
         Some((v, a, None))
@@ -443,7 +439,7 @@ class Induction[M <: Arity](
         (Sequent, Seq[Expr[Ind]], Variable[Ind])
       ] ?=> Unit
   )(bot: Sequent): proof.ProofTacticJudgement = Time.measure("Induction tactic"){
-    inferArguments(bot).orElse(inferArgumentsFromExpected(bot)) match
+    inferArguments(bot).orElse(inferArgumentsFromExpected) match
     case Some((inferedVar, inferedADT, inferedProp)) =>
 
       val prop = inferedProp.getOrElse(bot.right.head)
@@ -546,22 +542,20 @@ class Induction[M <: Arity](
 
 /** Placeholder for ADT v2 induction tactic implementation. */
 object Induction {
-  def apply()(using proof: lisa.SetTheoryLibrary.Proof) = new Induction(None, None)
+  def apply() = new Induction(None, None)
 
-  def apply[N <: Arity](adt: ADT[N])(using proof: lisa.SetTheoryLibrary.Proof) =
+  def apply[N <: Arity](adt: ADT[N]) =
     new Induction(None, Some(adt.specialize(adt.typeVariablesSeq*)))
 
-  def apply[N <: Arity](adt: SpecializedADT[N])(using proof: lisa.SetTheoryLibrary.Proof) =
+  def apply[N <: Arity](adt: SpecializedADT[N]) =
     new Induction(None, Some(adt))
 
-  def apply(v: Variable[Ind])(using proof: lisa.SetTheoryLibrary.Proof) =
+  def apply(v: Variable[Ind]) =
     new Induction(Some(v), None)
 
-  def apply[N <: Arity](v: Variable[Ind], adt: ADT[N])(using
-      proof: lisa.SetTheoryLibrary.Proof
-  ) = new Induction(Some(v), Some(adt.specialize(adt.typeVariablesSeq*)))
+  def apply[N <: Arity](v: Variable[Ind], adt: ADT[N]) = 
+    new Induction(Some(v), Some(adt.specialize(adt.typeVariablesSeq*)))
 
-  def apply[N <: Arity](v: Variable[Ind], adt: SpecializedADT[N])(using
-      proof: lisa.SetTheoryLibrary.Proof
-  ) = new Induction(Some(v), Some(adt))
+  def apply[N <: Arity](v: Variable[Ind], adt: SpecializedADT[N]) =
+    new Induction(Some(v), Some(adt))
 }

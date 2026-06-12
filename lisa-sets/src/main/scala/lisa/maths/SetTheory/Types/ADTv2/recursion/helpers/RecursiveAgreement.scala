@@ -12,13 +12,7 @@ private[recursion] object RecursiveAgreement {
 
   private val h = variable[Ind]
   private val x = variable[Ind]
-  private val n = variable[Ind]
-  private val m = variable[Ind]
-  private val α = variable[Ind]
-  private val betaVar = variable[Ind]
-  private val pointVar = variable[Ind]
-  private val upperVar = variable[Ind]
-  private val lowerVar = variable[Ind]
+
   def selfAgreementFromForall(using proof: lisa.SetTheoryLibrary.Proof)(
       heightFun: Expr[Ind],
       currentIndex: Expr[Ind],

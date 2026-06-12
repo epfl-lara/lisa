@@ -6,6 +6,7 @@ import lisa.maths.SetTheory.Types.ADTv2.height.HeightTerms
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems._
+import lisa.maths.SetTheory.Types.ADTv2.support.UniqueDefinedSymbol
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.ProofTacticLib.Arity

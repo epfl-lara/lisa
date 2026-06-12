@@ -160,11 +160,10 @@ object UnionRangeMembership {
         ∃(m, m ∈ relationDomain(h) /\ z ∈ app(h, m))
     ) by Tautology.from(equivalenceRewriting, introM, lastStep)
 
-    val p_1 = z ∈ ⋃(range(h))
-    val p_2 = ∃(y, y ∈ relationRange(h) /\ z ∈ y)
-    val p_3 = ∃(n, n ∈ relationDomain(h) /\ z ∈ app(h, n))
+    val p_1 = ∃(y, y ∈ relationRange(h) /\ z ∈ y)
+    val p_2 = ∃(n, n ∈ relationDomain(h) /\ z ∈ app(h, n))
 
-    have(functional(h) |- (z ∈ ⋃(range(h)) <=> p_2) /\ (p_2 <=> p_3)) by 
+    have(functional(h) |- (z ∈ ⋃(range(h)) <=> p_1) /\ (p_1 <=> p_2)) by 
       Tautology.from(unionAxiom of (x := range(h)), lastStep)
     have(thesis) by Tautology.from(lastStep, equivalenceRewriting)
 

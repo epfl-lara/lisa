@@ -9,6 +9,7 @@ import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitutio
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.**
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.UniqueCharacterizedSymbol
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.ProofTacticLib.Arity

@@ -98,7 +98,6 @@ final class HeightConstructors[N <: Arity](
       for c <- constructors yield
         val labelEq = x === c.term
         val isConstructorCXS = constructorPredicate(c, x, s)
-        val isConstructorCXT = constructorPredicate(c, x, t)
         val varsWellTypedS = wellTypedFormula(c.signature)(s)
         val varsWellTypedT = wellTypedFormula(c.signature)(t)
 

@@ -2,7 +2,6 @@ package ADTv2Examples.builder
 
 import lisa.maths.SetTheory.Types.ADTv2.library.*
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
-import lisa.maths.SetTheory.SetTheory.{*, given}
 
 object DebugADTs extends lisa.Main {
 

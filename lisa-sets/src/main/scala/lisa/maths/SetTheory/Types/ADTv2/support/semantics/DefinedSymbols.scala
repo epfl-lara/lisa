@@ -94,11 +94,11 @@ class DefinedProperty(
   // and their instantiations all share the same decomposition.
 
   private val lhs: Expr[Prop] = definition.statement.right.head match
-    case lhs <=> rhs => lhs
+    case lhs <=> _ => lhs
     case other       => throw IllegalStateException(s"$name.definition is expected to be an `<=>`, got: $other")
 
   private val rhs: Expr[Prop] = definition.statement.right.head match
-    case lhs <=> rhs => rhs
+    case _ <=> rhs => rhs
     case other       => throw IllegalStateException(s"$name.definition is expected to be an `<=>`, got: $other")
 
   /**
@@ -122,7 +122,7 @@ class DefinedProperty(
   /**
    * Instantiates [[unfold]] at the given argument and returns the resulting theorem.
    */
-  def unfoldAt(using proof: lisa.SetTheoryLibrary.Proof)(arg: Expr[Ind]): THM =
+  def unfoldAt(arg: Expr[Ind]): THM =
     Lemma(unfold.statement.substitute(bodyVar := arg)) {
       have(thesis) by Restate.from(unfold of (bodyVar := arg))
     }
@@ -130,7 +130,7 @@ class DefinedProperty(
   /**
    * Instantiates [[fold]] at the given argument and returns the resulting theorem.
    */
-  def foldAt(using proof: lisa.SetTheoryLibrary.Proof)(arg: Expr[Ind]): THM =
+  def foldAt(arg: Expr[Ind]): THM =
     Lemma(fold.statement.substitute(bodyVar := arg)) {
       have(thesis) by Restate.from(fold of (bodyVar := arg))
     }

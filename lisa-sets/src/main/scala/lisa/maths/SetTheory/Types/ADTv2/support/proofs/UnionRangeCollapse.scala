@@ -182,7 +182,7 @@ object UnionRangeCollapse {
       val ih = have(n ∩ N === n) by Tautology
       val ihSym = have(n === n ∩ N) by Tautology.from(ih)
 
-      val succElemIsNat = have(in(x, successor(n)) ==> in(x, N)) subproof {
+      have(in(x, successor(n)) ==> in(x, N)) subproof {
         assume(in(x, successor(n)))
         have((x === n) \/ in(x, n)) by Tautology.from(lastStep, inSucc of (x := x, n := n))
 

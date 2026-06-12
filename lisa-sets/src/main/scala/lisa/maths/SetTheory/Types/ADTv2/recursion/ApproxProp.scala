@@ -94,7 +94,7 @@ private[recursion] final class ApproxProp[N <: Arity](
         val nInN = assume(nVar ∈ N)
         val ih     = assume(P(nVar))
 
-        val succEq = have(Succ(nVar) === successor(nVar)) by
+        have(Succ(nVar) === successor(nVar)) by
           Tautology.from(Succ.definition of (x := nVar))
 
         val pointwiseAtSucc = have(

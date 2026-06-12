@@ -21,7 +21,7 @@ val nat = adt(
 val zero = nat.constructors(0)
 val succ = nat.constructors(1)
 
-lazy val pred = recFun(nat, nat) { self =>
+lazy val pred = recFun(nat, nat) { _ =>
   Case(zero):
     zero
   Case(succ, natPredN):
