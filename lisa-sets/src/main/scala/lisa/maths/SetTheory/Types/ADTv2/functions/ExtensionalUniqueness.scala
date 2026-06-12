@@ -1,17 +1,15 @@
 package lisa.maths.SetTheory.Types.ADTv2.functions
 
+import lisa.maths.SetTheory.Functions.BasicTheorems
+import lisa.maths.SetTheory.Functions.Function
+import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.FunctionAbstractions
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.encoding._
 import lisa.maths.SetTheory.Types.ADTv2.support.InstantiateForallSeq
-import lisa.maths.SetTheory.Types.ADTv2.encoding.*
-import lisa.maths.SetTheory.Types.TypingHelpers.*
-
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Functions.{BasicTheorems, Function}
-import lisa.utils.prooflib.ProofTacticLib.Arity
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Restate
+import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[functions] final class ExtensionalUniqueness[N <: Arity](
     adt: SemanticADT[N],

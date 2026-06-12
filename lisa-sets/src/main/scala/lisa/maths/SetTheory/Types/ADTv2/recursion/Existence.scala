@@ -1,22 +1,22 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
-import lisa.maths.SetTheory.Types.ADTv2.encoding.*
+import lisa.maths.SetTheory.Functions.BasicTheorems.funcBetweenEqInFuncSpace
+import lisa.maths.SetTheory.Functions.BasicTheorems.functionalExtentionality
+import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.Ordinals.TransitiveSet
+import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.RecursiveAgreement
-import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.{specializedConstructors}
-import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.{ApproximationChainFacts, LimitKernel}
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.{altEqualityTransitivity}
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ApproximationChainFacts
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.LimitKernel
+import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Succ
-import lisa.maths.SetTheory.Types.ADTv2.support.Time
-
-
-import lisa.maths.SetTheory.Functions.BasicTheorems.{funcBetweenEqInFuncSpace, functionalExtentionality}
-import lisa.maths.SetTheory.Functions.Predef.*
-import lisa.maths.SetTheory.Ordinals.TransitiveSet
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Types.TypingHelpers.*
-import lisa.utils.prooflib.BasicStepTactic.{LeftExists, Cut, RightForall}
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.altEqualityTransitivity
+import lisa.maths.SetTheory.Types.TypingHelpers._
+import lisa.utils.prooflib.BasicStepTactic.Cut
+import lisa.utils.prooflib.BasicStepTactic.LeftExists
+import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 

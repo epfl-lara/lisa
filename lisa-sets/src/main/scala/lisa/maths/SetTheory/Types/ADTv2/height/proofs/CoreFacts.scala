@@ -1,15 +1,13 @@
 package lisa.maths.SetTheory.Types.ADTv2.height.proofs
 
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UnionRangeCollapse.unionRangeCollapse
+import lisa.maths.SetTheory.Functions.BasicTheorems.functionOnDomain
+import lisa.maths.SetTheory.Functions.BasicTheorems.functionOnIsFunction
+import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.OmegaFacts
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.TransfiniteRecursionExt
-
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Base.Extensionality
-import lisa.maths.SetTheory.Functions.Predef.*
-import lisa.maths.SetTheory.Functions.BasicTheorems.{functionOnDomain, functionOnIsFunction}
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems._
 
 private[height] object CoreFacts {
 

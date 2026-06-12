@@ -1,8 +1,8 @@
 package lisa.maths.SetTheory.Types.ADTv2.support.semantics
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.Quantifiers.existsOneAlternativeDefinition
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.utils.prooflib.BasicStepTactic.RightForall
 
 final class ExistsOneBuilder(

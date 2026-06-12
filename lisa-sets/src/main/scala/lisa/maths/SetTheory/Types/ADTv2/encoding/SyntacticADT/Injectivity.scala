@@ -1,15 +1,11 @@
 package lisa.maths.SetTheory.Types.ADTv2.encoding
 
-import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
-
-import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Base.Pair
 import lisa.maths.SetTheory.Base.Pair.given
-import lisa.maths.SetTheory.Functions.Predef.*
+import lisa.maths.SetTheory.SetTheory._
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems._
 import lisa.utils.prooflib.ProofTacticLib.Arity
-import lisa.utils.prooflib.SimpleDeducedSteps.*
 
 private[encoding] trait SyntacticADTInjectivity[N <: Arity] extends SyntacticADTBase[N] {
   this: SyntacticADT[N] =>

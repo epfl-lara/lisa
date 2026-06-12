@@ -1,17 +1,16 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
 import lisa.maths.Quantifiers
-import lisa.maths.SetTheory.Functions.BasicTheorems.{appTyping, funcBetweenEqInFuncSpace}
+import lisa.maths.SetTheory.Functions.BasicTheorems.appTyping
+import lisa.maths.SetTheory.Functions.BasicTheorems.funcBetweenEqInFuncSpace
 import lisa.maths.SetTheory.Functions.Function.abs
-import lisa.maths.SetTheory.Functions.Predef.*
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Types.ADTv2.support.InstantiateForallSeq
+import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.FunctionAbstractions.TAbsConstOn
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.equivalenceApply
-import lisa.maths.SetTheory.Types.TypingHelpers.*
-import lisa.maths.SetTheory.Types.TypingRules.TAbs
+import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[recursion] final class LimitConstruction[N <: Arity](

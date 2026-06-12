@@ -1,27 +1,26 @@
 package lisa.maths.SetTheory.Types.ADTv2.support.proofs
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Base.*
-import lisa.maths.SetTheory.Base.Pair.{pair, fst, snd, given_Conversion_Expr_Expr_Expr}
-import lisa.maths.SetTheory.Functions.Predef.*
-import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
-import lisa.maths.Quantifiers.{
-  existentialConjunctionWithClosedFormula,
-  existentialEquivalenceDistribution,
-  onePointRule
-}
-
-import lisa.maths.SetTheory.Base.Union.∪
+import lisa.maths.Quantifiers.existentialConjunctionWithClosedFormula
+import lisa.maths.Quantifiers.existentialEquivalenceDistribution
+import lisa.maths.Quantifiers.onePointRule
 import lisa.maths.SetTheory.Base.Intersection.∩
-
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.{omegaCharacterization, integerIsOrdinal, integer}
+import lisa.maths.SetTheory.Base.Pair.fst
+import lisa.maths.SetTheory.Base.Pair.given_Conversion_Expr_Expr_Expr
+import lisa.maths.SetTheory.Base.Pair.snd
+import lisa.maths.SetTheory.Base.Singleton.singleton
+import lisa.maths.SetTheory.Base.Union.∪
+import lisa.maths.SetTheory.Base._
+import lisa.maths.SetTheory.Functions.Operations.Restriction
+import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.integer
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.integerIsOrdinal
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.omegaCharacterization
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems._
+import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
 import lisa.utils.prooflib.BasicStepTactic.Hypothesis
 import lisa.utils.prooflib.BasicStepTactic.LeftExists
-import lisa.maths.SetTheory.Base.Union.membership
-import lisa.maths.SetTheory.Base.Singleton.singleton
-import lisa.maths.SetTheory.Functions.Operations.Restriction
 
 object UnionRangeCollapse {
 

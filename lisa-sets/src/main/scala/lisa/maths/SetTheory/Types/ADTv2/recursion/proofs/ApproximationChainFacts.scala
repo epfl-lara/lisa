@@ -1,15 +1,19 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion.proofs
 
-import lisa.maths.SetTheory.Types.ADTv2.support.Time
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.{Succ, Zero}
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.{altEqualityTransitivity, unionOfTwoNats}
-import lisa.maths.SetTheory.Functions.Predef.*
-import lisa.maths.SetTheory.Base.{Subset, Union}
+import lisa.maths.SetTheory.Base.Subset
+import lisa.maths.SetTheory.Base.Union
 import lisa.maths.SetTheory.Base.Union.∪
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.utils.prooflib.BasicStepTactic.{RightForall, RightImplies}
+import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Succ
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Zero
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.altEqualityTransitivity
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.unionOfTwoNats
+import lisa.utils.prooflib.BasicStepTactic.RightForall
+import lisa.utils.prooflib.BasicStepTactic.RightImplies
 
 private[recursion] object ApproximationChainFacts {
 

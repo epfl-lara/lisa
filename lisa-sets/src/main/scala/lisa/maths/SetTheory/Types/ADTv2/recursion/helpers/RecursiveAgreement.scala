@@ -1,18 +1,10 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion.helpers
 
+import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
-import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.{ApproximationChainFacts, LimitKernel}
-import lisa.maths.SetTheory.Types.ADTv2.support.InstantiateForallSeq
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
-import lisa.maths.SetTheory.Types.ADTv2.support.Time
-import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
-
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Functions.Predef.*
-import lisa.maths.SetTheory.Types.TypingHelpers.*
-import lisa.maths.SetTheory.Ordinals.Integer
-import lisa.maths.SetTheory.Ordinals.Ordinal.{successorOrdinal, ordinal, <=}
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ApproximationChainFacts
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.LimitKernel
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[recursion] object RecursiveAgreement {

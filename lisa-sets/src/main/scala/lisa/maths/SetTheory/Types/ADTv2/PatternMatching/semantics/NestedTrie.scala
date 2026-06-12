@@ -1,7 +1,8 @@
 package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, Constructor}
+import lisa.maths.SetTheory.SetTheory._
+import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
+import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
 import lisa.maths.SetTheory.Types.TypingHelpers
 
 /**

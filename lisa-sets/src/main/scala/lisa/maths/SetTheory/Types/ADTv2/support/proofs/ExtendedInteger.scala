@@ -1,17 +1,18 @@
 package lisa.maths.SetTheory.Types.ADTv2.support.proofs
 
-import lisa.maths.SetTheory.Ordinals.Ordinal
-import lisa.maths.SetTheory.Ordinals.Ordinal.{<, <=, successorOrdinal, ordinal, S, limitOrdinal}
-import lisa.maths.SetTheory.Ordinals.Integer
-import lisa.maths.SetTheory.Ordinals.TransfiniteInduction.transfiniteInductionCases
-import lisa.maths.SetTheory.Base.Union
-import lisa.maths.SetTheory.Base.Union.∪
-import lisa.maths.SetTheory.Base.Singleton
-import lisa.maths.SetTheory.Base.EmptySet
-import lisa.maths.SetTheory.SetTheory
-import lisa.utils.prooflib.BasicStepTactic.*
-import lisa.utils.prooflib.SimpleDeducedSteps.*
 import lisa.maths.Quantifiers.existsEpsilon
+import lisa.maths.SetTheory.Base.EmptySet
+import lisa.maths.SetTheory.Base.Singleton
+import lisa.maths.SetTheory.Base.Union
+import lisa.maths.SetTheory.Ordinals.Integer
+import lisa.maths.SetTheory.Ordinals.Ordinal
+import lisa.maths.SetTheory.Ordinals.Ordinal.<=
+import lisa.maths.SetTheory.Ordinals.Ordinal.S
+import lisa.maths.SetTheory.Ordinals.Ordinal.limitOrdinal
+import lisa.maths.SetTheory.Ordinals.Ordinal.ordinal
+import lisa.maths.SetTheory.Ordinals.Ordinal.successorOrdinal
+import lisa.maths.SetTheory.Ordinals.TransfiniteInduction.transfiniteInductionCases
+import lisa.maths.SetTheory.SetTheory
 
 /**
  * This file defines integers as ordinals whose elements are either zero

@@ -1,7 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.library
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Types.ADTv2.*
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2._
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.SelfRef
 
 private val listLengthHead = variable[Ind]

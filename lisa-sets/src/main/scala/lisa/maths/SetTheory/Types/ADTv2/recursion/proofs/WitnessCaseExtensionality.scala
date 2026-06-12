@@ -1,9 +1,9 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion.proofs
 
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.altEqualityTransitivity
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Functions.Predef.*
 
 /**
  * Function-independent witness extensionality — proved once, instantiated at

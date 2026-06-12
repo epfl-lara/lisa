@@ -1,7 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.support
 
+import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.utils.K
-import lisa.maths.SetTheory.SetTheory.{*, given}
 
 class UniqueVariable(id: K.Identifier, baseName: String) extends Variable[Ind](id) {
   // override def toString: String = baseName

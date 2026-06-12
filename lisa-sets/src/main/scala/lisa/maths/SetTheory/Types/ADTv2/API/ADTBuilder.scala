@@ -1,13 +1,13 @@
 package lisa.maths.SetTheory.Types.ADTv2.API
 
-import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
-import lisa.maths.SetTheory.Types.ADTv2.encoding.*
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.encoding._
 import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
-
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
-import lisa.maths.SetTheory.Types.ADTv2.support.core.{**, toSeq}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.**
+import lisa.maths.SetTheory.Types.ADTv2.support.core.toSeq
+import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
+import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private def ADTBuilder[N <: Arity](
   name: String,

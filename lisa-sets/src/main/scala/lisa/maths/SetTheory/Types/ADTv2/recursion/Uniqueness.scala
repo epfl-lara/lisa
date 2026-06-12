@@ -1,16 +1,15 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
-import lisa.maths.SetTheory.Types.ADTv2.encoding.*
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.Time
-import lisa.maths.SetTheory.Types.TypingHelpers.*
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Functions.{BasicTheorems, Function}
-import lisa.utils.prooflib.ProofTacticLib.Arity
+import lisa.maths.SetTheory.Functions.BasicTheorems
+import lisa.maths.SetTheory.Functions.Function
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.PatternSchemas
 import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.RecFunctionInduction
-import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.{PatternSchemas, extractPatternCaseSchema}
-import lisa.maths.SetTheory.Types.ADTv2.support.DefinedProperty
+import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.extractPatternCaseSchema
+import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.TypingHelpers._
+import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[recursion] final class Uniqueness[N <: Arity](
   spec: FunSpec[N]

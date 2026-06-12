@@ -1,9 +1,9 @@
 package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.proofs
 
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{Pattern, PatternSystem}
-import lisa.maths.SetTheory.Types.ADTv2.encoding.*
-
-import lisa.maths.SetTheory.SetTheory.{*, given}
+import lisa.maths.SetTheory.SetTheory._
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
+import lisa.maths.SetTheory.Types.ADTv2.encoding._
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**

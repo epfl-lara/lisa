@@ -1,14 +1,13 @@
 package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.proofs
 
+import lisa.maths.SetTheory.Functions.BasicTheorems
+import lisa.maths.SetTheory.Functions.Function
+import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
-import lisa.maths.SetTheory.Types.ADTv2.support.{InstantiateForallSeq, QuantifiersIntro}
-import lisa.maths.SetTheory.Types.TypingHelpers.*
-
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Base.Pair
-import lisa.maths.SetTheory.Functions.{BasicTheorems, Function}
+import lisa.maths.SetTheory.Types.ADTv2.support.InstantiateForallSeq
+import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.ProofTacticLib.Arity
 

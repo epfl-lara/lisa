@@ -1,13 +1,12 @@
 package lisa.maths.SetTheory.Types.ADTv2.encoding
 
+import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.height.HeightADT
 import lisa.maths.SetTheory.Types.ADTv2.height.HeightConstructorData
 import lisa.maths.SetTheory.Types.ADTv2.height.HeightConstructors
 import lisa.maths.SetTheory.Types.ADTv2.height.HeightStageConstructorData
 import lisa.maths.SetTheory.Types.ADTv2.height.HeightStageSet
-import lisa.maths.SetTheory.Types.ADTv2.support.UniqueDefinedSymbol
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
-import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[encoding] trait SyntacticADTHeight[N <: Arity]

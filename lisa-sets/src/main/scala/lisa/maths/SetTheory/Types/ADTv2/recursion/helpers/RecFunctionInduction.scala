@@ -1,22 +1,27 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion.helpers
 
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{Pattern, PatternSystem}
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{TypeSubstitution, instantiatedSemanticSignature, specializeFormula, specializeTerm}
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.core.InstantiateForallSeq
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
+import lisa.maths.SetTheory.Types.ADTv2.encoding._
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.SpecializedConstructorFacts
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.specializedConstructors
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.LimitKernel
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.WitnessCaseExtensionality
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeFormula
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
-import lisa.maths.SetTheory.Types.ADTv2.encoding.*
-import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
-import lisa.maths.SetTheory.Types.TypingHelpers.*
-import lisa.maths.SetTheory.SetTheory.{*, given}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.{Succ, Zero}
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Succ
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Zero
+import lisa.maths.SetTheory.Types.TypingHelpers._
+import lisa.utils.prooflib.BasicStepTactic.Cut
+import lisa.utils.prooflib.BasicStepTactic.LeftExists
+import lisa.utils.prooflib.BasicStepTactic.Restate
+import lisa.utils.prooflib.BasicStepTactic.Weakening
 import lisa.utils.prooflib.ProofTacticLib.Arity
-import lisa.utils.prooflib.BasicStepTactic.{Cut, LeftExists, LeftOr, Restate, Weakening}
-import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.CaseBodySubstitution.substitutedCaseBody
-import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.{constructorDisjunctionAtHeight, specializedConstructors, SpecializedConstructorFacts}
-import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.{LimitKernel,WitnessCaseExtensionality}
 
 private[recursion] object RecFunctionInduction {
 

@@ -1,22 +1,16 @@
 package lisa.maths.SetTheory.Types.ADTv2.support.core
 
-import lisa.maths.SetTheory.Types.ADTv2.support.UniqueVariable
-
 import lisa.maths.Quantifiers.∃!
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Functions.Predef.*
-import lisa.maths.SetTheory.Ordinals.Integer.ω
-import lisa.maths.SetTheory.Types.TypingHelpers.*
 import lisa.maths.SetTheory.Base.Pair
-import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
-import lisa.utils.fol.FOL.{
-  Expr as FExpr,
-  FormulaSetConverter,
-  Ind as FInd,
-  Prop as FProp,
-  Variable
-}
-import lisa.utils.prooflib.BasicStepTactic.*
+import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
+import lisa.maths.SetTheory.Types.TypingHelpers._
+import lisa.utils.fol.FOL.Variable
+import lisa.utils.fol.FOL.{Expr => FExpr}
+import lisa.utils.fol.FOL.{Ind => FInd}
+import lisa.utils.fol.FOL.{Prop => FProp}
+
 import scala.compiletime.summonFrom
 
 object Utils {

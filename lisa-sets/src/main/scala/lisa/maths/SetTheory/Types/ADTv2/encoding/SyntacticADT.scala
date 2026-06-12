@@ -1,8 +1,9 @@
 package lisa.maths.SetTheory.Types.ADTv2.encoding
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
+import lisa.maths.SetTheory.SetTheory._
+import lisa.maths.SetTheory.Types.ADTv2.support.core.**
+import lisa.maths.SetTheory.Types.ADTv2.support.core.toSeq
 import lisa.utils.prooflib.ProofTacticLib.Arity
-import lisa.maths.SetTheory.Types.ADTv2.support.core.{**, toSeq}
 
 /**
  *  Syntactic set theoretical interpretation of an algebraic data type. That is the least

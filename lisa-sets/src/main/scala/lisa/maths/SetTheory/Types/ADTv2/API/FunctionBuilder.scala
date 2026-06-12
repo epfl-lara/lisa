@@ -1,13 +1,14 @@
 package lisa.maths.SetTheory.Types.ADTv2.API
 
-import lisa.maths.SetTheory.Types.ADTv2.interface.{ADTFunction, RecFunction, SpecializedADT}
+import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.syntax.CaseAccumulator
 import lisa.maths.SetTheory.Types.ADTv2.functions.SemanticFunction
+import lisa.maths.SetTheory.Types.ADTv2.interface.ADTFunction
+import lisa.maths.SetTheory.Types.ADTv2.interface.RecFunction
+import lisa.maths.SetTheory.Types.ADTv2.interface.SpecializedADT
 import lisa.maths.SetTheory.Types.ADTv2.recursion
-import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.substitutionsFromArgs
-
-import lisa.maths.SetTheory.SetTheory.{*, given}
+import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 

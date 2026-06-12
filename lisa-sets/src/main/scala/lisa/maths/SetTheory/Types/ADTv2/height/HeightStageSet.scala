@@ -1,21 +1,19 @@
 package lisa.maths.SetTheory.Types.ADTv2.height
 
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
-import lisa.maths.Quantifiers.existsOneAlternativeDefinition
 import lisa.maths.Quantifiers.existsEpsilon
-
-import lisa.maths.SetTheory.SetTheory.{*, given}
+import lisa.maths.SetTheory.Base.Comprehension
+import lisa.maths.SetTheory.Base.Comprehension.|
 import lisa.maths.SetTheory.Base.Pair.given
-import lisa.maths.SetTheory.Base.{Comprehension, Singleton, Subset, Union}
-import lisa.maths.SetTheory.Base.Comprehension.{|}
+import lisa.maths.SetTheory.Base.Singleton
+import lisa.maths.SetTheory.Base.Subset
+import lisa.maths.SetTheory.Base.Union
 import lisa.maths.SetTheory.Base.Union.∪
-import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.maths.SetTheory.Cardinal.Universe
-import lisa.utils.prooflib.ProofTacticLib.Arity
-import lisa.utils.prooflib.SimpleDeducedSteps.*
+import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.height.proofs.CoreFacts
+import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.utils.prooflib.ProofTacticLib.Arity
 
 final class HeightStageSet[N <: Arity](
   base: HeightADT[N],

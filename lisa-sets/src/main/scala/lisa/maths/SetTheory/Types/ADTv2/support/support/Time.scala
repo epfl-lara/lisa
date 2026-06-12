@@ -1,5 +1,5 @@
 package lisa.maths.SetTheory.Types.ADTv2.support
-import lisa.maths.SetTheory.SetTheory.*
+import lisa.maths.SetTheory.SetTheory._
 
 final case class Time private (nanos: Long) {
   def -(other: Time): Time = Time(nanos - other.nanos)

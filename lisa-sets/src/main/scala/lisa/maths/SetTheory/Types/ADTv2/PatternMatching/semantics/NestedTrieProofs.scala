@@ -1,15 +1,19 @@
 package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, Constructor}
-import lisa.maths.SetTheory.Types.ADTv2.encoding.{SemanticADT, SemanticConstructor}
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
+import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
+import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
+import lisa.maths.SetTheory.Types.ADTv2.support.core.QuantifiersIntro
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.altEqualityTransitivity
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.TypingHelpers
 import lisa.maths.SetTheory.Types.TypingHelpers.::
-import lisa.maths.SetTheory.Types.TypingHelpers.given
-import lisa.maths.SetTheory.Types.ADTv2.support.core.QuantifiersIntro
-import lisa.utils.prooflib.BasicStepTactic.{LeftExists, LeftOr, Restate, RightExists, RightForall}
+import lisa.utils.prooflib.BasicStepTactic.LeftExists
+import lisa.utils.prooflib.BasicStepTactic.LeftOr
+import lisa.utils.prooflib.BasicStepTactic.Restate
+import lisa.utils.prooflib.BasicStepTactic.RightExists
+import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
 
 /**

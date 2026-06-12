@@ -1,18 +1,17 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{Pattern, PatternSystem}
-import lisa.maths.SetTheory.Types.ADTv2.encoding.*
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.Time
-import lisa.maths.SetTheory.Types.ADTv2.support.UniqueCharacterizedSymbol
-import lisa.maths.SetTheory.Types.TypingHelpers.*
-
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.Quantifiers.existsOneAlternativeDefinition
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
+import lisa.maths.SetTheory.Types.ADTv2.encoding._
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
+import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.maths.SetTheory.Types.ADTv2.support.core.**
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.RightForall
-import lisa.maths.SetTheory.Types.ADTv2.support.core.`**`
+import lisa.utils.prooflib.ProofTacticLib.Arity
 
 final class RecFunSemantics[N <: Arity](
     val name: String,

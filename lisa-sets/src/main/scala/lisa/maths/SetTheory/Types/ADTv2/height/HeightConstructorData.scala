@@ -1,8 +1,8 @@
 package lisa.maths.SetTheory.Types.ADTv2.height
 
+import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.pair
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.ConstructorArg
-import lisa.maths.SetTheory.SetTheory.{*, given}
 
 /**
  * Height-local constructor view shared by `HeightConstructors` and `HeightTerms`.

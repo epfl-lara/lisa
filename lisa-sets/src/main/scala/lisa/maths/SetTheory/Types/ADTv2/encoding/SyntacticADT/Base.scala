@@ -1,15 +1,9 @@
 package lisa.maths.SetTheory.Types.ADTv2.encoding
 
-import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Base.CartesianProduct.×
-import lisa.maths.SetTheory.Base.Comprehension.|
 import lisa.maths.SetTheory.Base.Pair.given
-import lisa.maths.SetTheory.Functions.Predef.*
+import lisa.maths.SetTheory.SetTheory._
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.utils.prooflib.ProofTacticLib.Arity
-import lisa.utils.KernelHelpers.lambda
 
 private[encoding] trait SyntacticADTBase[N <: Arity] {
   this: SyntacticADT[N] =>

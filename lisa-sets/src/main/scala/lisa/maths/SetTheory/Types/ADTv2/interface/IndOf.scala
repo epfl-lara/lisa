@@ -1,10 +1,12 @@
 package lisa.maths.SetTheory.Types.ADTv2.interface
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.utils.fol.FOL.{Abs, IsSort, unsafeSortEvidence}
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.utils.fol.FOL.Abs
+import lisa.utils.fol.FOL.IsSort
+import lisa.utils.fol.FOL.unsafeSortEvidence
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
-import scala.compiletime.ops.int.*
+import scala.compiletime.ops.int._
 
 type IndOf[N <: Arity] =
   N match {

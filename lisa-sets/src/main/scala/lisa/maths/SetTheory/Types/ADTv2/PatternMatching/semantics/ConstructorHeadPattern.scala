@@ -1,8 +1,10 @@
 package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
+import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{TypeSubstitution, instantiatedSemanticSignature, specializeTerm}
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.instantiatedSemanticSignature
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ConstructorTyping
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.ProofTacticLib.Arity

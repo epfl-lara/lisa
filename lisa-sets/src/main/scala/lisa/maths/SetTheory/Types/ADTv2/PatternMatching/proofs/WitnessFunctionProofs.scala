@@ -1,26 +1,30 @@
 package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.proofs
 
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
-import lisa.maths.SetTheory.Types.ADTv2.support.{InstantiateForallSeq, QuantifiersIntro}
-import lisa.maths.SetTheory.Types.ADTv2.support.Time
-import lisa.maths.SetTheory.Types.TypingHelpers.*
-
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Base.{Comprehension, Pair}
-import lisa.maths.SetTheory.Base.Symbols.{X, Y, φ}
-import lisa.maths.SetTheory.Functions.{BasicTheorems, Function}
-import lisa.maths.SetTheory.Relations.Relation.{R, relationBetween}
+import lisa.automation.Substitution
 import lisa.maths.Quantifiers.∃!
+import lisa.maths.SetTheory.Base.Comprehension
+import lisa.maths.SetTheory.Base.Pair
+import lisa.maths.SetTheory.Base.Symbols.X
+import lisa.maths.SetTheory.Base.Symbols.Y
+import lisa.maths.SetTheory.Base.Symbols.φ
+import lisa.maths.SetTheory.Functions.BasicTheorems
+import lisa.maths.SetTheory.Functions.Function
+import lisa.maths.SetTheory.Relations.Relation.R
+import lisa.maths.SetTheory.Relations.Relation.relationBetween
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
+import lisa.maths.SetTheory.Types.ADTv2.support.InstantiateForallSeq
+import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
+import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.TypingHelpers._
+import lisa.utils.prooflib.BasicStepTactic.Hypothesis
+import lisa.utils.prooflib.BasicStepTactic.LeftExists
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.BasicStepTactic.RightRefl
-import lisa.utils.prooflib.BasicStepTactic.LeftExists
-import lisa.automation.Substitution
 import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
-import lisa.utils.prooflib.BasicStepTactic.Hypothesis
 
 
 private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMembership[N] {

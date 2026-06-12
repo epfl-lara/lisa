@@ -1,23 +1,13 @@
 package lisa.maths.SetTheory.Types.ADTv2.support.proofs
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Functions.Predef.*
-import lisa.maths.Quantifiers.∃!
-
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UnionRangeCollapse.*
-
-import lisa.maths.SetTheory.Base.*
-import lisa.maths.SetTheory.Base.Union.∪
-import lisa.maths.SetTheory.Base.Intersection.∩
-import lisa.maths.SetTheory.Ordinals.*
-import lisa.utils.prooflib.BasicStepTactic.*
-import lisa.maths.Quantifiers.{
-  existentialConjunctionWithClosedFormula,
-  existentialEquivalenceDistribution,
-  onePointRule
-}
+import lisa.maths.Quantifiers.existentialConjunctionWithClosedFormula
+import lisa.maths.Quantifiers.existentialEquivalenceDistribution
+import lisa.maths.Quantifiers.onePointRule
+import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UnionRangeCollapse._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems._
 
 
 object UnionRangeMembership {

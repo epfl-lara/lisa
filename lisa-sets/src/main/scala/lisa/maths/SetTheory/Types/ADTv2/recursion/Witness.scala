@@ -1,18 +1,15 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
-import lisa.maths.SetTheory.Types.ADTv2.support.DefinedSymbol
-import lisa.maths.SetTheory.Types.ADTv2.support.Time
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.proofs.CaseDefinedWitness
-import lisa.maths.SetTheory.Types.ADTv2.encoding.*
-import lisa.maths.SetTheory.Types.Tactics.Typecheck
-import lisa.maths.SetTheory.Types.TypingHelpers.*
-
-import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Base.CartesianProduct.×
 import lisa.maths.SetTheory.Base.Comprehension.|
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.proofs.CaseDefinedWitness
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
+import lisa.maths.SetTheory.Types.ADTv2.encoding._
+import lisa.maths.SetTheory.Types.ADTv2.support.DefinedSymbol
+import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.maths.SetTheory.Types.Tactics.Typecheck
+import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**

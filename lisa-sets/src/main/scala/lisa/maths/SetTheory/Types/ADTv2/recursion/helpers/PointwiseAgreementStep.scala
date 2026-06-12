@@ -1,16 +1,19 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion.helpers
 
-import lisa.maths.SetTheory.Types.ADTv2.encoding.*
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{Pattern, PatternSystem}
-import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.{constructorDisjunctionAtHeight, SpecializedConstructorFacts}
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Succ
+import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.SpecializedConstructorFacts
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.constructorDisjunctionAtHeight
 import lisa.maths.SetTheory.Types.ADTv2.support.InstantiateForallSeq
-
-import lisa.maths.SetTheory.Functions.Predef.*
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Types.TypingHelpers.*
-import lisa.utils.prooflib.BasicStepTactic.{Cut, LeftExists, LeftOr, RightForall, Weakening}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Succ
+import lisa.utils.prooflib.BasicStepTactic.Cut
+import lisa.utils.prooflib.BasicStepTactic.LeftExists
+import lisa.utils.prooflib.BasicStepTactic.LeftOr
+import lisa.utils.prooflib.BasicStepTactic.RightForall
+import lisa.utils.prooflib.BasicStepTactic.Weakening
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**

@@ -1,7 +1,8 @@
 package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.induction
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Types.ADTv2.interface.{Constructor, SpecializedADT}
+import lisa.maths.SetTheory.SetTheory._
+import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
+import lisa.maths.SetTheory.Types.ADTv2.interface.SpecializedADT
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 final case class InductionBranch[N <: Arity](

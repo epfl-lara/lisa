@@ -1,18 +1,19 @@
 package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.syntax
 
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{
-  ConstructorPattern,
-  ConstructorPatternSystem,
-  MultiLevelNestedPatternSystem,
-  NestedConstructorPattern,
-  NestedPatternSystem,
-  PatternSystem
-}
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.induction.{InductionBranchSystemWithPayload, PatternToInduction}
-import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, Constructor, SpecializedADT}
+import lisa.maths.SetTheory.SetTheory._
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.induction.InductionBranchSystemWithPayload
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.induction.PatternToInduction
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.ConstructorPattern
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.ConstructorPatternSystem
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.MultiLevelNestedPatternSystem
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.NestedConstructorPattern
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.NestedPatternSystem
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
+import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
+import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
+import lisa.maths.SetTheory.Types.ADTv2.interface.SpecializedADT
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.substitutionsFromArgs
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
-import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**

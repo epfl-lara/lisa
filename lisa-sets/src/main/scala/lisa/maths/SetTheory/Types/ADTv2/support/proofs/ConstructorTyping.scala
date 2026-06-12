@@ -1,13 +1,13 @@
 package lisa.maths.SetTheory.Types.ADTv2.support.proofs
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
+import lisa.maths.SetTheory.Functions.Pi.->:
+import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.funEqDef
-import lisa.maths.SetTheory.Types.TypingHelpers.*
-import lisa.maths.SetTheory.Functions.Pi.{->:}
-import lisa.utils.prooflib.ProofTacticLib.Arity
+import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Restate
+import lisa.utils.prooflib.ProofTacticLib.Arity
 
 object ConstructorTyping {
 

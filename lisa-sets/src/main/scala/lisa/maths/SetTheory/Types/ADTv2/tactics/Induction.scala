@@ -1,19 +1,22 @@
 package lisa.maths.SetTheory.Types.ADTv2.tactics
 
-import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
-import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, Constructor, SpecializedADT}
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.induction.{InductionBranch, InductionBranchSystemWithPayload}
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.induction.InductionBranch
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.induction.InductionBranchSystemWithPayload
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.syntax.CaseAccumulator
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
+import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
+import lisa.maths.SetTheory.Types.ADTv2.interface.SpecializedADT
 import lisa.maths.SetTheory.Types.ADTv2.support.InstantiateForallSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
-
-import lisa.utils.prooflib.BasicStepTactic.{RightForall, RightImplies}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
+import lisa.maths.SetTheory.Types.TypingHelpers.::
+import lisa.maths.SetTheory.Types.TypingHelpers.TypeAssign
+import lisa.utils.prooflib.BasicStepTactic.RightForall
+import lisa.utils.prooflib.BasicStepTactic.RightImplies
 import lisa.utils.prooflib.ProofTacticLib.Arity
-import lisa.maths.SetTheory.Types.TypingHelpers.{::, TypeAssign}
-import lisa.maths.SetTheory.SetTheory.{*, given}
 
 /**
  *  Tactic performing a structural induction proof over an algebraic data type.

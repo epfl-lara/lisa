@@ -1,7 +1,8 @@
 package lisa.maths.SetTheory.Types.ADTv2.support.core
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
+import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.utils.prooflib.BasicStepTactic.Restate
+
 import scala.util.boundary
 import scala.util.boundary.break
 

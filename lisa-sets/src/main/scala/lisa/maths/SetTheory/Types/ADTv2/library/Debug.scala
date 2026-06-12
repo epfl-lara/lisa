@@ -1,8 +1,8 @@
 package lisa.maths.SetTheory.Types.ADTv2.library
 
-import lisa.maths.SetTheory.Types.ADTv2.*
+import lisa.maths.SetTheory.Types.ADTv2._
 import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
-import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.{ConstructorArg, SelfRef}
+import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.SelfRef
 
 private val maxGeneratedTypeArity = 5
 

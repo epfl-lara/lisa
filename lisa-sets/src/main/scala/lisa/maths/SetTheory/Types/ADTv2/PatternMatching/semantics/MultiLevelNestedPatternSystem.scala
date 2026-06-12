@@ -1,11 +1,15 @@
 package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Types.ADTv2.encoding.{SemanticADT, SemanticConstructor}
-import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, Constructor}
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticADT
+import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
+import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
+import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.{existsSeq, forallSeq, seqOr, wellTypedFormula}
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.forallSeq
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.seqOr
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.wellTypedFormula
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**

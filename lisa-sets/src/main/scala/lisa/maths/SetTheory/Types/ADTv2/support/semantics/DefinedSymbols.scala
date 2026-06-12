@@ -1,8 +1,9 @@
 package lisa.maths.SetTheory.Types.ADTv2.support.semantics
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.Quantifiers.{existsOneEpsilon, existsOneEpsilonUniqueness}
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.Quantifiers.existsOneEpsilon
+import lisa.maths.Quantifiers.existsOneEpsilonUniqueness
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.BasicStepTactic.RightForall
 

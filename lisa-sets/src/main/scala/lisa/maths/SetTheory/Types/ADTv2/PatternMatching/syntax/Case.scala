@@ -1,11 +1,11 @@
 package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.syntax
 
+import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
-import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.{appSeq, wellTypedSet}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.appSeq
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.wellTypedSet
+import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
 import lisa.maths.SetTheory.Types.TypingHelpers.::
-
-import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 case class Case[N <: Arity](cons: Constructor[N], args: Expr[Ind]*) {
