@@ -236,7 +236,6 @@ object SCProofChecker {
 
               if (invalidPremise.nonEmpty) {
                 val idx = invalidPremise.get._2
-                // TODO: recompute nad report the error precisely?
                 error(step, s"Premise #$idx is not preserved by the conclusion except for its corresponding disjunct.")
               } else {
                 val newDisjunct = disjuncts.reduce(or(_)(_))
