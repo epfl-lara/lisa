@@ -52,10 +52,5 @@ object DebugADTs extends lisa.Main {
 
 
   val t4 = Time.get()
-  println(s"Running debug ADTs in ${t4 - t0}")
-  println(s"  - Type-heavy with ${debugTypeHeavy.typeVariables.size} type variables")
-  println(s"  - Constructor-heavy with ${debugConstructorHeavy.constructors.size} constructors")
-  println(s"  - Argument-heavy with ${debugArgumentHeavy.constructors.head.semantic.variables.size} arguments")
-  Time.printSummary()
 
 }

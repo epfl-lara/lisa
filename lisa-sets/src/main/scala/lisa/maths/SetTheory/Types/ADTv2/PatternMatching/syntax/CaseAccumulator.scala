@@ -183,9 +183,9 @@ class CaseAccumulator[N <: Arity, T, R](val comp: R) {
           Time.measure(s"ConstructorPatternSystem building") {
             buildConstructorSystem(adt, typeSubstitutions, bodyAt)
           }
-      Time.log(
-        s"${adt.base.name}: using ${system.getClass.getSimpleName} with ${system.patterns.size} pattern(s)."
-      )
+      // Time.log(
+      //   s"${adt.base.name}: using ${system.getClass.getSimpleName} with ${system.patterns.size} pattern(s)."
+      // )
       system
     }
 }

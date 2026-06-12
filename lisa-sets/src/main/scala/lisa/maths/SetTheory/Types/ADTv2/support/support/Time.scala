@@ -279,9 +279,4 @@ object Time {
     resetTime = get()
     lastTime = get()
   }
-
-  def size(expr : Expr[?] | Sequent): Int =
-    expr.toString.length
-  def size(expr : THM): Int =
-    expr.statement.toString.length
 }
