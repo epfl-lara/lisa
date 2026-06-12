@@ -43,11 +43,7 @@ object RunAll {
       println(s"===== $name =====")
       action match
         case Entry.Init(run) =>
-          val startedAt = Time.get()
-          run()
-          val finishedAt = Time.get()
-          println(s"Initialization of $name: ${finishedAt - startedAt}")
-          Time.register(s"Initialization", finishedAt - startedAt)
+          Time.measure("Initialization", true)(run())
         case Entry.Main(run) =>
           val startedAt = Time.get()
           run(Array.empty)
@@ -59,7 +55,8 @@ object RunAll {
       println()
     }
     
-    Time.printSummary()
+    // Time.printSummary()
+    Time.printTree(selfAsChild = true)
 
   }
 }
