@@ -10,48 +10,53 @@ import lisa.maths.SetTheory.Ordinals.Ordinal.ordinal
 import lisa.maths.SetTheory.Ordinals.TransitiveSet
 import lisa.maths.SetTheory.Relations.Examples.MembershipRelation
 import lisa.maths.SetTheory.SetTheory.{_, given}
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.omegaOrdinal
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.natInduction
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.successorIsNat
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.zeroIsNotSucc
+import lisa.maths.SetTheory.Ordinals.Integer.omegaOrdinal
+import lisa.maths.SetTheory.Ordinals.Integer.natInduction
+import lisa.maths.SetTheory.Ordinals.Integer.successorIsNat
+import lisa.maths.SetTheory.Ordinals.Integer.zeroIsNotSucc
+import lisa.maths.SetTheory.Ordinals.Integer.ω
 
 object NatFacts {
 
+  private val P = variable[Ind >>: Prop]
   private val Pred = variable[Ind >>: Prop]
+  private val A = variable[Ind]
+  private val α, β = variable[Ind]
+  private val n, m, k = variable[Ind]
+  private val x, y, z = variable[Ind]
 
-  val NatMem = MembershipRelation.membershipRelation(N)
+  val NatMem = MembershipRelation.membershipRelation(ω)
 
-  val succIntro = Theorem(n ∈ N |- successor(n) ∈ N) {
-    assume(n ∈ N)
+  val succIntro = Theorem(n ∈ ω |- successor(n) ∈ ω) {
+    assume(n ∈ ω)
     have(thesis) by Tautology.from(successorIsNat of (n := n))
   }
 
   val induction = Theorem(
-    (Pred(∅), ∀(n, (n ∈ N) ==> (Pred(n) ==> Pred(successor(n))))) |-
-      ∀(n, (n ∈ N) ==> Pred(n))
+    (Pred(∅), ∀(n, (n ∈ ω) ==> (Pred(n) ==> Pred(successor(n))))) |-
+      ∀(n, (n ∈ ω) ==> Pred(n))
   ) {
     val H0 = Pred(∅)
-    val Hstep = ∀(n, (n ∈ N) ==> (Pred(n) ==> Pred(successor(n))))
+    val Hstep = ∀(n, (n ∈ ω) ==> (Pred(n) ==> Pred(successor(n))))
 
     val baseAtEmpty = have((H0, Hstep) |- Pred(∅)) subproof {
       have(thesis) by Hypothesis
     }
 
     val stepAtSucc =
-      have((H0, Hstep) |- ∀(n, (n ∈ N) ==> (Pred(n) ==> Pred(successor(n))))) subproof {
+      have((H0, Hstep) |- ∀(n, (n ∈ ω) ==> (Pred(n) ==> Pred(successor(n))))) subproof {
         val hypStep = have((H0, Hstep) |- Hstep) by Hypothesis
-        val stepAtN = have((H0, Hstep) |- (n ∈ N) ==> (Pred(n) ==> Pred(successor(n)))) by
+        val stepAtN = have((H0, Hstep) |- (n ∈ ω) ==> (Pred(n) ==> Pred(successor(n)))) by
           InstantiateForall(n)(hypStep)
-        have((H0, Hstep) |- (n ∈ N) ==> (Pred(n) ==> Pred(successor(n)))) subproof {
-          assume(n ∈ N)
+        have((H0, Hstep) |- (n ∈ ω) ==> (Pred(n) ==> Pred(successor(n)))) subproof {
+          assume(n ∈ ω)
           assume(Pred(n))
-          have((H0, Hstep, n ∈ N, Pred(n)) |- Pred(successor(n))) by Restate.from(stepAtN)
+          have((H0, Hstep, n ∈ ω, Pred(n)) |- Pred(successor(n))) by Restate.from(stepAtN)
         }
         thenHave(thesis) by RightForall
       }
 
-    have((H0, Hstep) |- ∀(n, (n ∈ N) ==> Pred(n))) by Tautology
+    have((H0, Hstep) |- ∀(n, (n ∈ ω) ==> Pred(n))) by Tautology
       .from(natInduction of (P := Pred), baseAtEmpty, stepAtSucc)
     thenHave(thesis) by Restate
   }
@@ -106,28 +111,28 @@ object NatFacts {
     have(thesis) by Tautology.from(nCase, fromNInM, fromNEqM)
   }
 
-  val elementsTransitive = Theorem((n ∈ N) |- TransitiveSet.transitiveSet(n)) {
-    val ordN = have(n ∈ N |- ordinal(n)) by Restate.from(omegaOrdinal of (α := n))
+  val elementsTransitive = Theorem((n ∈ ω) |- TransitiveSet.transitiveSet(n)) {
+    val ordN = have(n ∈ ω |- ordinal(n)) by Restate.from(omegaOrdinal of (α := n))
     have(thesis) by Tautology.from(ordN, ordinal.definition of (α := n))
   }
 
-  val succNeZero = Lemma((n ∈ N) |- (successor(n) =/= ∅)) {
-    assume(n ∈ N)
+  val succNeZero = Lemma((n ∈ ω) |- (successor(n) =/= ∅)) {
+    assume(n ∈ ω)
     have(thesis) by Tautology.from(zeroIsNotSucc of (n := n))
   }
 
-  val comparability = Theorem((m ∈ N, n ∈ N) |- (m === n) \/ (m ∈ n) \/ (n ∈ m)) {
-    val mOrd = have(m ∈ N |- ordinal(m)) by Restate.from(omegaOrdinal of (α := m))
-    val nOrd = have(n ∈ N |- ordinal(n)) by Restate.from(omegaOrdinal of (α := n))
+  val comparability = Theorem((m ∈ ω, n ∈ ω) |- (m === n) \/ (m ∈ n) \/ (n ∈ m)) {
+    val mOrd = have(m ∈ ω |- ordinal(m)) by Restate.from(omegaOrdinal of (α := m))
+    val nOrd = have(n ∈ ω |- ordinal(n)) by Restate.from(omegaOrdinal of (α := n))
     have(thesis) by Tautology.from(mOrd, nOrd, Ordinal.comparability of (α := m, β := n))
   }
 
-  val subsetBelowSucc = Theorem((m ∈ N, n ∈ N, m ⊆ successor(n)) |- (m === successor(n)) \/ (m ⊆ n)) {
-    val mInN = assume(m ∈ N)
-    val nInN = assume(n ∈ N)
+  val subsetBelowSucc = Theorem((m ∈ ω, n ∈ ω, m ⊆ successor(n)) |- (m === successor(n)) \/ (m ⊆ n)) {
+    val mInN = assume(m ∈ ω)
+    val nInN = assume(n ∈ ω)
     val mSubSn = assume(m ⊆ successor(n))
 
-    val SnInN = have(successor(n) ∈ N) by
+    val SnInN = have(successor(n) ∈ ω) by
       Tautology.from(nInN, succIntro.of(n := n))
 
     val cmp = have(
