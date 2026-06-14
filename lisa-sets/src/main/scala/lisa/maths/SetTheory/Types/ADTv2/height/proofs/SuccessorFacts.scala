@@ -4,6 +4,11 @@ import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.height.proofs.CoreFacts._
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.nInSuccN
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.natInduction
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.subsetSuccessor
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.successorIsNat
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.zeroIsNat
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UnionRangeCollapse.unionRangeCollapse
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems._
 

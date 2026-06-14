@@ -7,6 +7,9 @@ import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.Ordinals.Integer.ω
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.existsNat
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.unionOfTwoNats
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.zeroIsNat
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UnionRangeMembership.unionRangeMembership
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems._
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._

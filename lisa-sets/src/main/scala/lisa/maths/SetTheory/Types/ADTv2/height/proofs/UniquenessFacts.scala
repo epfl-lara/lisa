@@ -6,6 +6,7 @@ import lisa.maths.SetTheory.Functions.BasicTheorems.functionOnIffFunctionWithDom
 import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.natInduction
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems._
 
 private[height] object UniquenessFacts {

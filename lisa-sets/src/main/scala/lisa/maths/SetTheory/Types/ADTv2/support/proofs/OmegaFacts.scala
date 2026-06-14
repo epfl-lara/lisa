@@ -15,8 +15,8 @@ import lisa.maths.SetTheory.Relations.Predef._
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.omegaOrdinal
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.subsetIsNat
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.subsetIsNat
 
 object OmegaFacts {
 

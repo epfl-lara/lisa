@@ -12,11 +12,15 @@ import lisa.maths.SetTheory.Base.Union.∪
 import lisa.maths.SetTheory.Base._
 import lisa.maths.SetTheory.Functions.Operations.Restriction
 import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.Ordinals.Integer.integer
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.integer
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.integerIsOrdinal
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.nInSuccN
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.natInduction
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.omegaCharacterization
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.subsetIsNat
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.successorIsNat
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems._
 import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
 import lisa.utils.prooflib.BasicStepTactic.Hypothesis

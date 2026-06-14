@@ -14,8 +14,8 @@ import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Succ
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Zero
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.OmegaFacts
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.TransfiniteRecursionExt
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.zeroIsNat
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.altEqualityTransitivity
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.zeroIsNat
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Cut

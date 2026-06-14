@@ -12,9 +12,9 @@ import lisa.maths.SetTheory.Relations.Examples.MembershipRelation
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.omegaOrdinal
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.natInduction
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.successorIsNat
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.zeroIsNotSucc
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.natInduction
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.successorIsNat
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.zeroIsNotSucc
 
 object NatFacts {
 

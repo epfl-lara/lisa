@@ -9,6 +9,8 @@ import lisa.maths.SetTheory.Types.ADTv2.height.proofs.SuccessorFacts
 import lisa.maths.SetTheory.Types.ADTv2.height.proofs.UniquenessFacts
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.subsetSuccessor
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.successorIsNat
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems._
 import lisa.utils.prooflib.ProofTacticLib.Arity
 

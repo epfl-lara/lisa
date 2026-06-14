@@ -5,6 +5,7 @@ import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.height.HeightTerms
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.successorIsNat
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems._
 import lisa.maths.SetTheory.Types.ADTv2.support.UniqueDefinedSymbol
 import lisa.utils.prooflib.BasicStepTactic.Restate
