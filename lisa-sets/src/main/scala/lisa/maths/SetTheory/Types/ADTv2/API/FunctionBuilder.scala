@@ -52,7 +52,7 @@ def recFun[N <: Arity](adt: SpecializedADT[N], returnType: Expr[Ind])(using
 
   builder.compile(adt) match
     case Right(patternSystem) =>
-      val semantic = Time.measure(s"RecFunction Semantic")(recursion.RecFunSemantics[N](
+      val semantic = Time.measure(s"RecFunction Semantic")(recursion.SemanticFunction[N](
         name.value,
         adt.base.semantic,
         adt.term,

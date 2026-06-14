@@ -3,6 +3,7 @@ package lisa.maths.SetTheory.Types.ADTv2.recursion
 import lisa.maths.SetTheory.Functions.BasicTheorems
 import lisa.maths.SetTheory.Functions.Function
 import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.FunctionCore.UniquenessProof
 import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.PatternSchemas
 import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.RecFunctionInduction
 import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.extractPatternCaseSchema
@@ -14,7 +15,7 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[recursion] final class Uniqueness[N <: Arity](
   spec: FunSpec[N]
-) {
+) extends UniquenessProof[N] {
 
   private val adt = spec.adt
   private val argType = spec.argType
@@ -62,7 +63,7 @@ private[recursion] final class Uniqueness[N <: Arity](
     have(thesis) by Restate.from(defSym.fold of (defVar := y))
   }
 
-  val recursivePointwisePlan: THM =
+  val pointwiseUniqueness: THM =
     val xDefFormula = definitionFormula(x)
     val yDefFormula = definitionFormula(y)
     Lemma(xDefFormula /\ yDefFormula ==> (x === y)) {
