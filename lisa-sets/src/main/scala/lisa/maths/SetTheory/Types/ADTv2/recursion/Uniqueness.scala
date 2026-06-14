@@ -3,23 +3,23 @@ package lisa.maths.SetTheory.Types.ADTv2.recursion
 import lisa.maths.SetTheory.Functions.BasicTheorems
 import lisa.maths.SetTheory.Functions.Function
 import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.FunctionCore.UniquenessProof
 import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.PatternSchemas
 import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.RecFunctionInduction
 import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.extractPatternCaseSchema
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.DefinedProperty
+import lisa.maths.SetTheory.Types.ADTv2.support.semantics.DefinedProperty
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[recursion] final class Uniqueness[N <: Arity](
   spec: FunSpec[N]
-) {
+) extends UniquenessProof[N] {
 
   private val adt = spec.adt
   private val argType = spec.argType
   private val returnType = spec.returnType
-  private val typ = spec.typ
 
   private def extractPatternSchemas(
       definition: Expr[Prop],
@@ -47,22 +47,8 @@ private[recursion] final class Uniqueness[N <: Arity](
   )
   private def Def(v: Expr[Ind]): Expr[Prop] = defSym.term #@ v
 
-  // `defSym.unfold`/`fold` are stated at the canonical bound var; instantiate at `x`/`y`
-  // (the `.of` needs a proof context, hence the thin `Lemma` wrappers).
-  private val xDefUnfold: THM = Lemma(Def(x) |- spec.untypedDefinition(x)) {
-    have(thesis) by Restate.from(defSym.unfold of (defVar := x))
-  }
-  private val yDefUnfold: THM = Lemma(Def(y) |- spec.untypedDefinition(y)) {
-    have(thesis) by Restate.from(defSym.unfold of (defVar := y))
-  }
-  private val xDefFold: THM = Lemma(spec.untypedDefinition(x) |- Def(x)) {
-    have(thesis) by Restate.from(defSym.fold of (defVar := x))
-  }
-  private val yDefFold: THM = Lemma(spec.untypedDefinition(y) |- Def(y)) {
-    have(thesis) by Restate.from(defSym.fold of (defVar := y))
-  }
 
-  val recursivePointwisePlan: THM =
+  val pointwiseUniqueness: THM =
     val xDefFormula = definitionFormula(x)
     val yDefFormula = definitionFormula(y)
     Lemma(xDefFormula /\ yDefFormula ==> (x === y)) {
