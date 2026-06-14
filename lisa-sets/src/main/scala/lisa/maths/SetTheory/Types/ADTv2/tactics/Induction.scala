@@ -333,7 +333,10 @@ class Induction[M <: Arity](
 
     val (head, args) = unfoldAllApp(term)
     val maybeADT = ADT.allADTs.collectFirst {
-      case adt if adt.semantic.underlying.polymorphicTerm == head => adt
+      case adt if (head match
+        case c: Constant[Ind] @unchecked => c.id == adt.semantic.id
+        case _ => false
+      ) => adt
     }
 
     maybeADT

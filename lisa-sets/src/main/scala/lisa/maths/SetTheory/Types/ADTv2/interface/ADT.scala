@@ -32,7 +32,7 @@ final class ADT[N <: Arity](using val line: sourcecode.Line, val file: sourcecod
   ADT.register(this)
 
   lazy val constructors: Seq[Constructor[N]] =
-    semantic.constructors.map(c => new Constructor[N](c))
+    semantic.constructors.map(c => new Constructor[N](c, this))
 
   def induction: THM = {
     requireMonomorphicAccess("ADT", name, typeVariablesSeq)

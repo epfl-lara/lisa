@@ -55,7 +55,7 @@ final class SpecializedConstructor[N <: Arity](using
       instantiatedSemanticSignature(base.semantic.semanticSignature, substitutions),
     conclusionAt = substitutions =>
       base.semantic.appliedTerm.substitute(substitutions*) ::
-        base.semantic.adt.term.substitute(substitutions*)
+        base.adt.term.substitute(substitutions*)
   )
 
   def injectivity: THM =

@@ -313,7 +313,7 @@ private[PatternMatching] object NestedConstructorPattern {
           val cts = NestedTrieProofs.resolvedChildTypes(c, currentTy._2)
           val argTerms = args.zip(cts).map((a, t) => NestedTrieProofs.termOf(a, t.get))
           val argTypings = args.zip(cts).map((a, t) => typeProof(leafTyping, a, t.get))
-          val semanticSubsts = c.semantic.adt.typeVariablesSeq.zip(currentTy._2).map((v, a) => v := a)
+          val semanticSubsts = c.semantic.typeVariablesSeq.zip(currentTy._2).map((v, a) => v := a)
           val semanticSigAtArgs =
             argTerms.zip(c.semantic.semanticSignature2.map(_._2.substitute(semanticSubsts*).asInstanceOf[Expr[Ind]]))
           val argsTypedSemantic = Time.measure(s"argsTypedSemantic"){have(wellTypedFormula(semanticSigAtArgs)) by Tautology.from(argTypings*)}

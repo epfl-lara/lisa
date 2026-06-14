@@ -41,7 +41,7 @@ case class Case[N <: Arity](cons: Constructor[N], args: Expr[Ind]*) {
         p._2.substitute(cons.semantic.typeVariablesSeq.zip(typeArgs).map(SubstPair(_, _))*)
       )
     )) ++ cons.semantic.syntacticSignature(vars).filter(_._2 == SelfRef)
-      .map((v, _) => v :: cons.semantic.adt.termAt(typeArgs))
+      .map((v, _) => v :: cons.adt.termAt(typeArgs))
       ++ cons.semantic.syntacticSignature(vars).filter(_._2 == SelfRef)
       .map((v, _) => prop.substitute(adtVar -> v))
       ++ args.zip(vars).collect {

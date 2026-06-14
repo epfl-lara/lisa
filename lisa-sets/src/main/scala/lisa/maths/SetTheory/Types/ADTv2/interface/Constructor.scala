@@ -16,7 +16,8 @@ import lisa.maths.SetTheory.Types.TypingHelpers.TypedConstantFunctional
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 final class Constructor[N <: Arity](using val line: sourcecode.Line, val file: sourcecode.File, valueOfN: ValueOf[N])(
-    val semantic: SemanticConstructor[N]
+    val semantic: SemanticConstructor[N],
+    val adt: ADT[N]
 ) extends TypedConstantFunctional[IndOf[N]](
       semantic.id,
       FunctionalClass(
@@ -58,7 +59,7 @@ final class Constructor[N <: Arity](using val line: sourcecode.Line, val file: s
         instantiatedSemanticSignature(semantic.semanticSignature, substitutions),
       conclusionAt = substitutions =>
         semantic.appliedTerm.substitute(substitutions*) ::
-          semantic.adt.term.substitute(substitutions*)
+          adt.term.substitute(substitutions*)
     )
   }
 
@@ -75,7 +76,7 @@ final class Constructor[N <: Arity](using val line: sourcecode.Line, val file: s
       instantiatedSemanticSignature(semantic.semanticSignature, substitutions),
     conclusionAt = substitutions =>
       semantic.appliedTerm.substitute(substitutions*) ::
-        semantic.adt.term.substitute(substitutions*)
+        adt.term.substitute(substitutions*)
   )
 
   def injectivity: THM = {

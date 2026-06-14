@@ -59,7 +59,7 @@ private[semantics] object NestedTrieProofs {
           case _ => RVar(variable[Ind])
 
   private def childTypes(c: Constructor[?], targs: Seq[Expr[Ind]]): Seq[Option[Ty]] =
-    val subst = c.semantic.adt.typeVariablesSeq.zip(targs).map((v, a) => v := a)
+    val subst = c.semantic.typeVariablesSeq.zip(targs).map((v, a) => v := a)
     c.semantic.semanticSignature2.map { case (_, tyTerm) =>
       ADT.unapply(tyTerm.substitute(subst*).asInstanceOf[Expr[Ind]])
     }

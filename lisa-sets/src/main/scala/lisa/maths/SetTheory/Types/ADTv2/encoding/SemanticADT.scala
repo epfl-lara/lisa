@@ -35,7 +35,7 @@ import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
  *  @param constructors constructors of this ADT
  */
 class SemanticADT[N <: Arity](
-    val underlying: SyntacticADT[N],
+    underlying: SyntacticADT[N],
     val constructors: Seq[SemanticConstructor[N]]
 ) {
 
