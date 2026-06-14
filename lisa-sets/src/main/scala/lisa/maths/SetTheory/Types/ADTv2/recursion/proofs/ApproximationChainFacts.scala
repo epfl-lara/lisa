@@ -8,10 +8,9 @@ import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Succ
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Zero
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.altEqualityTransitivity
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.unionOfTwoNats
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.equivalenceApply
 import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.BasicStepTactic.RightImplies
 
@@ -23,14 +22,13 @@ private[recursion] object ApproximationChainFacts {
   private val nVar = variable[Ind]
   private val mVar = variable[Ind]
   private val uVar = variable[Ind]
-  private val aVar = variable[Ind]
   private val upperVar = variable[Ind]
   private val lowerVar = variable[Ind]
   private val pointVar = variable[Ind]
   private val stabVar = variable[Ind]
 
   private def stabilizationSchema(heightFun0: Expr[Ind], G0: Expr[Ind >>: Ind]): Expr[Prop] =
-    ∀(stabVar, (stabVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun0)(stabVar)) ==> (app(G0(stabVar))(pointVar) === app(G0(Succ(stabVar)))(pointVar))))
+    ∀(stabVar, (stabVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun0)(stabVar)) ==> (app(G0(stabVar))(pointVar) === app(G0(successor(stabVar)))(pointVar))))
 
   private def heightMembershipMonotonicSchema(heightFun0: Expr[Ind]): Expr[Prop] =
     ∀(upperVar, (upperVar ∈ N) ==> ∀(lowerVar, (lowerVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun0)(lowerVar)) ==> ((lowerVar ⊆ upperVar) ==> (pointVar ∈ app(heightFun0)(upperVar))))))
@@ -59,43 +57,37 @@ private[recursion] object ApproximationChainFacts {
       )
     )
 
-    val base = have(propM(Zero)) subproof {
-      val zeroDef = have(Zero === ∅) by Weakening(Zero.definition)
-      have((nVar ⊆ Zero) ==> ((a ∈ app(heightFun)(nVar)) ==> (app(G(nVar))(a) === app(G(Zero))(a)))) subproof {
-        val nSubZero = assume(nVar ⊆ Zero)
-        val nSubEmpty = have(nVar ⊆ ∅) by Congruence.from(nSubZero, zeroDef)
-        val nEqEmpty = have(nVar === ∅) by Tautology.from(
+    val base = have(propM(∅)) subproof {
+      have((nVar ⊆ ∅) ==> ((a ∈ app(heightFun)(nVar)) ==> (app(G(nVar))(a) === app(G(∅))(a)))) subproof {
+        val nSubEmpty = assume(nVar ⊆ ∅)
+        
+        have(nVar === ∅) by Tautology.from(
           nSubEmpty,
           Subset.rightEmpty of (x := nVar),
-          lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.equivalenceApply of (p1 := subset(nVar, ∅), p2 := nVar === ∅)
+          equivalenceApply of (p1 := subset(nVar, ∅), p2 := nVar === ∅)
         )
-        val emptyEqZero = have(∅ === Zero) by Congruence.from(zeroDef)
-        val nEqZero = have(nVar === Zero) by Tautology.from(
-          altEqualityTransitivity of (x := nVar, y := ∅, z := Zero),
-          nEqEmpty,
-          emptyEqZero
-        )
-        val eqAtZero = have(app(G(nVar))(a) === app(G(Zero))(a)) by Congruence.from(nEqZero)
-        have(thesis) by Tautology.from(eqAtZero)
+        thenHave(nVar === ∅) by Restate
+        thenHave(app(G(nVar))(a) === app(G(∅))(a)) by Congruence
+        thenHave(thesis) by Restate
       }
       thenHave(thesis) by Restate
     }
 
-    val step = have(∀(uVar, (uVar ∈ N) ==> (propM(uVar) ==> propM(Succ(uVar))))) subproof {
-      have((uVar ∈ N) ==> (propM(uVar) ==> propM(Succ(uVar)))) subproof {
+    val step = have(∀(uVar, (uVar ∈ N) ==> (propM(uVar) ==> propM(successor(uVar))))) subproof {
+      have((uVar ∈ N) ==> (propM(uVar) ==> propM(successor(uVar)))) subproof {
         val uInNStep = assume(uVar ∈ N)
         val ih = assume(propM(uVar))
 
-        val goalAtSucc = have(propM(Succ(uVar))) subproof {
+        val goalAtSucc = have(propM(successor(uVar))) subproof {
           have(
-            (nVar ⊆ Succ(uVar)) ==> (
-              (a ∈ app(heightFun)(nVar)) ==> (app(G(nVar))(a) === app(G(Succ(uVar)))(a))
+            (nVar ⊆ successor(uVar)) ==> (
+              (a ∈ app(heightFun)(nVar)) ==> (app(G(nVar))(a) === app(G(successor(uVar)))(a))
             )
           ) subproof {
-            val nSubSuccU = assume(nVar ⊆ Succ(uVar))
+            val nSubSuccU = assume(nVar ⊆ successor(uVar))
             val aInHeightN = assume(a ∈ app(heightFun)(nVar))
 
-            val split = have((nVar === Succ(uVar)) \/ (nVar ⊆ uVar)) by Tautology.from(
+            val split = have((nVar === successor(uVar)) \/ (nVar ⊆ uVar)) by Tautology.from(
               nInN,
               uInNStep,
               nSubSuccU,
@@ -103,11 +95,11 @@ private[recursion] object ApproximationChainFacts {
             )
 
             val caseEq = have(
-              nVar === Succ(uVar) |- app(G(nVar))(a) === app(G(Succ(uVar)))(a)
+              nVar === successor(uVar) |- app(G(nVar))(a) === app(G(successor(uVar)))(a)
             ) by Congruence
 
             val caseSub = have(
-              nVar ⊆ uVar |- app(G(nVar))(a) === app(G(Succ(uVar)))(a)
+              nVar ⊆ uVar |- app(G(nVar))(a) === app(G(successor(uVar)))(a)
             ) subproof {
               val nSubUCase = assume(nVar ⊆ uVar)
               val eqNu = have(app(G(nVar))(a) === app(G(uVar))(a)) by Tautology.from(
@@ -145,39 +137,39 @@ private[recursion] object ApproximationChainFacts {
               )
 
               val stabAtU = have(
-                (uVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun)(uVar)) ==> (app(G(uVar))(pointVar) === app(G(Succ(uVar)))(pointVar)))
+                (uVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun)(uVar)) ==> (app(G(uVar))(pointVar) === app(G(successor(uVar)))(pointVar)))
               ) by InstantiateForall(uVar)(stabilization)
               val stabU = have(
-                ∀(pointVar, (pointVar ∈ app(heightFun)(uVar)) ==> (app(G(uVar))(pointVar) === app(G(Succ(uVar)))(pointVar)))
+                ∀(pointVar, (pointVar ∈ app(heightFun)(uVar)) ==> (app(G(uVar))(pointVar) === app(G(successor(uVar)))(pointVar)))
               ) by Tautology.from(uInNStep, stabAtU)
               val stabAtA = have(
-                (a ∈ app(heightFun)(uVar)) ==> (app(G(uVar))(a) === app(G(Succ(uVar)))(a))
+                (a ∈ app(heightFun)(uVar)) ==> (app(G(uVar))(a) === app(G(successor(uVar)))(a))
               ) by InstantiateForall(a)(stabU)
-              val eqUSu = have(app(G(uVar))(a) === app(G(Succ(uVar)))(a)) by
+              val eqUSu = have(app(G(uVar))(a) === app(G(successor(uVar)))(a)) by
                 Tautology.from(aInHu, stabAtA)
 
               have(thesis) by Tautology.from(
                 altEqualityTransitivity of (
                   x := app(G(nVar))(a),
                   y := app(G(uVar))(a),
-                  z := app(G(Succ(uVar)))(a)
+                  z := app(G(successor(uVar)))(a)
                 ),
                 eqNu,
                 eqUSu
               )
             }
 
-            have(app(G(nVar))(a) === app(G(Succ(uVar)))(a)) by
+            have(app(G(nVar))(a) === app(G(successor(uVar)))(a)) by
               Tautology.from(split, caseEq, caseSub)
             have(
-              (a ∈ app(heightFun)(nVar)) ==> (app(G(nVar))(a) === app(G(Succ(uVar)))(a))
+              (a ∈ app(heightFun)(nVar)) ==> (app(G(nVar))(a) === app(G(successor(uVar)))(a))
             ) by Tautology.from(lastStep)
             thenHave(thesis) by Restate
           }
           thenHave(thesis) by Restate
         }
 
-        val imp = have(propM(uVar) ==> propM(Succ(uVar))) by Tautology.from(goalAtSucc)
+        val imp = have(propM(uVar) ==> propM(successor(uVar))) by Tautology.from(goalAtSucc)
         have(thesis) by Tautology.from(imp)
       }
       thenHave(thesis) by RightForall
@@ -185,7 +177,7 @@ private[recursion] object ApproximationChainFacts {
 
     val Pred = variable[Ind >>: Prop]
     val indInst = have(
-      (propM(Zero), ∀(uVar, (uVar ∈ N) ==> (propM(uVar) ==> propM(Succ(uVar))))) |-
+      (propM(∅), ∀(uVar, (uVar ∈ N) ==> (propM(uVar) ==> propM(successor(uVar))))) |-
         ∀(uVar, (uVar ∈ N) ==> propM(uVar))
     ) by Weakening(NatFacts.induction of (Pred := propM))
     val all = have(∀(uVar, (uVar ∈ N) ==> propM(uVar))) by

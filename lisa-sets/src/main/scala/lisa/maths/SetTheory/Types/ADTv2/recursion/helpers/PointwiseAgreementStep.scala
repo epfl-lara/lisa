@@ -8,7 +8,6 @@ import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFact
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.constructorDisjunctionAtHeight
 import lisa.maths.SetTheory.Types.ADTv2.support.InstantiateForallSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Succ
 import lisa.utils.prooflib.BasicStepTactic.Cut
 import lisa.utils.prooflib.BasicStepTactic.LeftExists
 import lisa.utils.prooflib.BasicStepTactic.LeftOr
@@ -65,14 +64,9 @@ private[recursion] object PointwiseAgreementStep {
   )(
       proveSelectedPattern: SelectedPatternProver[N]
   ): proof.Fact = {
-    val succEq = have(Succ(currentIndex) === successor(currentIndex)) by
-      Congruence.from(Succ.definition of (x := currentIndex))
-
     val pointwiseAtSucc =
-      have((ambientTerm ∈ app(heightFun)(Succ(currentIndex))) ==> goalEqAt) subproof {
-        val aInHeightSucc = assume(ambientTerm ∈ app(heightFun)(Succ(currentIndex)))
-        val aInHeightOrd = have(ambientTerm ∈ app(heightFun)(successor(currentIndex))) by
-          Congruence.from(aInHeightSucc, succEq)
+      have((ambientTerm ∈ app(heightFun)(successor(currentIndex))) ==> goalEqAt) subproof {
+        val aInHeightOrd = assume(ambientTerm ∈ app(heightFun)(successor(currentIndex)))
 
         val constructorDisjunction =
           constructorDisjunctionAtHeight(constructorsAt, app(heightFun)(currentIndex), ambientTerm)
@@ -144,12 +138,12 @@ private[recursion] object PointwiseAgreementStep {
           constructorDisjunction = constructorDisjunction,
           decomposeFact = decomposeAtA,
           constructorFacts = branchEqualities,
-          antecedent = ambientTerm ∈ app(heightFun)(Succ(currentIndex)),
+          antecedent = ambientTerm ∈ app(heightFun)(successor(currentIndex)),
           goal = goalEqAt
         )
       }
 
-    have((ambientTerm ∈ app(heightFun)(Succ(currentIndex))) ==> goalEqAt) by Restate.from(pointwiseAtSucc)
-    thenHave(∀(ambientTerm ∈ app(heightFun)(Succ(currentIndex)), goalEqAt)) by RightForall
+    have((ambientTerm ∈ app(heightFun)(successor(currentIndex))) ==> goalEqAt) by Restate.from(pointwiseAtSucc)
+    thenHave(∀(ambientTerm ∈ app(heightFun)(successor(currentIndex)), goalEqAt)) by RightForall
   }
 }

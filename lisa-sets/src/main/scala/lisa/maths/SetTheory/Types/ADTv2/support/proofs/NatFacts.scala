@@ -20,46 +20,33 @@ object NatFacts {
 
   private val Pred = variable[Ind >>: Prop]
 
-  val Zero = DEF(∅)
-  val Succ = DEF(λ(x, successor(x)))
   val NatMem = MembershipRelation.membershipRelation(N)
 
-
-  val succIntro = Theorem(n ∈ N |- Succ(n) ∈ N) {
+  val succIntro = Theorem(n ∈ N |- successor(n) ∈ N) {
     assume(n ∈ N)
-    val succInNat = have(successor(n) ∈ N) by Tautology.from(successorIsNat of (n := n))
-    val succEq = have(Succ(n) === successor(n)) by Tautology
-      .from(Succ.definition of (x := n))
-    have(thesis) by Congruence.from(succInNat, succEq)
+    have(thesis) by Tautology.from(successorIsNat of (n := n))
   }
 
   val induction = Theorem(
-    (Pred(Zero), ∀(n, (n ∈ N) ==> (Pred(n) ==> Pred(Succ(n))))) |-
+    (Pred(∅), ∀(n, (n ∈ N) ==> (Pred(n) ==> Pred(successor(n))))) |-
       ∀(n, (n ∈ N) ==> Pred(n))
   ) {
-    val H0 = Pred(Zero)
-    val Hstep = ∀(n, (n ∈ N) ==> (Pred(n) ==> Pred(Succ(n))))
+    val H0 = Pred(∅)
+    val Hstep = ∀(n, (n ∈ N) ==> (Pred(n) ==> Pred(successor(n))))
 
     val baseAtEmpty = have((H0, Hstep) |- Pred(∅)) subproof {
-      val hyp0 = have((H0, Hstep) |- H0) by Hypothesis
-      val zeroEq = have(Zero === ∅) by Tautology.from(Zero.definition)
-      have(thesis) by Congruence.from(hyp0, zeroEq)
+      have(thesis) by Hypothesis
     }
 
     val stepAtSucc =
       have((H0, Hstep) |- ∀(n, (n ∈ N) ==> (Pred(n) ==> Pred(successor(n))))) subproof {
         val hypStep = have((H0, Hstep) |- Hstep) by Hypothesis
-        val stepAtN = have((H0, Hstep) |- (n ∈ N) ==> (Pred(n) ==> Pred(Succ(n)))) by
+        val stepAtN = have((H0, Hstep) |- (n ∈ N) ==> (Pred(n) ==> Pred(successor(n)))) by
           InstantiateForall(n)(hypStep)
         have((H0, Hstep) |- (n ∈ N) ==> (Pred(n) ==> Pred(successor(n)))) subproof {
           assume(n ∈ N)
           assume(Pred(n))
-          val predSucc = have((H0, Hstep, n ∈ N, Pred(n)) |- Pred(Succ(n))) by
-            Tautology.from(stepAtN)
-          val succEq = have(Succ(n) === successor(n)) by Tautology
-            .from(Succ.definition of (x := n))
-          have((H0, Hstep, n ∈ N, Pred(n)) |- Pred(successor(n))) by
-            Congruence.from(predSucc, succEq)
+          have((H0, Hstep, n ∈ N, Pred(n)) |- Pred(successor(n))) by Restate.from(stepAtN)
         }
         thenHave(thesis) by RightForall
       }
@@ -69,11 +56,8 @@ object NatFacts {
     thenHave(thesis) by Restate
   }
 
-  val succMembership = Theorem((k ∈ Succ(n)) <=> (k ∈ n) \/ (k === n)) {
-    val succDef = have(Succ(n) === successor(n)) by
-      Tautology.from(Succ.definition of (x := n))
-    val memSucc = have(k ∈ Succ(n) <=> (k ∈ n) \/ (k === n)) by Tautology.from(
-      have(k ∈ Succ(n) <=> k ∈ successor(n)) by Congruence.from(succDef),
+  val succMembership = Theorem((k ∈ successor(n)) <=> (k ∈ n) \/ (k === n)) {
+    val memSucc = have(k ∈ successor(n) <=> (k ∈ n) \/ (k === n)) by Tautology.from(
       have(k ∈ successor(n) <=> (k ∈ n) \/ (k === n)) by Tautology.from(
         have(k ∈ successor(n) <=> k ∈ (n ∪ Singleton.singleton(n))) by
           Congruence.from(successor.definition of (x := n)),
@@ -89,21 +73,21 @@ object NatFacts {
     have(thesis) by Restate.from(memSucc)
   }
 
-  val nInSucc = Theorem(n ∈ Succ(n)) {
-    val mem = have(n ∈ Succ(n) <=> (n ∈ n) \/ (n === n)) by
+  val nInSucc = Theorem(n ∈ successor(n)) {
+    val mem = have(n ∈ successor(n) <=> (n ∈ n) \/ (n === n)) by
       Restate.from(succMembership of (k := n, n := n))
     val refl = have(n === n) by Restate
     have(thesis) by Tautology.from(mem, refl)
   }
 
-  val succInjective = Theorem(Succ(n) === Succ(m) |- n === m) {
-    assume(Succ(n) === Succ(m))
+  val succInjective = Theorem(successor(n) === successor(m) |- n === m) {
+    assume(successor(n) === successor(m))
 
-    val nInSm = have(n ∈ Succ(m)) by
+    val nInSm = have(n ∈ successor(m)) by
       Congruence.from(NatFacts.nInSucc.of(n := n))
     val nCase = have(n ∈ m \/ (n === m)) by
       Tautology.from(NatFacts.succMembership.of(k := n, n := m), nInSm)
-    val mInSn = have(m ∈ Succ(n)) by
+    val mInSn = have(m ∈ successor(n)) by
       Congruence.from(NatFacts.nInSucc.of(n := m))
     val mCase = have(m ∈ n \/ (m === n)) by
       Tautology.from(NatFacts.succMembership.of(k := m, n := n), mInSn)
@@ -127,12 +111,9 @@ object NatFacts {
     have(thesis) by Tautology.from(ordN, ordinal.definition of (α := n))
   }
 
-  val succNeZero = Lemma((n ∈ N) |- (Succ(n) =/= Zero)) {
+  val succNeZero = Lemma((n ∈ N) |- (successor(n) =/= ∅)) {
     assume(n ∈ N)
-    val succNeEmpty = have(Succ(n) =/= ∅) by Congruence
-      .from(zeroIsNotSucc of (n := n), Succ.definition of (x := n))
-    val zeroEq = have(Zero === ∅) by Tautology.from(Zero.definition)
-    have(thesis) by Congruence.from(succNeEmpty, zeroEq)
+    have(thesis) by Tautology.from(zeroIsNotSucc of (n := n))
   }
 
   val comparability = Theorem((m ∈ N, n ∈ N) |- (m === n) \/ (m ∈ n) \/ (n ∈ m)) {
@@ -141,30 +122,30 @@ object NatFacts {
     have(thesis) by Tautology.from(mOrd, nOrd, Ordinal.comparability of (α := m, β := n))
   }
 
-  val subsetBelowSucc = Theorem((m ∈ N, n ∈ N, m ⊆ Succ(n)) |- (m === Succ(n)) \/ (m ⊆ n)) {
+  val subsetBelowSucc = Theorem((m ∈ N, n ∈ N, m ⊆ successor(n)) |- (m === successor(n)) \/ (m ⊆ n)) {
     val mInN = assume(m ∈ N)
     val nInN = assume(n ∈ N)
-    val mSubSn = assume(m ⊆ Succ(n))
+    val mSubSn = assume(m ⊆ successor(n))
 
-    val SnInN = have(Succ(n) ∈ N) by
+    val SnInN = have(successor(n) ∈ N) by
       Tautology.from(nInN, succIntro.of(n := n))
 
     val cmp = have(
-      (m === Succ(n)) \/ (m ∈ Succ(n)) \/ (Succ(n) ∈ m)
+      (m === successor(n)) \/ (m ∈ successor(n)) \/ (successor(n) ∈ m)
     ) by Tautology.from(
       mInN,
       SnInN,
-      comparability of (m := m, n := Succ(n))
+      comparability of (m := m, n := successor(n))
     )
 
     val caseEq = have(
-      m === Succ(n) |- (m === Succ(n)) \/ (m ⊆ n)
+      m === successor(n) |- (m === successor(n)) \/ (m ⊆ n)
     ) by Tautology
 
     val caseIn = have(
-      m ∈ Succ(n) |- (m === Succ(n)) \/ (m ⊆ n)
+      m ∈ successor(n) |- (m === successor(n)) \/ (m ⊆ n)
     ) subproof {
-      val mInSn = assume(m ∈ Succ(n))
+      val mInSn = assume(m ∈ successor(n))
       val split = have((m ∈ n) \/ (m === n)) by Tautology.from(
         mInSn,
         succMembership.of(k := m, n := n)
@@ -189,17 +170,17 @@ object NatFacts {
     }
 
     val caseGt = have(
-      Succ(n) ∈ m |- (m === Succ(n)) \/ (m ⊆ n)
+      successor(n) ∈ m |- (m === successor(n)) \/ (m ⊆ n)
     ) subproof {
-      val SnInM = assume(Succ(n) ∈ m)
-      val SnInSn = have(Succ(n) ∈ Succ(n)) by Tautology.from(
+      val SnInM = assume(successor(n) ∈ m)
+      val SnInSn = have(successor(n) ∈ successor(n)) by Tautology.from(
         mSubSn,
         SnInM,
-        Subset.membership of (x := m, y := Succ(n), z := Succ(n))
+        Subset.membership of (x := m, y := successor(n), z := successor(n))
       )
       have(thesis) by Tautology.from(
         SnInSn,
-        FoundationAxiom.selfNonInclusion of (x := Succ(n))
+        FoundationAxiom.selfNonInclusion of (x := successor(n))
       )
     }
 
