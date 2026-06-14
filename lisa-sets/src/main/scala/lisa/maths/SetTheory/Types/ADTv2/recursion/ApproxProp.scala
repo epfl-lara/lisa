@@ -2,7 +2,6 @@ package lisa.maths.SetTheory.Types.ADTv2.recursion
 
 import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.SetTheory.{_, given}
-import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.specializedConstructors
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeFormula
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
@@ -52,10 +51,7 @@ private[recursion] final class ApproxProp[N <: Arity](
 
   val heightFunValid: THM = spec.adt.height.validAt(spec.typeSubstitutions)
 
-  private val heightZero       = spec.adt.height.zeroAt(spec.typeSubstitutions)
-  private val heightSuccStrong = spec.adt.height.successorStrongAt(spec.typeSubstitutions)
-  private val heightMembershipMonotonic = spec.adt.height.membershipMonotonicAt(spec.typeSubstitutions)
-  private val constructorsAt = specializedConstructors(spec.adt.constructors, spec.typeSubstitutions)
+  private val heightZero = spec.adt.height.zeroAt(spec.typeSubstitutions)
 
   // ─────────────────────────────────────────────────────────────────────────
   // Lemma D — stabilization

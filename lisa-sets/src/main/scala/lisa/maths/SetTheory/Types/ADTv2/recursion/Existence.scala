@@ -91,7 +91,7 @@ private[recursion] final class Existence[N <: Arity](
 
     val pointwiseGoal = app(recWitness(limitFun))(a) === app(limitFun)(a)
 
-    val pointwiseAtA = have((a ∈ spec.argType) ==> pointwiseGoal) subproof {
+    have((a ∈ spec.argType) ==> pointwiseGoal) subproof {
       val aInArgType = assume(a ∈ spec.argType)
       val aHeightChar = have(LimitKernel.pointHeightCharAt(spec.argType, heightFun, a)) by
         Tautology.from(hValid, termHasHeight of (x := a, h := heightFun))
