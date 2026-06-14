@@ -1,11 +1,14 @@
 package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics
 
+import lisa.maths.SetTheory.Functions.Pi.->:
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.instantiatedSemanticSignature
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ConstructorTyping
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.funEqDef
+import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
@@ -45,12 +48,45 @@ private[PatternMatching] trait ConstructorHeadPattern[N <: Arity] extends Patter
 
   override def variables2: Seq[Variable[Ind]] = semanticConstructor.variables2
 
+
+  private def constructorApplicationTyping[N <: Arity](
+      c: SemanticConstructor[N],
+      args: Seq[Variable[Ind]]
+  ): THM = Lemma(
+    wellTypedFormula(c.semanticSignature(args)) |- (c.appliedTerm(args) :: c.adt.term)
+  ) {
+    have(c.term(c.typeVariablesSeq) :: c.typ) by Restate.from(c.intro)
+    val introTyping = lastStep
+    val argsWellTyped = assume(wellTypedFormula(c.semanticSignature(args)))
+
+    val finalTyping = args.foldLeft(
+      (introTyping, c.term(c.typeVariablesSeq): Expr[Ind], c.typ: Expr[Ind])
+    ) { case ((accFact, accTerm, accType), argument) =>
+      accType match
+        case domainTy ->: codomainTy =>
+          val argumentTyping = have(
+            wellTypedFormula(c.semanticSignature(args)) |- argument :: domainTy
+          ) by Tautology.from(argsWellTyped)
+          val nextTyping = have(
+            wellTypedFormula(c.semanticSignature(args)) |- (accTerm * argument) :: codomainTy
+          ) by Tautology.from(
+            accFact,
+            funEqDef of (f := accTerm, a := domainTy, b := codomainTy, x := argument),
+            argumentTyping
+          )
+          (nextTyping, accTerm * argument, codomainTy)
+        case _ => throw UnreachableException
+    }._1
+
+    have(thesis) by Restate.from(finalTyping)
+  }
+
   override def inputTypingAt(vars: Seq[Variable[Ind]], adtTerm: Expr[Ind]): THM = {
     require(
       adtTerm == specializedAdtTerm,
       "ConstructorHeadPattern.inputTypingAt expects the compiled specialized ADT term."
     )
-    val base = ConstructorTyping.constructorApplicationTyping(semanticConstructor, vars)
+    val base = constructorApplicationTyping(semanticConstructor, vars)
     if typeSubstitutions.isEmpty then base
     else
       Lemma(base.statement.substitute(typeSubstitutions*)) {
