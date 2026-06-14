@@ -72,8 +72,6 @@ private[recursion] object RecFunctionInduction {
     )
     schemaAtBranch.statement.right.head match
       case antecedent ==> consequent =>
-        // val A = antecedent //.asInstanceOf[Expr[Prop]]
-        // val B = consequent //.asInstanceOf[Expr[Prop]]
         require(
           simplify(antecedent) == simplify(branchPremise.statement.right.head.asInstanceOf[Expr[Prop]]),
           s"$errorContext: schema antecedent does not match branch premise."

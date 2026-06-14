@@ -29,7 +29,6 @@ class SyntacticConstructor(
   Constructors.tagCounter = Constructors.tagCounter + 1
 
   /** Term representation of the tag of this constructor */
-  // val tagTerm: Constant[Ind] = DEF(using name=s"tag_$tag")(toTerm(tag))
   val tagTerm: Expr[Ind] = toTerm(tag)
 
   /** Sequence of variables used to represent the arguments of the constructor */
