@@ -1,9 +1,18 @@
 package lisa.kernel.fol
 
-import scala.collection.mutable
 import lisa.kernel.fol.Syntax
 
+import scala.collection.mutable
+
 private[fol] trait OLEquivalenceChecker extends Syntax {
+
+  /**
+   * Returns the αβ-normal form of the given epression as a
+   * [[SimpleExpression]].
+   */
+  def simpleReducedForm(expr: Expression): SimpleExpression = {
+    simplify(expr.betaNormalForm)
+  }
 
   /**
    * Returns the reduced form of the given expression in AIG representation.

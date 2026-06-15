@@ -24,7 +24,8 @@ val commonSettings = Seq(
 
 val commonSettings2 = commonSettings ++ Seq(
   scalaVersion := scala2,
-  scalacOptions ++= Seq("-Ypatmat-exhaust-depth", "50")
+  scalacOptions ++= Seq("-Ypatmat-exhaust-depth", "50"),
+  libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % "test",
 )
 val commonSettings3 = commonSettings ++ Seq(
   scalaVersion := scala3,
