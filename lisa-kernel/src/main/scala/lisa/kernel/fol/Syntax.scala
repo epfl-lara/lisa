@@ -1,7 +1,5 @@
 package lisa.kernel.fol
 
-import scala.collection.mutable
-
 /**
  * Defines the syntax of statements Lisa's kernel
  *
@@ -147,7 +145,6 @@ private[fol] trait Syntax {
    *
    * This means, it check that an application of a term of type `typ1` to a term of type `typ2` is legal, and if so returns the resulting type.
    */
-  @inline 
   def legalApplication(typ1: Sort, typ2: Sort): Option[Sort] = {
     typ1 match {
       case Arrow(`typ2`, to) => Some(to)
@@ -165,6 +162,44 @@ private[fol] trait Syntax {
       totalNumberOfExpressions += 1
       totalNumberOfExpressions
     }
+  }
+
+  private object ExpressionCache {
+    import scala.collection.mutable
+    
+    val enabled: Boolean =
+      !sys.props.get("lisa.hashcons").contains("false") &&
+      !sys.props.get("lisa.hashcons").contains("0") &&
+      !sys.env.get("LISA_HASHCONS").contains("false") &&
+      !sys.env.get("LISA_HASHCONS").contains("0")
+
+    private case class VariableKey(id: Identifier, sort: Sort)
+    private case class ConstantKey(id: Identifier, sort: Sort)
+    private case class ApplicationKey(f: Long, arg: Long)
+    private case class LambdaKey(v: Long, body: Long)
+
+    private def cache[K, V]: mutable.Map[K, V] = mutable.Map.empty[K, V]
+
+    private val variables = cache[VariableKey, Variable]
+    private val constants = cache[ConstantKey, Constant]
+    private val applications = cache[ApplicationKey, Application]
+    private val lambdas = cache[LambdaKey, Lambda]
+
+    def variable(id: Identifier, sort: Sort): Variable =
+      if (enabled) variables.getOrElseUpdate(VariableKey(id, sort), new Variable(id, sort))
+      else new Variable(id, sort)
+
+    def constant(id: Identifier, sort: Sort): Constant =
+      if (enabled) constants.getOrElseUpdate(ConstantKey(id, sort), new Constant(id, sort))
+      else new Constant(id, sort)
+
+    def application(f: Expression, arg: Expression): Application =
+      if (enabled) applications.getOrElseUpdate(ApplicationKey(f.uniqueNumber, arg.uniqueNumber), new Application(f, arg))
+      else new Application(f, arg)
+
+    def lambda(v: Variable, body: Expression): Lambda =
+      if (enabled) lambdas.getOrElseUpdate(LambdaKey(v.uniqueNumber, body.uniqueNumber), new Lambda(v, body))
+      else new Lambda(v, body)
   }
 
   /**
@@ -267,7 +302,7 @@ private[fol] trait Syntax {
    * Logically, variables can be bound by lambda abstractions (and quantifiers) or free.
    * Free variables in theorems can be instantiated by valules of the same sort.
    */
-  case class Variable private (id: Identifier, sort: Sort) extends Expression {
+  case class Variable private[fol] (id: Identifier, sort: Sort) extends Expression {
     val containsFormulas = sort == Prop
     def freeVariables: Set[Variable] = Set(this)
     def constants: Set[Constant] = Set()
@@ -275,14 +310,7 @@ private[fol] trait Syntax {
   }
 
   object Variable {
-    private val cache: mutable.Map[(String, Sort), Variable] = mutable.Map.empty
-
-    /**
-     * Factory for [[Variable]] instances.
-     */
-    def apply(name: String, sort: Sort): Variable = {
-      cache.getOrElseUpdate((name, sort), Variable(Identifier(name), sort))
-    }
+    def apply(id: Identifier, sort: Sort): Variable = ExpressionCache.variable(id, sort)
   }
 
   /**
@@ -290,7 +318,7 @@ private[fol] trait Syntax {
    *
    * Constants generalize function and predicate symbols of any arity in strict first-order logic.
    */
-  case class Constant private (id: Identifier, sort: Sort) extends Expression {
+  case class Constant private[fol] (id: Identifier, sort: Sort) extends Expression {
     val containsFormulas = sort == Prop
     def freeVariables: Set[Variable] = Set()
     def constants: Set[Constant] = Set(this)
@@ -298,22 +326,14 @@ private[fol] trait Syntax {
   }
 
   object Constant {
-    private val cache: mutable.Map[(String, Sort), Constant] = mutable.Map.empty
-
-    /**
-     * Factory for [[Constant]] instances.
-     */
-    def apply(name: String, sort: Sort): Constant = {
-      cache.getOrElseUpdate((name, sort), Constant(Identifier(name), sort))
-    }
+    def apply(id: Identifier, sort: Sort): Constant = ExpressionCache.constant(id, sort)
   }
-
 
   /**
    * An application of an expression to an argument, which is a special case of [[Expression]].
    * `f.sort` must be of the form `arg.sort -> _`.
    */
-  case class Application private (f: Expression, arg: Expression) extends Expression {
+  case class Application private[fol] (f: Expression, arg: Expression) extends Expression {
     private val legalapp = legalApplication(f.sort, arg.sort)
     require(legalapp.isDefined, s"Application of $f to $arg is not legal")
     val sort = legalapp.get
@@ -324,15 +344,7 @@ private[fol] trait Syntax {
   }
 
   object Application {
-    private val cache: mutable.Map[(Long, Long), Application] = mutable.Map.empty
-    
-    /**
-     * Factory for [[Application]] instances.
-     */
-    def apply(f: Expression, arg: Expression): Application = {
-      // val key = (f.uniqueNumber << 32) | arg.uniqueNumber
-      cache.getOrElseUpdate((f.uniqueNumber, arg.uniqueNumber), new Application(f, arg))
-    }
+    def apply(f: Expression, arg: Expression): Application = ExpressionCache.application(f, arg)
   }
 
   /**
@@ -344,7 +356,7 @@ private[fol] trait Syntax {
    * Example: {{{Application(∀, Lambda(x, Application(P, x)))}}}
    * corresponds to the formula in strict first-order logic ∀x.P(x).
    */
-  case class Lambda private (v: Variable, body: Expression) extends Expression {
+  case class Lambda private[fol] (v: Variable, body: Expression) extends Expression {
     val containsFormulas = body.containsFormulas
     val sort = (v.sort -> body.sort)
 
@@ -354,15 +366,7 @@ private[fol] trait Syntax {
   }
 
   object Lambda {
-    private val cache: mutable.Map[(Long, Long), Lambda] = mutable.Map.empty
-
-    /**
-     * Factory for [[Lambda]] instances.
-     */
-    def apply(v: Variable, body: Expression): Lambda = {
-      // val key = (v.uniqueNumber << 32) | body.uniqueNumber
-      cache.getOrElseUpdate((v.uniqueNumber, body.uniqueNumber), new Lambda(v, body))
-    }
+    def apply(v: Variable, body: Expression): Lambda = ExpressionCache.lambda(v, body)
   }
 
   /**

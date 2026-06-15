@@ -29,31 +29,39 @@ object Congruence extends ProofTactic with ProofSequentTactic with ProofFactSequ
     val newAssumptions: Seq[(Expr[Prop], proof.Fact)] = context.map(s => (betaReduce(orAllOrFalse(s.statement.right)), s)).filter((f, s) => !bot.left.contains(f))
     val botWithAssumptions = bot.left ++ newAssumptions.map(_._1) |- bot.right
     var seq = botWithAssumptions
+    
+    import scala.util.boundary, boundary.break
 
-    TacticSubproof { iProof ?=>
-      import lib.*
+    boundary {
+      TacticSubproof { iProof ?=>
+        import lib.*
 
-      have(botWithAssumptions) by this
-      // println(s"Bot with assumptions: $botWithAssumptions")
-      for ((assumption, f) <- newAssumptions) {
-        // println(s"eliminating premise ${f.statement}")
-        val assumsOfPrem = f.statement.left
-        if lastStep.statement.left.contains(assumption) then
-          val assumptionWeWantToGet = (lastStep.statement.left - assumption)
-          val seq = assumptionWeWantToGet ++ assumsOfPrem |- lastStep.statement.right
-          have(seq) by Cut(f, lastStep)
-          // println(s"seq after cutting with the premise: $seq")
-          assumsOfPrem.foldLeft(lastStep) { (step, a) =>
-            if !assumptionWeWantToGet.exists(acceptableAssum => isSame(a, acceptableAssum)) then
-              this((step.statement.left - a) |- a) match
-                case r: iProof.ValidProofTactic => r.validate
-                case iProof.InvalidProofTactic(e) => return proof.InvalidProofTactic(s"Failed to prove $a from ${step.statement.left - a} while eliminating premise ${f.statement}: $e")
-              val aProof = have((step.statement.left - a) |- a) by this // TODO: catch errors
-              have(step.statement -<< a) by Cut(aProof, step)
-            else step
-          }
+        have(botWithAssumptions) by this
+        // println(s"Bot with assumptions: $botWithAssumptions")
+        for ((assumption, f) <- newAssumptions) {
+          // println(s"eliminating premise ${f.statement}")
+          val assumsOfPrem = f.statement.left
+          if lastStep.statement.left.contains(assumption) then
+            val assumptionWeWantToGet = (lastStep.statement.left - assumption)
+            val seq = assumptionWeWantToGet ++ assumsOfPrem |- lastStep.statement.right
+            have(seq) by Cut(f, lastStep)
+            // println(s"seq after cutting with the premise: $seq")
+            assumsOfPrem.foldLeft(lastStep) { (step, a) =>
+              if !assumptionWeWantToGet.exists(acceptableAssum => isSame(a, acceptableAssum)) then
+                this((step.statement.left - a) |- a) match
+                  case r: iProof.ValidProofTactic => r.validate
+                  case iProof.InvalidProofTactic(e) => 
+                    break:
+                      proof.InvalidProofTactic(s"Failed to prove $a from ${step.statement.left - a} while eliminating premise ${f.statement}: $e")
+                val aProof = have((step.statement.left - a) |- a) by this // TODO: catch errors
+                have(step.statement -<< a) by Cut(aProof, step)
+              else step
+            }
+        }
       }
+
     }
+
 
   def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
     from(premise)(bot)
@@ -112,7 +120,7 @@ object Congruence extends ProofTactic with ProofSequentTactic with ProofFactSequ
             val base = have((bot.left) |- (bot.right + !rf)) by Restate
             val eq = have(egraph.proveExpr[Prop](lf.asInstanceOf, rf, bot))
             val a = variable[Prop]
-            have((bot.left + makeEq(lf, rf)) |- (bot.right)) by RightSubstEq.withParameters(Seq((lf, rf)), (Seq(a), !a))(base)
+            have((bot.left + makeEq(lf, rf)) |- (bot.right)) by RightSubstEq.withParameters(Seq((rf, lf)), (Seq(a), !a))(base)
             have(bot) by Cut(eq, lastStep)
             true
           case _ => false

@@ -8,6 +8,48 @@ import lisa.utils.prooflib._
 import lisa.utils.unification.UnificationUtils._
 
 object BasicStepTactic {
+  private type FormulaSet = Set[K.Expression]
+
+  //////////////////////////////////////////////////////
+  // Helper functions mirroring those used in the kernel
+  // for easily changing the implementation of some
+  // basic operations
+  //////////////////////////////////////////////////////
+
+  @inline private def expEq(s: K.Expression, t: K.Expression): Boolean =
+    K.isSame(s, t)
+
+  @inline private def containsEq(set: FormulaSet, formula: K.Expression): Boolean =
+    set.contains(formula) || set.exists(expEq(_, formula))
+
+  @inline private def containsAsSimple(set: Set[K.SimpleExpression])(expr: K.Expression): Boolean =
+    set.contains(K.simpleReducedForm(expr))
+
+  @inline private def subset(subset: FormulaSet, superset: FormulaSet): Boolean = {
+    val simpleSuperset = superset.map(K.simpleReducedForm)
+    subset.forall(containsAsSimple(simpleSuperset))
+  }
+
+  @inline private def allContainedExcept(set: FormulaSet, target: FormulaSet, exception: K.Expression): Boolean = {
+    val simpleTarget = target.map(K.simpleReducedForm)
+    set.forall(formula => containsAsSimple(simpleTarget)(formula) || expEq(formula, exception))
+  }
+
+  @inline private def allContainedExceptEither(set: FormulaSet, target: FormulaSet, exception1: K.Expression, exception2: K.Expression): Boolean =
+    set.forall(formula => target.contains(formula) || expEq(formula, exception1) || expEq(formula, exception2))
+
+  private def liftedEqualities(equalities: Seq[(K.Expression, K.Expression)]): Seq[K.Expression] =
+    equalities.map { case (s, t) =>
+      val no = (s.freeVariables ++ t.freeVariables).view.map(_.id.no).maxOption.getOrElse(0) + 1
+      val vars = (no until no + s.sort.depth).map(i => K.Variable(K.Identifier("x", i), K.Ind))
+      val sApplied = vars.foldLeft(s)(_(_))
+      val tApplied = vars.foldLeft(t)(_(_))
+      val base = if (sApplied.sort == K.Prop) K.iff(sApplied)(tApplied) else K.equality(sApplied)(tApplied)
+      vars.foldRight(base: K.Expression)((arg, acc) => K.forall(arg, acc))
+    }
+
+  @inline private def diffEq(set: Set[F.Expr[F.Prop]], target: Set[F.Expr[F.Prop]]): Set[F.Expr[F.Prop]] =
+    set.filterNot(formula => target.exists(F.isSame(formula, _)))
 
   def unwrapTactic(using lib: Library, proof: lib.Proof)(using tactic: ProofTactic)(judgement: proof.ProofTacticJudgement)(message: String): proof.ProofTacticJudgement = {
     judgement match {
@@ -19,12 +61,12 @@ object BasicStepTactic {
   object Hypothesis extends ProofTactic with ProofSequentTactic {
     def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement = {
       val botK = bot.underlying
-      val intersectedPivot = botK.left.intersect(botK.right)
+      val pivot = botK.left.find(containsEq(botK.right, _))
 
-      if (intersectedPivot.isEmpty)
+      if (pivot.isEmpty)
         proof.InvalidProofTactic("A formula for input to Hypothesis could not be inferred from left and right side of the sequent.")
       else
-        proof.ValidProofTactic(bot, Seq(K.Hypothesis(botK, intersectedPivot.head)), Seq())
+        proof.ValidProofTactic(bot, Seq(K.Hypothesis(botK, pivot.get)), Seq())
     }
   }
 
@@ -77,14 +119,14 @@ object BasicStepTactic {
       val botK = bot.underlying
       val phiK = phi.underlying
 
-      if (!K.contains(leftSequent.right, phiK))
-        proof.InvalidProofTactic("Right-hand side of first premise does not contain φ as claimed.")
-      else if (!K.contains(rightSequent.left, phiK))
-        proof.InvalidProofTactic("Left-hand side of second premise does not contain φ as claimed.")
-      else if (!K.isSameSet(botK.left + phiK, leftSequent.left ++ rightSequent.left) || (leftSequent.left.contains(phiK) && !botK.left.contains(phiK)))
-        proof.InvalidProofTactic("Left-hand side of conclusion + φ is not the union of the left-hand sides of the premises.")
-      else if (!K.isSameSet(botK.right + phiK, leftSequent.right ++ rightSequent.right) || (rightSequent.right.contains(phiK) && !botK.right.contains(phiK)))
-        proof.InvalidProofTactic("Right-hand side of conclusion + φ is not the union of the right-hand sides of the premises.")
+      if (!subset(leftSequent.left, botK.left))
+        proof.InvalidProofTactic("Left-hand side of first premise is not contained in the conclusion.")
+      else if (!subset(rightSequent.right, botK.right))
+        proof.InvalidProofTactic("Right-hand side of second premise is not contained in the conclusion.")
+      else if (!allContainedExcept(leftSequent.right, botK.right, phiK))
+        proof.InvalidProofTactic("Right-hand side of first premise contains a formula absent from the conclusion other than the cut pivot.")
+      else if (!allContainedExcept(rightSequent.left, botK.left, phiK))
+        proof.InvalidProofTactic("Left-hand side of second premise contains a formula absent from the conclusion other than the cut pivot.")
       else
         proof.ValidProofTactic(bot, Seq(K.Cut(botK, -1, -2, phiK)), Seq(prem1, prem2))
     }
@@ -125,21 +167,19 @@ object BasicStepTactic {
       val psiK = psi.underlying
       lazy val phiAndPsi = phiK /\ psiK
 
-      if (!K.isSameSet(botK.right, premiseSequent.right))
-        proof.InvalidProofTactic("Right-hand side of the conclusion is not the same as the right-hand side of the premise.")
-      else if (
-        !K.isSameSet(botK.left + phiK, premiseSequent.left + phiAndPsi) &&
-        !K.isSameSet(botK.left + psiK, premiseSequent.left + phiAndPsi) &&
-        !K.isSameSet(botK.left + phiK + psiK, premiseSequent.left + phiAndPsi)
-      )
-        proof.InvalidProofTactic("Left-hand side of premise + φ∧ψ is not the same as left-hand side of conclusion + either φ, ψ or both.")
+      if (!subset(premiseSequent.right, botK.right))
+        proof.InvalidProofTactic("Right-hand side of the premise is not contained in the conclusion.")
+      else if (!allContainedExceptEither(premiseSequent.left, botK.left, phiK, psiK))
+        proof.InvalidProofTactic("Left-hand side of premise contains a formula absent from the conclusion other than φ or ψ.")
+      else if (!containsEq(botK.left, phiAndPsi))
+        proof.InvalidProofTactic("Left-hand side of conclusion does not contain φ ∧ ψ.")
       else
         proof.ValidProofTactic(bot, Seq(K.LeftAnd(botK, -1, phiK, psiK)), Seq(premise))
     }
 
     def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
-      lazy val pivot = bot.left.diff(premiseSequent.left)
+      lazy val pivot = diffEq(bot.left, premiseSequent.left)
 
       if (!pivot.isEmpty && pivot.tail.isEmpty)
         pivot.head match {
@@ -177,20 +217,17 @@ object BasicStepTactic {
         proof.InvalidProofTactic(s"Premises expected, ${premises.length} received.")
       else if (premises.length != disjuncts.length)
         proof.InvalidProofTactic(s"Premises and disjuncts expected to be equal in number, but ${premises.length} premises and ${disjuncts.length} disjuncts received.")
-      else if (!K.isSameSet(botK.right, premiseSequents.map(_.right).reduce(_ union _)))
-        proof.InvalidProofTactic("Right-hand side of conclusion is not the union of the right-hand sides of the premises.")
-      else if (
-        premiseSequents.zip(disjunctsK).forall((sequent, disjunct) => K.isSubset(sequent.left, botK.left + disjunct)) // \forall i. premise_i.left \subset bot.left + phi_i
-        && !K.isSubset(botK.left, premiseSequents.map(_.left).reduce(_ union _) + disjunction) // bot.left \subseteq \bigcup premise_i.left
-      )
-        proof.InvalidProofTactic("Left-hand side of conclusion + disjuncts is not the same as the union of the left-hand sides of the premises + φ∨ψ.")
+      else if (premiseSequents.zip(disjunctsK).exists((sequent, disjunct) => !subset(sequent.right, botK.right) || !allContainedExcept(sequent.left, botK.left, disjunct)))
+        proof.InvalidProofTactic("A premise is not preserved by the conclusion except for its corresponding disjunct.")
+      else if (!containsEq(botK.left, disjunction))
+        proof.InvalidProofTactic("Left-hand side of conclusion does not contain the disjunction.")
       else
         proof.ValidProofTactic(bot, Seq(K.LeftOr(botK, Range(-1, -premises.length - 1, -1), disjunctsK)), premises.toSeq)
     }
 
     def apply(using lib: Library, proof: lib.Proof)(premises: proof.Fact*)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequents = premises.map(proof.getSequent(_))
-      lazy val pivots = premiseSequents.map(_.left.diff(bot.left))
+      lazy val pivots = premiseSequents.map(s => diffEq(s.left, bot.left))
 
       if (premises.length == 0) proof.InvalidProofTactic(s"Premises expected, ${premises.length} received.")
       else if (pivots.exists(_.isEmpty)) {
@@ -223,18 +260,24 @@ object BasicStepTactic {
       val psiK = psi.underlying
       lazy val implication = (phiK ==> psiK)
 
-      if (!K.isSameSet(botK.right + phiK, leftSequent.right union rightSequent.right))
-        proof.InvalidProofTactic("Right-hand side of conclusion + φ is not the union of right-hand sides of premises.")
-      else if (!K.isSameSet(botK.left + psiK, leftSequent.left union rightSequent.left + implication))
-        proof.InvalidProofTactic("Left-hand side of conclusion + ψ is not the union of left-hand sides of premises + φ⇒ψ.")
+      if (!subset(leftSequent.left, botK.left))
+        proof.InvalidProofTactic("Left-hand side of first premise is not contained in the conclusion.")
+      else if (!subset(rightSequent.right, botK.right))
+        proof.InvalidProofTactic("Right-hand side of second premise is not contained in the conclusion.")
+      else if (!allContainedExcept(leftSequent.right, botK.right, phiK))
+        proof.InvalidProofTactic("Right-hand side of first premise contains a formula absent from the conclusion other than φ.")
+      else if (!allContainedExcept(rightSequent.left, botK.left, psiK))
+        proof.InvalidProofTactic("Left-hand side of second premise contains a formula absent from the conclusion other than ψ.")
+      else if (!containsEq(botK.left, implication))
+        proof.InvalidProofTactic("Left-hand side of conclusion does not contain φ⇒ψ.")
       else
         proof.ValidProofTactic(bot, Seq(K.LeftImplies(botK, -1, -2, phiK, psiK)), Seq(prem1, prem2))
     }
     def apply(using lib: Library, proof: lib.Proof)(prem1: proof.Fact, prem2: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val leftSequent = proof.getSequent(prem1)
       lazy val rightSequent = proof.getSequent(prem2)
-      lazy val pivotLeft = leftSequent.right.diff(bot.right)
-      lazy val pivotRight = rightSequent.left.diff(bot.left)
+      lazy val pivotLeft = diffEq(leftSequent.right, bot.right)
+      lazy val pivotRight = diffEq(rightSequent.left, bot.left)
 
       if (pivotLeft.isEmpty)
         if (F.isSubset(leftSequent.left, bot.left))
@@ -270,21 +313,19 @@ object BasicStepTactic {
       lazy val impLeft = phiK ==> psiK
       lazy val impRight = psiK ==> phiK
 
-      if (!K.isSameSet(botK.right, premiseSequent.right))
-        proof.InvalidProofTactic("Right-hand side of premise is not the same as right-hand side of conclusion.")
-      else if (
-        !K.isSameSet(botK.left + impLeft, premiseSequent.left + implication) &&
-        !K.isSameSet(botK.left + impRight, premiseSequent.left + implication) &&
-        !K.isSameSet(botK.left + impLeft + impRight, premiseSequent.left + implication)
-      )
-        proof.InvalidProofTactic("Left-hand side of premise + φ⇔ψ is not the same as left-hand side of conclusion + either φ⇒ψ, ψ⇒φ or both.")
+      if (!subset(premiseSequent.right, botK.right))
+        proof.InvalidProofTactic("Right-hand side of premise is not contained in the conclusion.")
+      else if (!allContainedExceptEither(premiseSequent.left, botK.left, impLeft, impRight))
+        proof.InvalidProofTactic("Left-hand side of premise contains a formula absent from the conclusion other than φ⇒ψ or ψ⇒φ.")
+      else if (!containsEq(botK.left, implication))
+        proof.InvalidProofTactic("Left-hand side of conclusion does not contain φ⇔ψ.")
       else
         proof.ValidProofTactic(bot, Seq(K.LeftIff(botK, -1, phiK, psiK)), Seq(premise))
     }
 
     def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
-      lazy val pivot = premiseSequent.left.diff(bot.left)
+      lazy val pivot = diffEq(premiseSequent.left, bot.left)
 
       if (pivot.isEmpty)
         if (F.isSubset(premiseSequent.right, bot.right))
@@ -313,16 +354,18 @@ object BasicStepTactic {
       val phiK = phi.underlying
       lazy val negation = !phiK
 
-      if (!K.isSameSet(botK.right + phiK, premiseSequent.right))
-        proof.InvalidProofTactic("Right-hand side of conclusion + φ is not the same as right-hand side of premise.")
-      else if (!K.isSameSet(botK.left, premiseSequent.left + negation))
-        proof.InvalidProofTactic("Left-hand side of conclusion is not the same as left-hand side of premise + ¬φ.")
+      if (!subset(premiseSequent.left, botK.left))
+        proof.InvalidProofTactic("Left-hand side of premise is not contained in the conclusion.")
+      else if (!allContainedExcept(premiseSequent.right, botK.right, phiK))
+        proof.InvalidProofTactic("Right-hand side of premise contains a formula absent from the conclusion other than φ.")
+      else if (!containsEq(botK.left, negation))
+        proof.InvalidProofTactic("Left-hand side of conclusion does not contain ¬φ.")
       else
         proof.ValidProofTactic(bot, Seq(K.LeftNot(botK, -1, phiK)), Seq(premise))
     }
     def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
-      lazy val pivot = premiseSequent.right.diff(bot.right)
+      lazy val pivot = diffEq(premiseSequent.right, bot.right)
 
       if (pivot.isEmpty)
         if (F.isSubset(premiseSequent.left, bot.left))
@@ -355,17 +398,19 @@ object BasicStepTactic {
       lazy val quantified = K.forall(xK, phiK)
       lazy val instantiated = K.substituteVariables(phiK, Map(xK -> tK))
 
-      if (!K.isSameSet(botK.right, premiseSequent.right))
-        proof.InvalidProofTactic("Right-hand side of conclusion is not the same as right-hand side of premise")
-      else if (!K.isSameSet(botK.left + instantiated, premiseSequent.left + quantified))
-        proof.InvalidProofTactic("Left-hand side of conclusion + φ[t/x] is not the same as left-hand side of premise + ∀x. φ")
+      if (!subset(premiseSequent.right, botK.right))
+        proof.InvalidProofTactic("Right-hand side of premise is not contained in the conclusion.")
+      else if (!allContainedExcept(premiseSequent.left, botK.left, instantiated))
+        proof.InvalidProofTactic("Left-hand side of premise contains a formula absent from the conclusion other than φ[t/x].")
+      else if (!containsEq(botK.left, quantified))
+        proof.InvalidProofTactic("Left-hand side of conclusion does not contain ∀x. φ.")
       else
         proof.ValidProofTactic(bot, Seq(K.LeftForall(botK, -1, phiK, xK, tK)), Seq(premise))
     }
 
     def withParameters(using lib: Library, proof: lib.Proof)(t: F.Expr[F.Ind])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
-      lazy val pivot = bot.left.diff(premiseSequent.left)
+      lazy val pivot = diffEq(bot.left, premiseSequent.left)
       lazy val instantiatedPivot = premiseSequent.left // .diff(botK.left)
 
       if (!pivot.isEmpty)
@@ -401,9 +446,9 @@ object BasicStepTactic {
 
     def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
-      lazy val prepivot = bot.left.diff(premiseSequent.left)
+      lazy val prepivot = diffEq(bot.left, premiseSequent.left)
       lazy val pivot = if (prepivot.isEmpty) bot.left else prepivot
-      lazy val instantiatedPivot = premiseSequent.left.diff(bot.left)
+      lazy val instantiatedPivot = diffEq(premiseSequent.left, bot.left)
 
       if (instantiatedPivot.isEmpty)
         if (F.isSubset(premiseSequent.right, bot.right))
@@ -448,12 +493,14 @@ object BasicStepTactic {
       lazy val botK = bot.underlying
       lazy val quantified = K.exists(xK, phiK)
 
-      if ((botK.left union botK.right).exists(_.freeVariables.contains(xK)))
+      if (!subset(premiseSequent.right, botK.right))
+        proof.InvalidProofTactic("Right-hand side of premise is not contained in the conclusion.")
+      else if (!allContainedExcept(premiseSequent.left, botK.left, phiK))
+        proof.InvalidProofTactic("Left-hand side of premise contains a formula absent from the conclusion other than φ.")
+      else if (!containsEq(botK.left, quantified))
+        proof.InvalidProofTactic("Left-hand side of conclusion does not contain ∃x. φ.")
+      else if ((botK.left union botK.right).exists(_.freeVariables.contains(xK)))
         proof.InvalidProofTactic("The variable x must not be free in the resulting sequent.")
-      else if (!K.isSameSet(botK.right, premiseSequent.right))
-        proof.InvalidProofTactic("Right-hand side of conclusion is not the same as right-hand side of premise")
-      else if (!K.isSameSet(botK.left + phiK, premiseSequent.left + quantified))
-        proof.InvalidProofTactic("Left-hand side of conclusion + φ is not the same as left-hand side of premise + ∃x. φ")
       else
         proof.ValidProofTactic(bot, Seq(K.LeftExists(botK, -1, phiK, xK)), Seq(premise))
     }
@@ -461,8 +508,8 @@ object BasicStepTactic {
     var debug = false
     def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
-      lazy val pivot = bot.left.diff(premiseSequent.left)
-      lazy val instantiatedPivot = premiseSequent.left.diff(bot.left)
+      lazy val pivot = diffEq(bot.left, premiseSequent.left)
+      lazy val instantiatedPivot = diffEq(premiseSequent.left, bot.left)
 
       if (pivot.isEmpty)
         if (instantiatedPivot.isEmpty)
@@ -570,20 +617,17 @@ object BasicStepTactic {
         proof.InvalidProofTactic(s"Premises expected, ${premises.length} received.")
       else if (premises.length != conjuncts.length)
         proof.InvalidProofTactic(s"Premises and conjuncts expected to be equal in number, but ${premises.length} premises and ${conjuncts.length} conjuncts received.")
-      else if (!K.isSameSet(botK.left, premiseSequents.map(_.left).reduce(_ union _)))
-        proof.InvalidProofTactic("Left-hand side of conclusion is not the union of the left-hand sides of the premises.")
-      else if (
-        premiseSequents.zip(conjunctsK).forall((sequent, conjunct) => K.isSubset(sequent.right, botK.right + conjunct)) // \forall i. premise_i.right \subset bot.right + phi_i
-        && !K.isSubset(botK.right, premiseSequents.map(_.right).reduce(_ union _) + conjunction) // bot.right \subseteq \bigcup premise_i.right
-      )
-        proof.InvalidProofTactic("Right-hand side of conclusion + conjuncts is not the same as the union of the right-hand sides of the premises + φ∧ψ....")
+      else if (premiseSequents.zip(conjunctsK).exists((sequent, conjunct) => !subset(sequent.left, botK.left) || !allContainedExcept(sequent.right, botK.right, conjunct)))
+        proof.InvalidProofTactic("A premise is not preserved by the conclusion except for its corresponding conjunct.")
+      else if (!containsEq(botK.right, conjunction))
+        proof.InvalidProofTactic("Right-hand side of conclusion does not contain the conjunction.")
       else
         proof.ValidProofTactic(bot, Seq(K.RightAnd(botK, Range(-1, -premises.length - 1, -1), conjunctsK)), premises)
     }
 
     def apply(using lib: Library, proof: lib.Proof)(premises: proof.Fact*)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequents = premises.map(proof.getSequent(_))
-      lazy val pivots = premiseSequents.map(_.right.diff(bot.right))
+      lazy val pivots = premiseSequents.map(s => diffEq(s.right, bot.right))
 
       if (premises.length == 0) proof.InvalidProofTactic(s"Premises expected, ${premises.length} received.")
       else if (pivots.exists(_.isEmpty)) {
@@ -615,20 +659,18 @@ object BasicStepTactic {
       lazy val botK = bot.underlying
       lazy val phiAndPsi = phiK \/ psiK
 
-      if (!K.isSameSet(botK.left, premiseSequent.left))
-        proof.InvalidProofTactic("Left-hand side of the premise is not the same as the left-hand side of the conclusion.")
-      else if (
-        !K.isSameSet(botK.right + phiK, premiseSequent.right + phiAndPsi) &&
-        !K.isSameSet(botK.right + psiK, premiseSequent.right + phiAndPsi) &&
-        !K.isSameSet(botK.right + phiK + psiK, premiseSequent.right + phiAndPsi)
-      )
-        proof.InvalidProofTactic("Right-hand side of premise + φ∧ψ is not the same as right-hand side of conclusion + either φ, ψ or both.")
+      if (!subset(premiseSequent.left, botK.left))
+        proof.InvalidProofTactic("Left-hand side of premise is not contained in the conclusion.")
+      else if (!allContainedExceptEither(premiseSequent.right, botK.right, phiK, psiK))
+        proof.InvalidProofTactic("Right-hand side of premise contains a formula absent from the conclusion other than φ or ψ.")
+      else if (!containsEq(botK.right, phiAndPsi))
+        proof.InvalidProofTactic("Right-hand side of conclusion does not contain φ∨ψ.")
       else
         proof.ValidProofTactic(bot, Seq(K.RightOr(botK, -1, phiK, psiK)), Seq(premise))
     }
     def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
-      lazy val pivot = bot.right.diff(premiseSequent.right)
+      lazy val pivot = diffEq(bot.right, premiseSequent.right)
 
       if (!pivot.isEmpty && pivot.tail.isEmpty)
         pivot.head match {
@@ -663,18 +705,20 @@ object BasicStepTactic {
       lazy val botK = bot.underlying
       lazy val implication = phiK ==> psiK
 
-      if (!K.isSameSet(botK.left + phiK, premiseSequent.left))
-        proof.InvalidProofTactic("Left-hand side of conclusion + φ is not the same as left-hand side of premise.")
-      else if (!K.isSameSet(botK.right + psiK, premiseSequent.right + implication))
-        proof.InvalidProofTactic("Right-hand side of conclusion + ψ is not the same as right-hand side of premise + φ⇒ψ.")
+      if (!allContainedExcept(premiseSequent.left, botK.left, phiK))
+        proof.InvalidProofTactic("Left-hand side of premise contains a formula absent from the conclusion other than φ.")
+      else if (!allContainedExcept(premiseSequent.right, botK.right, psiK))
+        proof.InvalidProofTactic("Right-hand side of premise contains a formula absent from the conclusion other than ψ.")
+      else if (!containsEq(botK.right, implication))
+        proof.InvalidProofTactic("Right-hand side of conclusion does not contain φ⇒ψ.")
       else
         proof.ValidProofTactic(bot, Seq(K.RightImplies(botK, -1, phiK, psiK)), Seq(premise))
     }
 
     def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
-      lazy val leftPivot = premiseSequent.left.diff(bot.left)
-      lazy val rightPivot = premiseSequent.right.diff(bot.right)
+      lazy val leftPivot = diffEq(premiseSequent.left, bot.left)
+      lazy val rightPivot = diffEq(premiseSequent.right, bot.right)
 
       if (
         !leftPivot.isEmpty && leftPivot.tail.isEmpty &&
@@ -704,30 +748,23 @@ object BasicStepTactic {
       lazy val impLeft = phiK ==> psiK
       lazy val impRight = psiK ==> phiK
 
-      if (!K.isSameSet(botK.left, leftSequent.left union rightSequent.left))
-        proof.InvalidProofTactic("Left-hand side of conclusion is not the union of the left-hand sides of the premises.")
-      else if (!K.isSubset(leftSequent.right, botK.right + impLeft))
-        proof.InvalidProofTactic(
-          "Conclusion is missing the following formulas from the left premise: " + (leftSequent.right -- botK.right).map(f => s"[${f.repr}]").reduce(_ ++ ", " ++ _)
-        )
-      else if (!K.isSubset(rightSequent.right, botK.right + impRight))
-        proof.InvalidProofTactic(
-          "Conclusion is missing the following formulas from the right premise: " + (rightSequent.right -- botK.right).map(f => s"[${f.repr}]").reduce(_ ++ ", " ++ _)
-        )
-      else if (!K.isSubset(botK.right, leftSequent.right union rightSequent.right + implication))
-        proof.InvalidProofTactic(
-          "Conclusion has extraneous formulas apart from premises and implication: " ++ (botK.right
-            .removedAll(leftSequent.right union rightSequent.right + implication))
-            .map(f => s"[${f.repr}]")
-            .reduce(_ ++ ", " ++ _)
-        )
+      if (!subset(leftSequent.left, botK.left))
+        proof.InvalidProofTactic("Left-hand side of first premise is not contained in the conclusion.")
+      else if (!subset(rightSequent.left, botK.left))
+        proof.InvalidProofTactic("Left-hand side of second premise is not contained in the conclusion.")
+      else if (!allContainedExcept(leftSequent.right, botK.right, impLeft))
+        proof.InvalidProofTactic("Right-hand side of first premise contains a formula absent from the conclusion other than φ⇒ψ.")
+      else if (!allContainedExcept(rightSequent.right, botK.right, impRight))
+        proof.InvalidProofTactic("Right-hand side of second premise contains a formula absent from the conclusion other than ψ⇒φ.")
+      else if (!containsEq(botK.right, implication))
+        proof.InvalidProofTactic("Right-hand side of conclusion does not contain φ⇔ψ.")
       else
         proof.ValidProofTactic(bot, Seq(K.RightIff(botK, -1, -2, phiK, psiK)), Seq(prem1, prem2))
     }
 
     def apply(using lib: Library, proof: lib.Proof)(prem1: proof.Fact, prem2: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(prem1)
-      lazy val pivot = premiseSequent.right.diff(bot.right)
+      lazy val pivot = diffEq(premiseSequent.right, bot.right)
 
       if (pivot.isEmpty)
         if (F.isSubset(premiseSequent.left, bot.left))
@@ -758,17 +795,19 @@ object BasicStepTactic {
       lazy val botK = bot.underlying
       lazy val negation = !phiK
 
-      if (!K.isSameSet(botK.left + phiK, premiseSequent.left))
-        proof.InvalidProofTactic("Left-hand side of conclusion + φ is not the same as left-hand side of premise.")
-      else if (!K.isSameSet(botK.right, premiseSequent.right + negation))
-        proof.InvalidProofTactic("Right-hand side of conclusion is not the same as right-hand side of premise + ¬φ.")
+      if (!subset(premiseSequent.right, botK.right))
+        proof.InvalidProofTactic("Right-hand side of premise is not contained in the conclusion.")
+      else if (!allContainedExcept(premiseSequent.left, botK.left, phiK))
+        proof.InvalidProofTactic("Left-hand side of premise contains a formula absent from the conclusion other than φ.")
+      else if (!containsEq(botK.right, negation))
+        proof.InvalidProofTactic("Right-hand side of conclusion does not contain ¬φ.")
       else
         proof.ValidProofTactic(bot, Seq(K.RightNot(botK, -1, phiK)), Seq(premise))
     }
 
     def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
-      lazy val pivot = premiseSequent.left.diff(bot.left)
+      lazy val pivot = diffEq(premiseSequent.left, bot.left)
 
       if (pivot.isEmpty)
         if (F.isSubset(premiseSequent.right, bot.right))
@@ -798,20 +837,22 @@ object BasicStepTactic {
       lazy val botK = bot.underlying
       lazy val quantified = K.forall(xK, phiK)
 
-      if ((botK.left union botK.right).exists(_.freeVariables.contains(xK)))
+      if (!subset(premiseSequent.left, botK.left))
+        proof.InvalidProofTactic("Left-hand side of premise is not contained in the conclusion.")
+      else if (!allContainedExcept(premiseSequent.right, botK.right, phiK))
+        proof.InvalidProofTactic("Right-hand side of premise contains a formula absent from the conclusion other than φ.")
+      else if (!containsEq(botK.right, quantified))
+        proof.InvalidProofTactic("Right-hand side of conclusion does not contain ∀x. φ.")
+      else if ((botK.left union botK.right).exists(_.freeVariables.contains(xK)))
         proof.InvalidProofTactic(s"The variable `$xK` is free in the resulting sequent.")
-      else if (!K.isSameSet(botK.left, premiseSequent.left))
-        proof.InvalidProofTactic("Left-hand side of conclusion is not the same as left-hand side of premise.")
-      else if (!K.isSameSet(botK.right + phiK, premiseSequent.right + quantified))
-        proof.InvalidProofTactic("Right-hand side of conclusion + φ is not the same as right-hand side of premise + ∀x. φ.")
       else
         proof.ValidProofTactic(bot, Seq(K.RightForall(botK, -1, phiK, xK)), Seq(premise))
     }
 
     def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
-      lazy val pivot = bot.right.diff(premiseSequent.right)
-      lazy val instantiatedPivot = premiseSequent.right.diff(bot.right)
+      lazy val pivot = diffEq(bot.right, premiseSequent.right)
+      lazy val instantiatedPivot = diffEq(premiseSequent.right, bot.right)
 
       if (pivot.isEmpty)
         if (instantiatedPivot.isEmpty)
@@ -862,18 +903,20 @@ object BasicStepTactic {
       lazy val quantified = K.exists(xK, phiK)
       lazy val instantiated = K.substituteVariables(phiK, Map(xK -> tK))
 
-      if (!K.isSameSet(botK.left, premiseSequent.left))
-        proof.InvalidProofTactic("Left-hand side of conclusion is not the same as left-hand side of premise")
-      else if (!K.isSameSet(botK.right + instantiated, premiseSequent.right + quantified))
-        proof.InvalidProofTactic("Right-hand side of conclusion + φ[t/x] is not the same as right-hand side of premise + ∃x. φ")
+      if (!subset(premiseSequent.left, botK.left))
+        proof.InvalidProofTactic("Left-hand side of premise is not contained in the conclusion.")
+      else if (!allContainedExcept(premiseSequent.right, botK.right, instantiated))
+        proof.InvalidProofTactic("Right-hand side of premise contains a formula absent from the conclusion other than φ[t/x].")
+      else if (!containsEq(botK.right, quantified))
+        proof.InvalidProofTactic("Right-hand side of conclusion does not contain ∃x. φ.")
       else
         proof.ValidProofTactic(bot, Seq(K.RightExists(botK, -1, phiK, xK, tK)), Seq(premise))
     }
 
     def withParameters(using lib: Library, proof: lib.Proof)(t: F.Expr[F.Ind])(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
-      lazy val pivot = bot.right.diff(premiseSequent.right)
-      lazy val instantiatedPivot = premiseSequent.right.diff(bot.right)
+      lazy val pivot = diffEq(bot.right, premiseSequent.right)
+      lazy val instantiatedPivot = diffEq(premiseSequent.right, bot.right)
 
       if (!pivot.isEmpty)
         if (pivot.tail.isEmpty)
@@ -908,9 +951,9 @@ object BasicStepTactic {
 
     def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
-      lazy val prepivot = bot.right.diff(premiseSequent.right)
+      lazy val prepivot = diffEq(bot.right, premiseSequent.right)
       lazy val pivot = if (prepivot.isEmpty) bot.right else prepivot
-      lazy val instantiatedPivot = premiseSequent.right.diff(bot.right)
+      lazy val instantiatedPivot = diffEq(premiseSequent.right, bot.right)
 
       if (instantiatedPivot.isEmpty)
         if (F.isSubset(premiseSequent.left, bot.left))
@@ -1030,17 +1073,19 @@ object BasicStepTactic {
       lazy val instantiated = K.substituteVariables(phiK, Map(xK -> tK))
       lazy val bound = K.substituteVariables(phiK, Map(xK -> epsilonTerm))
 
-      if (!K.isSameSet(botK.left, premiseSequent.left))
-        proof.InvalidProofTactic("Left-hand side of conclusion is not the same as left-hand side of premise.")
-      else if (!K.isSameSet(botK.right + instantiated, premiseSequent.right + bound))
-        proof.InvalidProofTactic("Right-hand side of conclusion + φ[t/x] is not the same as right-hand side of premise + φ[(εx. φ)/x].")
+      if (!subset(premiseSequent.left, botK.left))
+        proof.InvalidProofTactic("Left-hand side of premise is not contained in the conclusion.")
+      else if (!allContainedExcept(premiseSequent.right, botK.right, instantiated))
+        proof.InvalidProofTactic("Right-hand side of premise contains a formula absent from the conclusion other than φ[t/x].")
+      else if (!containsEq(botK.right, bound))
+        proof.InvalidProofTactic("Right-hand side of conclusion does not contain φ[(εx. φ)/x].")
       else
         proof.ValidProofTactic(bot, Seq(K.RightEpsilon(botK, -1, phiK, xK, tK)), Seq(premise))
     }
     def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement =
       val premiseSequent = proof.getSequent(premise)
-      val pivotSet = premiseSequent.right -- bot.right
-      val targetSet = bot.right -- premiseSequent.right
+      val pivotSet = diffEq(premiseSequent.right, bot.right)
+      val targetSet = diffEq(bot.right, premiseSequent.right)
 
       inline def theFailure =
         proof.InvalidProofTactic("Could not infer an epsilon pivot from premise and conclusion.")
@@ -1105,24 +1150,23 @@ object BasicStepTactic {
       lazy val faK = fa.underlying
       lazy val botK = bot.underlying
 
-      if (!K.isSameSet(botK.left + faK, premiseSequent.left) || !premiseSequent.left.exists(_ == faK) || botK.left.exists(_ == faK))
-        proof.InvalidProofTactic("Left-hand sides of the conclusion + φ is not the same as left-hand side of the premise.")
-      else if (!K.isSameSet(botK.right, premiseSequent.right))
-        proof.InvalidProofTactic("Right-hand side of the premise is not the same as the right-hand side of the conclusion.")
-      else
-        faK match {
-          case K.Application(K.Application(K.equality, left), right) =>
-            if (K.isSame(left, right))
-              proof.ValidProofTactic(bot, Seq(K.LeftRefl(botK, -1, faK)), Seq(premise))
-            else
-              proof.InvalidProofTactic("φ is not an instance of reflexivity.")
-          case _ => proof.InvalidProofTactic("φ is not an equality.")
-        }
+      faK match {
+        case K.Application(K.Application(K.equality, left), right) =>
+          if (!expEq(left, right))
+            proof.InvalidProofTactic("φ is not an instance of reflexivity.")
+          else if (!subset(premiseSequent.right, botK.right))
+            proof.InvalidProofTactic("Right-hand side of premise is not contained in the conclusion.")
+          else if (!allContainedExcept(premiseSequent.left, botK.left, faK))
+            proof.InvalidProofTactic("Left-hand side of premise contains a formula absent from the conclusion other than the given equality.")
+          else
+            proof.ValidProofTactic(bot, Seq(K.LeftRefl(botK, -1, faK)), Seq(premise))
+        case _ => proof.InvalidProofTactic("φ is not an equality.")
+      }
     }
 
     def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val premiseSequent = proof.getSequent(premise)
-      lazy val pivot = premiseSequent.left.diff(bot.left)
+      lazy val pivot = diffEq(premiseSequent.left, bot.left)
 
       if (!pivot.isEmpty && pivot.tail.isEmpty)
         LeftRefl.withParameters(pivot.head)(premise)(bot)
@@ -1142,17 +1186,16 @@ object BasicStepTactic {
     def withParameters(using lib: Library, proof: lib.Proof)(fa: F.Expr[F.Prop])(bot: F.Sequent): proof.ProofTacticJudgement = {
       lazy val faK = fa.underlying
       lazy val botK = bot.underlying
-      if (!botK.right.exists(_ == faK))
-        proof.InvalidProofTactic("Right-hand side of conclusion does not contain φ.")
-      else
-        faK match {
-          case K.Application(K.Application(K.equality, left), right) =>
-            if (K.isSame(left, right))
-              proof.ValidProofTactic(bot, Seq(K.RightRefl(botK, faK)), Seq())
-            else
-              proof.InvalidProofTactic(s"Conclusion is not an instance of reflexivity. Found unequal terms $left and $right instead.")
-          case _ => proof.InvalidProofTactic("Conclusion is not an equality.")
-        }
+      faK match {
+        case K.Application(K.Application(K.equality, left), right) =>
+          if (!expEq(left, right))
+            proof.InvalidProofTactic("φ is not an instance of reflexivity.")
+          else if (!containsEq(botK.right, faK))
+            proof.InvalidProofTactic("Right-hand side of conclusion does not contain φ.")
+          else
+            proof.ValidProofTactic(bot, Seq(K.RightRefl(botK, faK)), Seq())
+        case _ => proof.InvalidProofTactic("φ is not an equality.")
+      }
     }
 
     def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement = {
@@ -1163,7 +1206,7 @@ object BasicStepTactic {
           val Eq = F.equality // (F.equality: (F.|->[F.**[F.Expr[F.Ind], 2], F.Expr[F.Prop]]))
           f match {
             case F.App(F.App(e, l), r) =>
-              (F.equality) == (e) && l == r // termequality
+              (F.equality) == (e) && F.isSame(l, r)
             case _ => false
           }
         )
@@ -1211,31 +1254,27 @@ object BasicStepTactic {
 
       val (s_es, t_es) = equalsK.unzip
       val (phi_args, phi_body) = lambdaPhiK
-      if (phi_args.size != s_es.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
+      if (phi_body.sort != K.Prop)
+        proof.InvalidProofTactic("φ must be a formula.")
+      else if (phi_args.size != s_es.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
         proof.InvalidProofTactic("The number of arguments of φ must be the same as the number of equalities.")
-      else if (equals.zip(phi_args).exists { case ((s, t), arg) => s.sort != arg.sort || t.sort != arg.sort })
+      else if (equalsK.zip(phi_args).exists { case ((s, t), arg) => s.sort != arg.sort || t.sort != arg.sort || (!arg.sort.isFunctional && !arg.sort.isPredicate) })
         proof.InvalidProofTactic("The arities of symbols in φ must be the same as the arities of equalities.")
       else {
         val phi_s_for_f = K.substituteVariables(phi_body, (phi_args zip s_es).toMap)
         val phi_t_for_f = K.substituteVariables(phi_body, (phi_args zip t_es).toMap)
-        val sEqT_es = equalsK map { case (s, t) =>
-          val no = (s.freeVariables ++ t.freeVariables).view.map(_.id.no).maxOption.getOrElse(0) + 1
-          val vars = (no until no + s.sort.depth).map(i => K.Variable(K.Identifier("x", i), K.Ind))
-          val inner1 = vars.foldLeft(s)(_(_))
-          val inner2 = vars.foldLeft(t)(_(_))
-          val base = if (inner1.sort == K.Prop) K.iff(inner1)(inner2) else K.equality(inner1)(inner2)
-          vars.foldLeft(base: K.Expression) { case (acc, s_arg) => K.forall(s_arg, acc) }
-        }
+        val sEqT_es = liftedEqualities(equalsK)
 
-        if (K.isSameSet(botK.right, premiseSequent.right)) then
-          if (
-            K.isSameSet(botK.left + phi_t_for_f, premiseSequent.left ++ sEqT_es + phi_s_for_f) ||
-            K.isSameSet(botK.left + phi_s_for_f, premiseSequent.left ++ sEqT_es + phi_t_for_f)
-          )
-            proof.ValidProofTactic(bot, Seq(K.LeftSubstEq(botK, -1, equalsK, lambdaPhiK)), Seq(premise))
-          else
-            proof.InvalidProofTactic("Left-hand sides of the conclusion + φ(s_) must be the same as left-hand side of the premise + (s=t)_ + φ(t_) (or with s_ and t_ swapped).")
-        else proof.InvalidProofTactic("Right-hand sides of the premise and the conclusion must be the same.")
+        if (!subset(premiseSequent.right, botK.right))
+          proof.InvalidProofTactic("Right-hand side of premise is not contained in the conclusion.")
+        else if (!allContainedExcept(premiseSequent.left, botK.left, phi_s_for_f))
+          proof.InvalidProofTactic("Left-hand side of premise contains a formula absent from the conclusion other than φ(s_).")
+        else if (!sEqT_es.forall(containsEq(botK.left, _)))
+          proof.InvalidProofTactic("Left-hand side of conclusion does not contain all lifted equalities.")
+        else if (!containsEq(botK.left, phi_t_for_f))
+          proof.InvalidProofTactic("Left-hand side of conclusion does not contain φ(t_).")
+        else
+          proof.ValidProofTactic(bot, Seq(K.LeftSubstEq(botK, -1, equalsK, lambdaPhiK)), Seq(premise))
       }
     }
   }
@@ -1273,31 +1312,27 @@ object BasicStepTactic {
 
       val (s_es, t_es) = equalsK.unzip
       val (phi_args, phi_body) = lambdaPhiK
-      if (phi_args.size != s_es.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
+      if (phi_body.sort != K.Prop)
+        proof.InvalidProofTactic("φ must be a formula.")
+      else if (phi_args.size != s_es.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
         proof.InvalidProofTactic("The number of arguments of φ must be the same as the number of equalities.")
-      else if (equals.zip(phi_args).exists { case ((s, t), arg) => s.sort != arg.sort || t.sort != arg.sort })
+      else if (equalsK.zip(phi_args).exists { case ((s, t), arg) => s.sort != arg.sort || t.sort != arg.sort || (!arg.sort.isFunctional && !arg.sort.isPredicate) })
         proof.InvalidProofTactic("The arities of symbols in φ must be the same as the arities of equalities.")
       else {
         val phi_s_for_f = K.substituteVariables(phi_body, (phi_args zip s_es).toMap)
         val phi_t_for_f = K.substituteVariables(phi_body, (phi_args zip t_es).toMap)
-        val sEqT_es = equalsK map { case (s, t) =>
-          val no = (s.freeVariables ++ t.freeVariables).view.map(_.id.no).maxOption.getOrElse(-1) + 1
-          val vars = (no until no + s.sort.depth).map(i => K.Variable(K.Identifier("x", i), K.Ind))
-          val inner1 = vars.foldLeft(s)(_(_))
-          val inner2 = vars.foldLeft(t)(_(_))
-          val base = if (inner1.sort == K.Prop) K.iff(inner1)(inner2) else K.equality(inner1)(inner2)
-          vars.foldLeft(base: K.Expression) { case (acc, s_arg) => K.forall(s_arg, acc) }
-        }
+        val sEqT_es = liftedEqualities(equalsK)
 
-        if (K.isSameSet(botK.left, premiseSequent.left ++ sEqT_es))
-          if (
-            K.isSameSet(botK.right + phi_t_for_f, premiseSequent.right + phi_s_for_f) ||
-            K.isSameSet(botK.right + phi_s_for_f, premiseSequent.right + phi_t_for_f)
-          )
-            proof.ValidProofTactic(bot, Seq(K.RightSubstEq(botK, -1, equalsK, lambdaPhiK)), Seq(premise))
-          else
-            proof.InvalidProofTactic("Right-hand side of the premise and the conclusion should be the same with each containing one of φ(s_) φ(t_), but it isn't the case.")
-        else proof.InvalidProofTactic("Left-hand sides of the premise + (s=t)_ must be the same as left-hand side of the conclusion.")
+        if (!subset(premiseSequent.left, botK.left))
+          proof.InvalidProofTactic("Left-hand side of premise is not contained in the conclusion.")
+        else if (!sEqT_es.forall(containsEq(botK.left, _)))
+          proof.InvalidProofTactic("Left-hand side of conclusion does not contain all lifted equalities.")
+        else if (!allContainedExcept(premiseSequent.right, botK.right, phi_s_for_f))
+          proof.InvalidProofTactic("Right-hand side of premise contains a formula absent from the conclusion other than φ(s_).")
+        else if (!containsEq(botK.right, phi_t_for_f))
+          proof.InvalidProofTactic("Right-hand side of conclusion does not contain φ(t_).")
+        else
+          proof.ValidProofTactic(bot, Seq(K.RightSubstEq(botK, -1, equalsK, lambdaPhiK)), Seq(premise))
       }
     }
   }
@@ -1324,7 +1359,19 @@ object BasicStepTactic {
 
     def apply(using lib: Library, proof: lib.Proof)(subst: F.SubstPair*)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement =
       val map = subst.map(p => (p._1, p._2)).toMap
-      unsafe(using lib, proof)(map)(premise)(bot)
+      val premiseSequent = proof.getSequent(premise).underlying
+      val mapK = map.map((v, e) => (v.underlying, e.underlying))
+      val botK = bot.underlying
+      val sortMismatch = mapK.exists((v, e) => v.sort != e.sort)
+
+      if (sortMismatch)
+        proof.InvalidProofTactic("A substituted expression has the wrong sort.")
+      else if (!premiseSequent.left.forall(formula => containsEq(botK.left, K.substituteVariables(formula, mapK))))
+        proof.InvalidProofTactic("Left-hand side of premise after instantiation is not contained in left-hand side of conclusion.")
+      else if (!premiseSequent.right.forall(formula => containsEq(botK.right, K.substituteVariables(formula, mapK))))
+        proof.InvalidProofTactic("Right-hand side of premise after instantiation is not contained in right-hand side of conclusion.")
+      else
+        proof.ValidProofTactic(bot, Seq(K.InstSchema(botK, -1, mapK)), Seq(premise))
 
   }
 
