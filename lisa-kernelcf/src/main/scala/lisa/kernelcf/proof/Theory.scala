@@ -1,7 +1,6 @@
 package lisa.kernelcf.proof
 
 import lisa.kernelcf.fol.FOL.*
-import lisa.kernelcf.proof.SequentCalculus.Sequent
 
 import scala.collection.mutable
 

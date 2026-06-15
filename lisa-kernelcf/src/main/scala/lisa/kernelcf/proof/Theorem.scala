@@ -1,6 +1,5 @@
 package lisa.kernelcf.proof
 
-import lisa.kernelcf.proof.SequentCalculus.*
 import lisa.kernelcf.fol.FOL.*
 
 ///////////////////////////////////////////////////////////////////////////////
