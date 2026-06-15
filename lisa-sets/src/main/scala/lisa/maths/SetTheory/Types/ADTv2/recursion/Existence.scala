@@ -5,6 +5,7 @@ import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger
 import lisa.maths.SetTheory.Functions.BasicTheorems.funcBetweenEqInFuncSpace
 import lisa.maths.SetTheory.Functions.BasicTheorems.functionalExtentionality
 import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.Ordinals.TransitiveSet
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.FunctionCore.ExistenceProof
@@ -112,18 +113,18 @@ private[recursion] final class Existence[N <: Arity](
       val indexInN   = have(n0 ∈ N)   by Tautology.from(indexWitness)
       val aInHeightN0 = have(a ∈ app(heightFun)(n0)) by Tautology.from(indexWitness)
 
-      val succN0InN   = have(successor(n0) ∈ N)   by Tautology.from(indexInN, ExtendedInteger.successorIsNat.of(n := n0))
+      val succN0InN   = have(S(n0) ∈ N)   by Tautology.from(indexInN, ExtendedInteger.successorIsNat.of(n := n0))
 
-      val n0InSuccN0 = have(n0 ∈ successor(n0)) by Weakening(ExtendedInteger.nInSuccN.of(n := n0))
-      val n0SubSuccN0 = have(n0 ⊆ successor(n0)) by Tautology.from(
+      val n0InSuccN0 = have(n0 ∈ S(n0)) by Weakening(ExtendedInteger.nInSuccN.of(n := n0))
+      val n0SubSuccN0 = have(n0 ⊆ S(n0)) by Tautology.from(
         n0InSuccN0,
-        have(TransitiveSet.transitiveSet(successor(n0))) by
-          Tautology.from(succN0InN, NatFacts.elementsTransitive.of(n := successor(n0))),
-        TransitiveSet.elementIsSubset.of(A := successor(n0), x := n0)
+        have(TransitiveSet.transitiveSet(S(n0))) by
+          Tautology.from(succN0InN, NatFacts.elementsTransitive.of(n := S(n0))),
+        TransitiveSet.elementIsSubset.of(A := S(n0), x := n0)
       )
 
-      // a ∈ h(successor(n0))
-      val aInHeightOrd = have(a ∈ app(heightFun)(successor(n0))) by Tautology.from(
+      // a ∈ h(S(n0))
+      val aInHeightOrd = have(a ∈ app(heightFun)(S(n0))) by Tautology.from(
         hValid,
         indexInN,
         aInHeightN0,
@@ -133,13 +134,13 @@ private[recursion] final class Existence[N <: Arity](
       // ── G(n0) type and stabilization chain ─────────────────────────────────
       val approxAtN0Inst = have(n0 ∈ N ==> (G(n0) :: spec.typ)) by InstantiateForall(n0)(approx.approxHasType)
       val gN0HasType = have(G(n0) :: spec.typ) by Tautology.from(indexInN, approxAtN0Inst)
-      val approxSuccAtN0Impl = have(n0 ∈ N ==> (G(successor(n0)) === recWitness(G(n0)))) by
+      val approxSuccAtN0Impl = have(n0 ∈ N ==> (G(S(n0)) === recWitness(G(n0)))) by
         InstantiateForall(n0)(approx.approxSucc)
-      val gSuccN0EqWitness = have(G(successor(n0)) === recWitness(G(n0))) by
+      val gSuccN0EqWitness = have(G(S(n0)) === recWitness(G(n0))) by
         Tautology.from(indexInN, approxSuccAtN0Impl)
 
       // G(n0)(a) = G(Succ(n0))(a) via approximantsAgreeFromSubset (avoids capture of `a` in stabilization)
-      val stabAtAFact = have(app(G(n0))(a) === app(G(successor(n0)))(a)) by Tautology.from(
+      val stabAtAFact = have(app(G(n0))(a) === app(G(S(n0)))(a)) by Tautology.from(
         indexInN,
         succN0InN,
         n0SubSuccN0,
@@ -148,7 +149,7 @@ private[recursion] final class Existence[N <: Arity](
           heightFun,
           approximantFamily,
           n0,
-          successor(n0),
+          S(n0),
           a
         )(stabilizationSchema, heightMembershipMonotonicSchema)
       )
@@ -216,7 +217,7 @@ private[recursion] final class Existence[N <: Arity](
         thenHave(thesis) by RightForall
       }
 
-      val aInHeightSuccN0 = have(a ∈ app(heightFun)(successor(n0))) by Restate.from(aInHeightOrd)
+      val aInHeightSuccN0 = have(a ∈ app(heightFun)(S(n0))) by Restate.from(aInHeightOrd)
 
       // ∀x ∈ h(Succ n0), W(limitFun)(x) = W(G(n0))(x).
       // n0 = limitIndex(a) mentions the free variable `a`, so we must not rebind
@@ -235,7 +236,7 @@ private[recursion] final class Existence[N <: Arity](
         sliceAgreement
       )
       val witnessAgreeImpl = have(
-        (a ∈ app(heightFun)(successor(n0))) ==> (app(recWitness(limitFun))(a) === app(recWitness(G(n0)))(a))
+        (a ∈ app(heightFun)(S(n0))) ==> (app(recWitness(limitFun))(a) === app(recWitness(G(n0)))(a))
       ) by InstantiateForall(a)(witnessAgreeOnSucc)
       val witnessesAgreeAtA = have(
         app(recWitness(limitFun))(a) === app(recWitness(G(n0)))(a)

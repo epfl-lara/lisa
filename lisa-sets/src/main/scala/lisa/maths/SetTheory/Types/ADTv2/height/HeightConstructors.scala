@@ -3,6 +3,7 @@ package lisa.maths.SetTheory.Types.ADTv2.height
 import lisa.maths.Quantifiers.existsOneAlternativeDefinition
 import lisa.maths.SetTheory.Base.Pair.given
 import lisa.maths.SetTheory.Base.Subset
+import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.height.proofs.CoreFacts
 import lisa.maths.SetTheory.Types.ADTv2.height.proofs.SuccessorFacts
@@ -269,22 +270,22 @@ final class HeightConstructors[N <: Arity](
   }
 
   val heightSuccessorInclusion = Lemma(
-    (base.isHeight(h), in(n, N), in(x, app(h, n))) |- in(x, app(h, successor(n)))
+    (base.isHeight(h), in(n, N), in(x, app(h, n))) |- in(x, app(h, S(n)))
   ) {
     val hIsHeight = assume(base.isHeight(h))
     val nInN = assume(in(n, N))
     val xInHn = assume(in(x, app(h, n)))
-    val succInN = have(in(successor(n), N)) by Tautology.from(
+    val succInN = have(in(S(n), N)) by Tautology.from(
       successorIsNat of (n := n),
       nInN
     )
-    have(in(x, app(h, successor(n)))) by Tautology.from(
+    have(in(x, app(h, S(n)))) by Tautology.from(
       hIsHeight,
       succInN,
       nInN,
       subsetSuccessor of (n := n),
       xInHn,
-      heightMembershipMonotonic of (m := n, n := successor(n))
+      heightMembershipMonotonic of (m := n, n := S(n))
     )
     thenHave(thesis) by Restate
   }
@@ -294,7 +295,7 @@ final class HeightConstructors[N <: Arity](
    */
   val heightSuccessorWeak = Lemma(
     (base.isHeight(h), in(n, N)) |-
-      in(x, app(h, successor(n))) <=> inIntroImage(app(h, n))(x)
+      in(x, app(h, S(n))) <=> inIntroImage(app(h, n))(x)
   ) {
     have(thesis) by Tautology.from(
       base.heightIsCore,
@@ -325,7 +326,7 @@ final class HeightConstructors[N <: Arity](
 
   private[ADTv2] lazy val heightSuccessorStrong = Lemma(
     (base.isHeight(h), in(n, N)) |-
-      in(x, app(h, successor(n))) <=> isConstructor(x)(app(h, n))
+      in(x, app(h, S(n))) <=> isConstructor(x)(app(h, n))
   ) {
     have(thesis) by Tautology.from(
       base.heightIsCore,

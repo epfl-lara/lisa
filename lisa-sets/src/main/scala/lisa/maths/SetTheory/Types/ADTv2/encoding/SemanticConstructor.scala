@@ -2,6 +2,7 @@ package lisa.maths.SetTheory.Types.ADTv2.encoding
 
 import lisa.maths.SetTheory.Base.Pair
 import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.instantiatedTheorem
@@ -331,13 +332,13 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
 
   def recursiveArgInHeight(heightFun: Expr[Ind], heightIndex: Expr[Ind]): THM =
     Lemma(
-      (adt.isHeight(heightFun), heightIndex ∈ N, wellTypedFormula(semanticSignature1), appliedTerm1 ∈ app(heightFun)(successor(heightIndex))) |-
+      (adt.isHeight(heightFun), heightIndex ∈ N, wellTypedFormula(semanticSignature1), appliedTerm1 ∈ app(heightFun)(S(heightIndex))) |-
         wellTypedFormula(underlying.signature1)(app(heightFun)(heightIndex))
     ) {
       val hValid = assume(adt.isHeight(heightFun))
       val nInN = assume(heightIndex ∈ N)
       val argsTypedSemantic = assume(wellTypedFormula(semanticSignature1))
-      val appliedInSucc = assume(appliedTerm1 ∈ app(heightFun)(successor(heightIndex)))
+      val appliedInSucc = assume(appliedTerm1 ∈ app(heightFun)(S(heightIndex)))
 
       val shortBase = have(shortDefinition.statement.right.head) by Tautology.from(shortDefinition)
       val shortAtVars1 = variables1.foldLeft(shortBase)((_, v1) =>
@@ -351,7 +352,7 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
           have(consequent) by Tautology.from(shortAtVars1, argsTypedSemantic)
         case _ => throw UnreachableException
 
-      val structuralInSucc = have(structuralTerm1 ∈ app(heightFun)(successor(heightIndex))) by Congruence.from(
+      val structuralInSucc = have(structuralTerm1 ∈ app(heightFun)(S(heightIndex))) by Congruence.from(
         appliedEqStructural,
         appliedInSucc
       )
@@ -362,7 +363,7 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
         structuralInSucc,
         adt.heightSuccessorStrong of (h := heightFun, x := structuralTerm1, n := heightIndex),
         equivalenceApply of (
-          p1 := structuralTerm1 ∈ app(heightFun)(successor(heightIndex)),
+          p1 := structuralTerm1 ∈ app(heightFun)(S(heightIndex)),
           p2 := adt.isConstructor(structuralTerm1, app(heightFun)(heightIndex))
         )
       )

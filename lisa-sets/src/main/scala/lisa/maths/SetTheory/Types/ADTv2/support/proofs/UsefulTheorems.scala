@@ -1,5 +1,6 @@
 package lisa.maths.SetTheory.Types.ADTv2.support.proofs
 
+import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.successorInjectivity
@@ -11,7 +12,7 @@ import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.zeroIsNot
  * The generic lemmas have been split out into:
  *   - [[PropositionalFacts]] — propositional / equivalence / equality lemmas
  *   - [[FunctionFacts]] — subset / union / range / (restricted) function lemmas
- *   - [[ExtendedInteger]] — ω / successor facts
+ *   - [[ExtendedInteger]] — ω / S facts
  *
  * They are re-exported here so existing imports keep resolving. Only the
  * ADT-specific [[constructorTagDisequality]] still lives in this file.
@@ -35,11 +36,11 @@ object UsefulTheorems {
         val midMaxTag = toTerm(maxTag - i)
         val midMinTag = toTerm(minTag - i)
         have(
-          successor(midMaxTag) === successor(midMinTag) |- midMaxTag === midMinTag
+          S(midMaxTag) === S(midMinTag) |- midMaxTag === midMinTag
         ) by Cut(
           successorInjectivity of (n := midMaxTag, m := midMinTag),
           equivalenceApply of (
-            p1 := successor(midMaxTag) === successor(midMinTag),
+            p1 := S(midMaxTag) === S(midMinTag),
             p2 := midMaxTag === midMinTag
           )
         )

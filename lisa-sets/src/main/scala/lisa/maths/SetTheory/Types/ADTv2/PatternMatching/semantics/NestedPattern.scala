@@ -298,16 +298,11 @@ private[PatternMatching] object NestedConstructorPattern {
         ) subproof {
           assume(predVar ∈ N /\ (currentIndex === S(predVar)))
           val currentEqSucc = have(currentIndex === S(predVar)) by Tautology
-          val succEq = have(S(predVar) === successor(predVar)) by Congruence.from(
-            S.definition.of(α := predVar),
-            successor.definition.of(x := predVar)
-          )
           val predInN = have(predVar ∈ N) by Tautology
 
-          val currentInSuccPred = have(currentTerm ∈ app(heightFun)(successor(predVar))) by Congruence.from(
+          val currentInSuccPred = have(currentTerm ∈ app(heightFun)(S(predVar))) by Congruence.from(
             currentInHeight,
-            currentEqSucc,
-            succEq
+            currentEqSucc
           )
 
           val cts = NestedTrieProofs.resolvedChildTypes(c, currentTy._2)
@@ -348,8 +343,8 @@ private[PatternMatching] object NestedConstructorPattern {
             target = target
           )
 
-          val predSubSucc = have(predVar ⊆ successor(predVar)) by Tautology.from(subsetSuccessor.of(n := predVar))
-          val predSubCurrent = have(predVar ⊆ currentIndex) by Congruence.from(predSubSucc, currentEqSucc, succEq)
+          val predSubSucc = have(predVar ⊆ S(predVar)) by Tautology.from(subsetSuccessor.of(n := predVar))
+          val predSubCurrent = have(predVar ⊆ currentIndex) by Congruence.from(predSubSucc, currentEqSucc)
           Time.measure(s"targetInHeight"){have(target ∈ app(heightFun)(currentIndex)) by Tautology.from(
             hValid,
             currentIndexInN,

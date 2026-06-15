@@ -1,6 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.encoding
 
 import lisa.maths.SetTheory.Base._
+import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.height.HeightTerms
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
@@ -198,15 +199,15 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTHeight[
   private val heightConstructor = constructors.map(c =>
     c -> Lemma(
       (isHeight(h), in(n, N), constructorVarsInDomain(c, app(h, n))) |-
-        in(c.term, app(h, successor(n)))
+        in(c.term, app(h, S(n)))
     ) {
       val constructorInIntroFunHeight = inIntroImage(app(h, n))(c.term)
 
-      have((isHeight(h), in(n, N), constructorInIntroFunHeight) |- in(c.term, app(h, successor(n)))) by Cut(
+      have((isHeight(h), in(n, N), constructorInIntroFunHeight) |- in(c.term, app(h, S(n)))) by Cut(
         heightSuccessorWeak of (x := c.term),
-        equivalenceRevApply of (p1 := constructorInIntroFunHeight, p2 := in(c.term, app(h, successor(n))))
+        equivalenceRevApply of (p1 := constructorInIntroFunHeight, p2 := in(c.term, app(h, S(n))))
       )
-      have((isHeight(h), in(n, N), constructorVarsInDomain(c, app(h, n))) |- in(c.term, app(h, successor(n)))) by Cut(
+      have((isHeight(h), in(n, N), constructorVarsInDomain(c, app(h, n))) |- in(c.term, app(h, S(n)))) by Cut(
         constructorInIntroductionFunction(c) of (s := app(h, n)),
         lastStep
       )
@@ -225,11 +226,11 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTHeight[
         )
 
         // STEP 1: Prove that if an instance of a constructor has height n + 1 then it is in this ADT.
-        val left = have(in(n, N) |- in(successor(n), N)) by Cut(successorIsNat, equivalenceApply of (p1 := in(n, N), p2 := in(successor(n), N)))
-        val right = have(in(c.term, app(h, successor(n))) |- in(c.term, app(h, successor(n)))) by Hypothesis
-        have((in(n, N), in(c.term, app(h, successor(n)))) |- in(successor(n), N) /\ in(c.term, app(h, successor(n)))) by RightAnd(left, right)
-        thenHave((in(n, N), in(c.term, app(h, successor(n)))) |- exists(m, in(m, N) /\ in(c.term, app(h, m)))) by RightExists
-        have((isHeight(h), in(n, N), in(c.term, app(h, successor(n)))) |- in(c.term, term)) by 
+        val left = have(in(n, N) |- in(S(n), N)) by Cut(successorIsNat, equivalenceApply of (p1 := in(n, N), p2 := in(S(n), N)))
+        val right = have(in(c.term, app(h, S(n))) |- in(c.term, app(h, S(n)))) by Hypothesis
+        have((in(n, N), in(c.term, app(h, S(n)))) |- in(S(n), N) /\ in(c.term, app(h, S(n)))) by RightAnd(left, right)
+        thenHave((in(n, N), in(c.term, app(h, S(n)))) |- exists(m, in(m, N) /\ in(c.term, app(h, m)))) by RightExists
+        have((isHeight(h), in(n, N), in(c.term, app(h, S(n)))) |- in(c.term, term)) by 
           Congruence.from(lastStep, termHasHeight of (x := c.term))
 
         // STEP 2: Prove that if the inductive arguments of the constructor have height then the instance of the constructor is in the ADT.

@@ -3,6 +3,7 @@ package lisa.maths.SetTheory.Types.ADTv2.support.core
 import lisa.maths.Quantifiers.∃!
 import lisa.maths.SetTheory.Base.Pair
 import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
 import lisa.maths.SetTheory.Types.TypingHelpers._
@@ -40,7 +41,7 @@ object Utils {
 
   def toTerm(n: Int): Expr[Ind] =
     require(n >= 0, "n must be a non-negative integer")
-    if n == 0 then ∅ else successor(toTerm(n - 1))
+    if n == 0 then ∅ else S(toTerm(n - 1))
 
   // Some useful shorthands for readability
 

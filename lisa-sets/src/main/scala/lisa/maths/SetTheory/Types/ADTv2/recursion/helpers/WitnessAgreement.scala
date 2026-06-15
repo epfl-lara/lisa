@@ -1,6 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion.helpers
 
 import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.recursion.FunSpec
@@ -79,7 +80,7 @@ private[recursion] final class WitnessAgreement[N <: Arity](
       rightFun :: spec.typ,
       nVar ∈ N,
       agreeOnSlice
-    ) |- ∀(a ∈ app(heightFun)(successor(nVar)), app(recWitness(leftFun))(a) === app(recWitness(rightFun))(a))
+    ) |- ∀(a ∈ app(heightFun)(S(nVar)), app(recWitness(leftFun))(a) === app(recWitness(rightFun))(a))
   ) {
    have(thesis) subproof {
     assume(leftFun :: spec.typ)

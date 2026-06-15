@@ -2,6 +2,7 @@ package lisa.maths.SetTheory.Types.ADTv2.recursion.helpers
 
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger
 
+import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
@@ -308,11 +309,11 @@ private[recursion] object RecFunctionInduction {
         thenHave(thesis) by Restate
       }
 
-      val step = Time.measure("Uniqueness/pointwise/step"){ have(∀(nVar, (nVar ∈ N) ==> (P(nVar) ==> P(successor(nVar))))) subproof {
-        have((nVar ∈ N) ==> (P(nVar) ==> P(successor(nVar)))) subproof {
+      val step = Time.measure("Uniqueness/pointwise/step"){ have(∀(nVar, (nVar ∈ N) ==> (P(nVar) ==> P(S(nVar))))) subproof {
+        have((nVar ∈ N) ==> (P(nVar) ==> P(S(nVar)))) subproof {
           val nInN = assume(nVar ∈ N)
           assume(P(nVar))
-          // Shared successor-step orchestration (height decomposition + branch
+          // Shared S-step orchestration (height decomposition + branch
           // selection + case assembly); only the uniqueness-specific per-pattern
           // proof — case equations from the function definitions + body equality +
           // pointwise agreement — lives in the callback below.
@@ -385,7 +386,7 @@ private[recursion] object RecFunctionInduction {
                     }
                     val selectedPatternFormula = pattern.branchSelectionBody(slicePoint)
                     val baseContext = Set[Expr[Prop]](
-                      slicePoint ∈ app(heightFun)(successor(nVar)),
+                      slicePoint ∈ app(heightFun)(S(nVar)),
                       P(nVar),
                       nVar ∈ N,
                       selectedPatternFormula

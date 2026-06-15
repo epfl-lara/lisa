@@ -1,6 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.encoding
 
 import lisa.maths.SetTheory.Base.Pair.given
+import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
@@ -49,14 +50,14 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
     val inductiveCaseRemaining = have(
       (
         isHeight(h),
-        forall(n, in(n, N) ==> (inductionFormulaN ==> inductionFormula(successor(n))))
+        forall(n, in(n, N) ==> (inductionFormulaN ==> inductionFormula(S(n))))
       ) |- forall(n, in(n, N) ==> inductionFormulaN)
     ) by Cut(zeroCase, natInduction of (P := lam(n, inductionFormulaN)))
 
     // STEP 2: Prove the inductive case
     have(
       (isHeight(h), structuralInductionPreconditions) |-
-        forall(n, in(n, N) ==> (inductionFormulaN ==> inductionFormula(successor(n))))
+        forall(n, in(n, N) ==> (inductionFormulaN ==> inductionFormula(S(n))))
     ) subproof {
 
       // STEP 2.1 : Prove that if the x = c(x1, ..., xn) for some c and xi, ..., xj ∈ height(n) then P(x) holds.
@@ -285,12 +286,12 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
 
       // STEP 2.2: Prove that if x ∈ height(n + 1) then P(x) holds.
       have(
-        (isHeight(h), in(n, N), in(x, app(h, successor(n)))) |-
+        (isHeight(h), in(n, N), in(x, app(h, S(n)))) |-
           isConstructor(x, app(h, n))
       ) by Cut(
         heightSuccessorStrong,
         equivalenceApply of
-          (p1 := in(x, app(h, successor(n))), p2 := isConstructor(x, app(h, n)))
+          (p1 := in(x, app(h, S(n))), p2 := isConstructor(x, app(h, n)))
       )
       have(
         (
@@ -298,7 +299,7 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
           structuralInductionPreconditions,
           in(n, N),
           inductionFormulaN,
-          in(x, app(h, successor(n)))
+          in(x, app(h, S(n)))
         ) |- P(x)
       ) by Cut(lastStep, isConstructorImpliesP)
 
@@ -309,7 +310,7 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
           structuralInductionPreconditions,
           in(n, N),
           inductionFormulaN
-        ) |- in(x, app(h, successor(n))) ==> P(x)
+        ) |- in(x, app(h, S(n))) ==> P(x)
       ) by RightImplies
 
       thenHave(
@@ -318,15 +319,15 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
           structuralInductionPreconditions,
           in(n, N),
           inductionFormulaN
-        ) |- inductionFormula(successor(n))
+        ) |- inductionFormula(S(n))
       ) by RightForall
       thenHave(
         (isHeight(h), structuralInductionPreconditions, in(n, N)) |-
-          inductionFormulaN ==> inductionFormula(successor(n))
+          inductionFormulaN ==> inductionFormula(S(n))
       ) by RightImplies
       thenHave(
         (isHeight(h), structuralInductionPreconditions) |-
-          in(n, N) ==> (inductionFormulaN ==> inductionFormula(successor(n)))
+          in(n, N) ==> (inductionFormulaN ==> inductionFormula(S(n)))
       ) by RightImplies
       thenHave(thesis) by RightForall
     }

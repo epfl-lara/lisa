@@ -2,6 +2,7 @@ package lisa.maths.SetTheory.Types.ADTv2.encoding
 
 import lisa.maths.SetTheory.Base.Pair
 import lisa.maths.SetTheory.Base.Pair.given
+import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.successorInjectivity
@@ -42,17 +43,17 @@ private[encoding] trait SyntacticADTInjectivity[N <: Arity] extends SyntacticADT
         val start = have(tagTerm1 === tagTerm2 |- toTerm(maxTag) === toTerm(minTag)) by
           Congruence //.from(tagTerm1.definition, tagTerm2.definition)
 
-        // STEP 1.2: Apply successor injectivity to both tags until one becomes 0
+        // STEP 1.2: Apply S injectivity to both tags until one becomes 0
         (1 to minTag).foldLeft(start)((fact, i) =>
           val midMaxTag = toTerm(maxTag - i)
           val midMinTag = toTerm(minTag - i)
           have(
-            successor(midMaxTag) === successor(midMinTag) |- midMaxTag === midMinTag
+            S(midMaxTag) === S(midMinTag) |- midMaxTag === midMinTag
           ) by Cut(
             successorInjectivity of (n := midMaxTag, m := midMinTag),
             equivalenceApply of
               (
-                p1 := successor(midMaxTag) === successor(midMinTag),
+                p1 := S(midMaxTag) === S(midMinTag),
                 p2 := midMaxTag === midMinTag
               )
           )
@@ -63,7 +64,7 @@ private[encoding] trait SyntacticADTInjectivity[N <: Arity] extends SyntacticADT
           thenHave(!(toTerm(maxTag - minTag) === ∅) |- !(tagTerm1 === tagTerm2)) by
             Restate
 
-        // STEP 1.3: Conclude using the fact that 0 is not the successor of any number
+        // STEP 1.3: Conclude using the fact that 0 is not the S of any number
         have(toTerm(maxTag - minTag) =/= ∅) by Restate.from(
           zeroIsNotSucc of (n := toTerm(maxTag - minTag - 1))
         )

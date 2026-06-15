@@ -9,6 +9,7 @@ import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.Functions.Predef.app
 import lisa.maths.SetTheory.Functions.Predef.functionOn
 import lisa.maths.SetTheory.Functions.Predef.↾
+import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
@@ -35,7 +36,7 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  *  Exports:
  *    - [[approxSeq]], [[G]] — the sequence itself
  *    - [[approxZero]] — G(0) = W(g₀)
- *    - [[approxSucc]] — ∀k ∈ ω, G(successor(k)) = W(G(k))
+ *    - [[approxSucc]] — ∀k ∈ ω, G(S(k)) = W(G(k))
  *    - [[approxHasType]] — ∀n ∈ ω, G(n) :: spec.typ
  */
 private[recursion] final class Approx[N <: Arity](
@@ -90,7 +91,7 @@ private[recursion] final class Approx[N <: Arity](
         yVar,
         ((nVar === ∅) /\ (yVar === recWitness(g0))) \/ ∃(
           jVar,
-          (jVar ∈ N) /\ (nVar === successor(jVar)) /\ (yVar === recWitness(app(hist)(jVar)))
+          (jVar ∈ N) /\ (nVar === S(jVar)) /\ (yVar === recWitness(app(hist)(jVar)))
         )
       )
     )
@@ -121,7 +122,7 @@ private[recursion] final class Approx[N <: Arity](
       yVar,
       ((∅ === ∅) /\ (yVar === recWitness(g0))) \/ ∃(
         jVar,
-        (jVar ∈ N) /\ (∅ === successor(jVar)) /\
+        (jVar ∈ N) /\ (∅ === S(jVar)) /\
           (yVar === recWitness(app(approxSeq ↾ ∅)(jVar)))
       )
     )
@@ -137,7 +138,7 @@ private[recursion] final class Approx[N <: Arity](
         val disj = have(
           ((∅ === ∅) /\ (yVar === recWitness(g0))) \/ ∃(
             jVar,
-            (jVar ∈ N) /\ (∅ === successor(jVar)) /\
+            (jVar ∈ N) /\ (∅ === S(jVar)) /\
               (yVar === recWitness(app(approxSeq ↾ ∅)(jVar)))
           )
         ) by Restate
@@ -149,37 +150,37 @@ private[recursion] final class Approx[N <: Arity](
         val contra = have(
           ∃(
             jVar,
-            (jVar ∈ N) /\ (∅ === successor(jVar)) /\
+            (jVar ∈ N) /\ (∅ === S(jVar)) /\
               (yVar === recWitness(app(approxSeq ↾ ∅)(jVar)))
           ) |- ()
         ) subproof {
           assume(∃(
             jVar,
-            (jVar ∈ N) /\ (∅ === successor(jVar)) /\
+            (jVar ∈ N) /\ (∅ === S(jVar)) /\
               (yVar === recWitness(app(approxSeq ↾ ∅)(jVar)))
           ))
           have(
-            (jVar ∈ N) /\ (∅ === successor(jVar)) /\
+            (jVar ∈ N) /\ (∅ === S(jVar)) /\
               (yVar === recWitness(app(approxSeq ↾ ∅)(jVar))) |- ()
           ) subproof {
             val jInNat = have(
-              (jVar ∈ N) /\ (∅ === successor(jVar)) /\
+              (jVar ∈ N) /\ (∅ === S(jVar)) /\
                 (yVar === recWitness(app(approxSeq ↾ ∅)(jVar))) |- jVar ∈ N
             ) by Tautology
             val zEqSj = have(
-              (jVar ∈ N) /\ (∅ === successor(jVar)) /\
-                (yVar === recWitness(app(approxSeq ↾ ∅)(jVar))) |- ∅ === successor(jVar)
+              (jVar ∈ N) /\ (∅ === S(jVar)) /\
+                (yVar === recWitness(app(approxSeq ↾ ∅)(jVar))) |- ∅ === S(jVar)
             ) by Tautology
             val SjEq0 = have(
-              (jVar ∈ N) /\ (∅ === successor(jVar)) /\
-                (yVar === recWitness(app(approxSeq ↾ ∅)(jVar))) |- successor(jVar) === ∅
+              (jVar ∈ N) /\ (∅ === S(jVar)) /\
+                (yVar === recWitness(app(approxSeq ↾ ∅)(jVar))) |- S(jVar) === ∅
             ) by Congruence.from(zEqSj)
-            val SjNe0 = have(jVar ∈ N |- (successor(jVar) =/= ∅)) by
+            val SjNe0 = have(jVar ∈ N |- (S(jVar) =/= ∅)) by
               Weakening(Integer.zeroIsNotSucc.of(n := jVar))
             val notSjEq0 = have(
-              (jVar ∈ N) /\ (∅ === successor(jVar)) /\
+              (jVar ∈ N) /\ (∅ === S(jVar)) /\
                 (yVar === recWitness(app(approxSeq ↾ ∅)(jVar))) |-
-                ¬(successor(jVar) === ∅)
+                ¬(S(jVar) === ∅)
             ) by Tautology.from(SjNe0, jInNat)
             have(thesis) by Tautology.from(SjEq0, notSjEq0)
           }
@@ -189,14 +190,14 @@ private[recursion] final class Approx[N <: Arity](
         val case2 = have(
           ∃(
               jVar,
-              (jVar ∈ N) /\ (∅ === successor(jVar)) /\
+              (jVar ∈ N) /\ (∅ === S(jVar)) /\
                 (yVar === recWitness(app(approxSeq ↾ ∅)(jVar)))
           ) ==> (yVar === recWitness(g0))
         ) by Restate.from(
           have(
             ∃(
               jVar,
-              (jVar ∈ N) /\ (∅ === successor(jVar)) /\
+              (jVar ∈ N) /\ (∅ === S(jVar)) /\
                 (yVar === recWitness(app(approxSeq ↾ ∅)(jVar)))
             ) |- yVar === recWitness(g0)
           ) by Weakening(contra)
@@ -228,14 +229,14 @@ private[recursion] final class Approx[N <: Arity](
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // approxSucc: ∀k ∈ ℕ, G(successor(k)) = W(G(k))
+  // approxSucc: ∀k ∈ ℕ, G(S(k)) = W(G(k))
   // ─────────────────────────────────────────────────────────────────────────
 
-  val approxSucc: THM = Lemma(∀(kVar ∈ N, G(successor(kVar)) === recWitness(G(kVar)))) {
-    have(kVar ∈ N |- G(successor(kVar)) === recWitness(G(kVar))) subproof {
+  val approxSucc: THM = Lemma(∀(kVar ∈ N, G(S(kVar)) === recWitness(G(kVar)))) {
+    have(kVar ∈ N |- G(S(kVar)) === recWitness(G(kVar))) subproof {
       val kInNat = assume(kVar ∈ N)
 
-      val SkInNat = have(successor(kVar) ∈ N) by Tautology.from(kInNat, ExtendedInteger.successorIsNat.of(n := kVar))
+      val SkInNat = have(S(kVar) ∈ N) by Tautology.from(kInNat, ExtendedInteger.successorIsNat.of(n := kVar))
 
       val recSpec = have(
         functionOn(approxSeq)(N) /\
@@ -249,31 +250,31 @@ private[recursion] final class Approx[N <: Arity](
         Tautology.from(recSpec)
 
       val eqSk = have(
-        successor(kVar) ∈ N |-
-          app(approxSeq)(successor(kVar)) === stepFunc(successor(kVar))(approxSeq ↾ successor(kVar))
-      ) by InstantiateForall(successor(kVar))(eqAll)
+        S(kVar) ∈ N |-
+          app(approxSeq)(S(kVar)) === stepFunc(S(kVar))(approxSeq ↾ S(kVar))
+      ) by InstantiateForall(S(kVar))(eqAll)
 
-      val hSk = approxSeq ↾ successor(kVar)
+      val hSk = approxSeq ↾ S(kVar)
 
       val Q = λ(
         yVar,
-        ((successor(kVar) === ∅) /\ (yVar === recWitness(g0))) \/ ∃(
+        ((S(kVar) === ∅) /\ (yVar === recWitness(g0))) \/ ∃(
           jVar,
-          (jVar ∈ N) /\ (successor(kVar) === successor(jVar)) /\
+          (jVar ∈ N) /\ (S(kVar) === S(jVar)) /\
             (yVar === recWitness(app(hSk)(jVar)))
         )
       )
 
-      val FmSk = have(stepFunc(successor(kVar))(hSk) === ε(yVar, Q(yVar))) by Restate
+      val FmSk = have(stepFunc(S(kVar))(hSk) === ε(yVar, Q(yVar))) by Restate
 
       val exY = have(∃(yVar, Q(yVar))) subproof {
         have(
-          (kVar ∈ N) /\ (successor(kVar) === successor(kVar)) /\
+          (kVar ∈ N) /\ (S(kVar) === S(kVar)) /\
             (recWitness(app(hSk)(kVar)) === recWitness(app(hSk)(kVar)))
         ) by Tautology.from(kInNat)
         thenHave(∃(
           jVar,
-          (jVar ∈ N) /\ (successor(kVar) === successor(jVar)) /\
+          (jVar ∈ N) /\ (S(kVar) === S(jVar)) /\
             (recWitness(app(hSk)(kVar)) === recWitness(app(hSk)(jVar)))
         )) by RightExists
         thenHave(Q(recWitness(app(hSk)(kVar)))) by Tautology
@@ -285,71 +286,71 @@ private[recursion] final class Approx[N <: Arity](
           have(Q(yVar) |- yVar === recWitness(app(hSk)(kVar))) subproof {
             assume(Q(yVar))
 
-            val SkNe0 = have(successor(kVar) =/= ∅) by
+            val SkNe0 = have(S(kVar) =/= ∅) by
               Weakening(Integer.zeroIsNotSucc.of(n := kVar))
-            val notCase1 = have(¬((successor(kVar) === ∅) /\ (yVar === recWitness(g0)))) by
+            val notCase1 = have(¬((S(kVar) === ∅) /\ (yVar === recWitness(g0)))) by
               Tautology.from(SkNe0)
 
             val disj = have(
-              ((successor(kVar) === ∅) /\ (yVar === recWitness(g0))) \/ ∃(
+              ((S(kVar) === ∅) /\ (yVar === recWitness(g0))) \/ ∃(
                 jVar,
-                (jVar ∈ N) /\ (successor(kVar) === successor(jVar)) /\
+                (jVar ∈ N) /\ (S(kVar) === S(jVar)) /\
                   (yVar === recWitness(app(hSk)(jVar)))
               )
             ) by Restate
 
             val exJ = have(∃(
               jVar,
-              (jVar ∈ N) /\ (successor(kVar) === successor(jVar)) /\
+              (jVar ∈ N) /\ (S(kVar) === S(jVar)) /\
                 (yVar === recWitness(app(hSk)(jVar)))
             )) by Tautology.from(disj, notCase1)
 
             val fromExJ = have(
               ∃(
                 jVar,
-                (jVar ∈ N) /\ (successor(kVar) === successor(jVar)) /\
+                (jVar ∈ N) /\ (S(kVar) === S(jVar)) /\
                   (yVar === recWitness(app(hSk)(jVar)))
               ) |- yVar === recWitness(app(hSk)(kVar))
             ) subproof {
               assume(∃(
                 jVar,
-                (jVar ∈ N) /\ (successor(kVar) === successor(jVar)) /\
+                (jVar ∈ N) /\ (S(kVar) === S(jVar)) /\
                   (yVar === recWitness(app(hSk)(jVar)))
               ))
               have(
-                (jVar ∈ N) /\ (successor(kVar) === successor(jVar)) /\
+                (jVar ∈ N) /\ (S(kVar) === S(jVar)) /\
                   (yVar === recWitness(app(hSk)(jVar))) |-
                   yVar === recWitness(app(hSk)(kVar))
               ) subproof {
                 val SkEqSj = have(
-                (jVar ∈ N) /\ (successor(kVar) === successor(jVar)) /\
-                  (yVar === recWitness(app(hSk)(jVar))) |- successor(kVar) === successor(jVar)
+                (jVar ∈ N) /\ (S(kVar) === S(jVar)) /\
+                  (yVar === recWitness(app(hSk)(jVar))) |- S(kVar) === S(jVar)
                 ) by Tautology
                 val yEq = have(
-                  (jVar ∈ N) /\ (successor(kVar) === successor(jVar)) /\
+                  (jVar ∈ N) /\ (S(kVar) === S(jVar)) /\
                     (yVar === recWitness(app(hSk)(jVar))) |-
                     yVar === recWitness(app(hSk)(jVar))
                 ) by Tautology
 
-                val inj = have(successor(kVar) === successor(jVar) |- kVar === jVar) by
+                val inj = have(S(kVar) === S(jVar) |- kVar === jVar) by
                   Tautology.from(Integer.successorInjectivity.of(n := kVar, m := jVar))
 
                 val kEqJ = have(
-                  (jVar ∈ N) /\ (successor(kVar) === successor(jVar)) /\
+                  (jVar ∈ N) /\ (S(kVar) === S(jVar)) /\
                     (yVar === recWitness(app(hSk)(jVar))) |- kVar === jVar
                 ) by Cut(SkEqSj, inj)
                 val jEqK = have(
-                  (jVar ∈ N) /\ (successor(kVar) === successor(jVar)) /\
+                  (jVar ∈ N) /\ (S(kVar) === S(jVar)) /\
                     (yVar === recWitness(app(hSk)(jVar))) |- jVar === kVar
                 ) by Congruence.from(kEqJ)
 
                 val hjEqhk = have(
-                  (jVar ∈ N) /\ (successor(kVar) === successor(jVar)) /\
+                  (jVar ∈ N) /\ (S(kVar) === S(jVar)) /\
                     (yVar === recWitness(app(hSk)(jVar))) |-
                     app(hSk)(jVar) === app(hSk)(kVar)
                 ) by Congruence.from(jEqK)
                 val whjEqwhk = have(
-                  (jVar ∈ N) /\ (successor(kVar) === successor(jVar)) /\
+                  (jVar ∈ N) /\ (S(kVar) === S(jVar)) /\
                     (yVar === recWitness(app(hSk)(jVar))) |-
                     recWitness(app(hSk)(jVar)) === recWitness(app(hSk)(kVar))
                 ) by Congruence.from(hjEqhk)
@@ -375,7 +376,7 @@ private[recursion] final class Approx[N <: Arity](
       }
 
       val hSkAtK = have(app(hSk)(kVar) === G(kVar)) subproof {
-        val kInSk = have(kVar ∈ successor(kVar)) by Weakening(ExtendedInteger.nInSuccN.of(n := kVar))
+        val kInSk = have(kVar ∈ S(kVar)) by Weakening(ExtendedInteger.nInSuccN.of(n := kVar))
         val GmOn = have(functionOn(approxSeq)(N)) by Tautology.from(recSpec)
         val GmFun = have(function(approxSeq)) by
           Tautology
@@ -383,9 +384,9 @@ private[recursion] final class Approx[N <: Arity](
         val GmDom = have(dom(approxSeq) === N) by
           Tautology.from(GmOn, BasicTheorems.functionOnDomain.of(f := approxSeq, A := N))
         val kInDom = have(kVar ∈ dom(approxSeq)) by Congruence.from(kInNat, GmDom)
-        val restEq = have(app(approxSeq ↾ successor(kVar))(kVar) === app(approxSeq)(kVar)) by
+        val restEq = have(app(approxSeq ↾ S(kVar))(kVar) === app(approxSeq)(kVar)) by
           Tautology.from(
-            Restriction.restrictedApp.of(f := approxSeq, x := kVar, A := successor(kVar)),
+            Restriction.restrictedApp.of(f := approxSeq, x := kVar, A := S(kVar)),
             GmFun,
             kInDom,
             kInSk
@@ -396,26 +397,26 @@ private[recursion] final class Approx[N <: Arity](
       val whSkEqwG = have(recWitness(app(hSk)(kVar)) === recWitness(G(kVar))) by
         Congruence.from(hSkAtK)
 
-      have(stepFunc(successor(kVar))(hSk) === recWitness(app(hSk)(kVar))) by
+      have(stepFunc(S(kVar))(hSk) === recWitness(app(hSk)(kVar))) by
         Congruence.from(FmSk, epsEq)
-      val rhsEq = have(stepFunc(successor(kVar))(hSk) === recWitness(G(kVar))) by
+      val rhsEq = have(stepFunc(S(kVar))(hSk) === recWitness(G(kVar))) by
         Tautology.from(
           lastStep,
           whSkEqwG,
           altEqualityTransitivity of
             (
-              x := stepFunc(successor(kVar))(hSk),
+              x := stepFunc(S(kVar))(hSk),
               y := recWitness(app(hSk)(kVar)),
               z := recWitness(G(kVar))
             )
         )
 
-      val rec = have(successor(kVar) ∈ N |- G(successor(kVar)) === recWitness(G(kVar))) by
+      val rec = have(S(kVar) ∈ N |- G(S(kVar)) === recWitness(G(kVar))) by
         Congruence.from(eqSk, rhsEq)
 
       have(thesis) by Cut(SkInNat, rec)
     }
-    thenHave(kVar ∈ N ==> (G(successor(kVar)) === recWitness(G(kVar)))) by RightImplies
+    thenHave(kVar ∈ N ==> (G(S(kVar)) === recWitness(G(kVar)))) by RightImplies
     thenHave(thesis) by RightForall
   }
 
@@ -443,20 +444,20 @@ private[recursion] final class Approx[N <: Arity](
       have(thesis) by Restate.from(g0ApproxTyped)
     }
 
-    val step = have(∀(nVar, (nVar ∈ N) ==> (prop(nVar) ==> prop(successor(nVar))))) subproof {
-      have((nVar ∈ N) ==> (prop(nVar) ==> prop(successor(nVar)))) subproof {
+    val step = have(∀(nVar, (nVar ∈ N) ==> (prop(nVar) ==> prop(S(nVar))))) subproof {
+      have((nVar ∈ N) ==> (prop(nVar) ==> prop(S(nVar)))) subproof {
         val nInNat = assume(nVar ∈ N)
         val ih = assume(prop(nVar))
 
-        val approxSuccAtN = have(nVar ∈ N ==> (G(successor(nVar)) === recWitness(G(nVar)))) by
+        val approxSuccAtN = have(nVar ∈ N ==> (G(S(nVar)) === recWitness(G(nVar)))) by
           InstantiateForall(nVar)(approxSucc)
-        val gSuccEq = have(G(successor(nVar)) === recWitness(G(nVar))) by
+        val gSuccEq = have(G(S(nVar)) === recWitness(G(nVar))) by
           Tautology.from(nInNat, approxSuccAtN)
 
         val witnessAtGnTyped = have(recWitness(G(nVar)) :: spec.typ) by
           Tautology
             .from(ih, recWitness.witnessHasType.of(spec.selfPlaceholder := G(nVar)))
-        val gSuccTyped = have(G(successor(nVar)) :: spec.typ) by
+        val gSuccTyped = have(G(S(nVar)) :: spec.typ) by
           Congruence.from(gSuccEq, witnessAtGnTyped)
         have(thesis) by Restate.from(gSuccTyped)
       }
