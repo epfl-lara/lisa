@@ -16,7 +16,6 @@ object RunAll {
     final case class Skip(reason: String) extends Entry
   }
 
-
   private val entries: Seq[(String, Entry)] = Seq(
     "ADTv2.height.proofs.ProofsInitialization" ->
       Entry.Init(lisa.maths.SetTheory.Types.ADTv2.height.proofs.ProofsInitialization.initialize),
@@ -43,7 +42,7 @@ object RunAll {
   def main(args: Array[String]): Unit = {
 
     Time.reset()
-    
+
     entries.foreach { (name, action) =>
       println(s"===== $name =====")
       action match
@@ -59,7 +58,7 @@ object RunAll {
           println("Skipped: " + reason)
       println()
     }
-    
+
     // Time.printSummary()
     Time.printTree(selfAsChild = true)
 

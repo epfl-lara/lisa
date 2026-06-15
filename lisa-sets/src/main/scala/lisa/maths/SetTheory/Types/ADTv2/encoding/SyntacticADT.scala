@@ -42,10 +42,14 @@ class SyntacticADT[N <: Arity](using line: sourcecode.Line, file: sourcecode.Fil
 
   protected final def sourceFile: sourcecode.File = file
 
-  /** Sequence of type variables used in the definition of this ADT */
+  /**
+   * Sequence of type variables used in the definition of this ADT
+   */
   lazy val typeVariablesSeq: Seq[Variable[Ind]] = typeVariables.toSeq
 
-  /** Number of type variables used in the definition of this ADT */
+  /**
+   * Number of type variables used in the definition of this ADT
+   */
   lazy val typeArity: N = typeVariablesSeq.length.asInstanceOf[N]
 
 }

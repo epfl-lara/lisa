@@ -29,7 +29,7 @@ final case class HeightStageConstructorData(
     signature: Seq[(Variable[Ind], ConstructorArg)],
     subterm: Expr[Ind],
     tagTerm: Expr[Ind]
-){
+) {
   val arity: Int = signature.length
   val term = pair(tagTerm, subterm)
 }

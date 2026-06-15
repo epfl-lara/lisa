@@ -26,8 +26,7 @@ import lisa.utils.prooflib.BasicStepTactic.LeftExists
 
 object UnionRangeCollapse {
 
-
-  private val natSubset = Lemma(in(n, N) |- in(m, S(n)) ==> subset(m, n)){
+  private val natSubset = Lemma(in(n, N) |- in(m, S(n)) ==> subset(m, n)) {
     import lisa.maths.SetTheory.Ordinals.TransitiveSet
     import lisa.maths.SetTheory.Ordinals.Ordinal.{ordinal, S, <=, successorMembership}
 
@@ -54,13 +53,13 @@ object UnionRangeCollapse {
     have(thesis) by Tautology.from(succToLeq, leqToSubset)
   }
 
-  private val intersectionNat = Lemma(in(n, N) |- n ∩ N === n){
+  private val intersectionNat = Lemma(in(n, N) |- n ∩ N === n) {
     import lisa.maths.SetTheory.Base.Intersection.{subsetLeft}
     import lisa.maths.SetTheory.Base.Subset.rightEmpty
     val Q = lam(n, n ∩ N === n)
-    
+
     val zeroCase = have(∅ ∩ N === ∅) subproof {
-      
+
       have(subset(∅ ∩ N, ∅)) by Tautology.from(subsetLeft of (x := ∅, y := N))
       have(thesis) by Tautology.from(lastStep, rightEmpty of (x := ∅ ∩ N))
     }
@@ -104,10 +103,10 @@ object UnionRangeCollapse {
 
     have(in(n, N) ==> (Q(n) ==> Q(S(n)))) by Tautology.from(recCase)
     thenHave(forall(n, in(n, N) ==> (Q(n) ==> Q(S(n))))) by RightForall
-    have(Q(∅) /\ forall(n, in(n, N) ==> (Q(n) ==> Q(S(n))))) by 
+    have(Q(∅) /\ forall(n, in(n, N) ==> (Q(n) ==> Q(S(n))))) by
       Tautology.from(zeroCase, lastStep)
 
-    have(forall(k, in(k, N) ==> Q(k))) by 
+    have(forall(k, in(k, N) ==> Q(k))) by
       Tautology.from(lastStep, omegaSuccessorInduction of (P := Q, m := n, n := k))
     thenHave(in(n, N) ==> Q(n)) by InstantiateForall(n)
     thenHave(thesis) by Tautology
@@ -115,9 +114,9 @@ object UnionRangeCollapse {
   }
 
   private val rightAndEquivalence =
-    Lemma(p1 <=> p2 |- (p1 /\ p) <=> (p2 /\ p)){
+    Lemma(p1 <=> p2 |- (p1 /\ p) <=> (p2 /\ p)) {
       have(thesis) by Tautology
-  }
+    }
 
   private val restrictedFunctionRangeMembership = Lemma(
     function(f) |-
@@ -377,10 +376,10 @@ object UnionRangeCollapse {
       )
       thenHave(
         (function(h), in(n, N), dom(h) === N) |-
-        (∃(
-          y,
-          m ∈ S(n) /\ z ∈ y /\ (app(restrictedFunction(h, S(n)))(m) === y)
-        )) <=> (m ∈ S(n) /\ z ∈ app(h)(m))
+          (∃(
+            y,
+            m ∈ S(n) /\ z ∈ y /\ (app(restrictedFunction(h, S(n)))(m) === y)
+          )) <=> (m ∈ S(n) /\ z ∈ app(h)(m))
       ) by Tableau
 
       thenHave(

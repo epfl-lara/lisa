@@ -9,11 +9,12 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[recursion] object RecursiveAgreement {
 
-
   private val h = variable[Ind]
   private val x = variable[Ind]
 
-  def selfAgreementFromForall(using proof: lisa.SetTheoryLibrary.Proof)(
+  def selfAgreementFromForall(using
+      proof: lisa.SetTheoryLibrary.Proof
+  )(
       heightFun: Expr[Ind],
       currentIndex: Expr[Ind],
       leftFun: Expr[Ind],
@@ -25,7 +26,7 @@ private[recursion] object RecursiveAgreement {
     val pIn: Expr[Prop] = point ∈ app(heightFun)(currentIndex)
     val pEq: Expr[Prop] = app(leftFun)(point) === app(rightFun)(point)
     val atPoint = have(pIn ==> pEq) by InstantiateForall(point)(agreeForall)
-    
+
     // Modus ponens via kernel rules instead of `Tautology.from(pointInHeight, atPoint)`:
     // `pointInHeight` carries the deep ~1.5k-char branchSelectionBody in its context, and
     // Tautology would decompose it (~30s). With `pIn`/`pEq` kept atomic, that context is
@@ -36,7 +37,7 @@ private[recursion] object RecursiveAgreement {
     )
     val viaImpl = have((atPoint.statement.left + pIn) |- pEq) by Cut(atPoint, mp)
     have((atPoint.statement.left ++ pointInHeight.statement.left) |- pEq) by Cut(pointInHeight, viaImpl)
-    
+
   }
 
   def selfAgreementFromForallAt2[N <: Arity](using
@@ -44,19 +45,19 @@ private[recursion] object RecursiveAgreement {
       line: sourcecode.Line,
       file: sourcecode.File
   )(
-    pattern: Pattern[N],
-    recursiveType: Expr[Ind],
-    heightMembershipMonotonic: THM,
-    argsTypedAtHeight: proof.Fact,
-    leafTyping: proof.Fact,
-    patternGuard: proof.Fact,
-    heightFun: Expr[Ind],
-    hValid: proof.Fact,
-    currentIndex: Expr[Ind],
-    currentIndexInN: proof.Fact,
-    leftFun: Expr[Ind],
-    rightFun: Expr[Ind],
-    agreeForall: proof.Fact
+      pattern: Pattern[N],
+      recursiveType: Expr[Ind],
+      heightMembershipMonotonic: THM,
+      argsTypedAtHeight: proof.Fact,
+      leafTyping: proof.Fact,
+      patternGuard: proof.Fact,
+      heightFun: Expr[Ind],
+      hValid: proof.Fact,
+      currentIndex: Expr[Ind],
+      currentIndexInN: proof.Fact,
+      leftFun: Expr[Ind],
+      rightFun: Expr[Ind],
+      agreeForall: proof.Fact
   ): Seq[proof.Fact] = {
     pattern.recursiveAgreementPoints(recursiveType).map { point =>
       val pointInHeight = pattern.recursiveAgreementPointInHeight(
@@ -83,7 +84,9 @@ private[recursion] object RecursiveAgreement {
     }
   }
 
-  def selfAgreementWithLimit(using proof: lisa.SetTheoryLibrary.Proof)(
+  def selfAgreementWithLimit(using
+      proof: lisa.SetTheoryLibrary.Proof
+  )(
       argType: Expr[Ind],
       heightFun: Expr[Ind],
       limitFun: Expr[Ind],

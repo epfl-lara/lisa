@@ -105,7 +105,9 @@ object TransfiniteRecursion extends lisa.Main {
     λ(Func, λ(α, ε(G, functionOn(G)(α) /\ ∀(β, β ∈ α ==> (G(β) === Func(β)(G ↾ β))))))
   )
 
-  /** Spec theorem for [[transfiniteRecursionFunction]]. */
+  /**
+   * Spec theorem for [[transfiniteRecursionFunction]].
+   */
   val transfiniteRecursionFunctionSpec = Theorem(
     ordinal(α) |-
       (functionOn(transfiniteRecursionFunction(Func)(α))(α) /\ ∀(

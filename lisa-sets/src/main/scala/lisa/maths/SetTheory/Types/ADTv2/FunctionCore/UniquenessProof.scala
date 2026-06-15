@@ -13,6 +13,8 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  */
 trait UniquenessProof[N <: Arity] {
 
-  /** `Def[f:=x] /\ Def[f:=y] ==> (x === y)` — any two solutions agree. */
+  /**
+   * `Def[f:=x] /\ Def[f:=y] ==> (x === y)` — any two solutions agree.
+   */
   def pointwiseUniqueness: THM
 }

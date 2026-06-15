@@ -41,8 +41,7 @@ object InterfaceHelpers {
           previous._2.asInstanceOf[Expr[Ind]] == value,
           s"$ownerKind $ownerName received incompatible substitutions for $variable."
         )
-      else
-        grouped.update(variable, variable := value)
+      else grouped.update(variable, variable := value)
     }
 
     typeVariables.flatMap(grouped.get)
@@ -72,9 +71,7 @@ object InterfaceHelpers {
   def substitutionMap(
       substitutions: Seq[TypeSubstitution]
   ): Map[Variable[Ind], Expr[Ind]] =
-    substitutions.map(substitution =>
-      substitution._1.asInstanceOf[Variable[Ind]] -> substitution._2.asInstanceOf[Expr[Ind]]
-    ).toMap
+    substitutions.map(substitution => substitution._1.asInstanceOf[Variable[Ind]] -> substitution._2.asInstanceOf[Expr[Ind]]).toMap
 
   def resolvedTypeArguments(
       typeVariables: Seq[Variable[Ind]],
@@ -131,14 +128,16 @@ object InterfaceHelpers {
   ): Seq[(Variable[Ind], Expr[Ind])] =
     signature.map((variable, typ) => variable -> specializeTerm(typ, substitutions))
 
-  def proveAppliedTyping(using proof: lisa.SetTheoryLibrary.Proof)(
+  def proveAppliedTyping(using
+      proof: lisa.SetTheoryLibrary.Proof
+  )(
       headTyping: proof.Fact,
       headTerm: Expr[Ind],
       headType: Expr[Ind],
       args: Seq[(Variable[Ind], Expr[Ind])]
   ): proof.Fact =
-    args.foldLeft[(proof.Fact, Expr[Ind], Expr[Ind])]((headTyping, headTerm, headType)) {
-      case ((accFact, accTerm, accType), (argument, _)) =>
+    args
+      .foldLeft[(proof.Fact, Expr[Ind], Expr[Ind])]((headTyping, headTerm, headType)) { case ((accFact, accTerm, accType), (argument, _)) =>
         accType match
           case domainType ->: codomainType =>
             val argumentTyping = assume(argument :: domainType)
@@ -154,7 +153,8 @@ object InterfaceHelpers {
             )
             (nextFact, app(accTerm)(argument), codomainType)
           case _ => throw UnreachableException
-    }._1
+      }
+      ._1
 
   def theoremAt(using
       line: sourcecode.Line,

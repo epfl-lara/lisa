@@ -20,9 +20,7 @@ object DebugADTs extends lisa.Main {
   val _ = debugTypeHeavy.constructors.head.intro(typeHeavyArgs.head, typeHeavyArgs.tail*)
   val _ = debugTypeHeavy.constructors.head.introApp(typeHeavyArgs.head, typeHeavyArgs.tail*)
 
-
   val t1 = Time.get()
-
 
   val _ = debugConstructorHeavy.induction(unit)
   val _ = debugConstructorHeavy.elim(unit)
@@ -33,12 +31,10 @@ object DebugADTs extends lisa.Main {
   )
   val _ = debugConstructorHeavy.constructors.head.intro(unit)
 
-
   val _ = debugArgumentHeavy.induction(unit)
   val _ = debugArgumentHeavy.elim(unit)
   val _ = debugArgumentHeavy.constructors.head.intro(unit)
   val _ = debugArgumentHeavy.constructors.head.introApp(unit)
-
 
   val _ = debugRecursive.induction(unit)
   val _ = debugRecursive.elim(unit)
@@ -49,7 +45,6 @@ object DebugADTs extends lisa.Main {
   )
   val _ = debugRecursive.constructors.last.intro(unit)
   val _ = debugRecursive.constructors.last.introApp(unit)
-
 
   val t4 = Time.get()
 

@@ -21,26 +21,27 @@ import lisa.utils.prooflib.BasicStepTactic.Hypothesis
 import lisa.utils.prooflib.BasicStepTactic.Weakening
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
-
 private[recursion] final class WitnessAgreement[N <: Arity](
     val spec: FunSpec[N],
     val recWitness: Witness[N]
 ) {
 
-  val leftFun  = variable[Ind]
+  val leftFun = variable[Ind]
   val rightFun = variable[Ind]
-  val nVar     = variable[Ind]
+  val nVar = variable[Ind]
   private val vVar = variable[Ind]
 
   private def isHeightPred(hh: Expr[Ind]): Expr[Prop] =
     specializeFormula(spec.adt.height.predicate(hh), spec.typeSubstitutions)
 
   private val heightFun: Expr[Ind] = specializeTerm(spec.adt.height.function, spec.typeSubstitutions)
-  private val heightFunValid: THM  = spec.adt.height.validAt(spec.typeSubstitutions)
-  private val heightSuccStrong     = spec.adt.height.successorStrongAt(spec.typeSubstitutions)
-  private val constructorsAt       = specializedConstructors(spec.adt.constructors, spec.typeSubstitutions)
+  private val heightFunValid: THM = spec.adt.height.validAt(spec.typeSubstitutions)
+  private val heightSuccStrong = spec.adt.height.successorStrongAt(spec.typeSubstitutions)
+  private val constructorsAt = specializedConstructors(spec.adt.constructors, spec.typeSubstitutions)
 
-  private def instantiateWitnessAtPattern(using proof: lisa.SetTheoryLibrary.Proof)(
+  private def instantiateWitnessAtPattern(using
+      proof: lisa.SetTheoryLibrary.Proof
+  )(
       pattern: Pattern[N],
       selfTerm: Expr[Ind],
       selfTyped: proof.Fact,
@@ -74,115 +75,119 @@ private[recursion] final class WitnessAgreement[N <: Arity](
 
   private val agreeOnSlice = ∀(vVar ∈ app(heightFun)(nVar), app(leftFun)(vVar) === app(rightFun)(vVar))
 
-  val witnessAgreementAtSucc: THM = Time.measure(s"WA/witnessAgreementAtSucc")(Lemma(
-    (
-      leftFun :: spec.typ,
-      rightFun :: spec.typ,
-      nVar ∈ N,
-      agreeOnSlice
-    ) |- ∀(a ∈ app(heightFun)(S(nVar)), app(recWitness(leftFun))(a) === app(recWitness(rightFun))(a))
-  ) {
-   have(thesis) subproof {
-    assume(leftFun :: spec.typ)
-    assume(rightFun :: spec.typ)
-    val nInN = assume(nVar ∈ N)
-    assume(agreeOnSlice)
+  val witnessAgreementAtSucc: THM = Time.measure(s"WA/witnessAgreementAtSucc")(
+    Lemma(
+      (
+        leftFun :: spec.typ,
+        rightFun :: spec.typ,
+        nVar ∈ N,
+        agreeOnSlice
+      ) |- ∀(a ∈ app(heightFun)(S(nVar)), app(recWitness(leftFun))(a) === app(recWitness(rightFun))(a))
+    ) {
+      have(thesis) subproof {
+        assume(leftFun :: spec.typ)
+        assume(rightFun :: spec.typ)
+        val nInN = assume(nVar ∈ N)
+        assume(agreeOnSlice)
 
-    val hValid = have(isHeightPred(heightFun)) by Weakening(heightFunValid)
+        val hValid = have(isHeightPred(heightFun)) by Weakening(heightFunValid)
 
-    val goalW = app(recWitness(leftFun))(a) === app(recWitness(rightFun))(a)
+        val goalW = app(recWitness(leftFun))(a) === app(recWitness(rightFun))(a)
 
-    // Orchestration (height decomposition + branch selection + assembly) is shared
-    // with the uniqueness step via PointwiseAgreementStep; only the per-pattern
-    // proof — recursive-argument agreements + witness case equations + pointwise
-    // extensionality — is witness-specific and lives in the callback below.
-    val agreementAtSucc = PointwiseAgreementStep.pointwiseAgreementOnSucc(
-      patternMatching = spec.patternMatching,
-      heightFun = heightFun,
-      constructorsAt = constructorsAt,
-      ambientTerm = a,
-      currentIndex = nVar,
-      currentIndexInN = nInN,
-      hValid = hValid,
-      heightSuccStrong = heightSuccStrong,
-      goalEqAt = goalW
-    )(new PointwiseAgreementStep.SelectedPatternProver[N] {
-      def apply(using proof: lisa.SetTheoryLibrary.Proof)(
-          sc: SpecializedConstructorFacts[N],
-          argsTypedAtHeight: proof.Fact,
-          argsTypedSemantic: proof.Fact,
-          aEqApplied: proof.Fact
-      ): Pattern[N] => proof.Fact = {
-        // Re-establish the ambient facts the callback needs directly in this
-        // (inner) proof. Capturing them from the enclosing lemma proof is not
-        // possible: a fact lifts into a nested proof only where that nesting is
-        // statically known, which the abstract `proof` here is not. Re-`assume`ing
-        // hypotheses already in the lemma's antecedent is idempotent.
-        val leftTyped  = assume(leftFun :: spec.typ)
-        val rightTyped = assume(rightFun :: spec.typ)
-        val nInN       = assume(nVar ∈ N)
-        val hValid     = have(isHeightPred(heightFun)) by Weakening(heightFunValid)
-        val agreeForall = have(
-          ∀(vVar, (vVar ∈ app(heightFun)(nVar)) ==> (app(leftFun)(vVar) === app(rightFun)(vVar)))
-        ) by Restate.from(assume(agreeOnSlice))
+        // Orchestration (height decomposition + branch selection + assembly) is shared
+        // with the uniqueness step via PointwiseAgreementStep; only the per-pattern
+        // proof — recursive-argument agreements + witness case equations + pointwise
+        // extensionality — is witness-specific and lives in the callback below.
+        val agreementAtSucc = PointwiseAgreementStep.pointwiseAgreementOnSucc(
+          patternMatching = spec.patternMatching,
+          heightFun = heightFun,
+          constructorsAt = constructorsAt,
+          ambientTerm = a,
+          currentIndex = nVar,
+          currentIndexInN = nInN,
+          hValid = hValid,
+          heightSuccStrong = heightSuccStrong,
+          goalEqAt = goalW
+        )(new PointwiseAgreementStep.SelectedPatternProver[N] {
+          def apply(using
+              proof: lisa.SetTheoryLibrary.Proof
+          )(
+              sc: SpecializedConstructorFacts[N],
+              argsTypedAtHeight: proof.Fact,
+              argsTypedSemantic: proof.Fact,
+              aEqApplied: proof.Fact
+          ): Pattern[N] => proof.Fact = {
+            // Re-establish the ambient facts the callback needs directly in this
+            // (inner) proof. Capturing them from the enclosing lemma proof is not
+            // possible: a fact lifts into a nested proof only where that nesting is
+            // statically known, which the abstract `proof` here is not. Re-`assume`ing
+            // hypotheses already in the lemma's antecedent is idempotent.
+            val leftTyped = assume(leftFun :: spec.typ)
+            val rightTyped = assume(rightFun :: spec.typ)
+            val nInN = assume(nVar ∈ N)
+            val hValid = have(isHeightPred(heightFun)) by Weakening(heightFunValid)
+            val agreeForall = have(
+              ∀(vVar, (vVar ∈ app(heightFun)(nVar)) ==> (app(leftFun)(vVar) === app(rightFun)(vVar)))
+            ) by Restate.from(assume(agreeOnSlice))
 
-        val selfArgEqualities = sc.selfRefVariables2.map(v =>
-          val vInHeight = have(v ∈ app(heightFun)(nVar)) by Restate.from(argsTypedAtHeight)
-          RecursiveAgreement.selfAgreementFromForall(
-            heightFun = heightFun,
-            currentIndex = nVar,
-            leftFun = leftFun,
-            rightFun = rightFun,
-            agreeForall = agreeForall,
-            point = v,
-            pointInHeight = vInHeight
-          )
-        )
-
-        (pattern: Pattern[N]) =>
-          have(pattern.branchSelectionBody(a) |- goalW) subproof {
-            val selectedPattern = assume(pattern.branchSelectionBody(a))
-            val patternGuard = have(pattern.freshBranchCondition) by Weakening(selectedPattern)
-            val aEqPattern = have(a === pattern.freshInputTerm) by Weakening(selectedPattern)
-            val patternPremise = have(pattern.freshBranchPremise) by Tautology.from(argsTypedSemantic, patternGuard)
-            val innerAgreements = RecursiveAgreement.selfAgreementFromForallAt2(
-              pattern = pattern,
-              recursiveType = spec.argType,
-              heightMembershipMonotonic = spec.adt.height.membershipMonotonicAt(spec.typeSubstitutions),
-              argsTypedAtHeight = argsTypedAtHeight,
-              leafTyping = patternPremise,
-              patternGuard = patternGuard,
-              heightFun = heightFun,
-              hValid = hValid,
-              currentIndex = nVar,
-              currentIndexInN = nInN,
-              leftFun = leftFun,
-              rightFun = rightFun,
-              agreeForall = agreeForall
+            val selfArgEqualities = sc.selfRefVariables2.map(v =>
+              val vInHeight = have(v ∈ app(heightFun)(nVar)) by Restate.from(argsTypedAtHeight)
+              RecursiveAgreement.selfAgreementFromForall(
+                heightFun = heightFun,
+                currentIndex = nVar,
+                leftFun = leftFun,
+                rightFun = rightFun,
+                agreeForall = agreeForall,
+                point = v,
+                pointInHeight = vInHeight
+              )
             )
 
-            val bodyLeft  = substitutedCaseBody(pattern, spec.selfPlaceholder, leftFun,  pattern.variables2)
-            val bodyRight = substitutedCaseBody(pattern, spec.selfPlaceholder, rightFun, pattern.variables2)
-            val bodyEq = LambdaBodyEquality.prove(bodyLeft, bodyRight, selfArgEqualities ++ innerAgreements)
-            val witnessAtLeft  = instantiateWitnessAtPattern(pattern, leftFun,  leftTyped,  patternPremise, bodyLeft)
-            val witnessAtRight = instantiateWitnessAtPattern(pattern, rightFun, rightTyped, patternPremise, bodyRight)
+            (pattern: Pattern[N]) =>
+              have(pattern.branchSelectionBody(a) |- goalW) subproof {
+                val selectedPattern = assume(pattern.branchSelectionBody(a))
+                val patternGuard = have(pattern.freshBranchCondition) by Weakening(selectedPattern)
+                val aEqPattern = have(a === pattern.freshInputTerm) by Weakening(selectedPattern)
+                val patternPremise = have(pattern.freshBranchPremise) by Tautology.from(argsTypedSemantic, patternGuard)
+                val innerAgreements = RecursiveAgreement.selfAgreementFromForallAt2(
+                  pattern = pattern,
+                  recursiveType = spec.argType,
+                  heightMembershipMonotonic = spec.adt.height.membershipMonotonicAt(spec.typeSubstitutions),
+                  argsTypedAtHeight = argsTypedAtHeight,
+                  leafTyping = patternPremise,
+                  patternGuard = patternGuard,
+                  heightFun = heightFun,
+                  hValid = hValid,
+                  currentIndex = nVar,
+                  currentIndexInN = nInN,
+                  leftFun = leftFun,
+                  rightFun = rightFun,
+                  agreeForall = agreeForall
+                )
 
-            val witnessesAgreeAtA = WitnessCaseExtensionality.pointwiseAgreementAt(
-              leftWitness = recWitness(leftFun),
-              rightWitness = recWitness(rightFun),
-              ambientTerm = a,
-              ambientEqInput = aEqPattern,
-              leftAtInput = witnessAtLeft,
-              rightAtInput = witnessAtRight,
-              bodyEquality = bodyEq
-            )
+                val bodyLeft = substitutedCaseBody(pattern, spec.selfPlaceholder, leftFun, pattern.variables2)
+                val bodyRight = substitutedCaseBody(pattern, spec.selfPlaceholder, rightFun, pattern.variables2)
+                val bodyEq = LambdaBodyEquality.prove(bodyLeft, bodyRight, selfArgEqualities ++ innerAgreements)
+                val witnessAtLeft = instantiateWitnessAtPattern(pattern, leftFun, leftTyped, patternPremise, bodyLeft)
+                val witnessAtRight = instantiateWitnessAtPattern(pattern, rightFun, rightTyped, patternPremise, bodyRight)
 
-            have(goalW) by Restate.from(witnessesAgreeAtA)
+                val witnessesAgreeAtA = WitnessCaseExtensionality.pointwiseAgreementAt(
+                  leftWitness = recWitness(leftFun),
+                  rightWitness = recWitness(rightFun),
+                  ambientTerm = a,
+                  ambientEqInput = aEqPattern,
+                  leftAtInput = witnessAtLeft,
+                  rightAtInput = witnessAtRight,
+                  bodyEquality = bodyEq
+                )
+
+                have(goalW) by Restate.from(witnessesAgreeAtA)
+              }
           }
-      }
-    })
+        })
 
-    have(thesis) by Restate.from(agreementAtSucc)
-   }
-  })
+        have(thesis) by Restate.from(agreementAtSucc)
+      }
+    }
+  )
 }

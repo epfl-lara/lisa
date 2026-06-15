@@ -26,17 +26,34 @@ import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.altEqu
  */
 private[recursion] object WitnessCaseExtensionality {
 
-  /** Left witness function W(f), as a set term. */
-  private val wL    = variable[Ind]
-  /** Right witness function W(g), as a set term. */
-  private val wR    = variable[Ind]
-  /** Ambient term `a` (element of the ADT at height n+1). */
-  private val ambT  = variable[Ind]
-  /** Pattern's canonical input term `c(x̄)`. */
-  private val inpT  = variable[Ind]
-  /** Case body with the left self-reference substituted. */
+  /**
+   * Left witness function W(f), as a set term.
+   */
+  private val wL = variable[Ind]
+
+  /**
+   * Right witness function W(g), as a set term.
+   */
+  private val wR = variable[Ind]
+
+  /**
+   * Ambient term `a` (element of the ADT at height n+1).
+   */
+  private val ambT = variable[Ind]
+
+  /**
+   * Pattern's canonical input term `c(x̄)`.
+   */
+  private val inpT = variable[Ind]
+
+  /**
+   * Case body with the left self-reference substituted.
+   */
   private val bodyL = variable[Ind]
-  /** Case body with the right self-reference substituted. */
+
+  /**
+   * Case body with the right self-reference substituted.
+   */
   private val bodyR = variable[Ind]
 
   /**
@@ -60,35 +77,39 @@ private[recursion] object WitnessCaseExtensionality {
   ) {
     assume((ambT === inpT) /\ (app(wL)(inpT) === bodyL) /\ (app(wR)(inpT) === bodyR) /\ (bodyL === bodyR))
 
-    val h1 = have(ambT === inpT)           by Tautology
+    val h1 = have(ambT === inpT) by Tautology
     val h2 = have(app(wL)(inpT) === bodyL) by Tautology
     val h3 = have(app(wR)(inpT) === bodyR) by Tautology
-    val h4 = have(bodyL === bodyR)         by Tautology
+    val h4 = have(bodyL === bodyR) by Tautology
 
     val step1 = have(app(wL)(ambT) === app(wL)(inpT)) by Congruence.from(h1)
 
     val step2 = have(app(wL)(ambT) === bodyL) by Tautology.from(
       altEqualityTransitivity of (x := app(wL)(ambT), y := app(wL)(inpT), z := bodyL),
-      step1, h2
+      step1,
+      h2
     )
 
     val step3 = have(bodyR === app(wR)(inpT)) by Congruence.from(h3)
 
     have(bodyL === app(wR)(inpT)) by Tautology.from(
       altEqualityTransitivity of (x := bodyL, y := bodyR, z := app(wR)(inpT)),
-      h4, step3
+      h4,
+      step3
     )
 
     val step4 = have(app(wL)(ambT) === app(wR)(inpT)) by Tautology.from(
       altEqualityTransitivity of (x := app(wL)(ambT), y := bodyL, z := app(wR)(inpT)),
-      step2, lastStep
+      step2,
+      lastStep
     )
 
     val step5 = have(app(wR)(inpT) === app(wR)(ambT)) by Congruence.from(h1)
 
     have(thesis) by Tautology.from(
       altEqualityTransitivity of (x := app(wL)(ambT), y := app(wR)(inpT), z := app(wR)(ambT)),
-      step4, step5
+      step4,
+      step5
     )
   }
 
@@ -109,7 +130,9 @@ private[recursion] object WitnessCaseExtensionality {
       bodyR := rightBody
     )
 
-  def pointwiseAgreementAt(using proof: lisa.SetTheoryLibrary.Proof)(
+  def pointwiseAgreementAt(using
+      proof: lisa.SetTheoryLibrary.Proof
+  )(
       leftWitness: Expr[Ind],
       rightWitness: Expr[Ind],
       ambientTerm: Expr[Ind],

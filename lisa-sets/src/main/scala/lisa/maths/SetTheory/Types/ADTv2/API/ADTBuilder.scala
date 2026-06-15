@@ -10,12 +10,12 @@ import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private def ADTBuilder[N <: Arity](
-  name: String,
-  typeVars: Seq[String],
-  constructors: Seq[
-    (String, Seq[(String, String | ConstructorArg)])
-  ]
-)(using ValueOf[N]) : ADT[N] = {
+    name: String,
+    typeVars: Seq[String],
+    constructors: Seq[
+      (String, Seq[(String, String | ConstructorArg)])
+    ]
+)(using ValueOf[N]): ADT[N] = {
 
   require(
     typeVars.distinct.size == typeVars.size,
@@ -59,86 +59,86 @@ private def ADTBuilder[N <: Arity](
     )
   )
 
-  val adtSyntactic = Time.measure(s"ADT syntactic")(SyntacticADT[N](
-    name,
-    constructorsSyntactic,
-    **.fromSeq[Variable[Ind], N](typeVars.map(Variable[Ind](_)))
-  ))
+  val adtSyntactic = Time.measure(s"ADT syntactic")(
+    SyntacticADT[N](
+      name,
+      constructorsSyntactic,
+      **.fromSeq[Variable[Ind], N](typeVars.map(Variable[Ind](_)))
+    )
+  )
 
-  val constructorsSemantic = constructorsSyntactic.zip(constructorsName).map {
-    case (ctor, name) =>
-      SemanticConstructor[N](
-        name,
-        ctor,
-        adtSyntactic
-      )
+  val constructorsSemantic = constructorsSyntactic.zip(constructorsName).map { case (ctor, name) =>
+    SemanticConstructor[N](
+      name,
+      ctor,
+      adtSyntactic
+    )
   }
 
   val adtSemantic = SemanticADT[N](adtSyntactic, constructorsSemantic)
-
 
   new ADT[N](adtSemantic)
 }
 
 def adt[N <: Arity](
-  name: String,
-  typeVars: String ** N,
-  constructors: Seq[
-    (String, Seq[(String, String | ConstructorArg)])
-  ]
-)(using ValueOf[N]) : ADT[N] =
+    name: String,
+    typeVars: String ** N,
+    constructors: Seq[
+      (String, Seq[(String, String | ConstructorArg)])
+    ]
+)(using ValueOf[N]): ADT[N] =
   ADTBuilder[N](name, typeVars.toSeq, constructors)
 
 def adt(
-  name: String,
-  constructors: Seq[
-    (String, Seq[(String, String | ConstructorArg)])
-  ]
+    name: String,
+    constructors: Seq[
+      (String, Seq[(String, String | ConstructorArg)])
+    ]
 ): ADT[0] =
   ADTBuilder[0](name, Seq.empty, constructors)
 
 def adt(
-  name: String,
-  typeVars: String,
-  constructors: Seq[
-    (String, Seq[(String, String | ConstructorArg)])
-  ]
+    name: String,
+    typeVars: String,
+    constructors: Seq[
+      (String, Seq[(String, String | ConstructorArg)])
+    ]
 ): ADT[1] =
   ADTBuilder[1](name, Seq(typeVars), constructors)
 
 def adt(
-  name: String,
-  typeVars: (String, String),
-  constructors: Seq[
-    (String, Seq[(String, String | ConstructorArg)])
-  ]
+    name: String,
+    typeVars: (String, String),
+    constructors: Seq[
+      (String, Seq[(String, String | ConstructorArg)])
+    ]
 ): ADT[2] =
   ADTBuilder[2](name, Seq(typeVars._1, typeVars._2), constructors)
 
 def adt(
-  name: String,
-  typeVars: (String, String, String),
-  constructors: Seq[
-    (String, Seq[(String, String | ConstructorArg)])
-  ]
+    name: String,
+    typeVars: (String, String, String),
+    constructors: Seq[
+      (String, Seq[(String, String | ConstructorArg)])
+    ]
 ): ADT[3] =
   ADTBuilder[3](name, Seq(typeVars._1, typeVars._2, typeVars._3), constructors)
 
 def adt(
-  name: String,
-  typeVars: (String, String, String, String),
-  constructors: Seq[
-    (String, Seq[(String, String | ConstructorArg)])
-  ]
+    name: String,
+    typeVars: (String, String, String, String),
+    constructors: Seq[
+      (String, Seq[(String, String | ConstructorArg)])
+    ]
 ): ADT[4] =
   ADTBuilder[4](name, Seq(typeVars._1, typeVars._2, typeVars._3, typeVars._4), constructors)
 
 def adt(
-  name: String,
-  typeVars: (String, String, String, String, String),
-  constructors: Seq[
-    (String, Seq[(String, String | ConstructorArg)])
-  ]
+    name: String,
+    typeVars: (String, String, String, String, String),
+    constructors: Seq[
+      (String, Seq[(String, String | ConstructorArg)])
+    ]
 ): ADT[5] =
   ADTBuilder[5](
     name,
@@ -147,11 +147,11 @@ def adt(
   )
 
 def adt(
-  name: String,
-  typeVars: Seq[String],
-  constructors: Seq[
-    (String, Seq[(String, String | ConstructorArg)])
-  ]
+    name: String,
+    typeVars: Seq[String],
+    constructors: Seq[
+      (String, Seq[(String, String | ConstructorArg)])
+    ]
 ): ADT[?] =
   val typeVarsSeq = typeVars.toSeq
   typeVarsSeq.size match

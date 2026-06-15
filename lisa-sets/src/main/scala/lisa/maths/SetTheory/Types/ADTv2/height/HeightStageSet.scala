@@ -16,9 +16,9 @@ import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 final class HeightStageSet[N <: Arity](
-  base: HeightADT[N],
-  constructors: Seq[HeightStageConstructorData],
-  isConstructor: Expr[Ind >>: Ind >>: Prop]
+    base: HeightADT[N],
+    constructors: Seq[HeightStageConstructorData],
+    isConstructor: Expr[Ind >>: Ind >>: Prop]
 ) {
   private val U = variable[Ind]
   private val φ = variable[Ind >>: Prop]
@@ -237,8 +237,7 @@ final class HeightStageSet[N <: Arity](
     ) by Restate.from(seedElementInUniverse(unionRangeF))
 
     val constructorOnlyCase =
-      if constructors.isEmpty then
-        have(isConstructor(x)(unionRangeF) |- in(x, stageBound)) by Tautology
+      if constructors.isEmpty then have(isConstructor(x)(unionRangeF) |- in(x, stageBound)) by Tautology
       else
         val branches = constructors.map(c =>
           val typedEq = wellTypedFormula(c.signature)(unionRangeF) /\ (x === c.term)

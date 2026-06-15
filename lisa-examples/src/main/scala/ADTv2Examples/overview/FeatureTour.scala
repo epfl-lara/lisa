@@ -30,9 +30,9 @@ object FeatureTour extends lisa.Main {
   // `induction` theorem takes one type argument per type variable, so it is
   // called on polymorphic ADTs; monomorphic ones (`nat`, `bool`) use the
   // `Induction` proof tactic instead — see section 7.
-  show(list.induction(nat))         // one type argument for the element type
-  show(option.induction(bool))      // Option[Bool]
-  show(union.induction(nat, bool))  // two type arguments
+  show(list.induction(nat)) // one type argument for the element type
+  show(option.induction(bool)) // Option[Bool]
+  show(union.induction(nat, bool)) // two type arguments
 
   // ── 2. Constructors: introduction rules ─────────────────────────────────
   // Each constructor exposes `intro` (membership of a fully applied
@@ -40,8 +40,8 @@ object FeatureTour extends lisa.Main {
   section("2. Constructor introduction rules")
   show(zero.intro)
   show(succ.intro)
-  show(cons.intro(nat))      // polymorphic: pass the element type
-  show(some.intro(nat))      // Option — under-shown elsewhere
+  show(cons.intro(nat)) // polymorphic: pass the element type
+  show(some.intro(nat)) // Option — under-shown elsewhere
   show(inl.intro(nat, bool)) // Union — two type arguments
 
   // ── 3. Injectivity ──────────────────────────────────────────────────────
@@ -54,7 +54,7 @@ object FeatureTour extends lisa.Main {
   // `pred`, `double`, `length` are recursive functions over an ADT.  Each has
   // an `intro` rule and per-constructor `elim` rules computing its value.
   section("4. Recursive functions")
-  show(pred.intro)            // Nat predecessor — under-shown elsewhere
+  show(pred.intro) // Nat predecessor — under-shown elsewhere
   show(pred.elim(zero))
   show(pred.elim(succ))
   show(length.intro(nat))

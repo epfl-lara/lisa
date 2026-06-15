@@ -27,7 +27,7 @@ case class Case[N <: Arity](cons: Constructor[N], args: Expr[Ind]*) {
   )(subproof: proof.InnerProof ?=> Unit): Unit =
     val vars: Seq[Variable[Ind]] = args.zipWithIndex.map {
       case (v: Variable[Ind], _) => v
-      case (_, i)                => variable[Ind](s"${cons.semantic.name}/arg$i")
+      case (_, i) => variable[Ind](s"${cons.semantic.name}/arg$i")
     }
 
     val (bot, typeArgs, adtVar) = builder.comp
@@ -35,15 +35,23 @@ case class Case[N <: Arity](cons: Constructor[N], args: Expr[Ind]*) {
     val consTerm = appSeq(cons.semantic.term(typeArgs))(vars)
     val subst = adtVar -> consTerm
 
-    val assumptions = wellTypedSet(cons.semantic.semanticSignature(vars).map(p =>
-      (
-        p._1,
-        p._2.substitute(cons.semantic.typeVariablesSeq.zip(typeArgs).map(SubstPair(_, _))*)
-      )
-    )) ++ cons.semantic.syntacticSignature(vars).filter(_._2 == SelfRef)
+    val assumptions = wellTypedSet(
+      cons.semantic
+        .semanticSignature(vars)
+        .map(p =>
+          (
+            p._1,
+            p._2.substitute(cons.semantic.typeVariablesSeq.zip(typeArgs).map(SubstPair(_, _))*)
+          )
+        )
+    ) ++ cons.semantic
+      .syntacticSignature(vars)
+      .filter(_._2 == SelfRef)
       .map((v, _) => v :: cons.adt.termAt(typeArgs))
-      ++ cons.semantic.syntacticSignature(vars).filter(_._2 == SelfRef)
-      .map((v, _) => prop.substitute(adtVar -> v))
+      ++ cons.semantic
+        .syntacticSignature(vars)
+        .filter(_._2 == SelfRef)
+        .map((v, _) => prop.substitute(adtVar -> v))
       ++ args.zip(vars).collect {
         case (t, v) if !t.isInstanceOf[Variable[Ind]] => v === t
       }
@@ -53,15 +61,14 @@ case class Case[N <: Arity](cons: Constructor[N], args: Expr[Ind]*) {
     val iProof: proof.InnerProof = new proof.InnerProof(Some(botWithAssumptions))
     subproof(using iProof)
     val proofStep = (new SUBPROOF(using proof)(None)(iProof)).judgement
-      .validate(line, file).asInstanceOf[proof.ProofStep]
+      .validate(line, file)
+      .asInstanceOf[proof.ProofStep]
 
     def subproofWithExtraStep: proof.ProofTacticJudgement = TacticSubproof { ip ?=>
       val fullSeq =
         Tautology(using lisa.SetTheoryLibrary, ip)(proofStep)(botWithAssumptions)
       if fullSeq.isValid then fullSeq.validate(line, file)
-      else
-        return proof.InvalidProofTactic(s"Proof of case ${cons
-            .name} is invalid.\nExpected: ${botWithAssumptions}.")
+      else return proof.InvalidProofTactic(s"Proof of case ${cons.name} is invalid.\nExpected: ${botWithAssumptions}.")
     }
 
     builder += (cons, args, subproofWithExtraStep.validate(line, file))

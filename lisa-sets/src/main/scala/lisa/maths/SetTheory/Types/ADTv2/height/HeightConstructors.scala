@@ -14,10 +14,10 @@ import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 final class HeightConstructors[N <: Arity](
-  base: HeightADT[N],
-  constructors: Seq[HeightConstructorData],
-  heightStageSet: HeightStageSet[N],
-  isConstructor: Expr[Ind >>: Ind >>: Prop]
+    base: HeightADT[N],
+    constructors: Seq[HeightConstructorData],
+    heightStageSet: HeightStageSet[N],
+    isConstructor: Expr[Ind >>: Ind >>: Prop]
 ) {
 
   protected inline final def app(f: Expr[Ind], x: Expr[Ind]): Expr[Ind] =
@@ -32,7 +32,7 @@ final class HeightConstructors[N <: Arity](
       s: Expr[Ind]
   ): Expr[Prop] =
     existsSeq(c.variables, wellTypedFormula(c.signature)(s) /\ (x === c.term))
-    
+
   val heightExists = Lemma(exists(h, base.isHeight(h))) {
     have(thesis) by Restate.from(heightStageSet.heightExists)
   }
@@ -53,7 +53,7 @@ final class HeightConstructors[N <: Arity](
   }
 
   val heightExistsOne = Lemma(existsOne(h, base.isHeight(h))) {
-    
+
     val existencePart = have(∃(h, base.isHeight(h))) by
       Restate.from(heightExists of (h := h))
 
@@ -102,8 +102,7 @@ final class HeightConstructors[N <: Arity](
         val varsWellTypedS = wellTypedFormula(c.signature)(s)
         val varsWellTypedT = wellTypedFormula(c.signature)(t)
 
-        if c.arity == 0 then
-          have((subsetST, isConstructorCXS) |- isConstructorXT) by Restate
+        if c.arity == 0 then have((subsetST, isConstructorCXS) |- isConstructorXT) by Restate
         else
           val andSeq =
             for (v, ty) <- c.signature
@@ -125,8 +124,7 @@ final class HeightConstructors[N <: Arity](
           have((subsetST, isConstructorCXS) |- isConstructorXT) by Tautology.from(lastStep)
 
     val constructorBranch =
-      if constructors.isEmpty then
-        have((subsetST, isConstructorXS) |- isConstructorXT) by Restate
+      if constructors.isEmpty then have((subsetST, isConstructorXS) |- isConstructorXT) by Restate
       else
         have((subsetST, isConstructorXS) |- isConstructorXT) by LeftOr(
           isConstructorXSImpliesT*
@@ -202,8 +200,7 @@ final class HeightConstructors[N <: Arity](
           thenHave((subsetST, isConstructorCXS) |- isConstructorXT) by Weakening
 
     val constructorBranch =
-      if constructors.isEmpty then
-        have((subsetST, isConstructorXS) |- isConstructorXT) by Restate
+      if constructors.isEmpty then have((subsetST, isConstructorXS) |- isConstructorXT) by Restate
       else
         have((subsetST, isConstructorXS) |- isConstructorXT) by LeftOr(
           isConstructorXSImpliesT*

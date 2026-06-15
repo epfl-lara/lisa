@@ -69,22 +69,34 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
 
   override def toString: String = fullName
 
-  /** Type variables that may appear in the signature of this constructor. */
+  /**
+   * Type variables that may appear in the signature of this constructor.
+   */
   val typeVariables: Variable[Ind] ** N = adt.typeVariables
 
-  /** Sequence of type variables that may appear in the signature of this constructor. */
+  /**
+   * Sequence of type variables that may appear in the signature of this constructor.
+   */
   val typeVariablesSeq: Seq[Variable[Ind]] = adt.typeVariablesSeq
 
-  /** Number of type variables in the signature of this constructor. */
+  /**
+   * Number of type variables in the signature of this constructor.
+   */
   val typeArity: N = adt.typeArity
 
-  /** Variables used for constructor arguments. */
+  /**
+   * Variables used for constructor arguments.
+   */
   val variables: Seq[Variable[Ind]] = underlying.variables
 
-  /** Variables used for constructor arguments. */
+  /**
+   * Variables used for constructor arguments.
+   */
   val variables1: Seq[Variable[Ind]] = underlying.variables1
 
-  /** Alternative set of variables used for constructor arguments. */
+  /**
+   * Alternative set of variables used for constructor arguments.
+   */
   val variables2: Seq[Variable[Ind]] = underlying.variables2
 
   /**
@@ -110,13 +122,19 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
   def semanticSignature(vars: Seq[Variable[Ind]]): Seq[(Variable[Ind], Expr[Ind])] = vars
     .zip(underlying.specification.map(_.getOrElse(adt.term)))
 
-  /** Variables of this constructor with their respective domains. */
+  /**
+   * Variables of this constructor with their respective domains.
+   */
   val semanticSignature: Seq[(Variable[Ind], Expr[Ind])] = semanticSignature(variables)
 
-  /** Variables of this constructor with their respective domains. */
+  /**
+   * Variables of this constructor with their respective domains.
+   */
   val semanticSignature1: Seq[(Variable[Ind], Expr[Ind])] = semanticSignature
 
-  /** Alternative set of variables of this constructor with their respective domain. */
+  /**
+   * Alternative set of variables of this constructor with their respective domain.
+   */
   val semanticSignature2: Seq[(Variable[Ind], Expr[Ind])] = semanticSignature(variables2)
 
   def heightTypingFormula(heightSet: Expr[Ind]): Expr[Prop] =
@@ -129,22 +147,30 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
     existsSeq(variables2, branchPremiseAtHeight(heightSet, term))
 
   def selfRefVariables2: Seq[Variable[Ind]] =
-    syntacticSignature(variables2).collect {
-      case (v, lisa.maths.SetTheory.Types.ADTv2.syntax.AST.SelfRef) => v
+    syntacticSignature(variables2).collect { case (v, lisa.maths.SetTheory.Types.ADTv2.syntax.AST.SelfRef) =>
+      v
     }
 
-  /** Type of this constructor. */
+  /**
+   * Type of this constructor.
+   */
   val typ: Expr[Ind] =
     // semanticSignature.unzip._2.foldRight[Expr[Ind]](adt.term)((a, b) => a |=> b)
     semanticSignature.unzip._2.foldRight[Expr[Ind]](adt.term)((a, b) => (a ->: b))
 
-  /** Arity of this constructor. */
+  /**
+   * Arity of this constructor.
+   */
   val arity: Int = variables.size
 
-  /** Internal representation of this constructor (i.e. as a tuple). */
+  /**
+   * Internal representation of this constructor (i.e. as a tuple).
+   */
   val structuralTerm: Expr[Ind] = underlying.term
 
-  /** Internal representation of this constructor (i.e. as a tuple). */
+  /**
+   * Internal representation of this constructor (i.e. as a tuple).
+   */
   val structuralTerm1: Expr[Ind] = underlying.term1
 
   /**
@@ -186,7 +212,9 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
    */
   def term(args: Seq[Expr[Ind]]): Expr[Ind] = definedClassFunction.term(args)
 
-  /** Constructor where type variables are instantiated with schematic variables. */
+  /**
+   * Constructor where type variables are instantiated with schematic variables.
+   */
   private val term: Expr[Ind] = definedClassFunction.term
 
   /**
@@ -230,10 +258,12 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
    */
   val shortDefinition = Lemma(using
     name = sourcecode.FullName(s"${fullName}/shortDefinition")
-  )(forallSeq(
-    variables,
-    wellTypedFormula(semanticSignature) ==> (appliedTerm === structuralTerm)
-  )) {
+  )(
+    forallSeq(
+      variables,
+      wellTypedFormula(semanticSignature) ==> (appliedTerm === structuralTerm)
+    )
+  ) {
     have(forall(c, (term === c) <=> untypedDefinition)) by
       Restate.from(classFunctionCharacterization)
     thenHave(
@@ -265,7 +295,7 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
     ) by InstantiateForall(term)
     thenHave(term :: typ) by Weakening
     thenHave(thesis) by Restate
-  }    
+  }
 
   def semanticTypingFromHeight(heightFun: Expr[Ind], n: Expr[Ind]): THM = Lemma(
     (adt.isHeight(heightFun), n ∈ N, heightTypingFormula(app(heightFun)(n))) |-
@@ -288,7 +318,8 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
         ∃(k, (k ∈ N) /\ heightTypingFormula(app(heightFun)(k)))
     ) by Tautology.from(
       hValid,
-      adt.termsHaveHeight(underlying)
+      adt
+        .termsHaveHeight(underlying)
         .of(h := heightFun)
         .of(underlying.variables.zip(underlying.variables2).map((from, to) => from := to)*)
     )
@@ -563,15 +594,19 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
     } else
       val typedAssumption =
         simplify(wellTypedFormula(semanticSignature1 ++ semanticSignature2))
-      Lemma(using name = lemmaName)(forallSeq(
-        variables1 ++ variables2,
-        typedAssumption ==> simplify((appliedTerm1 === appliedTerm2) <=> (variables1 === variables2))
-      )) {
+      Lemma(using name = lemmaName)(
+        forallSeq(
+          variables1 ++ variables2,
+          typedAssumption ==> simplify((appliedTerm1 === appliedTerm2) <=> (variables1 === variables2))
+        )
+      ) {
 
-        have(forallSeq(
-          variables1,
-          wellTypedFormula(semanticSignature1) ==> (appliedTerm1 === structuralTerm1)
-        )) by Restate.from(shortDefinition)
+        have(
+          forallSeq(
+            variables1,
+            wellTypedFormula(semanticSignature1) ==> (appliedTerm1 === structuralTerm1)
+          )
+        ) by Restate.from(shortDefinition)
 
         variables1.foldLeft(lastStep)((fact, v) =>
           fact.statement.right.head match
@@ -581,10 +616,12 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
         val tappTerm1Def = thenHave(vars1WellTyped |- appliedTerm1 === structuralTerm1) by
           Restate
 
-        have(forallSeq(
-          variables2,
-          wellTypedFormula(semanticSignature2) ==> (appliedTerm2 === structuralTerm2)
-        )) by Restate.from(shortDefinition)
+        have(
+          forallSeq(
+            variables2,
+            wellTypedFormula(semanticSignature2) ==> (appliedTerm2 === structuralTerm2)
+          )
+        ) by Restate.from(shortDefinition)
 
         variables2.foldLeft(lastStep)((fact, v) =>
           fact.statement.right.head match
@@ -676,7 +713,9 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
       }
   }
 
-  /** Case generated by this constructor when performing a proof by induction */
+  /**
+   * Case generated by this constructor when performing a proof by induction
+   */
   lazy val inductiveCase: Expr[Prop] = syntacticSignature
     .foldRight[Expr[Prop]](P(appliedTerm1)) { (el, fc) =>
       val (v, typ) = el

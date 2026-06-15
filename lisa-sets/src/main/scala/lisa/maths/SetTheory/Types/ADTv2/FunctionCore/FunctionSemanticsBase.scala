@@ -91,44 +91,46 @@ class FunctionSemanticsBase[N <: Arity](data: SemanticFunctionInputs[N]) {
    * `branchPremise ==> (term * inputTerm === body)`.
    */
   private val shortDefinitionByPattern: Map[Pattern[N], THM] =
-    patterns.map(pattern =>
-      pattern -> Lemma(
-        simplify(
-          pattern.branchPremise ==>
-            (term * pattern.inputTerm === pattern.body)
-        )
-      ) {
-        have(forall(f, (term === f) <=> untypedDef)) by
-          Restate.from(classFunctionCharacterization)
-
-        thenHave(
-          (term === term) <=>
-            (term :: typ) /\
-            (seqAnd(patterns.map { branch =>
-              forallSeq(
-                branch.binders,
-                branch.branchPremise ==>
-                  (term * branch.inputTerm === branch.body)
-              )
-            }))
-        ) by InstantiateForall(term)
-
-        thenHave(
-          forallSeq(
-            pattern.binders,
+    patterns
+      .map(pattern =>
+        pattern -> Lemma(
+          simplify(
             pattern.branchPremise ==>
               (term * pattern.inputTerm === pattern.body)
           )
-        ) by Weakening
+        ) {
+          have(forall(f, (term === f) <=> untypedDef)) by
+            Restate.from(classFunctionCharacterization)
 
-        pattern.binders.foldLeft(lastStep)((_, _) =>
-          lastStep.statement.right.head match
-            case forall(v, phi) => thenHave(phi) by InstantiateForall(v)
-            case _ => throw UnreachableException
-        )
-        thenHave(thesis) by Restate
-      }
-    ).toMap
+          thenHave(
+            (term === term) <=>
+              (term :: typ) /\
+              (seqAnd(patterns.map { branch =>
+                forallSeq(
+                  branch.binders,
+                  branch.branchPremise ==>
+                    (term * branch.inputTerm === branch.body)
+                )
+              }))
+          ) by InstantiateForall(term)
+
+          thenHave(
+            forallSeq(
+              pattern.binders,
+              pattern.branchPremise ==>
+                (term * pattern.inputTerm === pattern.body)
+            )
+          ) by Weakening
+
+          pattern.binders.foldLeft(lastStep)((_, _) =>
+            lastStep.statement.right.head match
+              case forall(v, phi) => thenHave(phi) by InstantiateForall(v)
+              case _ => throw UnreachableException
+          )
+          thenHave(thesis) by Restate
+        }
+      )
+      .toMap
 
   def shortDefinition(pattern: Pattern[N]): THM =
     shortDefinitionByPattern(pattern)
@@ -141,12 +143,11 @@ class FunctionSemanticsBase[N <: Arity](data: SemanticFunctionInputs[N]) {
    * the patterns covering it.
    */
   private val elimByConstThm: Map[SemanticConstructor[N], THM] =
-    PatternSystem.constructorCases(patterns)
+    PatternSystem
+      .constructorCases(patterns)
       .map { (constructor, patternsForConst) =>
         constructor -> Lemma(
-          seqAnd(patternsForConst.map(pattern =>
-            simplify(pattern.branchPremise ==> (term * pattern.inputTerm === pattern.body))
-          ))
+          seqAnd(patternsForConst.map(pattern => simplify(pattern.branchPremise ==> (term * pattern.inputTerm === pattern.body))))
         ) {
           have(thesis) by Tautology.from(
             patternsForConst.map(pattern => shortDefinitionByPattern(pattern))*
@@ -170,16 +171,18 @@ class FunctionSemanticsBase[N <: Arity](data: SemanticFunctionInputs[N]) {
   def shortDefinition(constructor: SemanticConstructor[N]): THM =
     elimByConst(constructor)
 
-  /** The conjunction of the short defining equations of all patterns. */
+  /**
+   * The conjunction of the short defining equations of all patterns.
+   */
   val elimTotal: THM = Lemma(
-    seqAnd(patterns.map(pattern =>
-      simplify(pattern.branchPremise ==> (term * pattern.inputTerm === pattern.body))
-    ))
+    seqAnd(patterns.map(pattern => simplify(pattern.branchPremise ==> (term * pattern.inputTerm === pattern.body))))
   ) {
     have(thesis) by Tautology.from(patterns.map(pattern => shortDefinitionByPattern(pattern))*)
   }
 
-  /** Typing introduction: the defined symbol inhabits its function type. */
+  /**
+   * Typing introduction: the defined symbol inhabits its function type.
+   */
   val intro: THM = Lemma(term :: typ) {
     have(forall(f, (term === f) <=> untypedDef)) by
       Restate.from(classFunctionCharacterization)

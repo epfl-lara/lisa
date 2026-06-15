@@ -24,31 +24,47 @@ class SyntacticConstructor(
     val variables2: Seq[Variable[Ind]]
 ) {
 
-  /** Unique identifier of this constructor */
+  /**
+   * Unique identifier of this constructor
+   */
   val tag: Int = Constructors.tagCounter
   Constructors.tagCounter = Constructors.tagCounter + 1
 
-  /** Term representation of the tag of this constructor */
+  /**
+   * Term representation of the tag of this constructor
+   */
   val tagTerm: Expr[Ind] = toTerm(tag)
 
-  /** Sequence of variables used to represent the arguments of the constructor */
+  /**
+   * Sequence of variables used to represent the arguments of the constructor
+   */
   val variables: Seq[Variable[Ind]] = variables1
 
-  /** Number of arguments that this constructor takes */
+  /**
+   * Number of arguments that this constructor takes
+   */
   val arity: Int = specification.length
 
-  /** Sequence of type parameters of this constructor */
-  val typeParameters: Seq[Variable[Ind]] = specification.collect {
-    case TypeArg(name) => typeExprToTerm(name)
+  /**
+   * Sequence of type parameters of this constructor
+   */
+  val typeParameters: Seq[Variable[Ind]] = specification.collect { case TypeArg(name) =>
+    typeExprToTerm(name)
   }
 
-  /** Sequence of variables of the constructor with their respective domains. */
+  /**
+   * Sequence of variables of the constructor with their respective domains.
+   */
   val signature1: Seq[(Variable[Ind], ConstructorArg)] = variables1.zip(specification)
 
-  /**  Alternative sequence of variables of the constructor with their respective domains. */
+  /**
+   *  Alternative sequence of variables of the constructor with their respective domains.
+   */
   val signature2: Seq[(Variable[Ind], ConstructorArg)] = variables2.zip(specification)
 
-  /** Sequence of variables of the constructor with their respective domains. */
+  /**
+   * Sequence of variables of the constructor with their respective domains.
+   */
   val signature: Seq[(Variable[Ind], ConstructorArg)] = signature1
 
   /**
@@ -131,57 +147,59 @@ class SyntacticConstructor(
           Congruence.from(Pair.extensionality of (a := tagTerm, b := subterm1, c := tagTerm, d := subterm2))
 
         // STEP 2: Repeat pair extensionality until all variables have been pulled out of the term
-        variables1.zip(variables2).foldLeft(
-          Seq.empty[Variable[Ind]],
-          variables1,
-          Seq.empty[Variable[Ind]],
-          variables2,
-          lastStep
-        )((acc, v) =>
+        variables1
+          .zip(variables2)
+          .foldLeft(
+            Seq.empty[Variable[Ind]],
+            variables1,
+            Seq.empty[Variable[Ind]],
+            variables2,
+            lastStep
+          )((acc, v) =>
 
-          // pulledVars1 are the variables that have been pulled out of the left term
-          // remainingVars1 are the variables that are still in the left term
-          // pulledVars2 are the variables that have been pulled out of the right term
-          // remainingVars2 are the variables that are still in the right term
-          val (pulledVars1, remainingVars1, pulledVars2, remainingVars2, previousFact) =
-            acc
+            // pulledVars1 are the variables that have been pulled out of the left term
+            // remainingVars1 are the variables that are still in the left term
+            // pulledVars2 are the variables that have been pulled out of the right term
+            // remainingVars2 are the variables that are still in the right term
+            val (pulledVars1, remainingVars1, pulledVars2, remainingVars2, previousFact) =
+              acc
 
-          // v1 and v2 are the variables that are being pulled out
-          val (v1, v2) = v
+            // v1 and v2 are the variables that are being pulled out
+            val (v1, v2) = v
 
-          val updatedPulledVars1 = pulledVars1 :+ v1
-          val updatedPulledVars2 = pulledVars2 :+ v2
-          val updatedRemainingVars1 = remainingVars1.tail
-          val updatedRemainingVars2 = remainingVars2.tail
+            val updatedPulledVars1 = pulledVars1 :+ v1
+            val updatedPulledVars2 = pulledVars2 :+ v2
+            val updatedRemainingVars1 = remainingVars1.tail
+            val updatedRemainingVars2 = remainingVars2.tail
 
-          val subsubterm1 = subterm(updatedRemainingVars1)
-          val subsubterm2 = subterm(updatedRemainingVars2)
+            val subsubterm1 = subterm(updatedRemainingVars1)
+            val subsubterm2 = subterm(updatedRemainingVars2)
 
-          have(
-            (pair(v1, subsubterm1) === pair(v2, subsubterm2)) <=>
-              ((v1 === v2) /\ (subsubterm1 === subsubterm2))
-          ) by
-            Restate.from(Pair.extensionality of (a := v1, b := subsubterm1, c := v2, d := subsubterm2))
-          have(
-            (seqEq(pulledVars1, pulledVars2) /\
-              (pair(v1, subsubterm1) === pair(v2, subsubterm2))) <=>
-              (seqEq(pulledVars1, pulledVars2) /\ (v1 === v2) /\
-                (subsubterm1 === subsubterm2))
-          ) by Tautology.from(lastStep)
-          val newFact = have(
-            (term1 === term2) <=>
-              (seqEq(updatedPulledVars1, updatedPulledVars2) /\
-                (subsubterm1 === subsubterm2))
-          ) by Tautology.from(previousFact, lastStep)
+            have(
+              (pair(v1, subsubterm1) === pair(v2, subsubterm2)) <=>
+                ((v1 === v2) /\ (subsubterm1 === subsubterm2))
+            ) by
+              Restate.from(Pair.extensionality of (a := v1, b := subsubterm1, c := v2, d := subsubterm2))
+            have(
+              (seqEq(pulledVars1, pulledVars2) /\
+                (pair(v1, subsubterm1) === pair(v2, subsubterm2))) <=>
+                (seqEq(pulledVars1, pulledVars2) /\ (v1 === v2) /\
+                  (subsubterm1 === subsubterm2))
+            ) by Tautology.from(lastStep)
+            val newFact = have(
+              (term1 === term2) <=>
+                (seqEq(updatedPulledVars1, updatedPulledVars2) /\
+                  (subsubterm1 === subsubterm2))
+            ) by Tautology.from(previousFact, lastStep)
 
-          (
-            updatedPulledVars1,
-            updatedRemainingVars1,
-            updatedPulledVars2,
-            updatedRemainingVars2,
-            newFact
+            (
+              updatedPulledVars1,
+              updatedRemainingVars1,
+              updatedPulledVars2,
+              updatedRemainingVars2,
+              newFact
+            )
           )
-        )
       }
 
 }

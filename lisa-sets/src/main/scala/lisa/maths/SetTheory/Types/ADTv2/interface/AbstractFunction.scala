@@ -41,12 +41,16 @@ abstract class AbstractFunction[N <: Arity](using
         semantic.typ
       ),
       AbstractFunction.typingJustification(semantic)
-) {
+    ) {
 
-  /** Human-readable kind used in diagnostics, e.g. "function" or "recursive function". */
+  /**
+   * Human-readable kind used in diagnostics, e.g. "function" or "recursive function".
+   */
   protected def kindLabel: String
 
-  /** Fresh variable standing for the argument in `introApp`. */
+  /**
+   * Fresh variable standing for the argument in `introApp`.
+   */
   protected def introAppVariable: Variable[Ind]
 
   printAs(args => renderAppliedSymbol(semantic.name, semantic.typeVariablesSeq.size, args))
@@ -90,10 +94,8 @@ abstract class AbstractFunction[N <: Arity](using
       baseTheorem = semantic.intro,
       headTermAt = termAt,
       headTypeAt = substitutions => semantic.typ.substitute(substitutions*),
-      assumptionsAt = substitutions =>
-        Set(introAppVariable :: semantic.argType.substitute(substitutions*)),
-      typingArgsAt = substitutions =>
-        Seq(introAppVariable -> semantic.argType.substitute(substitutions*)),
+      assumptionsAt = substitutions => Set(introAppVariable :: semantic.argType.substitute(substitutions*)),
+      typingArgsAt = substitutions => Seq(introAppVariable -> semantic.argType.substitute(substitutions*)),
       conclusionAt = substitutions =>
         app(termAt(typeVariablesSeq))(introAppVariable) ::
           semantic.returnType.substitute(substitutions*)
@@ -109,10 +111,8 @@ abstract class AbstractFunction[N <: Arity](using
       baseTheorem = semantic.intro,
       headTermAt = termAt,
       headTypeAt = substitutions => semantic.typ.substitute(substitutions*),
-      assumptionsAt = substitutions =>
-        Set(introAppVariable :: semantic.argType.substitute(substitutions*)),
-      typingArgsAt = substitutions =>
-        Seq(introAppVariable -> semantic.argType.substitute(substitutions*)),
+      assumptionsAt = substitutions => Set(introAppVariable :: semantic.argType.substitute(substitutions*)),
+      typingArgsAt = substitutions => Seq(introAppVariable -> semantic.argType.substitute(substitutions*)),
       conclusionAt = substitutions =>
         app(termAt(typeArgs))(introAppVariable) ::
           semantic.returnType.substitute(substitutions*)
@@ -171,7 +171,6 @@ abstract class AbstractFunction[N <: Arity](using
   def elimTotal(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*): THM =
     theoremAt(name, typeVariablesSeq, firstTypeArg +: otherTypeArgs, "eliminationTotal", semantic.elimTotal)
 
-
   def elim(): THM =
     elimTotal
 
@@ -211,7 +210,6 @@ abstract class AbstractFunction[N <: Arity](using
           s"No branch of $name matches case ${c.cons.name}(${c.args.mkString(", ")})."
         )
       )
-
 
   def termAt(args: Seq[Expr[Ind]]): Expr[Ind] =
     (this #@@ args).asInstanceOf[Expr[Ind]]

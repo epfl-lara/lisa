@@ -24,10 +24,14 @@ private[ADTv2] abstract class FunSpecBase[N <: Arity](
   protected def bodyFor(pattern: Pattern[N], fVar: Expr[Ind]): Expr[Ind]
 
   def untypedDefinition(fVar: Expr[Ind]): Expr[Prop] =
-    (fVar :: typ) /\ simplify(seqAnd(cases.map(pattern =>
-      forallSeq(
-        pattern.binders,
-        pattern.branchPremise ==> (fVar * pattern.inputTerm === bodyFor(pattern, fVar))
+    (fVar :: typ) /\ simplify(
+      seqAnd(
+        cases.map(pattern =>
+          forallSeq(
+            pattern.binders,
+            pattern.branchPremise ==> (fVar * pattern.inputTerm === bodyFor(pattern, fVar))
+          )
+        )
       )
-    )))
+    )
 }

@@ -105,9 +105,7 @@ private[functions] final class Uniqueness[N <: Arity](
           have(x * pointInput === y * pointInput) by Congruence.from(xAtPoint, yAtPoint)
         }
 
-        val rawBranch = pattern.variables2.reverse.foldLeft(directBranch)((fact, v) =>
-          thenHave(∃(v, fact.statement.left.head) |- (x * pointInput === y * pointInput)) by LeftExists
-        )
+        val rawBranch = pattern.variables2.reverse.foldLeft(directBranch)((fact, v) => thenHave(∃(v, fact.statement.left.head) |- (x * pointInput === y * pointInput)) by LeftExists)
 
         have(branchCase |- (x * pointInput === y * pointInput)) by Tautology.from(rawBranch)
       )

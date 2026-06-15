@@ -95,11 +95,11 @@ class DefinedProperty(
 
   private val lhs: Expr[Prop] = definition.statement.right.head match
     case lhs <=> _ => lhs
-    case other       => throw IllegalStateException(s"$name.definition is expected to be an `<=>`, got: $other")
+    case other => throw IllegalStateException(s"$name.definition is expected to be an `<=>`, got: $other")
 
   private val rhs: Expr[Prop] = definition.statement.right.head match
     case _ <=> rhs => rhs
-    case other       => throw IllegalStateException(s"$name.definition is expected to be an `<=>`, got: $other")
+    case other => throw IllegalStateException(s"$name.definition is expected to be an `<=>`, got: $other")
 
   /**
    * The left-to-right definitional direction of this predicate symbol.

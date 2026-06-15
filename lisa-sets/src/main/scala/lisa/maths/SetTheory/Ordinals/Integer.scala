@@ -75,10 +75,10 @@ object Integer extends lisa.Main {
       val succWitness =
         thenHave(∃(γ, ordinal(γ) /\ (α === S(γ)))) by
           Substitute(successorOrdinal.definition)
-      have( (α === S(γ)) |- ordinal(γ) ==> ordinal(S(γ))) by Tautology.from(
+      have((α === S(γ)) |- ordinal(γ) ==> ordinal(S(γ))) by Tautology.from(
         Ordinal.sucessorIsOrdinal of (α := γ)
       )
-      have( α === S(γ) |- ordinal(γ) ==>  ordinal(α)) by Congruence.from(lastStep)
+      have(α === S(γ) |- ordinal(γ) ==> ordinal(α)) by Congruence.from(lastStep)
       thenHave(ordinal(γ) /\ (α === S(γ)) |- ordinal(α)) by Tautology
       val ordFromWitness =
         thenHave(∃(γ, ordinal(γ) /\ (α === S(γ))) |- ordinal(α)) by LeftExists
@@ -89,7 +89,6 @@ object Integer extends lisa.Main {
     val splitCases = have((α === ∅) \/ successorOrdinal(α) |- ordinal(α)) by LeftOr(zeroCase, succCase)
     have(thesis) by Cut(splitFact, splitCases)
   }
-
 
   /**
    * Lemma --- The successor of an integer is an integer.
@@ -158,14 +157,11 @@ object Integer extends lisa.Main {
 
     val alphaInSucc = have(α ∈ S(α)) subproof {
       have(α ∈ Singleton.singleton(α)) by Tautology.from(
-        Singleton.membership of (x := α, y := α),
+        Singleton.membership of (x := α, y := α)
       )
-      have(α ∈ Union.∪(α)(Singleton.singleton(α))) by Tautology.from(lastStep,
-        Union.membership of (x := α, y := Singleton.singleton(α), z := α)
-      )
-      have(thesis) by Congruence.from(lastStep,S.definition)
+      have(α ∈ Union.∪(α)(Singleton.singleton(α))) by Tautology.from(lastStep, Union.membership of (x := α, y := Singleton.singleton(α), z := α))
+      have(thesis) by Congruence.from(lastStep, S.definition)
     }
-
 
     val inAlphaToLeqSucc = have(β ∈ α |- β <= S(α)) subproof {
       assume(β ∈ α)
@@ -335,8 +331,7 @@ object Integer extends lisa.Main {
     }
 
     val existsQ = have(∃(x, Q(x))) by Cut(
-      SetTheory.inductiveSetExists,
-      {
+      SetTheory.inductiveSetExists, {
         have(∃(i, SetTheory.inductive(i)) |- ∃(x, Q(x))) by LeftExists(existsQFromInductive)
         lastStep
       }
@@ -659,7 +654,7 @@ object Integer extends lisa.Main {
   /**
    * Lemma --- Zero is a natural number: `∅ ∈ ω`.
    */
-  val emptyInOmega = Lemma(∅ ∈ ω){
+  val emptyInOmega = Lemma(∅ ∈ ω) {
     val nullCharacterization = have((∅ ∈ ω) <=> integer(∅)) by
       InstantiateForall(∅)(omegaCharacterization)
 

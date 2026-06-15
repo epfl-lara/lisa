@@ -64,8 +64,6 @@ def genDebugADT(
     else regularConstructors
   adt(name = name, typeVars = typeVars, constructors = constructors)
 
-
-
 val nType = 2
 val nConstructors = 10
 val nArgs = 2
@@ -100,13 +98,4 @@ val debugRecursive = genDebugADT(
 )
 
 object Debug:
-  export lisa.maths.SetTheory.Types.ADTv2.library.{
-    genTypeVars,
-    genConstructorArgs,
-    genConstructors,
-    genDebugADT,
-    debugTypeHeavy,
-    debugConstructorHeavy,
-    debugArgumentHeavy,
-    debugRecursive
-  }
+  export lisa.maths.SetTheory.Types.ADTv2.library.{genTypeVars, genConstructorArgs, genConstructors, genDebugADT, debugTypeHeavy, debugConstructorHeavy, debugArgumentHeavy, debugRecursive}

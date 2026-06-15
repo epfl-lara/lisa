@@ -53,7 +53,6 @@ private[recursion] final class Approx[N <: Arity](
   val yVar = variable[Ind] // ε-witness for step function value
   val Func = variable[Ind >>: Ind >>: Ind]
 
-
   // ─────────────────────────────────────────────────────────────────────────
   // Lemma A — seedExists: ∃g₀, g₀ :: spec.typ
   // ─────────────────────────────────────────────────────────────────────────
@@ -73,7 +72,9 @@ private[recursion] final class Approx[N <: Arity](
     }
   }
 
-  /** ε-chosen seed function g₀ :: spec.typ. */
+  /**
+   * ε-chosen seed function g₀ :: spec.typ.
+   */
   private val g0: Expr[Ind] = ε(f0, f0 :: spec.typ)
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -94,7 +95,9 @@ private[recursion] final class Approx[N <: Arity](
     )
   )
 
-  /** G : ω → (A→T) defined by transfinite recursion. */
+  /**
+   * G : ω → (A→T) defined by transfinite recursion.
+   */
   private val approxSeq: Expr[Ind] = TransfiniteRecursion
     .transfiniteRecursionFunction(stepFunc)(N)
 
@@ -151,11 +154,13 @@ private[recursion] final class Approx[N <: Arity](
               (yVar === recWitness(app(approxSeq ↾ ∅)(jVar)))
           ) |- ()
         ) subproof {
-          assume(∃(
-            jVar,
-            (jVar ∈ N) /\ (∅ === S(jVar)) /\
-              (yVar === recWitness(app(approxSeq ↾ ∅)(jVar)))
-          ))
+          assume(
+            ∃(
+              jVar,
+              (jVar ∈ N) /\ (∅ === S(jVar)) /\
+                (yVar === recWitness(app(approxSeq ↾ ∅)(jVar)))
+            )
+          )
           have(
             (jVar ∈ N) /\ (∅ === S(jVar)) /\
               (yVar === recWitness(app(approxSeq ↾ ∅)(jVar))) |- ()
@@ -186,9 +191,9 @@ private[recursion] final class Approx[N <: Arity](
 
         val case2 = have(
           ∃(
-              jVar,
-              (jVar ∈ N) /\ (∅ === S(jVar)) /\
-                (yVar === recWitness(app(approxSeq ↾ ∅)(jVar)))
+            jVar,
+            (jVar ∈ N) /\ (∅ === S(jVar)) /\
+              (yVar === recWitness(app(approxSeq ↾ ∅)(jVar)))
           ) ==> (yVar === recWitness(g0))
         ) by Restate.from(
           have(
@@ -269,11 +274,13 @@ private[recursion] final class Approx[N <: Arity](
           (kVar ∈ N) /\ (S(kVar) === S(kVar)) /\
             (recWitness(app(hSk)(kVar)) === recWitness(app(hSk)(kVar)))
         ) by Tautology.from(kInNat)
-        thenHave(∃(
-          jVar,
-          (jVar ∈ N) /\ (S(kVar) === S(jVar)) /\
-            (recWitness(app(hSk)(kVar)) === recWitness(app(hSk)(jVar)))
-        )) by RightExists
+        thenHave(
+          ∃(
+            jVar,
+            (jVar ∈ N) /\ (S(kVar) === S(jVar)) /\
+              (recWitness(app(hSk)(kVar)) === recWitness(app(hSk)(jVar)))
+          )
+        ) by RightExists
         thenHave(Q(recWitness(app(hSk)(kVar)))) by Tautology
         thenHave(thesis) by RightExists
       }
@@ -296,11 +303,13 @@ private[recursion] final class Approx[N <: Arity](
               )
             ) by Restate
 
-            val exJ = have(∃(
-              jVar,
-              (jVar ∈ N) /\ (S(kVar) === S(jVar)) /\
-                (yVar === recWitness(app(hSk)(jVar)))
-            )) by Tautology.from(disj, notCase1)
+            val exJ = have(
+              ∃(
+                jVar,
+                (jVar ∈ N) /\ (S(kVar) === S(jVar)) /\
+                  (yVar === recWitness(app(hSk)(jVar)))
+              )
+            ) by Tautology.from(disj, notCase1)
 
             val fromExJ = have(
               ∃(
@@ -309,19 +318,21 @@ private[recursion] final class Approx[N <: Arity](
                   (yVar === recWitness(app(hSk)(jVar)))
               ) |- yVar === recWitness(app(hSk)(kVar))
             ) subproof {
-              assume(∃(
-                jVar,
-                (jVar ∈ N) /\ (S(kVar) === S(jVar)) /\
-                  (yVar === recWitness(app(hSk)(jVar)))
-              ))
+              assume(
+                ∃(
+                  jVar,
+                  (jVar ∈ N) /\ (S(kVar) === S(jVar)) /\
+                    (yVar === recWitness(app(hSk)(jVar)))
+                )
+              )
               have(
                 (jVar ∈ N) /\ (S(kVar) === S(jVar)) /\
                   (yVar === recWitness(app(hSk)(jVar))) |-
                   yVar === recWitness(app(hSk)(kVar))
               ) subproof {
                 val SkEqSj = have(
-                (jVar ∈ N) /\ (S(kVar) === S(jVar)) /\
-                  (yVar === recWitness(app(hSk)(jVar))) |- S(kVar) === S(jVar)
+                  (jVar ∈ N) /\ (S(kVar) === S(jVar)) /\
+                    (yVar === recWitness(app(hSk)(jVar))) |- S(kVar) === S(jVar)
                 ) by Tautology
                 val yEq = have(
                   (jVar ∈ N) /\ (S(kVar) === S(jVar)) /\

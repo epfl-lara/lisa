@@ -161,19 +161,29 @@ class SemanticADT[N <: Arity](
 
   val height = HeightAdapter()
 
-  /** Name of this ADT. */
+  /**
+   * Name of this ADT.
+   */
   val name: String = underlying.name
 
-  /** Identifier of this ADT. */
+  /**
+   * Identifier of this ADT.
+   */
   val id: Identifier = underlying.polymorphicTerm.id
 
-  /** Type variables of this ADT. */
+  /**
+   * Type variables of this ADT.
+   */
   val typeVariables: Variable[Ind] ** N = underlying.typeVariables
 
-  /** Sequence of type variables of this ADT. */
+  /**
+   * Sequence of type variables of this ADT.
+   */
   val typeVariablesSeq: Seq[Variable[Ind]] = underlying.typeVariablesSeq
 
-  /** Number of type variables in this ADT. */
+  /**
+   * Number of type variables in this ADT.
+   */
   val typeArity: N = underlying.typeArity
 
   /**
@@ -204,20 +214,24 @@ class SemanticADT[N <: Arity](
     val typedAssumption =
       simplify(wellTypedFormula(c1.semanticSignature1 ++ c2.semanticSignature2))
 
-    Lemma(forallSeq(
-      c1.variables1 ++ c2.variables2,
-      typedAssumption ==> !(c1.appliedTerm1 === c2.appliedTerm2)
-    )) {
+    Lemma(
+      forallSeq(
+        c1.variables1 ++ c2.variables2,
+        typedAssumption ==> !(c1.appliedTerm1 === c2.appliedTerm2)
+      )
+    ) {
 
       val defUnfolding = have(
         (vars1WellTyped ++ vars2WellTyped) + (c1.appliedTerm1 === c2.appliedTerm2) |-
           c1.structuralTerm1 === c2.structuralTerm2
       ) subproof {
-        have(forallSeq(
-          c1.variables1,
-          wellTypedFormula(c1.semanticSignature1) ==>
-            (c1.appliedTerm1 === c1.structuralTerm1)
-        )) by Restate.from(c1.shortDefinition)
+        have(
+          forallSeq(
+            c1.variables1,
+            wellTypedFormula(c1.semanticSignature1) ==>
+              (c1.appliedTerm1 === c1.structuralTerm1)
+          )
+        ) by Restate.from(c1.shortDefinition)
 
         c1.variables1.foldLeft(lastStep)((fact, v) =>
           fact.statement.right.head match
@@ -227,13 +241,14 @@ class SemanticADT[N <: Arity](
 
         val tappTerm1Def =
           thenHave(vars1WellTyped |- c1.structuralTerm1 === c1.appliedTerm1) by Restate
-          
 
-        have(forallSeq(
-          c2.variables2,
-          wellTypedFormula(c2.semanticSignature2) ==>
-            (c2.appliedTerm2 === c2.structuralTerm2)
-        )) by Restate.from(c2.shortDefinition)
+        have(
+          forallSeq(
+            c2.variables2,
+            wellTypedFormula(c2.semanticSignature2) ==>
+              (c2.appliedTerm2 === c2.structuralTerm2)
+          )
+        ) by Restate.from(c2.shortDefinition)
 
         c2.variables2.foldLeft(lastStep)((fact, v) =>
           fact.statement.right.head match
@@ -288,9 +303,7 @@ class SemanticADT[N <: Arity](
    *  `base cases => inductive cases => ∀x ∈ ADT. P(x)`
    */
   val induction = Lemma(
-    constructors.foldRight[Expr[Prop]](forall(x, x :: term ==> P(x)))((c, f) =>
-      c.inductiveCase ==> f
-    )
+    constructors.foldRight[Expr[Prop]](forall(x, x :: term ==> P(x)))((c, f) => c.inductiveCase ==> f)
   ) { sp ?=>
     constructors.foldRight[(Expr[Prop], Expr[Prop], sp.Fact)] {
       val prop = forall(x, x :: term ==> P(x))
@@ -304,10 +317,12 @@ class SemanticADT[N <: Arity](
         val wellTypedVars: Seq[Expr[Prop]] = wellTyped(c.semanticSignature)
         val wellTypedVarsSet = wellTypedVars.toSet
 
-        have(forallSeq(
-          c.variables,
-          wellTypedFormula(c.semanticSignature) ==> (c.appliedTerm === c.structuralTerm)
-        )) by Restate.from(c.shortDefinition)
+        have(
+          forallSeq(
+            c.variables,
+            wellTypedFormula(c.semanticSignature) ==> (c.appliedTerm === c.structuralTerm)
+          )
+        ) by Restate.from(c.shortDefinition)
         if c.arity > 0 then
           c.variables1.foldLeft(lastStep)((_, _) =>
             lastStep.statement.right.head match
@@ -399,7 +414,8 @@ class SemanticADT[N <: Arity](
     have(underlying.induction.statement.right.head |- thesis.right.head) by Cut(
       lastStep,
       equivalenceApply of (
-        p1 := underlying.induction.statement.right.head, p2 := thesis.right.head
+        p1 := underlying.induction.statement.right.head,
+        p2 := thesis.right.head
       )
     )
     have(thesis) by Cut(underlying.induction, lastStep)
@@ -410,12 +426,14 @@ class SemanticADT[N <: Arity](
    *  instance of it.
    */
   private lazy val isConstructorMap: Map[SemanticConstructor[N], Expr[Prop]] =
-    constructors.map(c =>
-      c -> existsSeq(
-        c.variables2,
-        wellTypedFormula(c.semanticSignature2) /\ (x === c.appliedTerm2)
+    constructors
+      .map(c =>
+        c -> existsSeq(
+          c.variables2,
+          wellTypedFormula(c.semanticSignature2) /\ (x === c.appliedTerm2)
+        )
       )
-    ).toMap
+      .toMap
 
   /**
    *  Returns a formula describing whether x is an instance of one of this ADT's
@@ -433,20 +451,20 @@ class SemanticADT[N <: Arity](
 
     // Induction preconditions with P(z) = z != x
     val inductionPreconditionIneq = constructors
-      .map(c =>
-        c -> betaReduce(c.inductiveCase.substitute(P -> lambda(z, !(x === z))))
-      )
+      .map(c => c -> betaReduce(c.inductiveCase.substitute(P -> lambda(z, !(x === z)))))
       .toMap
     val inductionPreconditionsIneq = seqAnd(inductionPreconditionIneq.map(_._2))
 
     // Weakening of the negation of the induction preconditions
     val weakNegInductionPreconditionIneq: Map[SemanticConstructor[N], Expr[Prop]] =
-      constructors.map(c =>
-        c -> c.semanticSignature2.foldRight[Expr[Prop]](x === c.appliedTerm2)((el, fc) =>
-          val (v, t) = el
-          exists(v, (v :: t) /\ fc)
+      constructors
+        .map(c =>
+          c -> c.semanticSignature2.foldRight[Expr[Prop]](x === c.appliedTerm2)((el, fc) =>
+            val (v, t) = el
+            exists(v, (v :: t) /\ fc)
+          )
         )
-      ).toMap
+        .toMap
 
     // STEP 1: Prove that if the induction preconditions with P(z) = z != x do not hold then x is the instance of some constructor
     val strengtheningOfInductionPreconditions =
@@ -467,34 +485,36 @@ class SemanticADT[N <: Arity](
                 val baseW = x === c.appliedTerm2
                 val seed = (baseF, baseW, have(!baseF |- baseW) by Restate)
 
-                val (_, _, finalFact) = c.syntacticSignature(c.variables2).foldRight(seed)((el, acc) =>
-                  val (v, ty) = el
-                  val (currF, currW, currFact) = acc
-                  val argType = ty.getOrElse(term)
+                val (_, _, finalFact) = c
+                  .syntacticSignature(c.variables2)
+                  .foldRight(seed)((el, acc) =>
+                    val (v, ty) = el
+                    val (currF, currW, currFact) = acc
+                    val argType = ty.getOrElse(term)
 
-                  have(!currF |- currW) by Restate.from(currFact)
+                    have(!currF |- currW) by Restate.from(currFact)
 
-                  val nextF = ty match
-                    case SelfRef => 
-                      thenHave(!(!(x === v) ==> currF) |- currW) by Tautology
-                      (!(x === v) ==> currF)
-                    case _ => 
-                      currF
+                    val nextF = ty match
+                      case SelfRef =>
+                        thenHave(!(!(x === v) ==> currF) |- currW) by Tautology
+                        (!(x === v) ==> currF)
+                      case _ =>
+                        currF
 
-                  val nextF2 = (v :: argType) ==> nextF
-                  thenHave( !nextF2 |- currW ) by Tautology
+                    val nextF2 = (v :: argType) ==> nextF
+                    thenHave(!nextF2 |- currW) by Tautology
 
-                  val newW = exists(v, (v :: argType) /\ currW)
-                  thenHave(!nextF2 |- (v :: argType) /\ currW) by Restate
-                  thenHave(!nextF2 |- newW) by RightExists
+                    val newW = exists(v, (v :: argType) /\ currW)
+                    thenHave(!nextF2 |- (v :: argType) /\ currW) by Restate
+                    thenHave(!nextF2 |- newW) by RightExists
 
-                  val newF = forall(v, nextF2)
-                  thenHave(exists(v, !(nextF2)) |- newW) by LeftExists
-                  
-                  val newFact = have(!newF |- newW) by Tautology.from(lastStep, existsNeg)
-                  
-                  (newF, newW, newFact)
-                )
+                    val newF = forall(v, nextF2)
+                    thenHave(exists(v, !(nextF2)) |- newW) by LeftExists
+
+                    val newFact = have(!newF |- newW) by Tautology.from(lastStep, existsNeg)
+
+                    (newF, newW, newFact)
+                  )
 
                 have(thesis) by Restate.from(finalFact)
               }

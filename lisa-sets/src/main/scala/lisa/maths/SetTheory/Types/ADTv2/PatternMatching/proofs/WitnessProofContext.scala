@@ -29,8 +29,7 @@ private[proofs] trait WitnessProofContext[N <: Arity] {
   protected val outputTerm: Variable[Ind] = variable[Ind]
   protected val alternateOutputTerm: Variable[Ind] = variable[Ind]
 
-  protected val witnessBody: Expr[Ind] =
-    { pairWitness ∈ witnessBound | caseMembership(pairWitness) }
+  protected val witnessBody: Expr[Ind] = { pairWitness ∈ witnessBound | caseMembership(pairWitness) }
 
   protected val patternCaseMembership: Expr[Ind] => Expr[Prop] =
     patternMatching.caseMembership

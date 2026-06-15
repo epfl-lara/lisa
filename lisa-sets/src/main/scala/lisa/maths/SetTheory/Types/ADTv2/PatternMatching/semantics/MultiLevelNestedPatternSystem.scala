@@ -51,7 +51,8 @@ private[PatternMatching] final case class MultiLevelNestedPatternSystem[N <: Ari
 
   override def incompatible(pattern1: Pattern[N], pattern2: Pattern[N]): THM =
     incompatibleCache.getOrElseUpdate(
-      (pattern1, pattern2), Time.measure(s"Pattern/Incompatible") {
+      (pattern1, pattern2),
+      Time.measure(s"Pattern/Incompatible") {
         NestedTrieProofs.incompatibleCaseShape(
           pattern1.asInstanceOf[NestedConstructorPattern[?]],
           pattern2.asInstanceOf[NestedConstructorPattern[?]]
@@ -61,22 +62,27 @@ private[PatternMatching] final case class MultiLevelNestedPatternSystem[N <: Ari
 
   override def branchSelectionFor(constructor: SemanticConstructor[N], term: Expr[Ind]): THM =
     branchSelectionCache.getOrElseUpdate(
-      (constructor, term), Time.measure(s"Pattern/Branch selection"){
-      val pats = patternsFor(constructor).map(_.asInstanceOf[NestedConstructorPattern[N]])
-      if pats.forall(_.guards.isEmpty) then
-        // single unconditional pattern: the selection is trivial.
-        val target = forallSeq(
-          constructor.variables2,
-          (wellTypedFormula(constructor.semanticSignature2).substitute(typeSubstitutions*) /\
-            (term === constructor.appliedTerm2).substitute(typeSubstitutions*)) ==>
-            seqOr(pats.map(p => p.branchSelectionDisjunct(term)))
-        )
-        Lemma(target.asInstanceOf[Expr[Prop]]) { have(thesis) by Tautology }
-      else
-        NestedTrieProofs.branchSelectionForCaseShape(
-          constructor, term, pats, typeSubstitutions
-        )
-    })
+      (constructor, term),
+      Time.measure(s"Pattern/Branch selection") {
+        val pats = patternsFor(constructor).map(_.asInstanceOf[NestedConstructorPattern[N]])
+        if pats.forall(_.guards.isEmpty) then
+          // single unconditional pattern: the selection is trivial.
+          val target = forallSeq(
+            constructor.variables2,
+            (wellTypedFormula(constructor.semanticSignature2).substitute(typeSubstitutions*) /\
+              (term === constructor.appliedTerm2).substitute(typeSubstitutions*)) ==>
+              seqOr(pats.map(p => p.branchSelectionDisjunct(term)))
+          )
+          Lemma(target.asInstanceOf[Expr[Prop]]) { have(thesis) by Tautology }
+        else
+          NestedTrieProofs.branchSelectionForCaseShape(
+            constructor,
+            term,
+            pats,
+            typeSubstitutions
+          )
+      }
+    )
 
   // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -86,12 +92,10 @@ private[PatternMatching] final case class MultiLevelNestedPatternSystem[N <: Ari
     patterns.map(p => (interfaceCtor(p.semanticConstructor), clauseArgs(p)))
 
   private def clauseArgs(p: NestedConstructorPattern[N]): Seq[Expr[Ind]] =
-    (0 until p.arity).map(i =>
-      p.guards.find(_.position == i).map(_.guardTerm).getOrElse(p.topBinders(i)))
+    (0 until p.arity).map(i => p.guards.find(_.position == i).map(_.guardTerm).getOrElse(p.topBinders(i)))
 
   private def interfaceCtor(sc: SemanticConstructor[N]): Constructor[?] =
-    ADT.allADTs.toSeq.flatMap(_.constructors).find(_.id == sc.id).getOrElse(
-      throw new IllegalArgumentException(s"No interface constructor for ${sc.name}."))
+    ADT.allADTs.toSeq.flatMap(_.constructors).find(_.id == sc.id).getOrElse(throw new IllegalArgumentException(s"No interface constructor for ${sc.name}."))
 
   private def gapNodes(tree: Tree): Seq[(NestedTrie.Occ, List[String])] = tree match
     case Fail(occ, missing) => Seq((occ, missing))

@@ -15,21 +15,21 @@ final class SemanticFunction[N <: Arity](
     patternMatching: PatternSystem[N],
     semanticReturnType: Expr[Ind]
 ) extends FunctionSemanticsBase[N](
-    new SemanticFunctionInputs[N] {
-      
-      val spec: FunSpec[N] = new FunSpec[N](
-        functionName = semanticName,
-        adt = semanticAdt,
-        argType = semanticArgType,
-        patternMatching = patternMatching,
-        returnType = semanticReturnType
-      )
+      new SemanticFunctionInputs[N] {
 
-      private val witness: Witness[N] = Time.measure(s"Witness", false)(new Witness[N](spec))
+        val spec: FunSpec[N] = new FunSpec[N](
+          functionName = semanticName,
+          adt = semanticAdt,
+          argType = semanticArgType,
+          patternMatching = patternMatching,
+          returnType = semanticReturnType
+        )
 
-      def name: String = semanticName
-      val existence: Existence[N] = Time.measure(s"Existence", false)(new Existence[N](spec, witness))
-      val uniqueness: Uniqueness[N] = new Uniqueness[N](spec)
-      def buildPatterns(term: Expr[Ind]): Seq[Pattern[N]] = spec.cases
-    }
-)
+        private val witness: Witness[N] = Time.measure(s"Witness", false)(new Witness[N](spec))
+
+        def name: String = semanticName
+        val existence: Existence[N] = Time.measure(s"Existence", false)(new Existence[N](spec, witness))
+        val uniqueness: Uniqueness[N] = new Uniqueness[N](spec)
+        def buildPatterns(term: Expr[Ind]): Seq[Pattern[N]] = spec.cases
+      }
+    )

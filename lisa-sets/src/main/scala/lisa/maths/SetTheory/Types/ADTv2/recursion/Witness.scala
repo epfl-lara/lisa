@@ -32,10 +32,14 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N])
 
   private val selfPlaceholder: Variable[Ind] = spec.selfPlaceholder
 
-  /** typingPremise = selfPlaceholder :: A→T (the induction hypothesis on the self-reference). */
+  /**
+   * typingPremise = selfPlaceholder :: A→T (the induction hypothesis on the self-reference).
+   */
   val typingPremise: Expr[Prop] = selfPlaceholder :: spec.typ
 
-  /** Definitional equation for the witness: W(selfPlaceholder) = witnessBody. */
+  /**
+   * Definitional equation for the witness: W(selfPlaceholder) = witnessBody.
+   */
   val witnessDef: JUSTIFICATION = witnessDefCore
 
   def apply(g: Expr[Ind]): Expr[Ind] =

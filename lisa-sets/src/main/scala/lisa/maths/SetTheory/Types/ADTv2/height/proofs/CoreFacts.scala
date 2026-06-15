@@ -39,8 +39,8 @@ private[height] object CoreFacts {
 
   def isHeightCore(h: Expr[Ind]): Expr[Prop] =
     function(h) /\
-    (dom(h) === N) /\
-    ∀(n ∈ N, ∀(x, in(x, app(h, n)) <=> inExtIntroImage(h ↾ n)(x)))
+      (dom(h) === N) /\
+      ∀(n ∈ N, ∀(x, in(x, app(h, n)) <=> inExtIntroImage(h ↾ n)(x)))
 
   val introFunctionMono: Expr[Prop] =
     forall(s, forall(t, subset(s, t) ==> forall(x, inIntroImage(s)(x) ==> inIntroImage(t)(x))))
@@ -78,7 +78,7 @@ private[height] object CoreFacts {
     val recSpec = have(
       stageSetSpec |-
         functionOn(recFun)(N) /\
-          ∀(n ∈ N, app(recFun, n) === stepFunc(n)(recFun ↾ n))
+        ∀(n ∈ N, app(recFun, n) === stepFunc(n)(recFun ↾ n))
     ) by Weakening(recSpec0)
 
     val funOnRec = have(stageSetSpec |- functionOn(recFun)(N)) by Tautology.from(recSpec)

@@ -44,7 +44,9 @@ private[recursion] object PointwiseAgreementStep {
    * of that constructor, proves `pattern.branchSelectionBody(a) ⊢ goalEqAt`.
    */
   trait SelectedPatternProver[N <: Arity] {
-    def apply(using proof: lisa.SetTheoryLibrary.Proof)(
+    def apply(using
+        proof: lisa.SetTheoryLibrary.Proof
+    )(
         sc: SpecializedConstructorFacts[N],
         argsTypedAtHeight: proof.Fact,
         argsTypedSemantic: proof.Fact,
@@ -52,7 +54,9 @@ private[recursion] object PointwiseAgreementStep {
     ): Pattern[N] => proof.Fact
   }
 
-  def pointwiseAgreementOnSucc[N <: Arity](using proof: lisa.SetTheoryLibrary.Proof)(
+  def pointwiseAgreementOnSucc[N <: Arity](using
+      proof: lisa.SetTheoryLibrary.Proof
+  )(
       patternMatching: PatternSystem[N],
       heightFun: Expr[Ind],
       constructorsAt: Seq[SpecializedConstructorFacts[N]],
@@ -108,19 +112,21 @@ private[recursion] object PointwiseAgreementStep {
 
             val patternEqualities = constructorPatterns.map { pattern =>
               val rawEq = rawEqFor(pattern)
-              pattern.variables2.drop(pattern.arity).reverse.foldLeft(
-                (pattern.branchSelectionBody(ambientTerm), rawEq)
-              ) { case ((body, _), v) =>
-                val quantified = ∃(v, body)
-                (quantified, thenHave(quantified |- goalEqAt) by LeftExists)
-              }._2
+              pattern.variables2
+                .drop(pattern.arity)
+                .reverse
+                .foldLeft(
+                  (pattern.branchSelectionBody(ambientTerm), rawEq)
+                ) { case ((body, _), v) =>
+                  val quantified = ∃(v, body)
+                  (quantified, thenHave(quantified |- goalEqAt) by LeftExists)
+                }
+                ._2
             }
 
             val branchesToGoal =
-              if patternEqualities.size == 1 then
-                have(selectedBranch.statement.right.head |- goalEqAt) by Restate.from(patternEqualities.head)
-              else
-                have(selectedBranch.statement.right.head |- goalEqAt) by LeftOr(patternEqualities*)
+              if patternEqualities.size == 1 then have(selectedBranch.statement.right.head |- goalEqAt) by Restate.from(patternEqualities.head)
+              else have(selectedBranch.statement.right.head |- goalEqAt) by LeftOr(patternEqualities*)
 
             have(goalEqAt) by Cut(selectedBranch, branchesToGoal)
           }

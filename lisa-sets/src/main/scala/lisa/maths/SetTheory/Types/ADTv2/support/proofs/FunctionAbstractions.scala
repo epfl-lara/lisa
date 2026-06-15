@@ -143,10 +143,8 @@ object FunctionAbstractions {
       tailSig: Seq[(Variable[Ind], Expr[Ind])]
   ): THM = Lemma(wellTypedFormula(remainingSig) |- wellTypedFormula(tailSig)) {
     val allTyped = assume(wellTypedFormula(remainingSig))
-    if tailSig.isEmpty then
-      have(thesis) by Tautology
-    else
-      have(thesis) by Tautology.from(allTyped)
+    if tailSig.isEmpty then have(thesis) by Tautology
+    else have(thesis) by Tautology.from(allTyped)
   }
 
   lazy val applicationTypingFromFunctionTypingGeneral: THM =

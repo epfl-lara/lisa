@@ -10,8 +10,7 @@ import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.semantics.UniqueDefinedSymbol
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
-private[encoding] trait SyntacticADTHeight[N <: Arity]
-    extends SyntacticADTInjectivity[N] {
+private[encoding] trait SyntacticADTHeight[N <: Arity] extends SyntacticADTInjectivity[N] {
   this: SyntacticADT[N] =>
 
   protected val heightConstructorData = constructors.map(c =>
@@ -31,31 +30,37 @@ private[encoding] trait SyntacticADTHeight[N <: Arity]
     )
   )
 
-  protected val heightTHY = Time.measure("ADT HeightADT")(HeightADT[N](
-    name,
-    typeVariablesSeq,
-    isConstructor
-  ))
+  protected val heightTHY = Time.measure("ADT HeightADT")(
+    HeightADT[N](
+      name,
+      typeVariablesSeq,
+      isConstructor
+    )
+  )
 
-  protected val heightStageSet = Time.measure("ADT HeightStageSet")(HeightStageSet[N](
-    heightTHY, 
-    heightStageConstructorData, 
-    isConstructor
-  ))
+  protected val heightStageSet = Time.measure("ADT HeightStageSet")(
+    HeightStageSet[N](
+      heightTHY,
+      heightStageConstructorData,
+      isConstructor
+    )
+  )
 
-  protected val heightConstructorsTHY = Time.measure("ADT HeightConstructors")(HeightConstructors[N](
-    heightTHY,
-    heightConstructorData,
-    heightStageSet,
-    isConstructor
-  ))
+  protected val heightConstructorsTHY = Time.measure("ADT HeightConstructors")(
+    HeightConstructors[N](
+      heightTHY,
+      heightConstructorData,
+      heightStageSet,
+      isConstructor
+    )
+  )
 
   def isHeight(h: Expr[Ind]): Expr[Prop] = heightTHY.isHeight(h)
   val heightExists = heightConstructorsTHY.heightExists
   val heightUniqueness = heightConstructorsTHY.heightUniqueness
   val heightExistsOne = heightConstructorsTHY.heightExistsOne
 
-  private val heightVar = variable[Ind](s"${name}/height") 
+  private val heightVar = variable[Ind](s"${name}/height")
   private val definedClassFunction = UniqueDefinedSymbol(
     name = s"${name}/heightFun",
     typeVariablesSeq = typeVariablesSeq,

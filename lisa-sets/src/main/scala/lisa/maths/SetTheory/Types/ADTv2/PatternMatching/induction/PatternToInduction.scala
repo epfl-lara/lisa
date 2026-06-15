@@ -23,8 +23,7 @@ object PatternToInduction {
         _ <- ensureCoverage(domain, patternBranches)
       yield InductionBranchSystem(
         domain = domain,
-        branchesByConstructor =
-          patternBranches.groupBy(_.constructor).withDefaultValue(Seq.empty)
+        branchesByConstructor = patternBranches.groupBy(_.constructor).withDefaultValue(Seq.empty)
       )
     }
 
@@ -46,9 +45,7 @@ object PatternToInduction {
       yield InductionBranchSystemWithPayload(
         domain = domain,
         branchesByConstructor =
-          branches.zip(payloads).map((branch, payload) =>
-            branch.constructor -> InductionBranchWithPayload(branch, payload)
-          ).groupBy(_._1).view.mapValues(_.map(_._2)).toMap.withDefaultValue(Seq.empty)
+          branches.zip(payloads).map((branch, payload) => branch.constructor -> InductionBranchWithPayload(branch, payload)).groupBy(_._1).view.mapValues(_.map(_._2)).toMap.withDefaultValue(Seq.empty)
       )
     }
 
@@ -78,10 +75,9 @@ object PatternToInduction {
               constructor = constructor,
               binders = constructorPattern.binders,
               recursiveBinders = recursiveBindersFor(constructorPattern),
-              typingAssumptions =
-                constructorPattern
-                  .typingSignatureAt(constructorPattern.binders)
-                  .map { case (variable, typ) => variable :: typ },
+              typingAssumptions = constructorPattern
+                .typingSignatureAt(constructorPattern.binders)
+                .map { case (variable, typ) => variable :: typ },
               guardAssumptions = guardAssumptionsFor(constructorPattern)
             )
           )
@@ -102,8 +98,8 @@ object PatternToInduction {
   private def recursiveBindersFor[N <: Arity](
       pattern: ConstructorHeadPattern[N]
   ): Seq[Variable[Ind]] =
-    pattern.semanticConstructor.underlying.specification.zip(pattern.binders).collect {
-      case (SelfRef, binder) => binder
+    pattern.semanticConstructor.underlying.specification.zip(pattern.binders).collect { case (SelfRef, binder) =>
+      binder
     }
 
   private def guardAssumptionsFor[N <: Arity](

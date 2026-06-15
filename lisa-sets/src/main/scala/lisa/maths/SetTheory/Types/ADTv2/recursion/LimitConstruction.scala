@@ -14,9 +14,9 @@ import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[recursion] final class LimitConstruction[N <: Arity](
-  val spec: FunSpec[N],
-  val approx: Approx[N],
-  val approxProp: ApproxProp[N]
+    val spec: FunSpec[N],
+    val approx: Approx[N],
+    val approxProp: ApproxProp[N]
 ) {
 
   val nVar = variable[Ind]

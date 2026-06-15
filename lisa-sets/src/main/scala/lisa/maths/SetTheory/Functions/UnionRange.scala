@@ -62,7 +62,7 @@ object UnionRange {
 
       import lisa.maths.SetTheory.Base.Replacement.{|}
 
-      have(y ∈ {snd(z) | z ∈ f} <=> ∃(z ∈ f, snd(z) === y)) by Replacement.apply
+      have(y ∈ { snd(z) | z ∈ f } <=> ∃(z ∈ f, snd(z) === y)) by Replacement.apply
       thenHave(y ∈ range(f) <=> ∃(z, (z ∈ f) /\ (snd(z) === y))) by Substitute(range.definition of (R := f))
       val exWitness = have(∃(z, (z ∈ f) /\ (snd(z) === y))) by Tautology.from(lastStep)
 
@@ -157,11 +157,13 @@ object UnionRange {
         ∃(m, ∃(y, (m ∈ dom(h)) /\ z ∈ y /\ (app(h)(m) === y)))
     ) by Tautology.from(beforeExSwap, lastStep)
 
-    have(∀(
-      m,
-      (∃(y, (m ∈ dom(h)) /\ z ∈ y /\ (app(h)(m) === y))) <=>
-        ((m ∈ dom(h)) /\ z ∈ app(h)(m))
-    )) by RightForall(
+    have(
+      ∀(
+        m,
+        (∃(y, (m ∈ dom(h)) /\ z ∈ y /\ (app(h)(m) === y))) <=>
+          ((m ∈ dom(h)) /\ z ∈ app(h)(m))
+      )
+    ) by RightForall(
       onePointRule of (P := lambda(y, (m ∈ dom(h)) /\ z ∈ y), y := app(h)(m))
     )
 

@@ -48,7 +48,6 @@ private[PatternMatching] trait ConstructorHeadPattern[N <: Arity] extends Patter
 
   override def variables2: Seq[Variable[Ind]] = semanticConstructor.variables2
 
-
   private def constructorApplicationTyping[N <: Arity](
       c: SemanticConstructor[N],
       args: Seq[Variable[Ind]]
@@ -59,24 +58,26 @@ private[PatternMatching] trait ConstructorHeadPattern[N <: Arity] extends Patter
     val introTyping = lastStep
     val argsWellTyped = assume(wellTypedFormula(c.semanticSignature(args)))
 
-    val finalTyping = args.foldLeft(
-      (introTyping, c.term(c.typeVariablesSeq): Expr[Ind], c.typ: Expr[Ind])
-    ) { case ((accFact, accTerm, accType), argument) =>
-      accType match
-        case domainTy ->: codomainTy =>
-          val argumentTyping = have(
-            wellTypedFormula(c.semanticSignature(args)) |- argument :: domainTy
-          ) by Tautology.from(argsWellTyped)
-          val nextTyping = have(
-            wellTypedFormula(c.semanticSignature(args)) |- (accTerm * argument) :: codomainTy
-          ) by Tautology.from(
-            accFact,
-            arrowElim of (f := accTerm, a := domainTy, b := codomainTy, x := argument),
-            argumentTyping
-          )
-          (nextTyping, accTerm * argument, codomainTy)
-        case _ => throw UnreachableException
-    }._1
+    val finalTyping = args
+      .foldLeft(
+        (introTyping, c.term(c.typeVariablesSeq): Expr[Ind], c.typ: Expr[Ind])
+      ) { case ((accFact, accTerm, accType), argument) =>
+        accType match
+          case domainTy ->: codomainTy =>
+            val argumentTyping = have(
+              wellTypedFormula(c.semanticSignature(args)) |- argument :: domainTy
+            ) by Tautology.from(argsWellTyped)
+            val nextTyping = have(
+              wellTypedFormula(c.semanticSignature(args)) |- (accTerm * argument) :: codomainTy
+            ) by Tautology.from(
+              accFact,
+              arrowElim of (f := accTerm, a := domainTy, b := codomainTy, x := argument),
+              argumentTyping
+            )
+            (nextTyping, accTerm * argument, codomainTy)
+          case _ => throw UnreachableException
+      }
+      ._1
 
     have(thesis) by Restate.from(finalTyping)
   }

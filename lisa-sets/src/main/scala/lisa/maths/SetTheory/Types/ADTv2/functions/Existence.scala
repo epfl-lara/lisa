@@ -23,14 +23,20 @@ private[functions] final class Existence[N <: Arity](
     spec.untypedDefinition(witness.witness)
 
   private val witnessCases: Expr[Prop] =
-    simplify(seqAnd(spec.cases.map(pattern =>
-      forallSeq(
-        pattern.binders,
-        pattern.branchPremise ==> (witness.witness * pattern.inputTerm === pattern.body)
+    simplify(
+      seqAnd(
+        spec.cases.map(pattern =>
+          forallSeq(
+            pattern.binders,
+            pattern.branchPremise ==> (witness.witness * pattern.inputTerm === pattern.body)
+          )
+        )
       )
-    )))
+    )
 
-  /** ∃f, Def(f) */
+  /**
+   * ∃f, Def(f)
+   */
   val witnessExists: THM = Lemma(∃(f, spec.untypedDefinition(f))) {
     val patternCaseFacts = spec.cases.map(pattern => witness.witnessCaseByPattern(pattern))
     have(witnessCases) by Tautology.from(patternCaseFacts*)

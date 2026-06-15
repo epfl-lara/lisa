@@ -36,19 +36,21 @@ def extractPatternCaseSchema[N <: Arity](
     functionHead: Expr[Ind],
     pattern: Pattern[N]
 ): (Seq[Variable[Ind]], Expr[Prop]) = {
-  val maybeSchema = splitConjunctions(definition).iterator.flatMap(candidate =>
-    val (vars, core) = stripForalls(candidate)
-    val (antecedent, conclusion) = splitImplication(core)
-    val maybeEquality = asIndEquality(conclusion)
+  val maybeSchema = splitConjunctions(definition).iterator
+    .flatMap(candidate =>
+      val (vars, core) = stripForalls(candidate)
+      val (antecedent, conclusion) = splitImplication(core)
+      val maybeEquality = asIndEquality(conclusion)
 
-    maybeEquality.flatMap((lhs, rhs) =>
-      val expectedApplication = functionHead * pattern.inputTermAt(vars)
-      val expectedPremise = simplify(pattern.branchPremiseAt(vars))
-      if (lhs == expectedApplication || rhs == expectedApplication) && antecedent == expectedPremise then
-        Some(vars -> candidate)
-      else None
+      maybeEquality.flatMap((lhs, rhs) =>
+        val expectedApplication = functionHead * pattern.inputTermAt(vars)
+        val expectedPremise = simplify(pattern.branchPremiseAt(vars))
+        if (lhs == expectedApplication || rhs == expectedApplication) && antecedent == expectedPremise then Some(vars -> candidate)
+        else None
+      )
     )
-  ).toSeq.headOption
+    .toSeq
+    .headOption
 
   maybeSchema.getOrElse(
     throw IllegalArgumentException(

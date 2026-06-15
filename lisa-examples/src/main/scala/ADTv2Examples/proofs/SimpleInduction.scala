@@ -28,7 +28,6 @@ object SimpleInduction extends lisa.Main {
     }
   }
 
-
   section("Induction on Nat")
 
   val natReflexive = Theorem((n :: nat) |- n === n) {
@@ -46,7 +45,7 @@ object SimpleInduction extends lisa.Main {
     have(thesis) by Induction(n, nat) {
       Case(zero) subproof {
         have(thesis) by Congruence.from(
-          double.elim(zero), 
+          double.elim(zero),
           zero.intro
         )
       }
@@ -61,7 +60,7 @@ object SimpleInduction extends lisa.Main {
           arrowElim of (f := succ, a := nat.term, b := nat.term, x := succ * (double * natDoubleN)),
           arrowElim of (f := succ, a := nat.term, b := nat.term, x := double * natDoubleN)
         )
-        have(thesis) by Congruence.from(st1,st2)
+        have(thesis) by Congruence.from(st1, st2)
       }
     }
   }

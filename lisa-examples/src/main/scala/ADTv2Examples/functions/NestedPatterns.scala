@@ -43,7 +43,6 @@ object NestedPatterns extends lisa.Main {
   show(countTrue.elim(bool)(cons))
   show(countTrue.elimTotal(bool))
 
-
   // Check whether any element of a list of booleans is `tru`.
   lazy val existsTrue = recFun(boolList, bool) { self =>
     Case(nil):
@@ -61,7 +60,6 @@ object NestedPatterns extends lisa.Main {
   show(existsTrue.elim(bool)(Case(cons, fals, tl)))
   show(existsTrue.elimTotal(bool))
 
-
   // ── List[Nat] examples ─────────────────────────────────────────────────
 
   // section("headIsZero on List[Nat]")
@@ -76,9 +74,7 @@ object NestedPatterns extends lisa.Main {
   // show(isLongList.intro(nat))
   // show(isLongList.elim(nat)(nil))
   // show(isLongList.elim(nat)(cons))
-  
-  
-  
+
   // section("headIsZero on List[Nat]")
   // val isOptionZero = fun(Option.option.specialize(nat), bool) {
   //   Case(Option.none):
@@ -89,7 +85,6 @@ object NestedPatterns extends lisa.Main {
   //   // Case(Option.some, succ * k):
   //     fals
   // }
-  
 
   // ── Multi-level nested patterns on Nat examples ────────────────────────────────────────────────
   section("multi-level nested patterns on Nat (fun)")
@@ -138,11 +133,10 @@ object NestedPatterns extends lisa.Main {
       self * tl
   }
 
-
   show(hasDuplicate.intro(bool))
   show(hasDuplicate.elim(bool)(nil))
   show(hasDuplicate.elim(bool)(Case(cons, tru, cons(bool) * tru * tl)))
   show(hasDuplicate.elimTotal(bool))
-  
+
   // Time.printSummary()
 }

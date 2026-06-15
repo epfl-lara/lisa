@@ -13,14 +13,11 @@ object NestedPatternInduction extends lisa.Main {
   private val tl = variable[Ind]
   private val boolList = list.specialize(bool)
 
-
-
   section("Proof example: non-existence of a true in a list implies zero count")
 
-  
   val nonExistsImpliesZeroCount = Lemma(
     l :: list.termAt(Seq(bool.term)) |- (existsTrue(bool) * l === fals) ==> (countTrue(bool) * l === zero)
-  ){
+  ) {
     have(thesis) by Induction(l, boolList) {
 
       Case(nil) subproof {
@@ -88,10 +85,10 @@ object NestedPatternInduction extends lisa.Main {
       }
     }
   }
-  
+
   val nonExistsImpliesZeroCount2 = Lemma(
     l :: list.termAt(Seq(bool.term)) |- (existsTrue(bool) * l === fals) ==> (countTrue(bool) * l === zero)
-  ){
+  ) {
     have(thesis) by Induction(l, boolList) {
 
       Case(nil) subproof {
@@ -100,7 +97,7 @@ object NestedPatternInduction extends lisa.Main {
         have(thesis) by Tautology.from(countTrue.elim(bool)(nil))
       }
       Case(cons, tru, tl) subproof {
-        // ( cons/arg0 ∈ bool/term1, tl ∈ list/term2[bool/term1], existsTrue[tl] = bool/fals ⇒ countTrue[tl] = nat/zero, cons/arg0 = bool/tru ) 
+        // ( cons/arg0 ∈ bool/term1, tl ∈ list/term2[bool/term1], existsTrue[tl] = bool/fals ⇒ countTrue[tl] = nat/zero, cons/arg0 = bool/tru )
         // ⊢ existsTrue[list/cons[bool/term1](cons/arg0)(tl)] = bool/fals ⇒ countTrue[list/cons[bool/term1](cons/arg0)(tl)] = nat/zero
 
         val arg0 = Variable[Ind]("cons/arg0")
@@ -129,7 +126,7 @@ object NestedPatternInduction extends lisa.Main {
         }
       }
       Case(cons, fals, tl) subproof {
-        // ( cons/arg0 ∈ bool/term1, tl ∈ list/term2[bool/term1], existsTrue[tl] = bool/fals ⇒ countTrue[tl] = nat/zero, cons/arg0 = bool/fals ) 
+        // ( cons/arg0 ∈ bool/term1, tl ∈ list/term2[bool/term1], existsTrue[tl] = bool/fals ⇒ countTrue[tl] = nat/zero, cons/arg0 = bool/fals )
         // ⊢ existsTrue[list/cons[bool/term1](cons/arg0)(tl)] = bool/fals ⇒ countTrue[list/cons[bool/term1](cons/arg0)(tl)] = nat/zero
 
         val arg0 = Variable[Ind]("cons/arg0")
@@ -159,5 +156,5 @@ object NestedPatternInduction extends lisa.Main {
       }
     }
   }
-  
+
 }

@@ -27,8 +27,8 @@ private[semantics] object NestedTrie {
   def wilds(n: Int): List[Pat] = List.fill(n)(PVar("_"))
 
   def show(p: Pat): String = p match
-    case PVar(n)       => n
-    case PCon(c, Nil)  => c
+    case PVar(n) => n
+    case PCon(c, Nil) => c
     case PCon(c, args) => s"$c(${args.map(show).mkString(", ")})"
 
   // ── Decision trie (the proof-generator input) ──────────────────────────────
@@ -49,7 +49,7 @@ private[semantics] object NestedTrie {
   private def peelApp(t: Expr[Ind]): (Expr[Ind], List[Expr[Ind]]) =
     TypingHelpers.`*`.unapply(t) match
       case Some((f, x)) => val (h, as) = peelApp(f); (h, as :+ x)
-      case None         => (t, Nil)
+      case None => (t, Nil)
 
   // ── Parse an Expr[Ind] argument into a Pat ─────────────────────────────────
   // A variable becomes a binder; a constructor application becomes a PCon. The
@@ -89,7 +89,8 @@ private[semantics] object NestedTrie {
     val switchCol = cols.indices.find(j =>
       cols(j).ty.isDefined && rows.exists(_.pats(j) match
         case PCon(_, _) => true
-        case _          => false))
+        case _ => false)
+    )
     switchCol match
       case None =>
         rows match
@@ -100,9 +101,9 @@ private[semantics] object NestedTrie {
             }
             Leaf(r.clause, r.binds ++ extra, rest.map(_.clause))
       case Some(j) =>
-        val col            = cols(j)
+        val col = cols(j)
         val (adt, typeArgs) = col.ty.get
-        val sigma          = ctorsOf(adt)
+        val sigma = ctorsOf(adt)
         val cases = sigma.map { c =>
           val subCols = childCols(adt, typeArgs, c, col.occ)
           val newCols = cols.patch(j, subCols, 1)
@@ -115,8 +116,9 @@ private[semantics] object NestedTrie {
                 val nb = if n != "_" then r.binds :+ (n -> col.occ) else r.binds
                 Some(r.copy(pats = r.pats.patch(j, wilds(c.semantic.arity), 1), binds = nb))
           }
-          val sub = if subRows.isEmpty then Fail(col.occ, List(c.name))
-                    else compile(newCols, subRows)
+          val sub =
+            if subRows.isEmpty then Fail(col.occ, List(c.name))
+            else compile(newCols, subRows)
           (c.name, sub)
         }.toList
         Switch(col.occ, adt.name, cases)
@@ -136,8 +138,9 @@ private[semantics] object NestedTrie {
   // ── Rendering ──────────────────────────────────────────────────────────────
   def render(t: Tree, indent: String = "    "): String = t match
     case Leaf(clause, binds, also) =>
-      val b = if binds.isEmpty then ""
-              else "  {" + binds.map((n, o) => s"$n = ${occName(o)}").mkString(", ") + "}"
+      val b =
+        if binds.isEmpty then ""
+        else "  {" + binds.map((n, o) => s"$n = ${occName(o)}").mkString(", ") + "}"
       val o = if also.isEmpty then "" else s"   ⚠ overlap with clause(s) ${also.mkString(", ")}"
       s"→ clause $clause$b$o"
     case Fail(occ, cs) =>
@@ -148,13 +151,13 @@ private[semantics] object NestedTrie {
 
   // ── Verdict scanned straight off the trie ──────────────────────────────────
   def gaps(t: Tree): List[String] = t match
-    case Fail(occ, cs)         => List(s"${cs.mkString(", ")} unmatched at ${occName(occ)}")
-    case Switch(_, _, cases)   => cases.flatMap((_, s) => gaps(s))
-    case Leaf(_, _, _)         => Nil
+    case Fail(occ, cs) => List(s"${cs.mkString(", ")} unmatched at ${occName(occ)}")
+    case Switch(_, _, cases) => cases.flatMap((_, s) => gaps(s))
+    case Leaf(_, _, _) => Nil
   def overlaps(t: Tree): List[String] = t match
     case Leaf(c, _, also) if also.nonEmpty => List(s"clauses ${(c :: also).mkString(", ")}")
-    case Switch(_, _, cases)               => cases.flatMap((_, s) => overlaps(s))
-    case _                                 => Nil
+    case Switch(_, _, cases) => cases.flatMap((_, s) => overlaps(s))
+    case _ => Nil
 
   def analyze(
       name: String,
@@ -163,12 +166,11 @@ private[semantics] object NestedTrie {
       clauses: Seq[(Constructor[?], Seq[Expr[Ind]])]
   ): String =
     val tree = buildTree(domainAdt, domainTypeArgs, clauses)
-    val g    = gaps(tree)
-    val o    = overlaps(tree)
-    val sb   = StringBuilder()
+    val g = gaps(tree)
+    val o = overlaps(tree)
+    val sb = StringBuilder()
     sb ++= s"━━ $name : ${domainAdt.name}${if domainTypeArgs.nonEmpty then domainTypeArgs.mkString("[", ", ", "]") else ""} ━━\n"
-    clauses.foreach((c, args) =>
-      sb ++= s"    | ${c.name}${if args.nonEmpty then args.map(a => show(parsePat(a))).mkString("(", ", ", ")") else ""}\n")
+    clauses.foreach((c, args) => sb ++= s"    | ${c.name}${if args.nonEmpty then args.map(a => show(parsePat(a))).mkString("(", ", ", ")") else ""}\n")
     if g.isEmpty && o.isEmpty then sb ++= "  ✓ IN SCOPE (disjoint, exhaustive)\n"
     else
       if o.nonEmpty then o.foreach(x => sb ++= s"  ✗ overlap (needs priority): $x\n")

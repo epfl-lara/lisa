@@ -20,10 +20,10 @@ object NatAndListLibrary extends lisa.Main {
     have(thesis) by Typecheck.prove
   }
 
-  val nilLengthTyping = 
+  val nilLengthTyping =
     Theorem(length(nat) * nil(nat) :: nat) {
-    have(thesis) by Typecheck.prove
-  }
+      have(thesis) by Typecheck.prove
+    }
   val list1LengthTyping = Theorem(length(nat) * list1 :: nat) {
     have(thesis) by Typecheck.prove
   }

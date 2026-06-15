@@ -97,7 +97,8 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTHeight[
       ) by RightForall
 
       have(thesis) by Tautology.from(
-        lastStep, extensionalityAxiom of (x := x, y := y, z := t)
+        lastStep,
+        extensionalityAxiom of (x := x, y := y, z := t)
       )
     }
 
@@ -109,10 +110,7 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTHeight[
     thenHave(
       forall(y, termDefinitionFormula(x) /\ termDefinitionFormula(y) ==> (x === y))
     ) by RightForall
-    val uniquenessAll = thenHave(
-      forall(x,
-        forall(y, termDefinitionFormula(x) /\ termDefinitionFormula(y) ==> (x === y))
-    )) by RightForall
+    val uniquenessAll = thenHave(forall(x, forall(y, termDefinitionFormula(x) /\ termDefinitionFormula(y) ==> (x === y)))) by RightForall
 
     have(
       exists(z, termDefinitionFormula(z)) /\
@@ -151,74 +149,83 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTHeight[
 
   private[encoding] lazy val termSatisfiesDefinition: THM = definedClassFunction.definitionFact
 
-  private val constructorInIntroductionFunction = constructors.map(c =>
-    val constructorVarsInDomainCS = constructorVarsInDomain(c, s)
+  private val constructorInIntroductionFunction = constructors
+    .map(c =>
+      val constructorVarsInDomainCS = constructorVarsInDomain(c, s)
 
-    c -> Lemma(constructorVarsInDomainCS |- inIntroImage(s)(c.term)) {
-      have(constructorVarsInDomainCS |- constructorVarsInDomainCS /\ (c.term === c.term)) by Restate
+      c -> Lemma(constructorVarsInDomainCS |- inIntroImage(s)(c.term)) {
+        have(constructorVarsInDomainCS |- constructorVarsInDomainCS /\ (c.term === c.term)) by Restate
 
-      c.variables2.foldRight((c.variables1, List[Variable[Ind]]()))((v, acc) =>
-        val oldVariables = acc._1.init
-        val newVariables = v :: acc._2
-        val vars = oldVariables ++ newVariables
+        c.variables2.foldRight((c.variables1, List[Variable[Ind]]()))((v, acc) =>
+          val oldVariables = acc._1.init
+          val newVariables = v :: acc._2
+          val vars = oldVariables ++ newVariables
 
-        thenHave(
-          constructorVarsInDomainCS |- existsSeq(
-            newVariables,
-            wellTypedFormula(vars.zip(c.specification))(s) /\ (c.term(vars) === c.term)
-          )
-        ) by RightExists
+          thenHave(
+            constructorVarsInDomainCS |- existsSeq(
+              newVariables,
+              wellTypedFormula(vars.zip(c.specification))(s) /\ (c.term(vars) === c.term)
+            )
+          ) by RightExists
 
-        (oldVariables, newVariables)
-      )
+          (oldVariables, newVariables)
+        )
 
-      thenHave(constructorVarsInDomainCS |- inIntroImage(s)(c.term)) by Weakening
-    }
-  ).toMap
+        thenHave(constructorVarsInDomainCS |- inIntroImage(s)(c.term)) by Weakening
+      }
+    )
+    .toMap
 
-  private val heightTermsTHY = Time.measure("ADT HeightTerms")(HeightTerms[N](
-    heightTHY,
-    heightConstructorsTHY,
-    heightConstructorData,
-    term,
-    termSatisfiesDefinition
-  ))
+  private val heightTermsTHY = Time.measure("ADT HeightTerms")(
+    HeightTerms[N](
+      heightTHY,
+      heightConstructorsTHY,
+      heightConstructorData,
+      term,
+      termSatisfiesDefinition
+    )
+  )
 
   val termHasHeight = heightTermsTHY.termHasHeight
   val termsHaveHeight =
-    constructors.zip(heightConstructorData).map((c, d) =>
-      c -> {
-        val substitution = c.variables2.zip(c.variables).map((from, to) => from := to)
-        val fact = heightTermsTHY.termsHaveHeight(d)
-        Lemma(fact.statement.substitute(substitution*)) {
-          have(thesis) by Restate.from(fact.of(substitution*))
+    constructors
+      .zip(heightConstructorData)
+      .map((c, d) =>
+        c -> {
+          val substitution = c.variables2.zip(c.variables).map((from, to) => from := to)
+          val fact = heightTermsTHY.termsHaveHeight(d)
+          Lemma(fact.statement.substitute(substitution*)) {
+            have(thesis) by Restate.from(fact.of(substitution*))
+          }
         }
-      }
-    ).toMap
-    
-  private val heightConstructor = constructors.map(c =>
-    c -> Lemma(
-      (isHeight(h), in(n, N), constructorVarsInDomain(c, app(h, n))) |-
-        in(c.term, app(h, S(n)))
-    ) {
-      val constructorInIntroFunHeight = inIntroImage(app(h, n))(c.term)
+      )
+      .toMap
 
-      have((isHeight(h), in(n, N), constructorInIntroFunHeight) |- in(c.term, app(h, S(n)))) by Cut(
-        heightSuccessorWeak of (x := c.term),
-        equivalenceRevApply of (p1 := constructorInIntroFunHeight, p2 := in(c.term, app(h, S(n))))
-      )
-      have((isHeight(h), in(n, N), constructorVarsInDomain(c, app(h, n))) |- in(c.term, app(h, S(n)))) by Cut(
-        constructorInIntroductionFunction(c) of (s := app(h, n)),
-        lastStep
-      )
-    }
-  ).toMap
+  private val heightConstructor = constructors
+    .map(c =>
+      c -> Lemma(
+        (isHeight(h), in(n, N), constructorVarsInDomain(c, app(h, n))) |-
+          in(c.term, app(h, S(n)))
+      ) {
+        val constructorInIntroFunHeight = inIntroImage(app(h, n))(c.term)
+
+        have((isHeight(h), in(n, N), constructorInIntroFunHeight) |- in(c.term, app(h, S(n)))) by Cut(
+          heightSuccessorWeak of (x := c.term),
+          equivalenceRevApply of (p1 := constructorInIntroFunHeight, p2 := in(c.term, app(h, S(n))))
+        )
+        have((isHeight(h), in(n, N), constructorVarsInDomain(c, app(h, n))) |- in(c.term, app(h, S(n)))) by Cut(
+          constructorInIntroductionFunction(c) of (s := app(h, n)),
+          lastStep
+        )
+      }
+    )
+    .toMap
 
   val intro = constructors
     .map(c =>
       c -> Lemma(
         simplify(constructorVarsInDomain(c, term)) |- simplify(in(c.term, term))
-      ){
+      ) {
         // STEP 0: Instantiate the forward direction of termsHaveHeight.
         val termsHaveHeightForward = have((isHeight(h), constructorVarsInDomain(c, term)) |- ∃(n, in(n, N) /\ constructorVarsInDomain(c, app(h, n)))) by Cut(
           termsHaveHeight(c),
@@ -230,7 +237,7 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTHeight[
         val right = have(in(c.term, app(h, S(n))) |- in(c.term, app(h, S(n)))) by Hypothesis
         have((in(n, N), in(c.term, app(h, S(n)))) |- in(S(n), N) /\ in(c.term, app(h, S(n)))) by RightAnd(left, right)
         thenHave((in(n, N), in(c.term, app(h, S(n)))) |- exists(m, in(m, N) /\ in(c.term, app(h, m)))) by RightExists
-        have((isHeight(h), in(n, N), in(c.term, app(h, S(n)))) |- in(c.term, term)) by 
+        have((isHeight(h), in(n, N), in(c.term, app(h, S(n)))) |- in(c.term, term)) by
           Congruence.from(lastStep, termHasHeight of (x := c.term))
 
         // STEP 2: Prove that if the inductive arguments of the constructor have height then the instance of the constructor is in the ADT.
@@ -246,5 +253,6 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTHeight[
         thenHave((exists(h, isHeight(h)), constructorVarsInDomain(c, term)) |- in(c.term, term)) by LeftExists
         have(constructorVarsInDomain(c, term) |- in(c.term, term)) by Cut(heightExists, lastStep)
       }
-    ).toMap
+    )
+    .toMap
 }

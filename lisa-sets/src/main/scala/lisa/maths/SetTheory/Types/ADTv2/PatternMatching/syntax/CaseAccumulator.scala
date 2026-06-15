@@ -81,14 +81,11 @@ class CaseAccumulator[N <: Arity, T, R](val comp: R) {
         underlying.foldLeft[Either[String, Map[Constructor[N], (Seq[Variable[Ind]], T)]]](Right(Map.empty)) {
           case (Left(err), _) => Left(err)
           case (Right(acc), (cons, args, value)) =>
-            if acc.contains(cons) then
-              Left(s"Multiple patterns for ${cons.name} are not supported in induction proofs.")
+            if acc.contains(cons) then Left(s"Multiple patterns for ${cons.name} are not supported in induction proofs.")
             else
               val vars = args.collect { case v: Variable[Ind] => v }
-              if vars.size != args.size then
-                Left(s"Case ${cons.name}: induction requires variable binders, found a concrete term argument.")
-              else
-                Right(acc + (cons -> (vars, value)))
+              if vars.size != args.size then Left(s"Case ${cons.name}: induction requires variable binders, found a concrete term argument.")
+              else Right(acc + (cons -> (vars, value)))
         }
 
   private def validateCoverage(adt: ADT[N]): Option[String] =
@@ -98,10 +95,8 @@ class CaseAccumulator[N <: Arity, T, R](val comp: R) {
     val missing = constructors -- caseConstructors
     val unknown = caseConstructors -- constructors
 
-    if missing.nonEmpty then
-      Some(s"Case for ${missing.head.name} is missing.")
-    else if unknown.nonEmpty then
-      Some(s"${unknown.head.name} is not a constructor of ${adt.name}.")
+    if missing.nonEmpty then Some(s"Case for ${missing.head.name} is missing.")
+    else if unknown.nonEmpty then Some(s"${unknown.head.name} is not a constructor of ${adt.name}.")
     else
       underlying.foldLeft[Option[String]](None) { case (acc, (cons, args, _)) =>
         acc.orElse(
@@ -141,7 +136,7 @@ class CaseAccumulator[N <: Arity, T, R](val comp: R) {
           cons.semantic,
           args.map {
             case v: Variable[Ind] => Left(v)
-            case t                => Right(t.substitute(typeSubstitutions*).asInstanceOf[Expr[Ind]])
+            case t => Right(t.substitute(typeSubstitutions*).asInstanceOf[Expr[Ind]])
           },
           bodyAt(body).substitute(typeSubstitutions*).asInstanceOf[Expr[Ind]],
           typeSubstitutions,
@@ -168,9 +163,7 @@ class CaseAccumulator[N <: Arity, T, R](val comp: R) {
     Time.measure(s"PatternSystem compilation") {
       val typeSubstitutions =
         substitutionsFromArgs("ADT", adt.base.name, adt.base.typeVariablesSeq, adt.typeArgs)
-          .filter(substitution =>
-            substitution._2.asInstanceOf[Expr[Ind]] != substitution._1.asInstanceOf[Variable[Ind]]
-          )
+          .filter(substitution => substitution._2.asInstanceOf[Expr[Ind]] != substitution._1.asInstanceOf[Variable[Ind]])
       val isNested = underlying.exists { case (_, args, _) =>
         args.exists(!_.isInstanceOf[Variable[Ind]])
       }

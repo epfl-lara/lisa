@@ -10,15 +10,15 @@ import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
  */
 object PropositionalFacts {
 
-  val equivalenceApply = Lemma((p1 <=> p2, p1) |- p2){
+  val equivalenceApply = Lemma((p1 <=> p2, p1) |- p2) {
     have(thesis) by Tautology
   }
 
-  val equivalenceRevApply = Lemma((p2 <=> p1, p1) |- p2){
+  val equivalenceRevApply = Lemma((p2 <=> p1, p1) |- p2) {
     have(thesis) by Tautology
   }
 
-  val equivalenceToRevApply = Lemma(p1 <=> p2 |- p2 ==> p1){
+  val equivalenceToRevApply = Lemma(p1 <=> p2 |- p2 ==> p1) {
     have(thesis) by Tautology
   }
 

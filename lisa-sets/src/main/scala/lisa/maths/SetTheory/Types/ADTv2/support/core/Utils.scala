@@ -23,7 +23,6 @@ object Utils {
   // export lisa.maths.SetTheory.Types.ADTv2.support.UniqueVariable
   export lisa.maths.SetTheory.Types.ADTv2.support.MyVariables.*
 
-
   // Variables used
 
   // Some useful constants and functions
@@ -60,7 +59,6 @@ object Utils {
 
   def lam(v: Variable[Ind], body: Expr[Prop]): Expr[Ind >>: Prop] = λ(v, body)
 
-
   // Syntactic sugar for sequences
 
   def appSeq(f: Expr[Ind])(args: Seq[Expr[Ind]]): Expr[Ind] =
@@ -73,10 +71,12 @@ object Utils {
       else s"$name[${typeArgs.mkString(",")}]"
     valueArgs.foldLeft(head)((acc, arg) => s"$acc($arg)")
 
-  def seqOr(s: Iterable[Expr[Prop]]): Expr[Prop] = s.reduceOption(_ \/ _)
+  def seqOr(s: Iterable[Expr[Prop]]): Expr[Prop] = s
+    .reduceOption(_ \/ _)
     .getOrElse(False: Expr[Prop])
 
-  def seqAnd(s: Iterable[Expr[Prop]]): Expr[Prop] = s.reduceOption(_ /\ _)
+  def seqAnd(s: Iterable[Expr[Prop]]): Expr[Prop] = s
+    .reduceOption(_ /\ _)
     .getOrElse(True: Expr[Prop])
 
   def seqEq(s1: Seq[Expr[Ind]], s2: Seq[Expr[Ind]]): Expr[Prop] =
@@ -87,12 +87,11 @@ object Utils {
     def ===(s2: Seq[Expr[Ind]]): Expr[Prop] =
       seqEq(s1, s2)
 
-  def existsSeq(vars: Seq[Variable[FInd]], formula: FExpr[FProp]): FExpr[FProp] = 
+  def existsSeq(vars: Seq[Variable[FInd]], formula: FExpr[FProp]): FExpr[FProp] =
     vars.foldRight(formula)(∃(_, _))
 
-  def forallSeq(vars: Seq[Variable[FInd]], formula: FExpr[FProp]): FExpr[FProp] = 
+  def forallSeq(vars: Seq[Variable[FInd]], formula: FExpr[FProp]): FExpr[FProp] =
     vars.foldRight(formula)(∀(_, _))
-
 
   // Some useful functions
 
@@ -113,7 +112,7 @@ object Utils {
       // case RegularArg(tpe) => typeExprToTerm(tpe)
       case TypeArg(name) => Variable[Ind](name)
 
-  def typeExprToTerm(name: String): Variable[Ind] = 
+  def typeExprToTerm(name: String): Variable[Ind] =
     Variable[Ind](name)
 
   def typeExprToTerm(tpe: TypeExpr): Expr[Ind] = tpe match

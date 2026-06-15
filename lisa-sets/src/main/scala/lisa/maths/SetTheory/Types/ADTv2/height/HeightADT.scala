@@ -9,9 +9,9 @@ import lisa.maths.SetTheory.Types.ADTv2.support.semantics.DefinedProperty
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 final class HeightADT[N <: Arity](
-  name: String,
-  typeVariablesSeq: Seq[Variable[Ind]],
-  isConstructor: Expr[Ind >>: Ind >>: Prop]
+    name: String,
+    typeVariablesSeq: Seq[Variable[Ind]],
+    isConstructor: Expr[Ind >>: Ind >>: Prop]
 ) {
 
   protected inline final def app(f: Expr[Ind], x: Expr[Ind]): Expr[Ind] =
@@ -43,10 +43,14 @@ final class HeightADT[N <: Arity](
 
   def isHeight(h: Expr[Ind]): Expr[Prop] = isHeightSym.term #@ h
 
-  /** Unfold `isHeight(h)` to its core conjunction. */
+  /**
+   * Unfold `isHeight(h)` to its core conjunction.
+   */
   private[ADTv2] val heightIsCore = isHeightSym.unfold
 
-  /** Fold the core conjunction back into the opaque `isHeight(h)`. */
+  /**
+   * Fold the core conjunction back into the opaque `isHeight(h)`.
+   */
   private[ADTv2] val coreIsHeight = isHeightSym.fold
 
   /**

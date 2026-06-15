@@ -18,16 +18,16 @@ object Injectivity extends lisa.Main {
 
   // ── Same-constructor, argument-wise injectivity ─────────────────────────
   section("Argument-wise injectivity (single constructor)")
-  show(succ.injectivity)                 // Nat:    succ(k) = succ(k2) <=> k = k2
-  show(cons.injectivity(nat))            // List:   cons(h,t) = cons(h2,t2) <=> h=h2 /\ t=t2
-  show(some.injectivity(nat))            // Option: some(x) = some(x2) <=> x = x2
-  show(inl.injectivity(nat, bool))       // Union:  inl(x) = inl(x2) <=> x = x2
-  show(pair.injectivity(nat, bool))      // Product:pair(x,y) = pair(x2,y2) <=> x=x2 /\ y=y2
+  show(succ.injectivity) // Nat:    succ(k) = succ(k2) <=> k = k2
+  show(cons.injectivity(nat)) // List:   cons(h,t) = cons(h2,t2) <=> h=h2 /\ t=t2
+  show(some.injectivity(nat)) // Option: some(x) = some(x2) <=> x = x2
+  show(inl.injectivity(nat, bool)) // Union:  inl(x) = inl(x2) <=> x = x2
+  show(pair.injectivity(nat, bool)) // Product:pair(x,y) = pair(x2,y2) <=> x=x2 /\ y=y2
 
   // ── Cross-constructor disjointness ──────────────────────────────────────
   section("Cross-constructor disjointness (distinct constructors)")
-  show(nat.injectivity(zero, succ))           // zero != succ(k)
-  show(bool.injectivity(tru, fals))           // tru  != fals
-  show(option.injectivity(some, none, nat))   // some(x) != none
-  show(union.injectivity(inl, inr, nat, bool))// inl(x) != inr(y)
+  show(nat.injectivity(zero, succ)) // zero != succ(k)
+  show(bool.injectivity(tru, fals)) // tru  != fals
+  show(option.injectivity(some, none, nat)) // some(x) != none
+  show(union.injectivity(inl, inr, nat, bool)) // inl(x) != inr(y)
 }

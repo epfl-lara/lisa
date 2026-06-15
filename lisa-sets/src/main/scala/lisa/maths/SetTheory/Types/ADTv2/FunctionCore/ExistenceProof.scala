@@ -13,6 +13,8 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  */
 trait ExistenceProof[N <: Arity] {
 
-  /** `∃f, Def(f)` — some `f` satisfies the function's defining predicate. */
+  /**
+   * `∃f, Def(f)` — some `f` satisfies the function's defining predicate.
+   */
   def witnessExists: THM
 }

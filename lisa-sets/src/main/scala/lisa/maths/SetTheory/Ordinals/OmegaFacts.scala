@@ -31,7 +31,6 @@ object OmegaFacts {
   private val x, y, z = variable[Ind]
   private val NatMem = MembershipRelation.membershipRelation(ω)
 
-
   private val NTransitive = Theorem(TransitiveSet.transitiveSet(ω)) {
     have((x ∈ y) /\ (y ∈ ω) ==> (x ∈ ω)) by Tautology
       .from(omegaDownwardClosed of (x := x, y := y))
@@ -39,7 +38,6 @@ object OmegaFacts {
     have(thesis) by Tautology
       .from(TransitiveSet.transitiveSet.definition of (A := ω), lastStep)
   }
-
 
   private val isRelTransitive = Theorem(transitive(NatMem)(ω)) {
     have(
@@ -108,10 +106,12 @@ object OmegaFacts {
         )
       )
     ) by RightForall
-    thenHave(∀(
-      x ∈ ω,
-      ∀(y ∈ ω, ∀(z ∈ ω, ((x, y) ∈ NatMem) /\ ((y, z) ∈ NatMem) ==> ((x, z) ∈ NatMem)))
-    )) by Tableau
+    thenHave(
+      ∀(
+        x ∈ ω,
+        ∀(y ∈ ω, ∀(z ∈ ω, ((x, y) ∈ NatMem) /\ ((y, z) ∈ NatMem) ==> ((x, z) ∈ NatMem)))
+      )
+    ) by Tableau
     have(thesis) by Tautology
       .from(transitive.definition of (R := NatMem, X := ω), lastStep)
   }

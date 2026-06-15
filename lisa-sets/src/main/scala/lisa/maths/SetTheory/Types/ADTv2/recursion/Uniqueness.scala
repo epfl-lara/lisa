@@ -14,7 +14,7 @@ import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[recursion] final class Uniqueness[N <: Arity](
-  spec: FunSpec[N]
+    spec: FunSpec[N]
 ) extends UniquenessProof[N] {
 
   private val adt = spec.adt
@@ -25,9 +25,7 @@ private[recursion] final class Uniqueness[N <: Arity](
       definition: Expr[Prop],
       functionHead: Expr[Ind]
   ): PatternSchemas[N] =
-    spec.patternMatching.patterns.map(pattern =>
-      pattern -> extractPatternCaseSchema(definition, functionHead, pattern)
-    ).toMap
+    spec.patternMatching.patterns.map(pattern => pattern -> extractPatternCaseSchema(definition, functionHead, pattern)).toMap
 
   private def definitionFormula(v: Variable[Ind]): Expr[Prop] =
     spec.untypedDefinition(v)
@@ -46,7 +44,6 @@ private[recursion] final class Uniqueness[N <: Arity](
     spec.untypedDefinition
   )
   private def Def(v: Expr[Ind]): Expr[Prop] = defSym.term #@ v
-
 
   val pointwiseUniqueness: THM =
     val xDefFormula = definitionFormula(x)
@@ -80,27 +77,29 @@ private[recursion] final class Uniqueness[N <: Arity](
       )
 
       val pointInput = variable[Ind]
-      
+
       val xPatternSchemas = extractPatternSchemas(xDefFormula, x)
       val yPatternSchemas = extractPatternSchemas(yDefFormula, y)
 
-      val pointwiseCoreLemma = Time.measure("Uniqueness/Pointwise uniqueness"){RecFunctionInduction.pointwiseUniquenessAt(
-        adt = adt,
-        patternMatching = spec.patternMatching,
-        argType = argType,
-        typeSubstitutions = spec.typeSubstitutions,
-        inductionVariable = pointInput,
-        assumptions = Set(Def(x), Def(y)),
-        propertyAt = t => x * t === y * t,
-        xFun = x,
-        yFun = y,
-        xDefinitionFormula = xDefFormula,
-        yDefinitionFormula = yDefFormula,
-        xPatternSchemas = xPatternSchemas,
-        yPatternSchemas = yPatternSchemas,
-        xDefUnfold = defSym.unfoldAt(x),
-        yDefUnfold = defSym.unfoldAt(y)
-      )}
+      val pointwiseCoreLemma = Time.measure("Uniqueness/Pointwise uniqueness") {
+        RecFunctionInduction.pointwiseUniquenessAt(
+          adt = adt,
+          patternMatching = spec.patternMatching,
+          argType = argType,
+          typeSubstitutions = spec.typeSubstitutions,
+          inductionVariable = pointInput,
+          assumptions = Set(Def(x), Def(y)),
+          propertyAt = t => x * t === y * t,
+          xFun = x,
+          yFun = y,
+          xDefinitionFormula = xDefFormula,
+          yDefinitionFormula = yDefFormula,
+          xPatternSchemas = xPatternSchemas,
+          yPatternSchemas = yPatternSchemas,
+          xDefUnfold = defSym.unfoldAt(x),
+          yDefUnfold = defSym.unfoldAt(y)
+        )
+      }
 
       // `pointwiseCoreLemma` is stated over the opaque `Def(x)`, `Def(y)`; discharge them
       // by folding the ambient `untypedDefinition(x)`, `untypedDefinition(y)`.

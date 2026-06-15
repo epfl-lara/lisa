@@ -68,21 +68,23 @@ private[ADTv2] abstract class WitnessBase[N <: Arity](
     yield (c1, c2) -> constructorTagDisequality(c1, c2)).toMap
 
   protected lazy val witnessSemantics: CaseDefinedWitness[N] =
-    Time.measure("Witness/CaseDefinedWitness")(new CaseDefinedWitness[N](
-      adt = adt,
-      argType = argType,
-      patternMatching = patternMatching,
-      returnType = returnType,
-      typ = typ,
-      witness = witness,
-      witnessDef = witnessDefCore,
-      witnessBound = witnessBound,
-      pairWitness = pairWitness,
-      caseMembership = caseMembership,
-      checkReturnType = checkReturnType,
-      constructorTagDisequalities = constructorTagDisequalities,
-      contextPremises = contextPremises
-    ))
+    Time.measure("Witness/CaseDefinedWitness")(
+      new CaseDefinedWitness[N](
+        adt = adt,
+        argType = argType,
+        patternMatching = patternMatching,
+        returnType = returnType,
+        typ = typ,
+        witness = witness,
+        witnessDef = witnessDefCore,
+        witnessBound = witnessBound,
+        pairWitness = pairWitness,
+        caseMembership = caseMembership,
+        checkReturnType = checkReturnType,
+        constructorTagDisequalities = constructorTagDisequalities,
+        contextPremises = contextPremises
+      )
+    )
 
   lazy val witnessHasType: THM = witnessSemantics.witnessHasType
 
@@ -106,9 +108,11 @@ object WitnessBase {
       bodyAt: Pattern[N] => Expr[Ind],
       extraPremisesAt: Pattern[N] => Set[Expr[Prop]] = (_: Pattern[N]) => Set.empty
   ): Map[Pattern[N], JUSTIFICATION] =
-    patterns.map(pattern =>
-      pattern -> Lemma((pattern.typingPremises ++ extraPremisesAt(pattern)) |- (bodyAt(pattern) :: returnType)) {
-        have(thesis) by Typecheck.prove
-      }
-    ).toMap
+    patterns
+      .map(pattern =>
+        pattern -> Lemma((pattern.typingPremises ++ extraPremisesAt(pattern)) |- (bodyAt(pattern) :: returnType)) {
+          have(thesis) by Typecheck.prove
+        }
+      )
+      .toMap
 }

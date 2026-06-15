@@ -13,8 +13,9 @@ private[recursion] object LambdaBodyEquality {
   private val A = variable[Ind]
   private val Gf, Hf = variable[Ind >>: Ind]
 
-  
-  def proveUnder(using proof: lisa.SetTheoryLibrary.Proof)(
+  def proveUnder(using
+      proof: lisa.SetTheoryLibrary.Proof
+  )(
       assumptions: Set[Expr[Prop]],
       leftBody: Expr[Ind],
       rightBody: Expr[Ind],
@@ -56,7 +57,9 @@ private[recursion] object LambdaBodyEquality {
         s"Cannot prove body equality without recursive equalities: $leftBody vs $rightBody."
       )
 
-  def prove(using proof: lisa.SetTheoryLibrary.Proof)(
+  def prove(using
+      proof: lisa.SetTheoryLibrary.Proof
+  )(
       leftBody: Expr[Ind],
       rightBody: Expr[Ind],
       equalityFacts: Seq[proof.Fact]

@@ -78,9 +78,9 @@ private[height] object SuccessorFacts {
     have(
       (introFunctionMono, isHeightCore(h), in(n, N)) |- (
         function(h) /\
-        (dom(h) === N) /\
-        in(n, N) /\
-        forall(m, in(m, N) ==> (subset(m, n) ==> subset(app(h, m), app(h, n))))
+          (dom(h) === N) /\
+          in(n, N) /\
+          forall(m, in(m, N) ==> (subset(m, n) ==> subset(app(h, m), app(h, n))))
       )
     ) by RightAnd(coreTypingAndN, monotonicityForall)
 
@@ -123,11 +123,14 @@ private[height] object SuccessorFacts {
     have(
       (introFunctionMono, isHeightCore(h), in(n, N), heightResNonEmpty) |-
         in(x, app(h, S(n))) <=> inIntroImage(app(h, n))(x)
-    ) by Tautology.from(lastStep, equivalenceAnd of (
-      p1 := in(x, app(h, S(n))),
-      p2 := heightResNonEmpty,
-      p3 := inIntroImage(app(h, n))(x)
-    ))
+    ) by Tautology.from(
+      lastStep,
+      equivalenceAnd of (
+        p1 := in(x, app(h, S(n))),
+        p2 := heightResNonEmpty,
+        p3 := inIntroImage(app(h, n))(x)
+      )
+    )
 
     have(thesis) by Tautology.from(heightResNonEmptyLemma, lastStep)
   }

@@ -124,33 +124,43 @@ private[PatternMatching] final case class NestedConstructorPattern[N <: Arity](
       recursiveAgreementPoints(recursiveType).contains(target),
       s"Pattern ${name} does not expose $target as a recursive agreement point."
     )
-    val guard = freshGuards.find { g =>
-      val guardType = semanticConstructor.semanticSignature2(g.position)._2
-        .substitute(typeSubstitutions*).asInstanceOf[Expr[Ind]]
-      NestedTrieProofs.guardBinders(g.guardTerm, guardType).exists(_._1 == target)
-    }.getOrElse(
-      throw new IllegalArgumentException(s"No guard contains recursive agreement point $target in pattern ${name}.")
-    )
+    val guard = freshGuards
+      .find { g =>
+        val guardType = semanticConstructor
+          .semanticSignature2(g.position)
+          ._2
+          .substitute(typeSubstitutions*)
+          .asInstanceOf[Expr[Ind]]
+        NestedTrieProofs.guardBinders(g.guardTerm, guardType).exists(_._1 == target)
+      }
+      .getOrElse(
+        throw new IllegalArgumentException(s"No guard contains recursive agreement point $target in pattern ${name}.")
+      )
 
-    val guardType = semanticConstructor.semanticSignature2(guard.position)._2
-      .substitute(typeSubstitutions*).asInstanceOf[Expr[Ind]]
+    val guardType = semanticConstructor
+      .semanticSignature2(guard.position)
+      ._2
+      .substitute(typeSubstitutions*)
+      .asInstanceOf[Expr[Ind]]
     val guardTy = ADT.unapply(guardType).get
     val binderInHeight = have(guard.binder ∈ app(heightFun)(currentIndex)) by Tautology.from(argsTypedAtHeight)
     val guardEq = have(guard.binder === guard.guardTerm) by Tautology.from(patternGuard)
     val guardInHeight = have(guard.guardTerm ∈ app(heightFun)(currentIndex)) by Congruence.from(binderInHeight, guardEq)
 
-    Time.measure(s"RecArg/descendToBinder") {NestedConstructorPattern.descendToBinder(
-      heightFun = heightFun,
-      hValid = hValid,
-      heightMembershipMonotonic = heightMembershipMonotonic,
-      currentIndex = currentIndex,
-      currentIndexInN = currentIndexInN,
-      leafTyping = leafTyping,
-      currentPat = NestedTrieProofs.parse(guard.guardTerm),
-      currentTy = guardTy,
-      currentInHeight = guardInHeight,
-      target = target
-    )}
+    Time.measure(s"RecArg/descendToBinder") {
+      NestedConstructorPattern.descendToBinder(
+        heightFun = heightFun,
+        hValid = hValid,
+        heightMembershipMonotonic = heightMembershipMonotonic,
+        currentIndex = currentIndex,
+        currentIndexInN = currentIndexInN,
+        leafTyping = leafTyping,
+        currentPat = NestedTrieProofs.parse(guard.guardTerm),
+        currentTy = guardTy,
+        currentInHeight = guardInHeight,
+        target = target
+      )
+    }
   }
 
   override def withBody(newBody: Expr[Ind]): Pattern[N] = copy(body = newBody)
@@ -173,7 +183,7 @@ private[PatternMatching] object NestedConstructorPattern {
       case Multiapp(head, _) =>
         head match
           case constant: Constant[?] @unchecked => constant.id == constructorId
-          case _                                => false
+          case _ => false
       case null => false
 
   /**
@@ -190,46 +200,59 @@ private[PatternMatching] object NestedConstructorPattern {
       specializedAdtTerm: Expr[Ind]
   ): NestedConstructorPattern[N] =
     val topBinders: Seq[Variable[Ind]] = args.zipWithIndex.map {
-      case (Left(v), _)  => v
+      case (Left(v), _) => v
       case (Right(_), i) => variable[Ind](s"${constructor.name}/arg$i")
     }
-    val guards: Seq[BranchGuard] = args.zipWithIndex.collect {
-      case (Right(term), i) =>
-        BranchGuard(
-          position = i,
-          binder = topBinders(i),
-          guardTerm = term,
-          resolvedNullary = resolveNullaryGuard(term)
-        )
+    val guards: Seq[BranchGuard] = args.zipWithIndex.collect { case (Right(term), i) =>
+      BranchGuard(
+        position = i,
+        binder = topBinders(i),
+        guardTerm = term,
+        resolvedNullary = resolveNullaryGuard(term)
+      )
     }
-    val conditions: Seq[Expr[Prop]] = args.zip(topBinders).collect {
-      case (Right(term), binder) => binder === term
+    val conditions: Seq[Expr[Prop]] = args.zip(topBinders).collect { case (Right(term), binder) =>
+      binder === term
     }
     val condition = conditions match
-      case Nil          => ⊤
+      case Nil => ⊤
       case head +: tail => tail.foldLeft(head)(_ /\ _)
     // Free variables inside (possibly non-nullary) guard terms become binders too,
     // typed from the guarded argument position. Empty for nullary / ground guards.
-    val innerTyped: Seq[(Variable[Ind], Expr[Ind])] = guards.flatMap { g =>
-      val argType = constructor.semanticSignature2(g.position)._2
-        .substitute(typeSubstitutions*).asInstanceOf[Expr[Ind]]
-      NestedTrieProofs.guardBinders(g.guardTerm, argType)
-    }.distinctBy(_._1)
+    val innerTyped: Seq[(Variable[Ind], Expr[Ind])] = guards
+      .flatMap { g =>
+        val argType = constructor
+          .semanticSignature2(g.position)
+          ._2
+          .substitute(typeSubstitutions*)
+          .asInstanceOf[Expr[Ind]]
+        NestedTrieProofs.guardBinders(g.guardTerm, argType)
+      }
+      .distinctBy(_._1)
     NestedConstructorPattern(
-      constructor, topBinders, innerTyped.map(_._1), innerTyped.map(_._2),
-      body, condition, guards, typeSubstitutions, specializedAdtTerm
+      constructor,
+      topBinders,
+      innerTyped.map(_._1),
+      innerTyped.map(_._2),
+      body,
+      condition,
+      guards,
+      typeSubstitutions,
+      specializedAdtTerm
     )
 
   private def containsBinder(p: RPat, target: Variable[Ind]): Boolean = p match
-    case RVar(v)       => v == target
+    case RVar(v) => v == target
     case RCon(_, args) => args.exists(containsBinder(_, target))
 
   private def childIndexForBinder(args: List[RPat], target: Variable[Ind]): Int =
     args.indexWhere(containsBinder(_, target)) match
       case -1 => throw new IllegalArgumentException(s"Binder $target not found in recursive guard.")
-      case i  => i
+      case i => i
 
-  private def typeProof(using proof: lisa.SetTheoryLibrary.Proof)(
+  private def typeProof(using
+      proof: lisa.SetTheoryLibrary.Proof
+  )(
       leafTyping: proof.Fact,
       p: RPat,
       ty: Ty
@@ -246,7 +269,11 @@ private[PatternMatching] object NestedConstructorPattern {
         val introInst: proof.Fact = if substs.isEmpty then intro else intro.of(substs*)
         have(goal) by Tautology.from((introInst +: argFacts)*)
 
-  private def descendToBinder(using proof: lisa.SetTheoryLibrary.Proof, line: sourcecode.Line, file: sourcecode.File)(
+  private def descendToBinder(using
+      proof: lisa.SetTheoryLibrary.Proof,
+      line: sourcecode.Line,
+      file: sourcecode.File
+  )(
       heightFun: Expr[Ind],
       hValid: proof.Fact,
       heightMembershipMonotonic: THM,
@@ -260,18 +287,19 @@ private[PatternMatching] object NestedConstructorPattern {
   ): proof.Fact =
     currentPat match
       case RVar(v) =>
-        if v != target then
-          throw new IllegalArgumentException(s"Asked to descend to $target but reached unrelated binder $v.")
+        if v != target then throw new IllegalArgumentException(s"Asked to descend to $target but reached unrelated binder $v.")
         currentInHeight
 
       case RCon(c, args) =>
         val predVar = Variable[Ind](freshId(Seq(currentIndex, target, heightFun), "predVar"))
         val currentTerm = NestedTrieProofs.termOf(currentPat, currentTy)
         val levelSubsts = currentTy._1.semantic.typeVariablesSeq.zip(currentTy._2).map((v, a) => v := a)
-        val currentInZero = Time.measure(s"currentInZero"){have(!(currentTerm ∈ app(heightFun)(∅))) by Tautology.from(
-          hValid,
-          currentTy._1.semantic.height.zeroAt(levelSubsts).of(h := heightFun, x := currentTerm)
-        )}
+        val currentInZero = Time.measure(s"currentInZero") {
+          have(!(currentTerm ∈ app(heightFun)(∅))) by Tautology.from(
+            hValid,
+            currentTy._1.semantic.height.zeroAt(levelSubsts).of(h := heightFun, x := currentTerm)
+          )
+        }
 
         val currentIndexNonZero = have(currentIndex =/= ∅) subproof {
           val currentIsZero = assume(currentIndex === ∅)
@@ -310,20 +338,22 @@ private[PatternMatching] object NestedConstructorPattern {
           val semanticSubsts = c.semantic.typeVariablesSeq.zip(currentTy._2).map((v, a) => v := a)
           val semanticSigAtArgs =
             argTerms.zip(c.semantic.semanticSignature2.map(_._2.substitute(semanticSubsts*).asInstanceOf[Expr[Ind]]))
-          val argsTypedSemantic = Time.measure(s"argsTypedSemantic"){have(wellTypedFormula(semanticSigAtArgs)) by Tautology.from(argTypings*)}
+          val argsTypedSemantic = Time.measure(s"argsTypedSemantic") { have(wellTypedFormula(semanticSigAtArgs)) by Tautology.from(argTypings*) }
           val heightSigAtArgs = argTerms.zip(c.semantic.underlying.signature2.map(_._2)).map {
-            case (term, SelfRef)       => term -> app(heightFun)(predVar)
+            case (term, SelfRef) => term -> app(heightFun)(predVar)
             case (term, TypeArg(name)) => term -> typeExprToTerm(name).substitute(semanticSubsts*).asInstanceOf[Expr[Ind]]
           }
           val recursiveAtPred = c.semantic.recursiveArgInHeightAt(semanticSubsts)(heightFun, predVar)
           val valueSubsts = c.semantic.variables2.zip(argTerms).map((v, t) => v := t)
-          val childTypingsAtPred = Time.measure(s"childTypingsAtPred"){have(wellTypedFormula(heightSigAtArgs)) by Tautology.from(
-            hValid,
-            predInN,
-            argsTypedSemantic,
-            currentInSuccPred,
-            recursiveAtPred.of(valueSubsts*)
-          )}
+          val childTypingsAtPred = Time.measure(s"childTypingsAtPred") {
+            have(wellTypedFormula(heightSigAtArgs)) by Tautology.from(
+              hValid,
+              predInN,
+              argsTypedSemantic,
+              currentInSuccPred,
+              recursiveAtPred.of(valueSubsts*)
+            )
+          }
 
           val childIdx = childIndexForBinder(args, target)
           val childTy = cts(childIdx).get
@@ -344,14 +374,16 @@ private[PatternMatching] object NestedConstructorPattern {
 
           val predSubSucc = have(predVar ⊆ S(predVar)) by Tautology.from(subsetSuccessor.of(n := predVar))
           val predSubCurrent = have(predVar ⊆ currentIndex) by Congruence.from(predSubSucc, currentEqSucc)
-          Time.measure(s"targetInHeight"){have(target ∈ app(heightFun)(currentIndex)) by Tautology.from(
-            hValid,
-            currentIndexInN,
-            predInN,
-            predSubCurrent,
-            innerAtPred,
-            heightMembershipMonotonic.of(h := heightFun, n := currentIndex, m := predVar, x := target)
-          )}
+          Time.measure(s"targetInHeight") {
+            have(target ∈ app(heightFun)(currentIndex)) by Tautology.from(
+              hValid,
+              currentIndexInN,
+              predInN,
+              predSubCurrent,
+              innerAtPred,
+              heightMembershipMonotonic.of(h := heightFun, n := currentIndex, m := predVar, x := target)
+            )
+          }
         }
         val fromPredWitness = thenHave(
           ∃(predVar, predVar ∈ N /\ (currentIndex === S(predVar))) |- target ∈ app(heightFun)(currentIndex)
@@ -469,9 +501,7 @@ private[PatternMatching] final case class NestedPatternSystem[N <: Arity](
               have(specializedCaseCoverage(coveredTerm)) by Tautology.from(branchCase)
             }
 
-            constructor.variables2.reverse.foldLeft(directBranch)((fact, v) =>
-              thenHave(∃(v, fact.statement.left.head) |- specializedCaseCoverage(coveredTerm)) by LeftExists
-            )
+            constructor.variables2.reverse.foldLeft(directBranch)((fact, v) => thenHave(∃(v, fact.statement.left.head) |- specializedCaseCoverage(coveredTerm)) by LeftExists)
           else
             val selectionSchema = branchSelectionFor(constructor, coveredTerm)
             val directCoverage = have(
@@ -489,9 +519,8 @@ private[PatternMatching] final case class NestedPatternSystem[N <: Arity](
               for v <- constructor.variables2 do
                 selectionAtCtorVars.statement.right.head match
                   case forall(qv, phi) =>
-                    selectionAtCtorVars =
-                      have(phi.substituteUnsafe(Map(qv -> v)).asInstanceOf[Expr[Prop]]) by
-                        InstantiateForall(v)(selectionAtCtorVars)
+                    selectionAtCtorVars = have(phi.substituteUnsafe(Map(qv -> v)).asInstanceOf[Expr[Prop]]) by
+                      InstantiateForall(v)(selectionAtCtorVars)
                   case _ => ()
               val selectedBranch = selectionAtCtorVars.statement.right.head match
                 case _ ==> consequent =>
@@ -518,26 +547,25 @@ private[PatternMatching] final case class NestedPatternSystem[N <: Arity](
                 }
               )
 
-              val selectedCoverage = if branchCoverageFacts.size == 1 then
-                have(targetBody(constructor, coveredTerm) |- specializedCaseCoverage(coveredTerm)) by
-                  Tautology.from(branchCoverageFacts.head)
-              else
-                have(targetBody(constructor, coveredTerm) |- specializedCaseCoverage(coveredTerm)) by
-                  LeftOr(branchCoverageFacts*)
+              val selectedCoverage =
+                if branchCoverageFacts.size == 1 then
+                  have(targetBody(constructor, coveredTerm) |- specializedCaseCoverage(coveredTerm)) by
+                    Tautology.from(branchCoverageFacts.head)
+                else
+                  have(targetBody(constructor, coveredTerm) |- specializedCaseCoverage(coveredTerm)) by
+                    LeftOr(branchCoverageFacts*)
 
               have(specializedCaseCoverage(coveredTerm)) by Tautology.from(selectedBranch, selectedCoverage)
             }
 
-            constructor.variables2.reverse.foldLeft(directCoverage)((fact, v) =>
-              thenHave(∃(v, fact.statement.left.head) |- specializedCaseCoverage(coveredTerm)) by LeftExists
-            )
+            constructor.variables2.reverse.foldLeft(directCoverage)((fact, v) => thenHave(∃(v, fact.statement.left.head) |- specializedCaseCoverage(coveredTerm)) by LeftExists)
 
           constructorCase -> directCoverage
         )
 
         val decompositionAtInput = have(
-        coveredTerm :: specializedDomainTerm ==> specializedConstructorDisjunction(coveredTerm)
-      ) by InstantiateForall(coveredTerm)(specializedDomainElim)
+          coveredTerm :: specializedDomainTerm ==> specializedConstructorDisjunction(coveredTerm)
+        ) by InstantiateForall(coveredTerm)(specializedDomainElim)
 
         val constructorsToCoverage =
           if constructorCoverageFacts.size == 1 then
@@ -561,133 +589,134 @@ private[PatternMatching] final case class NestedPatternSystem[N <: Arity](
       constructor: SemanticConstructor[N],
       term: Expr[Ind]
   ): THM = branchSelectionCache.getOrElseUpdate(
-      (constructor, term), Time.measure(s"Pattern/Branch selection"){
-    val genericStatement = forallSeq(
-      constructor.variables2,
-      (wellTypedFormula(constructor.semanticSignature2) /\ (term === constructor.appliedTerm2)) ==>
-        seqOr(patternsFor(constructor).map(pattern =>
-          pattern.freshBranchCondition /\ (term === pattern.freshInputTerm)
-        ))
-    )
-    val target = genericStatement.substitute(typeSubstitutions*)
-    val constructorPatterns = patternsForNested(constructor)
+    (constructor, term),
+    Time.measure(s"Pattern/Branch selection") {
+      val genericStatement = forallSeq(
+        constructor.variables2,
+        (wellTypedFormula(constructor.semanticSignature2) /\ (term === constructor.appliedTerm2)) ==>
+          seqOr(patternsFor(constructor).map(pattern => pattern.freshBranchCondition /\ (term === pattern.freshInputTerm)))
+      )
+      val target = genericStatement.substitute(typeSubstitutions*)
+      val constructorPatterns = patternsForNested(constructor)
 
-    if constructorPatterns.size == 1 then
-      Lemma(target) {
-        have(thesis) by Tautology
-      }
-    else
-      val splitPosition = constructorPatterns.head.guards.head.position
-      val splitVariable = constructor.variables2(splitPosition)
-      val (guardAdt, typeArgs) = resolveArgAdt(constructor, constructorPatterns.head.guards.head)
-      val guardType = constructor.semanticSignature2(splitPosition)._2.substitute(typeSubstitutions*)
-      val elimination = adtElimAt(guardAdt, typeArgs)
-      Lemma(target) {
-        val eliminationAtGuard = have(
-          splitVariable :: guardType ==> simplify(guardAdtIsConstructorDisjunction(guardAdt, typeArgs, splitVariable))
-        ) by InstantiateForall(splitVariable)(elimination)
-
-        val pointwise = have(
-          (wellTypedFormula(constructor.semanticSignature2).substitute(typeSubstitutions*) /\
-            ((term === constructor.appliedTerm2).substitute(typeSubstitutions*))) ==> targetBody(constructor, term)
-        ) subproof {
-          assume(
-            wellTypedFormula(constructor.semanticSignature2).substitute(typeSubstitutions*) /\
-              ((term === constructor.appliedTerm2).substitute(typeSubstitutions*))
-          )
-          val argsTyped = have(wellTypedFormula(constructor.semanticSignature2).substitute(typeSubstitutions*)) by Tautology
-          val inputEq = have((term === constructor.appliedTerm2).substitute(typeSubstitutions*)) by Tautology
-          val splitTyped = have(splitVariable :: guardType) by Tautology.from(argsTyped)
-          val constructorDisjunction = have(
-            simplify(guardAdtIsConstructorDisjunction(guardAdt, typeArgs, splitVariable))
-          ) by Tautology.from(eliminationAtGuard, splitTyped)
-          have(targetBody(constructor, term)) by Tautology.from(constructorDisjunction, inputEq)
+      if constructorPatterns.size == 1 then
+        Lemma(target) {
+          have(thesis) by Tautology
         }
+      else
+        val splitPosition = constructorPatterns.head.guards.head.position
+        val splitVariable = constructor.variables2(splitPosition)
+        val (guardAdt, typeArgs) = resolveArgAdt(constructor, constructorPatterns.head.guards.head)
+        val guardType = constructor.semanticSignature2(splitPosition)._2.substitute(typeSubstitutions*)
+        val elimination = adtElimAt(guardAdt, typeArgs)
+        Lemma(target) {
+          val eliminationAtGuard = have(
+            splitVariable :: guardType ==> simplify(guardAdtIsConstructorDisjunction(guardAdt, typeArgs, splitVariable))
+          ) by InstantiateForall(splitVariable)(elimination)
 
-        var quantified = pointwise
-        for v <- constructor.variables2.reverse do
-          quantified = thenHave(∀(v, quantified.statement.right.head)) by RightForall
-        have(thesis) by Tautology.from(quantified)
-      }
-  })
+          val pointwise = have(
+            (wellTypedFormula(constructor.semanticSignature2).substitute(typeSubstitutions*) /\
+              ((term === constructor.appliedTerm2).substitute(typeSubstitutions*))) ==> targetBody(constructor, term)
+          ) subproof {
+            assume(
+              wellTypedFormula(constructor.semanticSignature2).substitute(typeSubstitutions*) /\
+                ((term === constructor.appliedTerm2).substitute(typeSubstitutions*))
+            )
+            val argsTyped = have(wellTypedFormula(constructor.semanticSignature2).substitute(typeSubstitutions*)) by Tautology
+            val inputEq = have((term === constructor.appliedTerm2).substitute(typeSubstitutions*)) by Tautology
+            val splitTyped = have(splitVariable :: guardType) by Tautology.from(argsTyped)
+            val constructorDisjunction = have(
+              simplify(guardAdtIsConstructorDisjunction(guardAdt, typeArgs, splitVariable))
+            ) by Tautology.from(eliminationAtGuard, splitTyped)
+            have(targetBody(constructor, term)) by Tautology.from(constructorDisjunction, inputEq)
+          }
+
+          var quantified = pointwise
+          for v <- constructor.variables2.reverse do quantified = thenHave(∀(v, quantified.statement.right.head)) by RightForall
+          have(thesis) by Tautology.from(quantified)
+        }
+    }
+  )
 
   override def incompatible(pattern1: Pattern[N], pattern2: Pattern[N]): THM =
     incompatibleCache.getOrElseUpdate(
-      (pattern1, pattern2), Time.measure(s"Pattern/Incompatible") {
-    require(pattern1 != pattern2, "incompatible is only meaningful for distinct patterns.")
-    val constructorPattern1 = pattern1 match
-      case pattern: NestedConstructorPattern[N] => pattern
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Pattern ${pattern1.name} is not a nested constructor-headed pattern."
-        )
-    val constructorPattern2 = pattern2 match
-      case pattern: NestedConstructorPattern[N] => pattern
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Pattern ${pattern2.name} is not a nested constructor-headed pattern."
-        )
+      (pattern1, pattern2),
+      Time.measure(s"Pattern/Incompatible") {
+        require(pattern1 != pattern2, "incompatible is only meaningful for distinct patterns.")
+        val constructorPattern1 = pattern1 match
+          case pattern: NestedConstructorPattern[N] => pattern
+          case _ =>
+            throw new IllegalArgumentException(
+              s"Pattern ${pattern1.name} is not a nested constructor-headed pattern."
+            )
+        val constructorPattern2 = pattern2 match
+          case pattern: NestedConstructorPattern[N] => pattern
+          case _ =>
+            throw new IllegalArgumentException(
+              s"Pattern ${pattern2.name} is not a nested constructor-headed pattern."
+            )
 
-    if !constructorPattern1.hasSameHeadAs(constructorPattern2) then
-      ConstructorPatternSystem(
-        ADT.getADT(constructorPattern1.semanticConstructor.adt.name).get.semantic.asInstanceOf[SemanticADT[N]],
-        Seq(constructorPattern1, constructorPattern2).asInstanceOf[Seq[ConstructorHeadPattern[N]]],
-        specializedAdtTerm
-      )
-        .incompatible(constructorPattern1, constructorPattern2)
-    else
-      val (guard1, guard2) = distinctSameHeadGuards(constructorPattern1, constructorPattern2)
-      val distinctGuardTerms = nullaryGuardDisequality(guard1.resolvedNullary.get, guard2.resolvedNullary.get)
+        if !constructorPattern1.hasSameHeadAs(constructorPattern2) then
+          ConstructorPatternSystem(
+            ADT.getADT(constructorPattern1.semanticConstructor.adt.name).get.semantic.asInstanceOf[SemanticADT[N]],
+            Seq(constructorPattern1, constructorPattern2).asInstanceOf[Seq[ConstructorHeadPattern[N]]],
+            specializedAdtTerm
+          )
+            .incompatible(constructorPattern1, constructorPattern2)
+        else
+          val (guard1, guard2) = distinctSameHeadGuards(constructorPattern1, constructorPattern2)
+          val distinctGuardTerms = nullaryGuardDisequality(guard1.resolvedNullary.get, guard2.resolvedNullary.get)
 
-      Lemma(
-        (constructorPattern1.branchPremise1 /\ constructorPattern2.freshBranchPremise) ==>
-          !(constructorPattern1.inputTerm1 === constructorPattern2.inputTerm2)
-      ) {
-        val branch = assume(constructorPattern1.branchPremise1 /\ constructorPattern2.freshBranchPremise)
-        val branch1Typed = have(constructorPattern1.branchPremise1) by Tautology.from(branch)
-        val branch2Typed = have(constructorPattern2.freshBranchPremise) by Tautology.from(branch)
+          Lemma(
+            (constructorPattern1.branchPremise1 /\ constructorPattern2.freshBranchPremise) ==>
+              !(constructorPattern1.inputTerm1 === constructorPattern2.inputTerm2)
+          ) {
+            val branch = assume(constructorPattern1.branchPremise1 /\ constructorPattern2.freshBranchPremise)
+            val branch1Typed = have(constructorPattern1.branchPremise1) by Tautology.from(branch)
+            val branch2Typed = have(constructorPattern2.freshBranchPremise) by Tautology.from(branch)
 
-        assume(constructorPattern1.inputTerm1 === constructorPattern2.inputTerm2)
-        val inputsEqual = have(constructorPattern1.inputTerm1 === constructorPattern2.inputTerm2) by Hypothesis
+            assume(constructorPattern1.inputTerm1 === constructorPattern2.inputTerm2)
+            val inputsEqual = have(constructorPattern1.inputTerm1 === constructorPattern2.inputTerm2) by Hypothesis
 
-        val injectivitySchema = have(constructorPattern1.injectivity.statement.right.head) by
-          Tautology.from(constructorPattern1.injectivity)
-        var injectivityAtVars = injectivitySchema
-        for v <- constructorPattern1.variables1 ++ constructorPattern2.variables2 do
-          injectivityAtVars.statement.right.head match
-            case forall(qv, phi) =>
-              injectivityAtVars = have(phi.substituteUnsafe(Map(qv -> v)).asInstanceOf[Expr[Prop]]) by
-                InstantiateForall(v)(injectivityAtVars)
-            case _ => ()
+            val injectivitySchema = have(constructorPattern1.injectivity.statement.right.head) by
+              Tautology.from(constructorPattern1.injectivity)
+            var injectivityAtVars = injectivitySchema
+            for v <- constructorPattern1.variables1 ++ constructorPattern2.variables2 do
+              injectivityAtVars.statement.right.head match
+                case forall(qv, phi) =>
+                  injectivityAtVars = have(phi.substituteUnsafe(Map(qv -> v)).asInstanceOf[Expr[Prop]]) by
+                    InstantiateForall(v)(injectivityAtVars)
+                case _ => ()
 
-        val guardedArgsEqual = have(guard1.binder === guard2.binder) by
-          Tautology.from(injectivityAtVars, branch1Typed, branch2Typed, inputsEqual)
+            val guardedArgsEqual = have(guard1.binder === guard2.binder) by
+              Tautology.from(injectivityAtVars, branch1Typed, branch2Typed, inputsEqual)
 
-        val guard1Eq = have(guard1.binder === guard1.guardTerm) by Tautology.from(branch1Typed)
-        val guard2Eq = have(guard2.binder === guard2.guardTerm) by Tautology.from(branch2Typed)
-        val guard1EqRev = have(guard1.guardTerm === guard1.binder) by Congruence.from(guard1Eq)
-        val guard1ToGuard2Binder = have(guard1.guardTerm === guard2.binder) by Tautology.from(
-          altEqualityTransitivity of (
-            x := guard1.guardTerm,
-            y := guard1.binder,
-            z := guard2.binder
-          ),
-          guard1EqRev,
-          guardedArgsEqual
-        )
-        val guardTermsEqual = have(guard1.guardTerm === guard2.guardTerm) by Tautology.from(
-          altEqualityTransitivity of (
-            x := guard1.guardTerm,
-            y := guard2.binder,
-            z := guard2.guardTerm
-          ),
-          guard1ToGuard2Binder,
-          guard2Eq
-        )
+            val guard1Eq = have(guard1.binder === guard1.guardTerm) by Tautology.from(branch1Typed)
+            val guard2Eq = have(guard2.binder === guard2.guardTerm) by Tautology.from(branch2Typed)
+            val guard1EqRev = have(guard1.guardTerm === guard1.binder) by Congruence.from(guard1Eq)
+            val guard1ToGuard2Binder = have(guard1.guardTerm === guard2.binder) by Tautology.from(
+              altEqualityTransitivity of (
+                x := guard1.guardTerm,
+                y := guard1.binder,
+                z := guard2.binder
+              ),
+              guard1EqRev,
+              guardedArgsEqual
+            )
+            val guardTermsEqual = have(guard1.guardTerm === guard2.guardTerm) by Tautology.from(
+              altEqualityTransitivity of (
+                x := guard1.guardTerm,
+                y := guard2.binder,
+                z := guard2.guardTerm
+              ),
+              guard1ToGuard2Binder,
+              guard2Eq
+            )
 
-        have(thesis) by Tautology.from(guardTermsEqual, distinctGuardTerms)
+            have(thesis) by Tautology.from(guardTermsEqual, distinctGuardTerms)
+          }
       }
-  })
+    )
 
   private def validateRestrictedShape(): Unit =
     constructors.foreach(constructor => validateConstructorPatterns(constructor, patternsForNested(constructor)))
@@ -697,34 +726,41 @@ private[PatternMatching] final case class NestedPatternSystem[N <: Arity](
       guard: BranchGuard
   ): (ADT[?], Seq[Expr[Ind]]) =
     val argType = constructor.semanticSignature2(guard.position)._2.substitute(typeSubstitutions*)
-    ADT.unapply(argType).getOrElse(
-      throw new IllegalArgumentException(
-        s"Cannot resolve ADT for guarded position ${guard.position} of constructor ${constructor.name} (type $argType)."
+    ADT
+      .unapply(argType)
+      .getOrElse(
+        throw new IllegalArgumentException(
+          s"Cannot resolve ADT for guarded position ${guard.position} of constructor ${constructor.name} (type $argType)."
+        )
       )
-    )
 
   private def adtElimAt(adt: ADT[?], typeArgs: Seq[Expr[Ind]]): THM =
     typeArgs match
-      case Seq()          => adt.elim
-      case first +: rest  => adt.elim(first, rest*)
+      case Seq() => adt.elim
+      case first +: rest => adt.elim(first, rest*)
 
   private def domainElim(): THM =
-    val (adt, typeArgs) = ADT.unapply(specializedAdtTerm).getOrElse(
-      throw new IllegalArgumentException(
-        s"Cannot resolve specialized ADT for coverage term $specializedAdtTerm."
+    val (adt, typeArgs) = ADT
+      .unapply(specializedAdtTerm)
+      .getOrElse(
+        throw new IllegalArgumentException(
+          s"Cannot resolve specialized ADT for coverage term $specializedAdtTerm."
+        )
       )
-    )
     adtElimAt(adt, typeArgs)
 
   private def distinctSameHeadGuards(
       pattern1: NestedConstructorPattern[N],
       pattern2: NestedConstructorPattern[N]
   ): (BranchGuard, BranchGuard) =
-    val guard1 = pattern1.guardsAt(pattern1.variables1).headOption.getOrElse(
-      throw new IllegalArgumentException(
-        s"Same-head pattern ${pattern1.name} has no tracked guard."
+    val guard1 = pattern1
+      .guardsAt(pattern1.variables1)
+      .headOption
+      .getOrElse(
+        throw new IllegalArgumentException(
+          s"Same-head pattern ${pattern1.name} has no tracked guard."
+        )
       )
-    )
     val guard2 = pattern2.freshGuards.headOption.getOrElse(
       throw new IllegalArgumentException(
         s"Same-head pattern ${pattern2.name} has no tracked guard."
@@ -770,12 +806,12 @@ private[PatternMatching] final case class NestedPatternSystem[N <: Arity](
         Tautology.from(constructor1.shortDefinition)
       val constructor1Eq = constructor1Def.statement.right.head match
         case _ ==> consequent => have(consequent) by Tautology.from(constructor1Def)
-        case consequent            => have(consequent) by Tautology.from(constructor1Def)
+        case consequent => have(consequent) by Tautology.from(constructor1Def)
       val constructor2Def = have(constructor2.shortDefinition.statement.right.head) by
         Tautology.from(constructor2.shortDefinition)
       val constructor2Eq = constructor2Def.statement.right.head match
         case _ ==> consequent => have(consequent) by Tautology.from(constructor2Def)
-        case consequent            => have(consequent) by Tautology.from(constructor2Def)
+        case consequent => have(consequent) by Tautology.from(constructor2Def)
 
       assume(guard1.appliedTerm === guard2.appliedTerm)
       val inputsEqual = have(guard1.appliedTerm === guard2.appliedTerm) by Hypothesis
@@ -819,9 +855,7 @@ private[PatternMatching] final case class NestedPatternSystem[N <: Arity](
       constructor: SemanticConstructor[N],
       term: Expr[Ind]
   ): Expr[Prop] =
-    seqOr(patternsForNested(constructor).map(pattern =>
-      pattern.freshBranchCondition /\ (term === pattern.freshInputTerm)
-    ))
+    seqOr(patternsForNested(constructor).map(pattern => pattern.freshBranchCondition /\ (term === pattern.freshInputTerm)))
 
   private def specializedConstructorCase(
       constructor: SemanticConstructor[N],
@@ -850,10 +884,8 @@ private[PatternMatching] final case class NestedPatternSystem[N <: Arity](
       s"No pattern registered for constructor ${constructor.name}."
     )
 
-    if constructorPatterns.size == 1 then
-      validateSinglePatternConstructor(constructor, constructorPatterns.head)
-    else
-      validateSplitConstructor(constructor, constructorPatterns)
+    if constructorPatterns.size == 1 then validateSinglePatternConstructor(constructor, constructorPatterns.head)
+    else validateSplitConstructor(constructor, constructorPatterns)
 
   private def validateSinglePatternConstructor(
       constructor: SemanticConstructor[N],
@@ -896,11 +928,14 @@ private[PatternMatching] final case class NestedPatternSystem[N <: Arity](
     )
 
     val guardAdt = resolvedGuards.head.constructor.semantic.adt
-    val guardConstructors = ADT.getADT(guardAdt.name).getOrElse(
-      throw new IllegalArgumentException(
-        s"Guard ADT ${guardAdt.name} is not registered in the interface layer."
+    val guardConstructors = ADT
+      .getADT(guardAdt.name)
+      .getOrElse(
+        throw new IllegalArgumentException(
+          s"Guard ADT ${guardAdt.name} is not registered in the interface layer."
+        )
       )
-    ).constructors
+      .constructors
     require(
       guardConstructors.forall(_.semantic.arity == 0),
       s"Constructor ${constructor.name} guards over ADT ${guardAdt.name}, which has non-nullary constructors. Only nullary-constructor guard ADTs are supported."
@@ -928,9 +963,7 @@ private[PatternMatching] object NestedPatternSystem {
   ): NestedPatternSystem[N] =
     NestedPatternSystem(
       domain,
-      rawCases.map((constructor, args, body) =>
-        NestedConstructorPattern.fromArgs(constructor, args, body, typeSubstitutions, specializedAdtTerm)
-      ),
+      rawCases.map((constructor, args, body) => NestedConstructorPattern.fromArgs(constructor, args, body, typeSubstitutions, specializedAdtTerm)),
       typeSubstitutions,
       specializedAdtTerm
     )

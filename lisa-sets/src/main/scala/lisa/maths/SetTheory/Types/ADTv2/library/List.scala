@@ -10,8 +10,7 @@ private val listLengthTail = variable[Ind]
 lazy val list = adt(
   name = "list",
   typeVars = "A",
-  constructors =
-    Seq(("nil", Seq.empty), ("cons", Seq(("head", "A"), ("tail", SelfRef))))
+  constructors = Seq(("nil", Seq.empty), ("cons", Seq(("head", "A"), ("tail", SelfRef))))
 )
 lazy val nil = list.constructors(0)
 lazy val cons = list.constructors(1)

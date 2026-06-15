@@ -1,23 +1,31 @@
 package lisa.maths.SetTheory.Types.ADTv2.syntax
 
-/** Core syntax for ADT v2. Kept backend-agnostic on purpose. */
+/**
+ * Core syntax for ADT v2. Kept backend-agnostic on purpose.
+ */
 object AST {
 
   sealed trait TypeExpr
 
-  /** Simple type reference, e.g. "A" or "nat". */
+  /**
+   * Simple type reference, e.g. "A" or "nat".
+   */
   final case class TypeRef(name: String) extends TypeExpr {
     override def toString: String = name
   }
 
-  /** Type application, e.g. "List[A]". */
+  /**
+   * Type application, e.g. "List[A]".
+   */
   final case class TypeApply(name: String, args: Seq[TypeExpr]) extends TypeExpr {
     override def toString: String = s"$name[${args.mkString(", ")}]"
   }
 
   sealed trait ConstructorArg
 
-  /** A regular argument with a type, e.g. "head: A" in cons:(A, self) . */
+  /**
+   * A regular argument with a type, e.g. "head: A" in cons:(A, self) .
+   */
   // final case class RegularArg(tpe: TypeExpr) extends ConstructorArg {
   //   override def toString: String = tpe.toString
   // }
@@ -25,7 +33,9 @@ object AST {
     override def toString: String = name
   }
 
-  /** A recursive reference to the ADT being defined, e.g. "self" in cons:(A, self) . */
+  /**
+   * A recursive reference to the ADT being defined, e.g. "self" in cons:(A, self) .
+   */
   case object SelfRef extends ConstructorArg {
     override def toString: String = "self"
   }

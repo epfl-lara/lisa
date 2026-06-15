@@ -20,7 +20,6 @@ import lisa.utils.prooflib.BasicStepTactic.LeftExists
 import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
-
 /**
  * Layer 3 — Existence without circularity.
  *
@@ -36,19 +35,19 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  *   - [[witnessExists]] — ∃f, Def(f)
  */
 private[recursion] final class Existence[N <: Arity](
-  val spec: FunSpec[N],
-  val recWitness: Witness[N],
-  val approx: Approx[N],
-  val approxProp: ApproxProp[N],
-  val limitConstruction: LimitConstruction[N],
-  val witnessAgreement: helpers.WitnessAgreement[N]
+    val spec: FunSpec[N],
+    val recWitness: Witness[N],
+    val approx: Approx[N],
+    val approxProp: ApproxProp[N],
+    val limitConstruction: LimitConstruction[N],
+    val witnessAgreement: helpers.WitnessAgreement[N]
 ) extends ExistenceProof[N] {
 
   val nVar = variable[Ind]
   private val heightSuccessorInclusion = spec.adt.height.successorInclusionAt(spec.typeSubstitutions)
   private val heightMembershipMonotonic = spec.adt.height.membershipMonotonicAt(spec.typeSubstitutions)
   private val termHasHeight = spec.adt.height.termHasHeightAt(spec.typeSubstitutions)
-  
+
   import approx.G
   import approxProp.{heightFun, heightFunValid, isHeightPred, stabilization}
   import limitConstruction.{limitFun, limitHasType, limitIndex}
@@ -106,11 +105,11 @@ private[recursion] final class Existence[N <: Arity](
         LimitKernel.limitIndexWitnessAt(spec.argType, heightFun, chosenIndexFamily, a)
       )
 
-      val n0         = limitIndex(a)
-      val indexInN   = have(n0 ∈ N)   by Tautology.from(indexWitness)
+      val n0 = limitIndex(a)
+      val indexInN = have(n0 ∈ N) by Tautology.from(indexWitness)
       val aInHeightN0 = have(a ∈ app(heightFun)(n0)) by Tautology.from(indexWitness)
 
-      val succN0InN   = have(S(n0) ∈ N)   by Tautology.from(indexInN, successorInOmega.of(n := n0))
+      val succN0InN = have(S(n0) ∈ N) by Tautology.from(indexInN, successorInOmega.of(n := n0))
 
       val n0InSuccN0 = have(n0 ∈ S(n0)) by Weakening(selfInSuccessor.of(n := n0))
       val n0SubSuccN0 = have(n0 ⊆ S(n0)) by Tautology.from(
@@ -271,54 +270,58 @@ private[recursion] final class Existence[N <: Arity](
   // Lemma G — fixedPointExists: ∃f :: A→T, W(f) = f
   // ─────────────────────────────────────────────────────────────────────────
 
-  private val fixedPointExists: THM = Time.measure(s"Ex/fixedPointExists")(Lemma(
-    ∃(f, (f :: spec.typ) /\ (recWitness(f) === f))
-  ) {
-    have(((limitFun :: spec.typ) /\ (recWitness(limitFun) === limitFun))) by
-      Tautology.from(limitHasType, limitIsFixedPoint)
-    thenHave(thesis) by RightExists
-  })
+  private val fixedPointExists: THM = Time.measure(s"Ex/fixedPointExists")(
+    Lemma(
+      ∃(f, (f :: spec.typ) /\ (recWitness(f) === f))
+    ) {
+      have(((limitFun :: spec.typ) /\ (recWitness(limitFun) === limitFun))) by
+        Tautology.from(limitHasType, limitIsFixedPoint)
+      thenHave(thesis) by RightExists
+    }
+  )
 
   // ─────────────────────────────────────────────────────────────────────────
   // defAtFixedPoint: (f :: A→T) ∧ W(f) = f ⊢ Def(f)
   // ─────────────────────────────────────────────────────────────────────────
 
-  private val defAtFixedPoint: THM = Time.measure(s"Ex/defAtFixedPoint")(Lemma(
-    ((f :: spec.typ) /\ (recWitness(f) === f)) |- spec.untypedDefinition(f)
-  ) {
+  private val defAtFixedPoint: THM = Time.measure(s"Ex/defAtFixedPoint")(
+    Lemma(
+      ((f :: spec.typ) /\ (recWitness(f) === f)) |- spec.untypedDefinition(f)
+    ) {
 
-    val fTyped = assume(f :: spec.typ)
-    assume(recWitness(f) === f)
-    val wfEqF = have(recWitness(f) === f) by Tautology
+      val fTyped = assume(f :: spec.typ)
+      assume(recWitness(f) === f)
+      val wfEqF = have(recWitness(f) === f) by Tautology
 
-    val caseFacts = spec.patternMatching.patterns.map(pattern =>
-      val vars = pattern.binders
-      val body = pattern.body.substitute(spec.selfPlaceholder := f).asInstanceOf[Expr[Ind]]
-      val witnessCaseSchema = recWitness.witnessCase(pattern).of(spec.selfPlaceholder := f)
+      val caseFacts = spec.patternMatching.patterns
+        .map(pattern =>
+          val vars = pattern.binders
+          val body = pattern.body.substitute(spec.selfPlaceholder := f).asInstanceOf[Expr[Ind]]
+          val witnessCaseSchema = recWitness.witnessCase(pattern).of(spec.selfPlaceholder := f)
 
-      val allForalls = have(
-        forallSeq(vars, pattern.branchPremiseAt(vars) ==> (recWitness(f) * pattern.inputTermAt(vars) === body))
-      ) by Tautology.from(fTyped, witnessCaseSchema)
+          val allForalls = have(
+            forallSeq(vars, pattern.branchPremiseAt(vars) ==> (recWitness(f) * pattern.inputTermAt(vars) === body))
+          ) by Tautology.from(fTyped, witnessCaseSchema)
 
-      val instantiated = vars.foldLeft(allForalls)((acc, v) =>
-        acc.statement.right.head match
-          case forall(_, phi) => thenHave(phi) by InstantiateForall(v)
-          case _              => acc
-      )
+          val instantiated = vars.foldLeft(allForalls)((acc, v) =>
+            acc.statement.right.head match
+              case forall(_, phi) => thenHave(phi) by InstantiateForall(v)
+              case _ => acc
+          )
 
-      val appEq = have(recWitness(f) * pattern.inputTermAt(vars) === f * pattern.inputTermAt(vars)) by
-        Congruence.from(wfEqF)
+          val appEq = have(recWitness(f) * pattern.inputTermAt(vars) === f * pattern.inputTermAt(vars)) by
+            Congruence.from(wfEqF)
 
-      val withF = have(pattern.branchPremiseAt(vars) ==> (f * pattern.inputTermAt(vars) === body)) by
-        Congruence.from(instantiated, appEq)
+          val withF = have(pattern.branchPremiseAt(vars) ==> (f * pattern.inputTermAt(vars) === body)) by
+            Congruence.from(instantiated, appEq)
 
-      vars.foldRight(withF)((v, acc) =>
-        thenHave(∀(v, acc.statement.right.head)) by RightForall
-      )
-    ).toSeq
+          vars.foldRight(withF)((v, acc) => thenHave(∀(v, acc.statement.right.head)) by RightForall)
+        )
+        .toSeq
 
-    have(thesis) by Tautology.from((fTyped +: caseFacts)*)
-  })
+      have(thesis) by Tautology.from((fTyped +: caseFacts)*)
+    }
+  )
 
   // ─────────────────────────────────────────────────────────────────────────
   // witnessExists: ∃f, Def(f)

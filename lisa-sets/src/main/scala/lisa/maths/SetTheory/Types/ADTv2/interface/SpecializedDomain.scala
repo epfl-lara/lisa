@@ -44,10 +44,8 @@ final class SpecializedConstructor[N <: Arity](using
     baseTheorem = base.semantic.intro,
     headTermAt = _ => term,
     headTypeAt = substitutions => base.semantic.typ.substitute(substitutions*),
-    assumptionsAt = substitutions =>
-      wellTypedSet(instantiatedSemanticSignature(base.semantic.semanticSignature, substitutions)),
-    typingArgsAt = substitutions =>
-      instantiatedSemanticSignature(base.semantic.semanticSignature, substitutions),
+    assumptionsAt = substitutions => wellTypedSet(instantiatedSemanticSignature(base.semantic.semanticSignature, substitutions)),
+    typingArgsAt = substitutions => instantiatedSemanticSignature(base.semantic.semanticSignature, substitutions),
     conclusionAt = substitutions =>
       base.semantic.appliedTerm.substitute(substitutions*) ::
         base.adt.term.substitute(substitutions*)

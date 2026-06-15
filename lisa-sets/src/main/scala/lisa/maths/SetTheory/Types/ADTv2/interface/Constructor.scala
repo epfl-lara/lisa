@@ -21,7 +21,7 @@ final class Constructor[N <: Arity](using val line: sourcecode.Line, val file: s
 ) extends TypedConstantFunctional[IndOf[N]](
       semantic.id,
       FunctionalClass(
-        List.fill(semantic.typeVariablesSeq.size)(None), 
+        List.fill(semantic.typeVariablesSeq.size)(None),
         semantic.typeVariablesSeq.toList,
         semantic.typ
       ),
@@ -53,10 +53,8 @@ final class Constructor[N <: Arity](using val line: sourcecode.Line, val file: s
       baseTheorem = semantic.intro,
       headTermAt = termAt,
       headTypeAt = substitutions => semantic.typ.substitute(substitutions*),
-      assumptionsAt = substitutions =>
-        wellTypedSet(instantiatedSemanticSignature(semantic.semanticSignature, substitutions)),
-      typingArgsAt = substitutions =>
-        instantiatedSemanticSignature(semantic.semanticSignature, substitutions),
+      assumptionsAt = substitutions => wellTypedSet(instantiatedSemanticSignature(semantic.semanticSignature, substitutions)),
+      typingArgsAt = substitutions => instantiatedSemanticSignature(semantic.semanticSignature, substitutions),
       conclusionAt = substitutions =>
         semantic.appliedTerm.substitute(substitutions*) ::
           adt.term.substitute(substitutions*)
@@ -70,10 +68,8 @@ final class Constructor[N <: Arity](using val line: sourcecode.Line, val file: s
     baseTheorem = semantic.intro,
     headTermAt = termAt,
     headTypeAt = substitutions => semantic.typ.substitute(substitutions*),
-    assumptionsAt = substitutions =>
-      wellTypedSet(instantiatedSemanticSignature(semantic.semanticSignature, substitutions)),
-    typingArgsAt = substitutions =>
-      instantiatedSemanticSignature(semantic.semanticSignature, substitutions),
+    assumptionsAt = substitutions => wellTypedSet(instantiatedSemanticSignature(semantic.semanticSignature, substitutions)),
+    typingArgsAt = substitutions => instantiatedSemanticSignature(semantic.semanticSignature, substitutions),
     conclusionAt = substitutions =>
       semantic.appliedTerm.substitute(substitutions*) ::
         adt.term.substitute(substitutions*)
