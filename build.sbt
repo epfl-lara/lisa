@@ -74,7 +74,8 @@ lazy val kernelcf = Project(
 )
   .settings(commonSettings)
   .settings(
-    scalaVersion := scala3
+    scalaVersion := scala3,
+    libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % "test"
   )
 
 lazy val sets = Project(
