@@ -57,8 +57,7 @@ trait _HOL extends BasicMain {
 trait HOL extends _HOL {
   // export lisa.hol.HOLSteps.*
   export SetTheoryLibrary.{library => _, have => _, given, _}
-  export lisa.utils.prooflib.BasicStepTactic.*
-  export lisa.utils.prooflib.SimpleDeducedSteps.*
+  export lisa.utils.prooflib.Exports.*
 
   export lisa.automation.Tautology
   export lisa.automation.Substitution
