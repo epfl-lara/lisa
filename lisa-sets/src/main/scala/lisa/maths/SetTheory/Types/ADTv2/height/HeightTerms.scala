@@ -27,6 +27,12 @@ final class HeightTerms[N <: Arity](
   protected inline final def app(f: Expr[Ind], x: Expr[Ind]): Expr[Ind] =
     lisa.maths.SetTheory.Functions.Predef.app(f)(x)
 
+  private val subsetOfUnion = Lemma(x ⊆ y |- x ⊆ (y ∪ z)) {
+    have(y ⊆ (y ∪ z)) by Tautology.from(Union.leftSubset of (x := y, y := z))
+    have(x ⊆ y |- x ⊆ (y ∪ z)) by Tautology.from(lastStep, Subset.transitivity of (x := x, y := y, z := y ∪ z))
+    thenHave(thesis) by Restate
+  }
+
   private def constructorVarsInDomain(
       c: HeightConstructorData,
       s: Expr[Ind]

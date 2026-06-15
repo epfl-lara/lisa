@@ -18,6 +18,16 @@ private[height] object CoreFacts {
   val isConstructor = variable[Ind >>: Ind >>: Prop]
   val stageSet = variable[Ind >>: Ind]
 
+  private val unionPreimageMonotonic =
+    Lemma((s ⊆ t, P(s) ==> P(t)) |- (P(s) \/ (x ∈ s)) ==> (P(t) \/ (x ∈ t))) {
+      have(s ⊆ t |- forall(z, (z ∈ s) ==> (z ∈ t))) by Tautology.from(subsetAxiom of (x := s, y := t))
+      thenHave(s ⊆ t |- (x ∈ s) ==> (x ∈ t)) by InstantiateForall(x)
+      have(thesis) by Cut(
+        lastStep,
+        disjunctionsImplies of (p1 := x ∈ s, p2 := x ∈ t, q1 := P(s), q2 := P(t))
+      )
+    }
+
   def inIntroImage(s: Expr[Ind])(y: Expr[Ind]): Expr[Prop] =
     isConstructor(y)(s) \/ in(y, s)
 

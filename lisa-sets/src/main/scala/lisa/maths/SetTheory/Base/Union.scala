@@ -226,4 +226,46 @@ object Union extends lisa.Main {
     thenHave(thesis) by Extensionality
   }
 
+  /**
+   * Theorem --- The unary union is monotonic: if `x ⊆ y` then `⋃x ⊆ ⋃y`.
+   */
+  val unionMonotonic = Theorem(x ⊆ y |- ⋃(x) ⊆ ⋃(y)) {
+    have(z ∈ b /\ b ∈ x |- z ∈ b /\ b ∈ x) by Hypothesis
+    thenHave((x ⊆ y) /\ z ∈ b /\ b ∈ x |- b ∈ x) by Weakening
+
+    have(x ⊆ y |- forall(b, (b ∈ x) ==> (b ∈ y))) by Tautology.from(subsetAxiom of (x := x, y := y))
+    thenHave(x ⊆ y |- (b ∈ x) ==> (b ∈ y)) by InstantiateForall(b)
+
+    have((x ⊆ y) /\ (b ∈ x) |- b ∈ y) by Tautology.from(lastStep)
+    have((x ⊆ y) /\ z ∈ b /\ b ∈ x |- b ∈ y) by Tautology.from(lastStep)
+
+    have((x ⊆ y) /\ z ∈ b /\ b ∈ x |- z ∈ b /\ b ∈ y) by Tautology.from(lastStep)
+    thenHave((x ⊆ y) /\ z ∈ b /\ b ∈ x |- exists(a, z ∈ a /\ a ∈ y)) by RightExists
+    thenHave(z ∈ b /\ b ∈ x |- (x ⊆ y) ==> exists(a, z ∈ a /\ a ∈ y)) by Tautology
+    thenHave(exists(b, z ∈ b /\ b ∈ x) |- (x ⊆ y) ==> exists(a, z ∈ a /\ a ∈ y)) by LeftExists
+    have(z ∈ ⋃(x) |- (x ⊆ y) ==> exists(a, z ∈ a /\ a ∈ y)) by
+      Tautology.from(lastStep, ⋃.definition of (x := x, y := b, z := z))
+    have(z ∈ ⋃(x) |- (x ⊆ y) ==> z ∈ ⋃(y)) by
+      Tautology.from(lastStep, ⋃.definition of (x := y, y := b, z := z))
+    have(x ⊆ y |- z ∈ ⋃(x) ==> z ∈ ⋃(y)) by Tautology.from(lastStep)
+    thenHave(x ⊆ y |- forall(z, z ∈ ⋃(x) ==> z ∈ ⋃(y))) by RightForall
+    have(thesis) by Tautology.from(lastStep, Subset.definition of (x := ⋃(x), y := ⋃(y)))
+  }
+
+  /**
+   * Theorem --- `∅` is a left identity for `∪`: `∅ ∪ x === x`.
+   */
+  val unionNull = Theorem(∅ ∪ x === x) {
+    have(∅ ⊆ x) by Tautology.from(Subset.leftEmpty of (x := x))
+    val incl1 = have(∅ ∪ x ⊆ x) by Tautology.from(
+      lastStep,
+      Subset.reflexivity of (x := x),
+      leftUnionSubset of (x := ∅, y := x, z := x)
+    )
+
+    have(x ⊆ (∅ ∪ x)) by Tautology.from(rightSubset of (x := ∅, y := x))
+
+    have(thesis) by Tautology.from(incl1, lastStep, Subset.antisymmetry of (x := ∅ ∪ x, y := x))
+  }
+
 }

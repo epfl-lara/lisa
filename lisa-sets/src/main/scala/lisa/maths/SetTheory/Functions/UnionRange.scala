@@ -18,7 +18,7 @@ import lisa.maths.SetTheory.SetTheory.{_, given}
  */
 object UnionRange {
 
-  private val f, h = variable[Ind]
+  private val f, g, h = variable[Ind]
   private val R = variable[Ind]
   private val x, y, z = variable[Ind]
   private val m, n = variable[Ind]
@@ -189,6 +189,20 @@ object UnionRange {
     have(function(h) |- (z ∈ ⋃(range(h)) <=> p_1) /\ (p_1 <=> p_2)) by
       Tautology.from(unionAxiom of (x := range(h)), lastStep)
     have(thesis) by Tautology.from(lastStep)
+  }
+
+  /**
+   * Theorem --- `⋃range` is monotonic: if `f ⊆ g` then `⋃range(f) ⊆ ⋃range(g)`.
+   */
+  val unionRangeMonotonic = Lemma(f ⊆ g |- ⋃(range(f)) ⊆ ⋃(range(g))) {
+    val rf = range(f)
+    val rg = range(g)
+
+    have(rf ⊆ rg ==> ⋃(rf) ⊆ ⋃(rg)) by
+      Tautology.from(Union.unionMonotonic of (x := rf, y := rg))
+    have(f ⊆ g |- ⋃(rf) ⊆ ⋃(rg)) by
+      Tautology.from(lastStep, BasicTheorems.rangeMonotonic of (g := f, f := g))
+    thenHave(thesis) by Restate
   }
 
 }

@@ -2,6 +2,7 @@ package lisa.maths.SetTheory.Types.ADTv2.height.proofs
 
 import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Functions.Operations.Restriction.emptyRestriction
 import lisa.maths.SetTheory.Types.ADTv2.height.proofs.CoreFacts._
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.nInSuccN
@@ -29,7 +30,7 @@ private[height] object SuccessorFacts {
       List((h ↾ ∅, ∅)),
       (Seq(s), in(x, app(h, ∅)) <=> inExtIntroImage(s)(x))
     )
-    have(thesis) by Cut(restrictedFunctionEmptyDomain, lastStep)
+    have(thesis) by Cut(emptyRestriction of (f := h), lastStep)
   }
 
   val heightSuccessorWeak = Lemma(
@@ -52,7 +53,7 @@ private[height] object SuccessorFacts {
         coreTyping,
         nInDomH,
         nInSucc,
-        restrictedFunctionNotEmpty of (x := n, d := successor(n))
+        restrictedFunctionNotEmpty of (f := h, x := n, d := successor(n))
       )
 
     have(
