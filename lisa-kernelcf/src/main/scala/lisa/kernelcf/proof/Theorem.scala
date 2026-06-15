@@ -3,16 +3,6 @@ package lisa.kernelcf.proof
 import lisa.kernelcf.proof.SequentCalculus.*
 import lisa.kernelcf.fol.FOL.*
 
-sealed trait Theory:
-  def defines(cst: Constant): Boolean
-  def contains(expression: Expression): Boolean
-  def registerDefinition(cst: Constant, definition: Thm): Unit
-
-case object NoTheory extends Theory:
-  def defines(cst: Constant): Boolean = false
-  def contains(expression: Expression): Boolean = false
-  def registerDefinition(cst: Constant, definition: Thm): Unit = ()
-
 ///////////////////////////////////////////////////////////////////////////////
 // Basic Proof Objects
 ///////////////////////////////////////////////////////////////////////////////
@@ -796,4 +786,3 @@ case object InstSchema extends Step:
             premise.right.find(formula => !statement.right.containsEq(substituteVariables(formula, subst))) match
               case Some(formula) => Left(MissingRightInstantiation(premise, statement, formula, substituteVariables(formula, subst)))
               case None => theorem(statement, Seq(premise))
-
