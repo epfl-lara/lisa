@@ -3,12 +3,14 @@ package lisa.maths.SetTheory.Types.ADTv2.height
 import lisa.maths.Quantifiers.existsEpsilon
 import lisa.maths.SetTheory.Base.Union.∪
 import lisa.maths.SetTheory.Base._
+import lisa.maths.SetTheory.Base.Union.leftNeutral
 import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.Ordinals.Integer.{emptyInOmega, existsInOmega, unionInOmega}
 import lisa.maths.SetTheory.Ordinals.Integer.ω
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UnionRangeMembership.unionRangeMembership
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems._
+import lisa.maths.SetTheory.Functions.UnionRange.unionRangeMembership
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts._
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.ProofTacticLib.Arity
@@ -23,6 +25,12 @@ final class HeightTerms[N <: Arity](
 
   protected inline final def app(f: Expr[Ind], x: Expr[Ind]): Expr[Ind] =
     lisa.maths.SetTheory.Functions.Predef.app(f)(x)
+
+  private val subsetOfUnion = Lemma(x ⊆ y |- x ⊆ (y ∪ z)) {
+    have(y ⊆ (y ∪ z)) by Tautology.from(Union.leftSubset of (x := y, y := z))
+    have(x ⊆ y |- x ⊆ (y ∪ z)) by Tautology.from(lastStep, Subset.transitivity of (x := x, y := y, z := y ∪ z))
+    thenHave(thesis) by Restate
+  }
 
   private def constructorVarsInDomain(
       c: HeightConstructorData,
@@ -111,7 +119,7 @@ final class HeightTerms[N <: Arity](
         (constructorVarsInDomain(c, term) <=>
           ∃(n, in(n, N) /\ constructorVarsInDomain(c, app(h, n))))
     ) {
-      if c.arity == 0 then have(thesis) by Tautology.from(existsNat)
+      if c.arity == 0 then have(thesis) by Tautology.from(existsInOmega)
       else
         val backward = have(
           base.isHeight(h) |- ∃(n, in(n, N) /\ constructorVarsInDomain(c, app(h, n))) ==> constructorVarsInDomain(c, term)
@@ -187,7 +195,7 @@ final class HeightTerms[N <: Arity](
                 val inTypeArg = have((base.isHeight(h), constructorVarsInDomain(c, term)) |- in(v, t)) by
                   Tautology.from(constructorVarsInTerm)
                 val inZeroNat = have((base.isHeight(h), constructorVarsInDomain(c, term)) |- in(∅, N)) by
-                  Tautology.from(zeroIsNat)
+                  Tautology.from(emptyInOmega)
                 val zeroHeight: Expr[Ind] = ∅
 
                 (v, ty, zeroHeight, inZeroNat, inTypeArg)
@@ -201,7 +209,7 @@ final class HeightTerms[N <: Arity](
           val maxInNatFromSequence = have(
             seqAnd(witnessHeights.map(nh => in(nh, N))) |- in(max, N)
           ) subproof {
-            have(True |- in(∅, N)) by Tautology.from(zeroIsNat)
+            have(True |- in(∅, N)) by Tautology.from(emptyInOmega)
             val u0: Expr[Ind] = ∅
             witnessHeights.foldLeft((lastStep, u0))((acc, nh) =>
               val (thm, u) = acc
@@ -211,7 +219,7 @@ final class HeightTerms[N <: Arity](
               val newU = if u == ∅ then nh else u ∪ nh
 
               val newThm = have(newHyp |- in(newU, N)) by
-                Tautology.from(thm, unionOfTwoNats of (a := u, b := nh))
+                Tautology.from(thm, unionInOmega of (a := u, b := nh))
 
               (newThm, newU)
             )
@@ -246,7 +254,7 @@ final class HeightTerms[N <: Arity](
                     have(curHyp |- subset(∅ ∪ ni, newU)) by
                       Tautology.from(thmAcc, Union.leftMonotonic of (x := ∅, y := u, z := ni))
                     have(curHyp |- subset(newN, newU)) by
-                      Congruence.from(lastStep, unionNull of (x := ni))
+                      Congruence.from(lastStep, leftNeutral of (x := ni))
                   else
                     have(curHyp |- subset(newN, newU)) by
                       Tautology.from(

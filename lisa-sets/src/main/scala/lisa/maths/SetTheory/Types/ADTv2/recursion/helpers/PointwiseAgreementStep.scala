@@ -1,6 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion.helpers
 
 import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
@@ -8,7 +9,6 @@ import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFact
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.constructorDisjunctionAtHeight
 import lisa.maths.SetTheory.Types.ADTv2.support.InstantiateForallSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Succ
 import lisa.utils.prooflib.BasicStepTactic.Cut
 import lisa.utils.prooflib.BasicStepTactic.LeftExists
 import lisa.utils.prooflib.BasicStepTactic.LeftOr
@@ -17,7 +17,7 @@ import lisa.utils.prooflib.BasicStepTactic.Weakening
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
- * Shared structural core of a "pointwise agreement at the successor height"
+ * Shared structural core of a "pointwise agreement at the S height"
  * proof — the step shape common to [[WitnessAgreement.witnessAgreementAtSucc]]
  * and the inductive step of `RecFunctionInduction.pointwiseUniquenessAt`.
  *
@@ -65,14 +65,9 @@ private[recursion] object PointwiseAgreementStep {
   )(
       proveSelectedPattern: SelectedPatternProver[N]
   ): proof.Fact = {
-    val succEq = have(Succ(currentIndex) === successor(currentIndex)) by
-      Congruence.from(Succ.definition of (x := currentIndex))
-
     val pointwiseAtSucc =
-      have((ambientTerm ∈ app(heightFun)(Succ(currentIndex))) ==> goalEqAt) subproof {
-        val aInHeightSucc = assume(ambientTerm ∈ app(heightFun)(Succ(currentIndex)))
-        val aInHeightOrd = have(ambientTerm ∈ app(heightFun)(successor(currentIndex))) by
-          Congruence.from(aInHeightSucc, succEq)
+      have((ambientTerm ∈ app(heightFun)(S(currentIndex))) ==> goalEqAt) subproof {
+        val aInHeightOrd = assume(ambientTerm ∈ app(heightFun)(S(currentIndex)))
 
         val constructorDisjunction =
           constructorDisjunctionAtHeight(constructorsAt, app(heightFun)(currentIndex), ambientTerm)
@@ -144,12 +139,12 @@ private[recursion] object PointwiseAgreementStep {
           constructorDisjunction = constructorDisjunction,
           decomposeFact = decomposeAtA,
           constructorFacts = branchEqualities,
-          antecedent = ambientTerm ∈ app(heightFun)(Succ(currentIndex)),
+          antecedent = ambientTerm ∈ app(heightFun)(S(currentIndex)),
           goal = goalEqAt
         )
       }
 
-    have((ambientTerm ∈ app(heightFun)(Succ(currentIndex))) ==> goalEqAt) by Restate.from(pointwiseAtSucc)
-    thenHave(∀(ambientTerm ∈ app(heightFun)(Succ(currentIndex)), goalEqAt)) by RightForall
+    have((ambientTerm ∈ app(heightFun)(S(currentIndex))) ==> goalEqAt) by Restate.from(pointwiseAtSucc)
+    thenHave(∀(ambientTerm ∈ app(heightFun)(S(currentIndex)), goalEqAt)) by RightForall
   }
 }

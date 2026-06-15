@@ -1,6 +1,8 @@
 package lisa.maths.SetTheory.Types
 import lisa.maths.Quantifiers._
 import lisa.maths.SetTheory.Base.Predef.{_, given}
+import lisa.maths.SetTheory.Functions.BasicTheorems.appTyping
+import lisa.maths.SetTheory.Functions.BasicTheorems.funcBetweenEqInFuncSpace
 import lisa.maths.SetTheory.Functions.Predef._
 
 import TypingHelpers._
@@ -499,4 +501,21 @@ object TypingTheorems extends lisa.Main:
     }
     thenHave(∀(f ∈ Π(x :: T, T2(x)), f ∈ Π(x :: T1, T2p(x)))) by RightForall
     thenHave(thesis) by Tautology.fromLastStep(Subset.definition of (x := Π(x :: T, T2(x)), y := Π(x :: T1, T2p(x)), z := f))
+  }
+
+  /**
+   * Theorem --- A typed function applied to a typed argument is typed:
+   * `f :: a ->: b ⊢ x :: a ⇒ (f * x) :: b`.
+   */
+  val arrowElim = Lemma(f :: a ->: b |- x :: a ==> (f * x) :: b) {
+    val fInArrow = assume(f :: a ->: b)
+    val fBetween = have(functionBetween(f)(a)(b)) by Tautology.from(
+      funcBetweenEqInFuncSpace of (f := f, A := a, B := b),
+      fInArrow
+    )
+    have(x :: a ==> (f * x) :: b) by Tautology.from(
+      appTyping of (f := f, A := a, B := b, x := x),
+      fBetween
+    )
+    thenHave(thesis) by Restate
   }

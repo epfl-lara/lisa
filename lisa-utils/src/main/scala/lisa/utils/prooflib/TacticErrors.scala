@@ -1,6 +1,6 @@
-package lisa.maths.SetTheory.Types.ADTv2.support.core
+package lisa.utils.prooflib
 
-import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.utils.fol.FOL.{Sequent, _}
 import lisa.utils.prooflib.ProofTacticLib.ProofTactic
 import lisa.utils.prooflib.ProofTacticLib.UnapplicableProofTactic
 
@@ -35,8 +35,9 @@ object TacticErrors {
        |  $bot$maybeEntries""".stripMargin
   }
 
-  def invalid[P <: lisa.utils.prooflib.Library#Proof](using
-      lib: lisa.utils.prooflib.Library
+  def invalid[P <: Library#Proof](using
+      lib: Library,
+      tactic: ProofTactic
   )(
       proof: P
   )(
@@ -48,8 +49,9 @@ object TacticErrors {
   ): proof.ProofTacticJudgement =
     proof.InvalidProofTactic(message(tacticName, summary, factStatement, bot, entries))
 
-  def attemptOrInvalid[P <: lisa.utils.prooflib.Library#Proof, A](using
-      lib: lisa.utils.prooflib.Library
+  def attemptOrInvalid[P <: Library#Proof, A](using
+      lib: Library,
+      tactic: ProofTactic
   )(
       proof: P
   )(
@@ -70,8 +72,9 @@ object TacticErrors {
           (entries :+ ("Underlying error" -> exception.getMessage))*
         ))
 
-  def wrapUnapplicable[P <: lisa.utils.prooflib.Library#Proof, A](using
-      lib: lisa.utils.prooflib.Library
+  def wrapUnapplicable[P <: Library#Proof, A](using
+      lib: Library,
+      currentTactic: ProofTactic
   )(
       proof: P
   )(

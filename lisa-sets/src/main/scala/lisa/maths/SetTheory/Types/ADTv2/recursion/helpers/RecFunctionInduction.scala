@@ -1,5 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion.helpers
 
+import lisa.maths.SetTheory.Ordinals.Integer.omegaSuccessorInduction
+import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
@@ -13,9 +15,7 @@ import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeFormu
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Succ
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Zero
+import lisa.maths.SetTheory.Ordinals.Integer
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Cut
 import lisa.utils.prooflib.BasicStepTactic.LeftExists
@@ -261,7 +261,7 @@ private[recursion] object RecFunctionInduction {
       val constructorsAt = specializedConstructors(adt.constructors, typeSubstitutions)
       val nVar = variable[Ind]
       val slicePoint = inductionVariable
-      val Pred = variable[Ind >>: Prop]
+      val Pred = variable[Ind >>: Prop]("P")
       val P = λ(nVar, ∀(slicePoint ∈ app(heightFun)(nVar), propertyAt(slicePoint)))
 
       def instantiateCaseFromDefinition(using proof: lisa.SetTheoryLibrary.Proof)(
@@ -294,26 +294,24 @@ private[recursion] object RecFunctionInduction {
       val hValid = have(specializeFormula(adt.height.predicate(heightFun), typeSubstitutions)) by
         Weakening(adt.height.validAt(typeSubstitutions))
 
-      val zeroDef = have(Zero === ∅) by Weakening(Zero.definition)
       val noElemAtEmpty = have(!(slicePoint ∈ app(heightFun)(∅))) by Cut(
         hValid,
         adt.height.zeroAt(typeSubstitutions) of (h := heightFun, x := slicePoint)
       )
-      val noElemAtZero = have(!(slicePoint ∈ app(heightFun)(Zero))) by Congruence.from(noElemAtEmpty, zeroDef)
 
-      val base = have(P(Zero)) subproof {
-        have(slicePoint ∈ app(heightFun)(Zero) |- propertyAt(slicePoint)) by
-          Tautology.from(noElemAtZero)
-        thenHave((slicePoint ∈ app(heightFun)(Zero)) ==> propertyAt(slicePoint)) by RightImplies
-        thenHave(∀(slicePoint, (slicePoint ∈ app(heightFun)(Zero)) ==> propertyAt(slicePoint))) by RightForall
+      val base = have(P(∅)) subproof {
+        have(slicePoint ∈ app(heightFun)(∅) |- propertyAt(slicePoint)) by
+          Tautology.from(noElemAtEmpty)
+        thenHave((slicePoint ∈ app(heightFun)(∅)) ==> propertyAt(slicePoint)) by RightImplies
+        thenHave(∀(slicePoint, (slicePoint ∈ app(heightFun)(∅)) ==> propertyAt(slicePoint))) by RightForall
         thenHave(thesis) by Restate
       }
 
-      val step = Time.measure("Uniqueness/pointwise/step"){ have(∀(nVar, (nVar ∈ N) ==> (P(nVar) ==> P(Succ(nVar))))) subproof {
-        have((nVar ∈ N) ==> (P(nVar) ==> P(Succ(nVar)))) subproof {
+      val step = Time.measure("Uniqueness/pointwise/step"){ have(∀(nVar, (nVar ∈ N) ==> (P(nVar) ==> P(S(nVar))))) subproof {
+        have((nVar ∈ N) ==> (P(nVar) ==> P(S(nVar)))) subproof {
           val nInN = assume(nVar ∈ N)
           assume(P(nVar))
-          // Shared successor-step orchestration (height decomposition + branch
+          // Shared S-step orchestration (height decomposition + branch
           // selection + case assembly); only the uniqueness-specific per-pattern
           // proof — case equations from the function definitions + body equality +
           // pointwise agreement — lives in the callback below.
@@ -386,7 +384,7 @@ private[recursion] object RecFunctionInduction {
                     }
                     val selectedPatternFormula = pattern.branchSelectionBody(slicePoint)
                     val baseContext = Set[Expr[Prop]](
-                      slicePoint ∈ app(heightFun)(Succ(nVar)),
+                      slicePoint ∈ app(heightFun)(S(nVar)),
                       P(nVar),
                       nVar ∈ N,
                       selectedPatternFormula
@@ -489,8 +487,9 @@ private[recursion] object RecFunctionInduction {
         thenHave(thesis) by RightForall
       }}
 
+      val theoremP = variable[Ind >>: Prop]("P")
       val allHeights = have(∀(nVar, (nVar ∈ N) ==> P(nVar))) by
-        Tautology.from(NatFacts.induction of (Pred := P), base, step)
+        Tautology.from(omegaSuccessorInduction of (theoremP := P, m := nVar, n := nVar), base, step)
       have(inductionVariable ∈ argType ==> propertyAt(inductionVariable)) subproof {
         val inArg = assume(inductionVariable ∈ argType)
         val someHeight = have(∃(nVar, (nVar ∈ N) /\ (inductionVariable ∈ app(heightFun)(nVar)))) by

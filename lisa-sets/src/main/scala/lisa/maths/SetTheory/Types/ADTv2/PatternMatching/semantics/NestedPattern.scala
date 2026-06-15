@@ -1,6 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics
 
 import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.Ordinals.Integer.{nonZeroOmegaHasPredecessor, subsetSuccessor}
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticADT
@@ -13,9 +14,7 @@ import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.altEqualityTransitivity
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.subsetSuccessor
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.altEqualityTransitivity
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.utils.prooflib.BasicStepTactic.LeftExists
@@ -282,7 +281,7 @@ private[PatternMatching] object NestedConstructorPattern {
         val predecessorTheoremAtIndex = have(
           (currentIndex ∈ N, currentIndex =/= ∅) |- ∃(predVar, predVar ∈ N /\ (currentIndex === S(predVar)))
         ) by Tautology.from(
-          ExtendedInteger.nonZeroOmegaHasPredecessor.of(α := currentIndex, β := predVar)
+          nonZeroOmegaHasPredecessor.of(α := currentIndex, β := predVar)
         )
         have(currentIndex =/= ∅ |- ∃(predVar, predVar ∈ N /\ (currentIndex === S(predVar)))) subproof {
           assume(currentIndex =/= ∅)
@@ -298,16 +297,11 @@ private[PatternMatching] object NestedConstructorPattern {
         ) subproof {
           assume(predVar ∈ N /\ (currentIndex === S(predVar)))
           val currentEqSucc = have(currentIndex === S(predVar)) by Tautology
-          val succEq = have(S(predVar) === successor(predVar)) by Congruence.from(
-            S.definition.of(α := predVar),
-            successor.definition.of(x := predVar)
-          )
           val predInN = have(predVar ∈ N) by Tautology
 
-          val currentInSuccPred = have(currentTerm ∈ app(heightFun)(successor(predVar))) by Congruence.from(
+          val currentInSuccPred = have(currentTerm ∈ app(heightFun)(S(predVar))) by Congruence.from(
             currentInHeight,
-            currentEqSucc,
-            succEq
+            currentEqSucc
           )
 
           val cts = NestedTrieProofs.resolvedChildTypes(c, currentTy._2)
@@ -348,8 +342,8 @@ private[PatternMatching] object NestedConstructorPattern {
             target = target
           )
 
-          val predSubSucc = have(predVar ⊆ successor(predVar)) by Tautology.from(subsetSuccessor.of(n := predVar))
-          val predSubCurrent = have(predVar ⊆ currentIndex) by Congruence.from(predSubSucc, currentEqSucc, succEq)
+          val predSubSucc = have(predVar ⊆ S(predVar)) by Tautology.from(subsetSuccessor.of(n := predVar))
+          val predSubCurrent = have(predVar ⊆ currentIndex) by Congruence.from(predSubSucc, currentEqSucc)
           Time.measure(s"targetInHeight"){have(target ∈ app(heightFun)(currentIndex)) by Tautology.from(
             hValid,
             currentIndexInN,

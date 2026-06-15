@@ -1,4 +1,4 @@
-package lisa.maths.SetTheory.Types.ADTv2.support.proofs
+package lisa.maths.SetTheory.Ordinals
 
 import lisa.maths.SetTheory.Base.FoundationAxiom
 import lisa.maths.SetTheory.Base.Pair.given
@@ -6,6 +6,9 @@ import lisa.maths.SetTheory.Base.Subset
 import lisa.maths.SetTheory.Order.Extrema.minimal
 import lisa.maths.SetTheory.Order.Predef._
 import lisa.maths.SetTheory.Order.WellOrders.WellOrder
+import lisa.maths.SetTheory.Ordinals.Integer.elementIsOrdinal
+import lisa.maths.SetTheory.Ordinals.Integer.omegaDownwardClosed
+import lisa.maths.SetTheory.Ordinals.Integer.ω
 import lisa.maths.SetTheory.Ordinals.Ordinal
 import lisa.maths.SetTheory.Ordinals.Ordinal.ordinal
 import lisa.maths.SetTheory.Ordinals.TransitiveSet
@@ -13,64 +16,69 @@ import lisa.maths.SetTheory.Relations
 import lisa.maths.SetTheory.Relations.Examples.MembershipRelation
 import lisa.maths.SetTheory.Relations.Predef._
 import lisa.maths.SetTheory.SetTheory.{_, given}
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.omegaOrdinal
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.subsetIsNat
 
+/**
+ * `ω` is an ordinal: it is a transitive set well-ordered by membership.
+ */
 object OmegaFacts {
 
+  private val A = variable[Ind]
   private val X = variable[Ind]
+  private val a = variable[Ind]
+  private val α, β = variable[Ind]
   private val γ = variable[Ind]
+  private val m, n = variable[Ind]
+  private val x, y, z = variable[Ind]
+  private val NatMem = MembershipRelation.membershipRelation(ω)
 
 
-  private val NTransitive = Theorem(TransitiveSet.transitiveSet(N)) {
-    have((x ∈ y) /\ (y ∈ N) ==> (x ∈ N)) by Tautology
-      .from(subsetIsNat of (x := x, y := y))
-    thenHave(∀(x, ∀(y, ((x ∈ y) /\ (y ∈ N)) ==> (x ∈ N)))) by Generalize
+  private val NTransitive = Theorem(TransitiveSet.transitiveSet(ω)) {
+    have((x ∈ y) /\ (y ∈ ω) ==> (x ∈ ω)) by Tautology
+      .from(omegaDownwardClosed of (x := x, y := y))
+    thenHave(∀(x, ∀(y, ((x ∈ y) /\ (y ∈ ω)) ==> (x ∈ ω)))) by Generalize
     have(thesis) by Tautology
-      .from(TransitiveSet.transitiveSet.definition of (A := N), lastStep)
+      .from(TransitiveSet.transitiveSet.definition of (A := ω), lastStep)
   }
 
 
-  private val isRelTransitive = Theorem(transitive(NatMem)(N)) {
+  private val isRelTransitive = Theorem(transitive(NatMem)(ω)) {
     have(
-      (x ∈ N, y ∈ N, z ∈ N) |- (
+      (x ∈ ω, y ∈ ω, z ∈ ω) |- (
         (x, y) ∈ NatMem
       ) /\ ((y, z) ∈ NatMem) ==> ((x, z) ∈ NatMem)
     ) subproof {
-      assume(x ∈ N)
-      assume(y ∈ N)
-      assume(z ∈ N)
+      assume(x ∈ ω)
+      assume(y ∈ ω)
+      assume(z ∈ ω)
       assume(((x, y) ∈ NatMem) /\ ((y, z) ∈ NatMem))
 
       val xy = have((x, y) ∈ NatMem) by Tautology
       val yz = have((y, z) ∈ NatMem) by Tautology
       val xInY = have(x ∈ y) by Tautology
-        .from(xy, MembershipRelation.membership of (x := x, y := y, A := N))
+        .from(xy, MembershipRelation.membership of (x := x, y := y, A := ω))
       val yInZ = have(y ∈ z) by Tautology
-        .from(yz, MembershipRelation.membership of (x := y, y := z, A := N))
+        .from(yz, MembershipRelation.membership of (x := y, y := z, A := ω))
       val ordZ = have(ordinal(z)) by Tautology
-        .from(omegaOrdinal of (α := z))
+        .from(elementIsOrdinal of (α := z))
       val xInZ = have(x ∈ z) by Tautology
         .from(ordZ, xInY, yInZ, Ordinal.transitivity of (α := x, β := y, γ := z))
       have((x, z) ∈ NatMem) by Tautology.from(
         xInZ,
-        MembershipRelation.membership of (x := x, y := z, A := N),
-        have(x ∈ N) by Tautology,
-        have(z ∈ N) by Tautology
+        MembershipRelation.membership of (x := x, y := z, A := ω),
+        have(x ∈ ω) by Tautology,
+        have(z ∈ ω) by Tautology
       )
       thenHave(thesis) by Tautology
     }
     thenHave(
-      () |- ((x ∈ N) /\ (y ∈ N) /\ (z ∈ N) /\ ((x, y) ∈ NatMem) /\ (
+      () |- ((x ∈ ω) /\ (y ∈ ω) /\ (z ∈ ω) /\ ((x, y) ∈ NatMem) /\ (
         (y, z) ∈ NatMem
       ) ==> (x, z) ∈ NatMem)
     ) by Restate
     thenHave(
       () |- ∀(
         z,
-        (x ∈ N) /\ (y ∈ N) /\ (z ∈ N) /\ ((x, y) ∈ NatMem) /\ (
+        (x ∈ ω) /\ (y ∈ ω) /\ (z ∈ ω) /\ ((x, y) ∈ NatMem) /\ (
           (y, z) ∈ NatMem
         ) ==> (x, z) ∈ NatMem
       )
@@ -80,7 +88,7 @@ object OmegaFacts {
         y,
         ∀(
           z,
-          (x ∈ N) /\ (y ∈ N) /\ (z ∈ N) /\ ((x, y) ∈ NatMem) /\ (
+          (x ∈ ω) /\ (y ∈ ω) /\ (z ∈ ω) /\ ((x, y) ∈ NatMem) /\ (
             (y, z) ∈ NatMem
           ) ==> (x, z) ∈ NatMem
         )
@@ -93,7 +101,7 @@ object OmegaFacts {
           y,
           ∀(
             z,
-            (x ∈ N) /\ (y ∈ N) /\ (z ∈ N) /\ ((x, y) ∈ NatMem) /\ (
+            (x ∈ ω) /\ (y ∈ ω) /\ (z ∈ ω) /\ ((x, y) ∈ NatMem) /\ (
               (y, z) ∈ NatMem
             ) ==> (x, z) ∈ NatMem
           )
@@ -101,31 +109,32 @@ object OmegaFacts {
       )
     ) by RightForall
     thenHave(∀(
-      x ∈ N,
-      ∀(y ∈ N, ∀(z ∈ N, ((x, y) ∈ NatMem) /\ ((y, z) ∈ NatMem) ==> ((x, z) ∈ NatMem)))
+      x ∈ ω,
+      ∀(y ∈ ω, ∀(z ∈ ω, ((x, y) ∈ NatMem) /\ ((y, z) ∈ NatMem) ==> ((x, z) ∈ NatMem)))
     )) by Tableau
     have(thesis) by Tautology
-      .from(transitive.definition of (R := NatMem, X := N), lastStep)
+      .from(transitive.definition of (R := NatMem, X := ω), lastStep)
   }
 
-  private val isRelTotal = Theorem(total(NatMem)(N)) {
+  private val isRelTotal = Theorem(total(NatMem)(ω)) {
     val goal = ((m, n) ∈ NatMem) \/ ((n, m) ∈ NatMem) \/ (m === n)
 
-    have((m ∈ N, n ∈ N) |- goal) subproof {
-      assume(m ∈ N)
-      assume(n ∈ N)
+    have((m ∈ ω, n ∈ ω) |- goal) subproof {
+      assume(m ∈ ω)
+      assume(n ∈ ω)
 
-      val cmp = have((m === n) \/ (m ∈ n) \/ (n ∈ m)) by Tautology.from(comparability)
+      val cmp = have((m === n) \/ (m ∈ n) \/ (n ∈ m)) by
+        Tautology.from(Integer.comparability of (m := m, n := n))
 
       val mInRel = have(m ∈ n |- (m, n) ∈ NatMem) by Tautology.from(
-        MembershipRelation.membership of (x := m, y := n, A := N),
-        have(m ∈ N) by Tautology,
-        have(n ∈ N) by Tautology
+        MembershipRelation.membership of (x := m, y := n, A := ω),
+        have(m ∈ ω) by Tautology,
+        have(n ∈ ω) by Tautology
       )
       val nInRel = have(n ∈ m |- (n, m) ∈ NatMem) by Tautology.from(
-        MembershipRelation.membership of (x := n, y := m, A := N),
-        have(n ∈ N) by Tautology,
-        have(m ∈ N) by Tautology
+        MembershipRelation.membership of (x := n, y := m, A := ω),
+        have(n ∈ ω) by Tautology,
+        have(m ∈ ω) by Tautology
       )
 
       val caseEq = have(m === n |- goal) by Tautology
@@ -134,20 +143,20 @@ object OmegaFacts {
 
       have(thesis) by Tautology.from(cmp, caseEq, caseMn, caseNm)
     }
-    thenHave(() |- ((m ∈ N) /\ (n ∈ N)) ==> goal) by Restate
-    thenHave(() |- ∀(n, ((m ∈ N) /\ (n ∈ N)) ==> goal)) by RightForall
-    thenHave(() |- ∀(m, ∀(n, ((m ∈ N) /\ (n ∈ N)) ==> goal))) by RightForall
-    thenHave(∀(m ∈ N, ∀(n ∈ N, goal))) by Tableau
-    have(thesis) by Tautology.from(total.definition of (R := NatMem, X := N), lastStep)
+    thenHave(() |- ((m ∈ ω) /\ (n ∈ ω)) ==> goal) by Restate
+    thenHave(() |- ∀(n, ((m ∈ ω) /\ (n ∈ ω)) ==> goal)) by RightForall
+    thenHave(() |- ∀(m, ∀(n, ((m ∈ ω) /\ (n ∈ ω)) ==> goal))) by RightForall
+    thenHave(∀(m ∈ ω, ∀(n ∈ ω, goal))) by Tableau
+    have(thesis) by Tautology.from(total.definition of (R := NatMem, X := ω), lastStep)
   }
 
-  private val isWellOrder = Theorem(WellOrder.wellOrder(N)(NatMem)) {
-    val irreflexivity = have(irreflexive(NatMem)(N)) by Tautology
-      .from(MembershipRelation.irreflexivity of (A := N))
+  private val isWellOrder = Theorem(WellOrder.wellOrder(ω)(NatMem)) {
+    val irreflexivity = have(irreflexive(NatMem)(ω)) by Tautology
+      .from(MembershipRelation.irreflexivity of (A := ω))
 
-    val wellFoundedness = have(wellFounded(NatMem)(N)) subproof {
-      have((A ⊆ N) /\ (A =/= ∅) ==> ∃(a, minimal(a)(A)(NatMem))) subproof {
-        assume((A ⊆ N) /\ (A =/= ∅))
+    val wellFoundedness = have(wellFounded(NatMem)(ω)) subproof {
+      have((A ⊆ ω) /\ (A =/= ∅) ==> ∃(a, minimal(a)(A)(NatMem))) subproof {
+        assume((A ⊆ ω) /\ (A =/= ∅))
 
         val foundation = have(∃(a, (a ∈ A) /\ ∀(x, x ∈ A ==> x ∉ a))) by Tautology
           .from(FoundationAxiom.axiomOfFoundation of (x := A))
@@ -155,10 +164,10 @@ object OmegaFacts {
         have((a ∈ A) /\ ∀(x, x ∈ A ==> x ∉ a) |- minimal(a)(A)(NatMem)) subproof {
           assume((a ∈ A) /\ ∀(x, x ∈ A ==> x ∉ a))
           val aInA = have(a ∈ A) by Tautology
-          val aInNat = have(a ∈ N) by Tautology.from(
+          val aInNat = have(a ∈ ω) by Tautology.from(
             aInA,
-            Subset.membership of (x := A, y := N, z := a),
-            have(A ⊆ N) by Tautology
+            Subset.membership of (x := A, y := ω, z := a),
+            have(A ⊆ ω) by Tautology
           )
 
           have(∀(x, x ∈ A ==> ¬((x, a) ∈ NatMem))) subproof {
@@ -166,7 +175,7 @@ object OmegaFacts {
             have(x ∈ A ==> x ∉ a) by InstantiateForall(x)(noMember)
             val notMemRel = have((x ∈ A, (x, a) ∈ NatMem) |- ()) by Tautology.from(
               lastStep,
-              MembershipRelation.membership of (x := x, y := a, A := N),
+              MembershipRelation.membership of (x := x, y := a, A := ω),
               aInNat
             )
             have(x ∈ A ==> ¬((x, a) ∈ NatMem)) by Tautology.from(notMemRel)
@@ -185,26 +194,26 @@ object OmegaFacts {
 
         have(thesis) by Tautology.from(foundation, lastStep)
       }
-      thenHave(∀(A, (A ⊆ N) /\ (A =/= ∅) ==> ∃(a, minimal(a)(A)(NatMem)))) by RightForall
+      thenHave(∀(A, (A ⊆ ω) /\ (A =/= ∅) ==> ∃(a, minimal(a)(A)(NatMem)))) by RightForall
       have(thesis) by Tautology
-        .from(wellFounded.definition of (R := NatMem, X := N), lastStep)
+        .from(wellFounded.definition of (R := NatMem, X := ω), lastStep)
     }
 
     have(thesis) by Tautology.from(
-      MembershipRelation.isRelation of (A := N),
-      Relations.BasicTheorems.relationOnIsRelation of (R := NatMem, X := N),
+      MembershipRelation.isRelation of (A := ω),
+      Relations.BasicTheorems.relationOnIsRelation of (R := NatMem, X := ω),
       isRelTransitive,
       irreflexivity,
       isRelTotal,
       wellFoundedness,
-      strictPartialOrder.definition of (A := N, < := NatMem),
-      strictTotalOrder.definition of (A := N, < := NatMem),
-      WellOrder.wellOrder.definition of (A := N, < := NatMem)
+      strictPartialOrder.definition of (A := ω, < := NatMem),
+      strictTotalOrder.definition of (A := ω, < := NatMem),
+      WellOrder.wellOrder.definition of (A := ω, < := NatMem)
     )
   }
 
-  val isOrdinal = Theorem(ordinal(N)) {
+  val isOrdinal = Theorem(ordinal(ω)) {
     have(thesis) by Tautology
-      .from(NTransitive, isWellOrder, ordinal.definition of (α := N))
+      .from(NTransitive, isWellOrder, ordinal.definition of (α := ω))
   }
 }
