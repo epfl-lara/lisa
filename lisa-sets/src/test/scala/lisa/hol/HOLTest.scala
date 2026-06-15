@@ -28,5 +28,5 @@ trait HOLTestMain extends AnyFunSuite with lisa.HOL {
     test(s"Test type-checking theorem of ${name.value.split("\\.").last} at ${f}:${line.value}") {
       VarsAndFunctions.TypingTheorem(using om, name)(statement)
     }
-    Theorem(using om, name)(statement){sorry}
+    Theorem(using om, name)(statement) { sorry }
 }

@@ -54,7 +54,7 @@ class HOLStepsTestsSuite extends HOLTestMain {
     val a3 = HOLassume(y =:= z)
     val s1 = have(_TRANS(a1, a2))
     have(_TRANS(s1, a3))
-    }
+  }
 
   val test_trans_2 = HOLTheorem(x =:= z) {
     val a1 = have(x =:= y) by Sorry
