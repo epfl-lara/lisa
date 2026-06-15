@@ -1,22 +1,22 @@
 package lisa.maths.SetTheory.Types.ADTv2.support.proofs
 
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.subsetIsNat
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.omegaOrdinal
-
+import lisa.maths.SetTheory.Base.FoundationAxiom
 import lisa.maths.SetTheory.Base.Pair.given
-import lisa.maths.SetTheory.Base.{FoundationAxiom, Subset}
+import lisa.maths.SetTheory.Base.Subset
 import lisa.maths.SetTheory.Order.Extrema.minimal
-import lisa.maths.SetTheory.Order.Predef.*
+import lisa.maths.SetTheory.Order.Predef._
 import lisa.maths.SetTheory.Order.WellOrders.WellOrder
-import lisa.maths.SetTheory.Ordinals.{Ordinal, TransitiveSet}
+import lisa.maths.SetTheory.Ordinals.Ordinal
 import lisa.maths.SetTheory.Ordinals.Ordinal.ordinal
+import lisa.maths.SetTheory.Ordinals.TransitiveSet
 import lisa.maths.SetTheory.Relations
 import lisa.maths.SetTheory.Relations.Examples.MembershipRelation
-import lisa.maths.SetTheory.Relations.Predef.*
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.utils.prooflib.BasicStepTactic.*
+import lisa.maths.SetTheory.Relations.Predef._
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.omegaOrdinal
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.subsetIsNat
 
 object OmegaFacts {
 
@@ -66,7 +66,7 @@ object OmegaFacts {
       () |- ((x ∈ N) /\ (y ∈ N) /\ (z ∈ N) /\ ((x, y) ∈ NatMem) /\ (
         (y, z) ∈ NatMem
       ) ==> (x, z) ∈ NatMem)
-    ) by Tableau
+    ) by Restate
     thenHave(
       () |- ∀(
         z,
@@ -134,7 +134,7 @@ object OmegaFacts {
 
       have(thesis) by Tautology.from(cmp, caseEq, caseMn, caseNm)
     }
-    thenHave(() |- ((m ∈ N) /\ (n ∈ N)) ==> goal) by Tableau
+    thenHave(() |- ((m ∈ N) /\ (n ∈ N)) ==> goal) by Restate
     thenHave(() |- ∀(n, ((m ∈ N) /\ (n ∈ N)) ==> goal)) by RightForall
     thenHave(() |- ∀(m, ∀(n, ((m ∈ N) /\ (n ∈ N)) ==> goal))) by RightForall
     thenHave(∀(m ∈ N, ∀(n ∈ N, goal))) by Tableau

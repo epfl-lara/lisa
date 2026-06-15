@@ -1,18 +1,9 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
-import lisa.maths.SetTheory.Types.ADTv2.support.DefinedSymbol
-import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.proofs.CaseDefinedWitness
-import lisa.maths.SetTheory.Types.ADTv2.encoding.*
-import lisa.maths.SetTheory.Types.Tactics.Typecheck
-import lisa.maths.SetTheory.Types.TypingHelpers.*
-
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Base.CartesianProduct.×
-import lisa.maths.SetTheory.Base.Comprehension.|
+import lisa.maths.SetTheory.Types.ADTv2.FunctionCore.WitnessBase
+import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
@@ -28,98 +19,39 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  *   - the contextual typing premise `selfPlaceholder :: A→T`
  *   - branch return-type checks under that premise
  */
-private[recursion] final class Witness[N <: Arity](spec: FunSpec[N]) {
+private[recursion] final class Witness[N <: Arity](spec: FunSpec[N])
+    extends WitnessBase[N](
+      functionName = spec.functionName,
+      adt = spec.adt,
+      argType = spec.argType,
+      patternMatching = spec.patternMatching,
+      returnType = spec.returnType,
+      typ = spec.typ,
+      typeVariablesSeq = spec.typeVariablesSeq
+    ) {
 
-  private val typeVariablesSeq: Seq[Variable[Ind]] = spec.typeVariablesSeq
   private val selfPlaceholder: Variable[Ind] = spec.selfPlaceholder
-  private val pairWitness: Variable[Ind] = variable[Ind]
 
   /** typingPremise = selfPlaceholder :: A→T (the induction hypothesis on the self-reference). */
   val typingPremise: Expr[Prop] = selfPlaceholder :: spec.typ
 
-  private val patterns: Seq[Pattern[N]] = spec.cases
-
-  /**
-   * caseMembership(p) ≡ ∨_c ∃x̄. WT(c(x̄)) ∧ p = (c(x̄), body_c[selfPlaceholder]).
-   *
-   * selfPlaceholder is free — W is parametric in the self-reference.
-   */
-  private val caseMembership: Expr[Ind] => Expr[Prop] = (p: Expr[Ind]) =>
-    spec.patternMatching.caseMembership(p)
-
-  private val witnessClass = new DefinedSymbol(
-    name = s"${spec.functionName}/witness",
-    parametersSeq = typeVariablesSeq :+ selfPlaceholder,
-    body = { pairWitness ∈ (spec.argType × spec.returnType) | caseMembership(pairWitness) }
-  )
-
-  /** The witness set W(selfPlaceholder) — has selfPlaceholder free. */
-  val witness: Expr[Ind] = witnessClass.term
-
-  private val witnessBound: Expr[Ind] = spec.argType × spec.returnType
-
   /** Definitional equation for the witness: W(selfPlaceholder) = witnessBody. */
-  val witnessDef: JUSTIFICATION = witnessClass.definition
+  val witnessDef: JUSTIFICATION = witnessDefCore
 
   def apply(g: Expr[Ind]): Expr[Ind] =
     witness.substitute(spec.selfPlaceholder := g)
 
-  private def constructorTagDisequality(
-      c1: SemanticConstructor[N],
-      c2: SemanticConstructor[N]
-  ): THM = {
-    require(c1 != c2, "constructorTagDisequality requires two distinct constructors.")
-    val minTag = Math.min(c1.underlying.tag, c2.underlying.tag)
-    val maxTag = Math.max(c1.underlying.tag, c2.underlying.tag)
-    lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.constructorTagDisequality(
-      c1.underlying.tagTerm,
-      c2.underlying.tagTerm,
-      minTag,
-      maxTag
+  override protected def witnessParametersSeq: Seq[Variable[Ind]] =
+    spec.typeVariablesSeq :+ selfPlaceholder
+
+  override protected def contextPremises: Seq[Expr[Prop]] =
+    Seq(typingPremise)
+
+  protected val checkReturnType: Map[Pattern[N], JUSTIFICATION] =
+    WitnessBase.returnTypeChecks(
+      patterns = spec.cases,
+      returnType = spec.returnType,
+      bodyAt = _.body,
+      extraPremisesAt = _ => Set(typingPremise)
     )
-  }
-
-  private val constructorTagDisequalities: Map[(SemanticConstructor[N], SemanticConstructor[N]), THM] =
-    (for
-      c1 <- spec.adt.constructors
-      c2 <- spec.adt.constructors
-      if c1 != c2
-    yield (c1, c2) -> constructorTagDisequality(c1, c2)).toMap
-
-  private val checkReturnType: Map[Pattern[N], JUSTIFICATION] =
-    patterns.map(pattern =>
-      val bodyWithSelf = pattern.body.substitute(selfPlaceholder := selfPlaceholder)
-      val witnessAssumptions = pattern.typingPremises + typingPremise
-      pattern -> Lemma(witnessAssumptions |- (bodyWithSelf :: spec.returnType)) {
-        have(thesis) by Typecheck.prove
-      }
-    ).toMap
-
-  private val witnessSemantics = Time.measure("Witness/CaseDefinedWitness")(new CaseDefinedWitness[N](
-    adt = spec.adt,
-    argType = spec.argType,
-    patternMatching = spec.patternMatching,
-    returnType = spec.returnType,
-    typ = spec.typ,
-    witness = witness,
-    witnessDef = witnessDef,
-    witnessBound = witnessBound,
-    pairWitness = pairWitness,
-    caseMembership = caseMembership,
-    checkReturnType = checkReturnType,
-    constructorTagDisequalities = constructorTagDisequalities,
-    contextPremises = Seq(typingPremise)
-  ))
-
-  /** selfPlaceholder :: A→T ⊢ W(selfPlaceholder) :: A→T */
-  val witnessHasType: THM = witnessSemantics.witnessHasType
-
-  /**
-   * selfPlaceholder :: A→T ⊢ W(selfPlaceholder)(c(x̄)) = body_c[selfPlaceholder]
-   */
-  val witnessCaseByPattern: Map[Pattern[N], THM] =
-    witnessSemantics.witnessCaseByPattern
-
-  def witnessCase(pattern: Pattern[N]): THM =
-    witnessSemantics.witnessCase(pattern)
 }

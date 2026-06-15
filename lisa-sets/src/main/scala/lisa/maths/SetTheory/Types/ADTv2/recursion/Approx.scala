@@ -1,25 +1,26 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.{altEqualityTransitivity, zeroIsNat}
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.TransfiniteRecursionExt
-import lisa.maths.SetTheory.Types.ADTv2.encoding.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.{Succ, Zero}
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.OmegaFacts
-
-import lisa.maths.SetTheory.Base.FoundationAxiom
-import lisa.maths.SetTheory.Functions.Function.abs
-import lisa.maths.SetTheory.Functions.BasicTheorems
-import lisa.maths.SetTheory.Functions.Predef.*
-import lisa.maths.SetTheory.Functions.Predef.{↾, app, functionOn}
-import lisa.maths.SetTheory.Ordinals.Ordinal.{ordinal, ordinalInitialSegment}
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Types.Tactics.Typecheck
-import lisa.maths.SetTheory.Types.TypingHelpers.*
-
 import lisa.maths.Quantifiers
-import lisa.utils.prooflib.BasicStepTactic.{Cut, LeftExists, RightForall}
+import lisa.maths.SetTheory.Functions.BasicTheorems
+import lisa.maths.SetTheory.Functions.Function.abs
+import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.Functions.Predef.app
+import lisa.maths.SetTheory.Functions.Predef.functionOn
+import lisa.maths.SetTheory.Functions.Predef.↾
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Succ
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Zero
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.OmegaFacts
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.TransfiniteRecursionExt
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.altEqualityTransitivity
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.zeroIsNat
+import lisa.maths.SetTheory.Types.Tactics.Typecheck
+import lisa.maths.SetTheory.Types.TypingHelpers._
+import lisa.utils.prooflib.BasicStepTactic.Cut
+import lisa.utils.prooflib.BasicStepTactic.LeftExists
+import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**

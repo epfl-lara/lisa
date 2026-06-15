@@ -1,12 +1,9 @@
 package lisa.maths.SetTheory.Types.ADTv2.encoding
 
-import lisa.maths.SetTheory.Types.ADTv2
-import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
-import lisa.maths.SetTheory.Types.ADTv2.support.core.`**`
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-
-import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Base.Pair
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
 
 /**
  *  Syntactic set theoretical interpretation of a constructor for an algebraic data type.
@@ -32,7 +29,6 @@ class SyntacticConstructor(
   Constructors.tagCounter = Constructors.tagCounter + 1
 
   /** Term representation of the tag of this constructor */
-  // val tagTerm: Constant[Ind] = DEF(using name=s"tag_$tag")(toTerm(tag))
   val tagTerm: Expr[Ind] = toTerm(tag)
 
   /** Sequence of variables used to represent the arguments of the constructor */

@@ -1,17 +1,23 @@
 package lisa.maths.SetTheory.Types.ADTv2.interface
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
+import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
-import lisa.maths.SetTheory.Types.ADTv2.support.core.`**`
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.instantiatedSemanticSignature
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.requireMonomorphicAccess
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.theoremAt
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{introAppAt => buildIntroAppAt}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.**
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.renderAppliedSymbol
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.wellTypedSet
 import lisa.maths.SetTheory.Types.ADTv2.support.core.toSeq
 import lisa.maths.SetTheory.Types.TypingHelpers.::
-import lisa.maths.SetTheory.Types.TypingHelpers.{FunctionalClass, TypedConstantFunctional}
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{instantiatedSemanticSignature, introAppAt as buildIntroAppAt, requireMonomorphicAccess, theoremAt}
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.{renderAppliedSymbol, wellTypedSet}
+import lisa.maths.SetTheory.Types.TypingHelpers.FunctionalClass
+import lisa.maths.SetTheory.Types.TypingHelpers.TypedConstantFunctional
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 final class Constructor[N <: Arity](using val line: sourcecode.Line, val file: sourcecode.File, valueOfN: ValueOf[N])(
-    val semantic: SemanticConstructor[N]
+    val semantic: SemanticConstructor[N],
+    val adt: ADT[N]
 ) extends TypedConstantFunctional[IndOf[N]](
       semantic.id,
       FunctionalClass(
@@ -53,7 +59,7 @@ final class Constructor[N <: Arity](using val line: sourcecode.Line, val file: s
         instantiatedSemanticSignature(semantic.semanticSignature, substitutions),
       conclusionAt = substitutions =>
         semantic.appliedTerm.substitute(substitutions*) ::
-          semantic.adt.term.substitute(substitutions*)
+          adt.term.substitute(substitutions*)
     )
   }
 
@@ -70,7 +76,7 @@ final class Constructor[N <: Arity](using val line: sourcecode.Line, val file: s
       instantiatedSemanticSignature(semantic.semanticSignature, substitutions),
     conclusionAt = substitutions =>
       semantic.appliedTerm.substitute(substitutions*) ::
-        semantic.adt.term.substitute(substitutions*)
+        adt.term.substitute(substitutions*)
   )
 
   def injectivity: THM = {

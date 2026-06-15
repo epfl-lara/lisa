@@ -1,22 +1,27 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion.helpers
 
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{Pattern, PatternSystem}
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{TypeSubstitution, instantiatedSemanticSignature, specializeFormula, specializeTerm}
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.core.InstantiateForallSeq
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
+import lisa.maths.SetTheory.Types.ADTv2.encoding._
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.SpecializedConstructorFacts
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.specializedConstructors
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.LimitKernel
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.WitnessCaseExtensionality
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeFormula
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
-import lisa.maths.SetTheory.Types.ADTv2.encoding.*
-import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
-import lisa.maths.SetTheory.Types.TypingHelpers.*
-import lisa.maths.SetTheory.SetTheory.{*, given}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.{Succ, Zero}
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Succ
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Zero
+import lisa.maths.SetTheory.Types.TypingHelpers._
+import lisa.utils.prooflib.BasicStepTactic.Cut
+import lisa.utils.prooflib.BasicStepTactic.LeftExists
+import lisa.utils.prooflib.BasicStepTactic.Restate
+import lisa.utils.prooflib.BasicStepTactic.Weakening
 import lisa.utils.prooflib.ProofTacticLib.Arity
-import lisa.utils.prooflib.BasicStepTactic.{Cut, LeftExists, LeftOr, Restate, Weakening}
-import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.CaseBodySubstitution.substitutedCaseBody
-import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.{constructorDisjunctionAtHeight, specializedConstructors, SpecializedConstructorFacts}
-import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.{LimitKernel,WitnessCaseExtensionality}
 
 private[recursion] object RecFunctionInduction {
 
@@ -67,8 +72,6 @@ private[recursion] object RecFunctionInduction {
     )
     schemaAtBranch.statement.right.head match
       case antecedent ==> consequent =>
-        // val A = antecedent //.asInstanceOf[Expr[Prop]]
-        // val B = consequent //.asInstanceOf[Expr[Prop]]
         require(
           simplify(antecedent) == simplify(branchPremise.statement.right.head.asInstanceOf[Expr[Prop]]),
           s"$errorContext: schema antecedent does not match branch premise."
@@ -190,20 +193,14 @@ private[recursion] object RecFunctionInduction {
       normalized: (Set[Expr[Prop]], proof.Fact, proof.Fact, proof.Fact, proof.Fact),
       propertyAt: Expr[Ind] => Expr[Prop],
       slicePoint: Expr[Ind],
-      inputTerm: Expr[Ind],
       xFun: Expr[Ind],
-      yFun: Expr[Ind],
-      xBody: Expr[Ind],
-      yBody: Expr[Ind]
+      yFun: Expr[Ind]
   ): proof.Fact = {
     val (localContext, pointEqInput, leftAtInput, rightAtInput, bodyEquality) = normalized
     val agreement = WitnessCaseExtensionality.pointwiseAgreementAt(
       leftWitness = xFun,
       rightWitness = yFun,
       ambientTerm = slicePoint,
-      inputTerm = inputTerm,
-      leftBody = xBody,
-      rightBody = yBody,
       ambientEqInput = pointEqInput,
       leftAtInput = leftAtInput,
       rightAtInput = rightAtInput,
@@ -315,7 +312,7 @@ private[recursion] object RecFunctionInduction {
       val step = Time.measure("Uniqueness/pointwise/step"){ have(∀(nVar, (nVar ∈ N) ==> (P(nVar) ==> P(Succ(nVar))))) subproof {
         have((nVar ∈ N) ==> (P(nVar) ==> P(Succ(nVar)))) subproof {
           val nInN = assume(nVar ∈ N)
-          val ih = assume(P(nVar))
+          assume(P(nVar))
           // Shared successor-step orchestration (height decomposition + branch
           // selection + case assembly); only the uniqueness-specific per-pattern
           // proof — case equations from the function definitions + body equality +
@@ -481,11 +478,8 @@ private[recursion] object RecFunctionInduction {
                       normalized = normalizedFacts,
                       propertyAt = propertyAt,
                       slicePoint = slicePoint,
-                      inputTerm = pattern.freshInputTerm,
                       xFun = xFun,
-                      yFun = yFun,
-                      xBody = xBody,
-                      yBody = yBody
+                      yFun = yFun
                     )
                   }
                 }
@@ -497,7 +491,7 @@ private[recursion] object RecFunctionInduction {
 
       val allHeights = have(∀(nVar, (nVar ∈ N) ==> P(nVar))) by
         Tautology.from(NatFacts.induction of (Pred := P), base, step)
-      val pointwiseAtArg = have(inductionVariable ∈ argType ==> propertyAt(inductionVariable)) subproof {
+      have(inductionVariable ∈ argType ==> propertyAt(inductionVariable)) subproof {
         val inArg = assume(inductionVariable ∈ argType)
         val someHeight = have(∃(nVar, (nVar ∈ N) /\ (inductionVariable ∈ app(heightFun)(nVar)))) by
           Tautology.from(

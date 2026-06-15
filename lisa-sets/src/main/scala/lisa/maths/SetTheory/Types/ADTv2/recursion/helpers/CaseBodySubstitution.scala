@@ -1,8 +1,8 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion.helpers
 
+import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.recursion.FunSpec
-import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[recursion] object CaseBodySubstitution {

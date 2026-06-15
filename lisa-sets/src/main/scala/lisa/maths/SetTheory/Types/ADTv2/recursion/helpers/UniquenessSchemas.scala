@@ -1,9 +1,9 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion.helpers
 
+import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.TypingHelpers.*
-import lisa.maths.SetTheory.SetTheory.{*, given}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 type PatternSchemas[N <: Arity] =

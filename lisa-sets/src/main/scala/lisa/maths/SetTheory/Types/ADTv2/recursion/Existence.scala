@@ -1,22 +1,23 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
-import lisa.maths.SetTheory.Types.ADTv2.encoding.*
+import lisa.maths.SetTheory.Functions.BasicTheorems.funcBetweenEqInFuncSpace
+import lisa.maths.SetTheory.Functions.BasicTheorems.functionalExtentionality
+import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.Ordinals.TransitiveSet
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.FunctionCore.ExistenceProof
 import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.RecursiveAgreement
-import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.{specializedConstructors}
-import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.{ApproximationChainFacts, LimitKernel}
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.{altEqualityTransitivity}
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ApproximationChainFacts
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.LimitKernel
+import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Succ
-import lisa.maths.SetTheory.Types.ADTv2.support.Time
-
-
-import lisa.maths.SetTheory.Functions.BasicTheorems.{funcBetweenEqInFuncSpace, functionalExtentionality}
-import lisa.maths.SetTheory.Functions.Predef.*
-import lisa.maths.SetTheory.Ordinals.TransitiveSet
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Types.TypingHelpers.*
-import lisa.utils.prooflib.BasicStepTactic.{LeftExists, Cut, RightForall}
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.altEqualityTransitivity
+import lisa.maths.SetTheory.Types.TypingHelpers._
+import lisa.utils.prooflib.BasicStepTactic.Cut
+import lisa.utils.prooflib.BasicStepTactic.LeftExists
+import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 
@@ -41,7 +42,7 @@ private[recursion] final class Existence[N <: Arity](
   val approxProp: ApproxProp[N],
   val limitConstruction: LimitConstruction[N],
   val witnessAgreement: lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.WitnessAgreement[N]
-) {
+) extends ExistenceProof[N] {
 
   val nVar = variable[Ind]
   private val heightSuccessorInclusion = spec.adt.height.successorInclusionAt(spec.typeSubstitutions)
@@ -75,9 +76,6 @@ private[recursion] final class Existence[N <: Arity](
       heightMembershipMonotonic
     )(hValid)
 
-    val T, e2 = variable[Ind]
-    val e = variable[Ind >>: Ind]
-
     val witnessAtLimitTyped = have(recWitness(limitFun) :: spec.typ) by Tautology.from(
       limitHasType,
       recWitness.witnessHasType.of(spec.selfPlaceholder := limitFun)
@@ -93,7 +91,7 @@ private[recursion] final class Existence[N <: Arity](
 
     val pointwiseGoal = app(recWitness(limitFun))(a) === app(limitFun)(a)
 
-    val pointwiseAtA = have((a ∈ spec.argType) ==> pointwiseGoal) subproof {
+    have((a ∈ spec.argType) ==> pointwiseGoal) subproof {
       val aInArgType = assume(a ∈ spec.argType)
       val aHeightChar = have(LimitKernel.pointHeightCharAt(spec.argType, heightFun, a)) by
         Tautology.from(hValid, termHasHeight of (x := a, h := heightFun))

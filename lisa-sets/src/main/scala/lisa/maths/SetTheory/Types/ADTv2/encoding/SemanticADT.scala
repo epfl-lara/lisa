@@ -1,21 +1,22 @@
 package lisa.maths.SetTheory.Types.ADTv2.encoding
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Types.TypingHelpers.::
-import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.Quantifiers.universalEquivalenceDistribution
-import lisa.maths.Quantifiers
-
-import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.instantiatedTheorem
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.normalizeTypeSubstitutions
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.resolvedTypeArguments
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.theoremAt
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{TypeSubstitution, instantiatedTheorem, normalizeTypeSubstitutions, resolvedTypeArguments, theoremAt}
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
-import lisa.maths.SetTheory.Types.ADTv2.support.core.`**`
+import lisa.maths.SetTheory.Types.ADTv2.support.core.**
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems._
+import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
+import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.utils.prooflib.BasicStepTactic.Restate
-import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
-import lisa.utils.prooflib.BasicStepTactic.LeftForall
 import lisa.utils.prooflib.BasicStepTactic.RightForall
+import lisa.utils.prooflib.ProofTacticLib.Arity
+import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
 
 /**
  *  Semantic set theoretical interpretation of an algebraic data type. That is the least
@@ -34,7 +35,7 @@ import lisa.utils.prooflib.BasicStepTactic.RightForall
  *  @param constructors constructors of this ADT
  */
 class SemanticADT[N <: Arity](
-    val underlying: SyntacticADT[N],
+    underlying: SyntacticADT[N],
     val constructors: Seq[SemanticConstructor[N]]
 ) {
 
@@ -265,7 +266,7 @@ class SemanticADT[N <: Arity](
         Restate.from(underlying.injectivity(c1.underlying, c2.underlying))
       thenHave(c1.structuralTerm1 === c2.structuralTerm2 |- ()) by Restate
 
-      val contradiction = have(
+      have(
         (vars1WellTyped ++ vars2WellTyped) + (c1.appliedTerm1 === c2.appliedTerm2) |- ()
       ) by Cut(defUnfolding, lastStep)
 
@@ -467,7 +468,7 @@ class SemanticADT[N <: Arity](
 
                 val baseF = !(x === c.appliedTerm2)
                 val baseW = x === c.appliedTerm2
-                val seed = (baseF, baseW, have(!baseF |- baseW) by Tableau)
+                val seed = (baseF, baseW, have(!baseF |- baseW) by Restate)
 
                 val (_, _, finalFact) = c.syntacticSignature(c.variables2).foldRight(seed)((el, acc) =>
                   val (v, ty) = el
@@ -502,8 +503,43 @@ class SemanticADT[N <: Arity](
               }
 
               // STEP 1.1.2: Conclude
-              // TODO: Change to a more efficient way of proving this
-              have(weakNegInductionPreconditionIneq(c) |- isConstructorMap(c)) by Tableau
+              // `weakNegInductionPreconditionIneq(c)` is the *nested* existential
+              //   ∃v1.((v1::t1) ∧ ∃v2.((v2::t2) ∧ … ∧ (x = c(v1,…,vk)))),
+              // while `isConstructorMap(c)` is the *flat* one
+              //   ∃v1…∃vk.((v1::t1) ∧ … ∧ (vk::tk) ∧ (x = c(v1,…,vk))).
+              // They are first-order equivalent; rather than calling `Tableau`, peel the
+              // nested ∃ accumulating the typing hypotheses, rebuild the flat ∃ with
+              // `RightExists`, then fold the typings back in with `LeftExists`.
+              have(weakNegInductionPreconditionIneq(c) |- isConstructorMap(c)) subproof {
+                val sig = c.semanticSignature2
+                val vars = c.variables2
+                val base = x === c.appliedTerm2
+                val typings: Seq[Expr[Prop]] = sig.map((v, t) => v :: t)
+                val flatBody = wellTypedFormula(sig) /\ base
+
+                // core: all typing hypotheses + base entail the flat existential.
+                val coreFact = have((typings.toSet + base) |- isConstructorMap(c)) subproof {
+                  assume((typings :+ base)*)
+                  have(flatBody) by Restate
+                  vars.indices.reverse.foreach { i =>
+                    val phi = existsSeq(vars.drop(i + 1), flatBody)
+                    thenHave(∃(vars(i), phi)) by RightExists.withParameters(phi, vars(i), vars(i))
+                  }
+                }
+
+                // Fold each typing hypothesis back under its existential, rebuilding the
+                // nested `weakNeg` formula incrementally as we go.
+                var nested: Expr[Prop] = base
+                var fact = coreFact
+                for (i <- (vars.size - 1) to 0 by -1) {
+                  val combined = (vars(i) :: sig(i)._2) /\ nested
+                  val outer = typings.take(i).toSet
+                  have((outer + combined) |- isConstructorMap(c)) by Restate.from(fact)
+                  nested = ∃(vars(i), combined)
+                  fact = thenHave((outer + nested) |- isConstructorMap(c)) by LeftExists
+                }
+                have(thesis) by Restate.from(fact)
+              }
               have(!inductionPreconditionIneq(c) |- isConstructorMap(c)) by
                 Cut(conditionStrenghtening, lastStep)
               thenHave(!inductionPreconditionIneq(c) |- isConstructor) by Weakening
@@ -516,7 +552,7 @@ class SemanticADT[N <: Arity](
       Restate.from(induction of (P := lambda(z, !(x === z))))
     thenHave(inductionPreconditionsIneq |- x :: term ==> !(x === x)) by
       InstantiateForall(x)
-    val ind = thenHave(x :: term |- !inductionPreconditionsIneq) by Restate
+    thenHave(x :: term |- !inductionPreconditionsIneq) by Restate
     val eliminationCase = have(x :: term |- isConstructor) by
       Cut(lastStep, strengtheningOfInductionPreconditions)
 

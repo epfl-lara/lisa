@@ -1,84 +1,76 @@
 package lisa.maths.SetTheory.Types.ADTv2.functions
 
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.FunctionAbstractions
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.Functions.BasicTheorems
+import lisa.maths.SetTheory.Functions.Function
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.FunctionCore.UniquenessProof
 import lisa.maths.SetTheory.Types.ADTv2.support.InstantiateForallSeq
-import lisa.maths.SetTheory.Types.ADTv2.encoding.*
-import lisa.maths.SetTheory.Types.TypingHelpers.*
-
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Functions.{BasicTheorems, Function}
-import lisa.utils.prooflib.ProofTacticLib.Arity
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Restate
+import lisa.utils.prooflib.ProofTacticLib.Arity
 
-private[functions] final class ExtensionalUniqueness[N <: Arity](
-    adt: SemanticADT[N],
-    argType: Expr[Ind],
-    patternMatching: PatternSystem[N],
-    returnType: Expr[Ind],
-    typ: Expr[Ind],
-    untypedDefinition: Expr[Prop]
-) {
+private[functions] final class Uniqueness[N <: Arity](
+    spec: FunSpec[N]
+) extends UniquenessProof[N] {
 
   private def definitionFormula(v: Variable[Ind]): Expr[Prop] =
-    untypedDefinition.substitute(f := v)
+    spec.untypedDefinition(v)
 
-  lazy val nonRecursivePointwise: THM =
+  lazy val pointwiseUniqueness: THM =
     Lemma(definitionFormula(x) /\ definitionFormula(y) ==> (x === y)) {
       assume(definitionFormula(x) /\ definitionFormula(y))
       val xDefinition = have(definitionFormula(x)) by Tautology
       val yDefinition = have(definitionFormula(y)) by Tautology
 
-      val xTyped = have(x :: typ) by Tautology.from(xDefinition)
-      val yTyped = have(y :: typ) by Tautology.from(yDefinition)
+      val xTyped = have(x :: spec.typ) by Tautology.from(xDefinition)
+      val yTyped = have(y :: spec.typ) by Tautology.from(yDefinition)
 
-      val xBetween = have(Function.functionBetween(x)(argType)(returnType)) by Tautology.from(
+      val xBetween = have(Function.functionBetween(x)(spec.argType)(spec.returnType)) by Tautology.from(
         BasicTheorems.funcBetweenEqInFuncSpace of (
           f := x,
-          A := argType,
-          B := returnType
+          A := spec.argType,
+          B := spec.returnType
         ),
         xTyped
       )
-      val yBetween = have(Function.functionBetween(y)(argType)(returnType)) by Tautology.from(
+      val yBetween = have(Function.functionBetween(y)(spec.argType)(spec.returnType)) by Tautology.from(
         BasicTheorems.funcBetweenEqInFuncSpace of (
           f := y,
-          A := argType,
-          B := returnType
+          A := spec.argType,
+          B := spec.returnType
         ),
         yTyped
       )
 
-      val xOnDomain = have(Function.functionOn(x)(argType)) by Tautology.from(
+      val xOnDomain = have(Function.functionOn(x)(spec.argType)) by Tautology.from(
         BasicTheorems.functionBetweenIsFunctionOn of (
           f := x,
-          A := argType,
-          B := returnType
+          A := spec.argType,
+          B := spec.returnType
         ),
         xBetween
       )
-      val yOnDomain = have(Function.functionOn(y)(argType)) by Tautology.from(
+      val yOnDomain = have(Function.functionOn(y)(spec.argType)) by Tautology.from(
         BasicTheorems.functionBetweenIsFunctionOn of (
           f := y,
-          A := argType,
-          B := returnType
+          A := spec.argType,
+          B := spec.returnType
         ),
         yBetween
       )
 
       val pointInput = variable[Ind]
-      val constructorDisjunction = simplify(patternMatching.caseCoverage(pointInput))
+      val constructorDisjunction = simplify(spec.patternMatching.caseCoverage(pointInput))
 
-      val decompositionAtInput = have(pointInput ∈ argType |- constructorDisjunction) subproof {
-        have(pointInput ∈ argType ==> constructorDisjunction) by
-          InstantiateForall(pointInput)(patternMatching.coverage)
+      val decompositionAtInput = have(pointInput ∈ spec.argType |- constructorDisjunction) subproof {
+        have(pointInput ∈ spec.argType ==> constructorDisjunction) by
+          InstantiateForall(pointInput)(spec.patternMatching.coverage)
         thenHave(thesis) by Restate
       }
 
       // Pattern-based (handles split constructors: several patterns per constructor).
-      val branchEqualities = patternMatching.patterns.map(pattern =>
+      val branchEqualities = spec.patternMatching.patterns.map(pattern =>
         val caseVars = pattern.binders
         val caseBody = pattern.body
         val branchCase =
@@ -128,18 +120,18 @@ private[functions] final class ExtensionalUniqueness[N <: Arity](
           have(constructorDisjunction |- (x * pointInput === y * pointInput)) by
             LeftOr(branchEqualities*)
 
-      have(pointInput ∈ argType |- (x * pointInput === y * pointInput)) by
+      have(pointInput ∈ spec.argType |- (x * pointInput === y * pointInput)) by
         Cut(decompositionAtInput, equalityFromCases)
-      thenHave(pointInput ∈ argType ==> (x * pointInput === y * pointInput)) by RightImplies
+      thenHave(pointInput ∈ spec.argType ==> (x * pointInput === y * pointInput)) by RightImplies
       val pointwiseOnDomain = thenHave(
-        ∀(pointInput, pointInput ∈ argType ==> (x * pointInput === y * pointInput))
+        ∀(pointInput, pointInput ∈ spec.argType ==> (x * pointInput === y * pointInput))
       ) by RightForall
 
       have(x === y) by Tautology.from(
         BasicTheorems.extensionality of (
           f := x,
           g := y,
-          A := argType,
+          A := spec.argType,
           x := pointInput
         ),
         xOnDomain,

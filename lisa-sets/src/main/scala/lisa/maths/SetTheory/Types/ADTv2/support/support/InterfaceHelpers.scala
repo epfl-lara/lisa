@@ -1,12 +1,18 @@
 package lisa.maths.SetTheory.Types.ADTv2.support
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.maths.SetTheory.Functions.Function.app
-import lisa.maths.SetTheory.Types.TypingHelpers.::
-import lisa.maths.SetTheory.Types.ADTv2.support.core.{QuantifiersIntro, Utils}
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.{forallSeq, UnreachableException, f, a, b, x}
+import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.QuantifiersIntro
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.UnreachableException
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.a
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.b
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.f
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.forallSeq
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.x
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.funEqDef
+import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.utils.fol.FOL.SubstPair
 
 object InterfaceHelpers {
@@ -132,7 +138,7 @@ object InterfaceHelpers {
       args: Seq[(Variable[Ind], Expr[Ind])]
   ): proof.Fact =
     args.foldLeft[(proof.Fact, Expr[Ind], Expr[Ind])]((headTyping, headTerm, headType)) {
-      case ((accFact, accTerm, accType), (argument, argumentType)) =>
+      case ((accFact, accTerm, accType), (argument, _)) =>
         accType match
           case domainType ->: codomainType =>
             val argumentTyping = assume(argument :: domainType)

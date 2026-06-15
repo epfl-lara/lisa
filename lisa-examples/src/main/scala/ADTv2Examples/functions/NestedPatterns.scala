@@ -19,6 +19,7 @@ object NestedPatterns extends lisa.Main {
 
   private val k = variable[Ind]
   private val hd = variable[Ind]
+  private val hd2 = variable[Ind]
   private val tl = variable[Ind]
   private val boolList = list.specialize(bool)
 
@@ -63,21 +64,18 @@ object NestedPatterns extends lisa.Main {
 
   // ── List[Nat] examples ─────────────────────────────────────────────────
 
-  // Test whether the head of a list of natural numbers is `zero`.
-  // The catch-all branch `cons(hd, tl)` binds the head to a fresh variable,
-  // covering every head value that is not `zero`.
-  // val headIsZero = recFun(list, bool) { self =>
+  // section("headIsZero on List[Nat]")
+  // val isLongList = fun(list, bool) {
   //   Case(nil):
   //     fals
-  //   Case(cons, zero, tl):
-  //     tru
-  //   Case(cons, hd, tl):
+  //   Case(cons, hd, nil):
   //     fals
+  //   Case(cons, hd, cons * hd2 * tl):
+  //     tru
   // }
-  // show(headIsZero.intro(nat))
-  // show(headIsZero.elim(nat)(nil))
-  // show(headIsZero.elim(nat)(cons))
-  
+  // show(isLongList.intro(nat))
+  // show(isLongList.elim(nat)(nil))
+  // show(isLongList.elim(nat)(cons))
   
   
   
@@ -96,43 +94,29 @@ object NestedPatterns extends lisa.Main {
   // ── Multi-level nested patterns on Nat examples ────────────────────────────────────────────────
   section("multi-level nested patterns on Nat (fun)")
 
-  // val isGreaterThanOne = fun(nat, bool) {
-  //   Case(zero):
-  //     fals
-  //   Case(succ, zero):
-  //     fals
-  //   Case(succ, succ * k):
-  //     tru
-  // }
-  // show(isGreaterThanOne.intro)
-  // show(isGreaterThanOne.elimTotal)
+  val isGreaterThanOne = fun(nat, bool) {
+    Case(zero):
+      fals
+    Case(succ, zero):
+      fals
+    Case(succ, succ * k):
+      tru
+  }
+  show(isGreaterThanOne.intro)
+  show(isGreaterThanOne.elimTotal)
 
-  // val isGreaterThanTwo = fun(nat, bool) {
-  //   Case(zero):
-  //     fals
-  //   Case(succ, zero):
-  //     fals
-  //   Case(succ, succ * zero):
-  //     fals
-  //   Case(succ, succ * (succ * k)):
-  //     tru
-  // }
-  // show(isGreaterThanTwo.intro)
-  // show(isGreaterThanTwo.elimTotal)
-
-  // val isMultipleOfThree = recFun(nat, bool) { self =>
-  //   Case(zero):
-  //     tru
-  //   Case(succ, zero):
-  //     fals
-  //   Case(succ, succ * zero):
-  //     fals
-  //   Case(succ, succ * (succ * k)):
-  //     self * k
-  // }
-  // show(isMultipleOfThree.intro)
-  // show(isMultipleOfThree.elimTotal)
-
+  val isGreaterThanTwo = fun(nat, bool) {
+    Case(zero):
+      fals
+    Case(succ, zero):
+      fals
+    Case(succ, succ * zero):
+      fals
+    Case(succ, succ * (succ * k)):
+      tru
+  }
+  show(isGreaterThanTwo.intro)
+  show(isGreaterThanTwo.elimTotal)
 
   // ── Example of a more complex function with nested patterns ────────────────────────────────────────────────
   section("hasDuplicate on List[Bool]")
@@ -154,12 +138,11 @@ object NestedPatterns extends lisa.Main {
       self * tl
   }
 
-  
+
   show(hasDuplicate.intro(bool))
   show(hasDuplicate.elim(bool)(nil))
   show(hasDuplicate.elim(bool)(Case(cons, tru, cons(bool) * tru * tl)))
+  show(hasDuplicate.elimTotal(bool))
   
-
-  Time.printSummary()
-
+  // Time.printSummary()
 }

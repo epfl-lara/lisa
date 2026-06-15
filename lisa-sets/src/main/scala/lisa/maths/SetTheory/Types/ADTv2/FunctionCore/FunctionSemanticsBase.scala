@@ -1,70 +1,57 @@
-package lisa.maths.SetTheory.Types.ADTv2.recursion
+package lisa.maths.SetTheory.Types.ADTv2.FunctionCore
 
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{Pattern, PatternSystem}
-import lisa.maths.SetTheory.Types.ADTv2.encoding.*
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.Time
-import lisa.maths.SetTheory.Types.ADTv2.support.UniqueCharacterizedSymbol
-import lisa.maths.SetTheory.Types.TypingHelpers.*
-
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.Quantifiers.existsOneAlternativeDefinition
-import lisa.utils.prooflib.BasicStepTactic.RightForall
-import lisa.maths.SetTheory.Types.ADTv2.support.core.`**`
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
+import lisa.maths.SetTheory.Types.ADTv2.encoding._
+import lisa.maths.SetTheory.Types.ADTv2.support.UniqueCharacterizedSymbol
+import lisa.maths.SetTheory.Types.ADTv2.support.core.**
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.TypingHelpers._
+import lisa.utils.prooflib.ProofTacticLib.Arity
 
-final class RecFunSemantics[N <: Arity](
-    val name: String,
-    val adt: SemanticADT[N],
-    val argType: Expr[Ind],
-    val typeSubstitutions: Seq[TypeSubstitution],
-    selfPlaceholder: Variable[Ind],
-    patternMatching: PatternSystem[N],
-    val returnType: Expr[Ind]
-) {
+/**
+ * Semantic layer shared by the non-recursive
+ * ([[lisa.maths.SetTheory.Types.ADTv2.functions.SemanticFunction]]) and
+ * recursive ([[lisa.maths.SetTheory.Types.ADTv2.recursion.SemanticFunction]])
+ * cases.
+ *
+ * The two cases produce existence and pointwise uniqueness very differently
+ * (a single `RightExists` on the witness vs. the approximant/limit fixpoint
+ * construction; direct case coverage vs. well-founded induction on height), and
+ * supply those — together with the spec and the pattern bodies — through a
+ * [[SemanticFunctionInputs]] strategy. Everything downstream is identical and
+ * lives here: assembling existential uniqueness, introducing the defined symbol
+ * via [[UniqueCharacterizedSymbol]], and deriving the elimination/introduction
+ * theorems from its characterization `forall(f, (term === f) <=> untypedDef)`.
+ */
+class FunctionSemanticsBase[N <: Arity](data: SemanticFunctionInputs[N]) {
+  val name: String = data.name
+  val argType: Expr[Ind] = data.spec.argType
+  val returnType: Expr[Ind] = data.spec.returnType
+  val typeVariables: Variable[Ind] ** N = data.spec.adt.typeVariables
+  val typeVariablesSeq: Seq[Variable[Ind]] = data.spec.typeVariablesSeq
+  val typeArity: N = data.spec.typeArity
+  val typ: Expr[Ind] = data.spec.typ
 
-  private val spec = new FunSpec[N](
-    functionName = name,
-    adt = adt,
-    argType = argType,
-    typeSubstitutions = typeSubstitutions,
-    selfPlaceholder = selfPlaceholder,
-    patternMatching = patternMatching,
-    returnType = returnType
-  )
+  private val untypedDef: Expr[Prop] =
+    data.spec.untypedDefinition(f)
 
-  val typeVariables: Variable[Ind] ** N = adt.typeVariables
-  val typeVariablesSeq: Seq[Variable[Ind]] = spec.typeVariablesSeq
-  val typeArity: N = spec.typeArity
-  val typ: Expr[Ind] = spec.typ
-  val rawPatterns: Seq[Pattern[N]] = spec.cases
+  private def definitionFormula(f0: Expr[Ind]): Expr[Prop] =
+    data.spec.untypedDefinition(f0)
 
-
-  private val witness: Witness[N] = Time.measure(s"Witness", true)(new Witness[N](spec))
-
-  private val approx = Time.measure(s"Approx")(new Approx[N](spec, witness))
-  private val witnessAgreement = Time.measure(s"WitnessAgreement", true)(new helpers.WitnessAgreement[N](spec, witness))
-  private val approxProp = Time.measure(s"ApproxProp", true)(new ApproxProp[N](spec, witness, approx, witnessAgreement))
-  private val limitConstruction = Time.measure(s"LimitConstruction")(new LimitConstruction[N](spec, approx, approxProp))
-  val existence: Existence[N] = Time.measure(s"Existence", true)(new Existence[N](spec, witness, approx, approxProp, limitConstruction, witnessAgreement))
-
-  private val functionUniquenessProof = Time.measure(s"Uniqueness", true)(new Uniqueness[N](spec))
-
-  private val untypedDef: Expr[Prop] = spec.untypedDefinition(f)
-
-  private def definitionFormula(v: Expr[Ind]): Expr[Prop] =
-    spec.untypedDefinition(v)
-
-  val uniqueness: THM = Lemma(existsOne(f, untypedDef)) {
-
+  /**
+   * Assemble `existsOne(f, untypedDef)` from the separately-proved existence and
+   * pointwise-uniqueness facts supplied by the strategy.
+   */
+  private val uniqueness: THM = Lemma(existsOne(f, untypedDef)) {
     val existencePart = have(∃(x, definitionFormula(x))) by
-      Restate.from(existence.witnessExists of (f := x))
+      Restate.from(data.existence.witnessExists of (f := x))
 
     have(definitionFormula(x) /\ definitionFormula(y) ==> (x === y)) by
-      Restate.from(functionUniquenessProof.recursivePointwisePlan)
+      Restate.from(data.uniqueness.pointwiseUniqueness)
     thenHave(∀(y, definitionFormula(x) /\ definitionFormula(y) ==> (x === y))) by RightForall
-
     val uniquenessAll = thenHave(
       ∀(x, ∀(y, definitionFormula(x) /\ definitionFormula(y) ==> (x === y)))
     ) by RightForall
@@ -79,33 +66,30 @@ final class RecFunSemantics[N <: Arity](
       existsOneAlternativeDefinition of (x := f, P := λ(f, untypedDef))
     )
   }
-  
-  private val definedClassFunction = UniqueCharacterizedSymbol(
-    name = name,
-    typeVariablesSeq = typeVariablesSeq,
-    witnessVar = f,
-    definitionAt = definitionFormula
-  )(uniqueness)
+
+  private val definedClassFunction: UniqueCharacterizedSymbol =
+    UniqueCharacterizedSymbol(
+      name = name,
+      typeVariablesSeq = typeVariablesSeq,
+      witnessVar = f,
+      definitionAt = definitionFormula
+    )(uniqueness)
 
   val id: Identifier = definedClassFunction.id
 
-  def term(args: Seq[Expr[Ind]]): Expr[Ind] = definedClassFunction.term(args)
-
   val term: Expr[Ind] = definedClassFunction.term
 
-  val classDefinitionFact: THM = definedClassFunction.definitionFact
+  def term(args: Seq[Expr[Ind]]): Expr[Ind] = definedClassFunction.term(args)
 
   private val classFunctionCharacterization: THM = definedClassFunction.characterization
 
-  private val compiledCases: Seq[Pattern[N]] =
-    rawPatterns.map(pattern =>
-      pattern.withBody(pattern.body.substitute(spec.selfPlaceholder := term))
-    )
+  val patterns: Seq[Pattern[N]] =
+    data.buildPatterns(term)
 
-  val patterns: Seq[Pattern[N]] = compiledCases
-  val cases: Seq[Pattern[N]] = patterns
-
-
+  /**
+   * For each pattern, the short defining equation
+   * `branchPremise ==> (term * inputTerm === body)`.
+   */
   private val shortDefinitionByPattern: Map[Pattern[N], THM] =
     patterns.map(pattern =>
       pattern -> Lemma(
@@ -119,8 +103,8 @@ final class RecFunSemantics[N <: Arity](
 
         thenHave(
           (term === term) <=>
-            (term :: spec.typ) /\
-            (seqAnd(compiledCases.map { branch =>
+            (term :: typ) /\
+            (seqAnd(patterns.map { branch =>
               forallSeq(
                 branch.binders,
                 branch.branchPremise ==>
@@ -142,7 +126,7 @@ final class RecFunSemantics[N <: Arity](
             case forall(v, phi) => thenHave(phi) by InstantiateForall(v)
             case _ => throw UnreachableException
         )
-        thenHave(thesis) by Tautology
+        thenHave(thesis) by Restate
       }
     ).toMap
 
@@ -152,8 +136,12 @@ final class RecFunSemantics[N <: Arity](
   def elimByPattern(pattern: Pattern[N]): THM =
     shortDefinition(pattern)
 
+  /**
+   * For each constructor, the conjunction of the short defining equations of
+   * the patterns covering it.
+   */
   private val elimByConstThm: Map[SemanticConstructor[N], THM] =
-    PatternSystem.constructorCases(compiledCases)
+    PatternSystem.constructorCases(patterns)
       .map { (constructor, patternsForConst) =>
         constructor -> Lemma(
           seqAnd(patternsForConst.map(pattern =>
@@ -182,6 +170,7 @@ final class RecFunSemantics[N <: Arity](
   def shortDefinition(constructor: SemanticConstructor[N]): THM =
     elimByConst(constructor)
 
+  /** The conjunction of the short defining equations of all patterns. */
   val elimTotal: THM = Lemma(
     seqAnd(patterns.map(pattern =>
       simplify(pattern.branchPremise ==> (term * pattern.inputTerm === pattern.body))
@@ -190,14 +179,13 @@ final class RecFunSemantics[N <: Arity](
     have(thesis) by Tautology.from(patterns.map(pattern => shortDefinitionByPattern(pattern))*)
   }
 
-  val intro: THM = Lemma(term :: spec.typ) {
-
+  /** Typing introduction: the defined symbol inhabits its function type. */
+  val intro: THM = Lemma(term :: typ) {
     have(forall(f, (term === f) <=> untypedDef)) by
       Restate.from(classFunctionCharacterization)
-
     thenHave(
       (term === term) <=>
-        (term :: spec.typ) /\
+        (term :: typ) /\
         (seqAnd(patterns.map { pattern =>
           forallSeq(
             pattern.binders,
@@ -205,7 +193,6 @@ final class RecFunSemantics[N <: Arity](
           )
         }))
     ) by InstantiateForall(term)
-    thenHave(term :: spec.typ) by Weakening
-    thenHave(thesis) by Restate
+    thenHave(thesis) by Weakening
   }
 }

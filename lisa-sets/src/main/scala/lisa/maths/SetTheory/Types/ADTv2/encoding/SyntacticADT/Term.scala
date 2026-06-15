@@ -1,24 +1,15 @@
 package lisa.maths.SetTheory.Types.ADTv2.encoding
 
+import lisa.maths.SetTheory.Base._
+import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.height.HeightTerms
-import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UnionRangeMembership.unionRangeMembership
-import lisa.maths.SetTheory.Types.ADTv2.support.UniqueDefinedSymbol
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
-
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Base.*
-import lisa.maths.SetTheory.Base.Pair.given_Conversion_Expr_Expr_Expr
-import lisa.maths.SetTheory.Base.Union.∪
-import lisa.maths.SetTheory.Functions.Predef.*
-import lisa.maths.SetTheory.Ordinals.Integer.ω
-import lisa.maths.Quantifiers.existsEpsilon
-import lisa.utils.prooflib.ProofTacticLib.Arity
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems._
+import lisa.maths.SetTheory.Types.ADTv2.support.UniqueDefinedSymbol
 import lisa.utils.prooflib.BasicStepTactic.Restate
-import scala.annotation.alpha
 import lisa.utils.prooflib.BasicStepTactic.RightForall
+import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTHeight[N] {
   this: SyntacticADT[N] =>

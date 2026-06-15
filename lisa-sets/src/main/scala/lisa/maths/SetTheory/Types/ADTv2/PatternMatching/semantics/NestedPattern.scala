@@ -1,23 +1,28 @@
 package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Base.Pair
-import lisa.maths.SetTheory.Types.ADTv2.encoding.{SemanticADT, SemanticConstructor}
-import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, Constructor}
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{TypeSubstitution, instantiatedSemanticSignature, specializeTerm}
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.core.QuantifiersIntro
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.altEqualityTransitivity
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.{ExtendedInteger, NatFacts}
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.subsetSuccessor
-import lisa.maths.SetTheory.Types.ADTv2.support.Time
-import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
-import lisa.utils.prooflib.BasicStepTactic.{LeftExists, LeftOr, RightExists, RightForall}
-import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
-import lisa.maths.SetTheory.Types.TypingHelpers.::
-import lisa.maths.SetTheory.Functions.Predef.*
+import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticADT
+import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
+import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
+import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.instantiatedSemanticSignature
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
+import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.maths.SetTheory.Types.ADTv2.support.core.QuantifiersIntro
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.altEqualityTransitivity
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.subsetSuccessor
+import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
+import lisa.maths.SetTheory.Types.TypingHelpers.::
+import lisa.utils.prooflib.BasicStepTactic.LeftExists
+import lisa.utils.prooflib.BasicStepTactic.LeftOr
+import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.ProofTacticLib.Arity
+import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
 
 /**
  * A constructor-headed pattern where some arguments are compiled into branch
@@ -115,20 +120,39 @@ private[PatternMatching] final case class NestedConstructorPattern[N <: Arity](
       argsTypedAtHeight: proof.Fact,
       leafTyping: proof.Fact,
       patternGuard: proof.Fact
-  ): proof.Fact =
-    NestedConstructorPattern.recursiveAgreementPointInHeight(
-      pattern = this,
-      target = target,
-      recursiveType = recursiveType,
+  ): proof.Fact = {
+    require(
+      recursiveAgreementPoints(recursiveType).contains(target),
+      s"Pattern ${name} does not expose $target as a recursive agreement point."
+    )
+    val guard = freshGuards.find { g =>
+      val guardType = semanticConstructor.semanticSignature2(g.position)._2
+        .substitute(typeSubstitutions*).asInstanceOf[Expr[Ind]]
+      NestedTrieProofs.guardBinders(g.guardTerm, guardType).exists(_._1 == target)
+    }.getOrElse(
+      throw new IllegalArgumentException(s"No guard contains recursive agreement point $target in pattern ${name}.")
+    )
+
+    val guardType = semanticConstructor.semanticSignature2(guard.position)._2
+      .substitute(typeSubstitutions*).asInstanceOf[Expr[Ind]]
+    val guardTy = ADT.unapply(guardType).get
+    val binderInHeight = have(guard.binder ∈ app(heightFun)(currentIndex)) by Tautology.from(argsTypedAtHeight)
+    val guardEq = have(guard.binder === guard.guardTerm) by Tautology.from(patternGuard)
+    val guardInHeight = have(guard.guardTerm ∈ app(heightFun)(currentIndex)) by Congruence.from(binderInHeight, guardEq)
+
+    Time.measure(s"RecArg/descendToBinder") {NestedConstructorPattern.descendToBinder(
       heightFun = heightFun,
       hValid = hValid,
       heightMembershipMonotonic = heightMembershipMonotonic,
       currentIndex = currentIndex,
       currentIndexInN = currentIndexInN,
-      argsTypedAtHeight = argsTypedAtHeight,
       leafTyping = leafTyping,
-      patternGuard = patternGuard
-    )
+      currentPat = NestedTrieProofs.parse(guard.guardTerm),
+      currentTy = guardTy,
+      currentInHeight = guardInHeight,
+      target = target
+    )}
+  }
 
   override def withBody(newBody: Expr[Ind]): Pattern[N] = copy(body = newBody)
 }
@@ -289,7 +313,7 @@ private[PatternMatching] object NestedConstructorPattern {
           val cts = NestedTrieProofs.resolvedChildTypes(c, currentTy._2)
           val argTerms = args.zip(cts).map((a, t) => NestedTrieProofs.termOf(a, t.get))
           val argTypings = args.zip(cts).map((a, t) => typeProof(leafTyping, a, t.get))
-          val semanticSubsts = c.semantic.adt.typeVariablesSeq.zip(currentTy._2).map((v, a) => v := a)
+          val semanticSubsts = c.semantic.typeVariablesSeq.zip(currentTy._2).map((v, a) => v := a)
           val semanticSigAtArgs =
             argTerms.zip(c.semantic.semanticSignature2.map(_._2.substitute(semanticSubsts*).asInstanceOf[Expr[Ind]]))
           val argsTypedSemantic = Time.measure(s"argsTypedSemantic"){have(wellTypedFormula(semanticSigAtArgs)) by Tautology.from(argTypings*)}
@@ -340,55 +364,55 @@ private[PatternMatching] object NestedConstructorPattern {
         ) by LeftExists
         have(target ∈ app(heightFun)(currentIndex)) by Cut(predWitnessAtIndex, fromPredWitness)
 
-  def recursiveAgreementPointInHeight[N <: Arity](using
-      proof: lisa.SetTheoryLibrary.Proof,
-      line: sourcecode.Line,
-      file: sourcecode.File
-  )(
-      pattern: NestedConstructorPattern[N],
-      target: Variable[Ind],
-      recursiveType: Expr[Ind],
-      heightFun: Expr[Ind],
-      hValid: proof.Fact,
-      heightMembershipMonotonic: THM,
-      currentIndex: Expr[Ind],
-      currentIndexInN: proof.Fact,
-      argsTypedAtHeight: proof.Fact,
-      leafTyping: proof.Fact,
-      patternGuard: proof.Fact
-  ): proof.Fact = {
-    require(
-      pattern.recursiveAgreementPoints(recursiveType).contains(target),
-      s"Pattern ${pattern.name} does not expose $target as a recursive agreement point."
-    )
-    val guard = pattern.freshGuards.find { g =>
-      val guardType = pattern.semanticConstructor.semanticSignature2(g.position)._2
-        .substitute(pattern.typeSubstitutions*).asInstanceOf[Expr[Ind]]
-      NestedTrieProofs.guardBinders(g.guardTerm, guardType).exists(_._1 == target)
-    }.getOrElse(
-      throw new IllegalArgumentException(s"No guard contains recursive agreement point $target in pattern ${pattern.name}.")
-    )
+  // def recursiveAgreementPointInHeight[N <: Arity](using
+  //     proof: lisa.SetTheoryLibrary.Proof,
+  //     line: sourcecode.Line,
+  //     file: sourcecode.File
+  // )(
+  //     pattern: NestedConstructorPattern[N],
+  //     target: Variable[Ind],
+  //     recursiveType: Expr[Ind],
+  //     heightFun: Expr[Ind],
+  //     hValid: proof.Fact,
+  //     heightMembershipMonotonic: THM,
+  //     currentIndex: Expr[Ind],
+  //     currentIndexInN: proof.Fact,
+  //     argsTypedAtHeight: proof.Fact,
+  //     leafTyping: proof.Fact,
+  //     patternGuard: proof.Fact
+  // ): proof.Fact = {
+  //   require(
+  //     pattern.recursiveAgreementPoints(recursiveType).contains(target),
+  //     s"Pattern ${pattern.name} does not expose $target as a recursive agreement point."
+  //   )
+  //   val guard = pattern.freshGuards.find { g =>
+  //     val guardType = pattern.semanticConstructor.semanticSignature2(g.position)._2
+  //       .substitute(pattern.typeSubstitutions*).asInstanceOf[Expr[Ind]]
+  //     NestedTrieProofs.guardBinders(g.guardTerm, guardType).exists(_._1 == target)
+  //   }.getOrElse(
+  //     throw new IllegalArgumentException(s"No guard contains recursive agreement point $target in pattern ${pattern.name}.")
+  //   )
 
-    val guardType = pattern.semanticConstructor.semanticSignature2(guard.position)._2
-      .substitute(pattern.typeSubstitutions*).asInstanceOf[Expr[Ind]]
-    val guardTy = ADT.unapply(guardType).get
-    val binderInHeight = have(guard.binder ∈ app(heightFun)(currentIndex)) by Tautology.from(argsTypedAtHeight)
-    val guardEq = have(guard.binder === guard.guardTerm) by Tautology.from(patternGuard)
-    val guardInHeight = have(guard.guardTerm ∈ app(heightFun)(currentIndex)) by Congruence.from(binderInHeight, guardEq)
+  //   val guardType = pattern.semanticConstructor.semanticSignature2(guard.position)._2
+  //     .substitute(pattern.typeSubstitutions*).asInstanceOf[Expr[Ind]]
+  //   val guardTy = ADT.unapply(guardType).get
+  //   val binderInHeight = have(guard.binder ∈ app(heightFun)(currentIndex)) by Tautology.from(argsTypedAtHeight)
+  //   val guardEq = have(guard.binder === guard.guardTerm) by Tautology.from(patternGuard)
+  //   val guardInHeight = have(guard.guardTerm ∈ app(heightFun)(currentIndex)) by Congruence.from(binderInHeight, guardEq)
 
-    Time.measure(s"RecArg/descendToBinder") {descendToBinder(
-      heightFun = heightFun,
-      hValid = hValid,
-      heightMembershipMonotonic = heightMembershipMonotonic,
-      currentIndex = currentIndex,
-      currentIndexInN = currentIndexInN,
-      leafTyping = leafTyping,
-      currentPat = NestedTrieProofs.parse(guard.guardTerm),
-      currentTy = guardTy,
-      currentInHeight = guardInHeight,
-      target = target
-    )}
-  }
+  //   Time.measure(s"RecArg/descendToBinder") {descendToBinder(
+  //     heightFun = heightFun,
+  //     hValid = hValid,
+  //     heightMembershipMonotonic = heightMembershipMonotonic,
+  //     currentIndex = currentIndex,
+  //     currentIndexInN = currentIndexInN,
+  //     leafTyping = leafTyping,
+  //     currentPat = NestedTrieProofs.parse(guard.guardTerm),
+  //     currentTy = guardTy,
+  //     currentInHeight = guardInHeight,
+  //     target = target
+  //   )}
+  // }
 }
 
 /**
@@ -476,7 +500,7 @@ private[PatternMatching] final case class NestedPatternSystem[N <: Arity](
                         InstantiateForall(v)(selectionAtCtorVars)
                   case _ => ()
               val selectedBranch = selectionAtCtorVars.statement.right.head match
-                case premise ==> consequent =>
+                case _ ==> consequent =>
                   have(consequent) by Tautology.from(selectionAtCtorVars, ctorCaseAssumption)
                 case _ => throw UnreachableException
 
@@ -751,12 +775,12 @@ private[PatternMatching] final case class NestedPatternSystem[N <: Arity](
       val constructor1Def = have(constructor1.shortDefinition.statement.right.head) by
         Tautology.from(constructor1.shortDefinition)
       val constructor1Eq = constructor1Def.statement.right.head match
-        case premise ==> consequent => have(consequent) by Tautology.from(constructor1Def)
+        case _ ==> consequent => have(consequent) by Tautology.from(constructor1Def)
         case consequent            => have(consequent) by Tautology.from(constructor1Def)
       val constructor2Def = have(constructor2.shortDefinition.statement.right.head) by
         Tautology.from(constructor2.shortDefinition)
       val constructor2Eq = constructor2Def.statement.right.head match
-        case premise ==> consequent => have(consequent) by Tautology.from(constructor2Def)
+        case _ ==> consequent => have(consequent) by Tautology.from(constructor2Def)
         case consequent            => have(consequent) by Tautology.from(constructor2Def)
 
       assume(guard1.appliedTerm === guard2.appliedTerm)

@@ -1,21 +1,19 @@
 package lisa.maths.SetTheory.Types.ADTv2.height
 
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
-import lisa.maths.Quantifiers.existsOneAlternativeDefinition
 import lisa.maths.Quantifiers.existsEpsilon
-
-import lisa.maths.SetTheory.SetTheory.{*, given}
+import lisa.maths.SetTheory.Base.Comprehension
+import lisa.maths.SetTheory.Base.Comprehension.|
 import lisa.maths.SetTheory.Base.Pair.given
-import lisa.maths.SetTheory.Base.{Comprehension, Singleton, Subset, Union}
-import lisa.maths.SetTheory.Base.Comprehension.{|}
+import lisa.maths.SetTheory.Base.Singleton
+import lisa.maths.SetTheory.Base.Subset
+import lisa.maths.SetTheory.Base.Union
 import lisa.maths.SetTheory.Base.Union.∪
-import lisa.maths.SetTheory.Functions.Predef.*
 import lisa.maths.SetTheory.Cardinal.Universe
-import lisa.utils.prooflib.ProofTacticLib.Arity
-import lisa.utils.prooflib.SimpleDeducedSteps.*
+import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.height.proofs.CoreFacts
+import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.utils.prooflib.ProofTacticLib.Arity
 
 final class HeightStageSet[N <: Arity](
   base: HeightADT[N],
@@ -142,7 +140,7 @@ final class HeightStageSet[N <: Arity](
       val pairXY = have(
         (Universe.isUniverse(stageBound), in(a0, stageBound), in(b0, stageBound)) |- in(unorderedPair(a0, b0), stageBound)
       ) by Tautology.from(Universe.universePairingClosure of (U := stageBound, x := a0, y := b0))
-      val kuratowskiPair = have(
+      have(
         (
           Universe.isUniverse(stageBound),
           in(a0, stageBound),
@@ -163,7 +161,7 @@ final class HeightStageSet[N <: Arity](
     def constructorTermInUniverse(c: HeightStageConstructorData): THM = {
       val typedArgs = wellTypedFormula(c.signature)(unionRangeF)
       Lemma((typedArgs, Universe.isUniverse(stageBound), in(seed, stageBound)) |- in(c.term, stageBound)) {
-        val typedHyp = have(typedArgs |- typedArgs) by Hypothesis
+        have(typedArgs |- typedArgs) by Hypothesis
 
         def domainInUniverse(d: Expr[Ind]): THM = Lemma(
           (Universe.isUniverse(stageBound), in(seed, stageBound)) |- in(d, stageBound)

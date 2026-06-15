@@ -1,14 +1,12 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion.proofs
 
+import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{
-  TypeSubstitution,
-  instantiatedSemanticSignature,
-  specializeFormula,
-  specializeTerm
-}
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.SetTheory.{*, given}
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.instantiatedSemanticSignature
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeFormula
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[recursion] object ConstructorSemanticFacts {

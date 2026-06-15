@@ -1,14 +1,14 @@
 package lisa.maths.SetTheory.Types.ADTv2.API
 
-import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, ADTFunction, RecFunction, SpecializedADT}
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
+import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.syntax.CaseAccumulator
 import lisa.maths.SetTheory.Types.ADTv2.functions.SemanticFunction
+import lisa.maths.SetTheory.Types.ADTv2.interface.ADTFunction
+import lisa.maths.SetTheory.Types.ADTv2.interface.RecFunction
+import lisa.maths.SetTheory.Types.ADTv2.interface.SpecializedADT
 import lisa.maths.SetTheory.Types.ADTv2.recursion
-import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.substitutionsFromArgs
-
-import lisa.maths.SetTheory.SetTheory.{*, given}
+import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 
@@ -20,12 +20,6 @@ def fun[N <: Arity](adt: SpecializedADT[N], returnType: Expr[Ind])(using
 ): ADTFunction[N] = Time.measure(s"Building Function"){
   val builder = CaseAccumulator[N, Expr[Ind], Unit](())
   cases(using builder)
-
-  val effectiveTypeSubstitutions =
-    substitutionsFromArgs("ADT", adt.base.name, adt.base.typeVariablesSeq, adt.typeArgs)
-      .filter(substitution =>
-        substitution._2.asInstanceOf[Expr[Ind]] != substitution._1.asInstanceOf[Variable[Ind]]
-      )
 
   builder.compile(adt) match
     case Right(patternSystem) =>
@@ -58,7 +52,7 @@ def recFun[N <: Arity](adt: SpecializedADT[N], returnType: Expr[Ind])(using
 
   builder.compile(adt) match
     case Right(patternSystem) =>
-      val semantic = Time.measure(s"RecFunction Semantic")(recursion.RecFunSemantics[N](
+      val semantic = Time.measure(s"RecFunction Semantic")(recursion.SemanticFunction[N](
         name.value,
         adt.base.semantic,
         adt.term,

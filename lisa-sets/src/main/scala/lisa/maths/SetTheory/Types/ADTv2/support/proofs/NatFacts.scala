@@ -1,26 +1,20 @@
 package lisa.maths.SetTheory.Types.ADTv2.support.proofs
 
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.{
-  natInduction,
-  successorIsNat,
-  zeroIsNotSucc
-}
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.omegaOrdinal
-
-import lisa.maths.SetTheory.Base.Pair.given
+import lisa.maths.SetTheory.Base.FoundationAxiom
+import lisa.maths.SetTheory.Base.Singleton
+import lisa.maths.SetTheory.Base.Subset
+import lisa.maths.SetTheory.Base.Union
 import lisa.maths.SetTheory.Base.Union.∪
-import lisa.maths.SetTheory.Base.{EmptySet, FoundationAxiom, Singleton, Subset, Union}
-import lisa.maths.SetTheory.Order.Extrema.minimal
-import lisa.maths.SetTheory.Order.Predef.*
-import lisa.maths.SetTheory.Order.WellOrders.WellOrder
-import lisa.maths.SetTheory.Ordinals.{Ordinal, TransitiveSet}
-import lisa.maths.SetTheory.Ordinals.Ordinal.{ordinal, S}
-import lisa.maths.SetTheory.Relations
+import lisa.maths.SetTheory.Ordinals.Ordinal
+import lisa.maths.SetTheory.Ordinals.Ordinal.ordinal
+import lisa.maths.SetTheory.Ordinals.TransitiveSet
 import lisa.maths.SetTheory.Relations.Examples.MembershipRelation
-import lisa.maths.SetTheory.Relations.Predef.*
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.utils.prooflib.BasicStepTactic.*
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.omegaOrdinal
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.natInduction
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.successorIsNat
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.zeroIsNotSucc
 
 object NatFacts {
 

@@ -1,20 +1,18 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
-import lisa.maths.SetTheory.Types.ADTv2.encoding.*
-import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.specializedConstructors
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{specializeFormula, specializeTerm}
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.{altEqualityTransitivity, equivalenceApply}
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.{Zero, Succ}
+import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeFormula
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
-
-import lisa.maths.SetTheory.Base.Comprehension
-import lisa.maths.SetTheory.Base.Comprehension.{|}
-import lisa.maths.SetTheory.Functions.Predef.*
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Types.TypingHelpers.*
-import lisa.utils.prooflib.BasicStepTactic.{Cut, RightForall}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Succ
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Zero
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.altEqualityTransitivity
+import lisa.maths.SetTheory.Types.TypingHelpers._
+import lisa.utils.prooflib.BasicStepTactic.Cut
+import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 
@@ -53,10 +51,7 @@ private[recursion] final class ApproxProp[N <: Arity](
 
   val heightFunValid: THM = spec.adt.height.validAt(spec.typeSubstitutions)
 
-  private val heightZero       = spec.adt.height.zeroAt(spec.typeSubstitutions)
-  private val heightSuccStrong = spec.adt.height.successorStrongAt(spec.typeSubstitutions)
-  private val heightMembershipMonotonic = spec.adt.height.membershipMonotonicAt(spec.typeSubstitutions)
-  private val constructorsAt = specializedConstructors(spec.adt.constructors, spec.typeSubstitutions)
+  private val heightZero = spec.adt.height.zeroAt(spec.typeSubstitutions)
 
   // ─────────────────────────────────────────────────────────────────────────
   // Lemma D — stabilization
@@ -95,7 +90,7 @@ private[recursion] final class ApproxProp[N <: Arity](
         val nInN = assume(nVar ∈ N)
         val ih     = assume(P(nVar))
 
-        val succEq = have(Succ(nVar) === successor(nVar)) by
+        have(Succ(nVar) === successor(nVar)) by
           Tautology.from(Succ.definition of (x := nVar))
 
         val pointwiseAtSucc = have(

@@ -1,13 +1,13 @@
 package lisa.maths.SetTheory.Types.ADTv2.interface
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{
-  instantiatedSemanticSignature,
-  introAppAt as buildIntroAppAt,
-  substitutionsFromArgs,
-  theoremAt
-}
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.{appSeq, renderAppliedSymbol, wellTypedSet}
+import lisa.maths.SetTheory.SetTheory._
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.instantiatedSemanticSignature
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.substitutionsFromArgs
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.theoremAt
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{introAppAt => buildIntroAppAt}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.appSeq
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.renderAppliedSymbol
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.wellTypedSet
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
@@ -55,7 +55,7 @@ final class SpecializedConstructor[N <: Arity](using
       instantiatedSemanticSignature(base.semantic.semanticSignature, substitutions),
     conclusionAt = substitutions =>
       base.semantic.appliedTerm.substitute(substitutions*) ::
-        base.semantic.adt.term.substitute(substitutions*)
+        base.adt.term.substitute(substitutions*)
   )
 
   def injectivity: THM =

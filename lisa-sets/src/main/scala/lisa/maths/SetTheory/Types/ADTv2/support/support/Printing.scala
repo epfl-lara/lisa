@@ -1,7 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.support
 
-import lisa.maths.SetTheory.SetTheory.{Expr, given}
 import lisa.maths.SetTheory.Functions.Function.app
+import lisa.maths.SetTheory.SetTheory.Expr
 import lisa.utils.fol.FOL.App
 
 object Printing {

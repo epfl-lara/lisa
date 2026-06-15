@@ -1,7 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.library
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Types.ADTv2.*
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2._
 
 private val unionLeft = variable[Ind]
 private val unionRight = variable[Ind]
@@ -17,7 +17,8 @@ val union = adt(
 val inl = union.constructors(0)
 val inr = union.constructors(1)
 
-lazy val isLeft = recFun(union, bool) { self =>
+// lazy val isLeft = recFun(union, bool) { _ =>
+lazy val isLeft = fun(union, bool) {
   Case(inl, unionLeft):
     tru
   Case(inr, unionRight):

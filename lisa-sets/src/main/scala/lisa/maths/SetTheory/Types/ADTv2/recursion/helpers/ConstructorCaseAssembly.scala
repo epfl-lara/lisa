@@ -1,9 +1,10 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion.helpers
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.utils.prooflib.BasicStepTactic.{Cut, LeftExists}
-
-import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.{constructorBranchAtHeight, SpecializedConstructorFacts}
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.SpecializedConstructorFacts
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.constructorBranchAtHeight
+import lisa.utils.prooflib.BasicStepTactic.Cut
+import lisa.utils.prooflib.BasicStepTactic.LeftExists
 
 private[recursion] object ConstructorCaseAssembly {
 

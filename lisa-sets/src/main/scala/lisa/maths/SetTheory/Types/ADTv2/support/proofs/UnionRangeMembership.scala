@@ -1,23 +1,13 @@
 package lisa.maths.SetTheory.Types.ADTv2.support.proofs
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Functions.Predef.*
-import lisa.maths.Quantifiers.∃!
-
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UnionRangeCollapse.*
-
-import lisa.maths.SetTheory.Base.*
-import lisa.maths.SetTheory.Base.Union.∪
-import lisa.maths.SetTheory.Base.Intersection.∩
-import lisa.maths.SetTheory.Ordinals.*
-import lisa.utils.prooflib.BasicStepTactic.*
-import lisa.maths.Quantifiers.{
-  existentialConjunctionWithClosedFormula,
-  existentialEquivalenceDistribution,
-  onePointRule
-}
+import lisa.maths.Quantifiers.existentialConjunctionWithClosedFormula
+import lisa.maths.Quantifiers.existentialEquivalenceDistribution
+import lisa.maths.Quantifiers.onePointRule
+import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UnionRangeCollapse._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems._
 
 
 object UnionRangeMembership {
@@ -170,11 +160,10 @@ object UnionRangeMembership {
         ∃(m, m ∈ relationDomain(h) /\ z ∈ app(h, m))
     ) by Tautology.from(equivalenceRewriting, introM, lastStep)
 
-    val p_1 = z ∈ ⋃(range(h))
-    val p_2 = ∃(y, y ∈ relationRange(h) /\ z ∈ y)
-    val p_3 = ∃(n, n ∈ relationDomain(h) /\ z ∈ app(h, n))
+    val p_1 = ∃(y, y ∈ relationRange(h) /\ z ∈ y)
+    val p_2 = ∃(n, n ∈ relationDomain(h) /\ z ∈ app(h, n))
 
-    have(functional(h) |- (z ∈ ⋃(range(h)) <=> p_2) /\ (p_2 <=> p_3)) by 
+    have(functional(h) |- (z ∈ ⋃(range(h)) <=> p_1) /\ (p_1 <=> p_2)) by 
       Tautology.from(unionAxiom of (x := range(h)), lastStep)
     have(thesis) by Tautology.from(lastStep, equivalenceRewriting)
 

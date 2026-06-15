@@ -1,11 +1,12 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion.helpers
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
 import lisa.maths.SetTheory.Functions.BasicTheorems
 import lisa.maths.SetTheory.Functions.Function.Sabs
-import lisa.maths.SetTheory.Functions.Predef.*
-import lisa.maths.SetTheory.Types.TypingHelpers.*
-import lisa.utils.prooflib.BasicStepTactic.{Cut, RightForall, RightImplies, Weakening}
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.utils.prooflib.BasicStepTactic.Cut
+import lisa.utils.prooflib.BasicStepTactic.RightForall
+import lisa.utils.prooflib.BasicStepTactic.RightImplies
+import lisa.utils.prooflib.BasicStepTactic.Weakening
 
 private[recursion] object LambdaBodyEquality {
 

@@ -1,6 +1,6 @@
 package lisa.maths.SetTheory.Types.ADTv2.library
 
-import lisa.maths.SetTheory.Types.ADTv2.*
+import lisa.maths.SetTheory.Types.ADTv2._
 
 val bool = adt(
   name = "bool",
@@ -12,7 +12,7 @@ val bool = adt(
 val tru = bool.constructors(0)
 val fals = bool.constructors(1)
 
-lazy val not = recFun(bool, bool) { self =>
+lazy val not = recFun(bool, bool) { _ =>
   Case(tru):
     fals
   Case(fals):

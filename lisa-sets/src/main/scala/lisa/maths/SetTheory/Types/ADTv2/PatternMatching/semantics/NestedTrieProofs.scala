@@ -1,15 +1,19 @@
 package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, Constructor}
-import lisa.maths.SetTheory.Types.ADTv2.encoding.{SemanticADT, SemanticConstructor}
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
+import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
+import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
+import lisa.maths.SetTheory.Types.ADTv2.support.core.QuantifiersIntro
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.altEqualityTransitivity
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
 import lisa.maths.SetTheory.Types.TypingHelpers
 import lisa.maths.SetTheory.Types.TypingHelpers.::
-import lisa.maths.SetTheory.Types.TypingHelpers.given
-import lisa.maths.SetTheory.Types.ADTv2.support.core.QuantifiersIntro
-import lisa.utils.prooflib.BasicStepTactic.{LeftExists, LeftOr, Restate, RightExists, RightForall}
+import lisa.utils.prooflib.BasicStepTactic.LeftExists
+import lisa.utils.prooflib.BasicStepTactic.LeftOr
+import lisa.utils.prooflib.BasicStepTactic.Restate
+import lisa.utils.prooflib.BasicStepTactic.RightExists
+import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
 
 /**
@@ -55,7 +59,7 @@ private[semantics] object NestedTrieProofs {
           case _ => RVar(variable[Ind])
 
   private def childTypes(c: Constructor[?], targs: Seq[Expr[Ind]]): Seq[Option[Ty]] =
-    val subst = c.semantic.adt.typeVariablesSeq.zip(targs).map((v, a) => v := a)
+    val subst = c.semantic.typeVariablesSeq.zip(targs).map((v, a) => v := a)
     c.semantic.semanticSignature2.map { case (_, tyTerm) =>
       ADT.unapply(tyTerm.substitute(subst*).asInstanceOf[Expr[Ind]])
     }
@@ -272,8 +276,6 @@ private[semantics] object NestedTrieProofs {
     val fvMemo = scala.collection.mutable.Map[List[Int], Variable[Ind]]()
     def fv(occ: List[Int]): Variable[Ind] =
       fvMemo.getOrElseUpdate(occ, Variable[Ind](s"fv${fvMemo.size}"))
-    def valueAt(occ: List[Int]): Expr[Ind] = if occ.isEmpty then x else fv(occ)
-
     // Target term / binders for a clause, using fv at binder occurrences.
     def recon(p: RPat, ty: Ty, occ: List[Int]): Expr[Ind] = p match
       case RVar(_)       => fv(occ)
@@ -481,7 +483,6 @@ private[semantics] object NestedTrieProofs {
   // ════════════════════════════════════════════════════════════════════════
   def branchSelectionForCaseShape(
       cSem: SemanticConstructor[?],
-      cInt: Constructor[?],
       term: Expr[Ind],
       patterns: Seq[NestedConstructorPattern[?]],
       typeSubst: Seq[lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution]
@@ -761,7 +762,7 @@ private[semantics] object NestedTrieProofs {
   def injectivityCaseShape(pp: NestedConstructorPattern[?]): THM =
     val v1 = pp.variables1.toList; val v2 = pp.variables2.toList
     val ar = pp.arity
-    val (top1, inner1) = v1.splitAt(ar); val (top2, inner2) = v2.splitAt(ar)
+    val (top1, _) = v1.splitAt(ar); val (top2, _) = v2.splitAt(ar)
     val A      = pp.inputTermAt(v1) === pp.inputTermAt(v2)
     val seqEqV = seqEq(v1, v2)
     val bp1 = pp.branchPremiseAt(v1); val bp2 = pp.branchPremiseAt(v2)

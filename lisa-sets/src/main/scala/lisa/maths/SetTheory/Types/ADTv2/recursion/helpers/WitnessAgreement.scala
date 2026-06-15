@@ -1,21 +1,24 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion.helpers
 
-import lisa.maths.SetTheory.Types.ADTv2.encoding.*
+import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
-import lisa.maths.SetTheory.Types.ADTv2.recursion.{FunSpec, Witness}
+import lisa.maths.SetTheory.Types.ADTv2.recursion.FunSpec
+import lisa.maths.SetTheory.Types.ADTv2.recursion.Witness
 import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.CaseBodySubstitution.substitutedCaseBody
-import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.{constructorDisjunctionAtHeight, specializedConstructors, SpecializedConstructorFacts}
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.SpecializedConstructorFacts
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.specializedConstructors
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.WitnessCaseExtensionality
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{specializeFormula, specializeTerm}
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Succ
 import lisa.maths.SetTheory.Types.ADTv2.support.InstantiateForallSeq
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeFormula
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
-
-import lisa.maths.SetTheory.Functions.Predef.*
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Types.TypingHelpers.*
-import lisa.utils.prooflib.BasicStepTactic.{Cut, LeftOr, RightForall, Hypothesis, Weakening}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts.Succ
+import lisa.maths.SetTheory.Types.TypingHelpers._
+import lisa.utils.prooflib.BasicStepTactic.Cut
+import lisa.utils.prooflib.BasicStepTactic.Hypothesis
+import lisa.utils.prooflib.BasicStepTactic.Weakening
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 
@@ -80,10 +83,10 @@ private[recursion] final class WitnessAgreement[N <: Arity](
     ) |- ∀(a ∈ app(heightFun)(Succ(nVar)), app(recWitness(leftFun))(a) === app(recWitness(rightFun))(a))
   ) {
    have(thesis) subproof {
-    val leftTyped  = assume(leftFun :: spec.typ)
-    val rightTyped = assume(rightFun :: spec.typ)
-    val nInN       = assume(nVar ∈ N)
-    val agreeHyp   = assume(agreeOnSlice)
+    assume(leftFun :: spec.typ)
+    assume(rightFun :: spec.typ)
+    val nInN = assume(nVar ∈ N)
+    assume(agreeOnSlice)
 
     val hValid = have(isHeightPred(heightFun)) by Weakening(heightFunValid)
 
@@ -168,9 +171,6 @@ private[recursion] final class WitnessAgreement[N <: Arity](
               leftWitness = recWitness(leftFun),
               rightWitness = recWitness(rightFun),
               ambientTerm = a,
-              inputTerm = pattern.freshInputTerm,
-              leftBody = bodyLeft,
-              rightBody = bodyRight,
               ambientEqInput = aEqPattern,
               leftAtInput = witnessAtLeft,
               rightAtInput = witnessAtRight,

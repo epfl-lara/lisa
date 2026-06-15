@@ -1,10 +1,9 @@
 package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Base.Pair
-import lisa.maths.SetTheory.Functions.Predef.*
-import lisa.maths.SetTheory.Types.ADTv2.encoding.{SemanticADT, SemanticConstructor}
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
+import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
@@ -99,13 +98,13 @@ trait Pattern[N <: Arity] {
       target: Variable[Ind],
       recursiveType: Expr[Ind],
       heightFun: Expr[Ind],
-      hValid: proof.Fact,
-      heightMembershipMonotonic: THM,
+      @scala.annotation.unused hValid: proof.Fact,
+      @scala.annotation.unused heightMembershipMonotonic: THM,
       currentIndex: Expr[Ind],
-      currentIndexInN: proof.Fact,
+      @scala.annotation.unused currentIndexInN: proof.Fact,
       argsTypedAtHeight: proof.Fact,
-      leafTyping: proof.Fact,
-      patternGuard: proof.Fact
+      @scala.annotation.unused leafTyping: proof.Fact,
+      @scala.annotation.unused patternGuard: proof.Fact
   ): proof.Fact = {
     require(
       recursiveAgreementPoints(recursiveType).contains(target),
@@ -180,7 +179,7 @@ trait PatternSystem[N <: Arity] {
 
   def incompatible(pattern1: Pattern[N], pattern2: Pattern[N]): THM
 
-  def debugTheorems(domain: SemanticADT[N]): Seq[(String, Either[String, THM])] = {
+  lazy val debugTheorems: Seq[(String, Either[String, THM])] = {
     val coverageFact = "coverage" -> Right(coverage)
     val selectorFacts = constructors.map(constructor =>
       val term = variable[Ind](s"${constructor.name}/debugTerm")
@@ -198,11 +197,11 @@ trait PatternSystem[N <: Arity] {
     coverageFact +: (selectorFacts ++ incompatibilityFacts)
   }
 
-  def debugDump(domain: SemanticADT[N]): Unit = {
+  lazy val debugDump: Unit = {
     println(s"===== PatternSystem Debug (${getClass.getSimpleName}) =====")
     println(s"constructors: ${constructors.map(_.name).mkString(", ")}")
     println(s"patterns: ${patterns.map(_.name).mkString(", ")}")
-    debugTheorems(domain).foreach {
+    debugTheorems.foreach {
       case (label, Right(theorem)) =>
         println(s"[$label] ${theorem.statement}")
       case (label, Left(message)) =>

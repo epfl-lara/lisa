@@ -1,16 +1,20 @@
 package lisa.maths.SetTheory.Types.ADTv2.support.proofs
 
-import lisa.maths.SetTheory.Functions.{BasicTheorems, Function}
+import lisa.maths.SetTheory.Functions.BasicTheorems
+import lisa.maths.SetTheory.Functions.Function
 import lisa.maths.SetTheory.Functions.Function.abs
-import lisa.maths.SetTheory.Functions.Pi.{Pi, ->:}
-import lisa.maths.SetTheory.SetTheory.{*, given}
+import lisa.maths.SetTheory.Functions.Pi.->:
+import lisa.maths.SetTheory.Functions.Pi.Pi
+import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.InstantiateForallSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.{altEqualityTransitivity, funEqDef}
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.altEqualityTransitivity
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.funEqDef
 import lisa.maths.SetTheory.Types.TypingHelpers
-import lisa.maths.SetTheory.Types.TypingHelpers.*
-import lisa.maths.SetTheory.Types.TypingRules.{BetaReduction, TAbs}
+import lisa.maths.SetTheory.Types.TypingHelpers._
+import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
+import lisa.maths.SetTheory.Types.TypingRules.TAbs
 import lisa.utils.prooflib.BasicStepTactic.Restate
 
 object FunctionAbstractions {
@@ -56,9 +60,9 @@ object FunctionAbstractions {
       codomain: Expr[Ind],
       body: Expr[Ind >>: Ind]
   ): THM = Lemma(
-    ∀(x ∈ domain, body(x) ∈ codomain) |- abs(domain)(body) ∈ Pi(domain)(λ(y, codomain))
+    ∀(pointVar ∈ domain, body(pointVar) ∈ codomain) |- abs(domain)(body) ∈ Pi(domain)(λ(pointVar, codomain))
   ) {
-    have(thesis) by Restate.from(
+    have(thesis) by Tautology.from(
       TAbsConstOnGeneral.of(
         domainVar := domain,
         codomainVar := codomain,
@@ -176,8 +180,8 @@ object FunctionAbstractions {
       ∀(pointVar, pointVar ∈ domainVar ==> ((leftFunVar * pointVar) === (rightFunVar * pointVar)))
     ) |- (leftFunVar === rightFunVar)
   ) {
-    val leftTyped = assume(leftFunVar :: (domainVar ->: tailTypeVar))
-    val rightTyped = assume(rightFunVar :: (domainVar ->: tailTypeVar))
+    assume(leftFunVar :: (domainVar ->: tailTypeVar))
+    assume(rightFunVar :: (domainVar ->: tailTypeVar))
     val pointwiseForall =
       assume(∀(pointVar, pointVar ∈ domainVar ==> ((leftFunVar * pointVar) === (rightFunVar * pointVar))))
     val leftBetween = have(Function.functionBetween(leftFunVar)(domainVar)(tailTypeVar)) by Weakening(
@@ -292,11 +296,11 @@ object FunctionAbstractions {
           val tailRec = rec(tailSig, tailVars, currentLeft * pointArg, currentRight * pointArg)
 
           Lemma((currentLeft :: currentType, currentRight :: currentType, currentSchema) |- (currentLeft === currentRight)) {
-            val leftTyped = assume(currentLeft :: currentType)
-            val rightTyped = assume(currentRight :: currentType)
+            assume(currentLeft :: currentType)
+            assume(currentRight :: currentType)
             val schema = assume(currentSchema)
 
-            val pointwiseAtArg = have(pointArg ∈ domain |- (currentLeft * pointArg === currentRight * pointArg)) subproof {
+            have(pointArg ∈ domain |- (currentLeft * pointArg === currentRight * pointArg)) subproof {
               val argTyped = assume(pointArg ∈ domain)
 
               val leftAppTyped = have((currentLeft * pointArg) :: tailType) by Weakening(

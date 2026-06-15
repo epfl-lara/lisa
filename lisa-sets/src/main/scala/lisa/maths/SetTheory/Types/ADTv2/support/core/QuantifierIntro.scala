@@ -1,12 +1,8 @@
 package lisa.maths.SetTheory.Types.ADTv2.support.core
 
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.utils.prooflib.ProofTacticLib.{
-  ProofFactSequentTactic,
-  ProofTactic
-}
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.utils.prooflib.ProofTacticLib.ProofFactSequentTactic
+import lisa.utils.prooflib.ProofTacticLib.ProofTactic
 
 object QuantifiersIntro extends lisa.utils.prooflib.ProofTacticLib.ProofTactic {
 

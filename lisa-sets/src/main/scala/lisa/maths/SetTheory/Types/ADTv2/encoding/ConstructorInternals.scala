@@ -1,19 +1,15 @@
 package lisa.maths.SetTheory.Types.ADTv2.encoding
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Types.TypingHelpers.::
-import lisa.maths.SetTheory.Types.TypingHelpers
-import lisa.maths.SetTheory.Types.TypingHelpers.*
-import lisa.maths.SetTheory.Functions.Pi.{->:}
-import lisa.utils.prooflib.ProofTacticLib.Arity
-
-import lisa.maths.SetTheory.Types.ADTv2.support.ExistsOneBuilder
-import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
+import lisa.maths.SetTheory.Functions.Pi.->:
+import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.InstantiateForallSeq
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
+import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.FunctionAbstractions
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.core.`**`
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems._
+import lisa.maths.SetTheory.Types.ADTv2.support.ExistsOneBuilder
+import lisa.maths.SetTheory.Types.TypingHelpers.::
+import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[encoding] final class ConstructorInternals[N <: Arity](
     adt: SyntacticADT[N],
@@ -39,7 +35,6 @@ private[encoding] final class ConstructorInternals[N <: Arity](
       semanticSignature.drop(index).map(_._2).foldRight[Expr[Ind]](adt.term)((a, b) => a ->: b)
 
     def proveTyping(index: Int): THM = {
-      val prefixVars = variables.take(index)
       val prefixSig = semanticSignature.take(index)
 
       if index == variables.size then

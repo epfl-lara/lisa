@@ -1,16 +1,14 @@
 package lisa.maths.SetTheory.Types.ADTv2.encoding
 
-import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.*
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.*
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.*
+import lisa.maths.SetTheory.Base.Pair.given
+import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
-
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Base.Pair.given
-import lisa.maths.SetTheory.Functions.Predef.*
-import lisa.utils.prooflib.ProofTacticLib.Arity
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems._
+import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
 import lisa.utils.prooflib.BasicStepTactic.Restate
+import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTerm[N] {
   this: SyntacticADT[N] =>
@@ -55,7 +53,7 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
     ) by Cut(zeroCase, natInduction of (P := lam(n, inductionFormulaN)))
 
     // STEP 2: Prove the inductive case
-    val succCase = have(
+    have(
       (isHeight(h), structuralInductionPreconditions) |-
         forall(n, in(n, N) ==> (inductionFormulaN ==> inductionFormula(successor(n))))
     ) subproof {
@@ -159,9 +157,9 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
                     ) by InstantiateForall(v)
 
                     factCclInstantiated match
-                      case implies(membership, subformula) => ty match
+                      case implies(_, subformula) => ty match
                           case SelfRef => subformula match
-                              case implies(hypothesis, subSubFormula) =>
+                              case implies(_, subSubFormula) =>
                                 val proofSubSubFormula = thenHave(
                                   (
                                     isHeight(h),

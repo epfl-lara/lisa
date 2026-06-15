@@ -1,8 +1,8 @@
 package lisa.maths.SetTheory.Types.ADTv2.library
 
-import lisa.maths.SetTheory.Functions.Pi.{->:}
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.maths.SetTheory.Types.ADTv2.*
+import lisa.maths.SetTheory.Functions.Pi.->:
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2._
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.SelfRef
 import lisa.maths.SetTheory.Types.TypingHelpers
 
@@ -21,7 +21,7 @@ val nat = adt(
 val zero = nat.constructors(0)
 val succ = nat.constructors(1)
 
-lazy val pred = recFun(nat, nat) { self =>
+lazy val pred = recFun(nat, nat) { _ =>
   Case(zero):
     zero
   Case(succ, natPredN):

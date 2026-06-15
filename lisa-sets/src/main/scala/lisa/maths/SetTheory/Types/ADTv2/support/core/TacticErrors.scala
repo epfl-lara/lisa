@@ -1,7 +1,8 @@
 package lisa.maths.SetTheory.Types.ADTv2.support.core
 
-import lisa.maths.SetTheory.SetTheory.{*, given}
-import lisa.utils.prooflib.ProofTacticLib.{ProofTactic, UnapplicableProofTactic}
+import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.utils.prooflib.ProofTacticLib.ProofTactic
+import lisa.utils.prooflib.ProofTacticLib.UnapplicableProofTactic
 
 object TacticErrors {
 
