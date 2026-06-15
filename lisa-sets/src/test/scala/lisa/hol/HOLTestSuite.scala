@@ -9,7 +9,6 @@ import org.scalatest.funsuite.AnyFunSuite
  */
 class HOLTestSuite extends HOLTestMain {
 
-  
   val x = typedvar(𝔹)
   val y = typedvar(𝔹)
   val f = typedvar(𝔹 ->: 𝔹)
@@ -35,6 +34,5 @@ class HOLTestSuite extends HOLTestMain {
   val expr5 = fun(h :: ((𝔹 ->: 𝔹) ->: 𝔹), fun(f :: (𝔹 ->: 𝔹), f * (x)) =:= h)
   assert(computeType(expr5) == (((𝔹 ->: 𝔹) ->: 𝔹) ->: 𝔹))
   val typecheckTest5 = TypingTheorem(expr5 :: (((𝔹 ->: 𝔹) ->: 𝔹) ->: 𝔹))
-
 
 }
