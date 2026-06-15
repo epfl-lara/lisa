@@ -3,13 +3,10 @@ package lisa.kernel
 import lisa.kernel.fol.FOL
 import lisa.kernel.fol.FOL._
 import lisa.utils.KernelHelpers._
-import lisa.utils.KernelHelpers.given_Conversion_Identifier_String
 import lisa.utils.KernelHelpers.given_Conversion_String_Identifier
 import org.scalatest.funsuite.AnyFunSuite
 
-import scala.collection.MapView
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.mutable.ListBuffer
 import scala.language.adhocExtensions
 import scala.util.Random
 

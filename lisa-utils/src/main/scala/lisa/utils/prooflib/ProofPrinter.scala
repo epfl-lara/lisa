@@ -1,6 +1,5 @@
 package lisa.utils.prooflib
 
-import lisa.kernel.proof.SCProofCheckerJudgement
 import lisa.utils._
 import lisa.utils.prooflib.BasicStepTactic.SUBPROOF
 import lisa.utils.prooflib.Library
@@ -92,16 +91,16 @@ object ProofPrinter {
 
     val lines = prettyProofRecursive(printedProof, 0, IndexedSeq.empty, IndexedSeq.empty)
     val maxStepNameLength = lines.map { case (_, _, stepName, _) => stepName.length }.maxOption.getOrElse(0)
-    lines
-      .map { case (isMarked, indices, stepName, sequent) =>
-        val suffix = Seq(indices, rightPadSpaces(stepName, maxStepNameLength), sequent)
-        val full = if (error.isDefined) (if (isMarked) marker else leftPadSpaces("", marker.length)) +: suffix else suffix
-        full.mkString(" ")
-      }
-      ++ (error match {
-        case None => Nil
-        case Some((path, message)) => List(s"\nProof checker has reported an error at line ${path.mkString(".")}: $message")
-      })
+    lines.map { case (isMarked, indices, stepName, sequent) =>
+      val suffix = Seq(indices, rightPadSpaces(stepName, maxStepNameLength), sequent)
+      val full = if (error.isDefined) (if (isMarked) marker else leftPadSpaces("", marker.length)) +: suffix else suffix
+      full.mkString(" ")
+    } ++ (error match {
+      case None => Nil
+      case Some((path, message)) =>
+        val msg = message.split("\n").mkString("\n")
+        List(s"\nProof checker has reported an error at line ${path.mkString(".")}: $msg")
+    })
   }
 
   def prettyFullProofLines(printedProof: Library#Proof, error: Option[(IndexedSeq[Int], String)]): Seq[String] = {
@@ -115,9 +114,10 @@ object ProofPrinter {
 
   def prettyProof(proof: Library#Proof): String = prettyFullProofLines(proof, None).mkString("\n")
   def prettyProof(proof: Library#Proof, indent: Int): String = (" " * indent) + prettyFullProofLines(proof, None).mkString("\n" + (" " * indent))
+  def prettyProofCrop(proof: Library#Proof, indent: Int, maxLines: Int): String = (" " * indent) + prettyFullProofLines(proof, None).takeRight(maxLines + 2).mkString("\n" + (" " * indent))
 
   def prettyProof(proof: Library#Proof, error: Option[(IndexedSeq[Int], String)]): String = prettyFullProofLines(proof, error).mkString("\n")
-  def prettyProof(proof: Library#Proof, indent: Int, error: Option[(IndexedSeq[Int], String)]): String = prettyFullProofLines(proof, None).mkString("\n" + " " * indent)
+  def prettyProof(proof: Library#Proof, indent: Int, error: Option[(IndexedSeq[Int], String)]): String = prettyFullProofLines(proof, error).mkString("\n" + " " * indent)
 
   def prettySimpleProof(proof: Library#Proof): String = prettyProofLines(proof, None).mkString("\n")
   def prettySimpleProof(proof: Library#Proof, indent: Int): String = (" " * indent) + prettyProofLines(proof, None).mkString("\n" + (" " * indent))

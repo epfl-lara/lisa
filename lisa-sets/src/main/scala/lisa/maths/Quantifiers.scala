@@ -1,10 +1,6 @@
 package lisa.maths
 
 import lisa.automation.Substitution
-import lisa.utils.K.repr
-import lisa.utils.Printing
-import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.ProofTacticLib.ProofFactSequentTactic
 
 /**
  * This file proves first-order logic theorems related to quantifiers. It includes:
@@ -269,6 +265,66 @@ object Quantifiers extends lisa.Main {
     have(P(x) |- P(x)) by Restate
     thenHave(P(x) |- P(ε(x, P(x)))) by RightEpsilon
     thenHave(thesis) by LeftExists
+  }
+
+  /**
+   * Theorem --- The Hilbert ε-witness satisfies the body iff the existential
+   * holds. This is the equivalence form of [[existsEpsilon]] and is the building
+   * block used by certified Skolemization to bridge `∃x. φ` and `φ[ε(λx.φ)/x]`.
+   */
+  val existsEpsilonIff = Theorem(
+    ∃(x, P(x)) <=> P(ε(x, P(x)))
+  ) {
+    val fwd = have(∃(x, P(x)) ==> P(ε(x, P(x)))) by Tautology.from(existsEpsilon)
+    have(P(ε(x, P(x))) |- P(ε(x, P(x)))) by Hypothesis
+    thenHave(P(ε(x, P(x))) |- ∃(x, P(x))) by RightExists
+    val bwd = thenHave(P(ε(x, P(x))) ==> ∃(x, P(x))) by Restate
+    have(thesis) by Tautology.from(fwd, bwd)
+  }
+
+  /**
+   * Theorem --- Universal instantiation: from `∀x. P(x)` derive `P(y)` for any
+   * witness `y`. Used by certified prenex normalisation to peel off the
+   * universal prefix of an axiom.
+   */
+  val forallInstantiation = Theorem(
+    ∀(x, P(x)) |- P(y)
+  ) {
+    have(P(y) |- P(y)) by Hypothesis
+    thenHave(thesis) by LeftForall
+  }
+
+  // ── Prenex-lifting equivalences ──────────────────────────────────────────
+  // Each states that a universal quantifier commutes with ∧/∨ when the
+  // quantified variable is not free in one of the two operands (enforced by
+  // using two distinct schema variables P and Q of sort Ind→Prop).
+
+  /** `(∀x. P(x)) ∧ Q(x)  ⟺  ∀x. (P(x) ∧ Q(x))`  (only the Q-side is closed in x). */
+  val forallAndLeft = Theorem(
+    ∀(x, P(x)) /\ Q(x) <=> ∀(x, P(x) /\ Q(x))
+  ) {
+    have(thesis) by Tableau
+  }
+
+  /** `P(x) ∧ (∀x. Q(x))  ⟺  ∀x. (P(x) ∧ Q(x))`  (only the P-side is closed in x). */
+  val forallAndRight = Theorem(
+    P(x) /\ ∀(x, Q(x)) <=> ∀(x, P(x) /\ Q(x))
+  ) {
+    have(thesis) by Tableau
+  }
+
+  /** `(∀x. P(x)) ∨ Q(x)  ⟺  ∀x. (P(x) ∨ Q(x))`  (only the Q-side is closed in x). */
+  val forallOrLeft = Theorem(
+    ∀(x, P(x)) \/ Q(x) <=> ∀(x, P(x) \/ Q(x))
+  ) {
+    have(thesis) by Tableau
+  }
+
+  /** `P(x) ∨ (∀x. Q(x))  ⟺  ∀x. (P(x) ∨ Q(x))`  (only the P-side is closed in x). */
+  val forallOrRight = Theorem(
+    P(x) \/ ∀(x, Q(x)) <=> ∀(x, P(x) \/ Q(x))
+  ) {
+    have(thesis) by Tableau
   }
 
 }

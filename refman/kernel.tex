@@ -626,7 +626,7 @@ Given some proof $p$, the proof checker will verify these points. For most proof
 
 Hence, most of the proof checker's work consists in verifying that some formulas, or subformulas thereof, are identical. This is where the equivalence checker comes into play. By checking equivalence rather than strict syntactic equality, a lot of steps become redundant and can be merged. That way,  any number of consecutive {LeftAnd}, {RightOr}, {LeftNot}, {RightNot}, {LeftImplies}, {RightImplies}, {LeftIff}, {LeftRefl}, {RightRefl}, {LeftExistsOne} and  {RightExistsOne} proof steps can always be replaced by a single{Weakening} rule. This gives some intuition about how useful the equivalence checker is to simplify proof length.
 
-While most proof steps are oblivious to formula transformations allowed by the equivalence checker, they don't allow transformations of the whole sequent: to easily rearrange sequents according to the sequent semantics (\Cref{eq:SequentSemantic}), one should use the Rewrite or Weakening steps.
+While most proof steps are oblivious to formula transformations allowed by the equivalence checker, they don't allow transformations of the whole sequent: to easily rearrange sequents according to the sequent semantics (\Cref{eq:SequentSemantic}), one should use the Restate or Weakening steps.
 
 Depending on wether the proof is correct or incorrect, the proof checking function will output a \textit{judgement}:
 \begin{lstlisting}

@@ -1,7 +1,5 @@
 package lisa.maths.SetTheory.Ordinals
 
-import lisa.maths.SetTheory.Base.Predef._
-
 import Ordinal._
 
 /**

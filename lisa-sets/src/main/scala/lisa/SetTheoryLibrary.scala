@@ -2,7 +2,6 @@ package lisa
 
 import lisa.kernel.proof.RunningTheory
 import lisa.utils.fol.FOL.{_, given}
-import lisa.utils.prooflib.Library
 
 import scala.annotation.targetName
 
@@ -219,14 +218,9 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
     }
 
   /**
-   * The symbol for the equicardinality predicate. Needed for Tarski's axiom.
-   */
-  final val sim = constant[Ind >>: Ind >>: Prop]("sameCardinality") // Equicardinality
-
-  /**
    * Set Theory basic predicates
    */
-  final val predicates = Set(∈, ⊆, sim)
+  final val predicates = Set(∈, ⊆)
 
   // Functions
 
@@ -251,14 +245,9 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
   final val ⋃ = constant[Ind >>: Ind]("⋃")
 
   /**
-   * The symbol for the universe function. Defined in TG set theory.
-   */
-  final val universe = constant[Ind >>: Ind]("universe")
-
-  /**
    * Set Theory basic functions.
    */
-  final val functions = Set(unorderedPair, 𝒫, ⋃, universe)
+  final val functions = Set(unorderedPair, 𝒫, ⋃)
 
   /**
    * The kernel theory loaded with Set Theory symbols and axioms.
@@ -270,8 +259,8 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
   functions.foreach(s => addSymbol(s))
   addSymbol(∅)
 
-  private val x, y, z = variable[Ind]
-  private val A, B = variable[Ind]
+  private val x, y, z, a, b = variable[Ind]
+  private val A, B, U, G, I = variable[Ind]
   private val φ = variable[Ind >>: Prop]
   private val P = variable[Ind >>: Ind >>: Prop]
 
@@ -402,16 +391,40 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
   // TG
   /////////
 
-  // TODO: Add documentation for Tarski's axiom.
+  /**
+   * Tarski's Axiom (Explicit Version)
+   * For every set x, there exists a set U such that:
+   * 1. x ∈ U
+   * 2. U is Transitive
+   * 3. U is closed under Pairing
+   * 4. U is closed under Union
+   * 5. U is closed under Power Set
+   * 6. U is closed under Replacement
+   */
   final val tarskiAxiom: AXIOM = Axiom(
     ∀(
       x,
-      (x ∈ universe(x)) /\
-        ∀(
-          y,
-          (y ∈ universe(x)) ==> ((𝒫(y) ∈ universe(x)) /\ (𝒫(y) ⊆ universe(x))) /\
-            ∀(z, (z ⊆ universe(x)) ==> (sim(y)(universe(x)) /\ (y ∈ universe(x))))
-        )
+      ∃(
+        U,
+        (x ∈ U) /\
+          // 1. Transitivity: y ∈ U => y ⊆ U
+          (∀(y, (y ∈ U) ==> (y ⊆ U))) /\
+          // 2. Pairing: a,b ∈ U => {a,b} ∈ U
+          (∀(y, ∀(z, (y ∈ U /\ z ∈ U) ==> (unorderedPair(y, z) ∈ U)))) /\
+          // 3. Union: y ∈ U => ⋃y ∈ U
+          (∀(y, (y ∈ U) ==> (⋃(y) ∈ U))) /\
+          // 4. Power Set: y ∈ U => P(y) ∈ U
+          (∀(y, (y ∈ U) ==> (𝒫(y) ∈ U))) /\
+          // 5. Replacement closure
+          (∀(
+            A,
+            (A ∈ U) ==> ∀(
+              G,
+              ∀(a, a ∈ A ==> ∃(b, (b ∈ U) /\ (pair(a, b) ∈ G) /\ (∀(z, ((z ∈ U) /\ (pair(a, z) ∈ G)) ==> (z === b))))) ==>
+                ∃(I, (I ∈ U) /\ ∀(b, b ∈ I <=> ∃(a, (a ∈ A) /\ (pair(a, b) ∈ G))))
+            )
+          ))
+      )
     )
   )
 
@@ -463,6 +476,8 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
   ///////////////
 
   def unorderedPair(x: Expr[Ind], y: Expr[Ind]): Expr[Ind] = App(App(unorderedPair, x), y)
+
+  private def pair(x: Expr[Ind], y: Expr[Ind]): Expr[Ind] = unorderedPair(unorderedPair(x, x), unorderedPair(x, y))
 
   /*
   private val db = HintDatabase.empty

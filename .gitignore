@@ -1,26 +1,106 @@
 # IDEs
 .idea
+.idea_modules
+*.iml
 .metals
 .vscode
+*.code-workspace
+.ensime
+.ensime_cache/
 project/metals.sbt
 project/project/metals.sbt
+.eclipse
+.settings/
+.classpath
+.project
+bin/
+
+# sbt specific
 sbt-launch.jar
+dist/*
+lib_managed/
+src_managed/
+project/boot/
+project/plugins/project/
 
 # build-related
 .bsp
 .bloop
-target
+target/
+*.class
+*.log
 *.scala.semanticdb
 
-*.iml
+# Scala-specific
+*.tasty
+.scala_dependencies
+.worksheet
+.cache-main
+.cache-tests
 
 # silex and scallion
-
 silex/*
 scallion/*
 
 # caching of theorems
-cache
+cache/
+*.cache
+
+# Large external problem libraries (downloaded separately)
+TPTP-v*/
+
+# Generated proof dumps (--dump-proofs output)
+proofs/*.proof
+CASC-J*/
+
+# OS-specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*~
+.directory
 
 # emacs backup files
 *~
+\#*\#
+.#*
+
+# vim backup files
+*.swp
+*.swo
+*~
+.*.sw?
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
+
+# Test outputs
+test-output/
+*.test
+
+# Assembly / JAR outputs
+*.jar
+!project/sbt-launch.jar
+assembly/
+
+# REPL history
+.scala_history
+
+# Documentation
+site/
+doc/api/
+
+# Environment
+.env
+.env.local

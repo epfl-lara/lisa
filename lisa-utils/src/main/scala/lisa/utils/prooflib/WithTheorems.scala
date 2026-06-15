@@ -1,18 +1,13 @@
 package lisa.utils.prooflib
 
 import lisa.kernel.proof.RunningTheory
-import lisa.utils.KernelHelpers.{_, given}
+import lisa.utils.KernelHelpers._
 import lisa.utils.LisaException
 import lisa.utils.UserLisaException
 import lisa.utils.UserLisaException._
 import lisa.utils.prooflib.ProofTacticLib.ProofTactic
 import lisa.utils.prooflib.ProofTacticLib.UnimplementedProof
 import lisa.utils.prooflib._
-
-import scala.annotation.nowarn
-import scala.collection.mutable.{Buffer => mBuf}
-import scala.collection.mutable.{Map => mMap}
-import scala.collection.mutable.{Stack => stack}
 
 trait WithTheorems {
   library: Library =>
@@ -176,7 +171,6 @@ trait WithTheorems {
      * @return
      */
     def toSCProof: K.SCProof = {
-      import lisa.utils.KernelHelpers.{-<<, ->>}
       val finalSteps = eliminations.foldLeft[(List[SC.SCProofStep], F.Sequent)]((steps.map(_.scps), steps.head.bot)) { (cumul_bot, f_elim) =>
         val (cumul, bot) = cumul_bot
         val (f, elim) = f_elim
@@ -362,6 +356,8 @@ trait WithTheorems {
 
     def justifications: List[JUSTIFICATION] = getImports.map(_._1)
 
+    def sorryDependencies = justifications.filter(_.withSorry)
+
   }
 
   /**
@@ -452,8 +448,9 @@ trait WithTheorems {
    * A proven, reusable statement. A justification corresponding to [[K.Theorem]].
    */
   sealed abstract class THM extends JUSTIFICATION {
+    val kind: TheoremKind
     def repr: String =
-      s"  Theorem ${name} := ${statement}${if (withSorry) " (!! Relies on Sorry)" else ""}"
+      s"  ${kind.kind2} ${name} := ${statement}${if (withSorry) " (!! Relies on Sorry)" else ""}"
 
     /**
      * The underlying Kernel proof [[K.SCProof]], if it is still available. Proofs are not kept in memory for efficiency.
@@ -465,6 +462,10 @@ trait WithTheorems {
      */
     def highProof: Option[BaseProof]
     val innerJustification: theory.Theorem
+    def sorryDependencies: List[JUSTIFICATION] = highProof match {
+      case Some(p) => p.sorryDependencies
+      case None => Nil
+    }
 
     /**
      * A pretty representation of the goal of the theorem
@@ -627,7 +628,7 @@ trait WithTheorems {
     def apply(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(statement: F.Sequent)(computeProof: Proof ?=> Unit): THM = {
       val s = library.contextHypotheses.getOrElse(file, Set.empty).foldLeft(statement)(_ +<< _)
       val thm = THM(s, name.value, line.value, file.value, this)(computeProof)
-      if this == Theorem then show(thm)
+      show(thm)
       thm
     }
 

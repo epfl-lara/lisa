@@ -1,7 +1,5 @@
 package lisa.maths.SetTheory.Order.WellOrders
 
-import lisa.maths.SetTheory.Base.Predef.{_, given}
-
 /**
  * This file is dedicated to proving the well-ordered and transfinite recursion
  * theorems. Auxiliary lemmas are sections of the recursion proof separated out

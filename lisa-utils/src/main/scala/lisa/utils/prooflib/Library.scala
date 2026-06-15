@@ -1,13 +1,9 @@
 package lisa.utils.prooflib
 
 import lisa.kernel.proof.RunningTheory
-import lisa.kernel.proof.SCProofChecker
-import lisa.kernel.proof.SCProofCheckerJudgement
 import lisa.kernel.proof.SequentCalculus
-import lisa.utils.KernelHelpers.{_, given}
-import lisa.utils.{_, given}
-
-import scala.collection.mutable.{Stack => stack}
+import lisa.utils.KernelHelpers._
+import lisa.utils._
 
 /**
  * A class abstracting a [[lisa.kernel.proof.RunningTheory]] providing utility functions and a convenient syntax
@@ -25,7 +21,6 @@ abstract class Library extends lisa.utils.prooflib.WithTheorems with lisa.utils.
   val K = lisa.utils.K
   val SC: SequentCalculus.type = K.SC
   private[prooflib] val F = lisa.utils.fol.FOL
-  import F.{given}
 
   var last: Option[JUSTIFICATION] = None
 
@@ -68,6 +63,15 @@ abstract class Library extends lisa.utils.prooflib.WithTheorems with lisa.utils.
     case Some(value) => value
   }
 
+  extension (symbol: F.Constant[?]) {
+    def definition: JUSTIFICATION = {
+      getDefinition(symbol).get
+    }
+    def shortDefinition: JUSTIFICATION = {
+      getShortDefinition(symbol).get
+    }
+  }
+
   /**
    * An alias to create a Theorem
    */
@@ -80,7 +84,7 @@ abstract class Library extends lisa.utils.prooflib.WithTheorems with lisa.utils.
    * Allows to create a definition by shortcut of a predicate symbol:
    */
   def makeSimpleDefinition(symbol: String, expression: K.Expression): K.Judgement[theory.Definition] =
-    theory.definition(symbol, expression)
+    theory.makeSimpleDefinition(symbol, expression)
 
   /**
    * Prints a short representation of the given theorem or definition

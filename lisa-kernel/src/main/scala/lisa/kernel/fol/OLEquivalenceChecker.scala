@@ -1,9 +1,18 @@
 package lisa.kernel.fol
 
-import scala.collection.mutable
 import lisa.kernel.fol.Syntax
 
+import scala.collection.mutable
+
 private[fol] trait OLEquivalenceChecker extends Syntax {
+
+  /**
+   * Returns the αβ-normal form of the given epression as a
+   * [[SimpleExpression]].
+   */
+  def simpleReducedForm(expr: Expression): SimpleExpression = {
+    simplify(expr.betaNormalForm)
+  }
 
   /**
    * Returns the reduced form of the given expression in AIG representation.
@@ -558,7 +567,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
           case SimpleEquality(left, right, true) =>
             val l = computeNormalForm(left)
             val r = computeNormalForm(right)
-            if (l == r) SimpleLiteral(true)
+            if (latticesEQ(l, r)) SimpleLiteral(true)
             else if (l.uniqueKey >= r.uniqueKey) SimpleEquality(l, r, true)
             else SimpleEquality(r, l, true)
 
@@ -601,7 +610,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
     var remaining: Seq[SimpleExpression] = Nil
     def treatChild(i: SimpleExpression): Seq[SimpleExpression] = {
       val r: Seq[SimpleExpression] = i match {
-        case SimpleAnd(ch, true) => ch
+        case SimpleAnd(ch, true) => ch.flatMap(treatChild)
         case SimpleAnd(ch, false) =>
           if (polarity) {
             val trCh = ch map getInversePolar

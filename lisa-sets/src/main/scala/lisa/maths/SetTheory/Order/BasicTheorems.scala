@@ -1,11 +1,9 @@
 package lisa.maths.SetTheory.Order
 
 import lisa.maths.SetTheory.Base.Predef.{_, given}
-import lisa.maths.SetTheory.Relations
 import lisa.maths.SetTheory.Relations.Predef._
 
 import PartialOrder._
-import TotalOrder._
 import Extrema._
 
 /**

@@ -5,10 +5,8 @@ import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus._
 import lisa.test.ProofCheckerSuite
 import lisa.utils.KernelHelpers._
-import lisa.utils.KernelHelpers.given_Conversion_Identifier_String
 import lisa.utils.KernelHelpers.given_Conversion_String_Identifier
 
-import scala.collection.immutable.SortedSet
 import scala.language.implicitConversions
 
 class IncorrectProofsTests extends ProofCheckerSuite {
@@ -80,7 +78,7 @@ class IncorrectProofsTests extends ProofCheckerSuite {
       ),
       SCProof(
         Hypothesis(emptySeq +<< f +>> f, f),
-        RightOr(emptySeq +<< f +>> (f \/ g) +>> g, 0, f, g) // supplemental right g
+        RightOr(emptySeq +<< f +>> f +>> g, 0, f, g) // f \/ g not explicitly present
       )
     )
 

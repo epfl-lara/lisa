@@ -1,25 +1,17 @@
 package lisa.tptp
-import leo.datastructures.TPTP.AnnotatedFormula
+
 import leo.datastructures.TPTP.Annotations
 import leo.datastructures.TPTP.FOF
 import leo.datastructures.TPTP.FOFAnnotated
-import leo.datastructures.TPTP.FOFData
-import leo.datastructures.TPTP.FOTAnnotated
-import leo.datastructures.TPTP.FOTData
-import leo.datastructures.TPTP.GeneralFormulaData
 import leo.datastructures.TPTP.GeneralTerm
-import leo.datastructures.TPTP.Integer
 import leo.datastructures.TPTP.MetaFunctionData
-import leo.datastructures.TPTP.NumberData
-import leo.modules.input.{TPTPParser => Parser}
 import lisa.utils.K
 
 import java.io.File
 
 import KernelParser.unsanitize
 import K.given
-import K.{repr, -<<, +<<, ->>, +>>, |-}
-import Parser.TPTPParseException
+import K.repr
 import ProofParser._
 
 object ProofPrinter {

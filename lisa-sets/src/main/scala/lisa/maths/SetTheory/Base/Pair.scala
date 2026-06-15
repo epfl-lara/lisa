@@ -4,7 +4,7 @@ import lisa.maths.Quantifiers
 
 import Singleton.singleton
 import Union.∪
-import Intersection.{⋂, ∩}
+import Intersection.⋂
 import Comprehension.|
 import Symbols._
 

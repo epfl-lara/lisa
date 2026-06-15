@@ -1,6 +1,5 @@
 package lisa.utils.prooflib
 
-import lisa.utils.K
 import lisa.utils.UserLisaException
 import lisa.utils.fol.{FOL => F}
 import lisa.utils.prooflib.ProofPrinter
@@ -46,7 +45,7 @@ object ProofTacticLib {
       val textline = source.getLines().drop(line.value - 1).next().dropWhile(c => c.isWhitespace)
       source.close()
       Console.RED + proof.owningTheorem.prettyGoal + Console.RESET + "\n" +
-        ProofPrinter.prettyProof(proof, 2) + "\n" +
+        ProofPrinter.prettyProofCrop(proof, 2, 5) + "\n" +
         "  " * (1 + proof.depth) + Console.RED + textline + Console.RESET + "\n\n" +
         s"   Proof tactic ${tactic.name} used in (${file.value.split("/").last.split("\\\\").last}:${line.value}) did not succeed:\n" +
         errorMessage.indent(3)

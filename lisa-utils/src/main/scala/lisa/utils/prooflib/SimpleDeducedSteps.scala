@@ -5,25 +5,10 @@ import lisa.utils.KernelHelpers.{_, given}
 import lisa.utils.Printing
 import lisa.utils.fol.{FOL => F}
 import lisa.utils.prooflib.BasicStepTactic._
-import lisa.utils.prooflib.ProofTacticLib.{_, given}
+import lisa.utils.prooflib.ProofTacticLib._
 import lisa.utils.prooflib._
 
 object SimpleDeducedSteps {
-
-  object Restate extends ProofTactic with ProofSequentTactic with ProofFactSequentTactic {
-    def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement =
-      unwrapTactic(RewriteTrue(bot))("Attempted true rewrite during tactic Restate failed.")
-
-    // (proof.ProofStep | proof.OutsideFact | Int)     is definitionally equal to proof.Fact, but for some reason
-    // scala compiler doesn't resolve the overload with a type alias, dependant type and implicit parameter
-
-    def apply(using lib: Library, proof: lib.Proof)(premise: proof.ProofStep | proof.OutsideFact | Int | proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement =
-      unwrapTactic(Rewrite(premise)(bot))("Attempted rewrite during tactic Restate failed.")
-
-    def from(using lib: Library, proof: lib.Proof)(premise: proof.ProofStep | proof.OutsideFact | Int | proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement =
-      unwrapTactic(Rewrite(premise)(bot))("Attempted rewrite during tactic Restate failed.")
-
-  }
 
   object Discharge extends ProofTactic {
     def apply(using lib: Library, proof: lib.Proof)(premises: proof.Fact*)(premise: proof.Fact): proof.ProofTacticJudgement = {
@@ -263,7 +248,7 @@ object SimpleDeducedSteps {
    *          ...
    *          2.n = ϕ, Σ, ψ ⊢ ψ ∧ γ1, ψ ∧ γ2, …, ψ ∧ γn RightAnd on 2.(n-1) and p1 with ψ ∧ γn
    *
-   * p3     = ϕ ∧ ψ, Σ ⊢ ψ ∧ γ1, ψ ∧ γ2, … , ψ ∧ γn     Rewrite on p2 (just to have a cleaner form)
+   * p3     = ϕ ∧ ψ, Σ ⊢ ψ ∧ γ1, ψ ∧ γ2, … , ψ ∧ γn     Restate on p2 (just to have a cleaner form)
    * p2     = Γ, Σ ⊢ Δ, ψ ∧ γ1, ψ ∧ γ2, … , ψ ∧ γn      Cut on left, p1 with ϕ ∧ ψ
    *
    * p2 is the result

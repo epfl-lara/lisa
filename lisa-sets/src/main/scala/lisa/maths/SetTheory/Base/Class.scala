@@ -1,7 +1,5 @@
 package lisa.maths.SetTheory.Base
 
-import lisa.maths.Quantifiers.∃!
-
 import Symbols._
 
 /**

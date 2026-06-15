@@ -1,9 +1,5 @@
 package lisa.utils
 
-import lisa.kernel.fol.FOL._
-import lisa.kernel.proof.SCProof
-import lisa.kernel.proof.SequentCalculus._
-
 /**
  * Utilities to work with sequent-calculus proofs.
  * All of these methods assume that the provided proof are well-formed but not necessarily valid.

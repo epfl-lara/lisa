@@ -1,7 +1,5 @@
 package lisa.maths.SetTheory.Relations
 
-import lisa.maths.Quantifiers.∃!
-import lisa.maths.SetTheory.Base
 import lisa.maths.SetTheory.Base.Predef.{_, given}
 import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.Order.Extrema.minimal
