@@ -2,7 +2,6 @@ package lisa.maths.SetTheory.Types.ADTv2.interface
 
 import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.instantiatedSemanticSignature
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.substitutionsFromArgs
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.theoremAt
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{introAppAt => buildIntroAppAt}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.appSeq
@@ -12,7 +11,7 @@ import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 object SpecializedADT {
-  given adtToSpecialized[N <: Arity](using ValueOf[N], sourcecode.Line, sourcecode.File): Conversion[ADT[N], SpecializedADT[N]] =
+  given adtToSpecialized[N <: Arity](using sourcecode.Line, sourcecode.File): Conversion[ADT[N], SpecializedADT[N]] =
     adt => new SpecializedADT[N](adt, adt.typeVariablesSeq)
 }
 
@@ -24,15 +23,11 @@ object SpecializedADT {
  */
 final class SpecializedConstructor[N <: Arity](using
     val line: sourcecode.Line,
-    val file: sourcecode.File,
-    valueOfN: ValueOf[N]
+    val file: sourcecode.File
 )(
     val base: Constructor[N],
     val typeArgs: Seq[Expr[Ind]]
 ) {
-
-  private val substitutions =
-    substitutionsFromArgs("constructor", base.name, base.typeVariablesSeq, typeArgs)
 
   val name: String = base.name
   val fullName: String = base.semantic.fullName
@@ -77,15 +72,11 @@ final class SpecializedConstructor[N <: Arity](using
  */
 final class SpecializedADT[N <: Arity](using
     val line: sourcecode.Line,
-    val file: sourcecode.File,
-    valueOfN: ValueOf[N]
+    val file: sourcecode.File
 )(
     val base: ADT[N],
     val typeArgs: Seq[Expr[Ind]]
 ) {
-
-  private val substitutions =
-    substitutionsFromArgs("ADT", base.name, base.typeVariablesSeq, typeArgs)
 
   val name: String = base.name
   val typeVariables: Seq[Variable[Ind]] = base.typeVariablesSeq

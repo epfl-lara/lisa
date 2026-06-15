@@ -15,7 +15,6 @@ import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeFormu
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Ordinals.Integer
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Cut
 import lisa.utils.prooflib.BasicStepTactic.LeftExists
@@ -261,7 +260,6 @@ private[recursion] object RecFunctionInduction {
       val constructorsAt = specializedConstructors(adt.constructors, typeSubstitutions)
       val nVar = variable[Ind]
       val slicePoint = inductionVariable
-      val Pred = variable[Ind >>: Prop]("P")
       val P = λ(nVar, ∀(slicePoint ∈ app(heightFun)(nVar), propertyAt(slicePoint)))
 
       def instantiateCaseFromDefinition(using proof: lisa.SetTheoryLibrary.Proof)(

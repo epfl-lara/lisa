@@ -7,7 +7,7 @@ import lisa.maths.SetTheory.Types.ADTv2.height.HeightConstructors
 import lisa.maths.SetTheory.Types.ADTv2.height.HeightStageConstructorData
 import lisa.maths.SetTheory.Types.ADTv2.height.HeightStageSet
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
-import lisa.maths.SetTheory.Types.ADTv2.support.UniqueDefinedSymbol
+import lisa.maths.SetTheory.Types.ADTv2.support.semantics.UniqueDefinedSymbol
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[encoding] trait SyntacticADTHeight[N <: Arity]

@@ -8,7 +8,6 @@ import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeFormu
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Ordinals.Integer
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.altEqualityTransitivity
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Cut
@@ -31,7 +30,7 @@ private[recursion] final class ApproxProp[N <: Arity](
   val spec: FunSpec[N],
   val recWitness: Witness[N],
   val approx: Approx[N],
-  val witnessAgreement: lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.WitnessAgreement[N]
+  val witnessAgreement: helpers.WitnessAgreement[N]
 ) {
 
   val nVar = variable[Ind]
@@ -61,7 +60,6 @@ private[recursion] final class ApproxProp[N <: Arity](
   private[recursion] val stabilization: THM = Time.measure(s"AP/stabilization")(Lemma(
     ∀(nVar ∈ N, ∀(a ∈ app(heightFun)(nVar), app(G(nVar))(a) === app(G(S(nVar)))(a)))
   ) {
-    val Pred = variable[Ind >>: Prop]("P")
     val P = λ(nVar, ∀(a ∈ app(heightFun)(nVar), app(G(nVar))(a) === app(G(S(nVar)))(a)))
 
     val hValid = have(isHeightPred(heightFun)) by Weakening(heightFunValid)

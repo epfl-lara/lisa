@@ -530,8 +530,6 @@ class Induction[M <: Arity](
               thenHave(bot) by Tautology
             }
           case (Left(msg), _, _) => proof.InvalidProofTactic(msg)
-          case (_, Left(msg), _) => proof.InvalidProofTactic(msg)
-          case (_, _, Left(msg)) => proof.InvalidProofTactic(msg)
 
     case None => proof
         .InvalidProofTactic("No variable typed with the ADT found in the context.")

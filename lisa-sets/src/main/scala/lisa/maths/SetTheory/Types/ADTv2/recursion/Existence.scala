@@ -13,7 +13,6 @@ import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ApproximationChainFacts
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.LimitKernel
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Ordinals.Integer
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.altEqualityTransitivity
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Cut
@@ -42,7 +41,7 @@ private[recursion] final class Existence[N <: Arity](
   val approx: Approx[N],
   val approxProp: ApproxProp[N],
   val limitConstruction: LimitConstruction[N],
-  val witnessAgreement: lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.WitnessAgreement[N]
+  val witnessAgreement: helpers.WitnessAgreement[N]
 ) extends ExistenceProof[N] {
 
   val nVar = variable[Ind]

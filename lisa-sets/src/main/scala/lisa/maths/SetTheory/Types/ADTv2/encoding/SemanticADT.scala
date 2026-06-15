@@ -309,7 +309,7 @@ class SemanticADT[N <: Arity](
           wellTypedFormula(c.semanticSignature) ==> (c.appliedTerm === c.structuralTerm)
         )) by Restate.from(c.shortDefinition)
         if c.arity > 0 then
-          c.variables1.foldLeft(lastStep)((l, _) =>
+          c.variables1.foldLeft(lastStep)((_, _) =>
             lastStep.statement.right.head match
               case forall(v, phi) => thenHave(phi) by InstantiateForall(v)
               case _ => throw UnreachableException
