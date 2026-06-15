@@ -13,7 +13,7 @@ import lisa.maths.SetTheory.SetTheory
 
 /**
  * This file defines integers as ordinals whose elements are either zero
- * or S ordinals.
+ * or successor ordinals.
  *
  * `ω` is defined as the set of all integers, and is itself an ordinal which
  * is limit.
@@ -43,9 +43,8 @@ object Integer extends lisa.Main {
   val ω = DEF(ε(x, ∀(α, α ∈ x <=> integer(α))))
 
   /**
-   * Bridge theorem --- Characterization of membership in `ω` by `integer`.
+   * Lemma --- The empty set (zero) is an integer.
    */
-
   private val zeroIsInteger = Theorem(
     integer(∅)
   ) {
@@ -57,6 +56,9 @@ object Integer extends lisa.Main {
     thenHave(thesis) by Substitute(integer.definition of (α := ∅))
   }
 
+  /**
+   * Theorem --- Every integer is an ordinal.
+   */
   val integerIsOrdinal = Theorem(
     integer(α) |- ordinal(α)
   ) {
@@ -88,6 +90,9 @@ object Integer extends lisa.Main {
   }
 
 
+  /**
+   * Lemma --- The successor of an integer is an integer.
+   */
   private val integerSuccessor = Theorem(
     integer(α) |- integer(S(α))
   ) {
@@ -142,6 +147,9 @@ object Integer extends lisa.Main {
     thenHave(thesis) by Substitute(integer.definition of (α := S(α)))
   }
 
+  /**
+   * Lemma --- If a successor `S(α)` is an integer, then so is `α`.
+   */
   private val integerPredecessor = Theorem(
     integer(S(α)) |- integer(α)
   ) {
@@ -186,6 +194,9 @@ object Integer extends lisa.Main {
     thenHave(thesis) by Substitute(integer.definition)
   }
 
+  /**
+   * Lemma --- Every integer belongs to any inductive set.
+   */
   private val integerInInductive = Lemma(
     (SetTheory.inductive(y), integer(α)) |- α ∈ y
   ) {
@@ -281,6 +292,9 @@ object Integer extends lisa.Main {
     have(thesis) by Tautology.from(alphaP)
   }
 
+  /**
+   * Lemma --- Characterization of membership in `ω`: `α ∈ ω ⇔ integer(α)`.
+   */
   val omegaCharacterization = Lemma(∀(α, α ∈ ω <=> integer(α))) {
     def Q(s: Expr[Ind]): Expr[Prop] = ∀(α, α ∈ s <=> integer(α))
     def R(i: Expr[Ind], s: Expr[Ind]): Expr[Prop] = ∀(β, β ∈ s <=> (β ∈ i) /\ integer(β))
@@ -337,6 +351,9 @@ object Integer extends lisa.Main {
     have(thesis) by Tautology.from(qAtOmega)
   }
 
+  /**
+   * Theorem --- Every element of `ω` is an ordinal.
+   */
   val elementIsOrdinal = Theorem(α ∈ ω |- ordinal(α)) {
     have(α ∈ ω |- integer(α)) by InstantiateForall(α)(omegaCharacterization)
     have(thesis) by Tautology.from(lastStep, integerIsOrdinal)
@@ -501,6 +518,9 @@ object Integer extends lisa.Main {
     thenHave(thesis) by Tautology
   }
 
+  /**
+   * Lemma --- A set is a member of its own successor: `n ∈ S(n)`.
+   */
   val selfInSuccessor = Lemma(n ∈ S(n)) {
     val sn = ∪(n)(Singleton.singleton(n))
     have(n ∈ Singleton.singleton(n)) by
@@ -511,6 +531,9 @@ object Integer extends lisa.Main {
     have(thesis) by Congruence.from(lastStep, S.definition of (α := n))
   }
 
+  /**
+   * Lemma --- The successor is injective: `n = m ⇔ S(n) = S(m)`.
+   */
   val successorInjectivity = Lemma((n === m) <=> (S(n) === S(m))) {
 
     val forward = have(n === m |- S(n) === S(m)) by Congruence
@@ -603,6 +626,9 @@ object Integer extends lisa.Main {
     have(thesis) by Tautology.from(forward, backward)
   }
 
+  /**
+   * Lemma --- A successor is never empty: `S(n) ≠ ∅`.
+   */
   val zeroIsNotSucc = Lemma(!(S(n) === ∅)) {
     val sn = ∪(n)(Singleton.singleton(n))
     have(n ∈ Singleton.singleton(n)) by
@@ -616,6 +642,9 @@ object Integer extends lisa.Main {
       Congruence.from(lastStep, S.definition of (α := n))
   }
 
+  /**
+   * Lemma --- A set is a subset of its successor: `n ⊆ S(n)`.
+   */
   val subsetSuccessor = Lemma(n ⊆ S(n)) {
     val succExpanded = ∪(n)(Singleton.singleton(n))
 
@@ -626,6 +655,9 @@ object Integer extends lisa.Main {
     have(thesis) by Cut(Subset.reflexivity of (x := n), lastStep)
   }
 
+  /**
+   * Lemma --- Zero is a natural number: `∅ ∈ ω`.
+   */
   val emptyInOmega = Lemma(∅ ∈ ω){
     val nullCharacterization = have((∅ ∈ ω) <=> integer(∅)) by
       InstantiateForall(∅)(omegaCharacterization)
@@ -645,6 +677,9 @@ object Integer extends lisa.Main {
     have(thesis) by Restate.from(lastStep)
   }
 
+  /**
+   * Lemma --- `ω` is non-empty.
+   */
   val omegaNotEmpty = Lemma(!(ω === ∅))(
     have(thesis) by Tautology.from(
       emptyInOmega,
@@ -652,6 +687,9 @@ object Integer extends lisa.Main {
     )
   )
 
+  /**
+   * Lemma --- `ω` is closed under successor and predecessor: `n ∈ ω ⇔ S(n) ∈ ω`.
+   */
   val successorInOmega = Lemma(n ∈ ω <=> S(n) ∈ ω) {
     val toS = have(n ∈ ω |- S(n) ∈ ω) by Restate.from(omegaSuccessor of (α := n))
     val fromS = have(S(n) ∈ ω |- n ∈ ω) by
@@ -659,6 +697,10 @@ object Integer extends lisa.Main {
     have(thesis) by Tautology.from(toS, fromS)
   }
 
+  /**
+   * Lemma --- Induction over `ω`: if `P(∅)` holds and `P` is preserved by the
+   * successor on `ω`, then `P` holds on all of `ω`.
+   */
   val omegaSuccessorInduction = Lemma(
     (P(∅), forall(m, m ∈ ω ==> (P(m) ==> P(S(m))))) |-
       forall(n, n ∈ ω ==> P(n))
@@ -671,6 +713,10 @@ object Integer extends lisa.Main {
     have(thesis) by Tautology.from(omegaInduction, stepS)
   }
 
+  /**
+   * Lemma --- `ω` is downward closed (transitive): any element of an element of
+   * `ω` is itself in `ω`.
+   */
   val omegaDownwardClosed = Lemma(y ∈ ω |- x ∈ y ==> x ∈ ω) {
 
     val Q = λ(y, x ∈ y ==> x ∈ ω)
@@ -720,6 +766,9 @@ object Integer extends lisa.Main {
     thenHave(thesis) by Tautology
   }
 
+  /**
+   * Lemma --- `ω` is closed under binary union: if `a, b ∈ ω` then `a ∪ b ∈ ω`.
+   */
   val unionInOmega = Lemma((a ∈ ω /\ b ∈ ω) |- (a ∪ b) ∈ ω) {
 
     // get ordinals from ω-membership
@@ -779,6 +828,9 @@ object Integer extends lisa.Main {
     thenHave(thesis) by Restate
   }
 
+  /**
+   * Lemma --- `ω` is inhabited: `∃n. n ∈ ω`.
+   */
   val existsInOmega = Lemma(exists(n, n ∈ ω)) {
     have(thesis) by RightExists(emptyInOmega)
   }
