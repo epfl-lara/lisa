@@ -7,6 +7,7 @@ import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
+import lisa.maths.SetTheory.Ordinals.Integer
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.altEqualityTransitivity
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Cut
@@ -59,7 +60,7 @@ private[recursion] final class ApproxProp[N <: Arity](
   private[recursion] val stabilization: THM = Time.measure(s"AP/stabilization")(Lemma(
     ∀(nVar ∈ N, ∀(a ∈ app(heightFun)(nVar), app(G(nVar))(a) === app(G(successor(nVar)))(a)))
   ) {
-    val Pred = variable[Ind >>: Prop]
+    val Pred = variable[Ind >>: Prop]("P")
     val P = λ(nVar, ∀(a ∈ app(heightFun)(nVar), app(G(nVar))(a) === app(G(successor(nVar)))(a)))
 
     val hValid = have(isHeightPred(heightFun)) by Weakening(heightFunValid)
@@ -93,7 +94,7 @@ private[recursion] final class ApproxProp[N <: Arity](
           val aInHeightSucc = assume(a ∈ app(heightFun)(successor(nVar)))
 
           val succInN = have(successor(nVar) ∈ N) by
-            Tautology.from(nInN, NatFacts.succIntro.of(n := nVar))
+            Tautology.from(nInN, Integer.successorIsNat.of(n := nVar))
 
           // Approximant typings, fed to the shared witness-agreement lemma.
           val approxTypeAtN = have(nVar ∈ N ==> (G(nVar) :: spec.typ)) by
@@ -172,7 +173,7 @@ private[recursion] final class ApproxProp[N <: Arity](
     }
 
     have(∀(nVar, (nVar ∈ N) ==> P(nVar))) by
-      Tautology.from(NatFacts.induction of (Pred := P), base, step)
+      Tautology.from(Integer.natInduction of (Pred := P), base, step)
     thenHave(thesis) by Restate
   })
 

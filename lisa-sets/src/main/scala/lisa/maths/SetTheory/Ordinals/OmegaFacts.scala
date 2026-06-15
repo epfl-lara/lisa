@@ -123,10 +123,8 @@ object OmegaFacts {
       assume(m ∈ ω)
       assume(n ∈ ω)
 
-      val mOrd = have(ordinal(m)) by Tautology.from(omegaOrdinal of (α := m))
-      val nOrd = have(ordinal(n)) by Tautology.from(omegaOrdinal of (α := n))
       val cmp = have((m === n) \/ (m ∈ n) \/ (n ∈ m)) by
-        Tautology.from(mOrd, nOrd, Ordinal.comparability of (α := m, β := n))
+        Tautology.from(Integer.comparability of (m := m, n := n))
 
       val mInRel = have(m ∈ n |- (m, n) ∈ NatMem) by Tautology.from(
         MembershipRelation.membership of (x := m, y := n, A := ω),

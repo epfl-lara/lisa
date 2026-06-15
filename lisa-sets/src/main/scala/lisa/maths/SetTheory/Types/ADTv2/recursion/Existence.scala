@@ -12,6 +12,7 @@ import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.LimitKernel
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
+import lisa.maths.SetTheory.Ordinals.Integer
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.altEqualityTransitivity
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Cut
@@ -109,9 +110,9 @@ private[recursion] final class Existence[N <: Arity](
       val indexInN   = have(n0 ∈ N)   by Tautology.from(indexWitness)
       val aInHeightN0 = have(a ∈ app(heightFun)(n0)) by Tautology.from(indexWitness)
 
-      val succN0InN   = have(successor(n0) ∈ N)   by Tautology.from(indexInN, NatFacts.succIntro.of(n := n0))
+      val succN0InN   = have(successor(n0) ∈ N)   by Tautology.from(indexInN, Integer.successorIsNat.of(n := n0))
 
-      val n0InSuccN0 = have(n0 ∈ successor(n0)) by Weakening(NatFacts.nInSucc.of(n := n0))
+      val n0InSuccN0 = have(n0 ∈ successor(n0)) by Weakening(Integer.nInSuccN.of(n := n0))
       val n0SubSuccN0 = have(n0 ⊆ successor(n0)) by Tautology.from(
         n0InSuccN0,
         have(TransitiveSet.transitiveSet(successor(n0))) by

@@ -343,6 +343,15 @@ object Integer extends lisa.Main {
   }
 
   /**
+   * Comparability --- any two elements of `ω` are comparable by membership.
+   */
+  val comparability = Theorem((m ∈ ω, n ∈ ω) |- (m === n) \/ (m ∈ n) \/ (n ∈ m)) {
+    val mOrd = have(m ∈ ω |- ordinal(m)) by Restate.from(omegaOrdinal of (α := m))
+    val nOrd = have(n ∈ ω |- ordinal(n)) by Restate.from(omegaOrdinal of (α := n))
+    have(thesis) by Tautology.from(mOrd, nOrd, Ordinal.comparability of (α := m, β := n))
+  }
+
+  /**
    * Bridge theorem --- Successor closure of `ω`.
    */
   val omegaSuccessor = Theorem(
@@ -797,6 +806,99 @@ object Integer extends lisa.Main {
 
   val existsNat = Lemma(exists(n, n ∈ ω)) {
     have(thesis) by RightExists(zeroIsNat)
+  }
+
+  private val succMembership = Theorem((k ∈ successor(n)) <=> (k ∈ n) \/ (k === n)) {
+    val memSucc = have(k ∈ successor(n) <=> (k ∈ n) \/ (k === n)) by Tautology.from(
+      have(k ∈ successor(n) <=> (k ∈ n) \/ (k === n)) by Tautology.from(
+        have(k ∈ successor(n) <=> k ∈ (n ∪ Singleton.singleton(n))) by
+          Congruence.from(successor.definition of (x := n)),
+        have(
+          k ∈ (n ∪ Singleton.singleton(n)) <=> (k ∈ n) \/ (k ∈ Singleton.singleton(n))
+        ) by
+          Tautology
+            .from(Union.membership of (x := n, y := Singleton.singleton(n), z := k)),
+        have(k ∈ Singleton.singleton(n) <=> (k === n)) by
+          Tautology.from(Singleton.membership of (x := n, y := k))
+      )
+    )
+    have(thesis) by Restate.from(memSucc)
+  }
+
+  /**
+   * Theorem --- Every element of `ω` is a transitive set.
+   */
+  val elementsTransitive = Theorem((n ∈ ω) |- TransitiveSet.transitiveSet(n)) {
+    val ordN = have(n ∈ ω |- ordinal(n)) by Restate.from(omegaOrdinal of (α := n))
+    have(thesis) by Tautology.from(ordN, ordinal.definition of (α := n))
+  }
+
+  /**
+   * Theorem --- A subset of `successor(n)` is either all of it or a subset of `n`.
+   */
+  val subsetBelowSucc = Theorem((m ∈ ω, n ∈ ω, m ⊆ successor(n)) |- (m === successor(n)) \/ (m ⊆ n)) {
+    val mInN = assume(m ∈ ω)
+    val nInN = assume(n ∈ ω)
+    val mSubSn = assume(m ⊆ successor(n))
+
+    val SnInN = have(successor(n) ∈ ω) by
+      Tautology.from(nInN, successorIsNat of (n := n))
+
+    val cmp = have(
+      (m === successor(n)) \/ (m ∈ successor(n)) \/ (successor(n) ∈ m)
+    ) by Tautology.from(
+      mInN,
+      SnInN,
+      comparability of (m := m, n := successor(n))
+    )
+
+    val caseEq = have(
+      m === successor(n) |- (m === successor(n)) \/ (m ⊆ n)
+    ) by Tautology
+
+    val caseIn = have(
+      m ∈ successor(n) |- (m === successor(n)) \/ (m ⊆ n)
+    ) subproof {
+      val mInSn = assume(m ∈ successor(n))
+      val split = have((m ∈ n) \/ (m === n)) by Tautology.from(
+        mInSn,
+        succMembership.of(k := m, n := n)
+      )
+
+      val fromIn = have(m ∈ n |- m ⊆ n) subproof {
+        val mInNCase = assume(m ∈ n)
+        val nTrans = have(TransitiveSet.transitiveSet(n)) by
+          Tautology.from(nInN, elementsTransitive.of(n := n))
+        have(m ⊆ n) by Tautology.from(
+          mInNCase,
+          nTrans,
+          TransitiveSet.elementIsSubset.of(A := n, x := m)
+        )
+      }
+
+      val fromEq = have(m === n |- m ⊆ n) by
+        Congruence.from(Subset.reflexivity of (x := n))
+
+      have(m ⊆ n) by Tautology.from(split, fromIn, fromEq)
+      thenHave(thesis) by Tautology
+    }
+
+    val caseGt = have(
+      successor(n) ∈ m |- (m === successor(n)) \/ (m ⊆ n)
+    ) subproof {
+      val SnInM = assume(successor(n) ∈ m)
+      val SnInSn = have(successor(n) ∈ successor(n)) by Tautology.from(
+        mSubSn,
+        SnInM,
+        Subset.membership of (x := m, y := successor(n), z := successor(n))
+      )
+      have(thesis) by Tautology.from(
+        SnInSn,
+        FoundationAxiom.selfNonInclusion of (x := successor(n))
+      )
+    }
+
+    have(thesis) by Tautology.from(cmp, caseEq, caseIn, caseGt)
   }
 
 }

@@ -8,6 +8,7 @@ import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
+import lisa.maths.SetTheory.Ordinals.Integer
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.altEqualityTransitivity
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.unionOfTwoNats
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.equivalenceApply
@@ -175,11 +176,11 @@ private[recursion] object ApproximationChainFacts {
       thenHave(thesis) by RightForall
     }
 
-    val Pred = variable[Ind >>: Prop]
+    val P = variable[Ind >>: Prop]
     val indInst = have(
       (propM(∅), ∀(uVar, (uVar ∈ N) ==> (propM(uVar) ==> propM(successor(uVar))))) |-
         ∀(uVar, (uVar ∈ N) ==> propM(uVar))
-    ) by Weakening(NatFacts.induction of (Pred := propM))
+    ) by Weakening(Integer.natInduction of (P := propM))
     val all = have(∀(uVar, (uVar ∈ N) ==> propM(uVar))) by
       Tautology.from(base, step, indInst)
     val atM = have(mVar ∈ N ==> propM(mVar)) by InstantiateForall(mVar)(all)
