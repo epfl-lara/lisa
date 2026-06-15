@@ -1,5 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion.helpers
 
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger
+
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
@@ -486,8 +488,9 @@ private[recursion] object RecFunctionInduction {
         thenHave(thesis) by RightForall
       }}
 
+      val theoremP = variable[Ind >>: Prop]("P")
       val allHeights = have(∀(nVar, (nVar ∈ N) ==> P(nVar))) by
-        Tautology.from(Integer.omegaSuccessorInduction of (Pred := P), base, step)
+        Tautology.from(ExtendedInteger.natInduction of (theoremP := P, m := nVar, n := nVar), base, step)
       have(inductionVariable ∈ argType ==> propertyAt(inductionVariable)) subproof {
         val inArg = assume(inductionVariable ∈ argType)
         val someHeight = have(∃(nVar, (nVar ∈ N) /\ (inductionVariable ∈ app(heightFun)(nVar)))) by

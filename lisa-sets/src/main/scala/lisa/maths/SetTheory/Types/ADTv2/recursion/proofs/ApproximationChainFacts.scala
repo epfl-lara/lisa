@@ -1,5 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion.proofs
 
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger
+
 import lisa.maths.SetTheory.Base.Subset
 import lisa.maths.SetTheory.Base.Union
 import lisa.maths.SetTheory.Base.Union.∪
@@ -180,7 +182,7 @@ private[recursion] object ApproximationChainFacts {
     val indInst = have(
       (propM(∅), ∀(uVar, (uVar ∈ N) ==> (propM(uVar) ==> propM(successor(uVar))))) |-
         ∀(uVar, (uVar ∈ N) ==> propM(uVar))
-    ) by Weakening(Integer.omegaSuccessorInduction of (P := propM))
+    ) by Weakening(ExtendedInteger.natInduction of (P := propM))
     val all = have(∀(uVar, (uVar ∈ N) ==> propM(uVar))) by
       Tautology.from(base, step, indInst)
     val atM = have(mVar ∈ N ==> propM(mVar)) by InstantiateForall(mVar)(all)

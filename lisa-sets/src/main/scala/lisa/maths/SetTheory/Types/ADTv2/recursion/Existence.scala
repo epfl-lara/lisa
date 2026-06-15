@@ -1,5 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger
+
 import lisa.maths.SetTheory.Functions.BasicTheorems.funcBetweenEqInFuncSpace
 import lisa.maths.SetTheory.Functions.BasicTheorems.functionalExtentionality
 import lisa.maths.SetTheory.Functions.Predef._
@@ -110,9 +112,9 @@ private[recursion] final class Existence[N <: Arity](
       val indexInN   = have(n0 ∈ N)   by Tautology.from(indexWitness)
       val aInHeightN0 = have(a ∈ app(heightFun)(n0)) by Tautology.from(indexWitness)
 
-      val succN0InN   = have(successor(n0) ∈ N)   by Tautology.from(indexInN, Integer.successorInOmega.of(n := n0))
+      val succN0InN   = have(successor(n0) ∈ N)   by Tautology.from(indexInN, ExtendedInteger.successorIsNat.of(n := n0))
 
-      val n0InSuccN0 = have(n0 ∈ successor(n0)) by Weakening(Integer.selfInSuccessor.of(n := n0))
+      val n0InSuccN0 = have(n0 ∈ successor(n0)) by Weakening(ExtendedInteger.nInSuccN.of(n := n0))
       val n0SubSuccN0 = have(n0 ⊆ successor(n0)) by Tautology.from(
         n0InSuccN0,
         have(TransitiveSet.transitiveSet(successor(n0))) by

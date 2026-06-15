@@ -6,5 +6,7 @@ package lisa.maths.SetTheory.Types.ADTv2.support.proofs
  * so existing imports keep resolving.
  */
 object NatFacts {
-  export lisa.maths.SetTheory.Ordinals.Integer.{elementsTransitive, subsetBelowSucc}
+  export lisa.maths.SetTheory.Ordinals.Integer.elementsTransitive
+  // successor-form bridge (the library version is stated with `S`)
+  export ExtendedInteger.subsetBelowSucc
 }

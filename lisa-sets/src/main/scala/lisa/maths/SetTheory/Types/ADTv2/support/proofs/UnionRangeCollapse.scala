@@ -10,12 +10,12 @@ import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.Functions.UnionRange.functionRangeMembership
 import lisa.maths.SetTheory.Ordinals.Integer.integer
 import lisa.maths.SetTheory.Ordinals.Integer.integerIsOrdinal
-import lisa.maths.SetTheory.Ordinals.Integer.omegaSuccessorInduction
-import lisa.maths.SetTheory.Ordinals.Integer.selfInSuccessor
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.{natInduction as omegaSuccessorInduction}
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.{nInSuccN as selfInSuccessor}
 import lisa.maths.SetTheory.Ordinals.Integer.omegaCharacterization
 import lisa.maths.SetTheory.Ordinals.Integer.omegaDownwardClosed
-import lisa.maths.SetTheory.Ordinals.Integer.succMembership
-import lisa.maths.SetTheory.Ordinals.Integer.successorInOmega
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.succMembership
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.{successorIsNat as successorInOmega}
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems._

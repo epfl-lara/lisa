@@ -1,5 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger
+
 import lisa.maths.Quantifiers
 import lisa.maths.SetTheory.Functions.BasicTheorems
 import lisa.maths.SetTheory.Functions.Function.abs
@@ -233,7 +235,7 @@ private[recursion] final class Approx[N <: Arity](
     have(kVar ∈ N |- G(successor(kVar)) === recWitness(G(kVar))) subproof {
       val kInNat = assume(kVar ∈ N)
 
-      val SkInNat = have(successor(kVar) ∈ N) by Tautology.from(kInNat, Integer.successorInOmega.of(n := kVar))
+      val SkInNat = have(successor(kVar) ∈ N) by Tautology.from(kInNat, ExtendedInteger.successorIsNat.of(n := kVar))
 
       val recSpec = have(
         functionOn(approxSeq)(N) /\
@@ -373,7 +375,7 @@ private[recursion] final class Approx[N <: Arity](
       }
 
       val hSkAtK = have(app(hSk)(kVar) === G(kVar)) subproof {
-        val kInSk = have(kVar ∈ successor(kVar)) by Weakening(Integer.selfInSuccessor.of(n := kVar))
+        val kInSk = have(kVar ∈ successor(kVar)) by Weakening(ExtendedInteger.nInSuccN.of(n := kVar))
         val GmOn = have(functionOn(approxSeq)(N)) by Tautology.from(recSpec)
         val GmFun = have(function(approxSeq)) by
           Tautology
@@ -462,7 +464,7 @@ private[recursion] final class Approx[N <: Arity](
     }
 
     val all = have(∀(nVar, (nVar ∈ N) ==> prop(nVar))) by
-      Tautology.from(Integer.omegaSuccessorInduction of (P := prop), base, step)
+      Tautology.from(ExtendedInteger.natInduction of (P := prop), base, step)
     have(thesis) by Restate.from(all)
   }
 }
