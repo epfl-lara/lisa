@@ -7,7 +7,7 @@ import lisa.maths.SetTheory.Order.Extrema.minimal
 import lisa.maths.SetTheory.Order.Predef._
 import lisa.maths.SetTheory.Order.WellOrders.WellOrder
 import lisa.maths.SetTheory.Ordinals.Integer.omegaOrdinal
-import lisa.maths.SetTheory.Ordinals.Integer.subsetIsNat
+import lisa.maths.SetTheory.Ordinals.Integer.omegaDownwardClosed
 import lisa.maths.SetTheory.Ordinals.Integer.ω
 import lisa.maths.SetTheory.Ordinals.Ordinal
 import lisa.maths.SetTheory.Ordinals.Ordinal.ordinal
@@ -34,7 +34,7 @@ object OmegaFacts {
 
   private val NTransitive = Theorem(TransitiveSet.transitiveSet(ω)) {
     have((x ∈ y) /\ (y ∈ ω) ==> (x ∈ ω)) by Tautology
-      .from(subsetIsNat of (x := x, y := y))
+      .from(omegaDownwardClosed of (x := x, y := y))
     thenHave(∀(x, ∀(y, ((x ∈ y) /\ (y ∈ ω)) ==> (x ∈ ω)))) by Generalize
     have(thesis) by Tautology
       .from(TransitiveSet.transitiveSet.definition of (A := ω), lastStep)

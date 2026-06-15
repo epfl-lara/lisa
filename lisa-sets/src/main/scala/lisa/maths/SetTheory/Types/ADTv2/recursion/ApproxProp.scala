@@ -94,7 +94,7 @@ private[recursion] final class ApproxProp[N <: Arity](
           val aInHeightSucc = assume(a ∈ app(heightFun)(successor(nVar)))
 
           val succInN = have(successor(nVar) ∈ N) by
-            Tautology.from(nInN, Integer.successorIsNat.of(n := nVar))
+            Tautology.from(nInN, Integer.successorInOmega.of(n := nVar))
 
           // Approximant typings, fed to the shared witness-agreement lemma.
           val approxTypeAtN = have(nVar ∈ N ==> (G(nVar) :: spec.typ)) by
@@ -173,7 +173,7 @@ private[recursion] final class ApproxProp[N <: Arity](
     }
 
     have(∀(nVar, (nVar ∈ N) ==> P(nVar))) by
-      Tautology.from(Integer.natInduction of (Pred := P), base, step)
+      Tautology.from(Integer.omegaSuccessorInduction of (Pred := P), base, step)
     thenHave(thesis) by Restate
   })
 

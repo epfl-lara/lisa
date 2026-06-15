@@ -10,12 +10,12 @@ import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.Functions.UnionRange.functionRangeMembership
 import lisa.maths.SetTheory.Ordinals.Integer.integer
 import lisa.maths.SetTheory.Ordinals.Integer.integerIsOrdinal
-import lisa.maths.SetTheory.Ordinals.Integer.natInduction
-import lisa.maths.SetTheory.Ordinals.Integer.nInSuccN
+import lisa.maths.SetTheory.Ordinals.Integer.omegaSuccessorInduction
+import lisa.maths.SetTheory.Ordinals.Integer.selfInSuccessor
 import lisa.maths.SetTheory.Ordinals.Integer.omegaCharacterization
-import lisa.maths.SetTheory.Ordinals.Integer.subsetIsNat
+import lisa.maths.SetTheory.Ordinals.Integer.omegaDownwardClosed
 import lisa.maths.SetTheory.Ordinals.Integer.succMembership
-import lisa.maths.SetTheory.Ordinals.Integer.successorIsNat
+import lisa.maths.SetTheory.Ordinals.Integer.successorInOmega
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems._
@@ -107,7 +107,7 @@ object UnionRangeCollapse {
       Tautology.from(zeroCase, lastStep)
 
     have(forall(k, in(k, N) ==> Q(k))) by 
-      Tautology.from(lastStep, natInduction of (P := Q, m := n, n := k))
+      Tautology.from(lastStep, omegaSuccessorInduction of (P := Q, m := n, n := k))
     thenHave(in(n, N) ==> Q(n)) by InstantiateForall(n)
     thenHave(thesis) by Tautology
 
@@ -173,7 +173,7 @@ object UnionRangeCollapse {
 
     val cumulativeAssumption = ∀(m, in(m, N) ==> (subset(m, n) ==> subset(app(h)(m), app(h)(n))))
     val successorInterNat = have(in(n, N) |- successor(n) ∩ N === successor(n)) by Tautology.from(
-      successorIsNat,
+      successorInOmega,
       equivalenceApply of (p1 := in(n, N), p2 := in(successor(n), N)),
       intersectionNat of (n := successor(n))
     )
@@ -440,7 +440,7 @@ object UnionRangeCollapse {
       val toExists = {
         val seq1 = have(z ∈ app(h)(n) |- z ∈ app(h)(n)) by Hypothesis
         have(z ∈ app(h)(n) |- n ∈ successor(n) /\ z ∈ app(h)(n)) by
-          RightAnd(seq1, nInSuccN of (n := n))
+          RightAnd(seq1, selfInSuccessor of (n := n))
         thenHave(z ∈ app(h)(n) |- ∃(m, m ∈ successor(n) /\ z ∈ app(h)(m))) by RightExists
         thenHave((cumulativeAssumption, in(n, N)) |- z ∈ app(h)(n) ==> ∃(m, m ∈ successor(n) /\ z ∈ app(h)(m))) by
           Weakening
@@ -454,12 +454,12 @@ object UnionRangeCollapse {
         val succToSubset = have((in(n, N), m ∈ successor(n)) |- subset(m, n)) by Tautology.from(natSubset)
 
         val succIsNatStep = have(in(n, N) |- in(successor(n), N)) by Tautology.from(
-          successorIsNat,
+          successorInOmega,
           equivalenceApply of (p1 := in(n, N), p2 := in(successor(n), N))
         )
         val succElemNat = have((in(n, N), m ∈ successor(n)) |- in(m, N)) by Tautology.from(
           succIsNatStep,
-          subsetIsNat of (x := m, y := successor(n))
+          omegaDownwardClosed of (x := m, y := successor(n))
         )
 
         have(

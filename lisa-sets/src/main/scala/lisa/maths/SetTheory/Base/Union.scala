@@ -229,7 +229,7 @@ object Union extends lisa.Main {
   /**
    * Theorem --- The unary union is monotonic: if `x ⊆ y` then `⋃x ⊆ ⋃y`.
    */
-  val unionMonotonic = Theorem(x ⊆ y |- ⋃(x) ⊆ ⋃(y)) {
+  val unaryMonotonic = Theorem(x ⊆ y |- ⋃(x) ⊆ ⋃(y)) {
     have(z ∈ b /\ b ∈ x |- z ∈ b /\ b ∈ x) by Hypothesis
     thenHave((x ⊆ y) /\ z ∈ b /\ b ∈ x |- b ∈ x) by Weakening
 
@@ -255,7 +255,7 @@ object Union extends lisa.Main {
   /**
    * Theorem --- `∅` is a left identity for `∪`: `∅ ∪ x === x`.
    */
-  val unionNull = Theorem(∅ ∪ x === x) {
+  val leftNeutral = Theorem(∅ ∪ x === x) {
     have(∅ ⊆ x) by Tautology.from(Subset.leftEmpty of (x := x))
     val incl1 = have(∅ ∪ x ⊆ x) by Tautology.from(
       lastStep,

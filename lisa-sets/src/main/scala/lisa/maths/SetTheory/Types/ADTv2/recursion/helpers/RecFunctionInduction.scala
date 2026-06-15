@@ -487,7 +487,7 @@ private[recursion] object RecFunctionInduction {
       }}
 
       val allHeights = have(∀(nVar, (nVar ∈ N) ==> P(nVar))) by
-        Tautology.from(Integer.natInduction of (Pred := P), base, step)
+        Tautology.from(Integer.omegaSuccessorInduction of (Pred := P), base, step)
       have(inductionVariable ∈ argType ==> propertyAt(inductionVariable)) subproof {
         val inArg = assume(inductionVariable ∈ argType)
         val someHeight = have(∃(nVar, (nVar ∈ N) /\ (inductionVariable ∈ app(heightFun)(nVar)))) by

@@ -376,7 +376,7 @@ object Restriction extends lisa.Main {
    * Theorem --- If `x` is in both the domain of `f` and the restriction set `d`,
    * then `f ↾ d` is non-empty.
    */
-  val restrictedFunctionNotEmpty = Theorem(
+  val notEmpty = Theorem(
     (function(f), x ∈ dom(f), x ∈ d) |- !((f ↾ d) === ∅)
   ) {
     val pairTerm = Pair.pair(x)(app(f)(x))
@@ -401,7 +401,7 @@ object Restriction extends lisa.Main {
    * Theorem --- Restriction is monotonic in the restriction set: if `x ⊆ y`
    * then `f ↾ x ⊆ f ↾ y`.
    */
-  val restrictedFunctionDomainMonotonic = Theorem(
+  val setMonotonic = Theorem(
     x ⊆ y |- (f ↾ x) ⊆ (f ↾ y)
   ) {
     val subsetAsForall = have(x ⊆ y |- forall(z, (z ∈ x) ==> (z ∈ y))) by

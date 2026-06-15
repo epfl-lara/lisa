@@ -172,7 +172,7 @@ object Subset extends lisa.Main {
   /**
    * Theorem --- A superset of a non-empty set is non-empty.
    */
-  val subsetNotEmpty = Theorem((x ⊆ y, !(x === ∅)) |- !(y === ∅)) {
+  val supersetNotEmpty = Theorem((x ⊆ y, !(x === ∅)) |- !(y === ∅)) {
     val subst = have(y === ∅ |- y === ∅) by Hypothesis
     have((x ⊆ ∅, y === ∅) |- (x === ∅)) by Tautology.from(rightEmpty)
     have((x ⊆ y, y === ∅) |- (x === ∅)) by Congruence.from(subst, lastStep)

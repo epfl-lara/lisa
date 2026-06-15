@@ -180,7 +180,7 @@ private[recursion] object ApproximationChainFacts {
     val indInst = have(
       (propM(∅), ∀(uVar, (uVar ∈ N) ==> (propM(uVar) ==> propM(successor(uVar))))) |-
         ∀(uVar, (uVar ∈ N) ==> propM(uVar))
-    ) by Weakening(Integer.natInduction of (P := propM))
+    ) by Weakening(Integer.omegaSuccessorInduction of (P := propM))
     val all = have(∀(uVar, (uVar ∈ N) ==> propM(uVar))) by
       Tautology.from(base, step, indInst)
     val atM = have(mVar ∈ N ==> propM(mVar)) by InstantiateForall(mVar)(all)

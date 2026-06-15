@@ -438,7 +438,6 @@ object Integer extends lisa.Main {
 
     val qSucc = have(succStepAssumption |- ∀(α, ordinal(α) /\ Q(α) ==> Q(S(α)))) subproof {
       val hyp = ordinal(α) /\ Q(α)
-      // assume(ordinal(α) /\ Q(α))
       have(hyp |- Q(α)) by Tautology
 
       have(S(α) ∈ ω |- α ∈ ω) by Tautology.from(omegaPredecessor)
@@ -506,7 +505,7 @@ object Integer extends lisa.Main {
   // ω / successor facts (formerly in UsefulTheorems)
   // ----------------------------------------------------------------------------
 
-  val nInSuccN = Lemma(n ∈ successor(n)) {
+  val selfInSuccessor = Lemma(n ∈ successor(n)) {
     val sn = ∪(n)(Singleton.singleton(n))
     have(n ∈ Singleton.singleton(n)) by
       Tautology.from(Singleton.membership of (x := n, y := n))
@@ -569,7 +568,7 @@ object Integer extends lisa.Main {
       val zEqM = have(z === m) by Hypothesis
       val mInN = have(m ∈ n) by Congruence.from(zInN, zEqM)
 
-      val nInSuccM = have(hyp |- n ∈ successor(m)) by Congruence.from(nInSuccN of (n := n), eq)
+      val nInSuccM = have(hyp |- n ∈ successor(m)) by Congruence.from(selfInSuccessor of (n := n), eq)
       have(n ∈ successor(m)) by Tautology.from(nInSuccM)
       val nInMSplit = have(n ∈ m \/ (n === m)) by Tautology.from(lastStep, nInSuccMChar)
 
@@ -631,7 +630,7 @@ object Integer extends lisa.Main {
     have(thesis) by Cut(Subset.reflexivity of (x := n), lastStep)
   }
 
-  val zeroIsNat = Lemma(∅ ∈ ω){
+  val emptyInOmega = Lemma(∅ ∈ ω){
     val nullCharacterization = have((∅ ∈ ω) <=> integer(∅)) by
       InstantiateForall(∅)(omegaCharacterization)
 
@@ -650,14 +649,14 @@ object Integer extends lisa.Main {
     have(thesis) by Restate.from(lastStep)
   }
 
-  val natNotEmpty = Lemma(!(ω === ∅))(
+  val omegaNotEmpty = Lemma(!(ω === ∅))(
     have(thesis) by Tautology.from(
-      zeroIsNat,
+      emptyInOmega,
       EmptySet.setWithElementNonEmpty of (x := ∅, y := ω)
     )
   )
 
-  val successorIsNat = Lemma(n ∈ ω <=> successor(n) ∈ ω) {
+  val successorInOmega = Lemma(n ∈ ω <=> successor(n) ∈ ω) {
 
     val eqSucc = have(S(n) === successor(n)) by
       Congruence.from(S.definition of (α := n), successor.definition of (x := n))
@@ -675,7 +674,7 @@ object Integer extends lisa.Main {
     have(thesis) by Tautology.from(toSucc, fromSucc)
   }
 
-  val natInduction = Lemma(
+  val omegaSuccessorInduction = Lemma(
     (P(∅), forall(m, m ∈ ω ==> (P(m) ==> P(successor(m))))) |-
       forall(n, n ∈ ω ==> P(n))
   ) {
@@ -695,7 +694,7 @@ object Integer extends lisa.Main {
     have(thesis) by Tautology.from(omegaInduction, stepS)
   }
 
-  val subsetIsNat = Lemma(y ∈ ω |- x ∈ y ==> x ∈ ω) {
+  val omegaDownwardClosed = Lemma(y ∈ ω |- x ∈ y ==> x ∈ ω) {
 
     val Q = λ(y, x ∈ y ==> x ∈ ω)
 
@@ -739,13 +738,13 @@ object Integer extends lisa.Main {
       Tautology.from(zeroCase, lastStep)
 
     have(forall(k, k ∈ ω ==> Q(k))) by
-      Tautology.from(lastStep, natInduction of (P := Q, m := y, n := k))
+      Tautology.from(lastStep, omegaSuccessorInduction of (P := Q, m := y, n := k))
     thenHave(y ∈ ω ==> Q(y)) by InstantiateForall(y)
     thenHave(thesis) by Tautology
   }
 
   // helper: union of two ω-members is in ω
-  val unionOfTwoNats = Lemma((a ∈ ω /\ b ∈ ω) |- (a ∪ b) ∈ ω) {
+  val unionInOmega = Lemma((a ∈ ω /\ b ∈ ω) |- (a ∪ b) ∈ ω) {
 
     // get ordinals from ω-membership
     have(a ∈ ω <=> integer(a)) by InstantiateForall(a)(omegaCharacterization)
@@ -804,8 +803,8 @@ object Integer extends lisa.Main {
     thenHave(thesis) by Restate
   }
 
-  val existsNat = Lemma(exists(n, n ∈ ω)) {
-    have(thesis) by RightExists(zeroIsNat)
+  val existsInOmega = Lemma(exists(n, n ∈ ω)) {
+    have(thesis) by RightExists(emptyInOmega)
   }
 
   /**
@@ -845,7 +844,7 @@ object Integer extends lisa.Main {
     val mSubSn = assume(m ⊆ successor(n))
 
     val SnInN = have(successor(n) ∈ ω) by
-      Tautology.from(nInN, successorIsNat of (n := n))
+      Tautology.from(nInN, successorInOmega of (n := n))
 
     val cmp = have(
       (m === successor(n)) \/ (m ∈ successor(n)) \/ (successor(n) ∈ m)

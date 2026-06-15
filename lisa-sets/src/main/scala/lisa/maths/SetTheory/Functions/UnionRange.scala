@@ -199,7 +199,7 @@ object UnionRange {
     val rg = range(g)
 
     have(rf ⊆ rg ==> ⋃(rf) ⊆ ⋃(rg)) by
-      Tautology.from(Union.unionMonotonic of (x := rf, y := rg))
+      Tautology.from(Union.unaryMonotonic of (x := rf, y := rg))
     have(f ⊆ g |- ⋃(rf) ⊆ ⋃(rg)) by
       Tautology.from(lastStep, BasicTheorems.rangeMonotonic of (g := f, f := g))
     thenHave(thesis) by Restate
