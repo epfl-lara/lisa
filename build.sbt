@@ -68,6 +68,15 @@ lazy val kernel = Project(
     crossScalaVersions := Seq(scala3)
   )
 
+lazy val kernelcf = Project(
+  id = "lisa-kernelcf",
+  base = file("lisa-kernelcf")
+)
+  .settings(commonSettings)
+  .settings(
+    scalaVersion := scala3
+  )
+
 lazy val sets = Project(
   id = "lisa-sets",
   base = file("lisa-sets")
