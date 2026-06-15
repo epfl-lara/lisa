@@ -69,7 +69,7 @@ private[height] object UniquenessFacts {
         CoreFacts.isHeightCore(g),
         ∀(n, in(n, N) ==> (stageEqN ==> stageEqSuccN))
       ) |- ∀(n, in(n, N) ==> stageEqN)
-    ) by Cut(zeroCase, omegaSuccessorInduction of (P := lam(n, stageEqN)))
+    ) by Tautology.from(zeroCase, omegaSuccessorInduction of (P := lam(n, stageEqN)))
 
     have(
       (CoreFacts.introFunctionMono, CoreFacts.isHeightCore(f), CoreFacts.isHeightCore(g), in(n, N)) |- stageEqN ==> stageEqSuccN

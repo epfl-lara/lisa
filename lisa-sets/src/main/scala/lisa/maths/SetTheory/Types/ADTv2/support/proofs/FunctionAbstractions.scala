@@ -371,7 +371,7 @@ object FunctionAbstractions {
             val pointwiseForall = thenHave(∀(pointArg, pointArg ∈ domain ==> (currentLeft * pointArg === currentRight * pointArg))) by
               RightForall
 
-            have(thesis) by Cut(
+            have(thesis) by Tautology.from(
               pointwiseForall,
               extensionalityStepGeneral.of(
                 leftFunVar := currentLeft,

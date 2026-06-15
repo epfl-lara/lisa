@@ -320,10 +320,7 @@ class SemanticADT[N <: Arity](
         have(P(c.appliedTerm) <=> P(c.appliedTerm)) by Restate
         thenHave(
           c.structuralTerm === c.appliedTerm |- P(c.structuralTerm) <=> P(c.appliedTerm)
-        ) by RightSubstEq.withParameters(
-          List((c.structuralTerm, c.appliedTerm)),
-          (Seq(s), P(s) <=> P(c.appliedTerm))
-        )
+        ) by Congruence
         have(wellTypedVarsSet |- P(c.structuralTerm) <=> P(c.appliedTerm)) by
           Cut(eq, lastStep)
 

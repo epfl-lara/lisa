@@ -21,7 +21,7 @@ private[height] object SuccessorFacts {
       isHeightCore(h) |-
         in(x, app(h, ∅)) <=>
         inExtIntroImage(h ↾ ∅)(x)
-    ) by Cut(emptyInOmega, CoreFacts.heightApplication.of(n := ∅))
+    ) by Tautology.from(emptyInOmega, CoreFacts.heightApplication.of(n := ∅))
     thenHave(
       (h ↾ ∅ === ∅, isHeightCore(h)) |- !in(x, app(h, ∅))
     ) by RightSubstEq.withParameters(
@@ -44,7 +44,7 @@ private[height] object SuccessorFacts {
     val domEq = have((isHeightCore(h), in(n, N)) |- dom(h) === N) by Tautology.from(coreTyping)
     val nInDomH = have((isHeightCore(h), in(n, N)) |- in(n, dom(h))) by Congruence.from(nInNFact, domEq)
     val nInSucc = have((isHeightCore(h), in(n, N)) |- in(n, S(n))) by
-      Tautology.from(selfInSuccessor of (n := n))
+      Weakening(selfInSuccessor of (n := n))
 
     val heightResNonEmptyLemma = have((isHeightCore(h), in(n, N)) |- heightResNonEmpty) by
       Tautology.from(
@@ -90,13 +90,13 @@ private[height] object SuccessorFacts {
     ) by Tautology.from(lastStep, unionRangeCollapse)
 
     val succIsNatStep = have((isHeightCore(h), in(n, N)) |- in(S(n), N)) by
-      Tautology.from(successorInOmega)
+      Weakening(successorInOmega)
 
     have(
       (isHeightCore(h), in(n, N)) |-
         in(x, app(h, S(n))) <=>
         inExtIntroImage(h ↾ S(n))(x)
-    ) by Cut(succIsNatStep, CoreFacts.heightApplication.of(n := S(n)))
+    ) by Tautology.from(succIsNatStep, CoreFacts.heightApplication.of(n := S(n)))
 
     thenHave(
       (
@@ -118,18 +118,18 @@ private[height] object SuccessorFacts {
     have(
       (introFunctionMono, isHeightCore(h), in(n, N)) |-
         in(x, app(h, S(n))) <=> heightResNonEmpty /\ inIntroImage(app(h, n))(x)
-    ) by Cut(unionRangeRes, lastStep)
+    ) by Tautology.from(unionRangeRes, lastStep)
 
     have(
       (introFunctionMono, isHeightCore(h), in(n, N), heightResNonEmpty) |-
         in(x, app(h, S(n))) <=> inIntroImage(app(h, n))(x)
-    ) by Cut(lastStep, equivalenceAnd of (
+    ) by Tautology.from(lastStep, equivalenceAnd of (
       p1 := in(x, app(h, S(n))),
       p2 := heightResNonEmpty,
       p3 := inIntroImage(app(h, n))(x)
     ))
 
-    have(thesis) by Cut(heightResNonEmptyLemma, lastStep)
+    have(thesis) by Tautology.from(heightResNonEmptyLemma, lastStep)
   }
 
   val heightSuccessorStrong = Lemma(
@@ -167,7 +167,7 @@ private[height] object SuccessorFacts {
           isHeightCore(h),
           forall(n, in(n, N) ==> (inductionFormulaN ==> inductionFormulaSuccN))
         ) |- forall(n, in(n, N) ==> inductionFormulaN)
-      ) by Cut(zeroCase, omegaSuccessorInduction of (P := lambda(n, inductionFormulaN)))
+      ) by Tautology.from(zeroCase, omegaSuccessorInduction of (P := lambda(n, inductionFormulaN)))
 
       val succCase = have(
         (isConstructorMono, introFunctionMono, isHeightCore(h), in(n, N), inductionFormulaN) |- inductionFormulaSuccN
@@ -175,14 +175,14 @@ private[height] object SuccessorFacts {
         val isConstructorXHN = isConstructor(x)(app(h, n))
         val isConstructorXHSuccN = isConstructor(x)(app(h, S(n)))
 
-        have(in(n, N) |- in(S(n), N)) by Cut(
+        have(in(n, N) |- in(S(n), N)) by Tautology.from(
           successorInOmega,
           equivalenceApply of (p1 := in(n, N), p2 := in(S(n), N))
         )
         have(
           (introFunctionMono, isHeightCore(h), in(n, N), subset(n, S(n))) |-
             subset(app(h, n), app(h, S(n)))
-        ) by Cut(lastStep, CoreFacts.heightMonotonic.of(n := S(n), m := n))
+        ) by Tautology.from(lastStep, CoreFacts.heightMonotonic.of(n := S(n), m := n))
         val heightSubset = have(
           (isConstructorMono, introFunctionMono, isHeightCore(h), in(n, N)) |-
             subset(app(h, n), app(h, S(n)))
@@ -217,7 +217,7 @@ private[height] object SuccessorFacts {
             in(x, app(h, S(n))),
             inductionFormulaN
           ) |- isConstructorXHN
-        ) by Cut(heightSuccessorWeakForward, lastStep)
+        ) by Tautology.from(heightSuccessorWeakForward, lastStep)
 
         val right = have(
           (
@@ -228,7 +228,7 @@ private[height] object SuccessorFacts {
             in(x, app(h, S(n))),
             inductionFormulaN
           ) |- isConstructorXHSuccN
-        ) by Cut(lastStep, liftConstructorHeight)
+        ) by Tautology.from(lastStep, liftConstructorHeight)
         val left = have(isConstructorXHSuccN |- isConstructorXHSuccN) by Hypothesis
 
         have(
@@ -258,7 +258,7 @@ private[height] object SuccessorFacts {
         ) by RightForall
         have(
           (isConstructorMono, introFunctionMono, isHeightCore(h)) |- forall(n, in(n, N) ==> inductionFormulaN)
-        ) by Cut(lastStep, inductiveCaseRemaining)
+        ) by Tautology.from(lastStep, inductiveCaseRemaining)
         thenHave(
           (isConstructorMono, introFunctionMono, isHeightCore(h)) |- in(n, N) ==> inductionFormulaN
         ) by InstantiateForall(n)

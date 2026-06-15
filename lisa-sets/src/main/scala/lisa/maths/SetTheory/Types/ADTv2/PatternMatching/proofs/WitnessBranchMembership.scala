@@ -131,7 +131,8 @@ private[proofs] trait WitnessBranchMembership[N <: Arity] extends WitnessProofCo
 
         have(wellTypedArgs |- pairTerm ∈ witness) by
           Tautology.from(witnessMembershipEq, pairInBoundAndCase)
-        thenHave(wellTypedArgs ==> (pairTerm ∈ witness)) by RightImplies
+        thenHave(wellTypedArgs ==> (pairTerm ∈ witness)) by
+          RightImplies.withParameters(wellTypedArgs, pairTerm ∈ witness)
         val core = thenHave(
           forallSeq(
             vars,

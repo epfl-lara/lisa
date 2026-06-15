@@ -52,7 +52,7 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
         isHeight(h),
         forall(n, in(n, N) ==> (inductionFormulaN ==> inductionFormula(S(n))))
       ) |- forall(n, in(n, N) ==> inductionFormulaN)
-    ) by Cut(zeroCase, omegaSuccessorInduction of (P := lam(n, inductionFormulaN)))
+    ) by Tautology.from(zeroCase, omegaSuccessorInduction of (P := lam(n, inductionFormulaN)))
 
     // STEP 2: Prove the inductive case
     have(
@@ -241,7 +241,7 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
                 constructorVarsInHN,
                 x === c.term2
               ) |- P(x)
-            ) by RightSubstEq.withParameters(List((x, c.term2)), (Seq(x), P(x)))
+            ) by Congruence
 
             thenHave(
               (

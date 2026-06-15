@@ -25,11 +25,10 @@ private[height] object CoreFacts {
   private val unionPreimageMonotonic =
     Lemma((s ⊆ t, P(s) ==> P(t)) |- (P(s) \/ (x ∈ s)) ==> (P(t) \/ (x ∈ t))) {
       have(s ⊆ t |- forall(z, (z ∈ s) ==> (z ∈ t))) by Tautology.from(subsetAxiom of (x := s, y := t))
-      thenHave(s ⊆ t |- (x ∈ s) ==> (x ∈ t)) by InstantiateForall(x)
-      have(thesis) by Cut(
-        lastStep,
-        disjunctionsImplies of (p1 := x ∈ s, p2 := x ∈ t, q1 := P(s), q2 := P(t))
-      )
+      val elemMono = thenHave(s ⊆ t |- (x ∈ s) ==> (x ∈ t)) by InstantiateForall(x)
+      val disjMono = have(((x ∈ s) ==> (x ∈ t), P(s) ==> P(t)) |- (P(s) \/ (x ∈ s)) ==> (P(t) \/ (x ∈ t))) by
+        Restate.from(disjunctionsImplies of (p1 := x ∈ s, p2 := x ∈ t, q1 := P(s), q2 := P(t)))
+      have(thesis) by Cut(elemMono, disjMono)
     }
 
   def inIntroImage(s: Expr[Ind])(y: Expr[Ind]): Expr[Prop] =
@@ -273,7 +272,7 @@ private[height] object CoreFacts {
     val inHnFromExtended = have(
       (isHeightCore(h), in(n, N), extIntroResN) |-
         in(x, app(h, n))
-    ) by Cut(
+    ) by Tautology.from(
       heightApplication of (n := n),
       equivalenceRevApply of (p1 := extIntroResN, p2 := in(x, app(h, n)))
     )

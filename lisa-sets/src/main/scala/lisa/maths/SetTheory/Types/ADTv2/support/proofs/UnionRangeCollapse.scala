@@ -75,7 +75,8 @@ object UnionRangeCollapse {
 
       have(in(x, S(n)) ==> in(x, N)) subproof {
         assume(in(x, S(n)))
-        have((x === n) \/ in(x, n)) by Tautology.from(lastStep, succMembership of (k := x, n := n))
+        val splitFact = have((x === n) \/ in(x, n)) by
+          Tautology.from(lastStep, succMembership of (k := x, n := n))
 
         val eqCase = have((x === n) |- in(x, N)) by Congruence.from(nInNat)
         val inCase = have(in(x, n) |- in(x, N)) subproof {
@@ -87,8 +88,9 @@ object UnionRangeCollapse {
           )
         }
 
-        have(in(x, N)) by LeftOr(eqCase, inCase)
-        thenHave(thesis) by Tautology
+        val splitCases = have((x === n) \/ in(x, n) |- in(x, N)) by LeftOr(eqCase, inCase)
+        have(in(x, N)) by Cut(splitFact, splitCases)
+        thenHave(thesis) by RightImplies.withParameters(in(x, S(n)), in(x, N))
       }
 
       thenHave(forall(x, in(x, S(n)) ==> in(x, N))) by RightForall

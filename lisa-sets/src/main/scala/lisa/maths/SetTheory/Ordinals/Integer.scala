@@ -66,7 +66,7 @@ object Integer extends lisa.Main {
     thenHave(∀(β, β <= α ==> (β === ∅) \/ successorOrdinal(β))) by
       Substitute(integer.definition)
     thenHave((α <= α) ==> (α === ∅) \/ successorOrdinal(α)) by InstantiateForall(α)
-    have((α === ∅) \/ successorOrdinal(α)) by Tautology.from(lastStep)
+    val splitFact = have((α === ∅) \/ successorOrdinal(α)) by Tautology.from(lastStep)
 
     val zeroCase = have(α === ∅ |- ordinal(α)) by Congruence.from(Ordinal.zeroOrdinal)
 
@@ -86,7 +86,8 @@ object Integer extends lisa.Main {
       have(thesis) by Cut(succWitness, ordFromWitness)
     }
 
-    have(thesis) by LeftOr(zeroCase, succCase)
+    val splitCases = have((α === ∅) \/ successorOrdinal(α) |- ordinal(α)) by LeftOr(zeroCase, succCase)
+    have(thesis) by Cut(splitFact, splitCases)
   }
 
 

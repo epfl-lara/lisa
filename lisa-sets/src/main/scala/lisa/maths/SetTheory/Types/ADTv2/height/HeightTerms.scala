@@ -74,7 +74,7 @@ final class HeightTerms[N <: Arity](
 
       have(in(x, unionRange(h)) |- in(x, unionRange(h))) by Hypothesis
       thenHave((f === h, in(x, unionRange(h))) |- in(x, unionRange(f))) by
-        RightSubstEq.withParameters(List((f, h)), (Seq(h), in(x, unionRange(h))))
+        Congruence
       have(
         (base.isHeight(f), base.isHeight(h), in(x, unionRange(h))) |- in(x, unionRange(f))
       ) by Cut(constructorsTheory.heightUniqueness, lastStep)

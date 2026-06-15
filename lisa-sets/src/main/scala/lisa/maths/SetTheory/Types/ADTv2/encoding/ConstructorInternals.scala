@@ -80,7 +80,10 @@ private[encoding] final class ConstructorInternals[N <: Arity](
     have(wellTypedFormula(semanticSignature) |- (appSeq(witness)(variables) === structuralTerm)) by
       Restate.from(FunctionAbstractions.curriedBeta(semanticSignature, structuralTerm))
     thenHave(wellTypedFormula(semanticSignature) ==> (appSeq(witness)(variables) === structuralTerm)) by
-      RightImplies
+      RightImplies.withParameters(
+        wellTypedFormula(semanticSignature),
+        appSeq(witness)(variables) === structuralTerm
+      )
     thenHave(thesis) by QuantifiersIntro(variables)
   }
 

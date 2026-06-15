@@ -101,7 +101,8 @@ private[proofs] trait WitnessApplicationProofs[N <: Arity] extends WitnessFuncti
 
         have(wellTypedArgs |- (witness * pattern.inputTermAt(vars) === body)) by
           Tautology.from(appEq, pairInWitness)
-        thenHave(wellTypedArgs ==> (witness * pattern.inputTermAt(vars) === body)) by RightImplies
+        thenHave(wellTypedArgs ==> (witness * pattern.inputTermAt(vars) === body)) by
+          RightImplies.withParameters(wellTypedArgs, witness * pattern.inputTermAt(vars) === body)
         val core = thenHave(
           forallSeq(
             vars,
