@@ -7,8 +7,8 @@ import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitutio
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.instantiatedSemanticSignature
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.funEqDef
 import lisa.maths.SetTheory.Types.TypingHelpers._
+import lisa.maths.SetTheory.Types.TypingTheorems.funEqDef
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.ProofTacticLib.Arity
 

@@ -1,17 +1,15 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger
-
 import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.Ordinals.Integer.{omegaSuccessorInduction, successorInOmega}
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeFormula
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
 import lisa.maths.SetTheory.Ordinals.Integer
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.altEqualityTransitivity
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.altEqualityTransitivity
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Cut
 import lisa.utils.prooflib.BasicStepTactic.RightForall
@@ -97,7 +95,7 @@ private[recursion] final class ApproxProp[N <: Arity](
           val aInHeightSucc = assume(a ∈ app(heightFun)(S(nVar)))
 
           val succInN = have(S(nVar) ∈ N) by
-            Tautology.from(nInN, ExtendedInteger.successorIsNat.of(n := nVar))
+            Tautology.from(nInN, successorInOmega.of(n := nVar))
 
           // Approximant typings, fed to the shared witness-agreement lemma.
           val approxTypeAtN = have(nVar ∈ N ==> (G(nVar) :: spec.typ)) by
@@ -177,7 +175,7 @@ private[recursion] final class ApproxProp[N <: Arity](
 
     val theoremP = variable[Ind >>: Prop]("P")
     have(∀(nVar, (nVar ∈ N) ==> P(nVar))) by
-      Tautology.from(ExtendedInteger.natInduction of (theoremP := P, m := nVar, n := nVar), base, step)
+      Tautology.from(omegaSuccessorInduction of (theoremP := P, m := nVar, n := nVar), base, step)
     thenHave(thesis) by Restate
   })
 

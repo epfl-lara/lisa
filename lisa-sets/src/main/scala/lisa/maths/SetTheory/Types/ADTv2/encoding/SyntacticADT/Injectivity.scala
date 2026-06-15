@@ -2,12 +2,11 @@ package lisa.maths.SetTheory.Types.ADTv2.encoding
 
 import lisa.maths.SetTheory.Base.Pair
 import lisa.maths.SetTheory.Base.Pair.given
+import lisa.maths.SetTheory.Ordinals.Integer.{successorInjectivity, zeroIsNotSucc}
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.successorInjectivity
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.zeroIsNotSucc
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts._
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[encoding] trait SyntacticADTInjectivity[N <: Arity] extends SyntacticADTBase[N] {

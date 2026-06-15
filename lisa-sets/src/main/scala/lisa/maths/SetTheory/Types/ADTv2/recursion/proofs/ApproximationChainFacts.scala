@@ -1,20 +1,17 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion.proofs
 
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger
-
 import lisa.maths.SetTheory.Base.Subset
 import lisa.maths.SetTheory.Base.Union
 import lisa.maths.SetTheory.Base.Union.∪
 import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.Ordinals.Integer.{omegaSuccessorInduction, subsetBelowSucc, unionInOmega}
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
 import lisa.maths.SetTheory.Ordinals.Integer
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.altEqualityTransitivity
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.unionOfTwoNats
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.equivalenceApply
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.equivalenceApply
 import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.BasicStepTactic.RightImplies
 
@@ -95,7 +92,7 @@ private[recursion] object ApproximationChainFacts {
               nInN,
               uInNStep,
               nSubSuccU,
-              NatFacts.subsetBelowSucc.of(m := nVar, n := uVar)
+              subsetBelowSucc.of(m := nVar, n := uVar)
             )
 
             val caseEq = have(
@@ -183,7 +180,7 @@ private[recursion] object ApproximationChainFacts {
     val indInst = have(
       (propM(∅), ∀(uVar, (uVar ∈ N) ==> (propM(uVar) ==> propM(S(uVar))))) |-
         ∀(uVar, (uVar ∈ N) ==> propM(uVar))
-    ) by Weakening(ExtendedInteger.natInduction of (P := propM))
+    ) by Weakening(omegaSuccessorInduction of (P := propM))
     val all = have(∀(uVar, (uVar ∈ N) ==> propM(uVar))) by
       Tautology.from(base, step, indInst)
     val atM = have(mVar ∈ N ==> propM(mVar)) by InstantiateForall(mVar)(all)
@@ -213,7 +210,7 @@ private[recursion] object ApproximationChainFacts {
     val upperInN = have((nVar ∪ mVar) ∈ N) by Tautology.from(
       nInN,
       mInN,
-      unionOfTwoNats.of(a := nVar, b := mVar)
+      unionInOmega.of(a := nVar, b := mVar)
     )
 
     val nSubUpper = have(nVar ⊆ (nVar ∪ mVar)) by

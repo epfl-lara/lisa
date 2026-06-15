@@ -1,10 +1,9 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger
-
 import lisa.maths.SetTheory.Functions.BasicTheorems.funcBetweenEqInFuncSpace
 import lisa.maths.SetTheory.Functions.BasicTheorems.functionalExtentionality
 import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.Ordinals.Integer.{elementsTransitive, selfInSuccessor, successorInOmega}
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.Ordinals.TransitiveSet
 import lisa.maths.SetTheory.SetTheory.{_, given}
@@ -14,9 +13,8 @@ import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ApproximationChainFacts
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.LimitKernel
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
 import lisa.maths.SetTheory.Ordinals.Integer
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.altEqualityTransitivity
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.altEqualityTransitivity
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Cut
 import lisa.utils.prooflib.BasicStepTactic.LeftExists
@@ -113,13 +111,13 @@ private[recursion] final class Existence[N <: Arity](
       val indexInN   = have(n0 ∈ N)   by Tautology.from(indexWitness)
       val aInHeightN0 = have(a ∈ app(heightFun)(n0)) by Tautology.from(indexWitness)
 
-      val succN0InN   = have(S(n0) ∈ N)   by Tautology.from(indexInN, ExtendedInteger.successorIsNat.of(n := n0))
+      val succN0InN   = have(S(n0) ∈ N)   by Tautology.from(indexInN, successorInOmega.of(n := n0))
 
-      val n0InSuccN0 = have(n0 ∈ S(n0)) by Weakening(ExtendedInteger.nInSuccN.of(n := n0))
+      val n0InSuccN0 = have(n0 ∈ S(n0)) by Weakening(selfInSuccessor.of(n := n0))
       val n0SubSuccN0 = have(n0 ⊆ S(n0)) by Tautology.from(
         n0InSuccN0,
         have(TransitiveSet.transitiveSet(S(n0))) by
-          Tautology.from(succN0InN, NatFacts.elementsTransitive.of(n := S(n0))),
+          Tautology.from(succN0InN, elementsTransitive.of(n := S(n0))),
         TransitiveSet.elementIsSubset.of(A := S(n0), x := n0)
       )
 

@@ -8,8 +8,8 @@ import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
 import lisa.maths.SetTheory.Types.ADTv2.encoding._
 import lisa.maths.SetTheory.Types.ADTv2.support.DefinedSymbol
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.{constructorTagDisequality as tagDisequalityLemma}
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.ProofTacticLib.Arity
@@ -52,7 +52,7 @@ private[ADTv2] abstract class WitnessBase[N <: Arity](
     require(c1 != c2, "constructorTagDisequality requires two distinct constructors.")
     val minTag = Math.min(c1.underlying.tag, c2.underlying.tag)
     val maxTag = Math.max(c1.underlying.tag, c2.underlying.tag)
-    UsefulTheorems.constructorTagDisequality(
+    tagDisequalityLemma(
       c1.underlying.tagTerm,
       c2.underlying.tagTerm,
       minTag,

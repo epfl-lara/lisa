@@ -1,6 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics
 
 import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.Ordinals.Integer.{nonZeroOmegaHasPredecessor, subsetSuccessor}
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticADT
@@ -13,9 +14,7 @@ import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.subsetSuccessor
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.altEqualityTransitivity
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.altEqualityTransitivity
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.utils.prooflib.BasicStepTactic.LeftExists
@@ -282,7 +281,7 @@ private[PatternMatching] object NestedConstructorPattern {
         val predecessorTheoremAtIndex = have(
           (currentIndex ∈ N, currentIndex =/= ∅) |- ∃(predVar, predVar ∈ N /\ (currentIndex === S(predVar)))
         ) by Tautology.from(
-          ExtendedInteger.nonZeroOmegaHasPredecessor.of(α := currentIndex, β := predVar)
+          nonZeroOmegaHasPredecessor.of(α := currentIndex, β := predVar)
         )
         have(currentIndex =/= ∅ |- ∃(predVar, predVar ∈ N /\ (currentIndex === S(predVar)))) subproof {
           assume(currentIndex =/= ∅)

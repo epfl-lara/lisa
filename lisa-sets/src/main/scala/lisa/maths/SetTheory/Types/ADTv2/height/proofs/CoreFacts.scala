@@ -2,13 +2,17 @@ package lisa.maths.SetTheory.Types.ADTv2.height.proofs
 
 import lisa.maths.SetTheory.Functions.BasicTheorems.functionOnDomain
 import lisa.maths.SetTheory.Functions.BasicTheorems.functionOnIsFunction
+import lisa.maths.SetTheory.Functions.BasicTheorems.nonEmptyDomain
+import lisa.maths.SetTheory.Functions.Operations.Restriction.setMonotonic
 import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.Functions.UnionRange.unionRangeMonotonic
+import lisa.maths.SetTheory.Base.Subset.supersetNotEmpty
+import lisa.maths.SetTheory.Ordinals.Integer.omegaNotEmpty
+import lisa.maths.SetTheory.Ordinals.TransfiniteRecursion
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.natNotEmpty
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.OmegaFacts
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.TransfiniteRecursionExt
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems._
+import lisa.maths.SetTheory.Ordinals.OmegaFacts
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts._
 
 private[height] object CoreFacts {
 
@@ -63,14 +67,14 @@ private[height] object CoreFacts {
   val heightExists = Lemma(stageSetSpec |- exists(h, isHeightCore(h))) {
     val Func = variable[Ind >>: Ind >>: Ind]
     val stepFunc: Expr[Ind >>: Ind >>: Ind] = λ(n, stageSet)
-    val recFun = TransfiniteRecursionExt.transfiniteRecursionFunction(stepFunc)(N)
+    val recFun = TransfiniteRecursion.transfiniteRecursionFunction(stepFunc)(N)
 
     val recSpec0 = have(
       functionOn(recFun)(N) /\
         ∀(n ∈ N, app(recFun, n) === stepFunc(n)(recFun ↾ n))
     ) by Tautology.from(
       OmegaFacts.isOrdinal,
-      TransfiniteRecursionExt.transfiniteRecursionFunctionSpec.of(Func := stepFunc, α := N)
+      TransfiniteRecursion.transfiniteRecursionFunctionSpec.of(Func := stepFunc, α := N)
     )
     val recSpec = have(
       stageSetSpec |-
@@ -176,7 +180,7 @@ private[height] object CoreFacts {
   }
 
   val domNImpliesNonEmpty = Lemma(dom(h) === N |- !(h === ∅)) {
-    have(dom(h) === N |- !(dom(h) === ∅)) by Congruence.from(natNotEmpty)
+    have(dom(h) === N |- !(dom(h) === ∅)) by Congruence.from(omegaNotEmpty)
     have(dom(h) === N |- !(h === ∅)) by Tautology.from(lastStep, nonEmptyDomain)
   }
 
@@ -203,7 +207,7 @@ private[height] object CoreFacts {
     have(
       (introFunctionMono, subset(f, g), !(f === ∅), introUnionF) |-
         inExtIntroImage(g)(x)
-    ) by RightAnd(left, subsetNotEmpty of (x := f, y := g))
+    ) by RightAnd(left, supersetNotEmpty of (x := f, y := g))
   }
 
   val heightApplication = Lemma(
@@ -258,7 +262,7 @@ private[height] object CoreFacts {
         extIntroResM ==>
         extIntroResN
     ) by Cut(
-      restrictedFunctionDomainMonotonic of (x := m, y := n, f := h),
+      setMonotonic of (x := m, y := n, f := h),
       extIntroMonotonic of (f := h ↾ m, g := h ↾ n)
     )
     val extNFromMonotonic = have(

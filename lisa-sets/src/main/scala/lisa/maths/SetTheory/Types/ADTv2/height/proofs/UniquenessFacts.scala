@@ -4,11 +4,11 @@ import lisa.maths.SetTheory.Base.Extensionality
 import lisa.maths.SetTheory.Functions.BasicTheorems.extensionality
 import lisa.maths.SetTheory.Functions.BasicTheorems.functionOnIffFunctionWithDomain
 import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.Ordinals.Integer.omegaSuccessorInduction
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.natInduction
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts._
 
 private[height] object UniquenessFacts {
 
@@ -69,7 +69,7 @@ private[height] object UniquenessFacts {
         CoreFacts.isHeightCore(g),
         ∀(n, in(n, N) ==> (stageEqN ==> stageEqSuccN))
       ) |- ∀(n, in(n, N) ==> stageEqN)
-    ) by Cut(zeroCase, natInduction of (P := lam(n, stageEqN)))
+    ) by Cut(zeroCase, omegaSuccessorInduction of (P := lam(n, stageEqN)))
 
     have(
       (CoreFacts.introFunctionMono, CoreFacts.isHeightCore(f), CoreFacts.isHeightCore(g), in(n, N)) |- stageEqN ==> stageEqSuccN

@@ -1,7 +1,5 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger
-
 import lisa.maths.Quantifiers
 import lisa.maths.SetTheory.Functions.BasicTheorems
 import lisa.maths.SetTheory.Functions.Function.abs
@@ -9,15 +7,14 @@ import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.Functions.Predef.app
 import lisa.maths.SetTheory.Functions.Predef.functionOn
 import lisa.maths.SetTheory.Functions.Predef.↾
+import lisa.maths.SetTheory.Ordinals.Integer.{emptyInOmega, omegaSuccessorInduction, selfInSuccessor, successorInOmega}
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
+import lisa.maths.SetTheory.Ordinals.OmegaFacts
+import lisa.maths.SetTheory.Ordinals.TransfiniteRecursion
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
 import lisa.maths.SetTheory.Ordinals.Integer
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.OmegaFacts
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.TransfiniteRecursionExt
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.zeroIsNat
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.altEqualityTransitivity
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.altEqualityTransitivity
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Cut
@@ -98,7 +95,7 @@ private[recursion] final class Approx[N <: Arity](
   )
 
   /** G : ω → (A→T) defined by transfinite recursion. */
-  private val approxSeq: Expr[Ind] = TransfiniteRecursionExt
+  private val approxSeq: Expr[Ind] = TransfiniteRecursion
     .transfiniteRecursionFunction(stepFunc)(N)
 
   def G(n: Expr[Ind]): Expr[Ind] = app(approxSeq)(n)
@@ -111,7 +108,7 @@ private[recursion] final class Approx[N <: Arity](
     val eqAll = have(∀(x ∈ N, app(approxSeq)(x) === stepFunc(x)(approxSeq ↾ x))) by
       Tautology.from(
         OmegaFacts.isOrdinal,
-        TransfiniteRecursionExt.transfiniteRecursionFunctionSpec.of(Func := stepFunc, α := N)
+        TransfiniteRecursion.transfiniteRecursionFunctionSpec.of(Func := stepFunc, α := N)
       )
 
     val eq0 =
@@ -224,7 +221,7 @@ private[recursion] final class Approx[N <: Arity](
     val rhsEq = have(stepFunc(∅)(approxSeq ↾ ∅) === recWitness(g0)) by
       Congruence.from(Fm0, epsEq)
     val rec0 = have(∅ ∈ N |- G(∅) === recWitness(g0)) by Congruence.from(eq0, rhsEq)
-    have(∅ ∈ N) by Restate.from(zeroIsNat)
+    have(∅ ∈ N) by Restate.from(emptyInOmega)
     have(thesis) by Cut(lastStep, rec0)
   }
 
@@ -236,14 +233,14 @@ private[recursion] final class Approx[N <: Arity](
     have(kVar ∈ N |- G(S(kVar)) === recWitness(G(kVar))) subproof {
       val kInNat = assume(kVar ∈ N)
 
-      val SkInNat = have(S(kVar) ∈ N) by Tautology.from(kInNat, ExtendedInteger.successorIsNat.of(n := kVar))
+      val SkInNat = have(S(kVar) ∈ N) by Tautology.from(kInNat, successorInOmega.of(n := kVar))
 
       val recSpec = have(
         functionOn(approxSeq)(N) /\
           ∀(x ∈ N, app(approxSeq)(x) === stepFunc(x)(approxSeq ↾ x))
       ) by Tautology.from(
         OmegaFacts.isOrdinal,
-        TransfiniteRecursionExt.transfiniteRecursionFunctionSpec.of(Func := stepFunc, α := N)
+        TransfiniteRecursion.transfiniteRecursionFunctionSpec.of(Func := stepFunc, α := N)
       )
 
       val eqAll = have(∀(x ∈ N, app(approxSeq)(x) === stepFunc(x)(approxSeq ↾ x))) by
@@ -376,7 +373,7 @@ private[recursion] final class Approx[N <: Arity](
       }
 
       val hSkAtK = have(app(hSk)(kVar) === G(kVar)) subproof {
-        val kInSk = have(kVar ∈ S(kVar)) by Weakening(ExtendedInteger.nInSuccN.of(n := kVar))
+        val kInSk = have(kVar ∈ S(kVar)) by Weakening(selfInSuccessor.of(n := kVar))
         val GmOn = have(functionOn(approxSeq)(N)) by Tautology.from(recSpec)
         val GmFun = have(function(approxSeq)) by
           Tautology
@@ -465,7 +462,7 @@ private[recursion] final class Approx[N <: Arity](
     }
 
     val all = have(∀(nVar, (nVar ∈ N) ==> prop(nVar))) by
-      Tautology.from(ExtendedInteger.natInduction of (P := prop), base, step)
+      Tautology.from(omegaSuccessorInduction of (P := prop), base, step)
     have(thesis) by Restate.from(all)
   }
 }

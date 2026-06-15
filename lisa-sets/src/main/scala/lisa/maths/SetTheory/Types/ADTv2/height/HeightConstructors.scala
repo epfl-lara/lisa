@@ -3,6 +3,7 @@ package lisa.maths.SetTheory.Types.ADTv2.height
 import lisa.maths.Quantifiers.existsOneAlternativeDefinition
 import lisa.maths.SetTheory.Base.Pair.given
 import lisa.maths.SetTheory.Base.Subset
+import lisa.maths.SetTheory.Ordinals.Integer.{subsetSuccessor, successorInOmega}
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.height.proofs.CoreFacts
@@ -10,9 +11,7 @@ import lisa.maths.SetTheory.Types.ADTv2.height.proofs.SuccessorFacts
 import lisa.maths.SetTheory.Types.ADTv2.height.proofs.UniquenessFacts
 import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.subsetSuccessor
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.successorIsNat
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts._
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 final class HeightConstructors[N <: Arity](
@@ -276,7 +275,7 @@ final class HeightConstructors[N <: Arity](
     val nInN = assume(in(n, N))
     val xInHn = assume(in(x, app(h, n)))
     val succInN = have(in(S(n), N)) by Tautology.from(
-      successorIsNat of (n := n),
+      successorInOmega of (n := n),
       nInN
     )
     have(in(x, app(h, S(n)))) by Tautology.from(

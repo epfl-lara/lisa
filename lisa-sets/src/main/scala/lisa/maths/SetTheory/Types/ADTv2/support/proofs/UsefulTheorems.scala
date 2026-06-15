@@ -1,26 +1,16 @@
 package lisa.maths.SetTheory.Types.ADTv2.support.proofs
 
+import lisa.maths.SetTheory.Ordinals.Integer.{successorInjectivity, zeroIsNotSucc}
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.successorInjectivity
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.zeroIsNotSucc
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.equivalenceApply
 
 /**
- * Backwards-compatibility facade for the former `UsefulTheorems` grab-bag.
- *
- * The generic lemmas have been split out into:
- *   - [[PropositionalFacts]] — propositional / equivalence / equality lemmas
- *   - [[FunctionFacts]] — subset / union / range / (restricted) function lemmas
- *   - [[ExtendedInteger]] — ω / S facts
- *
- * They are re-exported here so existing imports keep resolving. Only the
- * ADT-specific [[constructorTagDisequality]] still lives in this file.
+ * ADT-specific constructor-tag disequality. The generic lemmas that used to be
+ * re-exported from this file now live in their canonical library locations.
  */
 object UsefulTheorems {
-
-  export PropositionalFacts.*
-  export FunctionFacts.*
 
   def constructorTagDisequality(
       tagTerm1: Expr[Ind],

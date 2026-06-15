@@ -1,13 +1,13 @@
 package lisa.maths.SetTheory.Types.ADTv2.encoding
 
 import lisa.maths.SetTheory.Base._
+import lisa.maths.SetTheory.Ordinals.Integer.successorInOmega
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.height.HeightTerms
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.successorIsNat
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts._
 import lisa.maths.SetTheory.Types.ADTv2.support.UniqueDefinedSymbol
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.BasicStepTactic.RightForall
@@ -226,7 +226,7 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTHeight[
         )
 
         // STEP 1: Prove that if an instance of a constructor has height n + 1 then it is in this ADT.
-        val left = have(in(n, N) |- in(S(n), N)) by Cut(successorIsNat, equivalenceApply of (p1 := in(n, N), p2 := in(S(n), N)))
+        val left = have(in(n, N) |- in(S(n), N)) by Cut(successorInOmega, equivalenceApply of (p1 := in(n, N), p2 := in(S(n), N)))
         val right = have(in(c.term, app(h, S(n))) |- in(c.term, app(h, S(n)))) by Hypothesis
         have((in(n, N), in(c.term, app(h, S(n)))) |- in(S(n), N) /\ in(c.term, app(h, S(n)))) by RightAnd(left, right)
         thenHave((in(n, N), in(c.term, app(h, S(n)))) |- exists(m, in(m, N) /\ in(c.term, app(h, m)))) by RightExists

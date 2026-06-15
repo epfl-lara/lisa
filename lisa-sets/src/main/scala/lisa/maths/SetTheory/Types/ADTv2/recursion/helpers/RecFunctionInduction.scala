@@ -1,7 +1,6 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion.helpers
 
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger
-
+import lisa.maths.SetTheory.Ordinals.Integer.omegaSuccessorInduction
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
@@ -16,7 +15,6 @@ import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeFormu
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.NatFacts
 import lisa.maths.SetTheory.Ordinals.Integer
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Cut
@@ -491,7 +489,7 @@ private[recursion] object RecFunctionInduction {
 
       val theoremP = variable[Ind >>: Prop]("P")
       val allHeights = have(∀(nVar, (nVar ∈ N) ==> P(nVar))) by
-        Tautology.from(ExtendedInteger.natInduction of (theoremP := P, m := nVar, n := nVar), base, step)
+        Tautology.from(omegaSuccessorInduction of (theoremP := P, m := nVar, n := nVar), base, step)
       have(inductionVariable ∈ argType ==> propertyAt(inductionVariable)) subproof {
         val inArg = assume(inductionVariable ∈ argType)
         val someHeight = have(∃(nVar, (nVar ∈ N) /\ (inductionVariable ∈ app(heightFun)(nVar)))) by

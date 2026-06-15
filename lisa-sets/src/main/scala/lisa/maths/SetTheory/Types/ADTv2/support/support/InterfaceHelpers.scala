@@ -11,8 +11,8 @@ import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.b
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.f
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.forallSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.x
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.funEqDef
 import lisa.maths.SetTheory.Types.TypingHelpers.::
+import lisa.maths.SetTheory.Types.TypingTheorems.funEqDef
 import lisa.utils.fol.FOL.SubstPair
 
 object InterfaceHelpers {
