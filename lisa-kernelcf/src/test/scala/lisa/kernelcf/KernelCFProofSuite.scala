@@ -2,7 +2,6 @@ package lisa.kernelcf
 
 import lisa.kernelcf.fol.FOL.*
 import lisa.kernelcf.proof.*
-import lisa.kernelcf.proof.SequentCalculus.*
 import org.scalatest.funsuite.AnyFunSuite
 
 class KernelCFProofSuite extends AnyFunSuite:
