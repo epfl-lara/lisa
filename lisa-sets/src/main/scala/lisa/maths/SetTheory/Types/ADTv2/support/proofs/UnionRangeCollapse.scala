@@ -4,23 +4,20 @@ import lisa.maths.Quantifiers.existentialConjunctionWithClosedFormula
 import lisa.maths.Quantifiers.existentialEquivalenceDistribution
 import lisa.maths.Quantifiers.onePointRule
 import lisa.maths.SetTheory.Base.Intersection.∩
-import lisa.maths.SetTheory.Base.Pair.fst
-import lisa.maths.SetTheory.Base.Pair.given_Conversion_Expr_Expr_Expr
-import lisa.maths.SetTheory.Base.Pair.snd
-import lisa.maths.SetTheory.Base.Singleton.singleton
-import lisa.maths.SetTheory.Base.Union.∪
 import lisa.maths.SetTheory.Base._
 import lisa.maths.SetTheory.Functions.Operations.Restriction
 import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.Functions.UnionRange.functionRangeMembership
 import lisa.maths.SetTheory.Ordinals.Integer.integer
+import lisa.maths.SetTheory.Ordinals.Integer.integerIsOrdinal
+import lisa.maths.SetTheory.Ordinals.Integer.natInduction
+import lisa.maths.SetTheory.Ordinals.Integer.nInSuccN
+import lisa.maths.SetTheory.Ordinals.Integer.omegaCharacterization
+import lisa.maths.SetTheory.Ordinals.Integer.subsetIsNat
+import lisa.maths.SetTheory.Ordinals.Integer.succMembership
+import lisa.maths.SetTheory.Ordinals.Integer.successorIsNat
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.integerIsOrdinal
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.nInSuccN
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.natInduction
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.omegaCharacterization
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.subsetIsNat
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.ExtendedInteger.successorIsNat
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems._
 import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
 import lisa.utils.prooflib.BasicStepTactic.Hypothesis
@@ -28,115 +25,6 @@ import lisa.utils.prooflib.BasicStepTactic.LeftExists
 
 object UnionRangeCollapse {
 
-
-  private val inSucc = Lemma(in(x, successor(n)) <=> (x === n) \/ in(x, n)) {
-    val succDef = have(successor(n) === (n ∪ singleton(n))) by Tautology.from(successor.definition of (x := n))
-    val unionMem = have(in(x, n ∪ singleton(n)) <=> (in(x, n) \/ in(x, singleton(n)))) by
-      Tautology.from(Union.membership of (x := n, y := singleton(n), z := x))
-    val singletonMem = have(in(x, singleton(n)) <=> (x === n)) by
-      Tautology.from(lisa.maths.SetTheory.Base.Singleton.membership of (x := n, y := x))
-
-    val forward = have(in(x, successor(n)) ==> ((x === n) \/ in(x, n))) subproof {
-      assume(in(x, successor(n)))
-      have(in(x, n ∪ singleton(n))) by Congruence.from(succDef)
-      have(in(x, n) \/ in(x, singleton(n))) by Tautology.from(lastStep, unionMem)
-      have((x === n) \/ in(x, n)) by Tautology.from(lastStep, singletonMem)
-      thenHave(thesis) by Tautology
-    }
-
-    val backward = have(((x === n) \/ in(x, n)) ==> in(x, successor(n))) subproof {
-      assume((x === n) \/ in(x, n))
-      have(in(x, n) \/ in(x, singleton(n))) by Tautology.from(lastStep, singletonMem)
-      have(in(x, n ∪ singleton(n))) by Tautology.from(lastStep, unionMem)
-      have(in(x, successor(n))) by Congruence.from(lastStep, succDef)
-      thenHave(thesis) by Tautology
-    }
-
-    have(thesis) by Tautology.from(forward, backward)
-  }
-
-  val functionRangeMembership = Lemma(
-    function(f) |-
-      in(y, range(f)) <=> ∃(x, in(x, dom(f)) /\ (app(f)(x) === y))
-  ){
-    val witnessToDomainApp = have(
-      (function(f), in(z, f), snd(z) === y) |- ∃(x, in(x, dom(f)) /\ (app(f)(x) === y))
-    ) subproof {
-      assume(function(f))
-      assume(in(z, f))
-      assume(snd(z) === y)
-
-      val zPair = have(z === (fst(z), snd(z))) by Tautology.from(
-        lisa.maths.SetTheory.Functions.BasicTheorems.inversion
-      )
-      val pairInF = have((fst(z), snd(z)) ∈ f) by Congruence.from(zPair)
-      val fstInDom = have(fst(z) ∈ dom(f)) by Tautology.from(
-        pairInF,
-        lisa.maths.SetTheory.Functions.BasicTheorems.domainMembership of (x := fst(z), y := snd(z))
-      )
-
-      val appDef = have((app(f)(fst(z)) === snd(z)) <=> ((fst(z), snd(z)) ∈ f)) by Tautology.from(
-        lisa.maths.SetTheory.Functions.BasicTheorems.appDefinition of (x := fst(z), y := snd(z)),
-        fstInDom
-      )
-      val appEqSnd = have(app(f)(fst(z)) === snd(z)) by Tautology.from(appDef, pairInF)
-      val appEqY = have(app(f)(fst(z)) === y) by Congruence.from(appEqSnd)
-
-      have(in(fst(z), dom(f)) /\ (app(f)(fst(z)) === y)) by Tautology.from(fstInDom, appEqY)
-      thenHave(∃(x, in(x, dom(f)) /\ (app(f)(x) === y))) by RightExists
-    }
-
-    val forward = have(function(f) |- in(y, range(f)) ==> ∃(x, in(x, dom(f)) /\ (app(f)(x) === y))) subproof {
-      assume(function(f))
-      assume(in(y, range(f)))
-
-      import lisa.maths.SetTheory.Base.Replacement.{|}
-
-      have(y ∈ {snd(z) | z ∈ f} <=> ∃(z ∈ f, snd(z) === y)) by Replacement.apply
-      thenHave(y ∈ range(f) <=> ∃(z, in(z, f) /\ (snd(z) === y))) by Substitute(range.definition of (R := f))
-      val exWitness = have(∃(z, in(z, f) /\ (snd(z) === y))) by Tautology.from(lastStep)
-      
-      have((in(z, f) /\ (snd(z) === y)) |- function(f) ==> ∃(x, in(x, dom(f)) /\ (app(f)(x) === y)) ) by
-        Tautology.from(witnessToDomainApp)
-      val liftWitness = have(exists(z, in(z, f) /\ (snd(z) === y)) |- function(f) ==> ∃(x, in(x, dom(f)) /\ (app(f)(x) === y)) ) by
-        LeftExists(lastStep)
-
-      have( in(y, range(f)) |- function(f) ==> ∃(x, in(x, dom(f)) /\ (app(f)(x) === y))) by Cut(exWitness, liftWitness)
-      thenHave(thesis) by Tautology
-    }
-
-    val domainAppToRange = have(
-      (function(f), in(x, dom(f)), app(f)(x) === y) |- in(y, range(f))
-    ) subproof {
-      assume(function(f))
-      assume(in(x, dom(f)))
-      assume(app(f)(x) === y)
-
-      have(in(x, dom(f))) by Hypothesis
-      val appDef = have((app(f)(x) === y) <=> ((x, y) ∈ f)) by Tautology.from(
-        lisa.maths.SetTheory.Functions.BasicTheorems.appDefinition of (x := x, y := y),
-        lastStep
-      )
-      have(app(f)(x) === y) by Hypothesis
-      val pairInF = have((x, y) ∈ f) by Tautology.from(appDef, lastStep)
-      have(in(y, range(f))) by Tautology.from(
-        pairInF,
-        lisa.maths.SetTheory.Functions.BasicTheorems.rangeMembership of (x := x, y := y)
-      )
-    }
-
-    val backward = have(function(f) |- (∃(x, in(x, dom(f)) /\ (app(f)(x) === y))) ==> in(y, range(f))) subproof {
-      assume(function(f))
-      assume(∃(x, in(x, dom(f)) /\ (app(f)(x) === y)))
-
-      have((function(f), in(x, dom(f)) /\ (app(f)(x) === y)) |- in(y, range(f))) by
-        Tautology.from(domainAppToRange)
-      thenHave((function(f), ∃(x, in(x, dom(f)) /\ (app(f)(x) === y))) |- in(y, range(f))) by LeftExists
-      thenHave(thesis) by Tautology
-    }
-
-    have(thesis) by Tautology.from(forward, backward)
-  }
 
   private val natSubset = Lemma(in(n, N) |- in(m, successor(n)) ==> subset(m, n)){
     import lisa.maths.SetTheory.Ordinals.TransitiveSet
@@ -188,7 +76,7 @@ object UnionRangeCollapse {
 
       have(in(x, successor(n)) ==> in(x, N)) subproof {
         assume(in(x, successor(n)))
-        have((x === n) \/ in(x, n)) by Tautology.from(lastStep, inSucc of (x := x, n := n))
+        have((x === n) \/ in(x, n)) by Tautology.from(lastStep, succMembership of (k := x, n := n))
 
         val eqCase = have((x === n) |- in(x, N)) by Congruence.from(nInNat)
         val inCase = have(in(x, n) |- in(x, N)) subproof {
@@ -225,15 +113,9 @@ object UnionRangeCollapse {
 
   }
 
-  val rightAndEquivalence =
+  private val rightAndEquivalence =
     Lemma(p1 <=> p2 |- (p1 /\ p) <=> (p2 /\ p)){
       have(thesis) by Tautology
-  }
-
-  private val restrictedFunctionApplication = Lemma(
-    (function(h), in(x, dom(h)), in(x, d)) |- app(restrictedFunction(h, d))(x) === app(h)(x)
-  ){
-    have(thesis) by Restate.from(Restriction.restrictedApp of (f := h, x := x, A := d))
   }
 
   private val restrictedFunctionRangeMembership = Lemma(
@@ -488,7 +370,7 @@ object UnionRangeCollapse {
             m ∈ successor(n) /\ z ∈ y /\ (app(restrictedFunction(h, successor(n)))(m) === y)
           )) <=> (m ∈ successor(n) /\ z ∈ app(h)(m))
       ) by Congruence.from(
-        restrictedFunctionApplication of (d := successor(n), x := m),
+        Restriction.restrictedApp of (f := h, x := m, A := successor(n)),
         domProof,
         onePointExpanded
       )

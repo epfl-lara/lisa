@@ -808,7 +808,10 @@ object Integer extends lisa.Main {
     have(thesis) by RightExists(zeroIsNat)
   }
 
-  private val succMembership = Theorem((k ∈ successor(n)) <=> (k ∈ n) \/ (k === n)) {
+  /**
+   * Theorem --- Membership in a successor: `k ∈ successor(n) ⇔ k ∈ n ∨ k = n`.
+   */
+  val succMembership = Theorem((k ∈ successor(n)) <=> (k ∈ n) \/ (k === n)) {
     val memSucc = have(k ∈ successor(n) <=> (k ∈ n) \/ (k === n)) by Tautology.from(
       have(k ∈ successor(n) <=> (k ∈ n) \/ (k === n)) by Tautology.from(
         have(k ∈ successor(n) <=> k ∈ (n ∪ Singleton.singleton(n))) by
