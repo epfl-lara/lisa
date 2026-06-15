@@ -1,6 +1,8 @@
 package lisa.maths.SetTheory.Types
 import lisa.maths.Quantifiers._
 import lisa.maths.SetTheory.Base.Predef.{_, given}
+import lisa.maths.SetTheory.Functions.BasicTheorems.appTyping
+import lisa.maths.SetTheory.Functions.BasicTheorems.funcBetweenEqInFuncSpace
 import lisa.maths.SetTheory.Functions.Predef._
 
 import TypingHelpers._
@@ -505,14 +507,14 @@ object TypingTheorems extends lisa.Main:
    * Theorem --- A typed function applied to a typed argument is typed:
    * `f :: a ->: b ⊢ x :: a ⇒ (f * x) :: b`.
    */
-  val funEqDef = Lemma(f :: a ->: b |- x :: a ==> (f * x) :: b) {
+  val arrowElim = Lemma(f :: a ->: b |- x :: a ==> (f * x) :: b) {
     val fInArrow = assume(f :: a ->: b)
     val fBetween = have(functionBetween(f)(a)(b)) by Tautology.from(
-      lisa.maths.SetTheory.Functions.BasicTheorems.funcBetweenEqInFuncSpace of (f := f, A := a, B := b),
+      funcBetweenEqInFuncSpace of (f := f, A := a, B := b),
       fInArrow
     )
     have(x :: a ==> (f * x) :: b) by Tautology.from(
-      lisa.maths.SetTheory.Functions.BasicTheorems.appTyping of (f := f, A := a, B := b, x := x),
+      appTyping of (f := f, A := a, B := b, x := x),
       fBetween
     )
     thenHave(thesis) by Restate

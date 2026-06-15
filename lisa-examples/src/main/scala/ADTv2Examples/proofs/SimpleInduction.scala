@@ -3,7 +3,7 @@ package ADTv2Examples.proofs
 import lisa.maths.SetTheory.Types.ADTv2.*
 import lisa.maths.SetTheory.Types.ADTv2.library.*
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.{a, b, f, x}
-import lisa.maths.SetTheory.Types.TypingTheorems.funEqDef
+import lisa.maths.SetTheory.Types.TypingTheorems.arrowElim
 
 object SimpleInduction extends lisa.Main {
 
@@ -58,8 +58,8 @@ object SimpleInduction extends lisa.Main {
           Tautology.from(double.elim(succ))
         val st2 = have(succ * (succ * (double * natDoubleN)) :: nat) by Tautology.from(
           succ.intro,
-          funEqDef of (f := succ, a := nat.term, b := nat.term, x := succ * (double * natDoubleN)),
-          funEqDef of (f := succ, a := nat.term, b := nat.term, x := double * natDoubleN)
+          arrowElim of (f := succ, a := nat.term, b := nat.term, x := succ * (double * natDoubleN)),
+          arrowElim of (f := succ, a := nat.term, b := nat.term, x := double * natDoubleN)
         )
         have(thesis) by Congruence.from(st1,st2)
       }

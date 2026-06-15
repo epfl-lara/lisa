@@ -8,7 +8,7 @@ import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.instantiatedSem
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers._
-import lisa.maths.SetTheory.Types.TypingTheorems.funEqDef
+import lisa.maths.SetTheory.Types.TypingTheorems.arrowElim
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
@@ -71,7 +71,7 @@ private[PatternMatching] trait ConstructorHeadPattern[N <: Arity] extends Patter
             wellTypedFormula(c.semanticSignature(args)) |- (accTerm * argument) :: codomainTy
           ) by Tautology.from(
             accFact,
-            funEqDef of (f := accTerm, a := domainTy, b := codomainTy, x := argument),
+            arrowElim of (f := accTerm, a := domainTy, b := codomainTy, x := argument),
             argumentTyping
           )
           (nextTyping, accTerm * argument, codomainTy)

@@ -6,7 +6,7 @@ import lisa.maths.SetTheory.Base.Subset
 import lisa.maths.SetTheory.Order.Extrema.minimal
 import lisa.maths.SetTheory.Order.Predef._
 import lisa.maths.SetTheory.Order.WellOrders.WellOrder
-import lisa.maths.SetTheory.Ordinals.Integer.omegaOrdinal
+import lisa.maths.SetTheory.Ordinals.Integer.elementIsOrdinal
 import lisa.maths.SetTheory.Ordinals.Integer.omegaDownwardClosed
 import lisa.maths.SetTheory.Ordinals.Integer.ω
 import lisa.maths.SetTheory.Ordinals.Ordinal
@@ -59,7 +59,7 @@ object OmegaFacts {
       val yInZ = have(y ∈ z) by Tautology
         .from(yz, MembershipRelation.membership of (x := y, y := z, A := ω))
       val ordZ = have(ordinal(z)) by Tautology
-        .from(omegaOrdinal of (α := z))
+        .from(elementIsOrdinal of (α := z))
       val xInZ = have(x ∈ z) by Tautology
         .from(ordZ, xInY, yInZ, Ordinal.transitivity of (α := x, β := y, γ := z))
       have((x, z) ∈ NatMem) by Tautology.from(

@@ -337,7 +337,7 @@ object Integer extends lisa.Main {
     have(thesis) by Tautology.from(qAtOmega)
   }
 
-  val omegaOrdinal = Theorem(α ∈ ω |- ordinal(α)) {
+  val elementIsOrdinal = Theorem(α ∈ ω |- ordinal(α)) {
     have(α ∈ ω |- integer(α)) by InstantiateForall(α)(omegaCharacterization)
     have(thesis) by Tautology.from(lastStep, integerIsOrdinal)
   }
@@ -346,8 +346,8 @@ object Integer extends lisa.Main {
    * Comparability --- any two elements of `ω` are comparable by membership.
    */
   val comparability = Theorem((m ∈ ω, n ∈ ω) |- (m === n) \/ (m ∈ n) \/ (n ∈ m)) {
-    val mOrd = have(m ∈ ω |- ordinal(m)) by Restate.from(omegaOrdinal of (α := m))
-    val nOrd = have(n ∈ ω |- ordinal(n)) by Restate.from(omegaOrdinal of (α := n))
+    val mOrd = have(m ∈ ω |- ordinal(m)) by Restate.from(elementIsOrdinal of (α := m))
+    val nOrd = have(n ∈ ω |- ordinal(n)) by Restate.from(elementIsOrdinal of (α := n))
     have(thesis) by Tautology.from(mOrd, nOrd, Ordinal.comparability of (α := m, β := n))
   }
 
@@ -494,16 +494,12 @@ object Integer extends lisa.Main {
     )
 
     val st1 = thenHave(ordinal(α) ==> Q(α)) by InstantiateForall(α)
-    have(α ∈ ω ==> ordinal(α)) by Tautology.from(omegaOrdinal)
+    have(α ∈ ω ==> ordinal(α)) by Tautology.from(elementIsOrdinal)
     have(α ∈ ω ==> Q(α)) by Tautology.from(lastStep, st1)
     thenHave(α ∈ ω ==> P(α)) by Tautology
     thenHave(forall(α, α ∈ ω ==> P(α))) by RightForall
     thenHave(thesis) by Tautology
   }
-
-  // ----------------------------------------------------------------------------
-  // ω / S facts (formerly in UsefulTheorems)
-  // ----------------------------------------------------------------------------
 
   val selfInSuccessor = Lemma(n ∈ S(n)) {
     val sn = ∪(n)(Singleton.singleton(n))
@@ -724,7 +720,6 @@ object Integer extends lisa.Main {
     thenHave(thesis) by Tautology
   }
 
-  // helper: union of two ω-members is in ω
   val unionInOmega = Lemma((a ∈ ω /\ b ∈ ω) |- (a ∪ b) ∈ ω) {
 
     // get ordinals from ω-membership
@@ -812,7 +807,7 @@ object Integer extends lisa.Main {
    * Theorem --- Every element of `ω` is a transitive set.
    */
   val elementsTransitive = Theorem((n ∈ ω) |- TransitiveSet.transitiveSet(n)) {
-    val ordN = have(n ∈ ω |- ordinal(n)) by Restate.from(omegaOrdinal of (α := n))
+    val ordN = have(n ∈ ω |- ordinal(n)) by Restate.from(elementIsOrdinal of (α := n))
     have(thesis) by Tautology.from(ordN, ordinal.definition of (α := n))
   }
 

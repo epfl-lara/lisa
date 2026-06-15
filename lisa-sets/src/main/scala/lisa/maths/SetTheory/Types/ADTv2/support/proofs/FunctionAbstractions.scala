@@ -12,7 +12,7 @@ import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.altEqualityTransitivity
 import lisa.maths.SetTheory.Types.TypingHelpers
 import lisa.maths.SetTheory.Types.TypingHelpers._
-import lisa.maths.SetTheory.Types.TypingTheorems.funEqDef
+import lisa.maths.SetTheory.Types.TypingTheorems.arrowElim
 import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
 import lisa.maths.SetTheory.Types.TypingRules.TAbs
 import lisa.utils.prooflib.BasicStepTactic.Restate
@@ -156,7 +156,7 @@ object FunctionAbstractions {
       have(thesis) by Tautology.from(
         typedCurrent,
         argTyped,
-        funEqDef of (f := currentFunVar, a := domainVar, b := tailTypeVar, x := pointVar)
+        arrowElim of (f := currentFunVar, a := domainVar, b := tailTypeVar, x := pointVar)
       )
     }
 
