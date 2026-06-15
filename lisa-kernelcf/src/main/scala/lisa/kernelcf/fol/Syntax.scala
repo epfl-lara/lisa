@@ -66,7 +66,7 @@ private[fol] trait Syntax {
    * Creates a fresh identifier based on a base identifier and a set of taken identifiers.
    * Find the largest index in the set of taken identifiers and increment it by one.
    */
-  private[kernel] def freshId(taken: Iterable[Identifier], base: Identifier): Identifier = {
+  private[kernelcf] def freshId(taken: Iterable[Identifier], base: Identifier): Identifier = {
     new Identifier(
       base.name,
       (Iterable(base.no) ++ taken.collect({ case Identifier(base.name, no) =>
