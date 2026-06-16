@@ -1,4 +1,4 @@
-package lisa.automation.Superposition
+package lisa.automation.superposition
 
 object KBO {
   

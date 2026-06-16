@@ -24,3 +24,6 @@ cache
 
 # emacs backup files
 *~
+
+# reference provers (read-only, cloned locally)
+othersolvers/
