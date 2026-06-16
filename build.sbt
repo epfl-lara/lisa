@@ -24,13 +24,14 @@ val commonSettings = Seq(
 
 val commonSettings2 = commonSettings ++ Seq(
   scalaVersion := scala2,
-  scalacOptions ++= Seq("-Ypatmat-exhaust-depth", "50")
+  scalacOptions ++= Seq("-Ypatmat-exhaust-depth", "50"),
+  libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % "test",
 )
 val commonSettings3 = commonSettings ++ Seq(
   scalaVersion := scala3,
   scalacOptions ++= Seq(
     "-language:implicitConversions",
-    //"-Wconf:msg=.*will never be selected.*:silent",
+    "-Wconf:msg=.*is not declared infix*:silent",
     "-Wconf:msg=.*trait or object is defined in the compilation unit.*:silent",
     "-language:experimental.modularity"
   ),
@@ -72,6 +73,9 @@ lazy val sets = Project(
   base = file("lisa-sets")
 )
   .settings(commonSettings3)
+  .settings(
+    libraryDependencies += "org.apache.commons" % "commons-math3" % "3.6.1"
+  )
   .dependsOn(kernel, withTests(utils))
 lazy val utils = Project(
   id = "lisa-utils",
@@ -101,6 +105,14 @@ ThisBuild / assemblyMergeStrategy := {
 lazy val examples = Project(
   id = "lisa-examples",
   base = file("lisa-examples")
+)
+  .settings(commonSettings)
+  .settings(commonSettings3)
+  .dependsOn(root)
+
+lazy val coc = Project(
+  id = "lisa-coc",
+  base = file("lisa-coc")
 )
   .settings(commonSettings)
   .settings(commonSettings3)

@@ -1,13 +1,12 @@
 package lisa.test.kernel
 
 import lisa.kernel.fol.FOL._
-import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustification
 import lisa.kernel.proof.RunningTheoryJudgement.InvalidJustificationException
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SequentCalculus.Hypothesis
 import lisa.test.TestTheory
 import lisa.utils.KernelHelpers.{_, given}
-import lisa.utils.{_, given}
+import lisa.utils._
 import org.scalatest.funsuite.AnyFunSuite
 
 /**

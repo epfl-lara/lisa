@@ -1,7 +1,7 @@
 package lisa.utils.prooflib
 
-import lisa.utils.KernelHelpers.{_, given}
-import lisa.utils.{_, given}
+import lisa.utils.KernelHelpers._
+import lisa.utils._
 
 import java.io.PrintWriter
 import java.io.StringWriter

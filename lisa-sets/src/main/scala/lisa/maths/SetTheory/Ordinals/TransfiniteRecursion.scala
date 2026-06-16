@@ -1,14 +1,10 @@
 package lisa.maths.SetTheory.Ordinals
 
-import lisa.maths.Quantifiers.∃!
-import lisa.maths.SetTheory.Base.Predef.{_, given}
 import lisa.maths.SetTheory.Functions.Predef._
-import lisa.maths.SetTheory.Order.Predef._
 import lisa.maths.SetTheory.Order.WellOrders._
 import lisa.maths.SetTheory.Relations.Examples.MembershipRelation
 
 import Ordinal._
-import WellOrder._
 import InitialSegment._
 import MembershipRelation._
 
@@ -47,7 +43,7 @@ object TransfiniteRecursion extends lisa.Main {
     )
 
     // It remains to replace `initialSegment(β, α, <)` with `β` under the binders.
-    have(G(β) === F(β)(G ↾ initialSegment(β)(α)(membershipRelation(α))) |- (G(β) === F(β)(G ↾ β))) by Congruence.from(Ordinal.ordinalInitialSegment)
+    have((G(β) === F(β)(G ↾ initialSegment(β)(α)(membershipRelation(α))), β ∈ α) |- (G(β) === F(β)(G ↾ β))) by Congruence.from(Ordinal.ordinalInitialSegment)
     thenHave(β ∈ α ==> (G(β) === F(β)(G ↾ initialSegment(β)(α)(membershipRelation(α)))) |- β ∈ α ==> (G(β) === F(β)(G ↾ β))) by Tautology
     thenHave(∀(β, β ∈ α ==> (G(β) === F(β)(G ↾ initialSegment(β)(α)(membershipRelation(α))))) |- β ∈ α ==> (G(β) === F(β)(G ↾ β))) by LeftForall
     thenHave(∀(β, β ∈ α ==> (G(β) === F(β)(G ↾ initialSegment(β)(α)(membershipRelation(α))))) |- ∀(β, β ∈ α ==> (G(β) === F(β)(G ↾ β)))) by RightForall

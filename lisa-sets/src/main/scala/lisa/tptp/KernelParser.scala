@@ -7,13 +7,9 @@ import leo.modules.input.{TPTPParser => Parser}
 import lisa.tptp._
 import lisa.utils.K
 import lisa.utils.KernelHelpers._
-import lisa.utils.KernelHelpers.given_Conversion_Identifier_String
 import lisa.utils.KernelHelpers.given_Conversion_String_Identifier
 
 import java.io.File
-import scala.util.matching.Regex
-
-import Parser.TPTPParseException
 
 object KernelParser {
   type DefContext = (String => Option[K.Expression])

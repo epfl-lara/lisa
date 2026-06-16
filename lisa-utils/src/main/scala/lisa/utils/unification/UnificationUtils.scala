@@ -6,8 +6,8 @@ import lisa.utils.collection.{VecSet => Set}
 import lisa.utils.fol.FOL
 import lisa.utils.fol.FOL.{_, given}
 import lisa.utils.memoization.memoized
+import lisa.utils.prooflib.BasicStepTactic
 import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.SimpleDeducedSteps
 
 /**
  * General utilities for unification, substitution, and rewriting
@@ -244,7 +244,7 @@ object UnificationUtils:
      */
     def source(using lib: Library, proof: lib.Proof): proof.Fact =
       val form = toFormula
-      lib.have(using proof)(form |- form) by SimpleDeducedSteps.Restate
+      lib.have(using proof)(form |- form) by BasicStepTactic.Restate
 
     /**
      * Reduce this rewrite rule to a formula representing the equivalence.

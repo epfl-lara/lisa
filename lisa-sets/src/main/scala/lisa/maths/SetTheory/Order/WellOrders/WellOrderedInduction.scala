@@ -1,7 +1,7 @@
 package lisa.maths.SetTheory.Order
 package WellOrders
 
-import lisa.maths.SetTheory.Base.Predef.{_, given}
+import lisa.maths.SetTheory.Base.Predef._
 import lisa.maths.SetTheory.Relations.Predef._
 
 import PartialOrder._

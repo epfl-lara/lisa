@@ -1,28 +1,18 @@
 package lisa.tptp
 
 import leo.modules.input.TPTPParser
-import lisa.kernel.proof.SCProofCheckerJudgement.SCInvalidProof
-import lisa.tptp.KernelParser
 import lisa.tptp.ProofParser
 import lisa.utils.K
-import lisa.utils.K.>>:
-import lisa.utils.K.given
-import lisa.utils.K.lambda
-import lisa.utils.K.repr
-import org.scalatest.compatible.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.io.File
-import scala.io.Source
 
 import ProofParser._
-import KernelParser._
 import K.SCProofChecker
 
 class ATPProofs extends AnyFunSuite {
 
   private val sources = getClass.getResource("/").getPath
-  println(s"Sources: $sources")
 
   private val problems = Seq[(String, String)](
     // "p9_test_1.p" -> "prover9 test 1",
@@ -39,8 +29,6 @@ class ATPProofs extends AnyFunSuite {
         val res = reconstructProof(File(s"$sources/${p._1}"))(using lisa.tptp.KernelParser.strictMapAtom, lisa.tptp.KernelParser.strictMapTerm, lisa.tptp.KernelParser.strictMapVariable)
         val judgement = SCProofChecker.checkSCProof(res)
         assert(judgement.isValid, K.prettySCProof(judgement))
-
-        println(s"Parsed ${p._1}")
       } catch {
         case e: TPTPParser.TPTPParseException =>
           println(s"Parse error at line ${e.line}:${e.offset}: ${e.getMessage}")

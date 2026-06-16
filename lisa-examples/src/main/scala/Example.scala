@@ -14,7 +14,6 @@ object Example extends lisa.Main:
   val P = variable[Ind >>: Prop]
 
   val form = forall(x, P(x) ==> exists(y, P(y)))
-  println(form.subexpressions.mkString("\n"))
 
   // a first-order function with one argument
   val f = variable[Ind >>: Ind]
@@ -36,11 +35,10 @@ object Example extends lisa.Main:
     *  `|- x ⊆ x`
     */
   val union = Theorem(
-    x subset x
-    // or x ⊆ x is predefined
+    x ⊆ x
   ) {
     have((y ∈ x) ==> (y ∈ x)) by Restate
-    thenHave(∀(y, (y ∈ x) ==> (y ∈ x))) by RightForall
+    have(∀(y, (y ∈ x) ==> (y ∈ x))) by Restate
 
     have(thesis) by Tautology.from(lastStep, subsetAxiom of (x := x, y := x))
   }

@@ -2,8 +2,6 @@ package lisa.test
 
 import lisa.kernel.proof.SCProof
 import lisa.kernel.proof.SCProofChecker._
-import lisa.kernel.proof.SCProofCheckerJudgement
-import lisa.kernel.proof.SCProofCheckerJudgement.SCInvalidProof
 import lisa.kernel.proof.SequentCalculus.Sequent
 import lisa.kernel.proof.SequentCalculus.isSameSequent
 import lisa.utils.KernelHelpers.{_, given}

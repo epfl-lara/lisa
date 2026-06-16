@@ -1,11 +1,7 @@
 package lisa.utils.fol
 
 import lisa.utils.K
-import lisa.utils.prooflib.BasicStepTactic
-import lisa.utils.prooflib.Library
 import lisa.utils.prooflib.ProofTacticLib.ProofTactic
-
-import scala.annotation.showAsInfix
 
 trait Sequents extends Predef {
 
@@ -59,7 +55,7 @@ trait Sequents extends Predef {
      * The sequent must have a single universally quantified formula on the right side.
      */
     def instantiateForallWithProof(args: Seq[Expr[Ind]], index: Int): (Sequent, Seq[K.SCProofStep]) = {
-      if this.right.size != 1 then throw new IllegalArgumentException("Right side of sequent must be a single universally quantified formula")
+      if this.right.size != 1 then throw new IllegalArgumentException("Right side of sequent must be a single universally quantified formula; found " + this.right.size)
       this.right.head match {
         case r @ App(forall, Abs(x: Variable[Ind], f: Expr[Prop])) =>
           val t = args.head
@@ -73,7 +69,7 @@ trait Sequents extends Predef {
               case (s, p) => (s, Seq(s0, s1, s2) ++ p)
             }
 
-        case _ => throw new IllegalArgumentException("Right side of sequent must be a single universally quantified formula")
+        case _ => throw new IllegalArgumentException("Right side of sequent must be a single universally quantified formula; found " + this.right.head)
       }
 
     }
@@ -338,8 +334,8 @@ trait Sequents extends Predef {
   given [H, T <: Tuple](using FormulaSetConverter[H], FormulaSetConverter[T]): FormulaSetConverter[H *: T] =
     t => toFormulaSet(t.head) ++ toFormulaSet(t.tail)
 
-  given FormulaSetConverter[Expr[Prop]] = Set(_)
-  given FormulaSetConverter[Iterable[Expr[Prop]]] = _.toSet
+  given [T <: Expr[Prop]]: FormulaSetConverter[T] = Set(_)
+  given formulaSetConverterFromSeq[T <: Expr[Prop]]: FormulaSetConverter[Iterable[T]] = _.toSet
 
   extension [L](left: L)(using FormulaSetConverter[L]) {
 

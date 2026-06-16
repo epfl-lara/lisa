@@ -1,19 +1,16 @@
 package lisa.tptp
 
-import leo.datastructures.TPTP.AnnotatedFormula
 import leo.datastructures.TPTP.FOF
 import leo.datastructures.TPTP.FOFAnnotated
 import leo.datastructures.TPTP.FOTAnnotated
 import leo.modules.input.{TPTPParser => Parser}
 import lisa.automation.Tableau
-import lisa.automation.Tableau.instantiate
 import lisa.automation.Tautology
 import lisa.utils.K
 
 import java.io.File
 
-import K.{repr, -<<, +<<, ->>, +>>, |-}
-import Parser.TPTPParseException
+import K.{repr, +<<, ->>, +>>, |-}
 import KernelParser._
 import K.given
 
@@ -192,6 +189,23 @@ object ProofParser {
         }
       def apply(s: String): GeneralTerm =
         GeneralTerm(List(MetaFunctionData(s, List())), None)
+    }
+    private def orientRightSubstEquality(
+        sequent: FOF.Sequent,
+        premise: FOF.Sequent,
+        s: K.Expression,
+        t: K.Expression,
+        vars: Seq[K.Variable],
+        body: K.Expression
+    )(using defctx: DefContext, maps: MapTriplet): (K.Expression, K.Expression) = {
+      val premRight = convertToKernel(premise).right
+      val botRight = convertToKernel(sequent).right
+      val phiS = K.substituteVariables(body, (vars zip Seq(s)).toMap)
+      val phiT = K.substituteVariables(body, (vars zip Seq(t)).toMap)
+
+      if (premRight.exists(K.isSame(_, phiS)) && botRight.exists(K.isSame(_, phiT))) (s, t)
+      else if (premRight.exists(K.isSame(_, phiT)) && botRight.exists(K.isSame(_, phiS))) (t, s)
+      else (s, t)
     }
     object StrOrNum {
       def unapply(ann_seq: GeneralTerm): Option[String] =
@@ -506,7 +520,8 @@ object ProofParser {
               case K.equality(s, t) => (s, t)
               case _ => throw new Exception(s"$name: Expected an existential quantification, but got $f")
             }
-            Some((K.RightSubstEq(convertToKernel(sequent), numbermap(t1), Seq((s, t)), (Seq(x), fl)), name))
+            val oriented = orientRightSubstEquality(sequent, sequentmap(t1), s, t, Seq(x), fl)
+            Some((K.RightSubstEq(convertToKernel(sequent), numbermap(t1), Seq(oriented), (Seq(x), fl)), name))
           case _ => None
         }
     }
@@ -551,7 +566,8 @@ object ProofParser {
               case K.iff(s, t) => (s, t)
               case _ => throw new Exception(s"$name: Expected an biimplication, but got $f")
             }
-            Some((K.RightSubstEq(convertToKernel(sequent), numbermap(t1), Seq((s, t)), (Seq(a), fl)), name))
+            val oriented = orientRightSubstEquality(sequent, sequentmap(t1), s, t, Seq(a), fl)
+            Some((K.RightSubstEq(convertToKernel(sequent), numbermap(t1), Seq(oriented), (Seq(a), fl)), name))
           case _ => None
         }
     }
@@ -691,7 +707,7 @@ object ProofParser {
       def unapply(ann_seq: FOFAnnotated)(using defctx: DefContext, numbermap: String => Int, sequentmap: String => FOF.Sequent)(using maps: MapTriplet): Option[(K.SCProofStep, String)] =
         ann_seq match {
           case FOFAnnotated(name, role, sequent: FOF.Sequent, Inference("instMult", Seq(_, Sequence(instantiations)), Seq(t1)), origin) =>
-            val map = instantiations.map { 
+            val map = instantiations.map {
               case Tuple(Seq(String(sfl), expr, Sequence(varsl))) =>
                 val vars = varsl.map {
                   case String(xl) => K.Variable(sanitize(xl), K.Ind)
@@ -858,7 +874,8 @@ object ProofParser {
             val (bounds, left, right) = extractForall(f)
             val hole = K.Variable(sanitize(xl), K.functionType(bounds.size))
             val x = K.Variable(sanitize(xl), K.Ind)
-            val equals = Seq((K.lambda(bounds, left), K.lambda(bounds, right)))
+            val oriented = orientRightSubstEquality(sequent, sequentmap(t1), K.lambda(bounds, left), K.lambda(bounds, right), Seq(hole), fl)
+            val equals = Seq(oriented)
             Some((K.RightSubstEq(convertToKernel(sequent), numbermap(t1), equals, (Seq(hole), fl)), name))
           case _ => None
         }
@@ -876,7 +893,8 @@ object ProofParser {
             val (bounds, left, right) = extractForall(f)
             val hole = K.Variable(sanitize(xl), K.predicateType(bounds.size))
             val x = K.Variable(sanitize(xl), K.Ind)
-            val equals = Seq((K.lambda(bounds, left), K.lambda(bounds, right)))
+            val oriented = orientRightSubstEquality(sequent, sequentmap(t1), K.lambda(bounds, left), K.lambda(bounds, right), Seq(hole), fl)
+            val equals = Seq(oriented)
             Some((K.RightSubstEq(convertToKernel(sequent), numbermap(t1), equals, (Seq(hole), fl)), name))
           case _ => None
         }

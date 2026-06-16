@@ -1,8 +1,6 @@
 package lisa.utils
 
 import lisa.test.ProofTacticTestLib
-import lisa.utils.KernelHelpers.{_, given}
-import lisa.utils._
 import org.scalatest.funsuite.AnyFunSuite
 
 /**
