@@ -12,7 +12,6 @@ import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitutio
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.instantiatedSemanticSignature
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
-import lisa.utils.prooflib.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.altEqualityTransitivity
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
@@ -21,6 +20,7 @@ import lisa.utils.prooflib.BasicStepTactic.LeftExists
 import lisa.utils.prooflib.BasicStepTactic.LeftOr
 import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.ProofTacticLib.Arity
+import lisa.utils.prooflib.QuantifiersIntro
 import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
 
 /**
@@ -672,46 +672,12 @@ private[PatternMatching] final case class NestedPatternSystem[N <: Arity](
               !(constructorPattern1.inputTerm1 === constructorPattern2.inputTerm2)
           ) {
             val branch = assume(constructorPattern1.branchPremise1 /\ constructorPattern2.freshBranchPremise)
-            val branch1Typed = have(constructorPattern1.branchPremise1) by Tautology.from(branch)
-            val branch2Typed = have(constructorPattern2.freshBranchPremise) by Tautology.from(branch)
-
             assume(constructorPattern1.inputTerm1 === constructorPattern2.inputTerm2)
             val inputsEqual = have(constructorPattern1.inputTerm1 === constructorPattern2.inputTerm2) by Hypothesis
-
-            val injectivitySchema = have(constructorPattern1.injectivity.statement.right.head) by
-              Tautology.from(constructorPattern1.injectivity)
-            var injectivityAtVars = injectivitySchema
-            for v <- constructorPattern1.variables1 ++ constructorPattern2.variables2 do
-              injectivityAtVars.statement.right.head match
-                case forall(qv, phi) =>
-                  injectivityAtVars = have(phi.substituteUnsafe(Map(qv -> v)).asInstanceOf[Expr[Prop]]) by
-                    InstantiateForall(v)(injectivityAtVars)
-                case _ => ()
-
-            val guardedArgsEqual = have(guard1.binder === guard2.binder) by
-              Tautology.from(injectivityAtVars, branch1Typed, branch2Typed, inputsEqual)
-
-            val guard1Eq = have(guard1.binder === guard1.guardTerm) by Tautology.from(branch1Typed)
-            val guard2Eq = have(guard2.binder === guard2.guardTerm) by Tautology.from(branch2Typed)
-            val guard1EqRev = have(guard1.guardTerm === guard1.binder) by Congruence.from(guard1Eq)
-            val guard1ToGuard2Binder = have(guard1.guardTerm === guard2.binder) by Tautology.from(
-              altEqualityTransitivity of (
-                x := guard1.guardTerm,
-                y := guard1.binder,
-                z := guard2.binder
-              ),
-              guard1EqRev,
-              guardedArgsEqual
-            )
-            val guardTermsEqual = have(guard1.guardTerm === guard2.guardTerm) by Tautology.from(
-              altEqualityTransitivity of (
-                x := guard1.guardTerm,
-                y := guard2.binder,
-                z := guard2.guardTerm
-              ),
-              guard1ToGuard2Binder,
-              guard2Eq
-            )
+            val commonEquality =
+              NestedTrieProofs.sameHeadGuardEquality(constructorPattern1, constructorPattern2, guard1, guard2)
+            val guardTermsEqual = have(guard1.guardTerm === guard2.guardTerm) by
+              Tautology.from(commonEquality, branch, inputsEqual)
 
             have(thesis) by Tautology.from(guardTermsEqual, distinctGuardTerms)
           }

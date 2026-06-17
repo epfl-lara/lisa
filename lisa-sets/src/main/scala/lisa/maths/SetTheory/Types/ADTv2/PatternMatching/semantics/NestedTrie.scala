@@ -40,13 +40,13 @@ private[semantics] object NestedTrie {
 
   // All registered constructors, keyed by their term-level identifier. Mirrors
   // NestedConstructorPattern.resolveNullaryGuard's global lookup.
-  private def allConstructors: Seq[Constructor[?]] =
+  private[semantics] def allConstructors: Seq[Constructor[?]] =
     ADT.allADTs.toSeq.flatMap(_.constructors)
 
   // Peel a set-application spine `c * a0 * a1 * …` (built by the `*` DSL operator,
   // i.e. nested `app(...)`) into its head and value arguments, using the `*`
   // extractor from TypingHelpers.
-  private def peelApp(t: Expr[Ind]): (Expr[Ind], List[Expr[Ind]]) =
+  private[semantics] def peelApp(t: Expr[Ind]): (Expr[Ind], List[Expr[Ind]]) =
     TypingHelpers.`*`.unapply(t) match
       case Some((f, x)) => val (h, as) = peelApp(f); (h, as :+ x)
       case None => (t, Nil)

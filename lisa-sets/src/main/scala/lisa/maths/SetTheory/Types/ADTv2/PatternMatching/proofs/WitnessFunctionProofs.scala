@@ -323,81 +323,50 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
   // materialising the full conjunction and weakening it apart N² times.
   private case class BranchParts(premise: THM, inputEq: THM, outputEq: THM)
 
-  // Decompose a branch witness into its parts. The `Pair.extensionality` split is still done
-  // once per pattern (in `combined`); the three projections are then thin OL weakenings.
-  private val namedBranchDecomposition: Map[Pattern[N], BranchParts] =
+  private def branchDecomposition(
+      vars: Pattern[N] => Seq[Variable[Ind]],
+      ambientOutput: Expr[Ind]
+  ): Map[Pattern[N], BranchParts] =
     patternMatching.patterns
       .map(pattern =>
-        Time.measure("witness/namedBranchDecomposition") {
-          val bw = branchWitnessAt(pattern, pattern.binders, inputTerm, outputTerm)
-          val premise = pattern.branchPremiseAt(pattern.binders)
-          val inputEq = inputTerm === pattern.inputTermAt(pattern.binders)
-          val outputEq = outputTerm === pattern.bodyAt(pattern.binders)
-          val combined = Lemma(
-            bw ==> (premise /\ inputEq /\ outputEq)
-          ) {
-            assume(bw)
-            val pairEq = have(
-              pair(inputTerm, outputTerm) === pair(pattern.inputTermAt(pattern.binders), pattern.bodyAt(pattern.binders))
-            ) by Restate.from(lastStep)
-            val pairSplit = have(
-              inputEq /\ outputEq
-            ) by Tautology.from(
-              pairEq,
-              Pair.extensionality of (
-                a := inputTerm,
-                b := outputTerm,
-                c := pattern.inputTermAt(pattern.binders),
-                d := pattern.bodyAt(pattern.binders)
-              )
+        val branchVars = vars(pattern)
+        val bw = branchWitnessAt(pattern, branchVars, inputTerm, ambientOutput)
+        val premise = pattern.branchPremiseAt(branchVars)
+        val inputEq = inputTerm === pattern.inputTermAt(branchVars)
+        val outputEq = ambientOutput === pattern.bodyAt(branchVars)
+        val combined = Lemma(
+          bw ==> (premise /\ inputEq /\ outputEq)
+        ) {
+          assume(bw)
+          val pairEq = have(
+            pair(inputTerm, ambientOutput) === pair(pattern.inputTermAt(branchVars), pattern.bodyAt(branchVars))
+          ) by Restate.from(lastStep)
+          val pairSplit = have(
+            inputEq /\ outputEq
+          ) by Tautology.from(
+            pairEq,
+            Pair.extensionality of (
+              a := inputTerm,
+              b := ambientOutput,
+              c := pattern.inputTermAt(branchVars),
+              d := pattern.bodyAt(branchVars)
             )
-            have(thesis) by Tautology.from(pairSplit)
-          }
-          pattern -> BranchParts(
-            Lemma(bw ==> premise) { have(thesis) by Weakening(combined) },
-            Lemma(bw ==> inputEq) { have(thesis) by Weakening(combined) },
-            Lemma(bw ==> outputEq) { have(thesis) by Weakening(combined) }
           )
+          have(thesis) by Tautology.from(pairSplit)
         }
+        pattern -> BranchParts(
+          Lemma(bw ==> premise) { have(thesis) by Weakening(combined) },
+          Lemma(bw ==> inputEq) { have(thesis) by Weakening(combined) },
+          Lemma(bw ==> outputEq) { have(thesis) by Weakening(combined) }
+        )
       )
       .toMap
 
+  private val namedBranchDecomposition: Map[Pattern[N], BranchParts] =
+    branchDecomposition(_.binders, outputTerm)
+
   private val freshBranchDecomposition: Map[Pattern[N], BranchParts] =
-    patternMatching.patterns
-      .map(pattern =>
-        Time.measure("witness/freshBranchDecomposition") {
-          val bw = branchWitnessAt(pattern, pattern.variables2, inputTerm, alternateOutputTerm)
-          val premise = pattern.branchPremiseAt(pattern.variables2)
-          val inputEq = inputTerm === pattern.inputTermAt(pattern.variables2)
-          val outputEq = alternateOutputTerm === pattern.bodyAt(pattern.variables2)
-          val combined = Lemma(
-            bw ==> (premise /\ inputEq /\ outputEq)
-          ) {
-            assume(bw)
-            val pairEq = have(
-              pair(inputTerm, alternateOutputTerm) === pair(pattern.inputTermAt(pattern.variables2), pattern.bodyAt(pattern.variables2))
-            ) by Restate.from(lastStep)
-            val pairSplit = have(
-              inputEq /\ outputEq
-            ) by Tautology.from(
-              pairEq,
-              Pair.extensionality of (
-                a := inputTerm,
-                b := alternateOutputTerm,
-                c := pattern.inputTermAt(pattern.variables2),
-                d := pattern.bodyAt(pattern.variables2)
-              )
-            )
-            have(thesis) by Tautology.from(pairSplit)
-          }
-          pattern -> BranchParts(
-            Lemma(bw ==> premise) { have(thesis) by Weakening(combined) },
-            Lemma(bw ==> inputEq) { have(thesis) by Weakening(combined) },
-            Lemma(bw ==> outputEq) { have(thesis) by Weakening(combined) }
-          )
-        }
-      )
-      .toMap
+    branchDecomposition(_.variables2, alternateOutputTerm)
 
   private val branchAgreement: Map[(Pattern[N], Pattern[N]), THM] = Time.measure("BranchAgreement") {
     val patterns = patternMatching.patterns
