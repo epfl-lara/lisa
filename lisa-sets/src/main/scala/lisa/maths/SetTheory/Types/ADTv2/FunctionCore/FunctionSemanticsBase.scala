@@ -1,6 +1,5 @@
 package lisa.maths.SetTheory.Types.ADTv2.FunctionCore
 
-import lisa.maths.Quantifiers.existsOneAlternativeDefinition
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
@@ -8,6 +7,7 @@ import lisa.maths.SetTheory.Types.ADTv2.encoding._
 import lisa.maths.SetTheory.Types.ADTv2.support.UniqueCharacterizedSymbol
 import lisa.maths.SetTheory.Types.ADTv2.support.core.**
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.semantics.ExistsOneBuilder
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
@@ -45,27 +45,13 @@ class FunctionSemanticsBase[N <: Arity](data: SemanticFunctionInputs[N]) {
    * Assemble `existsOne(f, untypedDef)` from the separately-proved existence and
    * pointwise-uniqueness facts supplied by the strategy.
    */
-  private val uniqueness: THM = Lemma(existsOne(f, untypedDef)) {
-    val existencePart = have(∃(x, definitionFormula(x))) by
-      Restate.from(data.existence.witnessExists of (f := x))
-
-    have(definitionFormula(x) /\ definitionFormula(y) ==> (x === y)) by
-      Restate.from(data.uniqueness.pointwiseUniqueness)
-    thenHave(∀(y, definitionFormula(x) /\ definitionFormula(y) ==> (x === y))) by RightForall
-    val uniquenessAll = thenHave(
-      ∀(x, ∀(y, definitionFormula(x) /\ definitionFormula(y) ==> (x === y)))
-    ) by RightForall
-
-    have(
-      ∃(x, definitionFormula(x)) /\
-        ∀(x, ∀(y, definitionFormula(x) /\ definitionFormula(y) ==> (x === y)))
-    ) by Tautology.from(existencePart, uniquenessAll)
-
-    have(thesis) by Tautology.from(
-      lastStep,
-      existsOneAlternativeDefinition of (x := f, P := λ(f, untypedDef))
-    )
-  }
+  private val uniqueness: THM = 
+    ExistsOneBuilder(
+      witnessVar  = f,
+      definitionAt = definitionFormula,
+      existence   = data.existence.witnessExists,
+      pairwiseUniqueness = data.uniqueness.pointwiseUniqueness
+  ).theorem
 
   private val definedClassFunction: UniqueCharacterizedSymbol =
     UniqueCharacterizedSymbol(

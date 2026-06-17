@@ -11,7 +11,7 @@ import lisa.maths.SetTheory.Base.Union.∪
 import lisa.maths.SetTheory.Cardinal.Universe
 import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.height.proofs.CoreFacts
-import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
+import lisa.utils.prooflib.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.utils.prooflib.ProofTacticLib.Arity
 

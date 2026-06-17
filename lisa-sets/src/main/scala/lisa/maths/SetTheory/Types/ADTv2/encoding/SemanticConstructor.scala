@@ -9,7 +9,7 @@ import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.instantiatedThe
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.normalizeTypeSubstitutions
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.resolvedTypeArguments
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.theoremAt
-import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
+import lisa.utils.prooflib.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.core.**
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts._

@@ -12,8 +12,8 @@ import lisa.maths.SetTheory.Relations.Relation.R
 import lisa.maths.SetTheory.Relations.Relation.relationBetween
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
-import lisa.maths.SetTheory.Types.ADTv2.support.InstantiateForallSeq
-import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
+import lisa.utils.prooflib.InstantiateForallSeq
+import lisa.utils.prooflib.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers._

@@ -9,7 +9,7 @@ import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.height.proofs.CoreFacts
 import lisa.maths.SetTheory.Types.ADTv2.height.proofs.SuccessorFacts
 import lisa.maths.SetTheory.Types.ADTv2.height.proofs.UniquenessFacts
-import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
+import lisa.utils.prooflib.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.utils.prooflib.ProofTacticLib.Arity
 

@@ -10,7 +10,7 @@ import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.CaseBodySubstitution.s
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.SpecializedConstructorFacts
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.specializedConstructors
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.WitnessCaseExtensionality
-import lisa.maths.SetTheory.Types.ADTv2.support.InstantiateForallSeq
+import lisa.utils.prooflib.InstantiateForallSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeFormula
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
