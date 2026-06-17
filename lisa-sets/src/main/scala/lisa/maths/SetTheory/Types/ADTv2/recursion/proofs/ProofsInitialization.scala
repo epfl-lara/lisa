@@ -7,6 +7,5 @@ object ProofsInitialization {
   def initialize(): Unit = Time.measure("Rec proofs initialization") {
     LimitKernel.initialize()
     ApproximationChainFacts.initialize()
-    WitnessCaseExtensionality.initialize()
   }
 }

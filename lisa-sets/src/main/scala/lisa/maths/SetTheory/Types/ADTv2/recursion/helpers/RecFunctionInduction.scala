@@ -9,7 +9,6 @@ import lisa.maths.SetTheory.Types.ADTv2.encoding._
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.SpecializedConstructorFacts
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.specializedConstructors
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.LimitKernel
-import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.WitnessCaseExtensionality
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeFormula
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
@@ -210,15 +209,8 @@ private[recursion] object RecFunctionInduction {
       yFun: Expr[Ind]
   ): proof.Fact = {
     val (localContext, pointEqInput, leftAtInput, rightAtInput, bodyEquality) = normalized
-    val agreement = WitnessCaseExtensionality.pointwiseAgreementAt(
-      leftWitness = xFun,
-      rightWitness = yFun,
-      ambientTerm = slicePoint,
-      ambientEqInput = pointEqInput,
-      leftAtInput = leftAtInput,
-      rightAtInput = rightAtInput,
-      bodyEquality = bodyEquality
-    )
+    val agreement = have(pointEqInput.statement.left |- (app(xFun)(slicePoint) === app(yFun)(slicePoint))) by
+      Congruence.from(pointEqInput, leftAtInput, rightAtInput, bodyEquality)
     have(localContext |- propertyAt(slicePoint)) by Restate.from(agreement)
   }
 

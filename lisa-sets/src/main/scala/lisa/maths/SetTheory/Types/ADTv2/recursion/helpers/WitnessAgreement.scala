@@ -6,10 +6,8 @@ import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.recursion.FunSpec
 import lisa.maths.SetTheory.Types.ADTv2.recursion.Witness
-import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.CaseBodySubstitution.substitutedCaseBody
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.SpecializedConstructorFacts
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.specializedConstructors
-import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.WitnessCaseExtensionality
 import lisa.utils.prooflib.InstantiateForallSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeFormula
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
@@ -30,6 +28,16 @@ private[recursion] final class WitnessAgreement[N <: Arity](
   val rightFun = variable[Ind]
   val nVar = variable[Ind]
   private val vVar = variable[Ind]
+
+  private def substitutedCaseBody[N <: Arity](
+      pattern: Pattern[N],
+      selfPlaceholder: Variable[Ind],
+      selfTerm: Expr[Ind],
+      vars: Seq[Variable[Ind]]
+  ): Expr[Ind] =
+    pattern.body
+      .substitute(selfPlaceholder := selfTerm)
+      .substitute(pattern.binders.zip(vars).map((from, to) => from := to)*)
 
   private def isHeightPred(hh: Expr[Ind]): Expr[Prop] =
     specializeFormula(spec.adt.height.predicate(hh), spec.typeSubstitutions)
@@ -171,15 +179,9 @@ private[recursion] final class WitnessAgreement[N <: Arity](
                 val witnessAtLeft = instantiateWitnessAtPattern(pattern, leftFun, leftTyped, patternPremise, bodyLeft)
                 val witnessAtRight = instantiateWitnessAtPattern(pattern, rightFun, rightTyped, patternPremise, bodyRight)
 
-                val witnessesAgreeAtA = WitnessCaseExtensionality.pointwiseAgreementAt(
-                  leftWitness = recWitness(leftFun),
-                  rightWitness = recWitness(rightFun),
-                  ambientTerm = a,
-                  ambientEqInput = aEqPattern,
-                  leftAtInput = witnessAtLeft,
-                  rightAtInput = witnessAtRight,
-                  bodyEquality = bodyEq
-                )
+                val witnessesAgreeAtA = have(
+                  aEqPattern.statement.left |- (app(recWitness(leftFun))(a) === app(recWitness(rightFun))(a))
+                  ) by Congruence.from(aEqPattern, witnessAtLeft, witnessAtRight, bodyEq)
 
                 have(goalW) by Restate.from(witnessesAgreeAtA)
               }

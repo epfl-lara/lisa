@@ -19,14 +19,14 @@ import lisa.utils.prooflib.BasicStepTactic.Restate
 
 object FunctionAbstractions {
 
-  private val domainVar = variable[Ind]("domain")
+  val domainVar = variable[Ind]("domain")
   private val codomainVar = variable[Ind]("codomain")
   private val bodyVar = variable[Ind >>: Ind]("body")
   private val pointVar = variable[Ind]("point")
-  private val tailTypeVar = variable[Ind]("tailType")
+  val tailTypeVar = variable[Ind]("tailType")
   private val currentFunVar = variable[Ind]("currentFun")
-  private val leftFunVar = variable[Ind]("leftFun")
-  private val rightFunVar = variable[Ind]("rightFun")
+  val leftFunVar = variable[Ind]("leftFun")
+  val rightFunVar = variable[Ind]("rightFun")
 
   def nestedAbstraction(
       signature: Seq[(Variable[Ind], Expr[Ind])],

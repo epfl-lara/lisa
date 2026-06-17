@@ -1,8 +1,5 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
-import lisa.maths.SetTheory.Functions.BasicTheorems
-import lisa.maths.SetTheory.Functions.Function
-import lisa.maths.SetTheory.Functions.Pi.->:
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.FunctionCore.UniquenessProof
 import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.PatternSchemas
@@ -10,18 +7,16 @@ import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.RecFunctionInduction
 import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.extractPatternCaseSchema
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.equivalenceRevApply
 import lisa.maths.SetTheory.Types.ADTv2.support.semantics.DefinedProperty
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[recursion] final class Uniqueness[N <: Arity](
-    spec: FunSpec[N]
+    override protected val spec: FunSpec[N]
 ) extends UniquenessProof[N] {
 
   private val adt = spec.adt
   private val argType = spec.argType
-  private val returnType = spec.returnType
 
   private def extractPatternSchemas(
       definition: Expr[Prop],
@@ -47,13 +42,14 @@ private[recursion] final class Uniqueness[N <: Arity](
   )
   private def Def(v: Expr[Ind]): Expr[Prop] = defSym.term #@ v
 
-  val pointwiseUniqueness: THM =
+
+  protected lazy val pointwiseAgreement: THM =
     val xDefFormula = definitionFormula(x)
     val yDefFormula = definitionFormula(y)
-    Lemma(xDefFormula /\ yDefFormula ==> (x === y)) {
-
-      val hyp = assume(xDefFormula /\ yDefFormula)
-      val pointInput = variable[Ind]
+    val pointInput = variable[Ind]
+    Lemma(
+      xDefFormula /\ yDefFormula |- ∀(pointInput, pointInput ∈ argType ==> (x * pointInput === y * pointInput))
+    ) {
 
       val pointwiseCoreLemma = Time.measure("Pointwise uniqueness") {
         RecFunctionInduction.pointwiseUniquenessAt(
@@ -77,52 +73,9 @@ private[recursion] final class Uniqueness[N <: Arity](
 
       val t0 = Time.get()
 
-      val xTyped = have(x :: (argType ->: returnType)) by Weakening(hyp)
-      val xInFuncSpaceToBetween = have(x ∈ (argType ->: returnType) |- Function.functionBetween(x)(argType)(returnType)) by Cut(
-        BasicTheorems.funcBetweenEqInFuncSpace of (
-          f := x,
-          A := argType,
-          B := returnType
-        ),
-        equivalenceRevApply of (
-          p2 := Function.functionBetween(x)(argType)(returnType),
-          p1 := x ∈ (argType ->: returnType)
-        )
-      )
-      val xBetween = have(Function.functionBetween(x)(argType)(returnType)) by Cut(xTyped, xInFuncSpaceToBetween)
-      val xOnDomain = have(Function.functionOn(x)(argType)) by Cut(
-        xBetween,
-        BasicTheorems.functionBetweenIsFunctionOn of (
-          f := x,
-          A := argType,
-          B := returnType
-        )
-      )
-      
-      val yTyped = have(y :: (argType ->: returnType)) by Weakening(hyp)
-      val yInFuncSpaceToBetween = have(y ∈ (argType ->: returnType) |- Function.functionBetween(y)(argType)(returnType)) by Cut(
-        BasicTheorems.funcBetweenEqInFuncSpace of (
-          f := y,
-          A := argType,
-          B := returnType
-        ),
-        equivalenceRevApply of (
-          p2 := Function.functionBetween(y)(argType)(returnType),
-          p1 := y ∈ (argType ->: returnType)
-        )
-      )
-      val yBetween = have(Function.functionBetween(y)(argType)(returnType)) by Cut(yTyped, yInFuncSpaceToBetween)
-      val yOnDomain = have(Function.functionOn(y)(argType)) by Cut(
-        yBetween,
-        BasicTheorems.functionBetweenIsFunctionOn of (
-          f := y,
-          A := argType,
-          B := returnType
-        )
-      )
-
       // `pointwiseCoreLemma` is stated over the opaque `Def(x)`, `Def(y)`; discharge them
       // by folding the ambient `untypedDefinition(x)`, `untypedDefinition(y)`.
+      val hyp = assume(xDefFormula /\ yDefFormula)
 
       val xDefinition = have(xDefFormula) by Weakening(hyp)
       val defX = have(Def(x)) by Cut(xDefinition, defSym.foldAt(x))
@@ -133,38 +86,9 @@ private[recursion] final class Uniqueness[N <: Arity](
         Def(y) |- ∀(pointInput, pointInput ∈ argType ==> (x * pointInput === y * pointInput))
       ) by Cut(defX, pointwiseCoreLemma)
 
-      val pointwiseByHeight = have(
+      have(
         ∀(pointInput, pointInput ∈ argType ==> (x * pointInput === y * pointInput))
       ) by Cut(defY, pointwiseWithY)
-
-      val pointwiseByHeightBounded = have(
-        ∀(pointInput ∈ argType, (x * pointInput === y * pointInput))
-      ) by Restate.from(pointwiseByHeight)
-
-      val ext0 = BasicTheorems.extensionality of (
-        f := x,
-        g := y,
-        A := argType,
-        x := pointInput
-      )
-      val ext0AtPointInput = have(
-        (
-          Function.functionOn(x)(argType),
-          Function.functionOn(y)(argType),
-          ∀(pointInput ∈ argType, (x * pointInput === y * pointInput))
-        ) |- x === y
-      ) by Tautology.from(ext0)
-
-      val ext1 = have(
-        (Function.functionOn(y)(argType), ∀(pointInput ∈ argType, (x * pointInput === y * pointInput))) |- x === y
-      ) by Cut.withParameters(Function.functionOn(x)(argType))(xOnDomain, ext0AtPointInput)
-      val ext2 = have(
-        ∀(pointInput ∈ argType, (x * pointInput === y * pointInput)) |- x === y
-      ) by Cut.withParameters(Function.functionOn(y)(argType))(yOnDomain, ext1)
-
-      have(x === y) by Cut.withParameters(
-        ∀(pointInput ∈ argType, (x * pointInput === y * pointInput))
-      )(pointwiseByHeightBounded, ext2)
       thenHave(thesis) by Restate
 
       val t1 = Time.get()
