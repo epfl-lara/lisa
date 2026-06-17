@@ -4,7 +4,6 @@ import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticADT
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.requireMonomorphicAccess
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.theoremAt
-import lisa.maths.SetTheory.Types.ADTv2.support.Printing
 import lisa.maths.SetTheory.Types.ADTv2.support.core.**
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.renderAppliedSymbol
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.typeExprToTerm
@@ -16,7 +15,6 @@ final class ADT[N <: Arity](using val line: sourcecode.Line, val file: sourcecod
     val semantic: SemanticADT[N]
 ) extends Constant[IndOf[N]](semantic.id) {
 
-  Printing.install()
   printAs(args => renderAppliedSymbol(semantic.name, semantic.typeVariablesSeq.size, args))
 
   val name: String = semantic.name
