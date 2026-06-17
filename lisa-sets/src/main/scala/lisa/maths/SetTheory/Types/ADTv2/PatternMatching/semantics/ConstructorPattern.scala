@@ -35,7 +35,7 @@ private[PatternMatching] final case class ConstructorPatternSystem[N <: Arity](
   override def patternsFor(constructor: SemanticConstructor[N]): Seq[Pattern[N]] =
     patterns.filter(_.semanticConstructor == constructor)
 
-  override lazy val coverage: THM = Time.measure(s"Pattern/Coverage") {
+  override lazy val coverage: THM = Time.measure(s"ConstructorPatternSystem/Coverage") {
     require(
       supportsAutomaticCoverage,
       "Automatic coverage is only available for constructor-only pattern systems with one unconditional branch per constructor."
@@ -51,7 +51,7 @@ private[PatternMatching] final case class ConstructorPatternSystem[N <: Arity](
   override def incompatible(pattern1: Pattern[N], pattern2: Pattern[N]): THM =
     incompatibleCache.getOrElseUpdate(
       (pattern1, pattern2),
-      Time.measure(s"Pattern/Incompatible") {
+      Time.measure(s"ConstructorPattern/Incompatible") {
         require(pattern1 != pattern2, "incompatible is only meaningful for distinct patterns.")
         val constructorPattern1 = pattern1 match
           case pattern: ConstructorHeadPattern[N] => pattern

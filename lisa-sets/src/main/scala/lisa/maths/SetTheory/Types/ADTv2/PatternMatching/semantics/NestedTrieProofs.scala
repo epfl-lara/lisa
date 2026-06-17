@@ -7,6 +7,7 @@ import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
 import lisa.maths.SetTheory.Types.ADTv2.support.core.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.altEqualityTransitivity
+import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.TypingHelpers
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.utils.prooflib.BasicStepTactic.LeftExists
@@ -619,6 +620,7 @@ private[semantics] object NestedTrieProofs {
   ): THM =
     if p1.semanticConstructor != p2.semanticConstructor then
       // different top constructors — `¬(c1(top1) = c2(top2))` from cross injectivity.
+      Time.measure("NestedTrieProofs/Incompatible Cross") {
       val (adt, targs) = ADT.unapply(p1.specializedAdtTerm).get
       val c1 = adt.constructors.find(_.id == p1.semanticConstructor.id).get
       val c2 = adt.constructors.find(_.id == p2.semanticConstructor.id).get
@@ -637,7 +639,7 @@ private[semantics] object NestedTrieProofs {
             case _ => ()
         }
         have(!(p1.inputTerm1 === p2.inputTerm2)) by Tautology.from(fact, b1, b2)
-      }
+      }}
     else
       val guards1 = p1.guardsAt(p1.variables1)
       val guards2 = p2.freshGuards
@@ -673,80 +675,95 @@ private[semantics] object NestedTrieProofs {
           .asInstanceOf[Expr[Ind]]
         ADT.unapply(t).get
 
-      Lemma(
-        (p1.branchPremise1 /\ p2.freshBranchPremise) ==> !(p1.inputTerm1 === p2.inputTerm2)
-      ) { sp ?=>
-        // --- locals: instAll / typeProof / disprove on the guard terms ---
-        def instAll(thm: THM, terms: Seq[Expr[Ind]]): Unit =
-          var fact: sp.Fact = have(thm.statement.right.head) by Tautology.from(thm)
-          terms.foreach { t =>
-            fact.statement.right.head match
+      Time.measure("NestedTrieProofs/Incompatible Eq") {
+        Lemma(
+          (p1.branchPremise1 /\ p2.freshBranchPremise) ==> !(p1.inputTerm1 === p2.inputTerm2)
+        ) {
+          sp ?=> Time.measure("inner"){
+          val t00 = Time.get()
+          // --- locals: instAll / typeProof / disprove on the guard terms ---
+          def instAll(thm: THM, terms: Seq[Expr[Ind]]): Unit =
+            var fact: sp.Fact = have(thm.statement.right.head) by Tautology.from(thm)
+            terms.foreach { t =>
+              fact.statement.right.head match
+                case forall(qv, phi) =>
+                  fact = have(phi.substituteUnsafe(Map(qv -> t)).asInstanceOf[Expr[Prop]]) by
+                    InstantiateForall(t)(fact)
+                case _ => ()
+            }
+          def typeProof(p: RPat, ty: Ty): sp.Fact =
+            val goal = termOf(p, ty) :: ty._1.termAt(ty._2)
+            p match
+              case RVar(_) => have(goal) by Tautology // inner-binder typing from the branch premises
+              case RCon(c, args) =>
+                val cts = childTypes(c, ty._2)
+                val argFacts = args.zip(cts).map((a, t) => typeProof(a, t.get))
+                val intro = if ty._2.isEmpty then c.introApp else c.introApp(ty._2.head, ty._2.tail*)
+                val substs = c.semantic.variables.zip(args.map(termOf(_, ty))).map((v, t) => v := t)
+                val introInst: sp.Fact = if substs.isEmpty then intro else intro.of(substs*)
+                have(goal) by Tautology.from((introInst +: argFacts)*)
+          def disprove(p: RPat, q: RPat, ty: Ty, path: List[Int]): Unit =
+            val tpc = termOf(p, ty); val tqc = termOf(q, ty)
+            (p, q) match
+              case (RCon(c, as), RCon(d, bs)) if path.isEmpty =>
+                val ctsC = childTypes(c, ty._2); val ctsD = childTypes(d, ty._2)
+                instAll(crossInj(ty._1, c, d, ty._2), as.zip(ctsC).map((a, t) => termOf(a, t.get)) ++ bs.zip(ctsD).map((b, t) => termOf(b, t.get)))
+                val injInst = lastStep
+                val tys = as.zip(ctsC).map((a, t) => typeProof(a, t.get)) ++ bs.zip(ctsD).map((b, t) => typeProof(b, t.get))
+                have(!(tpc === tqc)) by Tautology.from((injInst +: tys)*)
+              case (RCon(c, as), RCon(_, bs)) =>
+                val i = path.head; val cts = childTypes(c, ty._2)
+                disprove(as(i), bs(i), cts(i).get, path.tail)
+                val argDiseq = lastStep
+                instAll(sameInj(c, ty._2), as.zip(cts).map((a, t) => termOf(a, t.get)) ++ bs.zip(cts).map((b, t) => termOf(b, t.get)))
+                val injInst = lastStep
+                val tys = as.zip(cts).map((a, t) => typeProof(a, t.get)) ++ bs.zip(cts).map((b, t) => typeProof(b, t.get))
+                have(!(tpc === tqc)) by Tautology.from((injInst +: argDiseq +: tys)*)
+              case _ => throw new IllegalArgumentException("disprove: malformed path.")
+
+          // --- outer structure (mirrors the existing incompatible) ---
+          val t0 = Time.get()
+          val branch = assume(p1.branchPremise1 /\ p2.freshBranchPremise)
+          val branch1Typed = have(p1.branchPremise1) by Tautology.from(branch)
+          val branch2Typed = have(p2.freshBranchPremise) by Tautology.from(branch)
+          assume(p1.inputTerm1 === p2.inputTerm2)
+          val inputsEqual = have(p1.inputTerm1 === p2.inputTerm2) by Hypothesis
+
+          val t1 = Time.get()
+          val ctorInj = constructorInjectivity(p1)
+          val injectivitySchema = have(ctorInj.statement.right.head) by Tautology.from(ctorInj)
+          var injectivityAtVars = injectivitySchema
+          for v <- p1.variables1.take(p1.arity) ++ p2.variables2.take(p2.arity) do
+            injectivityAtVars.statement.right.head match
               case forall(qv, phi) =>
-                fact = have(phi.substituteUnsafe(Map(qv -> t)).asInstanceOf[Expr[Prop]]) by
-                  InstantiateForall(t)(fact)
+                injectivityAtVars = have(phi.substituteUnsafe(Map(qv -> v)).asInstanceOf[Expr[Prop]]) by
+                  InstantiateForall(v)(injectivityAtVars)
               case _ => ()
-          }
-        def typeProof(p: RPat, ty: Ty): sp.Fact =
-          val goal = termOf(p, ty) :: ty._1.termAt(ty._2)
-          p match
-            case RVar(_) => have(goal) by Tautology // inner-binder typing from the branch premises
-            case RCon(c, args) =>
-              val cts = childTypes(c, ty._2)
-              val argFacts = args.zip(cts).map((a, t) => typeProof(a, t.get))
-              val intro = if ty._2.isEmpty then c.introApp else c.introApp(ty._2.head, ty._2.tail*)
-              val substs = c.semantic.variables.zip(args.map(termOf(_, ty))).map((v, t) => v := t)
-              val introInst: sp.Fact = if substs.isEmpty then intro else intro.of(substs*)
-              have(goal) by Tautology.from((introInst +: argFacts)*)
-        def disprove(p: RPat, q: RPat, ty: Ty, path: List[Int]): Unit =
-          val tpc = termOf(p, ty); val tqc = termOf(q, ty)
-          (p, q) match
-            case (RCon(c, as), RCon(d, bs)) if path.isEmpty =>
-              val ctsC = childTypes(c, ty._2); val ctsD = childTypes(d, ty._2)
-              instAll(crossInj(ty._1, c, d, ty._2), as.zip(ctsC).map((a, t) => termOf(a, t.get)) ++ bs.zip(ctsD).map((b, t) => termOf(b, t.get)))
-              val injInst = lastStep
-              val tys = as.zip(ctsC).map((a, t) => typeProof(a, t.get)) ++ bs.zip(ctsD).map((b, t) => typeProof(b, t.get))
-              have(!(tpc === tqc)) by Tautology.from((injInst +: tys)*)
-            case (RCon(c, as), RCon(_, bs)) =>
-              val i = path.head; val cts = childTypes(c, ty._2)
-              disprove(as(i), bs(i), cts(i).get, path.tail)
-              val argDiseq = lastStep
-              instAll(sameInj(c, ty._2), as.zip(cts).map((a, t) => termOf(a, t.get)) ++ bs.zip(cts).map((b, t) => termOf(b, t.get)))
-              val injInst = lastStep
-              val tys = as.zip(cts).map((a, t) => typeProof(a, t.get)) ++ bs.zip(cts).map((b, t) => typeProof(b, t.get))
-              have(!(tpc === tqc)) by Tautology.from((injInst +: argDiseq +: tys)*)
-            case _ => throw new IllegalArgumentException("disprove: malformed path.")
 
-        // --- outer structure (mirrors the existing incompatible) ---
-        val branch = assume(p1.branchPremise1 /\ p2.freshBranchPremise)
-        val branch1Typed = have(p1.branchPremise1) by Tautology.from(branch)
-        val branch2Typed = have(p2.freshBranchPremise) by Tautology.from(branch)
-        assume(p1.inputTerm1 === p2.inputTerm2)
-        val inputsEqual = have(p1.inputTerm1 === p2.inputTerm2) by Hypothesis
+          val t2 = Time.get()
+          val guardedArgsEqual = have(guard1.binder === guard2.binder) by
+            Tautology.from(injectivityAtVars, branch1Typed, branch2Typed, inputsEqual)
+          val guard1Eq = have(guard1.binder === guard1.guardTerm) by Tautology.from(branch1Typed)
+          val guard2Eq = have(guard2.binder === guard2.guardTerm) by Tautology.from(branch2Typed)
+          val guard1EqRev = have(guard1.guardTerm === guard1.binder) by Congruence.from(guard1Eq)
+          val guard1ToGuard2Binder =
+            have(guard1.guardTerm === guard2.binder) by Tautology.from(altEqualityTransitivity of (x := guard1.guardTerm, y := guard1.binder, z := guard2.binder), guard1EqRev, guardedArgsEqual)
+          val guardTermsEqual =
+            have(guard1.guardTerm === guard2.guardTerm) by Tautology.from(altEqualityTransitivity of (x := guard1.guardTerm, y := guard2.binder, z := guard2.guardTerm), guard1ToGuard2Binder, guard2Eq)
+          val t4 = Time.get()
 
-        val ctorInj = constructorInjectivity(p1)
-        val injectivitySchema = have(ctorInj.statement.right.head) by Tautology.from(ctorInj)
-        var injectivityAtVars = injectivitySchema
-        for v <- p1.variables1.take(p1.arity) ++ p2.variables2.take(p2.arity) do
-          injectivityAtVars.statement.right.head match
-            case forall(qv, phi) =>
-              injectivityAtVars = have(phi.substituteUnsafe(Map(qv -> v)).asInstanceOf[Expr[Prop]]) by
-                InstantiateForall(v)(injectivityAtVars)
-            case _ => ()
+          // the new part: guard terms are distinct by the recursive peel
+          val rp1 = parse(guard1.guardTerm); val rp2 = parse(guard2.guardTerm)
+          val t5 = Time.get()
+          Time.register("part 0", t0 - t00)
+          Time.register("part 1", t1 - t0)
+          Time.register("part 2", t2 - t1)
+          Time.register("part 3", t4 - t2)
+          Time.register("part 4", t5 - t4)
 
-        val guardedArgsEqual = have(guard1.binder === guard2.binder) by
-          Tautology.from(injectivityAtVars, branch1Typed, branch2Typed, inputsEqual)
-        val guard1Eq = have(guard1.binder === guard1.guardTerm) by Tautology.from(branch1Typed)
-        val guard2Eq = have(guard2.binder === guard2.guardTerm) by Tautology.from(branch2Typed)
-        val guard1EqRev = have(guard1.guardTerm === guard1.binder) by Congruence.from(guard1Eq)
-        val guard1ToGuard2Binder =
-          have(guard1.guardTerm === guard2.binder) by Tautology.from(altEqualityTransitivity of (x := guard1.guardTerm, y := guard1.binder, z := guard2.binder), guard1EqRev, guardedArgsEqual)
-        val guardTermsEqual =
-          have(guard1.guardTerm === guard2.guardTerm) by Tautology.from(altEqualityTransitivity of (x := guard1.guardTerm, y := guard2.binder, z := guard2.guardTerm), guard1ToGuard2Binder, guard2Eq)
-
-        // the new part: guard terms are distinct by the recursive peel
-        val rp1 = parse(guard1.guardTerm); val rp2 = parse(guard2.guardTerm)
-        disprove(rp1, rp2, guardTy, guardPath)
-        have(thesis) by Tautology.from(guardTermsEqual, lastStep)
+          Time.measure("disprove")(disprove(rp1, rp2, guardTy, guardPath))
+          have(thesis) by Tautology.from(guardTermsEqual, lastStep)
+        }}
       }
 
   // ════════════════════════════════════════════════════════════════════════

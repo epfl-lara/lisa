@@ -9,10 +9,66 @@ import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers._
+import lisa.utils.prooflib.BasicStepTactic.Cut
 import lisa.utils.prooflib.BasicStepTactic.Restate
+import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[proofs] trait WitnessBranchMembership[N <: Arity] extends WitnessProofContext[N] {
+
+  // Pointwise membership equivalence for `witness`, proved once over fresh
+  // `inputTerm`/`outputTerm` and instantiated per pattern below (and reused by
+  // `WitnessFunctionProofs`) so the `Comprehension.membership` / `witnessDef`
+  // rewrite is not re-derived in every branch lemma.
+  protected val witnessMembershipExpanded: THM = Lemma(
+    ∀(
+      inputTerm,
+      ∀(
+        outputTerm,
+        pair(inputTerm, outputTerm) ∈ witness <=>
+          (pair(inputTerm, outputTerm) ∈ witnessBound /\ caseMembership(pair(inputTerm, outputTerm)))
+      )
+    )
+  ) {
+    val pairTerm = pair(inputTerm, outputTerm)
+
+    have(
+      pairTerm ∈ witnessBody <=> (pairTerm ∈ witnessBound /\ caseMembership(pairTerm))
+    ) by Restate.from(
+      Comprehension.membership of (
+        x := pairTerm,
+        y := witnessBound,
+        φ := λ(pairWitness, caseMembership(pairWitness))
+      )
+    )
+
+    val pointwise = have(
+      pairTerm ∈ witness <=>
+        (pairTerm ∈ witnessBound /\ caseMembership(pairTerm))
+    ) by Congruence.from(witnessDef, lastStep)
+
+    val quantified = have(
+      ∀(
+        inputTerm,
+        ∀(
+          outputTerm,
+          pair(inputTerm, outputTerm) ∈ witness <=>
+            (pair(inputTerm, outputTerm) ∈ witnessBound /\ caseMembership(pair(inputTerm, outputTerm)))
+        )
+      )
+    ) subproof {
+      have(
+        ∀(
+          outputTerm,
+          pair(inputTerm, outputTerm) ∈ witness <=>
+            (pair(inputTerm, outputTerm) ∈ witnessBound /\ caseMembership(pair(inputTerm, outputTerm)))
+        )
+      ) by RightForall(pointwise)
+      thenHave(thesis) by RightForall
+    }
+
+    have(thesis) by Restate.from(quantified)
+  }
 
   val witnessMembershipByPattern: Map[Pattern[N], THM] =
     patternMatching.patterns
@@ -37,26 +93,21 @@ private[proofs] trait WitnessBranchMembership[N <: Arity] extends WitnessProofCo
             def proveAvailablePremise(required: Expr[Prop]) =
               if required == wellTypedArgs then have(wellTypedArgs |- required) by Hypothesis
               else if wellTypedPremises.contains(required) then
-                have(wellTypedArgs |- required) by Tautology.from(
+                have(wellTypedArgs |- required) by Weakening(
                   have(wellTypedArgs |- wellTypedArgs) by Hypothesis
                 )
               else
-                contextPremises.find(_ == required) match
-                  case Some(_) =>
-                    contextHyp match
-                      case Some(hyp) =>
-                        have(wellTypedArgs |- required) by Tautology.from(
-                          hyp,
-                          have(wellTypedArgs |- wellTypedArgs) by Hypothesis
-                        )
-                      case None =>
-                        throw IllegalArgumentException(
-                          s"Premise $required requires a non-empty contextual assumption."
-                        )
-                  case None =>
-                    throw IllegalArgumentException(
-                      s"Unsupported typing premise in CaseDefinedWitness: $required"
-                    )
+                contextPremises.find(_ == required).getOrElse(
+                  throw IllegalArgumentException(
+                    s"Unsupported typing premise in CaseDefinedWitness: $required"
+                  )
+                )
+                val hyp = contextHyp.getOrElse(
+                  throw IllegalArgumentException(
+                    s"Premise $required requires a non-empty contextual assumption."
+                  )
+                )
+                have(wellTypedArgs |- required) by Weakening(hyp)
 
             val inputTyping = have(wellTypedArgs |- pattern.inputTermAt(vars) :: argType) by
               Tautology.from(pattern.inputTypingAt(vars, argType))
@@ -81,7 +132,6 @@ private[proofs] trait WitnessBranchMembership[N <: Arity] extends WitnessProofCo
 
             val baseCaseBody =
               pattern.freshBranchPremise /\ (pairTerm === pair(pattern.freshInputTerm, pattern.bodyAtFreshVars2))
-            val ownCaseBranch = simplify(existsSeq(pattern.variables2, baseCaseBody))
 
             val fullyInstantiatedCaseBody = baseCaseBody
               .substitute(pattern.variables2.zip(vars).map((from, to) => from := to)*)
@@ -89,7 +139,7 @@ private[proofs] trait WitnessBranchMembership[N <: Arity] extends WitnessProofCo
 
             val ownBranchAtCurrentVars = have(
               wellTypedArgs |- fullyInstantiatedCaseBody
-            ) by Tautology.from(
+            ) by RightAnd(
               have(wellTypedArgs |- wellTypedArgs) by Hypothesis,
               have(wellTypedArgs |- pairTerm === pair(pattern.inputTermAt(vars), body)) by RightRefl
             )
@@ -108,10 +158,13 @@ private[proofs] trait WitnessBranchMembership[N <: Arity] extends WitnessProofCo
                   RightExists.withParameters(phi, quantifiedVar, witnessVar)(fact)
               )
 
-            val inOwnCaseBranch = have(wellTypedArgs |- ownCaseBranch) by
-              Tautology.from(inOwnCaseBranchRaw)
+            val ownCaseToMembership = have(
+              inOwnCaseBranchRaw.statement.right.head |- caseMembership(pairTerm)
+            ) by Restate
+
             val rawCaseMembership = have(wellTypedArgs |- caseMembership(pairTerm)) by
-              Tautology.from(inOwnCaseBranch)
+              Cut(inOwnCaseBranchRaw, ownCaseToMembership)
+
 
             have(
               pairTerm ∈ witnessBody <=> (pairTerm ∈ witnessBound /\ caseMembership(pairTerm))
@@ -130,21 +183,20 @@ private[proofs] trait WitnessBranchMembership[N <: Arity] extends WitnessProofCo
 
             val pairInBoundAndCase =
               have(wellTypedArgs |- pairTerm ∈ witnessBound /\ caseMembership(pairTerm)) by
-                Tautology.from(pairInBound, rawCaseMembership)
+                RightAnd(pairInBound, rawCaseMembership)
 
             have(wellTypedArgs |- pairTerm ∈ witness) by
               Tautology.from(witnessMembershipEq, pairInBoundAndCase)
             thenHave(wellTypedArgs ==> (pairTerm ∈ witness)) by
               RightImplies.withParameters(wellTypedArgs, pairTerm ∈ witness)
-            val core = thenHave(
+
+            thenHave(
               forallSeq(
                 vars,
                 pattern.branchPremiseAt(vars) ==> pair(pattern.inputTermAt(vars), body) ∈ witness
               )
             ) by QuantifiersIntro(vars)
-
-            if contextPremises.isEmpty then have(thesis) by Restate.from(core)
-            else have(thesis) by Tautology.from(contextHyp.get, core)
+            thenHave(thesis) by Restate
           })
         }
       )
