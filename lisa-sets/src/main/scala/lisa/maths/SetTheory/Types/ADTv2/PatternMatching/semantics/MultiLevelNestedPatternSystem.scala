@@ -45,14 +45,14 @@ private[PatternMatching] final case class MultiLevelNestedPatternSystem[N <: Ari
   override def supportsAutomaticCoverage: Boolean = false
 
   override lazy val coverage: THM =
-    Time.measure(s"Pattern/Coverage") {
+    Time.measure(s"MultiLevelNestedPatternSystem/Coverage") {
       NestedTrieProofs.coverageCaseShape((adt, targs), clauses, patterns)
     }
 
   override def incompatible(pattern1: Pattern[N], pattern2: Pattern[N]): THM =
     incompatibleCache.getOrElseUpdate(
       (pattern1, pattern2),
-      Time.measure(s"Pattern/Incompatible") {
+      Time.measure(s"MultiLevelNestedPatternSystem/Incompatible") {
         NestedTrieProofs.incompatibleCaseShape(
           pattern1.asInstanceOf[NestedConstructorPattern[?]],
           pattern2.asInstanceOf[NestedConstructorPattern[?]]

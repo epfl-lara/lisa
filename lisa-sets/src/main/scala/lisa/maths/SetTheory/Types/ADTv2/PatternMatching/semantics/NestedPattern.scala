@@ -462,7 +462,7 @@ private[PatternMatching] final case class NestedPatternSystem[N <: Arity](
 
   override def supportsAutomaticCoverage: Boolean = false
 
-  override lazy val coverage: THM = Time.measure(s"Pattern/Coverage") {
+  override lazy val coverage: THM = Time.measure(s"NestedPatternSystem/Coverage") {
     val coveredTerm = variable[Ind]
     val specializedDomainTerm = specializedAdtTerm
     val specializedDomainElim = domainElim()
@@ -641,7 +641,7 @@ private[PatternMatching] final case class NestedPatternSystem[N <: Arity](
   override def incompatible(pattern1: Pattern[N], pattern2: Pattern[N]): THM =
     incompatibleCache.getOrElseUpdate(
       (pattern1, pattern2),
-      Time.measure(s"Pattern/Incompatible") {
+      Time.measure(s"NestedPattern/Incompatible") {
         require(pattern1 != pattern2, "incompatible is only meaningful for distinct patterns.")
         val constructorPattern1 = pattern1 match
           case pattern: NestedConstructorPattern[N] => pattern
