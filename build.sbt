@@ -78,6 +78,13 @@ lazy val kernelcf = Project(
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % "test"
   )
 
+lazy val utilcfs = Project(
+  id = "lisa-utilcfs",
+  base = file("lisa-utilcfs")
+)
+  .settings(commonSettings3)
+  .dependsOn(kernelcf)
+
 lazy val sets = Project(
   id = "lisa-sets",
   base = file("lisa-sets")
