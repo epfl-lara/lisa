@@ -3,6 +3,7 @@ package lisa.utilcfs.prooflib
 import lisa.kernelcf.{proof => K}
 import lisa.utilcfs.fol.FOL.*
 import lisa.utilcfs.collection.Extensions.{*, given}
+import lisa.utilcfs.prooflib.Helpers.*
 
 object BasicStep:
 
