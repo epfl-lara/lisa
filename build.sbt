@@ -16,7 +16,7 @@ ThisBuild / semanticdbEnabled := true
 ThisBuild / semanticdbVersion := "4.13.6"
 
 val scala2 = "2.13.16"
-val scala3 = "3.7.2"
+val scala3 = "3.8.4"
 val commonSettings = Seq(
   crossScalaVersions := Seq(scala3),
   run / fork := true
