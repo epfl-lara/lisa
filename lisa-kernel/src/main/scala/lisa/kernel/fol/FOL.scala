@@ -8,4 +8,4 @@ import lisa.kernel.fol.OLEquivalenceChecker
  * import lisa.utils.fol.FOL._
  * }}}
  */
-object FOL extends OLEquivalenceChecker {}
+object FOL extends OLEquivalenceChecker

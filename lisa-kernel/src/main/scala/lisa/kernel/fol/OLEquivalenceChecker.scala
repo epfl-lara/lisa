@@ -1,7 +1,5 @@
 package lisa.kernel.fol
 
-import lisa.kernel.fol.Syntax
-
 import scala.collection.mutable
 
 private[fol] trait OLEquivalenceChecker extends Syntax {
@@ -272,7 +270,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   /**
    * Polar version of [[Lambda]] for a lambda abstraction.
    */
-  case class SimpleLambda(v: Variable, body: SimpleExpression) extends SimpleExpression {
+  case class SimpleLambda(body: SimpleExpression)(val v: Variable) extends SimpleExpression {
     val containsFormulas: Boolean = body.containsFormulas
     val sort = (v.sort -> body.sort)
   }
@@ -288,7 +286,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   /**
    * Polar version of [[Forall]]```Lambda(_, _)``` for a universal quantification.
    */
-  case class SimpleForall(id: Identifier, body: SimpleExpression, polarity: Boolean) extends SimpleExpression {
+  case class SimpleForall(body: SimpleExpression, polarity: Boolean)(val id: Identifier) extends SimpleExpression {
     val containsFormulas: Boolean = true
     val sort = Prop
   }
@@ -317,7 +315,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
     case None =>
       val inverse = e match {
         case e: SimpleAnd => e.copy(polarity = !e.polarity)
-        case e: SimpleForall => e.copy(polarity = !e.polarity)
+        case e: SimpleForall => e.copy(polarity = !e.polarity)(e.id)
         case e: SimpleLiteral => e.copy(polarity = !e.polarity)
         case e: SimpleEquality => e.copy(polarity = !e.polarity)
         case e: SimpleVariable if e.sort == Prop => e.copy(polarity = !e.polarity)
@@ -340,8 +338,8 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
         case SimpleAnd(children, polarity) =>
           val f = children.map(toExpressionAIG).reduceLeft(and(_)(_))
           if (polarity) f else neg(f)
-        case SimpleForall(x, body, polarity) =>
-          val f = forall(Lambda(Variable(x, Ind), toExpressionAIG(body)))
+        case sf @ SimpleForall(body, polarity) =>
+          val f = forall(Lambda(Variable(sf.id, Ind), toExpressionAIG(body)))
           if (polarity) f else neg(f)
         case SimpleEquality(left, right, polarity) =>
           val f = equality(toExpressionAIG(left))(toExpressionAIG(right))
@@ -356,7 +354,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
             g
           else
             neg(g)
-        case SimpleLambda(v, body) => Lambda(v, toExpressionAIG(body))
+        case sl @ SimpleLambda(body) => Lambda(sl.v, toExpressionAIG(body))
       }
       e.formulaAIG = Some(r)
       r
@@ -379,11 +377,11 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
           children.map(toExpressionNNF(_, true)).reduceLeft(and(_)(_))
         else
           children.map(toExpressionNNF(_, false)).reduceLeft(or(_)(_))
-      case SimpleForall(x, body, polarity) =>
+      case sf @ SimpleForall(body, polarity) =>
         if (positive == polarity)
-          forall(Lambda(Variable(x, Ind), toExpressionNNF(body, true))) // rebuilding variable not ideal
+          forall(Lambda(Variable(sf.id, Ind), toExpressionNNF(body, true))) // rebuilding variable not ideal
         else
-          exists(Lambda(Variable(x, Ind), toExpressionNNF(body, false)))
+          exists(Lambda(Variable(sf.id, Ind), toExpressionNNF(body, false)))
       case SimpleEquality(left, right, polarity) =>
         if (positive == polarity)
           equality(toExpressionNNF(left, true))(toExpressionNNF(right, true))
@@ -404,7 +402,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
           Application(toExpressionNNF(f, true), toExpressionNNF(arg, true))
         else
           neg(Application(toExpressionNNF(f, true), toExpressionNNF(arg, true)))
-      case SimpleLambda(v, body) => Lambda(v, toExpressionNNF(body, true))
+      case sl @ SimpleLambda(body) => Lambda(sl.v, toExpressionNNF(body, true))
     }
     if (positive) e.NNF_pos = Some(r)
     else e.NNF_neg = Some(r)
@@ -443,22 +441,22 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
         case or(arg1, arg2) =>
           SimpleAnd(Seq(polarize(arg1, false), polarize(arg2, false)), !polarity)
         case forall(Lambda(v, body)) =>
-          SimpleForall(v.id, polarize(body, true), polarity)
+          SimpleForall(polarize(body, true), polarity)(v.id)
         case forall(p) =>
           val fresh = freshId(p.freeVariables.map(_.id), Identifier("x", 0))
           val newInner = polarize(Application(p, Variable(fresh, Ind)), true)
-          SimpleForall(fresh, newInner, polarity)
+          SimpleForall(newInner, polarity)(fresh)
         case exists(Lambda(v, body)) =>
-          SimpleForall(v.id, polarize(body, false), !polarity)
+          SimpleForall(polarize(body, false), !polarity)(v.id)
         case exists(p) =>
           val fresh = freshId(p.freeVariables.map(_.id), Identifier("x", 0))
           val newInner = polarize(Application(p, Variable(fresh, Ind)), false)
-          SimpleForall(fresh, newInner, !polarity)
+          SimpleForall(newInner, !polarity)(fresh)
         case equality(arg1, arg2) =>
           SimpleEquality(polarize(arg1, true), polarize(arg2, true), polarity)
         case Application(f, arg) =>
           SimpleApplication(polarize(f, true), polarize(arg, true), polarity)
-        case Lambda(v, body) => SimpleLambda(v, polarize(body, true))
+        case Lambda(v, body) => SimpleLambda(polarize(body, true))(v)
         case `top` => SimpleLiteral(polarity)
         case `bot` => SimpleLiteral(!polarity)
         case Constant(id, sort) => SimpleConstant(id, sort, polarity)
@@ -479,14 +477,14 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
       case None =>
         val r = e match {
           case SimpleAnd(children, polarity) => SimpleAnd(children.map(toLocallyNameless), polarity)
-          case SimpleForall(x, inner, polarity) => SimpleForall(x, toLocallyNameless2(inner, Map((x, Ind) -> 0), 1), polarity)
+          case sf @ SimpleForall(inner, polarity) => SimpleForall(toLocallyNameless2(inner, Map((sf.id, Ind) -> 0), 1), polarity)(sf.id)
           case e: SimpleLiteral => e
           case SimpleEquality(left, right, polarity) => SimpleEquality(toLocallyNameless(left), toLocallyNameless(right), polarity)
           case v: SimpleVariable => v
           case s: SimpleBoundVariable => throw new Exception("This case should be unreachable. Can't call toLocallyNameless on a bound variable")
           case e: SimpleConstant => e
           case SimpleApplication(arg1, arg2, polarity) => SimpleApplication(toLocallyNameless(arg1), toLocallyNameless(arg2), polarity)
-          case SimpleLambda(x, inner) => SimpleLambda(x, toLocallyNameless2(inner, Map((x.id, Ind) -> 0), 1))
+          case sl @ SimpleLambda(inner) => SimpleLambda(toLocallyNameless2(inner, Map((sl.v.id, Ind) -> 0), 1))(sl.v)
         }
         toLocallyNameless2(e, Map.empty, 0)
         e.namelessForm = Some(r)
@@ -499,7 +497,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
    */
   def toLocallyNameless2(e: SimpleExpression, subst: Map[(Identifier, Sort), Int], i: Int): SimpleExpression = e match {
     case SimpleAnd(children, polarity) => SimpleAnd(children.map(toLocallyNameless2(_, subst, i)), polarity)
-    case SimpleForall(x, inner, polarity) => SimpleForall(x, toLocallyNameless2(inner, subst + ((x, Ind) -> i), i + 1), polarity)
+    case sf @ SimpleForall(inner, polarity) => SimpleForall(toLocallyNameless2(inner, subst + ((sf.id, Ind) -> i), i + 1), polarity)(sf.id)
     case e: SimpleLiteral => e
     case SimpleEquality(left, right, polarity) => SimpleEquality(toLocallyNameless2(left, subst, i), toLocallyNameless2(right, subst, i), polarity)
     case v: SimpleVariable =>
@@ -508,7 +506,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
     case s: SimpleBoundVariable => throw new Exception("This case should be unreachable. Can't call toLocallyNameless on a bound variable")
     case e: SimpleConstant => e
     case SimpleApplication(arg1, arg2, polarity) => SimpleApplication(toLocallyNameless2(arg1, subst, i), toLocallyNameless2(arg2, subst, i), polarity)
-    case SimpleLambda(x, inner) => SimpleLambda(x, toLocallyNameless2(inner, subst + ((x.id, x.sort) -> i), i + 1))
+    case sl @ SimpleLambda(inner) => SimpleLambda(toLocallyNameless2(inner, subst + ((sl.v.id, sl.v.sort) -> i), i + 1))(sl.v)
   }
 
   /**
@@ -517,7 +515,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
    */
   def fromLocallyNameless(e: SimpleExpression, subst: Map[Int, (Identifier, Sort)], i: Int): SimpleExpression = e match {
     case SimpleAnd(children, polarity) => SimpleAnd(children.map(fromLocallyNameless(_, subst, i)), polarity)
-    case SimpleForall(x, inner, polarity) => SimpleForall(x, fromLocallyNameless(inner, subst + (i -> (x, Ind)), i + 1), polarity)
+    case sf @ SimpleForall(inner, polarity) => SimpleForall(fromLocallyNameless(inner, subst + (i -> (sf.id, Ind)), i + 1), polarity)(sf.id)
     case e: SimpleLiteral => e
     case SimpleEquality(left, right, polarity) => SimpleEquality(fromLocallyNameless(left, subst, i), fromLocallyNameless(right, subst, i), polarity)
     case SimpleBoundVariable(no, sort, polarity) =>
@@ -527,7 +525,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
     case v: SimpleVariable => v
     case e: SimpleConstant => e
     case SimpleApplication(arg1, arg2, polarity) => SimpleApplication(fromLocallyNameless(arg1, subst, i), fromLocallyNameless(arg2, subst, i), polarity)
-    case SimpleLambda(x, inner) => SimpleLambda(x, fromLocallyNameless(inner, subst + (i -> (x.id, x.sort)), i + 1))
+    case sl @ SimpleLambda(inner) => SimpleLambda(fromLocallyNameless(inner, subst + (i -> (sl.v.id, sl.v.sort)), i + 1))(sl.v)
   }
 
   /**
@@ -571,13 +569,13 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
             else if (l.uniqueKey >= r.uniqueKey) SimpleEquality(l, r, true)
             else SimpleEquality(r, l, true)
 
-          case SimpleForall(id, body, true) =>
+          case sf @ SimpleForall(body, true) =>
             val inner = computeNormalForm(body)
             if (inner == SimpleLiteral(true)) SimpleLiteral(true)
             else if (inner == SimpleLiteral(false)) SimpleLiteral(false)
-            else SimpleForall(id, inner, true)
+            else SimpleForall(inner, true)(sf.id)
 
-          case SimpleLambda(v, body) => SimpleLambda(v, computeNormalForm(body))
+          case sl @ SimpleLambda(body) => SimpleLambda(computeNormalForm(body))(sl.v)
 
           case SimpleLiteral(polarity) => e
 
@@ -675,7 +673,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
             case (SimpleEquality(l1, r1, pol1), SimpleEquality(l2, r2, pol2)) =>
               pol1 == pol2 && ((latticesEQ(l1, l2) && latticesEQ(r1, r2)) || (latticesEQ(l1, r2) && latticesEQ(r1, l2)))
 
-            case (SimpleForall(x1, body1, polarity1), SimpleForall(x2, body2, polarity2)) =>
+            case (SimpleForall(body1, polarity1), SimpleForall(body2, polarity2)) =>
               polarity1 == polarity2 && (if (polarity1) latticesLEQ(body1, body2) else latticesLEQ(body2, body1))
 
             // Usual lattice conjunction/disjunction cases
@@ -720,7 +718,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
         case (s1: SimpleConstant, s2: SimpleConstant) => s1 == s2
         case (SimpleApplication(f1, arg1, polarity1), SimpleApplication(f2, arg2, polarity2)) =>
           polarity1 == polarity2 && latticesEQ(f1, f2) && latticesEQ(arg1, arg2)
-        case (SimpleLambda(x1, body1), SimpleLambda(x2, body2)) =>
+        case (SimpleLambda(body1), SimpleLambda(body2)) =>
           latticesEQ(body1, body2)
         case (_, _) => false
       }
