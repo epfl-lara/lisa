@@ -41,38 +41,42 @@ sealed trait Step:
   type ErrorType <: ProofError
   type Result[+T] = Either[ErrorType, T]
 
+
 ///////////////////////////////////////////////////////////////////////////////
 // Equality and Set Helpers
 ///////////////////////////////////////////////////////////////////////////////
+object Helpers:
 
-/**
- * The chosen equality for general checks in proof steps.
- *
- * Syntactic equality is expected to be sound, but strong algorithms
- * are fine and increase the expressiveness of steps.
- */
-private inline def expEq(s: Expression, t: Expression): Boolean =
-  // s == t // syntactic eq
-  isSame(s, t) // OL eq
-  // or some other eq...
+  /**
+   * The chosen equality for general checks in proof steps.
+   *
+   * Syntactic equality is expected to be sound, but strong algorithms
+   * are fine and increase the expressiveness of steps.
+   */
+  inline def expEq(s: Expression, t: Expression): Boolean =
+    // s == t // syntactic eq
+    isSame(s, t) // OL eq
+    // or some other eq...
 
-extension (set: Set[Expression])
-  inline def containsEq(formula: Expression): Boolean =
-    set.contains(formula) || set.exists(expEq(_, formula))
+  extension (set: Set[Expression])
+    inline def containsEq(formula: Expression): Boolean =
+      set.contains(formula) || set.exists(expEq(_, formula))
 
-  inline def subsetOfEq(target: Set[Expression]): Boolean =
-    set.forall(target.map(simpleReducedForm).containsSimple)
+    inline def subsetOfEq(target: Set[Expression]): Boolean =
+      set.forall(target.map(simpleReducedForm).containsSimple)
 
-  inline def containedExcept(target: Set[Expression], exception: Expression): Boolean =
-    val simplifiedTarget = target.map(simpleReducedForm)
-    set.forall(formula => simplifiedTarget.containsSimple(formula) || expEq(formula, exception))
+    inline def containedExcept(target: Set[Expression], exception: Expression): Boolean =
+      val simplifiedTarget = target.map(simpleReducedForm)
+      set.forall(formula => simplifiedTarget.containsSimple(formula) || expEq(formula, exception))
 
-  inline def containedExceptEither(target: Set[Expression], exception1: Expression, exception2: Expression): Boolean =
-    set.forall(formula => target.contains(formula) || expEq(formula, exception1) || expEq(formula, exception2))
+    inline def containedExceptEither(target: Set[Expression], exception1: Expression, exception2: Expression): Boolean =
+      set.forall(formula => target.contains(formula) || expEq(formula, exception1) || expEq(formula, exception2))
 
-extension (set: Set[SimpleExpression])
-  inline private def containsSimple(expr: Expression): Boolean =
-    set.contains(simpleReducedForm(expr))
+  extension (set: Set[SimpleExpression])
+    inline private def containsSimple(expr: Expression): Boolean =
+      set.contains(simpleReducedForm(expr))
+
+import Helpers.*
 
 ///////////////////////////////////////////////////////////////////////////////
 // Proof Check Helpers
