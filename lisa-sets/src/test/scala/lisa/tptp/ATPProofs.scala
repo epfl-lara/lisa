@@ -12,8 +12,6 @@ import K.SCProofChecker
 
 class ATPProofs extends AnyFunSuite {
 
-  private val sources = getClass.getResource("/").getPath
-
   private val problems = Seq[(String, String)](
     // "p9_test_1.p" -> "prover9 test 1",
     // "p9_test_2.p" -> "prover9 test 2",
@@ -26,7 +24,8 @@ class ATPProofs extends AnyFunSuite {
   for (p <- problems) {
     test(p._2) {
       try {
-        val res = reconstructProof(File(s"$sources/${p._1}"))(using lisa.tptp.KernelParser.strictMapAtom, lisa.tptp.KernelParser.strictMapTerm, lisa.tptp.KernelParser.strictMapVariable)
+        val resource = getClass.getResource(s"/${p._1}")
+        val res = reconstructProof(File(resource.toURI))(using lisa.tptp.KernelParser.strictMapAtom, lisa.tptp.KernelParser.strictMapTerm, lisa.tptp.KernelParser.strictMapVariable)
         val judgement = SCProofChecker.checkSCProof(res)
         assert(judgement.isValid, K.prettySCProof(judgement))
       } catch {

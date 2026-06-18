@@ -1,34 +1,33 @@
-ThisBuild / version := "0.9.3"
-ThisBuild / homepage := Some(url("https://github.com/epfl-lara/lisa"))
-ThisBuild / startYear := Some(2021)
-ThisBuild / organization := "ch.epfl.lara"
-ThisBuild / organizationName := "LARA"
-ThisBuild / organizationHomepage := Some(url("https://lara.epfl.ch"))
-ThisBuild / licenses := Seq("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0.html"))
-ThisBuild / versionScheme := Some("semver-spec")
-ThisBuild / scalacOptions ++= Seq(
+version := "0.9.4"
+homepage := Some(url("https://github.com/epfl-lara/lisa"))
+startYear := Some(2021)
+organization := "ch.epfl.lara"
+organizationName := "LARA"
+organizationHomepage := Some(url("https://lara.epfl.ch"))
+licenses := Seq("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0.html"))
+versionScheme := Some("semver-spec")
+scalacOptions ++= Seq(
   "-feature",
   "-deprecation",
   "-unchecked"
 )
-ThisBuild / javacOptions ++= Seq("-encoding", "UTF-8")
-ThisBuild / semanticdbEnabled := true
-ThisBuild / semanticdbVersion := "4.13.6"
+javacOptions ++= Seq("-encoding", "UTF-8")
+semanticdbEnabled := true
+semanticdbVersion := "4.13.6"
+exportJars := false
+resolvers += "jitpack" at "https://jitpack.io"
 
-val scala2 = "2.13.16"
-val scala3 = "3.8.4"
-val commonSettings = Seq(
-  crossScalaVersions := Seq(scala3),
+val scala2Version = "2.13.16"
+val scala3Version = "3.8.4"
+val scalaTestVersion = "3.2.19"
+val tptpParserCommit = "0b4ffa55c71415e925080608707c78ada1d750e5"
+
+val commonProjectSettings = Seq(
   run / fork := true
 )
 
-val commonSettings2 = commonSettings ++ Seq(
-  scalaVersion := scala2,
-  scalacOptions ++= Seq("-Ypatmat-exhaust-depth", "50"),
-  libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % "test",
-)
-val commonSettings3 = commonSettings ++ Seq(
-  scalaVersion := scala3,
+val scala3ProjectSettings = Seq(
+  scalaVersion := scala3Version,
   scalacOptions ++= Seq(
     "-language:implicitConversions",
     "-Wconf:msg=.*is not declared infix*:silent",
@@ -36,66 +35,76 @@ val commonSettings3 = commonSettings ++ Seq(
     "-language:experimental.modularity"
   ),
   javaOptions += "-Xmx10G",
-  libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % "test",
-  libraryDependencies += "com.lihaoyi" %% "sourcecode" % "0.4.4",
+  libraryDependencies ++= Seq(
+    "org.scalatest" %% "scalatest" % scalaTestVersion % Test,
+    "com.lihaoyi" %% "sourcecode" % "0.4.4"
+  ),
   Test / parallelExecution := false,
   Test / fork := true
+)
+
+val allowScala2ProjectDependency = Seq(
+  allowMismatchScala := true
 )
 
 def withTests(project: Project): ClasspathDependency =
   project % "compile->compile;test->test"
 
-def githubProject(repo: String, commitHash: String) = RootProject(uri(s"$repo#$commitHash"))
-
-lazy val customTstpParser = githubProject("https://github.com/SC-TPTP/scala-tptp-parser.git", "0b4ffa55c71415e925080608707c78ada1d750e5")
-
 lazy val root = Project(
   id = "lisa",
   base = file(".")
 )
-  .settings(commonSettings3)
+  .settings(commonProjectSettings)
+  .settings(scala3ProjectSettings)
+  .settings(allowScala2ProjectDependency)
   .dependsOn(kernel, withTests(utils), withTests(sets)) // Everything but `examples`
   .aggregate(utils) // To run tests on all modules
 
-Compile / run := (sets / Compile / run).evaluated
+LocalRootProject / Compile / run := (sets / Compile / run).evaluated
 
 lazy val kernel = Project(
   id = "lisa-kernel",
   base = file("lisa-kernel")
 )
-  .settings(commonSettings2)
+  .settings(commonProjectSettings)
   .settings(
-    crossScalaVersions := Seq(scala3)
+    scalaVersion := scala2Version,
+    crossScalaVersions := Seq(scala3Version),
+    scalacOptions ++= Seq("-Ypatmat-exhaust-depth", "50"),
+    libraryDependencies += "org.scalatest" %% "scalatest" % scalaTestVersion % Test
   )
 
 lazy val sets = Project(
   id = "lisa-sets",
   base = file("lisa-sets")
 )
-  .settings(commonSettings3)
+  .settings(commonProjectSettings)
+  .settings(scala3ProjectSettings)
+  .settings(allowScala2ProjectDependency)
   .dependsOn(kernel, withTests(utils))
+
 lazy val utils = Project(
   id = "lisa-utils",
   base = file("lisa-utils")
 )
+  .settings(commonProjectSettings)
+  .settings(scala3ProjectSettings)
+  .settings(allowScala2ProjectDependency)
   .settings(
-    commonSettings3 ++ Seq(
-      libraryDependencies += "ch.epfl.lara" %% "scallion" % "0.6" from "https://github.com/epfl-lara/scallion/releases/download/v0.6/scallion_3-0.6.jar",
-      libraryDependencies += "ch.epfl.lara" %% "silex" % "0.6" from "https://github.com/epfl-lara/silex/releases/download/v0.6/silex_3-0.6.jar",
-      libraryDependencies += "com.lihaoyi" %% "mainargs" % "0.7.6"
+    libraryDependencies ++= Seq(
+      "com.lihaoyi" %% "mainargs" % "0.7.6",
+      "com.github.SC-TPTP" % "scala-tptp-parser_2.13" % tptpParserCommit
     )
   )
   .dependsOn(kernel)
-  .dependsOn(customTstpParser)
-//.settings(libraryDependencies += "io.github.leoprover" % "scala-tptp-parser_2.13" % "1.4")
 
-ThisBuild / assemblyMergeStrategy := {
+assemblyMergeStrategy := {
   case PathList("module-info.class") => MergeStrategy.discard
   case x if x.endsWith("/module-info.class") => MergeStrategy.discard
   case x if x.endsWith(".class") => MergeStrategy.first
   case x if x.endsWith(".tasty") => MergeStrategy.first
   case x =>
-    val oldStrategy = (ThisBuild / assemblyMergeStrategy).value
+    val oldStrategy = assemblyMergeStrategy.value
     oldStrategy(x)
 }
 
@@ -103,14 +112,14 @@ lazy val examples = Project(
   id = "lisa-examples",
   base = file("lisa-examples")
 )
-  .settings(commonSettings)
-  .settings(commonSettings3)
+  .settings(commonProjectSettings)
+  .settings(scala3ProjectSettings)
   .dependsOn(root)
 
 lazy val coc = Project(
   id = "lisa-coc",
   base = file("lisa-coc")
 )
-  .settings(commonSettings)
-  .settings(commonSettings3)
+  .settings(commonProjectSettings)
+  .settings(scala3ProjectSettings)
   .dependsOn(root)
