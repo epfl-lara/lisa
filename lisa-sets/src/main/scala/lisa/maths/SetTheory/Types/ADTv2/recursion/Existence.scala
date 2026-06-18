@@ -13,7 +13,6 @@ import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ApproximationChainFacts
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.LimitKernel
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.altEqualityTransitivity
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Cut
 import lisa.utils.prooflib.BasicStepTactic.LeftExists
@@ -219,39 +218,21 @@ private[recursion] final class Existence[N <: Arity](
       // n0 = limitIndex(a) mentions the free variable `a`, so we must not rebind
       // `a` here: take the lemma's conclusion verbatim (its bound variable is
       // already renamed away from `a`) and instantiate it at `a`.
-      val witnessAgreeLemma = witnessAgreement.witnessAgreementAtSucc.of(
-        witnessAgreement.leftFun := limitFun,
-        witnessAgreement.rightFun := G(n0),
-        witnessAgreement.nVar := n0
-      )
-      val witnessAgreeOnSucc = have(witnessAgreeLemma.statement.right.head) by Tautology.from(
-        witnessAgreeLemma,
-        limitHasType,
-        gN0HasType,
-        indexInN,
-        sliceAgreement
-      )
-      val witnessAgreeImpl = have(
-        (a ∈ app(heightFun)(S(n0))) ==> (app(recWitness(limitFun))(a) === app(recWitness(G(n0)))(a))
-      ) by InstantiateForall(a)(witnessAgreeOnSucc)
-      val witnessesAgreeAtA = have(
-        app(recWitness(limitFun))(a) === app(recWitness(G(n0)))(a)
-      ) by Tautology.from(witnessAgreeImpl, aInHeightSuccN0)
-
-      have(pointwiseGoal) by Tautology.from(
-        altEqualityTransitivity of (
-          x := app(recWitness(limitFun))(a),
-          y := app(recWitness(G(n0)))(a),
-          z := app(G(n0))(a)
-        ),
-        altEqualityTransitivity of (
-          x := app(recWitness(limitFun))(a),
-          y := app(G(n0))(a),
-          z := app(limitFun)(a)
-        ),
-        witnessesAgreeAtA,
-        gN0AtAEqWitness,
-        limitAtAEqGN0
+      // Chain: W(limit)(a) === W(G(n0))(a) === G(n0)(a) === limit(a), with the
+      // first link supplied by the witness agreement and the rest as bridges.
+      have(pointwiseGoal) by Restate.from(
+        witnessAgreement.witnessesAgreeAt(
+          lhs = limitFun,
+          rhs = G(n0),
+          index = n0,
+          lhsTyped = limitHasType,
+          rhsTyped = gN0HasType,
+          indexInN = indexInN,
+          sliceAgreement = sliceAgreement,
+          pointInHeightSucc = aInHeightSuccN0,
+          goal = pointwiseGoal,
+          bridges = Seq(gN0AtAEqWitness, limitAtAEqGN0)
+        )
       )
     }
 

@@ -83,7 +83,7 @@ private[recursion] final class WitnessAgreement[N <: Arity](
 
   private val agreeOnSlice = ∀(vVar ∈ app(heightFun)(nVar), app(leftFun)(vVar) === app(rightFun)(vVar))
 
-  val witnessAgreementAtSucc: THM = Time.measure(s"WA/witnessAgreementAtSucc")(
+  private val witnessAgreementAtSucc: THM = Time.measure(s"WA/witnessAgreementAtSucc")(
     Lemma(
       (
         leftFun :: spec.typ,
@@ -192,4 +192,48 @@ private[recursion] final class WitnessAgreement[N <: Arity](
       }
     }
   )
+
+  /** Specializes [[witnessAgreementAtSucc]] to the ambient point `a` and chains the
+    * resulting witness agreement `app(recWitness(lhs))(a) === app(recWitness(rhs))(a)`
+    * through the caller-supplied `bridges` to prove the equation `goal`.
+    *
+    * `goal` is the endpoint equation to prove; `bridges` are the remaining equalities
+    * that, together with the derived witness agreement, connect its two sides. A
+    * single `Congruence` closes the chain from those equality facts, so the bridges
+    * need no particular order or orientation.
+    *
+    * This packages both the four-step witness-agreement ritual (instantiate the
+    * lemma, discharge its premises, instantiate the `∀` at `a`, discharge the height
+    * membership) and the equational chaining shared by the limit step in `Existence`
+    * and the successor step in `ApproxProp`.
+    */
+  def witnessesAgreeAt(using proof: lisa.SetTheoryLibrary.Proof)(
+      lhs: Expr[Ind],
+      rhs: Expr[Ind],
+      index: Expr[Ind],
+      lhsTyped: proof.Fact,
+      rhsTyped: proof.Fact,
+      indexInN: proof.Fact,
+      sliceAgreement: proof.Fact,
+      pointInHeightSucc: proof.Fact,
+      goal: Expr[Prop],
+      bridges: Seq[proof.Fact]
+  ): proof.Fact = {
+    val lemma = witnessAgreementAtSucc.of(leftFun := lhs, rightFun := rhs, nVar := index)
+    val agreeOnSucc = have(lemma.statement.right.head) by Tautology.from(
+      lemma,
+      lhsTyped,
+      rhsTyped,
+      indexInN,
+      sliceAgreement
+    )
+    val impl = have(
+      (a ∈ app(heightFun)(S(index))) ==> (app(recWitness(lhs))(a) === app(recWitness(rhs))(a))
+    ) by InstantiateForall(a)(agreeOnSucc)
+    val witnessesAgreeAtA = have(
+      app(recWitness(lhs))(a) === app(recWitness(rhs))(a)
+    ) by Tautology.from(impl, pointInHeightSucc)
+
+    have(goal) by Congruence.from((bridges :+ witnessesAgreeAtA)*)
+  }
 }

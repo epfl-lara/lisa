@@ -8,7 +8,6 @@ import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeFormu
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.altEqualityTransitivity
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Cut
 import lisa.utils.prooflib.BasicStepTactic.RightForall
@@ -127,40 +126,21 @@ private[recursion] final class ApproxProp[N <: Arity](
 
             // The induction hypothesis `ih = P(n)` is exactly the slice-agreement premise of
             // WitnessAgreement.witnessAgreementAtSucc at leftFun := G(n), rightFun := G(Succ n).
-            val witnessAgreeOnSucc = have(
-              ∀(a ∈ app(heightFun)(S(nVar)), app(recWitness(G(nVar)))(a) === app(recWitness(G(S(nVar))))(a))
-            ) by Tautology.from(
-              witnessAgreement.witnessAgreementAtSucc.of(
-                witnessAgreement.leftFun := G(nVar),
-                witnessAgreement.rightFun := G(S(nVar)),
-                witnessAgreement.nVar := nVar
-              ),
-              gNHasType,
-              gSuccHasType,
-              nInN,
-              ih
-            )
-            val witnessAgreeImpl = have(
-              (a ∈ app(heightFun)(S(nVar))) ==> (app(recWitness(G(nVar)))(a) === app(recWitness(G(S(nVar))))(a))
-            ) by InstantiateForall(a)(witnessAgreeOnSucc)
-            val witnessesAgreeAtA = have(
-              app(recWitness(G(nVar)))(a) === app(recWitness(G(S(nVar))))(a)
-            ) by Tautology.from(witnessAgreeImpl, aInHeightSucc)
-
-            have(goalAtA) by Tautology.from(
-              altEqualityTransitivity of (
-                x := app(G(S(nVar)))(a),
-                y := app(recWitness(G(nVar)))(a),
-                z := app(G(S(S(nVar))))(a)
-              ),
-              altEqualityTransitivity of (
-                x := app(recWitness(G(nVar)))(a),
-                y := app(recWitness(G(S(nVar))))(a),
-                z := app(G(S(S(nVar))))(a)
-              ),
-              gSuccAtAIsWitness,
-              witnessesAgreeAtA,
-              witnessSuccAtARev
+            // Chain: G(Sn)(a) === W(Gn)(a) === W(G(Sn))(a) === G(SSn)(a), with the
+            // middle link supplied by the witness agreement and the rest as bridges.
+            have(goalAtA) by Restate.from(
+              witnessAgreement.witnessesAgreeAt(
+                lhs = G(nVar),
+                rhs = G(S(nVar)),
+                index = nVar,
+                lhsTyped = gNHasType,
+                rhsTyped = gSuccHasType,
+                indexInN = nInN,
+                sliceAgreement = ih,
+                pointInHeightSucc = aInHeightSucc,
+                goal = goalAtA,
+                bridges = Seq(gSuccAtAIsWitness, witnessSuccAtARev)
+              )
             )
           }
           have(
