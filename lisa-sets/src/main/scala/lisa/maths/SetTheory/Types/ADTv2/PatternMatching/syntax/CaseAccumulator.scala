@@ -3,11 +3,10 @@ package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.syntax
 import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.induction.InductionBranchSystemWithPayload
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.induction.PatternToInduction
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.ConstructorPattern
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.ConstructorPatternSystem
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.MultiLevelNestedPatternSystem
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.NestedConstructorPattern
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.NestedPatternSystem
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.constructor.ConstructorPattern
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.constructor.ConstructorPatternSystem
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.nested.NestedPatternSystem
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.nested.NestedConstructorPattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
 import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
 import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
@@ -130,31 +129,24 @@ class CaseAccumulator[N <: Arity, T, R](val comp: R) {
       typeSubstitutions: Seq[lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution],
       bodyAt: T => Expr[Ind]
   ): PatternSystem[N] =
-    val patterns = Time.measure(s"PatternSystem nested pattern extraction") {
-      underlying.toSeq.map { case (cons, args, body) =>
-        NestedConstructorPattern.fromArgs(
-          cons.semantic,
-          args.map {
-            case v: Variable[Ind] => Left(v)
-            case t => Right(t.substitute(typeSubstitutions*).asInstanceOf[Expr[Ind]])
-          },
-          bodyAt(body).substitute(typeSubstitutions*).asInstanceOf[Expr[Ind]],
-          typeSubstitutions,
-          adt.term
-        )
-      }
+    val patterns = underlying.toSeq.map { case (cons, args, body) =>
+      NestedConstructorPattern.fromArgs(
+        cons.semantic,
+        args.map {
+          case v: Variable[Ind] => Left(v)
+          case t => Right(t.substitute(typeSubstitutions*).asInstanceOf[Expr[Ind]])
+        },
+        bodyAt(body).substitute(typeSubstitutions*).asInstanceOf[Expr[Ind]],
+        typeSubstitutions,
+        adt.term
+      )
     }
+    
     // A non-nullary (deeply nested) guard ⇒ multi-level system; otherwise the
     // restricted nullary-split system (which also supports recursion).
-    val isMultiLevel = patterns.exists(_.guards.exists(_.resolvedNullary.isEmpty))
-    if isMultiLevel then
-      Time.measure(s"PatternSystem build MultiLevelNestedPatternSystem") {
-        MultiLevelNestedPatternSystem(adt.base.semantic, patterns, typeSubstitutions, adt.term)
-      }
-    else
-      Time.measure(s"PatternSystem build NestedPatternSystem") {
-        NestedPatternSystem(adt.base.semantic, patterns, typeSubstitutions, adt.term)
-      }
+    Time.measure(s"PatternSystem build NestedPatternSystem") {
+      NestedPatternSystem(adt.base.semantic, patterns, typeSubstitutions, adt.term)
+    }
 
   private def buildPatternSystem(
       adt: SpecializedADT[N],
@@ -168,17 +160,8 @@ class CaseAccumulator[N <: Arity, T, R](val comp: R) {
         args.exists(!_.isInstanceOf[Variable[Ind]])
       }
       val system =
-        if isNested then
-          Time.measure(s"PatternSystem build nested (${adt.base.name})") {
-            buildNestedSystem(adt, typeSubstitutions, bodyAt)
-          }
-        else
-          Time.measure(s"ConstructorPatternSystem building") {
-            buildConstructorSystem(adt, typeSubstitutions, bodyAt)
-          }
-      // Time.log(
-      //   s"${adt.base.name}: using ${system.getClass.getSimpleName} with ${system.patterns.size} pattern(s)."
-      // )
+        if isNested then buildNestedSystem(adt, typeSubstitutions, bodyAt)
+        else buildConstructorSystem(adt, typeSubstitutions, bodyAt)
       system
     }
 }

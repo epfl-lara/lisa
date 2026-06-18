@@ -1,13 +1,13 @@
-package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics
+package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.constructor
 
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticADT
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
 import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{ConstructorHeadPattern, Pattern, PatternSystem}
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.altEqualityTransitivity
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.ProofTacticLib.Arity
@@ -104,31 +104,16 @@ private[PatternMatching] final case class ConstructorPatternSystem[N <: Arity](
             case _ ==> consequent => have(consequent) by Tautology.from(p2ShortAtVars2, branch2Typed)
             case _ => throw UnreachableException
 
-          val p1StructuralToApplied = have(constructorPattern1.structuralTerm1 === constructorPattern1.inputTerm1) by
-            Congruence.from(p1StructuralEq)
-          val p1StructuralEqP2Applied = have(constructorPattern1.structuralTerm1 === constructorPattern2.inputTerm2) by
-            Tautology.from(
-              altEqualityTransitivity of (
-                x := constructorPattern1.structuralTerm1,
-                y := constructorPattern1.inputTerm1,
-                z := constructorPattern2.inputTerm2
-              ),
-              p1StructuralToApplied,
-              inputsEqual
-            )
-          val structuralEq = have(constructorPattern1.structuralTerm1 === constructorPattern2.structuralTerm2) by Tautology.from(
-            altEqualityTransitivity of (
-              x := constructorPattern1.structuralTerm1,
-              y := constructorPattern2.inputTerm2,
-              z := constructorPattern2.structuralTerm2
-            ),
-            p1StructuralEqP2Applied,
-            p2StructuralEq
+          val structuralEq = have(constructorPattern1.structuralTerm1 === constructorPattern2.structuralTerm2) by Congruence.from(
+            p1StructuralEq,
+            p2StructuralEq,
+            inputsEqual
           )
-          val structuralDifferent = have(!(constructorPattern1.structuralTerm1 === constructorPattern2.structuralTerm2)) by Tautology.from(
+
+          have(thesis) by Tautology.from(
+            structuralEq, 
             constructorPattern1.semanticConstructor.structuralDisjointness(constructorPattern2.semanticConstructor)
           )
-          have(thesis) by Tautology.from(structuralEq, structuralDifferent)
         }
       }
     )
