@@ -15,15 +15,15 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[recursion] final class LimitConstruction[N <: Arity](
     val spec: FunSpec[N],
-    val approx: Approx[N],
-    val approxProp: ApproxProp[N]
+    val approxSeq: ApproxSequence[N],
+    val approxStab: ApproxStabilization[N]
 ) {
 
   val nVar = variable[Ind]
   val mVar = variable[Ind]
   val kVar = variable[Ind]
-  import approx.G
-  import approxProp.{heightFun, heightFunValid, isHeightPred}
+  import approxSeq.G
+  import spec.{heightFun, heightFunValid, isHeightPred}
 
   private val termHasHeight = spec.adt.height.termHasHeightAt(spec.typeSubstitutions)
 
@@ -69,7 +69,7 @@ private[recursion] final class LimitConstruction[N <: Arity](
         val indexInN = have(limitIndex(a) ∈ N) by Tautology.from(indexWitness)
 
         val approxAtIndex = have(limitIndex(a) ∈ N ==> (G(limitIndex(a)) :: spec.typ)) by
-          InstantiateForall(limitIndex(a))(approx.approxHasType)
+          InstantiateForall(limitIndex(a))(approxSeq.approxHasType)
         val approxTyped = have(G(limitIndex(a)) :: spec.typ) by
           Tautology.from(indexInN, approxAtIndex)
 

@@ -205,7 +205,7 @@ private[recursion] final class WitnessAgreement[N <: Arity](
     * This packages both the four-step witness-agreement ritual (instantiate the
     * lemma, discharge its premises, instantiate the `∀` at `a`, discharge the height
     * membership) and the equational chaining shared by the limit step in `Existence`
-    * and the successor step in `ApproxProp`.
+    * and the successor step in `ApproxStabilization`.
     */
   def witnessesAgreeAt(using proof: lisa.SetTheoryLibrary.Proof)(
       lhs: Expr[Ind],

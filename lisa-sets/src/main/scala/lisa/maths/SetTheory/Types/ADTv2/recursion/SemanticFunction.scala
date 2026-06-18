@@ -33,13 +33,13 @@ final class SemanticFunction[N <: Arity](
         private val rawPatterns: Seq[Pattern[N]] = spec.cases
 
         private val witness: Witness[N] = Time.measure(s"Witness", false)(new Witness[N](spec))
-        private val approx = Time.measure(s"Approx", false)(new Approx[N](spec, witness))
+        private val approxSeq = Time.measure(s"ApproxSequence", false)(new ApproxSequence[N](spec, witness))
         private val witnessAgreement = Time.measure(s"WitnessAgreement", false)(new helpers.WitnessAgreement[N](spec, witness))
-        private val approxProp = Time.measure(s"ApproxProp", false)(new ApproxProp[N](spec, witness, approx, witnessAgreement))
-        private val limitConstruction = Time.measure(s"LimitConstruction", false)(new LimitConstruction[N](spec, approx, approxProp))
+        private val approxStab = Time.measure(s"ApproxStabilization", false)(new ApproxStabilization[N](spec, witness, approxSeq, witnessAgreement))
+        private val limitConstruction = Time.measure(s"LimitConstruction", false)(new LimitConstruction[N](spec, approxSeq, approxStab))
 
         def name: String = semanticName
-        val existence: Existence[N] = Time.measure(s"Existence", false)(new Existence[N](spec, witness, approx, approxProp, limitConstruction, witnessAgreement))
+        val existence: Existence[N] = Time.measure(s"Existence", false)(new Existence[N](spec, witness, approxSeq, approxStab, limitConstruction, witnessAgreement))
         val uniqueness: Uniqueness[N] = Time.measure(s"Uniqueness", false)(new Uniqueness[N](spec))
         def buildPatterns(term: Expr[Ind]): Seq[Pattern[N]] =
           rawPatterns.map(pattern => pattern.withBody(pattern.body.substitute(spec.selfPlaceholder := term)))

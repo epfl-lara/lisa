@@ -22,8 +22,8 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
 /**
  * Layer 3 — Existence without circularity.
  *
- * Delegates approximant construction to [[Approx]] and stabilization lemmas
- * to [[ApproxProp]], then proves:
+ * Delegates approximant construction to [[ApproxSequence]] and stabilization lemmas
+ * to [[ApproxStabilization]], then proves:
  *
  *   limitIsFixedPoint : W(limitFun) = limitFun
  *   fixedPointExists  : ∃f :: A→T, W(f) = f
@@ -36,8 +36,8 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
 private[recursion] final class Existence[N <: Arity](
     val spec: FunSpec[N],
     val recWitness: Witness[N],
-    val approx: Approx[N],
-    val approxProp: ApproxProp[N],
+    val approxSeq: ApproxSequence[N],
+    val approxStab: ApproxStabilization[N],
     val limitConstruction: LimitConstruction[N],
     val witnessAgreement: helpers.WitnessAgreement[N]
 ) extends ExistenceProof[N] {
@@ -47,8 +47,9 @@ private[recursion] final class Existence[N <: Arity](
   private val heightMembershipMonotonic = spec.adt.height.membershipMonotonicAt(spec.typeSubstitutions)
   private val termHasHeight = spec.adt.height.termHasHeightAt(spec.typeSubstitutions)
 
-  import approx.G
-  import approxProp.{heightFun, heightFunValid, isHeightPred, stabilization}
+  import approxSeq.G
+  import spec.{heightFun, heightFunValid, isHeightPred}
+  import approxStab.stabilization
   import limitConstruction.{limitFun, limitHasType, limitIndex}
 
   private val pointParam = variable[Ind]
@@ -127,10 +128,10 @@ private[recursion] final class Existence[N <: Arity](
       )
 
       // ── G(n0) type and stabilization chain ─────────────────────────────────
-      val approxAtN0Inst = have(n0 ∈ N ==> (G(n0) :: spec.typ)) by InstantiateForall(n0)(approx.approxHasType)
+      val approxAtN0Inst = have(n0 ∈ N ==> (G(n0) :: spec.typ)) by InstantiateForall(n0)(approxSeq.approxHasType)
       val gN0HasType = have(G(n0) :: spec.typ) by Tautology.from(indexInN, approxAtN0Inst)
       val approxSuccAtN0Impl = have(n0 ∈ N ==> (G(S(n0)) === recWitness(G(n0)))) by
-        InstantiateForall(n0)(approx.approxSucc)
+        InstantiateForall(n0)(approxSeq.approxSucc)
       val gSuccN0EqWitness = have(G(S(n0)) === recWitness(G(n0))) by
         Tautology.from(indexInN, approxSuccAtN0Impl)
 
