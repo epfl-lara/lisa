@@ -8,7 +8,6 @@ import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.Ordinals.TransitiveSet
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.FunctionCore.ExistenceProof
-import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.RecursiveAgreement
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ApproximationChainFacts
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.LimitKernel
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
@@ -191,24 +190,32 @@ private[recursion] final class Existence[N <: Arity](
         ∀(sliceVar ∈ app(heightFun)(n0), app(limitFun)(sliceVar) === app(G(n0))(sliceVar))
       ) subproof {
         have((sliceVar ∈ app(heightFun)(n0)) ==> (app(limitFun)(sliceVar) === app(G(n0))(sliceVar))) subproof {
-          val vInSlice = assume(sliceVar ∈ app(heightFun)(n0))
-          val limitEqApprox = RecursiveAgreement.selfAgreementWithLimit(
-            argType = spec.argType,
-            heightFun = heightFun,
-            limitFun = limitFun,
-            approximantFamily = approximantFamily,
-            chosenIndexFamily = chosenIndexFamily,
-            limitFunDef = limitFunDef,
-            termHasHeight = termHasHeight,
-            stabilizationSchema = stabilizationSchema,
-            heightMembershipMonotonicSchema = heightMembershipMonotonicSchema,
-            hValid = hValid,
-            currentIndex = n0,
-            currentIndexInN = indexInN,
-            point = sliceVar,
-            pointInHeight = vInSlice
+          
+          assume(sliceVar ∈ app(heightFun)(n0))
+          val pointHeightChar = have(LimitKernel.pointHeightCharAt(spec.argType, heightFun, sliceVar)) by
+            Tautology.from(hValid, termHasHeight.of(x := sliceVar, h := heightFun))
+          val limitEqApprox = have(app(limitFun)(sliceVar) === app(approximantFamily(n0))(sliceVar)) by Tautology.from(
+            pointHeightChar,
+            ApproximationChainFacts.approximantsAgreeAcrossHeightsAt(
+              heightFun,
+              approximantFamily,
+              chosenIndexFamily(sliceVar),
+              n0,
+              sliceVar
+            )(stabilizationSchema, heightMembershipMonotonicSchema),
+            indexInN,
+            LimitKernel.limitAtHeightAt(
+              spec.argType,
+              heightFun,
+              limitFun,
+              approximantFamily,
+              chosenIndexFamily,
+              sliceVar,
+              n0
+            )
           )
           have(app(limitFun)(sliceVar) === app(G(n0))(sliceVar)) by Restate.from(limitEqApprox)
+
         }
         thenHave(thesis) by RightForall
       }

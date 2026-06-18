@@ -6,7 +6,6 @@ import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
 import lisa.maths.SetTheory.Types.ADTv2.encoding._
-import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.SpecializedConstructorFacts
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.specializedConstructors
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.LimitKernel
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
@@ -20,6 +19,13 @@ import lisa.utils.prooflib.BasicStepTactic.LeftExists
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.BasicStepTactic.Weakening
 import lisa.utils.prooflib.ProofTacticLib.Arity
+
+private[recursion] type PatternSchemas[N <: Arity] =
+  Map[Pattern[N], (Seq[Variable[Ind]], Expr[Prop])]
+
+private[recursion] def asIndEquality(formula: Expr[Prop]): Option[(Expr[Ind], Expr[Ind])] = formula match
+  case App(App(eqFun, lhs: Expr[Ind]), rhs: Expr[Ind]) if eqFun == equality => Some((lhs, rhs))
+  case _ => None
 
 private[recursion] object RecFunctionInduction {
 
@@ -140,7 +146,6 @@ private[recursion] object RecFunctionInduction {
       // (mirrors WitnessAgreement, which assumes all its antecedents up front).
       assumptions.foreach(a => assume(a))
       val heightFun = specializeTerm(adt.height.function, typeSubstitutions)
-      val heightMembershipMonotonic = adt.height.membershipMonotonicAt(typeSubstitutions)
       val constructorsAt = specializedConstructors(adt.constructors, typeSubstitutions)
       val nVar = variable[Ind]
       val slicePoint = inductionVariable
@@ -165,127 +170,76 @@ private[recursion] object RecFunctionInduction {
       }
 
       val step = Time.measure("Uniqueness/pointwise/step") {
-        have(∀(nVar, (nVar ∈ N) ==> (P(nVar) ==> P(S(nVar))))) subproof {
-          have((nVar ∈ N) ==> (P(nVar) ==> P(S(nVar)))) subproof {
-            val nInN = assume(nVar ∈ N)
-            assume(P(nVar))
-            // Shared S-step orchestration (height decomposition + branch
-            // selection + case assembly); only the uniqueness-specific per-pattern
-            // proof — case equations from the function definitions + body equality +
-            // pointwise agreement — lives in the callback below.
-            PointwiseAgreementStep.pointwiseAgreementOnSucc(
-              patternMatching = patternMatching,
-              heightFun = heightFun,
-              constructorsAt = constructorsAt,
-              ambientTerm = slicePoint,
-              currentIndex = nVar,
-              currentIndexInN = nInN,
-              hValid = hValid,
-              heightSuccStrong = adt.height.successorStrongAt(typeSubstitutions),
-              goalEqAt = propertyAt(slicePoint)
-            )(new PointwiseAgreementStep.SelectedPatternProver[N] {
-              def apply(using
-                  proof: lisa.SetTheoryLibrary.Proof
-              )(
-                  sc: SpecializedConstructorFacts[N],
-                  argsTypedAtHeight: proof.Fact,
-                  argsTypedSemantic: proof.Fact
-              ): Pattern[N] => proof.Fact = {
-                // Re-establish ambient facts directly in this (inner) proof: captured
-                // outer-proof facts cannot lift into the abstract `proof` here, so we
-                // re-`assume` hypotheses already in the lemma's antecedent (idempotent).
-                val nInN = assume(nVar ∈ N)
-                val ih = assume(P(nVar))
-                val hValid = have(specializeFormula(adt.height.predicate(heightFun), typeSubstitutions)) by
-                  Weakening(adt.height.validAt(typeSubstitutions))
-                val ihAtN = have(
-                  ∀(slicePoint, (slicePoint ∈ app(heightFun)(nVar)) ==> propertyAt(slicePoint))
-                ) by Restate.from(ih)
-                val c = sc.underlying
+        have((nVar ∈ N) ==> (P(nVar) ==> P(S(nVar)))) subproof {
+          val nInN = assume(nVar ∈ N)
+          assume(P(nVar))
+          // Shared S-step orchestration (height decomposition + branch selection +
+          // per-pattern assembly) lives in PointwiseAgreementStep; only the
+          // uniqueness-specific case equation `fun * input === body`, read from the
+          // function definitions, is supplied here via [[PatternCaseEquations]].
+          PointwiseAgreementStep.pointwiseAgreementOnSucc(
+            patternMatching = patternMatching,
+            heightFun = heightFun,
+            constructorsAt = constructorsAt,
+            ambientTerm = slicePoint,
+            currentIndex = nVar,
+            currentIndexInN = nInN,
+            hValid = hValid,
+            heightSuccStrong = adt.height.successorStrongAt(typeSubstitutions),
+            goalEqAt = propertyAt(slicePoint)
+          )(new PointwiseAgreementStep.PatternCaseEquations[N] {
+            val recursiveType: Expr[Ind] = argType
+            val heightMembershipMonotonic: THM = adt.height.membershipMonotonicAt(typeSubstitutions)
+            val sliceLeft: Expr[Ind] = xFun
+            val sliceRight: Expr[Ind] = yFun
 
-                val selfArgEqualities = sc.selfRefVariables2.map(v =>
-                  val vInHeight = have(v ∈ app(heightFun)(nVar)) by Tautology.from(argsTypedAtHeight)
-                  val pIn: Expr[Prop] = v ∈ app(heightFun)(nVar)
-                  val pEq: Expr[Prop] = app(xFun)(v) === app(yFun)(v)
-                  val atPoint = have(pIn ==> pEq) by InstantiateForall(v)(ihAtN)
+            // Each method re-`assume`s the ambient hypotheses (idempotent) since it runs in
+            // a nested proof, not the enclosing lemma proof.
+            def sliceAgreement(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+              have(
+                ∀(slicePoint, (slicePoint ∈ app(heightFun)(nVar)) ==> propertyAt(slicePoint))
+              ) by Restate.from(assume(P(nVar)))
 
-                  val viaImpl = have((atPoint.statement.left + pIn) |- pEq) by Weakening(atPoint)
-                  have((atPoint.statement.left ++ vInHeight.statement.left) |- pEq) by Cut(vInHeight, viaImpl)
-                )
+            def bodyEqAssumptions(using proof: lisa.SetTheoryLibrary.Proof)(
+                pattern: Pattern[N],
+                patternGuard: proof.Fact
+            ): Set[Expr[Prop]] = {
+              val baseContext = Set[Expr[Prop]](
+                slicePoint ∈ app(heightFun)(S(nVar)),
+                P(nVar),
+                nVar ∈ N,
+                pattern.branchSelectionBody(slicePoint)
+              )
+              if simplify(pattern.freshBranchCondition) == ⊤ then baseContext
+              else baseContext + pattern.freshBranchCondition
+            }
 
-                (pattern: Pattern[N]) =>
-                  Time.measure("Uniqueness/pointwise/patternEqualities") {
-                    have(
-                      pattern.branchSelectionBody(slicePoint) |- propertyAt(slicePoint)
-                    ) subproof {
-                      val selectedPattern = assume(pattern.branchSelectionBody(slicePoint))
-                      val patternGuard = have(pattern.freshBranchCondition) by Restate.from(selectedPattern)
-                      val pointEqPattern = have(slicePoint === pattern.freshInputTerm) by Restate.from(selectedPattern)
-                      val patternPremise = Time.measure(s"Uniqueness/patternPremise") { have(pattern.freshBranchPremise) by Tautology.from(argsTypedSemantic, patternGuard) }
-                      val innerAgreements = Time.measure(s"Uniqueness/innerAgreements") {
-                        RecursiveAgreement.selfAgreementFromForallAt2(
-                          pattern = pattern,
-                          recursiveType = argType,
-                          heightMembershipMonotonic = heightMembershipMonotonic,
-                          argsTypedAtHeight = argsTypedAtHeight,
-                          leafTyping = patternPremise,
-                          patternGuard = patternGuard,
-                          heightFun = heightFun,
-                          hValid = hValid,
-                          currentIndex = nVar,
-                          currentIndexInN = nInN,
-                          leftFun = xFun,
-                          rightFun = yFun,
-                          agreeForall = ihAtN
-                        )
-                      }
-                      val selectedPatternFormula = pattern.branchSelectionBody(slicePoint)
-                      val baseContext = Set[Expr[Prop]](
-                        slicePoint ∈ app(heightFun)(S(nVar)),
-                        P(nVar),
-                        nVar ∈ N,
-                        selectedPatternFormula
-                      )
-                      val localContext =
-                        if simplify(pattern.freshBranchCondition) == ⊤ then baseContext
-                        else baseContext + pattern.freshBranchCondition
-                      val instantiationContext = assumptions ++ localContext
-
-                      val (xBody, xAtPattern) = caseEqualityAtBranch(
-                        contextAssumptions = instantiationContext,
-                        definition = xDefinitionFormula,
-                        schema = xPatternSchemas(pattern),
-                        branchVars = pattern.variables2,
-                        branchPremise = patternPremise,
-                        defUnfold = xDefUnfold,
-                        functionHead = xFun,
-                        inputTerm = pattern.freshInputTerm,
-                        errorContext = s"pointwiseUniquenessAt/x/${c.name}/${pattern.name}"
-                      )
-                      val (yBody, yPatternToBody) = caseEqualityAtBranch(
-                        contextAssumptions = instantiationContext,
-                        definition = yDefinitionFormula,
-                        schema = yPatternSchemas(pattern),
-                        branchVars = pattern.variables2,
-                        branchPremise = patternPremise,
-                        defUnfold = yDefUnfold,
-                        functionHead = yFun,
-                        inputTerm = pattern.freshInputTerm,
-                        errorContext = s"pointwiseUniquenessAt/y/${c.name}/${pattern.name}"
-                      )
-
-                      val bodyEquality = LambdaBodyEquality.prove(localContext, xBody, yBody, selfArgEqualities ++ innerAgreements)
-
-                      val agreement = have(localContext |- (app(xFun)(slicePoint) === app(yFun)(slicePoint))) by
-                        Congruence.from(pointEqPattern, xAtPattern, yPatternToBody, bodyEquality)
-                      have(thesis) by Restate.from(agreement)
-                    }
-                  }
-              }
-            })
-          }
-          thenHave(thesis) by RightForall
+            def caseEquation(using proof: lisa.SetTheoryLibrary.Proof)(
+                pattern: Pattern[N],
+                slice: Expr[Ind],
+                patternPremise: proof.Fact,
+                patternGuard: proof.Fact,
+                bodyEqAssumptions: Set[Expr[Prop]]
+            ): (Expr[Ind], proof.Fact) = {
+              val (definition, schema, defUnfold, side) =
+                if (slice == xFun) then (xDefinitionFormula, xPatternSchemas(pattern), xDefUnfold, "x")
+                else (yDefinitionFormula, yPatternSchemas(pattern), yDefUnfold, "y")
+              caseEqualityAtBranch(
+                contextAssumptions = assumptions ++ bodyEqAssumptions,
+                definition = definition,
+                schema = schema,
+                branchVars = pattern.variables2,
+                branchPremise = patternPremise,
+                defUnfold = defUnfold,
+                functionHead = slice,
+                inputTerm = pattern.freshInputTerm,
+                errorContext = s"pointwiseUniquenessAt/$side/${pattern.name}"
+              )
+            }
+          })
         }
+        thenHave(∀(nVar, (nVar ∈ N) ==> (P(nVar) ==> P(S(nVar))))) by RightForall
+        
       }
 
       val theoremP = variable[Ind >>: Prop]("P")

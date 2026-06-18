@@ -30,8 +30,6 @@ private[recursion] object ConstructorSemanticFacts {
       specializeTerm(underlying.appliedTerm2, typeSubstitutions)
     def semanticTypingFromHeight(heightFun: Expr[Ind], n: Expr[Ind])(using sourcecode.Line, sourcecode.File): THM =
       underlying.semanticTypingFromHeightAt(typeSubstitutions)(heightFun, n)
-    def recursiveArgInHeight(heightFun: Expr[Ind], n: Expr[Ind])(using sourcecode.Line, sourcecode.File): THM =
-      underlying.recursiveArgInHeightAt(typeSubstitutions)(heightFun, n)
     def appliedEqualityFromStructural(heightFun: Expr[Ind], n: Expr[Ind], term0: Expr[Ind])(using sourcecode.Line, sourcecode.File): THM =
       underlying.appliedEqualityFromStructuralAt(typeSubstitutions)(heightFun, n, term0)
   }
@@ -48,13 +46,6 @@ private[recursion] object ConstructorSemanticFacts {
       term: Expr[Ind]
   ): Expr[Prop] =
     c.branchAtHeight(heightSet, term)
-
-  def constructorBranchesAtHeight[N <: Arity](
-      constructors: Seq[SpecializedConstructorFacts[N]],
-      heightSet: Expr[Ind],
-      term: Expr[Ind]
-  ): Map[SpecializedConstructorFacts[N], Expr[Prop]] =
-    constructors.map(c => c -> constructorBranchAtHeight(c, heightSet, term)).toMap
 
   def constructorDisjunctionAtHeight[N <: Arity](
       constructors: Seq[SpecializedConstructorFacts[N]],
