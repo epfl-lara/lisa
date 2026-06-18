@@ -19,24 +19,21 @@ resolvers += "jitpack" at "https://jitpack.io"
 
 val scala2Version = "2.13.16"
 val scala3Version = "3.8.4"
-val scalaTestVersion = "3.2.19"
 val tptpParserCommit = "0b4ffa55c71415e925080608707c78ada1d750e5"
 
 val commonProjectSettings = Seq(
-  run / fork := true
+  run / fork := true,
+  libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % Test
 )
 
 val scala3ProjectSettings = Seq(
   scalaVersion := scala3Version,
   scalacOptions ++= Seq(
     "-language:implicitConversions",
-    "-Wconf:msg=.*is not declared infix*:silent",
     "-Wconf:msg=.*trait or object is defined in the compilation unit.*:silent",
-    "-language:experimental.modularity"
   ),
   javaOptions += "-Xmx10G",
   libraryDependencies ++= Seq(
-    "org.scalatest" %% "scalatest" % scalaTestVersion % Test,
     "com.lihaoyi" %% "sourcecode" % "0.4.4"
   ),
   Test / parallelExecution := false,
@@ -70,8 +67,7 @@ lazy val kernel = Project(
   .settings(
     scalaVersion := scala2Version,
     crossScalaVersions := Seq(scala3Version),
-    scalacOptions ++= Seq("-Ypatmat-exhaust-depth", "50"),
-    libraryDependencies += "org.scalatest" %% "scalatest" % scalaTestVersion % Test
+    scalacOptions ++= Seq("-Ypatmat-exhaust-depth", "50")
   )
 
 lazy val sets = Project(
