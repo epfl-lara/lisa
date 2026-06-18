@@ -45,8 +45,6 @@ private[recursion] final class ApproxStabilization[N <: Arity](
     have(consequent) by Tautology.from(mInN, impl)
   }
 
-  // private def h(n: Expr[Ind]) = app(spec.heightFun)(n)
-
   // ─────────────────────────────────────────────────────────────────────────
   // Lemma D — stabilization
   // ∀n ∈ ω, ∀a ∈ h(n), G(n)(a) = G(Succ(n))(a)

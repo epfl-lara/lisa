@@ -88,15 +88,9 @@ private[recursion] object RecFunctionInduction {
           simplify(antecedent) == simplify(branchPremise.statement.right.head.asInstanceOf[Expr[Prop]]),
           s"$errorContext: schema antecedent does not match branch premise."
         )
-        // 1. Re-derive the branch premise in the schema's (simplified) antecedent form.
-        //    OL-normalization is polynomial — no propositional search.
+        
         val premiseAsAnte = have(branchPremise.statement.left |- antecedent) by Restate.from(branchPremise)
-        // 2. Modus ponens via kernel rules: antecedent and consequent stay atomic, so cost is linear in formula size.
-        val mp = have((antecedent ==> consequent, antecedent) |- consequent) by LeftImplies.withParameters(antecedent, consequent)(
-          have(antecedent |- antecedent) by Hypothesis,
-          have(consequent |- consequent) by Hypothesis
-        )
-        val viaImpl = have((schemaAtBranch.statement.left + antecedent) |- consequent) by Cut(schemaAtBranch, mp)
+        val viaImpl = have((schemaAtBranch.statement.left + antecedent) |- consequent) by Weakening(schemaAtBranch)
         val combined = have((schemaAtBranch.statement.left ++ branchPremise.statement.left) |- consequent) by Cut(premiseAsAnte, viaImpl)
         have(contextAssumptions |- consequent) by Weakening(combined)
       case equalityFormula =>
@@ -195,8 +189,7 @@ private[recursion] object RecFunctionInduction {
               )(
                   sc: SpecializedConstructorFacts[N],
                   argsTypedAtHeight: proof.Fact,
-                  argsTypedSemantic: proof.Fact,
-                  aEqApplied: proof.Fact
+                  argsTypedSemantic: proof.Fact
               ): Pattern[N] => proof.Fact = {
                 // Re-establish ambient facts directly in this (inner) proof: captured
                 // outer-proof facts cannot lift into the abstract `proof` here, so we
@@ -212,15 +205,12 @@ private[recursion] object RecFunctionInduction {
 
                 val selfArgEqualities = sc.selfRefVariables2.map(v =>
                   val vInHeight = have(v ∈ app(heightFun)(nVar)) by Tautology.from(argsTypedAtHeight)
-                  RecursiveAgreement.selfAgreementFromForall(
-                    heightFun = heightFun,
-                    currentIndex = nVar,
-                    leftFun = xFun,
-                    rightFun = yFun,
-                    agreeForall = ihAtN,
-                    point = v,
-                    pointInHeight = vInHeight
-                  )
+                  val pIn: Expr[Prop] = v ∈ app(heightFun)(nVar)
+                  val pEq: Expr[Prop] = app(xFun)(v) === app(yFun)(v)
+                  val atPoint = have(pIn ==> pEq) by InstantiateForall(v)(ihAtN)
+
+                  val viaImpl = have((atPoint.statement.left + pIn) |- pEq) by Weakening(atPoint)
+                  have((atPoint.statement.left ++ vInHeight.statement.left) |- pEq) by Cut(vInHeight, viaImpl)
                 )
 
                 (pattern: Pattern[N]) =>
@@ -284,11 +274,11 @@ private[recursion] object RecFunctionInduction {
                         errorContext = s"pointwiseUniquenessAt/y/${c.name}/${pattern.name}"
                       )
 
-                      val bodyEquality = LambdaBodyEquality.proveUnder(localContext, xBody, yBody, selfArgEqualities ++ innerAgreements)
+                      val bodyEquality = LambdaBodyEquality.prove(localContext, xBody, yBody, selfArgEqualities ++ innerAgreements)
 
                       val agreement = have(localContext |- (app(xFun)(slicePoint) === app(yFun)(slicePoint))) by
                         Congruence.from(pointEqPattern, xAtPattern, yPatternToBody, bodyEquality)
-                      have(localContext |- propertyAt(slicePoint)) by Restate.from(agreement)
+                      have(thesis) by Restate.from(agreement)
                     }
                   }
               }

@@ -15,7 +15,6 @@ import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Cut
-import lisa.utils.prooflib.BasicStepTactic.Hypothesis
 import lisa.utils.prooflib.BasicStepTactic.Weakening
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
@@ -24,9 +23,9 @@ private[recursion] final class WitnessAgreement[N <: Arity](
     val recWitness: Witness[N]
 ) {
 
-  val leftFun = variable[Ind]
-  val rightFun = variable[Ind]
-  val nVar = variable[Ind]
+  private val leftFun = variable[Ind]
+  private val rightFun = variable[Ind]
+  private val nVar = variable[Ind]
   private val vVar = variable[Ind]
 
   private def substitutedCaseBody[N <: Arity](
@@ -69,13 +68,8 @@ private[recursion] final class WitnessAgreement[N <: Arity](
     witnessAtVars.statement.right.head match
       case _ ==> consequent =>
         val premise = pattern.freshBranchPremise
-        val mp = have(Set[Expr[Prop]](premise ==> consequent, premise) |- consequent) by
-          LeftImplies.withParameters(premise, consequent)(
-            have(premise |- premise) by Hypothesis,
-            have(consequent |- consequent) by Hypothesis
-          )
         val viaImpl = have((witnessAtVars.statement.left + premise) |- consequent) by
-          Cut(witnessAtVars, mp)
+          Weakening(witnessAtVars)
         have((witnessAtVars.statement.left ++ patternPremise.statement.left) |- consequent) by
           Cut(patternPremise, viaImpl)
       case _ => throw UnreachableException
@@ -122,8 +116,7 @@ private[recursion] final class WitnessAgreement[N <: Arity](
           )(
               sc: SpecializedConstructorFacts[N],
               argsTypedAtHeight: proof.Fact,
-              argsTypedSemantic: proof.Fact,
-              aEqApplied: proof.Fact
+              argsTypedSemantic: proof.Fact
           ): Pattern[N] => proof.Fact = {
             // Re-establish the ambient facts the callback needs directly in this
             // (inner) proof. Capturing them from the enclosing lemma proof is not
@@ -140,15 +133,12 @@ private[recursion] final class WitnessAgreement[N <: Arity](
 
             val selfArgEqualities = sc.selfRefVariables2.map(v =>
               val vInHeight = have(v ∈ app(heightFun)(nVar)) by Restate.from(argsTypedAtHeight)
-              RecursiveAgreement.selfAgreementFromForall(
-                heightFun = heightFun,
-                currentIndex = nVar,
-                leftFun = leftFun,
-                rightFun = rightFun,
-                agreeForall = agreeForall,
-                point = v,
-                pointInHeight = vInHeight
-              )
+              val pIn: Expr[Prop] = v ∈ app(heightFun)(nVar)
+              val pEq: Expr[Prop] = app(leftFun)(v) === app(rightFun)(v)
+              val atPoint = have(pIn ==> pEq) by InstantiateForall(v)(agreeForall)
+
+              val viaImpl = have((atPoint.statement.left + pIn) |- pEq) by Weakening(atPoint)
+              have((atPoint.statement.left ++ vInHeight.statement.left) |- pEq) by Cut(vInHeight, viaImpl)
             )
 
             (pattern: Pattern[N]) =>
@@ -175,7 +165,7 @@ private[recursion] final class WitnessAgreement[N <: Arity](
 
                 val bodyLeft = substitutedCaseBody(pattern, spec.selfPlaceholder, leftFun, pattern.variables2)
                 val bodyRight = substitutedCaseBody(pattern, spec.selfPlaceholder, rightFun, pattern.variables2)
-                val bodyEq = LambdaBodyEquality.prove(bodyLeft, bodyRight, selfArgEqualities ++ innerAgreements)
+                val bodyEq = LambdaBodyEquality.prove(Set.empty, bodyLeft, bodyRight, selfArgEqualities ++ innerAgreements)
                 val witnessAtLeft = instantiateWitnessAtPattern(pattern, leftFun, leftTyped, patternPremise, bodyLeft)
                 val witnessAtRight = instantiateWitnessAtPattern(pattern, rightFun, rightTyped, patternPremise, bodyRight)
 
@@ -183,7 +173,7 @@ private[recursion] final class WitnessAgreement[N <: Arity](
                   aEqPattern.statement.left |- (app(recWitness(leftFun))(a) === app(recWitness(rightFun))(a))
                   ) by Congruence.from(aEqPattern, witnessAtLeft, witnessAtRight, bodyEq)
 
-                have(goalW) by Restate.from(witnessesAgreeAtA)
+                have(thesis) by Restate.from(witnessesAgreeAtA)
               }
           }
         })

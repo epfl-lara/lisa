@@ -37,13 +37,12 @@ private[recursion] final class Uniqueness[N <: Arity](
     s"${spec.functionName}/def",
     spec.typeVariablesSeq,
     defVar,
-    // λ(defVar, spec.untypedDefinition(defVar))
     spec.untypedDefinition
   )
   private def Def(v: Expr[Ind]): Expr[Prop] = defSym.term #@ v
 
 
-  protected lazy val pointwiseAgreement: THM =
+  protected val pointwiseAgreement: THM =
     val xDefFormula = definitionFormula(x)
     val yDefFormula = definitionFormula(y)
     val pointInput = variable[Ind]
@@ -71,8 +70,6 @@ private[recursion] final class Uniqueness[N <: Arity](
         )
       }
 
-      val t0 = Time.get()
-
       // `pointwiseCoreLemma` is stated over the opaque `Def(x)`, `Def(y)`; discharge them
       // by folding the ambient `untypedDefinition(x)`, `untypedDefinition(y)`.
       val hyp = assume(xDefFormula /\ yDefFormula)
@@ -90,8 +87,5 @@ private[recursion] final class Uniqueness[N <: Arity](
         ∀(pointInput, pointInput ∈ argType ==> (x * pointInput === y * pointInput))
       ) by Cut(defY, pointwiseWithY)
       thenHave(thesis) by Restate
-
-      val t1 = Time.get()
-      Time.register("part", t1 - t0)
     }
 }

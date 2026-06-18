@@ -49,8 +49,7 @@ private[recursion] object PointwiseAgreementStep {
     )(
         sc: SpecializedConstructorFacts[N],
         argsTypedAtHeight: proof.Fact,
-        argsTypedSemantic: proof.Fact,
-        aEqApplied: proof.Fact
+        argsTypedSemantic: proof.Fact
     ): Pattern[N] => proof.Fact
   }
 
@@ -97,7 +96,7 @@ private[recursion] object PointwiseAgreementStep {
             val aEqApplied = have(ambientTerm === sc.appliedTerm2) by
               Tautology.from(hValid, currentIndexInN, sc.appliedEqualityFromStructural(heightFun, currentIndex, ambientTerm))
 
-            val rawEqFor = proveSelectedPattern(sc, argsTypedAtHeight, argsTypedSemantic, aEqApplied)
+            val rawEqFor = proveSelectedPattern(sc, argsTypedAtHeight, argsTypedSemantic)
 
             val selectionSchema = patternMatching.branchSelectionFor(c, ambientTerm)
             val selectionSchemaInContext = have(selectionSchema.statement.right.head) by

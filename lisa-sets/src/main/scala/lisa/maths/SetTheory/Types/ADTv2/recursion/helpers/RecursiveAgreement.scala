@@ -12,34 +12,6 @@ private[recursion] object RecursiveAgreement {
   private val h = variable[Ind]
   private val x = variable[Ind]
 
-  def selfAgreementFromForall(using
-      proof: lisa.SetTheoryLibrary.Proof
-  )(
-      heightFun: Expr[Ind],
-      currentIndex: Expr[Ind],
-      leftFun: Expr[Ind],
-      rightFun: Expr[Ind],
-      agreeForall: proof.Fact,
-      point: Expr[Ind],
-      pointInHeight: proof.Fact
-  ): proof.Fact = {
-    val pIn: Expr[Prop] = point ∈ app(heightFun)(currentIndex)
-    val pEq: Expr[Prop] = app(leftFun)(point) === app(rightFun)(point)
-    val atPoint = have(pIn ==> pEq) by InstantiateForall(point)(agreeForall)
-
-    // Modus ponens via kernel rules instead of `Tautology.from(pointInHeight, atPoint)`:
-    // `pointInHeight` carries the deep ~1.5k-char branchSelectionBody in its context, and
-    // Tautology would decompose it (~30s). With `pIn`/`pEq` kept atomic, that context is
-    // carried untouched through the cut.
-    val mp = have(Set[Expr[Prop]](pIn ==> pEq, pIn) |- pEq) by LeftImplies.withParameters(pIn, pEq)(
-      have(pIn |- pIn) by Hypothesis,
-      have(pEq |- pEq) by Hypothesis
-    )
-    val viaImpl = have((atPoint.statement.left + pIn) |- pEq) by Cut(atPoint, mp)
-    have((atPoint.statement.left ++ pointInHeight.statement.left) |- pEq) by Cut(pointInHeight, viaImpl)
-
-  }
-
   def selfAgreementFromForallAt2[N <: Arity](using
       proof: lisa.SetTheoryLibrary.Proof,
       line: sourcecode.Line,
@@ -72,15 +44,12 @@ private[recursion] object RecursiveAgreement {
         leafTyping = leafTyping,
         patternGuard = patternGuard
       )
-      selfAgreementFromForall(
-        heightFun,
-        currentIndex,
-        leftFun,
-        rightFun,
-        agreeForall,
-        point,
-        pointInHeight
-      )
+      val pIn: Expr[Prop] = point ∈ app(heightFun)(currentIndex)
+      val pEq: Expr[Prop] = app(leftFun)(point) === app(rightFun)(point)
+      val atPoint = have(pIn ==> pEq) by InstantiateForall(point)(agreeForall)
+
+      val viaImpl = have((atPoint.statement.left + pIn) |- pEq) by Weakening(atPoint)
+      have((atPoint.statement.left ++ pointInHeight.statement.left) |- pEq) by Cut(pointInHeight, viaImpl)
     }
   }
 

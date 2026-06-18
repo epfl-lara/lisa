@@ -13,17 +13,17 @@ def asIndEquality(formula: Expr[Prop]): Option[(Expr[Ind], Expr[Ind])] = formula
   case App(App(eqFun, lhs: Expr[Ind]), rhs: Expr[Ind]) if eqFun == equality => Some((lhs, rhs))
   case _ => None
 
-def splitConjunctions(formula: Expr[Prop]): Seq[Expr[Prop]] = formula match
+private def splitConjunctions(formula: Expr[Prop]): Seq[Expr[Prop]] = formula match
   case left /\ right => splitConjunctions(left) ++ splitConjunctions(right)
   case other => Seq(other)
 
-def stripForalls(formula: Expr[Prop]): (Seq[Variable[Ind]], Expr[Prop]) = formula match
+private def stripForalls(formula: Expr[Prop]): (Seq[Variable[Ind]], Expr[Prop]) = formula match
   case forall(v, phi) =>
     val (restVars, core) = stripForalls(phi)
     (v +: restVars, core)
   case other => (Seq.empty, other)
 
-def splitImplication(formula: Expr[Prop]): (Expr[Prop], Expr[Prop]) = formula match
+private def splitImplication(formula: Expr[Prop]): (Expr[Prop], Expr[Prop]) = formula match
   case antecedent ==> consequent =>
     (
       simplify(antecedent.asInstanceOf[Expr[Prop]]),
