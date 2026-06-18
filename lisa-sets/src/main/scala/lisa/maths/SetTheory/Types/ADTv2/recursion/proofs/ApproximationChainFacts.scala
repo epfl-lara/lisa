@@ -36,7 +36,7 @@ private[recursion] object ApproximationChainFacts {
       (upperVar ∈ N) ==> ∀(lowerVar, (lowerVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun0)(lowerVar)) ==> ((lowerVar ⊆ upperVar) ==> (pointVar ∈ app(heightFun0)(upperVar)))))
     )
 
-  val approximantsAgreeFromSubset: THM = Time.measure(s"AppCF/approximantsAgreeFromSubset")(
+  private val approximantsAgreeFromSubset: THM = Time.measure(s"AppCF/approximantsAgreeFromSubset")(
     Lemma(
       (
         stabilizationSchema(heightFun, G),
@@ -188,7 +188,7 @@ private[recursion] object ApproximationChainFacts {
     }
   )
 
-  val approximantsAgreeAcrossHeights: THM = Time.measure(s"AppCF/approximantsAgreeAcrossHeights")(
+  private val approximantsAgreeAcrossHeights: THM = Time.measure(s"AppCF/approximantsAgreeAcrossHeights")(
     Lemma(
       (
         stabilizationSchema(heightFun, G),
@@ -316,15 +316,13 @@ private[recursion] object ApproximationChainFacts {
       approximantsAgreeFromSubset.of(heightFun := heightFun0, G := G0, nVar := n0, mVar := m0, a := point0)
     )
 
-  def approximantsAgreeAcrossHeightsAt(
+  def approximantsAgreeAcrossHeightsAt(using
+      proof: lisa.SetTheoryLibrary.Proof)(
       heightFun0: Expr[Ind],
       G0: Expr[Ind >>: Ind],
       n0: Expr[Ind],
       m0: Expr[Ind],
-      point0: Expr[Ind]
-  )(using
-      proof: lisa.SetTheoryLibrary.Proof
-  )(
+      point0: Expr[Ind],
       stabilization0: proof.Fact,
       heightMembershipMonotonic0: proof.Fact
   ): proof.Fact =
