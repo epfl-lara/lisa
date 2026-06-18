@@ -46,17 +46,27 @@ private[recursion] object RecFunctionInduction {
     )
   }
 
-  private def instantiateSchemaAtBranch(using
-      proof: lisa.SetTheoryLibrary.Proof
-  )(
-      localAssumptions: Set[Expr[Prop]],
+  private def caseEqualityAtBranch(using proof: lisa.SetTheoryLibrary.Proof)(
+      contextAssumptions: Set[Expr[Prop]],
+      definition: Expr[Prop],
+      schema: (Seq[Variable[Ind]], Expr[Prop]),
       branchVars: Seq[Variable[Ind]],
       branchPremise: proof.Fact,
-      schema: (Seq[Variable[Ind]], Expr[Prop]),
-      schemaFact: proof.Fact,
+      defUnfold: proof.Fact,
+      functionHead: Expr[Ind],
+      inputTerm: Expr[Ind],
       errorContext: String
-  ): proof.Fact = {
-    val (schemaVars, _) = schema
+  ): (Expr[Ind], proof.Fact) = {
+    val (caseVars, caseSchemaFormula) = schema
+    // `contextAssumptions` carries the opaque `Def(·)`; unfold it to `definition` here
+    // (the only place the real definition is needed). `Weakening` keeps the rest of the
+    // context atomic instead of decomposing it.
+    val definitionFact = have(contextAssumptions |- definition) by Weakening(defUnfold)
+    val schemaFromDefinition = have(definition |- caseSchemaFormula) by Tautology
+    val caseSchema = have(contextAssumptions |- caseSchemaFormula) by
+      Cut.withParameters(definition)(definitionFact, schemaFromDefinition)
+
+    val (schemaVars, _) = caseVars -> caseSchemaFormula
 
     require(
       schemaVars.length == branchVars.length,
@@ -65,14 +75,14 @@ private[recursion] object RecFunctionInduction {
 
     val schemaAtBranch = schemaVars
       .zip(branchVars)
-      .foldLeft(schemaFact)((fact, varsPair) =>
+      .foldLeft(caseSchema)((fact, varsPair) =>
         fact.statement.right.head match
           case forall(v, phi) =>
             val instantiated = phi.substitute(v := varsPair._2).asInstanceOf[Expr[Prop]]
             have(fact.statement.left |- instantiated) by InstantiateForall(varsPair._2)(fact)
           case _ => throw UnreachableException
       )
-    schemaAtBranch.statement.right.head match
+    val atBranch = schemaAtBranch.statement.right.head match
       case antecedent ==> consequent =>
         require(
           simplify(antecedent) == simplify(branchPremise.statement.right.head.asInstanceOf[Expr[Prop]]),
@@ -88,147 +98,19 @@ private[recursion] object RecFunctionInduction {
         )
         val viaImpl = have((schemaAtBranch.statement.left + antecedent) |- consequent) by Cut(schemaAtBranch, mp)
         val combined = have((schemaAtBranch.statement.left ++ branchPremise.statement.left) |- consequent) by Cut(premiseAsAnte, viaImpl)
-        have(localAssumptions |- consequent) by Weakening(combined)
+        have(contextAssumptions |- consequent) by Weakening(combined)
       case equalityFormula =>
-        have(localAssumptions |- equalityFormula.asInstanceOf[Expr[Prop]]) by Restate.from(schemaAtBranch)
-  }
+        have(contextAssumptions |- equalityFormula.asInstanceOf[Expr[Prop]]) by Restate.from(schemaAtBranch)
 
-  private def extractBodyAtBranch(using
-      proof: lisa.SetTheoryLibrary.Proof
-  )(
-      equalityAtBranch: proof.Fact,
-      functionHead: Expr[Ind],
-      inputTerm: Expr[Ind],
-      branchName: String,
-      sideLabel: String
-  ): Expr[Ind] = {
-    asIndEquality(equalityAtBranch.statement.right.head.asInstanceOf[Expr[Prop]]) match
-      case Some((leftEq, rightEq)) =>
-        if leftEq == (functionHead * inputTerm) then rightEq
-        else if rightEq == (functionHead * inputTerm) then leftEq
-        else
-          throw IllegalArgumentException(
-            s"Unexpected $sideLabel-branch equality shape for $branchName: ${equalityAtBranch.statement.right.head}"
-          )
+    val applied = functionHead * inputTerm
+    asIndEquality(atBranch.statement.right.head.asInstanceOf[Expr[Prop]]) match
+      case Some((lhs, rhs)) if lhs == applied =>
+        (rhs, have(atBranch.statement.left |- (applied === rhs)) by Restate.from(atBranch))
+      case Some((lhs, rhs)) if rhs == applied =>
+        (lhs, have(atBranch.statement.left |- (applied === lhs)) by Congruence.from(atBranch))
       case _ =>
         throw IllegalArgumentException(
-          s"Unexpected $sideLabel-branch equality shape for $branchName: ${equalityAtBranch.statement.right.head}"
-        )
-  }
-
-  private def orientEquality(using
-      proof: lisa.SetTheoryLibrary.Proof
-  )(
-      equalityAtBranch: proof.Fact,
-      expectedLeft: Expr[Ind],
-      expectedRight: Expr[Ind],
-      errorContext: String
-  ): proof.Fact =
-    asIndEquality(equalityAtBranch.statement.right.head.asInstanceOf[Expr[Prop]]) match
-      case Some((leftEq, rightEq)) if leftEq == expectedLeft && rightEq == expectedRight =>
-        have(equalityAtBranch.statement.left |- (expectedLeft === expectedRight)) by Restate.from(equalityAtBranch)
-      case Some((leftEq, rightEq)) if leftEq == expectedRight && rightEq == expectedLeft =>
-        have(equalityAtBranch.statement.left |- (expectedLeft === expectedRight)) by
-          Congruence.from(equalityAtBranch)
-      case _ =>
-        throw IllegalArgumentException(
-          s"$errorContext: could not orient equality ${equalityAtBranch.statement.right.head} as $expectedLeft === $expectedRight."
-        )
-
-  private def normalizeFactInContext(using
-      proof: lisa.SetTheoryLibrary.Proof
-  )(
-      localContext: Set[Expr[Prop]],
-      fact: proof.Fact,
-      expectedFormula: Expr[Prop],
-      errorContext: String
-  ): proof.Fact = {
-    require(
-      simplify(fact.statement.right.head.asInstanceOf[Expr[Prop]]) == simplify(expectedFormula),
-      s"$errorContext: expected $expectedFormula but got ${fact.statement.right.head}."
-    )
-    have(localContext |- expectedFormula) by Restate.from(fact)
-  }
-
-  private def normalizeBranchFacts(using
-      proof: lisa.SetTheoryLibrary.Proof
-  )(
-      localContext: Set[Expr[Prop]],
-      pointEqInputFact: proof.Fact,
-      leftEqualityAtInput: proof.Fact,
-      rightEqualityAtInput: proof.Fact,
-      bodyEqualityAtInput: proof.Fact,
-      slicePoint: Expr[Ind],
-      inputTerm: Expr[Ind],
-      xFun: Expr[Ind],
-      yFun: Expr[Ind],
-      xBody: Expr[Ind],
-      yBody: Expr[Ind],
-      errorContext: String
-  ): (Set[Expr[Prop]], proof.Fact, proof.Fact, proof.Fact, proof.Fact) = {
-    val pointEqInput = normalizeFactInContext(
-      localContext = localContext,
-      fact = pointEqInputFact,
-      expectedFormula = slicePoint === inputTerm,
-      errorContext = s"$errorContext/input"
-    )
-    val leftAtInput = normalizeFactInContext(
-      localContext = localContext,
-      fact = leftEqualityAtInput,
-      expectedFormula = (xFun * inputTerm) === xBody,
-      errorContext = s"$errorContext/left"
-    )
-    val rightAtInput = normalizeFactInContext(
-      localContext = localContext,
-      fact = rightEqualityAtInput,
-      expectedFormula = (yFun * inputTerm) === yBody,
-      errorContext = s"$errorContext/right"
-    )
-    val bodyEquality = normalizeFactInContext(
-      localContext = localContext,
-      fact = bodyEqualityAtInput,
-      expectedFormula = xBody === yBody,
-      errorContext = s"$errorContext/body"
-    )
-    (
-      localContext,
-      pointEqInput,
-      leftAtInput,
-      rightAtInput,
-      bodyEquality
-    )
-  }
-
-  private def proveBranchPointwiseAgreement(using
-      proof: lisa.SetTheoryLibrary.Proof
-  )(
-      normalized: (Set[Expr[Prop]], proof.Fact, proof.Fact, proof.Fact, proof.Fact),
-      propertyAt: Expr[Ind] => Expr[Prop],
-      slicePoint: Expr[Ind],
-      xFun: Expr[Ind],
-      yFun: Expr[Ind]
-  ): proof.Fact = {
-    val (localContext, pointEqInput, leftAtInput, rightAtInput, bodyEquality) = normalized
-    val agreement = have(pointEqInput.statement.left |- (app(xFun)(slicePoint) === app(yFun)(slicePoint))) by
-      Congruence.from(pointEqInput, leftAtInput, rightAtInput, bodyEquality)
-    have(localContext |- propertyAt(slicePoint)) by Restate.from(agreement)
-  }
-
-  private def proveBodyEqualityFromRecursiveFacts(using
-      proof: lisa.SetTheoryLibrary.Proof
-  )(
-      localAssumptions: Set[Expr[Prop]],
-      leftBody: Expr[Ind],
-      rightBody: Expr[Ind],
-      recursiveFacts: Seq[proof.Fact],
-      constructorName: String,
-      contextLabel: String
-  ): proof.Fact = {
-    try LambdaBodyEquality.proveUnder(localAssumptions, leftBody, rightBody, recursiveFacts)
-    catch
-      case _: IllegalArgumentException =>
-        throw IllegalArgumentException(
-          s"$contextLabel: constructor $constructorName has mismatching bodies without recursive arguments: $leftBody vs $rightBody."
+          s"$errorContext: expected an equality with `$applied` on one side, got ${atBranch.statement.right.head}."
         )
   }
 
@@ -270,34 +152,7 @@ private[recursion] object RecFunctionInduction {
       val slicePoint = inductionVariable
       val P = λ(nVar, ∀(slicePoint ∈ app(heightFun)(nVar), propertyAt(slicePoint)))
 
-      def instantiateCaseFromDefinition(using
-          proof: lisa.SetTheoryLibrary.Proof
-      )(
-          contextAssumptions: Set[Expr[Prop]],
-          definition: Expr[Prop],
-          schema: (Seq[Variable[Ind]], Expr[Prop]),
-          branchVars: Seq[Variable[Ind]],
-          branchPremise: proof.Fact,
-          defUnfold: proof.Fact,
-          errorContext: String
-      ): proof.Fact = {
-        val (caseVars, caseSchemaFormula) = schema
-        // `contextAssumptions` carries the opaque `Def(·)`; unfold it to `definition` here
-        // (the only place the real definition is needed). `Weakening` keeps the rest of the
-        // context atomic instead of decomposing it.
-        val definitionFact = have(contextAssumptions |- definition) by Weakening(defUnfold)
-        val schemaFromDefinition = have(definition |- caseSchemaFormula) by Tautology
-        val caseSchema = have(contextAssumptions |- caseSchemaFormula) by
-          Cut.withParameters(definition)(definitionFact, schemaFromDefinition)
-        instantiateSchemaAtBranch(
-          localAssumptions = contextAssumptions,
-          branchVars = branchVars,
-          branchPremise = branchPremise,
-          schema = caseVars -> caseSchemaFormula,
-          schemaFact = caseSchema,
-          errorContext = errorContext
-        )
-      }
+      
 
       val hValid = have(specializeFormula(adt.height.predicate(heightFun), typeSubstitutions)) by
         Weakening(adt.height.validAt(typeSubstitutions))
@@ -406,90 +261,34 @@ private[recursion] object RecFunctionInduction {
                         else baseContext + pattern.freshBranchCondition
                       val instantiationContext = assumptions ++ localContext
 
-                      val xAtBranch = instantiateCaseFromDefinition(
+                      val (xBody, xAtPattern) = caseEqualityAtBranch(
                         contextAssumptions = instantiationContext,
                         definition = xDefinitionFormula,
                         schema = xPatternSchemas(pattern),
                         branchVars = pattern.variables2,
                         branchPremise = patternPremise,
                         defUnfold = xDefUnfold,
+                        functionHead = xFun,
+                        inputTerm = pattern.freshInputTerm,
                         errorContext = s"pointwiseUniquenessAt/x/${c.name}/${pattern.name}"
                       )
-                      val yAtBranch = instantiateCaseFromDefinition(
+                      val (yBody, yPatternToBody) = caseEqualityAtBranch(
                         contextAssumptions = instantiationContext,
                         definition = yDefinitionFormula,
                         schema = yPatternSchemas(pattern),
                         branchVars = pattern.variables2,
                         branchPremise = patternPremise,
                         defUnfold = yDefUnfold,
-                        errorContext = s"pointwiseUniquenessAt/y/${c.name}/${pattern.name}"
-                      )
-
-                      val xBody = extractBodyAtBranch(
-                        equalityAtBranch = xAtBranch,
-                        functionHead = xFun,
-                        inputTerm = pattern.freshInputTerm,
-                        branchName = pattern.name,
-                        sideLabel = "x"
-                      )
-                      val yBody = extractBodyAtBranch(
-                        equalityAtBranch = yAtBranch,
                         functionHead = yFun,
                         inputTerm = pattern.freshInputTerm,
-                        branchName = pattern.name,
-                        sideLabel = "y"
-                      )
-                      val xAtPattern = orientEquality(
-                        equalityAtBranch = xAtBranch,
-                        expectedLeft = xFun * pattern.freshInputTerm,
-                        expectedRight = xBody,
-                        errorContext = s"pointwiseUniquenessAt/x/${c.name}/${pattern.name}"
-                      )
-                      val yPatternToBody = orientEquality(
-                        equalityAtBranch = yAtBranch,
-                        expectedLeft = yFun * pattern.freshInputTerm,
-                        expectedRight = yBody,
                         errorContext = s"pointwiseUniquenessAt/y/${c.name}/${pattern.name}"
                       )
 
-                      val bodyEquality = proveBodyEqualityFromRecursiveFacts(
-                        localAssumptions = localContext,
-                        leftBody = xBody,
-                        rightBody = yBody,
-                        recursiveFacts = selfArgEqualities ++ innerAgreements,
-                        constructorName = s"${c.name}/${pattern.name}",
-                        contextLabel = "pointwiseUniquenessAt"
-                      )
+                      val bodyEquality = LambdaBodyEquality.proveUnder(localContext, xBody, yBody, selfArgEqualities ++ innerAgreements)
 
-                      val patternEqPoint = orientEquality(
-                        equalityAtBranch = pointEqPattern,
-                        expectedLeft = slicePoint,
-                        expectedRight = pattern.freshInputTerm,
-                        errorContext = s"pointwiseUniquenessAt/input/${c.name}/${pattern.name}"
-                      )
-
-                      val normalizedFacts = normalizeBranchFacts(
-                        localContext = localContext,
-                        pointEqInputFact = patternEqPoint,
-                        leftEqualityAtInput = xAtPattern,
-                        rightEqualityAtInput = yPatternToBody,
-                        bodyEqualityAtInput = bodyEquality,
-                        slicePoint = slicePoint,
-                        inputTerm = pattern.freshInputTerm,
-                        xFun = xFun,
-                        yFun = yFun,
-                        xBody = xBody,
-                        yBody = yBody,
-                        errorContext = s"pointwiseUniquenessAt/${c.name}/${pattern.name}"
-                      )
-
-                      proveBranchPointwiseAgreement(
-                        normalized = normalizedFacts,
-                        propertyAt = propertyAt,
-                        slicePoint = slicePoint,
-                        xFun = xFun,
-                        yFun = yFun
-                      )
+                      val agreement = have(localContext |- (app(xFun)(slicePoint) === app(yFun)(slicePoint))) by
+                        Congruence.from(pointEqPattern, xAtPattern, yPatternToBody, bodyEquality)
+                      have(localContext |- propertyAt(slicePoint)) by Restate.from(agreement)
                     }
                   }
               }

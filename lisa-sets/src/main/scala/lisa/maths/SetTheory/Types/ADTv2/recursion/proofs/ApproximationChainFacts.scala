@@ -121,15 +121,9 @@ private[recursion] object ApproximationChainFacts {
                 val heightMonoAtNInst = have(
                   (nVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun)(nVar)) ==> ((nVar ⊆ uVar) ==> (pointVar ∈ app(heightFun)(uVar))))
                 ) by InstantiateForall(nVar)(heightMonoUpper)
-                val heightMonoAtLower = have(
-                  (nVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun)(nVar)) ==> ((nVar ⊆ uVar) ==> (pointVar ∈ app(heightFun)(uVar))))
-                ) by Restate.from(heightMonoAtNInst)
-                val heightMonoAtN = have(
-                  (nVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun)(nVar)) ==> ((nVar ⊆ uVar) ==> (pointVar ∈ app(heightFun)(uVar))))
-                ) by Restate.from(heightMonoAtLower)
                 val heightMonoAtPoint = have(
                   ∀(pointVar, (pointVar ∈ app(heightFun)(nVar)) ==> ((nVar ⊆ uVar) ==> (pointVar ∈ app(heightFun)(uVar))))
-                ) by Tautology.from(nInN, heightMonoAtN)
+                ) by Tautology.from(nInN, heightMonoAtNInst)
                 val heightMonoAtA = have(
                   (a ∈ app(heightFun)(nVar)) ==> ((nVar ⊆ uVar) ==> (a ∈ app(heightFun)(uVar)))
                 ) by InstantiateForall(a)(heightMonoAtPoint)
