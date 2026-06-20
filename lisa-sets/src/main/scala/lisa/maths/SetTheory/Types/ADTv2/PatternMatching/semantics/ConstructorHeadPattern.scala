@@ -28,9 +28,6 @@ private[PatternMatching] trait ConstructorHeadPattern[N <: Arity] extends Patter
 
   override def arity: Int = semanticConstructor.arity
 
-  def correspondsTo(candidate: SemanticConstructor[N]): Boolean =
-    semanticConstructor == candidate
-
   override def matchesConstructorCase(constructor: SemanticConstructor[N], args: Seq[Expr[Ind]]): Boolean =
     semanticConstructor == constructor &&
       guardSignature == args.zipWithIndex.collect {
