@@ -98,23 +98,11 @@ private[PatternMatching] trait ConstructorHeadPattern[N <: Arity] extends Patter
 
   def inputTerm2: Expr[Ind] = inputTermAt(variables2)
 
-  def typingFormula1: Expr[Prop] = typingFormulaAt(variables1)
-
-  def typingFormula2: Expr[Prop] = typingFormulaAt(variables2)
-
   def branchPremise1: Expr[Prop] = branchPremiseAt(variables1)
 
   def structuralTerm1: Expr[Ind] = specializeTerm(semanticConstructor.structuralTerm1, typeSubstitutions)
 
   def structuralTerm2: Expr[Ind] = specializeTerm(semanticConstructor.structuralTerm2, typeSubstitutions)
-
-  def tagTerm1: Expr[Ind] = specializeTerm(semanticConstructor.underlying.tagTerm, typeSubstitutions)
-
-  def tagTerm2: Expr[Ind] = specializeTerm(semanticConstructor.underlying.tagTerm, typeSubstitutions)
-
-  def subterm1: Expr[Ind] = specializeTerm(semanticConstructor.underlying.subterm1, typeSubstitutions)
-
-  def subterm2: Expr[Ind] = specializeTerm(semanticConstructor.underlying.subterm2, typeSubstitutions)
 
   def injectivity: THM = {
     val base = semanticConstructor.injectivity

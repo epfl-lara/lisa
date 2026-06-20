@@ -22,7 +22,6 @@ private[proofs] trait WitnessProofContext[N <: Arity] {
   protected val pairWitness: Variable[Ind]
   protected val caseMembership: Expr[Ind] => Expr[Prop]
   protected val checkReturnType: Map[Pattern[N], JUSTIFICATION]
-  protected val constructorTagDisequalities: Map[(SemanticConstructor[N], SemanticConstructor[N]), THM]
   protected val contextPremises: Seq[Expr[Prop]]
 
   protected val inputTerm: Variable[Ind] = variable[Ind]
