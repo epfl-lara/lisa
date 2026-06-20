@@ -74,7 +74,8 @@ lazy val sets = Project(
 )
   .settings(commonSettings3)
   .settings(
-    libraryDependencies += "org.apache.commons" % "commons-math3" % "3.6.1"
+    libraryDependencies += "org.apache.commons" % "commons-math3" % "3.6.1",
+    libraryDependencies += "it.unimi.dsi" % "fastutil-core" % "8.5.15"
   )
   .dependsOn(kernel, withTests(utils))
 lazy val utils = Project(
