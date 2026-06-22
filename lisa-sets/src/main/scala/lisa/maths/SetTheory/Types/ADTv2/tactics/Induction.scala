@@ -54,9 +54,9 @@ class Induction[M <: Arity](
       vars: Seq[Variable[Ind]]
   ): Seq[Expr[Prop]] =
     val specializedTypeArgs = typeSubstitutionMap(adt)
-    constructor.semantic.underlying.specification.zip(vars).map {
-      case (SelfRef, v) => v :: adt.term
-      case (TypeArg(typeName), v) =>
+    constructor.semantic.syntacticSignature(vars).map {
+      case (v, SelfRef) => v :: adt.term
+      case (v, TypeArg(typeName)) =>
         v :: specializedTypeArgs.getOrElse(typeName, typeExprToTerm(typeName))
     }
 
@@ -65,9 +65,7 @@ class Induction[M <: Arity](
       vars: Seq[Variable[Ind]],
       prop: Expr[Ind >>: Prop]
   ): Seq[Expr[Prop]] =
-    constructor.semantic.underlying.specification.zip(vars).collect { case (SelfRef, v) =>
-      prop(v)
-    }
+    constructor.semantic.recursiveBinders(vars).map(v => prop(v))
 
   private def abstractConstructorCase[N <: Arity](using
       proof: lisa.SetTheoryLibrary.Proof
@@ -79,7 +77,7 @@ class Induction[M <: Arity](
       prop: Expr[Ind >>: Prop]
   ): proof.Fact =
     val specializedTypeArgs = typeSubstitutionMap(adt)
-    binders.zip(constructor.semantic.underlying.specification).foldRight[proof.Fact](rawCaseProof) { case ((v, ty), acc2) =>
+    constructor.semantic.syntacticSignature(binders).foldRight[proof.Fact](rawCaseProof) { case ((v, ty), acc2) =>
       val accRight: Expr[Prop] = acc2.statement.right.head
       ty match
         case SelfRef =>
@@ -105,7 +103,7 @@ class Induction[M <: Arity](
       prop: Expr[Ind >>: Prop]
   ): proof.Fact =
     val specializedTypeArgs = typeSubstitutionMap(adt)
-    val assumptions = binders.zip(constructor.semantic.underlying.specification).flatMap {
+    val assumptions = constructor.semantic.syntacticSignature(binders).flatMap {
       case (v, SelfRef) =>
         Seq(v :: adt.term, prop(v))
       case (v, TypeArg(typeName)) =>

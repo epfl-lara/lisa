@@ -50,8 +50,8 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  */
 class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcecode.File)(
     val name: String,
-    val underlying: SyntacticConstructor,
-    val adt: SyntacticADT[N]
+    private[encoding] val underlying: SyntacticConstructor,
+    adt: SyntacticADT[N]
 ) {
 
   private def normalizedTypeArguments(
@@ -147,17 +147,20 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
   def branchAtHeight(heightSet: Expr[Ind], term: Expr[Ind]): Expr[Prop] =
     existsSeq(variables2, branchPremiseAtHeight(heightSet, term))
 
-  def selfRefVariables2: Seq[Variable[Ind]] =
-    syntacticSignature(variables2).collect { case (v, lisa.maths.SetTheory.Types.ADTv2.syntax.AST.SelfRef) =>
-      v
-    }
-
   /**
-   * Type of this constructor.
+   *  Constructor arguments whose domain is the ADT itself, i.e. the recursive
+   *  positions, taken from `vars`.
    */
+  def recursiveBinders(vars: Seq[Variable[Ind]]): Seq[Variable[Ind]] =
+    syntacticSignature(vars).collect { case (v, SelfRef) => v }
+
+  def selfRefVariables2: Seq[Variable[Ind]] = recursiveBinders(variables2)
+
   val typ: Expr[Ind] =
-    // semanticSignature.unzip._2.foldRight[Expr[Ind]](adt.term)((a, b) => a |=> b)
     semanticSignature.unzip._2.foldRight[Expr[Ind]](adt.term)((a, b) => (a ->: b))
+
+  val adtName: String = adt.name
+  val adtTerm: Expr[Ind] = adt.term
 
   /**
    * Arity of this constructor.
@@ -167,18 +170,18 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
   /**
    * Internal representation of this constructor (i.e. as a tuple).
    */
-  val structuralTerm: Expr[Ind] = underlying.term
+  private[encoding] val structuralTerm: Expr[Ind] = underlying.term
 
   /**
    * Internal representation of this constructor (i.e. as a tuple).
    */
-  val structuralTerm1: Expr[Ind] = underlying.term1
+  private[encoding] val structuralTerm1: Expr[Ind] = underlying.term1
 
   /**
    *  Internal representation of this constructor (i.e. as a tuple) with an alternative
    *  set of variables.
    */
-  val structuralTerm2: Expr[Ind] = underlying.term2
+  private[encoding] val structuralTerm2: Expr[Ind] = underlying.term2
 
   private val internals = new ConstructorInternals[N](
     adt = adt,
@@ -487,6 +490,49 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
           maxTag
         )
       )
+    }
+  }
+
+  /**
+   *  Theorem --- Disjointness of distinct constructors at the applied-term level.
+   *
+   *  Two well-typed applications of distinct constructors are never equal. This is the
+   *  semantic counterpart of [[structuralDisjointness]], phrased over [[appliedTerm]]
+   *  rather than the internal structural encoding, so that consumers outside the
+   *  encoding (e.g. pattern matching) never need to reach into [[structuralTerm]].
+   */
+  def appliedDisjointness(other: SemanticConstructor[?]): THM = {
+    require(this != other, "appliedDisjointness requires two distinct constructors.")
+
+    Lemma(
+      (wellTypedFormula(semanticSignature1) /\ wellTypedFormula(other.semanticSignature2)) ==>
+        !(appliedTerm1 === other.appliedTerm2)
+    ) {
+      // Specialize each constructor's short definition before introducing any
+      // assumption (instantiation requires an empty context). Nullary constructors
+      // have an un-quantified `shortDefinition`, so there is nothing to instantiate.
+      val p1Impl =
+        if variables1.isEmpty then shortDefinition
+        else
+          have(wellTypedFormula(semanticSignature1) ==> (appliedTerm1 === structuralTerm1)) by
+            InstantiateForallSeq(variables1)(shortDefinition)
+      val p2Impl =
+        if other.variables2.isEmpty then other.shortDefinition
+        else
+          have(wellTypedFormula(other.semanticSignature2) ==> (other.appliedTerm2 === other.structuralTerm2)) by
+            InstantiateForallSeq(other.variables2)(other.shortDefinition)
+
+      val typed = assume(wellTypedFormula(semanticSignature1) /\ wellTypedFormula(other.semanticSignature2))
+      val typed1 = have(wellTypedFormula(semanticSignature1)) by Tautology.from(typed)
+      val typed2 = have(wellTypedFormula(other.semanticSignature2)) by Tautology.from(typed)
+      val inputsEqual = assume(appliedTerm1 === other.appliedTerm2)
+
+      val p1 = have(appliedTerm1 === structuralTerm1) by Tautology.from(p1Impl, typed1)
+      val p2 = have(other.appliedTerm2 === other.structuralTerm2) by Tautology.from(p2Impl, typed2)
+
+      val structuralEq = have(structuralTerm1 === other.structuralTerm2) by Congruence.from(p1, p2, inputsEqual)
+
+      have(thesis) by Tautology.from(structuralEq, structuralDisjointness(other))
     }
   }
 

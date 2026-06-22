@@ -49,18 +49,8 @@ class SemanticADT[N <: Arity](
 
   final class HeightAdapter private[SemanticADT] () {
     def predicate(h: Expr[Ind]): Expr[Prop] = underlying.isHeight(h)
-    lazy val function: Expr[Ind] = underlying.height
-    lazy val valid: THM = underlying.heightValid
-    val exists: THM = underlying.heightExists
-    val monotonic: THM = underlying.heightMonotonic
-    val membershipMonotonic: THM = underlying.heightMembershipMonotonic
-    val successorInclusion: THM = underlying.heightSuccessorInclusion
-    val zero: THM = underlying.heightZero
-    val successorStrong: THM = underlying.heightSuccessorStrong
-    val termHasHeight: THM = underlying.termHasHeight
-    def termsHaveHeight(c: SyntacticConstructor): THM = underlying.termsHaveHeight(c)
-    def termsHaveHeight(c: SemanticConstructor[N]): THM = underlying.termsHaveHeight(c.underlying)
-
+    val function: Expr[Ind] = underlying.height
+    
     def validAt(
         substitutions: Seq[TypeSubstitution]
     )(using sourcecode.Line, sourcecode.File): THM =
@@ -68,7 +58,7 @@ class SemanticADT[N <: Arity](
         theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
         suffix = "height/valid",
         substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
-        baseTheorem = valid
+        baseTheorem = underlying.heightValid
       )
 
     def existsAt(
@@ -78,7 +68,7 @@ class SemanticADT[N <: Arity](
         theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
         suffix = "height/exists",
         substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
-        baseTheorem = exists
+        baseTheorem = underlying.heightExists
       )
 
     def monotonicAt(
@@ -88,7 +78,7 @@ class SemanticADT[N <: Arity](
         theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
         suffix = "height/monotonic",
         substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
-        baseTheorem = monotonic
+        baseTheorem = underlying.heightMonotonic
       )
 
     def zeroAt(
@@ -98,7 +88,7 @@ class SemanticADT[N <: Arity](
         theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
         suffix = "height/zero",
         substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
-        baseTheorem = zero
+        baseTheorem = underlying.heightZero
       )
 
     def membershipMonotonicAt(
@@ -108,7 +98,7 @@ class SemanticADT[N <: Arity](
         theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
         suffix = "height/membershipMonotonic",
         substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
-        baseTheorem = membershipMonotonic
+        baseTheorem = underlying.heightMembershipMonotonic
       )
 
     def successorInclusionAt(
@@ -118,7 +108,7 @@ class SemanticADT[N <: Arity](
         theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
         suffix = "height/successorInclusion",
         substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
-        baseTheorem = successorInclusion
+        baseTheorem = underlying.heightSuccessorInclusion
       )
 
     def successorStrongAt(
@@ -128,7 +118,7 @@ class SemanticADT[N <: Arity](
         theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
         suffix = "height/successorStrong",
         substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
-        baseTheorem = successorStrong
+        baseTheorem = underlying.heightSuccessorStrong
       )
 
     def termHasHeightAt(
@@ -138,7 +128,7 @@ class SemanticADT[N <: Arity](
         theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
         suffix = "height/termHasHeight",
         substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
-        baseTheorem = termHasHeight
+        baseTheorem = underlying.termHasHeight
       )
 
     def termsHaveHeightAt(
@@ -149,7 +139,7 @@ class SemanticADT[N <: Arity](
         theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
         suffix = "height/termsHaveHeight",
         substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
-        baseTheorem = termsHaveHeight(c)
+        baseTheorem = underlying.termsHaveHeight(c)
       )
 
     def termsHaveHeightAt(

@@ -22,7 +22,7 @@ private[PatternMatching] trait ConstructorHeadPattern[N <: Arity] extends Patter
 
   def typeSubstitutions: Seq[TypeSubstitution] = Seq.empty
 
-  def specializedAdtTerm: Expr[Ind] = semanticConstructor.adt.term
+  def specializedAdtTerm: Expr[Ind] = semanticConstructor.adtTerm
 
   override def name: String = semanticConstructor.name
 
@@ -49,7 +49,7 @@ private[PatternMatching] trait ConstructorHeadPattern[N <: Arity] extends Patter
       c: SemanticConstructor[N],
       args: Seq[Variable[Ind]]
   ): THM = Lemma(
-    wellTypedFormula(c.semanticSignature(args)) |- (c.appliedTerm(args) :: c.adt.term)
+    wellTypedFormula(c.semanticSignature(args)) |- (c.appliedTerm(args) :: c.adtTerm)
   ) {
     have(c.term(c.typeVariablesSeq) :: c.typ) by Restate.from(c.intro)
     val introTyping = lastStep
@@ -100,9 +100,19 @@ private[PatternMatching] trait ConstructorHeadPattern[N <: Arity] extends Patter
 
   def branchPremise1: Expr[Prop] = branchPremiseAt(variables1)
 
-  def structuralTerm1: Expr[Ind] = specializeTerm(semanticConstructor.structuralTerm1, typeSubstitutions)
-
-  def structuralTerm2: Expr[Ind] = specializeTerm(semanticConstructor.structuralTerm2, typeSubstitutions)
+  /**
+   * Disjointness of this pattern's head from another, distinct head: their well-typed
+   * applied terms can never be equal. Specializes the semantic constructor's
+   * [[SemanticConstructor.appliedDisjointness]] to this pattern's type substitutions.
+   */
+  def appliedDisjointness(other: ConstructorHeadPattern[N]): THM = {
+    val base = semanticConstructor.appliedDisjointness(other.semanticConstructor)
+    if typeSubstitutions.isEmpty then base
+    else
+      Lemma(base.statement.substitute(typeSubstitutions*)) {
+        have(thesis) by Restate.from(base.of(typeSubstitutions*))
+      }
+  }
 
   def injectivity: THM = {
     val base = semanticConstructor.injectivity

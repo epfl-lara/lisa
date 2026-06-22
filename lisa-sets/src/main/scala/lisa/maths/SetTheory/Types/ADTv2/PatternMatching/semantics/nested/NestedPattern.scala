@@ -328,15 +328,15 @@ private[PatternMatching] object NestedConstructorPattern {
           )
 
           val cts = NestedTrieProofs.resolvedChildTypes(c, currentTy._2)
-          val argTerms = args.zip(cts).map((a, t) => NestedTrieProofs.termOf(a, t.get))
+          val argTerms: Seq[Expr[Ind]] = args.zip(cts).map((a, t) => NestedTrieProofs.termOf(a, t.get))
           val argTypings = args.zip(cts).map((a, t) => typeProof(leafTyping, a, t.get))
           val semanticSubsts = c.semantic.typeVariablesSeq.zip(currentTy._2).map((v, a) => v := a)
           val semanticSigAtArgs =
             argTerms.zip(c.semantic.semanticSignature2.map(_._2.substitute(semanticSubsts*).asInstanceOf[Expr[Ind]]))
           val argsTypedSemantic = Time.measure(s"argsTypedSemantic") { have(wellTypedFormula(semanticSigAtArgs)) by Tautology.from(argTypings*) }
-          val heightSigAtArgs = argTerms.zip(c.semantic.underlying.signature2.map(_._2)).map {
-            case (term, SelfRef) => term -> app(heightFun)(predVar)
-            case (term, TypeArg(name)) => term -> typeExprToTerm(name).substitute(semanticSubsts*).asInstanceOf[Expr[Ind]]
+          val heightSigAtArgs = argTerms.zip(c.semantic.syntacticSignature).map {
+            case (term, (_, SelfRef)) => term -> app(heightFun)(predVar)
+            case (term, (_, TypeArg(name))) => term -> typeExprToTerm(name).substitute(semanticSubsts*).asInstanceOf[Expr[Ind]]
           }
           val recursiveAtPred = c.semantic.recursiveArgInHeightAt(semanticSubsts)(heightFun, predVar)
           val valueSubsts = c.semantic.variables2.zip(argTerms).map((v, t) => v := t)

@@ -4,7 +4,6 @@ import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.appSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.wellTypedSet
-import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
@@ -45,13 +44,11 @@ case class Case[N <: Arity](cons: Constructor[N], args: Expr[Ind]*) {
           )
         )
     ) ++ cons.semantic
-      .syntacticSignature(vars)
-      .filter(_._2 == SelfRef)
-      .map((v, _) => v :: cons.adt.termAt(typeArgs))
+      .recursiveBinders(vars)
+      .map(v => v :: cons.adt.termAt(typeArgs))
       ++ cons.semantic
-        .syntacticSignature(vars)
-        .filter(_._2 == SelfRef)
-        .map((v, _) => prop.substitute(adtVar -> v))
+        .recursiveBinders(vars)
+        .map(v => prop.substitute(adtVar -> v))
       ++ args.zip(vars).collect {
         case (t, v) if !t.isInstanceOf[Variable[Ind]] => v === t
       }

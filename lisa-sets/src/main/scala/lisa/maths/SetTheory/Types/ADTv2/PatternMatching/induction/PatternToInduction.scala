@@ -7,7 +7,6 @@ import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
 import lisa.maths.SetTheory.Types.ADTv2.interface.SpecializedADT
 import lisa.maths.SetTheory.Types.ADTv2.support.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.simplify
-import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.SelfRef
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
@@ -73,16 +72,12 @@ object PatternToInduction {
 
           constructorOpt.map(constructor =>
 
-            val recursiveBinders = constructorPattern.semanticConstructor.underlying.specification.zip(constructorPattern.binders).collect { 
-              case (SelfRef, binder) => binder
-            }
-
             val normalized = simplify(constructorPattern.branchCondition)
             val guardAssumptions = if normalized == (True: Expr[Prop]) then Seq.empty else Seq(normalized)
             InductionBranch(
               constructor = constructor,
               binders = constructorPattern.binders,
-              recursiveBinders = recursiveBinders,
+              recursiveBinders = constructorPattern.semanticConstructor.recursiveBinders(constructorPattern.binders),
               typingAssumptions = constructorPattern
                 .typingSignatureAt(constructorPattern.binders)
                 .map { case (variable, typ) => variable :: typ },
