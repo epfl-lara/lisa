@@ -15,26 +15,15 @@ final class ExistsOneBuilder(
   private val witnessDefinition = definitionAt(witnessVar)
 
   val theorem: THM = Lemma(existsOne(witnessVar, witnessDefinition)) {
-    val definitionFormula = (v: Variable[Ind]) => definitionAt(v)
 
-    val existencePart = have(∃(x, definitionFormula(x))) by
-      Restate.from(existence of (witnessVar := x))
-
-    have(definitionFormula(x) /\ definitionFormula(y) ==> (x === y)) by
-      Restate.from(pairwiseUniqueness)
-    thenHave(∀(y, definitionFormula(x) /\ definitionFormula(y) ==> (x === y))) by RightForall
-
+    have(∀(y, definitionAt(x) /\ definitionAt(y) ==> (x === y))) by RightForall(pairwiseUniqueness)
     val uniquenessAll = thenHave(
-      ∀(x, ∀(y, definitionFormula(x) /\ definitionFormula(y) ==> (x === y)))
+      ∀(x, ∀(y, definitionAt(x) /\ definitionAt(y) ==> (x === y)))
     ) by RightForall
 
-    have(
-      ∃(x, definitionFormula(x)) /\
-        ∀(x, ∀(y, definitionFormula(x) /\ definitionFormula(y) ==> (x === y)))
-    ) by Tautology.from(existencePart, uniquenessAll)
-
     have(thesis) by Tautology.from(
-      lastStep,
+      existence of (witnessVar := x),
+      uniquenessAll,
       existsOneAlternativeDefinition of (x := witnessVar, P := λ(witnessVar, witnessDefinition))
     )
   }

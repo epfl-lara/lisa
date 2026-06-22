@@ -1,10 +1,8 @@
 package lisa.maths.SetTheory.Types.ADTv2.FunctionCore
 
-import lisa.maths.SetTheory.Functions.Pi.->:
+import lisa.maths.SetTheory.Functions.BasicTheorems
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.FunctionAbstractions
-import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
@@ -40,22 +38,25 @@ trait UniquenessProof[N <: Arity] {
     val xDef = spec.untypedDefinition(x)
     val yDef = spec.untypedDefinition(y)
     Lemma(xDef /\ yDef ==> (x === y)) {
-      val hyp = assume(xDef /\ yDef)
 
-      val xTyped = have(x :: (spec.argType ->: spec.returnType)) by Weakening(hyp)
-      val yTyped = have(y :: (spec.argType ->: spec.returnType)) by Weakening(hyp)
-
-      have(x === y) by Tautology.from(
-        FunctionAbstractions.extensionalityStepGeneral.of(
-          FunctionAbstractions.leftFunVar := x,
-          FunctionAbstractions.rightFunVar := y,
-          FunctionAbstractions.domainVar := spec.argType,
-          FunctionAbstractions.tailTypeVar := spec.returnType
+      have(thesis) by Tautology.from(
+        BasicTheorems.functionalExtentionality of (
+          f := x,
+          g := y,
+          A := spec.argType,
+          B := spec.returnType
         ),
-        xTyped,
-        yTyped,
+        BasicTheorems.funcBetweenEqInFuncSpace of (
+          f := x,
+          A := spec.argType,
+          B := spec.returnType
+        ),
+        BasicTheorems.funcBetweenEqInFuncSpace of (
+          f := y,
+          A := spec.argType,
+          B := spec.returnType
+        ),
         pointwiseAgreement
       )
-      thenHave(thesis) by Restate
     }
 }

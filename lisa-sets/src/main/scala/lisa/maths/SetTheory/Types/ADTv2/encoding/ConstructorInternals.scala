@@ -2,13 +2,12 @@ package lisa.maths.SetTheory.Types.ADTv2.encoding
 
 import lisa.maths.SetTheory.Functions.Pi.->:
 import lisa.maths.SetTheory.SetTheory.{_, given}
-import lisa.utils.prooflib.InstantiateForallSeq
 import lisa.utils.prooflib.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.FunctionAbstractions
 import lisa.maths.SetTheory.Types.ADTv2.support.semantics.ExistsOneBuilder
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.altEqualityTransitivity
-import lisa.maths.SetTheory.Types.TypingHelpers.::
+import lisa.maths.SetTheory.Types.TypingHelpers.{::, `*`}
+import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[encoding] final class ConstructorInternals[N <: Arity](
@@ -51,24 +50,21 @@ private[encoding] final class ConstructorInternals[N <: Arity](
         Lemma(wellTypedFormula(prefixSig) |- (witnessAt(index) :: suffixType(index))) {
           assume(wellTypedFormula(prefixSig))
           have(v ∈ domain ==> (body :: nextType)) subproof {
-            assume(v ∈ domain)
-            have(wellTypedFormula(prefixSig :+ ((v, domain)))) by Tautology
-            have(body :: nextType) by Cut(lastStep, next)
+            have(v ∈ domain |- wellTypedFormula(prefixSig :+ ((v, domain)))) by Tautology
+            have(v ∈ domain |- body :: nextType) by Cut(lastStep, next)
             thenHave(thesis) by Restate
           }
           thenHave(∀(v ∈ domain, body :: nextType)) by RightForall
 
-          have(witnessAt(index) :: (domain ->: nextType)) by
+          have(thesis) by
             Tautology.from(
               lastStep,
               FunctionAbstractions.TAbsConstOn(domain, nextType, λ(v, body))
             )
-          thenHave(thesis) by Restate
         }
     }
 
-    have(⊤ |- (witness :: typ)) by Restate.from(proveTyping(0))
-    thenHave(thesis) by Tautology
+    have(thesis) by Restate.from(proveTyping(0))
   }
 
   private val witnessEquations: THM = Lemma(
@@ -77,125 +73,54 @@ private[encoding] final class ConstructorInternals[N <: Arity](
       wellTypedFormula(semanticSignature) ==> (appSeq(witness)(variables) === structuralTerm)
     )
   ) {
-    have(wellTypedFormula(semanticSignature) |- (appSeq(witness)(variables) === structuralTerm)) by
-      Restate.from(FunctionAbstractions.curriedBeta(semanticSignature, structuralTerm))
+    val witness = FunctionAbstractions.nestedAbstraction(semanticSignature, structuralTerm)
+    val T = variable[Ind]
+    val e = variable[Ind >>: Ind]
+    val e2 = variable[Ind]
+
+    val betas = semanticSignature.indices.map { k =>
+      val (v, domain) = semanticSignature(k)
+      val wNext = FunctionAbstractions.nestedAbstraction(semanticSignature.drop(k + 1), structuralTerm)
+      have(wellTypedFormula(semanticSignature) |- FunctionAbstractions.nestedAbstraction(semanticSignature.drop(k), structuralTerm) * v === wNext) by
+        Tautology.from(BetaReduction of (T := domain, e := λ(v, wNext), e2 := v))
+    }
+    have(wellTypedFormula(semanticSignature) |- (appSeq(witness)(variables) === structuralTerm)) by Congruence.from(betas*)
+
     thenHave(wellTypedFormula(semanticSignature) ==> (appSeq(witness)(variables) === structuralTerm)) by
-      RightImplies.withParameters(
-        wellTypedFormula(semanticSignature),
-        appSeq(witness)(variables) === structuralTerm
-      )
+      Restate
+      
     thenHave(thesis) by QuantifiersIntro(variables)
   }
 
-  val existence: THM = Lemma(∃(c, untypedDefinition)) {
-    have(witness :: typ) by Restate.from(witnessTyping)
-    have(
-      forallSeq(
-        variables,
-        wellTypedFormula(semanticSignature) ==> (appSeq(witness)(variables) === structuralTerm)
-      )
-    ) by Restate.from(witnessEquations)
-
+  private val existence: THM = Lemma(∃(c, untypedDefinition)) {
     have(
       (witness :: typ) /\
         forallSeq(
           variables,
           wellTypedFormula(semanticSignature) ==> (appSeq(witness)(variables) === structuralTerm)
         )
-    ) by Tautology.from(lastStep, witnessTyping)
-
+    ) by RightAnd(witnessEquations, witnessTyping)
     thenHave(thesis) by RightExists
   }
 
-  val pairwiseUniqueness: THM = Lemma(
-    untypedDefinition.substitute(c := x) /\ untypedDefinition.substitute(c := y) ==> (x === y)
-  ) {
+  private val xDef = untypedDefinition.substitute(c := x)
+  private val yDef = untypedDefinition.substitute(c := y)
+  
+  private val pairwiseUniqueness: THM = Lemma(xDef /\ yDef ==> (x === y)) {
+    assume(xDef, yDef)
+
     if variables.isEmpty then
-      val xDef = untypedDefinition.substitute(c := x)
-      val yDef = untypedDefinition.substitute(c := y)
-      assume(xDef /\ yDef)
-      val xEq = have(x === structuralTerm) by Tautology
-      val yEq = have(y === structuralTerm) by Tautology
-      val yEqRev = have(structuralTerm === y) by Congruence.from(yEq)
-      have(x === y) by Tautology.from(
-        altEqualityTransitivity of (x := x, y := structuralTerm, z := y),
-        xEq,
-        yEqRev
-      )
-      thenHave(thesis) by Tautology
+      // No arguments: both definitions pin `x` and `y` to the same structural term.
+      val xEq = have(x === structuralTerm) by Restate
+      val yEq = have(y === structuralTerm) by Restate
+      have(x === y) by Congruence.from(xEq, yEq)
+      thenHave(thesis) by Restate
     else
-      val xDef = untypedDefinition.substitute(c := x)
-      val yDef = untypedDefinition.substitute(c := y)
-      assume(xDef /\ yDef)
-
-      val xDefinition = have(xDef) by Tautology
-      val yDefinition = have(yDef) by Tautology
-
-      val xTyped = have(x :: typ) by Tautology.from(xDefinition)
-      val yTyped = have(y :: typ) by Tautology.from(yDefinition)
-
-      val xSchemaFormula = xDefinition.statement.right.head match
-        case _ /\ phi => phi
-        case _ => throw UnreachableException
-      val ySchemaFormula = yDefinition.statement.right.head match
-        case _ /\ phi => phi
-        case _ => throw UnreachableException
-
-      val xSchema = have(xSchemaFormula) by Tautology.from(xDefinition)
-
-      val ySchema = have(ySchemaFormula) by Tautology.from(yDefinition)
-
-      val pointwiseVars = semanticSignature.indices.map(i => variable[Ind](s"constructoruniq$i"))
-      val pointwiseSignature = pointwiseVars.zip(semanticSignature.map(_._2))
-      val instantiatedStructuralTerm =
-        structuralTerm
-          .substitute(variables.zip(pointwiseVars).map((from, to) => from := to)*)
-          .asInstanceOf[Expr[Ind]]
-
-      val pointwiseEquality = have(
-        forallSeq(
-          pointwiseVars,
-          wellTypedFormula(pointwiseSignature) ==> (appSeq(x)(pointwiseVars) === appSeq(y)(pointwiseVars))
-        )
-      ) subproof {
-        val xSchemaLocal = have(xSchema.statement.right.head) by Tautology.from(xSchema)
-        val ySchemaLocal = have(ySchema.statement.right.head) by Tautology.from(ySchema)
-        val xAtVars = have(
-          wellTypedFormula(pointwiseSignature) ==> (appSeq(x)(pointwiseVars) === instantiatedStructuralTerm)
-        ) by InstantiateForallSeq(pointwiseVars)(xSchemaLocal)
-        val yAtVars = have(
-          wellTypedFormula(pointwiseSignature) ==> (appSeq(y)(pointwiseVars) === instantiatedStructuralTerm)
-        ) by InstantiateForallSeq(pointwiseVars)(ySchemaLocal)
-
-        have(wellTypedFormula(pointwiseSignature) |- (appSeq(x)(pointwiseVars) === appSeq(y)(pointwiseVars))) subproof {
-          val varsTyped = assume(wellTypedFormula(pointwiseSignature))
-          val xAtBody = have(appSeq(x)(pointwiseVars) === instantiatedStructuralTerm) by
-            Tautology.from(xAtVars, varsTyped)
-          val yAtBody = have(appSeq(y)(pointwiseVars) === instantiatedStructuralTerm) by
-            Tautology.from(yAtVars, varsTyped)
-          val yAtBodyRev = have(instantiatedStructuralTerm === appSeq(y)(pointwiseVars)) by Congruence.from(yAtBody)
-          have(appSeq(x)(pointwiseVars) === appSeq(y)(pointwiseVars)) by Tautology.from(
-            altEqualityTransitivity of (
-              x := appSeq(x)(pointwiseVars),
-              y := instantiatedStructuralTerm,
-              z := appSeq(y)(pointwiseVars)
-            ),
-            xAtBody,
-            yAtBodyRev
-          )
-        }
-        thenHave(wellTypedFormula(pointwiseSignature) ==> (appSeq(x)(pointwiseVars) === appSeq(y)(pointwiseVars))) by
-          RightImplies
-        thenHave(thesis) by QuantifiersIntro(pointwiseVars)
-      }
-
-      have(x === y) by Tautology.from(
-        xTyped,
-        yTyped,
-        pointwiseEquality,
-        FunctionAbstractions.curriedExtensionality(pointwiseSignature, adt.term, x, y)
+      // `x` and `y` both reduce to `structuralTerm` on every well-typed tuple, so are equal:
+      // curried extensionality combines the two reduction schemas and lifts the agreement.
+      have(thesis) by Restate.from(
+        FunctionAbstractions.curriedCommonValue(semanticSignature, adt.term, x, y, structuralTerm)
       )
-      thenHave(thesis) by Tautology
   }
 
   val uniqueness: THM =
