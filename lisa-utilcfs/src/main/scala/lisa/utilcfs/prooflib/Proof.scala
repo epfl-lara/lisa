@@ -28,22 +28,25 @@ final class Proof private (val lib: Library, val goal: Option[Sequent]):
 
   def absorb[T](carrier: ProofCarrier[T]): ProofCarrier[T] =
     report(carrier.errors)
+    carrier.justification.foreach(thm => lastKnown = Some(thm))
     carrier
 
-  def child(goal: Option[Sequent] = None): Proof = ???
+  private def child(goal: Option[Sequent] = None): Proof =
+    new Proof(lib, goal)
 
-  def withSubcontext[T](inner: Proof ?=> T): ProofCarrier[T] =
+  def withSubcontext[T](inner: Proof ?=> ProofCarrier[T]): ProofCarrier[T] =
     val subproof = child()
-    val result = inner(using subproof)
+    val carrier = inner(using subproof)
+    val merged = carrier.withErrors(subproof.errors)
+    report(merged.errors)
+    merged
 
-    subproof.pure(result)
 
   def pure[T](result: T): ProofCarrier[T] =
     val lastJudgement = 
       last match
         case Some(j) => j
         case None => 
-          report(??? : ProofError)
           K.Sorry(goal.getOrElse(Sequent(Set.empty, Set(K.top)))) match
             case Right(j) => j
     ProofCarrier(
@@ -57,8 +60,7 @@ object Proof:
   private def empty(using lib: Library): Proof = new Proof(lib, None)
   def withGoal(using lib: Library)(goal: Sequent): Proof = new Proof(lib, Some(goal))
 
-  def withContext[T](using lib: Library)(inner: Proof ?=> T): ProofCarrier[T] =
+  def withContext[T](using lib: Library)(inner: Proof ?=> ProofCarrier[T]): ProofCarrier[T] =
     val proof = Proof.empty
-    val result = inner(using proof)
-
-    proof.pure(result)
+    val carrier = inner(using proof)
+    carrier.withErrors(proof.errors)
