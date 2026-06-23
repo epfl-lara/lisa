@@ -3,14 +3,12 @@ package lisa.utilcfs.fol
 import lisa.utilcfs.K
 import lisa.utilcfs.K.Identifier
 import lisa.utilcfs.K.given_Conversion_String_Identifier
-import lisa.utilcfs.KernelHelpers.freshId
+import lisa.utilcfs.K.freshId
 
 import scala.annotation.showAsInfix
 import scala.annotation.targetName
 
 trait Syntax {
-
-  type IsSort[T] = Sort { type Self = T }
 
   @showAsInfix
   infix type >>:[I, O] = Arrow[I, O]
@@ -20,10 +18,9 @@ trait Syntax {
    *
    * Sorts are used to classify expressions and are either [[Ind]], [[Prop]], or _ [[Arrow]] _.
    */
-  trait Sort {
+  trait Sort:
     type Self
     val underlying: K.Sort
-  }
 
   /**
    * The sort of individuals, i.e. sets, numbers, etc. Corresponds to [[K.Ind]]
@@ -43,29 +40,28 @@ trait Syntax {
   /**
    * Typeclass asserting that [[Ind]] is a sort
    */
-  given given_TermType: IsSort[Ind] with
+  given given_TermType: Ind is Sort with
     val underlying = K.Ind
 
   /**
    * Typeclass asserting that [[Prop]] is a sort
    */
-  given given_FormulaType: IsSort[Prop] with
+  given given_FormulaType: Prop is Sort with
     val underlying = K.Prop
 
   /**
    * Typeclass asserting that [[Arrow]][_, _] is a sort
    */
-  given given_ArrowType[A: Sort as ta, B: Sort as tb]: (IsSort[Arrow[A, B]]) with
+  given given_ArrowType[A: Sort as ta, B: Sort as tb]: (Arrow[A, B] is Sort) with
     val underlying = K.Arrow(ta.underlying, tb.underlying)
 
   /**
    * A pair of a variable and an expression of matching Sort. Used for substitution.
    */
-  sealed trait SubstPair extends Product {
-    type S
+  sealed trait SubstPair extends Product:
+    type S // S is existentially quantified
     val _1: Variable[S]
     val _2: Expr[S]
-  }
 
   /**
    * Concrete implementation of the [[SubstPair]] trait. Done this way to havee a type membeer instead of a type parameter.
@@ -88,7 +84,7 @@ trait Syntax {
    * Used to cast expressions to a specific sort, without checking.
    * Useful when the type is not known at compile time.
    */
-  def unsafeSortEvidence[S](sort: K.Sort): IsSort[S] = new Sort { type Self = S; val underlying = sort }
+  def unsafeSortEvidence[S](sort: K.Sort): S is Sort = new Sort { type Self = S; val underlying = sort }
 
   /**
    * Converts a (Variable, Expr) pair to a SubstPair
@@ -281,7 +277,7 @@ trait Syntax {
   /**
    * Well-sorted application constructor. Used when sorts are known at compile time.
    */
-  extension [S, T](f: Expr[Arrow[S, T]]) def apply(using IsSort[S], IsSort[T])(arg: Expr[S]): Expr[T] = App(f, arg)
+  extension [S : Sort, T : Sort](f: Expr[Arrow[S, T]]) def apply(arg: Expr[S]): Expr[T] = App(f, arg)
 
   /**
    * match type computing the return sort of an arrow sort.
@@ -465,6 +461,7 @@ trait Syntax {
      * Constructs a constant with the given identifier and sort.
      */
     def unsafe(id: String, sort: K.Sort): Constant[?] = Constant(id)(using unsafeSortEvidence(sort))
+    def unsafe(id: Identifier, sort: K.Sort): Constant[?] = Constant(id)(using unsafeSortEvidence(sort))
   }
 
   /**
