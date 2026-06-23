@@ -112,5 +112,46 @@ object BasicStep:
         .mapLeft(liftError(file, line)(conclusion, pivot))
         .lift(conclusion.underlying)
         
-    def apply(using library: Library, proof: Proof)(conclusion: Sequent): ProofJudgement =
-      ???
+    def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library, proof: Proof)(conclusion: Sequent): ProofJudgement =
+      val pivot =
+        // default to syntactic match
+        conclusion.left.find(conclusion.right.contains).orElse:
+          // try falling back to weaker eq match
+          conclusion.left.find(phi => conclusion.right.containsEq(phi))
+
+      pivot match
+        case Some(phi) => withParameters(using file, line)(phi)(conclusion)
+        case None =>
+          val error = SoftError(
+            withParams(
+              "Could not infer a Hypothesis pivot occurring on both sides of the conclusion.",
+              "Conclusion" -> conclusion
+            ),
+            file,
+            line
+          )
+          ProofCarrier(Set(error), conclusion.underlying, None, ())
+
+  object Restate extends PremiseSequentTactic:
+    private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, premise: K.Thm)(err: K.Restate.ErrorType): ProofError =
+      err match
+        case _: K.Restate.NotImplying =>
+          SoftError(withParams("Restate premise is not OL-equivalent to the conclusion.", "Premise" -> premise, "Conclusion" -> conclusion), file, line)
+        case e: K.GeneralError => liftGeneralError(file, line)("Restate", e)
+
+    def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library, proof: Proof)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
+      K.Restate(using library.theory)(conclusion.underlying, premise)
+        .mapLeft(liftError(file, line)(conclusion, premise))
+        .lift(conclusion.underlying)
+
+  object RestateTrue extends SequentTactic:
+    private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent)(err: K.RestateTrue.ErrorType): ProofError =
+      err match
+        case _: K.RestateTrue.NotTrivial =>
+          SoftError(withParams("RestateTrue conclusion is not OL-equivalent to truth.", "Conclusion" -> conclusion), file, line)
+
+    def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library, proof: Proof)(conclusion: Sequent): ProofJudgement =
+      K.RestateTrue(using library.theory)(conclusion.underlying)
+        .mapLeft(liftError(file, line)(conclusion))
+        .lift(conclusion.underlying)
+
