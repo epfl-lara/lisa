@@ -4,7 +4,6 @@ import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.height.HeightADT
 import lisa.maths.SetTheory.Types.ADTv2.height.HeightConstructorData
 import lisa.maths.SetTheory.Types.ADTv2.height.HeightConstructors
-import lisa.maths.SetTheory.Types.ADTv2.height.HeightStageConstructorData
 import lisa.maths.SetTheory.Types.ADTv2.height.HeightStageSet
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.semantics.UniqueDefinedSymbol
@@ -42,14 +41,6 @@ private[encoding] trait SyntacticADTBase[N <: Arity] {
     HeightConstructorData(
       variables = c.variables2,
       signature = c.signature2,
-      term = c.term2
-    )
-  )
-
-  protected val heightStageConstructorData = constructors.map(c =>
-    HeightStageConstructorData(
-      variables = c.variables2,
-      signature = c.signature2,
       subterm = c.subterm2,
       tagTerm = c.tagTerm
     )
@@ -58,13 +49,13 @@ private[encoding] trait SyntacticADTBase[N <: Arity] {
   protected val heightTHY = 
     HeightADT[N](name, typeVariablesSeq, isConstructor)
   private val heightStageSet = 
-    HeightStageSet[N](heightTHY, heightStageConstructorData, isConstructor)
+    HeightStageSet[N](heightTHY, heightConstructorData, isConstructor)
   protected val heightConstructorsTHY = 
     HeightConstructors[N](heightTHY, heightConstructorData, heightStageSet, isConstructor)
 
 
   def isHeight(h: Expr[Ind]): Expr[Prop] = heightTHY.isHeight(h)
-  val heightExists = heightConstructorsTHY.heightExists
+  val heightExists = heightStageSet.heightExists
   val heightUniqueness = heightConstructorsTHY.heightUniqueness
   val heightExistsOne = heightConstructorsTHY.heightExistsOne
   val heightZero = heightTHY.heightZero
