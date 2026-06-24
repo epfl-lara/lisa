@@ -87,10 +87,25 @@ accumulation (no cache for `σ(s)`); the unidirectional path is the hot one for 
 
 ## DISCOUNT loop (`Discount.scala`, Phase 1) — deferred work
 
-- **Passive selection uses lazy-deletion two-heaps.** Each passive clause sits in both an age heap
-  (`id`) and a weight heap (`(weight, id)`); selecting via one leaves a stale entry in the other,
-  skipped on pop via the `livePassive` id set. Stale entries linger until popped. Vampire uses an
-  exact-removal structure (O(log n) delete from both queues); fine to defer.
+- **Passive queues: a binary heap + a FIFO, with lazy deletion.** `byWeight` is a binary-heap
+  `mutable.PriorityQueue` on `(weight, id)`; `byAge` is a plain FIFO `mutable.Queue` (clauses are
+  enqueued in strictly increasing `id`, so the front is already the oldest — no heap needed there).
+  Each clause sits in both; selecting via one leaves a **stale** entry in the other, skipped on pop via
+  the `livePassive` id set. Cost: `O(log n)` weight pop, `O(1)` age pop, plus the skipped stales. We use
+  lazy deletion because neither a heap nor a FIFO supports cheap **arbitrary** removal.
+  - *Vampire* keeps **both** the age and weight queues as **skip lists** (`ClauseQueue`) and does
+    **real** removal: `popSelected` removes the chosen clause from the other queue, and `remove(cl)`
+    deletes a simplified clause from both (`O(log n)` expected each). The ordered structure also feeds
+    its LRS (limited-resource) lookahead, which iterates the queues in order.
+  - *E* keeps each of several weighted evaluation queues as a **self-adjusting BST** (`EvalTree` —
+    historically AVL, now splay), keyed by `(priority, heuristic)`, with `O(log n)` insert /
+    find-smallest / extract — again real removal, generalised to N queues.
+  - The deciding factor is **arbitrary removal**: a heap has great constants and `O(1)` peek but `O(n)`
+    arbitrary delete; skip lists / balanced BSTs give `O(log n)` insert / find-min / **remove** (and
+    ordered iteration) at higher constants. Lazy deletion is fine for Phase 1, where a clause leaves
+    passive only by being selected. Once **Phase-2 simplification** deletes *passive* clauses (backward
+    subsumption, etc.), stale entries accumulate — that is when to switch `byWeight` to a
+    remove-capable structure (a skip list à la Vampire, or a splay tree à la E).
 - **Active set is scanned linearly** for resolution partners. Term indexing (discrimination /
   fingerprint / substitution trees) is Phase 4 — that's the real scaling fix.
 - **No simplification yet** (Phase 2): no forward/backward subsumption, no demodulation. Passive can

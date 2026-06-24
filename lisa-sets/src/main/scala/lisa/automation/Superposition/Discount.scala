@@ -26,20 +26,29 @@ object Discount:
     case Saturated
     case Unknown
 
-final class Discount(bank: TermBank, trail: Trail, ageRatio: Int = 1, weightRatio: Int = 1):
+final class Discount(bank: TermBank, trail: Trail, ageRatio: Int = 1, weightRatio: Int = 1, factorAfterCheck: Boolean = false):
   import Discount.Result
 
-  // Passive set: two min-heaps over the same clauses (age = id; weight = (weight, id)), with lazy
-  // deletion -- a clause selected via one heap stays a stale entry in the other, skipped on pop.
-  private val byAge: mutable.PriorityQueue[Clause] =
-    new mutable.PriorityQueue[Clause]()(using Ordering.by[Clause, Int](_.id).reverse)
-  private val byWeight: mutable.PriorityQueue[Clause] =
-    new mutable.PriorityQueue[Clause]()(using Ordering.by[Clause, (Int, Int)](c => (c.weight, c.id)).reverse)
+  // Passive set: two views over the same clauses, with lazy deletion -- a clause selected via one
+  // stays a stale entry in the other, skipped on pop. Age is just a FIFO queue: clauses are enqueued
+  // in strictly increasing `id` order (ids are monotonic and each insertion is a fresh clause), so
+  // dequeuing from the front already yields the oldest. Weight needs a real min-heap on (weight, id).
+  private val byAge: mutable.Queue[Clause] = mutable.Queue.empty
+  // Reversed for a min-heap (PriorityQueue is a max-heap): the lighter clause -- ties broken by the
+  // smaller id, i.e. the older -- has the highest priority. A direct Int comparison, so no Tuple2 is
+  // allocated (and no Int boxing) per heap comparison.
+  private val byWeightOrder: Ordering[Clause] = (a, b) =>
+    val w = Integer.compare(b.weight, a.weight)
+    if w != 0 then w else Integer.compare(b.id, a.id)
+  private val byWeight: mutable.PriorityQueue[Clause] = new mutable.PriorityQueue[Clause]()(using byWeightOrder)
   private val livePassive: IntOpenHashSet = new IntOpenHashSet() // ids still in passive
   private var balance: Int = 0 // age/weight alternation, Vampire-style
 
   // Active (processed) set, scanned linearly (indexing is Phase 4).
   private val active: mutable.ArrayBuffer[Clause] = mutable.ArrayBuffer.empty
+
+  // Ordering used only for the (optional) post-unification σ-maximality check on factors.
+  private lazy val kbo: KBO = new KBO(bank)
 
   /**
    * Saturate `initial` (plus everything derived from it). Returns [[Result.Refutation]] with the empty
@@ -55,13 +64,11 @@ final class Discount(bank: TermBank, trail: Trail, ageRatio: Int = 1, weightRati
         case None => ()
     var givenCount = 0
     while !livePassive.isEmpty && givenCount < maxGiven do
-      popGiven() match
-        case None => return Result.Saturated // no live clause left (shouldn't happen here)
-        case Some(gc) =>
-          givenCount += 1
-          activate(gc) match
-            case Some(empty) => return Result.Refutation(empty)
-            case None => ()
+      val gc = popGiven()
+      givenCount += 1
+      activate(gc) match
+        case Some(empty) => return Result.Refutation(empty)
+        case None => ()
     if livePassive.isEmpty then Result.Saturated else Result.Unknown
 
   /** Canonicalise `c` and add it to passive; returns the empty clause if `c` canonicalises to `□`. */
@@ -76,24 +83,28 @@ final class Discount(bank: TermBank, trail: Trail, ageRatio: Int = 1, weightRati
           livePassive.add(cc.id)
           None
 
-  /** Pick the next given clause by the age/weight ratio, removing it from passive. */
-  private def popGiven(): Option[Clause] =
-    if livePassive.isEmpty then None
-    else if balance > 0 || (balance == 0 && ageRatio <= weightRatio) then
+  /** Pick the next given clause by the age/weight ratio, removing it from passive: scan the chosen
+   *  queue, skipping stale (already-selected) entries. A live clause is guaranteed when the passive set
+   *  is non-empty (the caller checks `livePassive`), since every passive clause sits in both queues.
+   *  The scan is inlined per queue rather than factored into a by-name helper, so no thunk is allocated
+   *  per call. */
+  private def popGiven(): Clause =
+    if balance > 0 || (balance == 0 && ageRatio <= weightRatio) then
       balance -= ageRatio
-      popLive(byWeight)
+      while byWeight.nonEmpty do
+        val c: Clause = byWeight.dequeue()
+        if takeLive(c) then return c
     else
       balance += weightRatio
-      popLive(byAge)
+      while byAge.nonEmpty do
+        val c: Clause = byAge.dequeue()
+        if takeLive(c) then return c
+    throw new IllegalStateException("popGiven called on an empty passive set")
 
-  /** Dequeue from `pq`, skipping stale (already-selected) entries; mark the result not-live. */
-  private def popLive(pq: mutable.PriorityQueue[Clause]): Option[Clause] =
-    while pq.nonEmpty do
-      val c: Clause = pq.dequeue()
-      if livePassive.contains(c.id) then
-        livePassive.remove(c.id)
-        return Some(c)
-    None
+  /** If `c` is still live (in passive), mark it not-live and return `true`; if stale, return `false`. */
+  private def takeLive(c: Clause): Boolean =
+    if livePassive.contains(c.id) then { livePassive.remove(c.id); true }
+    else false
 
   /** Move `gc` into active and generate all resolvents (against active) and factors (of itself). */
   private def activate(gc: Clause): Option[Clause] =
@@ -117,19 +128,41 @@ final class Discount(bank: TermBank, trail: Trail, ageRatio: Int = 1, weightRati
           aj += 1
         gi += 1
       ai += 1
-    // factoring: gc's selected literal against every other literal of gc (factor rejects mismatches)
+    // factoring: each unordered pair of distinct selected, positive, non-equality literals, once
+    // (positive factoring only; equalities get equality-factoring in Phase 3). A literal that unifies
+    // with a selected (maximal) one is itself maximal, hence also selected, so pairing within the
+    // selected set loses nothing. If `factorAfterCheck`, drop a factor whose kept literal is no longer
+    // (KBO-)maximal under the unifier.
     var gi2 = 0
     while gi2 < gSel.length do
       val i: Int = gSel(gi2)
-      var j = 0
-      while j < gc.literals.length do
-        if j != i then
-          Inference.factor(bank, trail, gc, i, j) match
-            case Some(f) =>
-              addPassive(f) match
-                case Some(empty) => return Some(empty)
-                case None => ()
-            case None => ()
-        j += 1
+      if bank.isPositive(gc.literals(i)) && !isEquality(gc.literals(i)) then
+        var gj = gi2 + 1
+        while gj < gSel.length do
+          val j: Int = gSel(gj)
+          if !isEquality(gc.literals(j)) then
+            Inference.factor(bank, trail, gc, i, j) match
+              case Some(f) =>
+                if !factorAfterCheck || keptMaximal(f, if i < j then i else i - 1) then
+                  addPassive(f) match
+                    case Some(empty) => return Some(empty)
+                    case None => ()
+              case None => ()
+          gj += 1
       gi2 += 1
     None
+
+  /** Whether `lit`'s atom is an equality `s = t` (factoring skips these; equality factoring is Phase 3). */
+  private def isEquality(lit: Literal): Boolean =
+    bank.headSymbol(bank.atomOf(lit)) == EqualitySymbol
+
+  /** σ-maximality after-check: in the (already σ-applied) factor `f`, the kept literal must be maximal --
+   *  no other literal's atom is strictly KBO-greater than it. (Maximal, not strictly: the merged literal
+   *  may have an equal twin.) */
+  private def keptMaximal(f: Clause, keptIdx: Int): Boolean =
+    val keptAtom: Term = bank.atomOf(f.literals(keptIdx))
+    var k = 0
+    while k < f.literals.length do
+      if k != keptIdx && kbo.compare(bank.atomOf(f.literals(k)), keptAtom) == Cmp.Gt then return false
+      k += 1
+    true

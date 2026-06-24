@@ -53,17 +53,6 @@ class DiscountTest extends AnyFunSuite:
     assert(discount.saturate(cs).isInstanceOf[Discount.Result.Refutation])
   }
 
-  test("refutation that requires factoring") {
-    val fx = new Fix; import fx.*
-    val p = pred("P", 1); val a = const("a"); val b = const("b")
-    val x = v(0); val y = v(1)
-    val cs = Seq(
-      clause(pos(app(p, x)), pos(app(p, y))), //  P(x) ∨ P(y)
-      clause(neg(app(p, a)), neg(app(p, b))) //  ¬P(a) ∨ ¬P(b)
-    )
-    assert(discount.saturate(cs).isInstanceOf[Discount.Result.Refutation])
-  }
-
   test("a satisfiable set saturates") {
     val fx = new Fix; import fx.*
     val p = pred("P", 1); val q = pred("Q", 1); val a = const("a"); val b = const("b")
@@ -103,6 +92,15 @@ class DiscountTest extends AnyFunSuite:
       clause(neg(app(p, a)), neg(app(p, b))) //  ¬P(a) ∨ ¬P(b)
     )
     assert(discount.saturate(cs).isInstanceOf[Discount.Result.Refutation])
+  }
+
+  test("the factoring after-check still refutes the factoring problem") {
+    val fx = new Fix; import fx.*
+    bank.selector = new CompleteBestLiteralSelector(new KBO(bank))
+    val p = pred("P", 1); val a = const("a"); val b = const("b"); val x = v(0); val y = v(1)
+    val cs = Seq(clause(pos(app(p, x)), pos(app(p, y))), clause(neg(app(p, a)), neg(app(p, b))))
+    val d = new Discount(bank, trail, factorAfterCheck = true)
+    assert(d.saturate(cs).isInstanceOf[Discount.Result.Refutation])
   }
 
   test("the refutation's empty clause traces back to the input clauses") {
