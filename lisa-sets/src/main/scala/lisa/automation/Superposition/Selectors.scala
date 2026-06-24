@@ -1,0 +1,195 @@
+package lisa.automation.superposition
+
+import Core.*
+
+/**
+ * Literal-selection strategies (Bachmair-Ganzinger selection) for the DISCOUNT loop, together with
+ * the shared Comparator10 quality order they rank by.
+ *
+ * A [[LiteralSelector]] maps a clause's literals to the indices selected for inference -- **one or
+ * many**. Only selected literals are used as resolution / factoring partners: by Bachmair-Ganzinger,
+ * selecting a negative literal restricts a clause to that literal, while selecting (maximal) positive
+ * literals keeps it complete. Indices are into the literal array as stored, which is never reordered,
+ * so they remain valid as parent positions for proof reconstruction. The active selector is held in
+ * [[Core.TermBank.selector]] and consulted at clause activation.
+ */
+trait LiteralSelector:
+  def select(bank: TermBank, literals: Array[Literal]): Array[Int]
+
+/** Shared empty selection (no literals -- e.g. the empty clause `□`); avoids per-call allocation. */
+private[superposition] val EmptySelection: Array[Int] = Array.empty[Int]
+
+/**
+ * Vampire's `Comparator10` quality order on literals, with the `ColoredFirst` key dropped (colours
+ * are not modelled here). A **positive** result means `l1` is the *better* (more selectable) literal;
+ * in decreasing priority:
+ *   1. NegativeEquality -- a negative equality `s ≠ t` is preferred (productive, removed by ER);
+ *   2. MaximalSize      -- larger literal weight (more constraining ⇒ fewer, sharper inferences);
+ *   3. Negative         -- negative over positive;
+ *   4. LexComparator    -- a structural comparison of the atoms, a total tie-break.
+ * Shared by [[BestLiteralSelector]] (selector 1010) and [[CompleteBestLiteralSelector]] (selector 10).
+ */
+def compareLiteralQuality(bank: TermBank, l1: Literal, l2: Literal): Int =
+  var c: Int = java.lang.Boolean.compare(isNegativeEquality(bank, l1), isNegativeEquality(bank, l2))
+  if c != 0 then c
+  else
+    c = Integer.compare(bank.literalWeight(l1), bank.literalWeight(l2))
+    if c != 0 then c
+    else
+      c = java.lang.Boolean.compare(bank.isNegative(l1), bank.isNegative(l2))
+      if c != 0 then c
+      else compareStructural(bank, bank.atomOf(l1), bank.atomOf(l2))
+
+/** Whether `l` is a negative equality literal `s ≠ t` (atom headed by [[Core.EqualitySymbol]], arity 2). */
+def isNegativeEquality(bank: TermBank, l: Literal): Boolean =
+  if !bank.isNegative(l) then false
+  else
+    val a: Term = bank.atomOf(l)
+    !bank.isVar(a) && bank.headSymbol(a) == EqualitySymbol && bank.arity(a) == 2
+
+/** Selects the first negative literal if any, else the first literal (one literal); empty for `□`. */
+object FirstNegativeSelector extends LiteralSelector:
+  def select(bank: TermBank, literals: Array[Literal]): Array[Int] =
+    if literals.isEmpty then EmptySelection
+    else
+      var i = 0
+      while i < literals.length do
+        if bank.isNegative(literals(i)) then return Array(i)
+        i += 1
+      Array(0)
+
+/**
+ * Vampire's `BestLiteralSelector<Comparator10>` (its selector **1010**): select the single literal
+ * that is greatest under Comparator10 and select just that one. Comparator10, stripped of its
+ * `ColoredFirst` key (colours are not implemented here), is, in decreasing priority:
+ *   1. NegativeEquality -- a negative equality `s ≠ t` is preferred (productive, removed by ER);
+ *   2. MaximalSize      -- larger literal weight (more constraining ⇒ fewer, sharper inferences);
+ *   3. Negative         -- negative over positive;
+ *   4. LexComparator    -- a structural comparison of the atoms, purely a tie-break so it is total.
+ * Equality is recognised via [[Core.EqualitySymbol]] (the arity-2 symbol with code 0).
+ *
+ * This is **not** BG-complete (Vampire's `BestLiteralSelector::isBGComplete()` returns `false`):
+ * when a positive literal outweighs every negative one it is selected even though negatives are
+ * present, so some refutations are unreachable. For a complete strategy use
+ * [[CompleteBestLiteralSelector]] (Vampire's default selector 10); for guaranteed negative selection
+ * use [[FirstNegativeSelector]].
+ */
+object BestLiteralSelector extends LiteralSelector:
+  def select(bank: TermBank, literals: Array[Literal]): Array[Int] =
+    if literals.isEmpty then EmptySelection
+    else
+      var best = 0
+      var i = 1
+      while i < literals.length do
+        if compareLiteralQuality(bank, literals(i), literals(best)) > 0 then best = i
+        i += 1
+      Array(best)
+
+/**
+ * Vampire's **default** selector 10, `CompleteBestLiteralSelector<Comparator10>`: the BG-complete
+ * best-literal selector. It ranks literals by [[compareLiteralQuality]] (Comparator10 with the colour
+ * key dropped) and then enforces completeness using the term ordering [[kbo]]:
+ *
+ *   - if the best-quality literal is negative, select just it;
+ *   - otherwise, scanning in quality order, if a negative literal is at least as good (by quality) as
+ *     some ordering-maximal literal, select the best such negative; else select **all** of the
+ *     ordering-maximal literals (which are then necessarily all positive).
+ *
+ * Selecting a single negative literal, or all maximal literals when no negative is selected, are the
+ * two Bachmair-Ganzinger-admissible choices, so the selection is always complete -- unlike the
+ * incomplete [[BestLiteralSelector]] (selector 1010), which shares the same comparator but always
+ * picks just the single best literal.
+ *
+ * Literal maximality uses a resolution literal order: compare the atoms by the [[KBO]], breaking an
+ * atom tie by polarity (a negative literal outranks the positive with the same atom). Equality is
+ * treated as the ordinary binary symbol [[Core.EqualitySymbol]] for now; the proper equality/multiset
+ * literal order is a Phase-3 (superposition) concern.
+ *
+ * Because [[kbo]] reuses mutable accumulator state, this selector -- like the ordering itself -- is
+ * not thread-safe.
+ */
+final class CompleteBestLiteralSelector(kbo: KBO) extends LiteralSelector:
+  import Cmp.*
+
+  def select(bank: TermBank, literals: Array[Literal]): Array[Int] =
+    val n: Int = literals.length
+    if n == 0 then Array.empty[Int]
+    else if n == 1 then Array(0)
+    else
+      val q: Array[Int] = Array.tabulate(n)(identity) // literal indices in quality order, best first
+      sortByQualityDesc(bank, literals, q)
+      val isMax: Array[Boolean] = maximalFlags(bank, literals)
+
+      var singleSelected: Int = -1
+      if bank.isNegative(literals(q(0))) then singleSelected = q(0)
+      else
+        // Walk the quality order against the (quality-ordered) maximal literals in lockstep. A
+        // negative reached before the last maximal is consumed is "competitive" -> select it. If the
+        // last maximal is consumed first, no competitive negative exists -> fall through to maximals.
+        val maxInQ: Array[Int] = q.filter(idx => isMax(idx))
+        var besti: Int = 0
+        var nextMax: Int = 0
+        var done: Boolean = false
+        while !done && besti < n do
+          if nextMax < maxInQ.length && maxInQ(nextMax) == q(besti) then
+            nextMax += 1
+            if nextMax == maxInQ.length then done = true
+          if !done then
+            besti += 1
+            if besti < n && bank.isNegative(literals(q(besti))) then
+              singleSelected = q(besti)
+              done = true
+
+      if singleSelected >= 0 then Array(singleSelected)
+      else
+        // all ordering-maximal literals (all positive here), in clause order
+        var count: Int = 0
+        var i = 0
+        while i < n do
+          if isMax(i) then count += 1
+          i += 1
+        val out: Array[Int] = new Array[Int](count)
+        var k = 0
+        i = 0
+        while i < n do
+          if isMax(i) then
+            out(k) = i
+            k += 1
+          i += 1
+        out
+
+  /** Insertion-sort the index array `q` so the better literal (by [[compareLiteralQuality]]) comes first. */
+  private def sortByQualityDesc(bank: TermBank, literals: Array[Literal], q: Array[Int]): Unit =
+    var i = 1
+    while i < q.length do
+      val x: Int = q(i)
+      var j = i - 1
+      while j >= 0 && compareLiteralQuality(bank, literals(q(j)), literals(x)) < 0 do
+        q(j + 1) = q(j)
+        j -= 1
+      q(j + 1) = x
+      i += 1
+
+  /** `res(i)`: literal `i` is maximal -- no other literal is strictly greater in the resolution literal order. */
+  private def maximalFlags(bank: TermBank, literals: Array[Literal]): Array[Boolean] =
+    val n: Int = literals.length
+    val res: Array[Boolean] = new Array[Boolean](n)
+    var i = 0
+    while i < n do
+      var maximal: Boolean = true
+      var j = 0
+      while j < n && maximal do
+        if j != i && compareLit(bank, literals(j), literals(i)) == Gt then maximal = false
+        j += 1
+      res(i) = maximal
+      i += 1
+    res
+
+  /** Resolution literal order: compare atoms by the [[KBO]], breaking an atom tie by polarity (¬A ≻ A). */
+  private def compareLit(bank: TermBank, l1: Literal, l2: Literal): Cmp =
+    kbo.compare(bank.atomOf(l1), bank.atomOf(l2)) match
+      case Eq =>
+        val n1: Boolean = bank.isNegative(l1)
+        val n2: Boolean = bank.isNegative(l2)
+        if n1 == n2 then Eq else if n1 then Gt else Lt
+      case other => other

@@ -115,7 +115,7 @@ class InferenceTest extends AnyFunSuite:
     val fx = new Fix; import fx.*
     val p = pred("P", 1); val q = pred("Q", 1); val a = const("a")
     val cl = clause(pos(app(p, a)), neg(app(q, a))) // P(a) [w2, +], ¬Q(a) [w2, -]
-    assert(cl.select(bank).toSeq == Seq(1)) // negative preferred
+    assert(cl.select(bank).toSeq == Seq(1)) // negative preferred over positive on the tie-break
   }
 
   test("default selection is total and deterministic on otherwise-tied literals (key 4)") {
@@ -137,22 +137,99 @@ class InferenceTest extends AnyFunSuite:
     assert((cl.select(bank) eq s))
   }
 
-  test("a pluggable selector can select many literals (AllNegative)") {
-    val fx = new Fix; import fx.*
-    bank.selector = AllNegativeSelector
-    val p = pred("P", 1); val q = pred("Q", 1); val r = pred("R", 1); val a = const("a")
-    val c = clause(neg(app(p, a)), pos(app(q, a)), neg(app(r, a))) // negatives at 0 and 2
-    assert(c.select(bank).toSeq == Seq(0, 2))
-    val allPos = clause(pos(app(p, a)), pos(app(q, a))) // no negatives -> first
-    assert(allPos.select(bank).toSeq == Seq(0))
-  }
-
   test("FirstNegativeSelector remains available as a pluggable strategy") {
     val fx = new Fix; import fx.*
     bank.selector = FirstNegativeSelector
     val p = pred("P", 1); val q = pred("Q", 1); val a = const("a")
     val cl = clause(pos(app(p, a)), neg(app(q, a)))
     assert(cl.select(bank).toSeq == Seq(1)) // the first (here, only) negative literal
+  }
+
+  test("complete selector (10): selects the single best literal when it is negative") {
+    val fx = new Fix; import fx.*
+    val sel = new CompleteBestLiteralSelector(new KBO(bank))
+    val p = pred("P", 1); val q = pred("Q", 1); val a = const("a"); val b = const("b")
+    val cl = clause(neg(app(p, a)), pos(app(q, b))) // ¬P(a) is best (key 3), so it is selected alone
+    assert(sel.select(bank, cl.literals).toSeq == Seq(0))
+  }
+
+  test("complete selector (10): selects all maximal positives in an all-positive clause") {
+    val fx = new Fix; import fx.*
+    val sel = new CompleteBestLiteralSelector(new KBO(bank))
+    val p = pred("P", 1); val x = v(0); val y = v(1)
+    val cl = clause(pos(app(p, x)), pos(app(p, y))) // P(x), P(y) KBO-incomparable -> both maximal
+    assert(sel.select(bank, cl.literals).toSeq == Seq(0, 1)) // both selected (this is the completeness fix)
+  }
+
+  test("complete selector (10): a dominated positive literal is not selected") {
+    val fx = new Fix; import fx.*
+    val sel = new CompleteBestLiteralSelector(new KBO(bank))
+    val p = pred("P", 1); val f = fn("f", 1); val a = const("a")
+    val cl = clause(pos(app(p, a)), pos(app(p, app(f, a)))) // P(a) ≺ P(f(a)); only the latter is maximal
+    assert(sel.select(bank, cl.literals).toSeq == Seq(1))
+  }
+
+  test("complete selector (10): a maximal positive outranks a lighter negative") {
+    val fx = new Fix; import fx.*
+    val sel = new CompleteBestLiteralSelector(new KBO(bank))
+    val p = pred("P", 1); val q = pred("Q", 1); val f = fn("f", 1); val a = const("a")
+    val cl = clause(pos(app(p, app(f, a))), neg(app(q, a))) // P(f(a)) [w3, maximal] vs ¬Q(a) [w2]
+    assert(sel.select(bank, cl.literals).toSeq == Seq(0)) // the maximal positive, not the lighter negative
+  }
+
+  test("canonicalize removes duplicate literals and records the step") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 1); val a = const("a")
+    val c = clause(pos(app(p, a)), pos(app(p, a))) // P(a) ∨ P(a)
+    val r = Inference.canonicalize(bank, c).get
+    assert(r.size == 1)
+    assert(r.literals(0) == pos(app(p, a)))
+    r.justification match
+      case Justification.Canonicalization(parent) => assert(parent eq c) // parent kept for reconstruction
+      case other => fail(s"expected Canonicalization, got $other")
+    assert(r.age == c.age) // canonicalisation does not bump age
+  }
+
+  test("canonicalize detects complementary-literal tautologies") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 1); val q = pred("Q", 1); val a = const("a"); val b = const("b")
+    assert(Inference.canonicalize(bank, clause(pos(app(p, a)), neg(app(p, a)))).isEmpty) // P(a) ∨ ¬P(a)
+    // also when the complementary pair is not adjacent in the input
+    assert(Inference.canonicalize(bank, clause(pos(app(p, a)), pos(app(q, b)), neg(app(p, a)))).isEmpty)
+  }
+
+  test("canonicalize sorts literals into canonical order") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 1); val q = pred("Q", 1); val a = const("a"); val b = const("b")
+    val l1 = pos(app(p, a)) // P has code 0 -> sorts before Q
+    val l2 = pos(app(q, b))
+    val c = clause(l2, l1) // built out of canonical order
+    val r = Inference.canonicalize(bank, c).get
+    assert(r.literals(0) == l1 && r.literals(1) == l2) // sorted
+    assert(Core.compareLiterals(bank, r.literals(0), r.literals(1)) <= 0)
+    r.justification match
+      case Justification.Canonicalization(parent) => assert(parent eq c)
+      case other => fail(s"expected Canonicalization, got $other")
+  }
+
+  test("canonicalize returns the same clause when already canonical") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 1); val a = const("a")
+    val unit = clause(pos(app(p, a)))
+    assert(Inference.canonicalize(bank, unit).get eq unit) // unit clause: untouched
+  }
+
+  test("unification handles wide terms (worklist grows past its initial size)") {
+    val fx = new Fix; import fx.*
+    val k = 50 // > 64/2, so pushing all argument pairs at once forces the worklist to grow
+    val q = sig.intern("q", k, isPredicate = true)
+    val f = fn("f", 1); val a = const("a")
+    val vars: Array[Term] = Array.tabulate(k)(i => v(i)) // q(x0, ..., x49)
+    val fas: Array[Term] = Array.fill(k)(app(f, a)) //       q(f(a), ..., f(a))
+    val c1 = clause(neg(bank.mkApp(q, vars)))
+    val c2 = clause(pos(bank.mkApp(q, fas)))
+    val r = Inference.resolve(bank, trail, c1, 0, c2, 0)
+    assert(r.isDefined && r.get.isEmpty) // every xi ↦ f(a); the resolvent is the empty clause □
   }
 
   test("the trail is left clean after an inference") {

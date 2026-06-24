@@ -54,6 +54,51 @@ object Inference:
       result
 
   /**
+   * Canonicalise a clause for insertion into the passive set: sort its literals into
+   * [[Core.compareLiterals]] order, drop duplicate literals, and detect tautologies (complementary
+   * literals `L`/`¬L`). Returns `None` if the clause is a tautology (discard it), the **same** clause
+   * if it is already canonical, or a new clause carrying a [[Justification.Canonicalization]] step
+   * whose parent is `c`. That parent is retained only for reconstruction and is **not** itself
+   * inserted into the clause sets.
+   *
+   * Equality trivials (`s = s`, `s ≠ s`) and variable normalisation are intentionally not handled
+   * yet (Phase 3 and Phase 2 respectively).
+   */
+  def canonicalize(bank: TermBank, c: Clause): Option[Clause] =
+    val n: Int = c.literals.length
+    if n <= 1 then Some(c) // nothing to sort, dedup, or make complementary
+    else
+      val lits: Array[Literal] = c.literals.clone()
+      bank.sortLiterals(lits) // canonical literal order, in place (fastutil primitive quicksort)
+      // lits(0) is always kept; `count` tracks the index of the last kept literal. Compact the rest
+      // in place, comparing each literal to the last kept one (sorting keeps duplicates and
+      // complementary pairs adjacent, so this one pass suffices).
+      var count = 0
+      var i = 1
+      while i < n do
+        val l: Literal = lits(i)
+        if bank.atomOf(l) == bank.atomOf(lits(count)) then
+          if l != lits(count) then return None // same atom, opposite polarity: tautology
+          // else duplicate literal: drop it
+        else
+          count += 1
+          lits(count) = l
+        i += 1
+      val kept = count + 1 // number of literals retained
+      // did canonicalisation change anything? a dropped duplicate, or a reorder by the sort
+      var changed = kept < n
+      if !changed then
+        var k = 0
+        while k < n && !changed do
+          if lits(k) != c.literals(k) then changed = true
+          k += 1
+      if !changed then Some(c)
+      else
+        // reuse the (already canonical) clone when nothing was dropped; truncate only on dedup
+        val canonical: Array[Literal] = if kept == n then lits else lits.take(kept)
+        Some(bank.mkClause(canonical, Justification.Canonicalization(c)))
+
+  /**
    * Factoring: merge `c`'s literals `i` and `j` (distinct, same polarity) by unifying their atoms.
    * On success returns `(c \ {j})σ` -- literal `j` is dropped, having become identical to `i` under
    * `σ`. `None` if they differ in polarity or don't unify.

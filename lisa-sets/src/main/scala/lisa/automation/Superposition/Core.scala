@@ -1,6 +1,7 @@
 package lisa.automation.superposition
 
-import it.unimi.dsi.fastutil.ints.{Int2IntOpenCustomHashMap, Int2IntOpenHashMap, IntHash, IntOpenHashSet}
+import it.unimi.dsi.fastutil.ints.{Int2IntOpenCustomHashMap, Int2IntOpenHashMap, IntArrayList, IntHash, IntOpenHashSet}
+import it.unimi.dsi.fastutil.longs.{LongArrays, LongComparator}
 
 import scala.collection.mutable
 import scala.util.hashing.MurmurHash3
@@ -44,9 +45,10 @@ object Core:
   extension (f: Symbol) inline def code: Int = f
 
   /**
-   * By convention the equality predicate is reserved as the arity-2 symbol with code `0` (i.e.
-   * interned first in the problem signature). Recognising it is needed for selection (preferring
-   * negative equalities) and, later, for superposition.
+   * The equality predicate, reserved as the arity-2 symbol with code `0`: every [[Signature]]
+   * pre-interns it at construction (under the name `"="`), so user symbols start at code 1 and no
+   * other symbol can occupy code 0. Recognising it is needed for selection (preferring negative
+   * equalities) and, later, for superposition.
    */
   val EqualitySymbol: Symbol = 0
 
@@ -83,6 +85,9 @@ object Core:
   final class Signature:
     private val infos: mutable.ArrayBuffer[SymbolInfo] = mutable.ArrayBuffer.empty[SymbolInfo]
     private val index: mutable.HashMap[(String, Int), Symbol] = mutable.HashMap.empty[(String, Int), Symbol]
+
+    // Reserve code 0 for the equality predicate (see [[EqualitySymbol]]); user symbols start at 1.
+    intern("=", 2, isPredicate = true)
 
     /** Intern `(name, arity)`, returning its (stable) symbol code. */
     def intern(name: String, arity: Int, isPredicate: Boolean): Symbol =
@@ -163,6 +168,12 @@ object Core:
     /** The literal-selection strategy applied by [[Clause.select]] at activation; swap to plug in a policy. */
     var selector: LiteralSelector = BestLiteralSelector
 
+    // cached comparator (closing over this bank) for in-place primitive sorting of literal arrays
+    private val literalOrder: LongComparator = (a, b) => compareLiterals(this, a, b)
+
+    /** Sort `lits` in place into canonical literal order (see [[compareLiterals]]); no boxing. */
+    def sortLiterals(lits: Array[Literal]): Unit = LongArrays.quickSort(lits, literalOrder)
+
     /** Number of distinct terms stored. */
     def size: Int = intern.size
 
@@ -224,16 +235,6 @@ object Core:
     /** The `i`-th argument of `t`. */
     inline def arg(t: Term, i: Int): Term = mem(t + HeaderWords + i).toInt
 
-    /** A fresh array with the children of `t`. */
-    def args(t: Term): Array[Term] =
-      val n: Int = arity(t)
-      val out: Array[Term] = new Array[Term](n)
-      var i = 0
-      while i < n do
-        out(i) = mem(t + HeaderWords + i).toInt
-        i += 1
-      out
-
     /** Cached total KBO weight of `t`. */
     inline def weight(t: Term): Int = mem(t + 2).toInt
 
@@ -250,14 +251,6 @@ object Core:
       else if m == 0L then false
       else traverseContains(t, v)
 
-    /** The smallest variable number occurring in `t`, or `-1` if `t` is ground; needs a traversal if only overflow vars occur. */
-    def firstVar(t: Term): Variable =
-      val m: Long = freeVarMask(t)
-      val low: Long = m & ~FvOverflow
-      if low != 0L then java.lang.Long.numberOfTrailingZeros(low)
-      else if m == 0L then -1
-      else traverseFirstVar(t, Int.MaxValue)
-
     private def traverseContains(t: Term, v: Variable): Boolean =
       if isVar(t) then varNum(t) == v
       else
@@ -268,18 +261,6 @@ object Core:
           if containsVar(arg(t, i), v) then return true
           i += 1
         false
-
-    private def traverseFirstVar(t: Term, best: Int): Int =
-      if isVar(t) then math.min(best, varNum(t))
-      else
-        val n: Int = arity(t)
-        var b: Int = best
-        var i = 0
-        while i < n do
-          val child: Term = arg(t, i)
-          if !isGround(child) then b = traverseFirstVar(child, b) // skip ground subtrees (no variables)
-          i += 1
-        b
 
     // --- literals -------------------------------------------------------------------------
 
@@ -319,6 +300,7 @@ object Core:
         case Justification.Input => 0
         case Justification.Resolution(l, _, r, _) => math.max(l.age, r.age) + 1
         case Justification.Factoring(p, _, _) => p.age + 1
+        case Justification.Canonicalization(p) => p.age // a simplification of one clause: same generation
       new Clause(lits, w, id, justification, age)
 
     // --- internals ------------------------------------------------------------------------
@@ -374,112 +356,42 @@ object Core:
         mem = java.util.Arrays.copyOf(mem, nl)
 
   // -----------------------------------------------------------------------------------------
-  // Literal selection
+  // Syntactic orderings (a total, deterministic order on terms/literals; distinct from KBO)
   // -----------------------------------------------------------------------------------------
 
   /**
-   * A pluggable literal-selection strategy. Given a clause's literals it returns the indices
-   * selected for inference -- **one or many**. Only selected literals are used as resolution /
-   * factoring partners: by Bachmair-Ganzinger, selecting a negative literal restricts a clause to
-   * that literal, while selecting (maximal) positive literals keeps it complete. A strategy that
-   * needs the ordering (e.g. maximal-literal selection) can be a class capturing a [[KBO]]; the
-   * signature stays the same. Indices are into the literal array as stored, which is never
-   * reordered, so they remain valid as parent positions for proof reconstruction.
+   * A total, deterministic structural order on terms: compare the raw functor (variables sort before
+   * symbols, as their functor field is negative), then arguments left to right, bottoming out on
+   * hash-consed identity. Used as a selection tie-break and as the canonical literal sort key; this
+   * is purely syntactic and unrelated to the (semantic) [[KBO]].
    */
-  trait LiteralSelector:
-    def select(bank: TermBank, literals: Array[Literal]): Array[Int]
-
-  /** Selects the first negative literal if any, else the first literal (one literal); empty for `□`. */
-  object FirstNegativeSelector extends LiteralSelector:
-    def select(bank: TermBank, literals: Array[Literal]): Array[Int] =
-      if literals.isEmpty then EmptySelection
+  def compareStructural(bank: TermBank, s: Term, t: Term): Int =
+    if s == t then 0
+    else
+      val fs: Int = bank.functor(s)
+      val ft: Int = bank.functor(t)
+      if fs != ft then Integer.compare(fs, ft)
       else
+        // equal functor implies the same symbol and arity; compare arguments left to right
+        val n: Int = bank.arity(s)
         var i = 0
-        while i < literals.length do
-          if bank.isNegative(literals(i)) then return Array(i)
+        var r = 0
+        while i < n && r == 0 do
+          r = compareStructural(bank, bank.arg(s, i), bank.arg(t, i))
           i += 1
-        Array(0)
-
-  /** Selects all negative literals; if the clause has none, its first literal; empty for `□`. */
-  object AllNegativeSelector extends LiteralSelector:
-    def select(bank: TermBank, literals: Array[Literal]): Array[Int] =
-      if literals.isEmpty then EmptySelection
-      else
-        var count = 0
-        var i = 0
-        while i < literals.length do
-          if bank.isNegative(literals(i)) then count += 1
-          i += 1
-        if count == 0 then Array(0)
-        else
-          val out: Array[Int] = new Array[Int](count)
-          var n = 0
-          i = 0
-          while i < literals.length do
-            if bank.isNegative(literals(i)) then
-              out(n) = i
-              n += 1
-            i += 1
-          out
+        r
 
   /**
-   * The default selection: pick the single **best** literal under a deterministic, total quality
-   * ordering, and select just that one. The ordering, in decreasing priority:
-   *   1. a negative equality (`s ≠ t`) is preferred -- productive, removed by equality resolution;
-   *   2. larger literal weight (more constraining ⇒ fewer, sharper inferences);
-   *   3. negative over positive;
-   *   4. a structural comparison of the atoms, purely a tie-break so the choice is total.
-   * Equality is recognised via [[EqualitySymbol]] (the arity-2 symbol with code 0). This mirrors
-   * Vampire's default selector (10) without its colour key, which is irrelevant here.
+   * Canonical order on literals: by atom ([[compareStructural]]), then by polarity (negative before
+   * positive). This groups duplicate and complementary literals adjacently, so canonicalisation can
+   * dedup and detect tautologies in a single pass over the sorted literals.
    */
-  object BestLiteralSelector extends LiteralSelector:
-    def select(bank: TermBank, literals: Array[Literal]): Array[Int] =
-      if literals.isEmpty then EmptySelection
-      else
-        var best = 0
-        var i = 1
-        while i < literals.length do
-          if compareQuality(bank, literals(i), literals(best)) > 0 then best = i
-          i += 1
-        Array(best)
+  def compareLiterals(bank: TermBank, l1: Literal, l2: Literal): Int =
+    val c: Int = compareStructural(bank, bank.atomOf(l1), bank.atomOf(l2))
+    if c != 0 then c
+    else java.lang.Boolean.compare(bank.isPositive(l1), bank.isPositive(l2))
 
-    /** Positive result: `l1` is the better (more selectable) literal under the quality ordering. */
-    private def compareQuality(bank: TermBank, l1: Literal, l2: Literal): Int =
-      var c: Int = java.lang.Boolean.compare(isNegativeEquality(bank, l1), isNegativeEquality(bank, l2))
-      if c != 0 then c
-      else
-        c = Integer.compare(bank.literalWeight(l1), bank.literalWeight(l2))
-        if c != 0 then c
-        else
-          c = java.lang.Boolean.compare(bank.isNegative(l1), bank.isNegative(l2))
-          if c != 0 then c
-          else compareStructural(bank, bank.atomOf(l1), bank.atomOf(l2))
-
-    /** Whether `l` is a negative equality literal `s ≠ t` (atom headed by [[EqualitySymbol]], arity 2). */
-    private def isNegativeEquality(bank: TermBank, l: Literal): Boolean =
-      if !bank.isNegative(l) then false
-      else
-        val a: Term = bank.atomOf(l)
-        !bank.isVar(a) && bank.headSymbol(a) == EqualitySymbol && bank.arity(a) == 2
-
-    /** A total, deterministic structural order on terms; used only to break ties. */
-    private def compareStructural(bank: TermBank, s: Term, t: Term): Int =
-      if s == t then 0 // hash-consed identity
-      else
-        val fs: Int = bank.functor(s)
-        val ft: Int = bank.functor(t)
-        if fs != ft then Integer.compare(fs, ft)
-        else
-          // equal functor implies the same symbol and arity; compare arguments left to right
-          val n: Int = bank.arity(s)
-          var i = 0
-          var r = 0
-          while i < n && r == 0 do
-            r = compareStructural(bank, bank.arg(s, i), bank.arg(t, i))
-            i += 1
-          r
-
-  private val EmptySelection: Array[Int] = Array.empty[Int]
+  // Literal-selection strategies live in Selectors.scala (LiteralSelector and friends).
 
   // -----------------------------------------------------------------------------------------
   // Clause
@@ -499,6 +411,14 @@ object Core:
     case Resolution(left: Clause, leftLit: Int, right: Clause, rightLit: Int)
     /** Factoring of `parent`'s literals `lit1` and `lit2` (same polarity), unifying their atoms. */
     case Factoring(parent: Clause, lit1: Int, lit2: Int)
+
+    /**
+     * Sort + duplicate-removal canonicalisation of `parent`. The parent is retained only so the
+     * derivation can be reconstructed and is **not** inserted into the clause sets. Sorting and
+     * dropping identical literals are logical no-ops on a set of literals, so reconstruction treats
+     * this as a pass-through for now -- but later simplifications recorded the same way will not be.
+     */
+    case Canonicalization(parent: Clause)
 
   /**
    * A clause is an array of [[Literal]]s (a disjunction); no canonical ordering or
@@ -569,8 +489,9 @@ object Core:
     private var trailVar: Array[Variable] = new Array[Variable](64)
     private var trailTop: Int = 0
 
-    // reused operand worklist for `unify` (the top two entries form the current pair)
-    private val stack: mutable.Stack[(Term, Scope)] = mutable.Stack.empty
+    // reused worklist for `unify`: two parallel primitive int stacks (no boxing, no tuple allocation)
+    private val workTerm: IntArrayList = new IntArrayList()
+    private val workScope: IntArrayList = new IntArrayList()
 
     // reused per-scope memo for `occurs`: derefed terms already proven free of the searched variable.
     // Avoids re-walking shared subterms (the arena is a DAG); cleared at the start of each `occurs`.
@@ -587,10 +508,12 @@ object Core:
 
     /**
      * Dereference `(t, s)`: follow variable bindings until reaching an unbound variable or a
-     * non-variable. Ground results are normalised to [[GroundScope]] (their scope is
+     * non-variable. The result `(term, scope)` is packed into a single `Long` (term in the high 32
+     * bits, scope in the low 32) to avoid allocating a tuple on this hot path; unpack with
+     * [[derefTerm]]/[[derefScope]]. Ground results are normalised to [[GroundScope]] (their scope is
      * irrelevant), which lets identical ground terms short-circuit in [[unify]].
      */
-    def deref(t: Term, s: Scope): (Term, Scope) =
+    private def deref(t: Term, s: Scope): Long =
       var ct: Term = t
       var cs: Scope = s
       var more = true
@@ -603,7 +526,14 @@ object Core:
             cs = boundScope(cs)(v)
           else more = false
         else more = false
-      if bank.isGround(ct) then (ct, GroundScope) else (ct, cs)
+      val rs: Scope = if bank.isGround(ct) then GroundScope else cs
+      (ct.toLong << 32) | (rs.toLong & 0xFFFFFFFFL)
+
+    /** The term packed by [[deref]] (high 32 bits). */
+    private inline def derefTerm(packed: Long): Term = (packed >>> 32).toInt
+
+    /** The scope packed by [[deref]] (low 32 bits). */
+    private inline def derefScope(packed: Long): Scope = packed.toInt
 
     /**
      * Attempt to unify `(t1, s1)` with `(t2, s2)`, leaving the resulting bindings on the
@@ -612,22 +542,22 @@ object Core:
      * Scopes must be in `0 until NScopes`.
      */
     def unify(t1: Term, s1: Scope, t2: Term, s2: Scope): Boolean =
-      stack.clear()
-      stack.push((t1, s1))
-      stack.push((t2, s2))
-      while stack.nonEmpty do
-        val (y, ys): (Term, Scope) = stack.pop()
-        val (x, xs): (Term, Scope) = stack.pop()
-        val (dx, dsx): (Term, Scope) = deref(x, xs)
-        val (dy, dsy): (Term, Scope) = deref(y, ys)
+      workTerm.clear()
+      workScope.clear()
+      workTerm.push(t1); workScope.push(s1)
+      workTerm.push(t2); workScope.push(s2)
+      while !workTerm.isEmpty do
+        val y: Term = workTerm.popInt(); val ys: Scope = workScope.popInt()
+        val x: Term = workTerm.popInt(); val xs: Scope = workScope.popInt()
+        val px: Long = deref(x, xs); val dx: Term = derefTerm(px); val dsx: Scope = derefScope(px)
+        val py: Long = deref(y, ys); val dy: Term = derefTerm(py); val dsy: Scope = derefScope(py)
         if dx != dy || dsx != dsy then
-          val xVar: Boolean = bank.isVar(dx)
-          val yVar: Boolean = bank.isVar(dy)
-          if xVar && yVar then bind(bank.varNum(dx), dsx, dy, dsy)
-          else if xVar then
-            if occurs(dx, dsx, dy, dsy) then return false
-            bind(bank.varNum(dx), dsx, dy, dsy)
-          else if yVar then
+          if bank.isVar(dx) then
+            if bank.isVar(dy) then bind(bank.varNum(dx), dsx, dy, dsy) // both variables
+            else
+              if occurs(dx, dsx, dy, dsy) then return false
+              bind(bank.varNum(dx), dsx, dy, dsy)
+          else if bank.isVar(dy) then
             if occurs(dy, dsy, dx, dsx) then return false
             bind(bank.varNum(dy), dsy, dx, dsx)
           else if bank.headSymbol(dx) != bank.headSymbol(dy) then return false
@@ -635,8 +565,8 @@ object Core:
             val n: Int = bank.arity(dx)
             var i = 0
             while i < n do
-              stack.push((bank.arg(dx, i), dsx))
-              stack.push((bank.arg(dy, i), dsy))
+              workTerm.push(bank.arg(dx, i)); workScope.push(dsx)
+              workTerm.push(bank.arg(dy, i)); workScope.push(dsy)
               i += 1
       true
 
@@ -649,7 +579,7 @@ object Core:
       occursRec(varT, varScope, t, s)
 
     private def occursRec(varT: Term, varScope: Scope, t: Term, s: Scope): Boolean =
-      val (dt, ds): (Term, Scope) = deref(t, s)
+      val p: Long = deref(t, s); val dt: Term = derefTerm(p); val ds: Scope = derefScope(p)
       if bank.isVar(dt) then dt == varT && ds == varScope
       else if bank.isGround(dt) then false
       else if occursClean(ds).contains(dt) then false // already shown to not contain the variable
@@ -702,7 +632,7 @@ object Core:
       }
 
       def apply(t: Term, s: Scope): Term =
-        val (dt, ds): (Term, Scope) = deref(t, s)
+        val p: Long = deref(t, s); val dt: Term = derefTerm(p); val ds: Scope = derefScope(p)
         if bank.isVar(dt) then bank.mkVar(outVars.getOrElseUpdate((ds, bank.varNum(dt)), outVars.size))
         else if bank.isGround(dt) then dt
         else

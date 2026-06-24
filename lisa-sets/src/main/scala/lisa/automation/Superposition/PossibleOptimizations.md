@@ -27,6 +27,37 @@ a depth guard. Lower priority than `unify` since these run on normal-depth terms
   a clause table and can free non-proof clauses). Fine for Phase 1; revisit if memory bites — switch
   to clause ids + a table, or drop derivations of clauses provably not on any proof path.
 
+## `occurs` clean-set, and per-term scratch (deferred — revisit in Phase 2/3)
+
+`Trail.occurs` uses `occursClean`, a per-scope `IntOpenHashSet` of derefed terms proven free of the
+searched variable (avoids re-walking shared subterms; cleared at the start of each `occurs`).
+
+On the cost: `IntOpenHashSet.clear()` is `Arrays.fill` over the whole backing array, i.e.
+`O(capacity)`, not `O(size)` (with an `O(1)` early-return when empty); iteration would likewise be
+`O(capacity)` — both intrinsic to open addressing. But this is a near-non-issue: the set only grows
+to the largest occurs seen, so a small term keeps it small and `clear()` cheap; the only mildly
+costly pattern is one big occurs ballooning the table followed by many small ones eating the
+persisted-capacity clears.
+
+Options considered for a hard bound:
+- **Size-gate**: skip the memo entirely for small terms (use cached `weight` as the size proxy) so
+  it only grows/clears for large terms. Simplest; zero extra memory. The cheap stopgap if needed.
+- **Sparse set** (dense list + `sparse: int[U]` index): `O(1)` clear and `O(size)` iteration, but
+  `U` = arena size, so ≈ doubles the bank's memory. Overkill here.
+- **Per-term epoch-stamped scratch**: a scratch field on each term record + a global epoch; mark =
+  `stamp = epoch`, test = `stamp == epoch`, clear = `epoch += 1` (`O(1)`, touch nothing). This is the
+  elegant endpoint and how mature provers do it.
+
+Conclusion: **deferred.** Per-term timestamped scratch is near-certain future demand — Phase 2/3
+rewrite / normal-form caching (E stamps `TermCell` with a `SysDate`; Vampire caches reduced forms)
+plus general traversal marks — but its *shape* depends on the rewriting layer we haven't built
+(rewrite caching wants `(normalForm, date)`; `occurs` wants two per-scope marks), and it's pure
+optimization. Adding a header word later is cheap and localized: bump `HeaderWords` and the accessors
+follow, and hash-consing already hashes/compares only identity words (`functor`/arity/children, not
+`fvMask`/`weight`), so a mutable scratch word is naturally excluded from term identity. So add
+epoch-stamped scratch when Phase 2 defines the need, sized to it, and route `occurs` through the
+traversal-mark part then (retiring `occursClean`). Don't pre-commit a layout now.
+
 ## KBO vs. E / Vampire — feature gap (for when we revisit)
 
 How our KBO (`KBO.scala`) compares to E (`cto_kbolin.c`) and Vampire (`KBO.cpp`). Rows below
@@ -53,3 +84,29 @@ assignment, fixed before terms are built) rather than holding it in the ordering
 what unlocks our ground fast path and ground-subterm short-circuit, but precludes two KBOs with
 different weights over the same bank. The deferred substitution-aware path would reintroduce weight
 accumulation (no cache for `σ(s)`); the unidirectional path is the hot one for demodulation.
+
+## DISCOUNT loop (`Discount.scala`, Phase 1) — deferred work
+
+- **Passive selection uses lazy-deletion two-heaps.** Each passive clause sits in both an age heap
+  (`id`) and a weight heap (`(weight, id)`); selecting via one leaves a stale entry in the other,
+  skipped on pop via the `livePassive` id set. Stale entries linger until popped. Vampire uses an
+  exact-removal structure (O(log n) delete from both queues); fine to defer.
+- **Active set is scanned linearly** for resolution partners. Term indexing (discrimination /
+  fingerprint / substitution trees) is Phase 4 — that's the real scaling fix.
+- **No simplification yet** (Phase 2): no forward/backward subsumption, no demodulation. Passive can
+  accumulate duplicate or subsumed clauses; correct but not minimal.
+- **Selectors.** Two share Comparator10 (colour key dropped → `NegativeEquality → weight → Negative →
+  Lex`, factored out as `compareLiteralQuality` in `Selectors.scala`):
+  - `BestLiteralSelector` = Vampire's `BestLiteralSelector<Comparator10>` (incomplete selector
+    **1010**): argmax over the comparator, one literal. **Not** BG-complete — a positive that
+    outweighs every negative is selected even when negatives are present.
+  - `CompleteBestLiteralSelector(kbo)` = Vampire's default selector **10**: BG-complete. Best-negative
+    ⇒ select it; else a quality-competitive negative, else **all ordering-maximal** literals. This is
+    the first place the `KBO` touches the loop — via a resolution **literal ordering** (atoms by KBO,
+    polarity tie-break ¬A ≻ A) and a per-clause maximal-literal scan in `CompleteBestLiteralSelector`.
+  Still open: (a) Vampire's selector **1** (`MaximalLiteralSelector`) is now a few lines on the same
+  maximality machinery, not yet added; (b) the literal order treats equality as the ordinary binary
+  symbol — the proper equality/multiset literal order is a Phase-3 (superposition) concern; (c) the
+  default `bank.selector` is still `BestLiteralSelector` (making selector 10 the default would require
+  the bank to own a `KBO`). `FirstNegativeSelector` remains as a simple alternative. The loop routes
+  all selection through `bank.selector` at activation.
