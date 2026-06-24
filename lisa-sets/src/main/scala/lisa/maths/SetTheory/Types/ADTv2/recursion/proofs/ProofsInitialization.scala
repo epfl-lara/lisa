@@ -1,6 +1,6 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion.proofs
 
-import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.utils.debug.Time
 
 object ProofsInitialization {
 

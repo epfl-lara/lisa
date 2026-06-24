@@ -9,7 +9,7 @@ import lisa.maths.SetTheory.Types.ADTv2.recursion.Witness
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.specializedConstructors
 import lisa.utils.prooflib.InstantiateForallSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeFormula
-import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.utils.debug.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Cut

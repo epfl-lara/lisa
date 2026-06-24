@@ -7,7 +7,7 @@ import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
 import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{Pattern, PatternSystem}
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
-import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.utils.debug.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.forallSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.seqOr
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.wellTypedFormula

@@ -10,7 +10,7 @@ import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.FunctionCore.ExistenceProof
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ApproximationChainFacts
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.LimitKernel
-import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.utils.debug.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Cut

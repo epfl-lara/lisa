@@ -8,7 +8,7 @@ import lisa.maths.SetTheory.Types.ADTv2.interface.RecFunction
 import lisa.maths.SetTheory.Types.ADTv2.interface.SpecializedADT
 import lisa.maths.SetTheory.Types.ADTv2.recursion
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.substitutionsFromArgs
-import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.utils.debug.Time
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 def fun[N <: Arity](adt: SpecializedADT[N], returnType: Expr[Ind])(using

@@ -5,7 +5,7 @@ import ADTv2Examples.functions.{HigherOrderRecursion, RecursiveFunctions, Simple
 import ADTv2Examples.proofs.{SimpleInduction, NestedPatternInduction, TypecheckIntegration, Injectivity, Computation}
 import ADTv2Examples.endtoend.{NatAndListLibrary, LibraryFeatures}
 import ADTv2Examples.overview.FeatureTour
-import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.utils.debug.Time
 
 object RunAll {
 

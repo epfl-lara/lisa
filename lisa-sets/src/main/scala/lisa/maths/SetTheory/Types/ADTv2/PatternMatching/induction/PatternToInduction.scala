@@ -5,7 +5,7 @@ import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.ConstructorHea
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
 import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
 import lisa.maths.SetTheory.Types.ADTv2.interface.SpecializedADT
-import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.utils.debug.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.simplify
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.utils.prooflib.ProofTacticLib.Arity
