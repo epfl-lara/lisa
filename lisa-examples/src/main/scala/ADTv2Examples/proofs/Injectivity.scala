@@ -26,8 +26,8 @@ object Injectivity extends lisa.Main {
 
   // ── Cross-constructor disjointness ──────────────────────────────────────
   section("Cross-constructor disjointness (distinct constructors)")
-  show(nat.injectivity(zero, succ)) // zero != succ(k)
-  show(bool.injectivity(tru, fals)) // tru  != fals
-  show(option.injectivity(some, none, nat)) // some(x) != none
-  show(union.injectivity(inl, inr, nat, bool)) // inl(x) != inr(y)
+  show(nat.disjointness(zero, succ)) // zero != succ(k)
+  show(bool.disjointness(tru, fals)) // tru  != fals
+  show(option.disjointness(some, none, nat)) // some(x) != none
+  show(union.disjointness(inl, inr, nat, bool)) // inl(x) != inr(y)
 }

@@ -197,7 +197,7 @@ class SemanticADT[N <: Arity](
    *
    *  e.g. Nil != Cons(head, tail)
    */
-  def injectivity(c1: SemanticConstructor[N], c2: SemanticConstructor[N]) =
+  def disjointness(c1: SemanticConstructor[N], c2: SemanticConstructor[N]) =
 
     val vars1WellTyped: Set[Expr[Prop]] = wellTypedSet(c1.semanticSignature1)
     val vars2WellTyped: Set[Expr[Prop]] = wellTypedSet(c2.semanticSignature2)
@@ -268,7 +268,7 @@ class SemanticADT[N <: Arity](
       }
 
       have(!(c1.structuralTerm1 === c2.structuralTerm2)) by
-        Restate.from(underlying.injectivity(c1.underlying, c2.underlying))
+        Restate.from(c1.underlying.disjointness(c2.underlying))
       thenHave(c1.structuralTerm1 === c2.structuralTerm2 |- ()) by Restate
 
       have(
@@ -593,7 +593,7 @@ class SemanticADT[N <: Arity](
       baseTheorem = elim
     )
 
-  def injectivityAt(
+  def disjointnessAt(
       c1: SemanticConstructor[N],
       c2: SemanticConstructor[N],
       substitutions: Seq[TypeSubstitution]
@@ -602,8 +602,8 @@ class SemanticADT[N <: Arity](
       displayName = name,
       typeVariables = typeVariablesSeq,
       typeArgs = normalizedTypeArguments(substitutions),
-      suffix = s"${c1.name}-${c2.name}/injectivity",
-      baseTheorem = injectivity(c1, c2)
+      suffix = s"${c1.name}-${c2.name}/disjointness",
+      baseTheorem = disjointness(c1, c2)
     )
 
 }

@@ -33,7 +33,7 @@ object MonomorphicADTs extends lisa.Main {
   section("ADT theorems")
   show(boolDemo.induction)
   show(boolDemo.elim)
-  show(boolDemo.injectivity(truDemo, falsDemo))
+  show(boolDemo.disjointness(truDemo, falsDemo))
   show(natDemo.induction)
   show(natDemo.elim)
   show(voidDemo.elim)

@@ -19,14 +19,14 @@ object LibraryFeatures extends lisa.Main {
   section("Nat")
   show(nat.induction)
   show(nat.elim)
-  show(nat.injectivity(zero, succ))
+  show(nat.disjointness(zero, succ))
   show(zero.intro)
   show(succ.intro)
 
   section("Bool")
   show(bool.induction)
   show(bool.elim)
-  show(bool.injectivity(tru, fals))
+  show(bool.disjointness(tru, fals))
   show(tru.intro)
   show(fals.intro)
 
@@ -42,14 +42,14 @@ object LibraryFeatures extends lisa.Main {
   section("List")
   show(list.induction(nat))
   show(list.elim(nat))
-  show(list.injectivity(nil, cons, nat))
+  show(list.disjointness(nil, cons, nat))
   show(nil.intro(nat))
   show(cons.intro(nat))
 
   section("Option")
   show(option.induction(nat))
   show(option.elim(nat))
-  show(option.injectivity(some, none, nat))
+  show(option.disjointness(some, none, nat))
   show(some.intro(nat))
   show(none.intro(nat))
 
@@ -61,7 +61,7 @@ object LibraryFeatures extends lisa.Main {
   section("Union")
   show(union.induction(nat, bool))
   show(union.elim(nat, bool))
-  show(union.injectivity(inl, inr, nat, bool))
+  show(union.disjointness(inl, inr, nat, bool))
   show(inl.intro(nat, bool))
   show(inr.intro(nat, bool))
 

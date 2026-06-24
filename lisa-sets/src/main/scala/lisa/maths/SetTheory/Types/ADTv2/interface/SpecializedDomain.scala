@@ -89,13 +89,13 @@ final class SpecializedADT[N <: Arity](using
   def induction: THM =
     theoremAt(name, base.typeVariablesSeq, typeArgs, "induction", base.semantic.induction)
 
-  def injectivity(c1: SpecializedConstructor[N], c2: SpecializedConstructor[N]): THM =
+  def disjointness(c1: SpecializedConstructor[N], c2: SpecializedConstructor[N]): THM =
     theoremAt(
       displayName = name,
       typeVariables = base.typeVariablesSeq,
       typeArgs = typeArgs,
-      suffix = s"${c1.base.semantic.name}-${c2.base.semantic.name}/injectivity",
-      baseTheorem = base.semantic.injectivity(c1.base.semantic, c2.base.semantic)
+      suffix = s"${c1.base.semantic.name}-${c2.base.semantic.name}/disjointness",
+      baseTheorem = base.semantic.disjointness(c1.base.semantic, c2.base.semantic)
     )
 
   override def toString: String =

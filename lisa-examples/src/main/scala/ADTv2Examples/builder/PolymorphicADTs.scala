@@ -41,7 +41,7 @@ object PolymorphicADTs extends lisa.Main {
   show(listDemo.induction(unit))
   show(listDemo.elim(unit))
   show(unionDemo.induction(unit, nat))
-  show(unionDemo.injectivity(inlDemo, inrDemo, unit, nat))
+  show(unionDemo.disjointness(inlDemo, inrDemo, unit, nat))
 
   section("Constructor theorems")
   show(packDemo.intro(unit))

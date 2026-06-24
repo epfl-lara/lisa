@@ -48,18 +48,18 @@ final class ADT[N <: Arity](using val line: sourcecode.Line, val file: sourcecod
   def elim(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*): THM =
     theoremAt(name, typeVariablesSeq, firstTypeArg +: otherTypeArgs, "elimination", semantic.elim)
 
-  def injectivity(c1: Constructor[N], c2: Constructor[N]): THM = {
+  def disjointness(c1: Constructor[N], c2: Constructor[N]): THM = {
     requireMonomorphicAccess("ADT", name, typeVariablesSeq)
     theoremAt(
       displayName = name,
       typeVariables = typeVariablesSeq,
       typeArgs = Seq.empty,
-      suffix = s"${c1.semantic.name}-${c2.semantic.name}/injectivity",
-      baseTheorem = semantic.injectivity(c1.semantic, c2.semantic)
+      suffix = s"${c1.semantic.name}-${c2.semantic.name}/disjointness",
+      baseTheorem = semantic.disjointness(c1.semantic, c2.semantic)
     )
   }
 
-  def injectivity(
+  def disjointness(
       c1: Constructor[N],
       c2: Constructor[N],
       firstTypeArg: Expr[Ind],
@@ -69,8 +69,8 @@ final class ADT[N <: Arity](using val line: sourcecode.Line, val file: sourcecod
       name,
       typeVariablesSeq,
       firstTypeArg +: otherTypeArgs,
-      s"${c1.semantic.name}-${c2.semantic.name}/injectivity",
-      semantic.injectivity(c1.semantic, c2.semantic)
+      s"${c1.semantic.name}-${c2.semantic.name}/disjointness",
+      semantic.disjointness(c1.semantic, c2.semantic)
     )
 
   def applyUnsafe(args: Expr[Ind] ** N): Expr[Ind] = termAt(args.toSeq)

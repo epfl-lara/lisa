@@ -46,7 +46,7 @@ object NestedPatternInduction extends lisa.Main {
           val truEqFals = have(tru === fals) by Congruence.from(lastStep, existsAtTru)
           have(countTrue(bool) * listAtArg0 === zero) by Tautology.from(
             truEqFals,
-            bool.injectivity(tru, fals)
+            bool.disjointness(tru, fals)
           )
           thenHave(thesis) by RightImplies.withParameters(
             existsTrue(bool) * listAtArg0 === fals,
@@ -117,7 +117,7 @@ object NestedPatternInduction extends lisa.Main {
           val truEqFals = have(tru === fals) by Congruence.from(lastStep, existsAtTru)
           have(countTrue(bool) * listAtArg0 === zero) by Tautology.from(
             truEqFals,
-            bool.injectivity(tru, fals)
+            bool.disjointness(tru, fals)
           )
           thenHave(thesis) by RightImplies.withParameters(
             existsTrue(bool) * listAtArg0 === fals,

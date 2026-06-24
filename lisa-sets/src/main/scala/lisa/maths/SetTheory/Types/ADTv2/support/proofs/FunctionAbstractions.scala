@@ -27,7 +27,7 @@ object FunctionAbstractions {
       TypingHelpers.fun(v :: domain, acc)
     }
 
-  private lazy val TAbsConstOnGeneral: THM = Lemma(
+  private val TAbsConstOnGeneral: THM = Lemma(
     ∀(pointVar ∈ domainVar, bodyVar(pointVar) ∈ codomainVar) |- abs(domainVar)(bodyVar) ∈ Pi(
       domainVar
     )(λ(x, codomainVar))
@@ -37,11 +37,8 @@ object FunctionAbstractions {
     val e = variable[Ind >>: Ind]
 
     assume(∀(pointVar ∈ domainVar, bodyVar(pointVar) ∈ codomainVar))
-    val premiseAtX = have(pointVar ∈ domainVar ==> bodyVar(pointVar) ∈ codomainVar) by InstantiateForall
-    have(pointVar ∈ domainVar ==> bodyVar(pointVar) ∈ λ(x, codomainVar)(pointVar)) by
-      Tautology.from(premiseAtX)
-    thenHave(∀(pointVar ∈ domainVar, bodyVar(pointVar) ∈ λ(x, codomainVar)(pointVar))) by RightForall
-    have(thesis) by Tautology.from(lastStep, TAbs of (T1 := domainVar, T2 := λ(x, codomainVar), e := bodyVar))
+    have(∀(pointVar ∈ domainVar, bodyVar(pointVar) ∈ λ(x, codomainVar)(pointVar))) by Restate
+    have(thesis) by Cut(lastStep, TAbs of (T1 := domainVar, T2 := λ(x, codomainVar), e := bodyVar))
   }
 
   def TAbsConstOn(
@@ -51,7 +48,7 @@ object FunctionAbstractions {
   ): THM = Lemma(
     ∀(pointVar ∈ domain, body(pointVar) ∈ codomain) |- abs(domain)(body) ∈ Pi(domain)(λ(pointVar, codomain))
   ) {
-    have(thesis) by Tautology.from(
+    have(thesis) by Restate.from(
       TAbsConstOnGeneral.of(
         domainVar := domain,
         codomainVar := codomain,

@@ -75,7 +75,7 @@ private[PatternMatching] final case class ConstructorPatternSystem[N <: Arity](
           (constructorPattern1.branchPremise1 /\ constructorPattern2.freshBranchPremise) ==>
             !(constructorPattern1.inputTerm1 === constructorPattern2.inputTerm2)
         ) {
-          have(thesis) by Tautology.from(constructorPattern1.appliedDisjointness(constructorPattern2))
+          have(thesis) by Tautology.from(constructorPattern1.disjointness(constructorPattern2))
         }
       }
     )

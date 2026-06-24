@@ -1,13 +1,11 @@
 package lisa.maths.SetTheory.Types.ADTv2.encoding
 
-import lisa.maths.SetTheory.Base.Pair
 import lisa.maths.SetTheory.Ordinals.Integer.successorInOmega
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.height.HeightTerms
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.constructorTagDisequality
 import lisa.maths.SetTheory.Types.ADTv2.support.semantics.UniqueDefinedSymbol
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.BasicStepTactic.RightForall
@@ -60,13 +58,13 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTBase[N]
       have(termDefinitionFormula(y)) by Restate
       val yDef = thenHave(in(t, y) <=> belongsToEveryHeight) by InstantiateForall(t)
 
-      have(in(t, x) <=> in(t, y)) by Tautology.from(xDef, yDef)
+      have(in(t, x) <=> in(t, y)) by Congruence.from(xDef, yDef)
       thenHave(forall(t, in(t, x) <=> in(t, y))) by RightForall
       have(thesis) by Tautology.from(lastStep, extensionalityAxiom of (x := x, y := y, z := t))
     }
 
     // STEP 3: package existence and uniqueness into ∃!.
-    have(termDefinitionFormula(x) /\ termDefinitionFormula(y) ==> (x === y)) by Tautology.from(uniqueness)
+    have(termDefinitionFormula(x) /\ termDefinitionFormula(y) ==> (x === y)) by Restate.from(uniqueness)
     thenHave(forall(y, termDefinitionFormula(x) /\ termDefinitionFormula(y) ==> (x === y))) by RightForall
     val uniquenessAll = thenHave(forall(x, forall(y, termDefinitionFormula(x) /\ termDefinitionFormula(y) ==> (x === y)))) by RightForall
 
@@ -175,26 +173,4 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTBase[N]
       }
     )
     .toMap
-
-  def injectivity(c1: SyntacticConstructor, c2: SyntacticConstructor) =
-    require(c1.tag != c2.tag, "The given constructors must be different.")
-
-    Lemma(c1.term1 =/= c2.term2) {
-
-      val diffTag = constructorTagDisequality(
-        c1.tagTerm, c2.tagTerm, Math.min(c1.tag, c2.tag), Math.max(c1.tag, c2.tag)
-      )
-
-      have(
-        !(c1.tagTerm === c2.tagTerm) |- !(c1.term1 === c2.term2)
-      ) by Tautology.from(
-        Pair.extensionality of (
-          a := c1.tagTerm,
-          b := c1.subterm,
-          c := c2.tagTerm,
-          d := c2.subterm2
-        )
-      )
-      have(!(c1.term1 === c2.term2)) by Cut(diffTag, lastStep)
-    }
 }

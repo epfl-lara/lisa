@@ -103,10 +103,10 @@ private[PatternMatching] trait ConstructorHeadPattern[N <: Arity] extends Patter
   /**
    * Disjointness of this pattern's head from another, distinct head: their well-typed
    * applied terms can never be equal. Specializes the semantic constructor's
-   * [[SemanticConstructor.appliedDisjointness]] to this pattern's type substitutions.
+   * [[SemanticConstructor.disjointness]] to this pattern's type substitutions.
    */
-  def appliedDisjointness(other: ConstructorHeadPattern[N]): THM = {
-    val base = semanticConstructor.appliedDisjointness(other.semanticConstructor)
+  def disjointness(other: ConstructorHeadPattern[N]): THM = {
+    val base = semanticConstructor.disjointness(other.semanticConstructor)
     if typeSubstitutions.isEmpty then base
     else
       Lemma(base.statement.substitute(typeSubstitutions*)) {

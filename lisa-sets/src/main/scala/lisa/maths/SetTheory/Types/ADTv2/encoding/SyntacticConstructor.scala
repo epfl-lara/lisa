@@ -1,8 +1,11 @@
 package lisa.maths.SetTheory.Types.ADTv2.encoding
 
 import lisa.maths.SetTheory.Base.Pair
+import lisa.maths.SetTheory.Ordinals.Integer.{successorInjectivity, zeroIsNotSucc}
+import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.equivalenceApply
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
 
 /**
@@ -201,5 +204,60 @@ class SyntacticConstructor(
             )
           )
       }
+
+  /**
+   *  Tags uniquely identify constructors, so the tag terms of two distinct
+   *  constructors are provably different.
+   *
+   *  The tags are concrete naturals `S^tag(∅)`; peeling `min(tag, other.tag)`
+   *  successors via injectivity reduces the equality to `S^(maxTag - minTag)(∅) = ∅`,
+   *  which is false.
+   */
+  private def tagDisequality(other: SyntacticConstructor): THM = {
+    val minTag = Math.min(tag, other.tag)
+    val maxTag = Math.max(tag, other.tag)
+    Lemma(!(tagTerm === other.tagTerm)) {
+      val start = have(tagTerm === other.tagTerm |- toTerm(maxTag) === toTerm(minTag)) by Congruence
+      (1 to minTag).foldLeft(start)((fact, i) =>
+        val midMaxTag = toTerm(maxTag - i)
+        val midMinTag = toTerm(minTag - i)
+        have(
+          S(midMaxTag) === S(midMinTag) |- midMaxTag === midMinTag
+        ) by Cut(
+          successorInjectivity of (n := midMaxTag, m := midMinTag),
+          equivalenceApply of (
+            p1 := S(midMaxTag) === S(midMinTag),
+            p2 := midMaxTag === midMinTag
+          )
+        )
+        have(tagTerm === other.tagTerm |- midMaxTag === midMinTag) by Cut(fact, lastStep)
+      )
+      val chainInjectivity =
+        thenHave(!(toTerm(maxTag - minTag) === ∅) |- !(tagTerm === other.tagTerm)) by Restate
+      have(toTerm(maxTag - minTag) =/= ∅) by Restate.from(
+        zeroIsNotSucc of (n := toTerm(maxTag - minTag - 1))
+      )
+      have(thesis) by Cut(lastStep, chainInjectivity)
+    }
+  }
+
+  /**
+   *  Theorem --- Disjointness of distinct constructors.
+   *
+   *  Two instances of distinct constructors are never equal, because their tags differ.
+   *  This is the structural counterpart of [[injectivity]], phrased over the internal
+   *  tuple encoding [[term]].
+   *
+   *  e.g. nil =/= cons(head)(tail)
+   */
+  def disjointness(other: SyntacticConstructor): THM = {
+    require(this != other, "disjointness requires two distinct constructors.")
+    Lemma(!(term1 === other.term2)) {
+      have(thesis) by Tautology.from(
+        Pair.extensionality of (a := tagTerm, b := subterm1, c := other.tagTerm, d := other.subterm2),
+        tagDisequality(other)
+      )
+    }
+  }
 
 }

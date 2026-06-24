@@ -7,8 +7,8 @@ import lisa.maths.SetTheory.Functions.Operations.Restriction.notEmpty
 import lisa.maths.SetTheory.Ordinals.Integer.{emptyInOmega, omegaSuccessorInduction, selfInSuccessor, subsetSuccessor, successorInOmega}
 import lisa.maths.SetTheory.Functions.Operations.Restriction.emptyRestriction
 import lisa.maths.SetTheory.Types.ADTv2.height.proofs.CoreFacts._
+import lisa.maths.SetTheory.Types.ADTv2.height.proofs.UnionRangeCollapse.unionRangeCollapse
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UnionRangeCollapse.unionRangeCollapse
 import lisa.maths.SetTheory.Types.ADTv2.support.tactics.Cuts
 
 private[height] object SuccessorFacts {

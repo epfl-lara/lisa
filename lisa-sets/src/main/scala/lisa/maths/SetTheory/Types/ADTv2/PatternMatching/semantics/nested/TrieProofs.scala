@@ -190,7 +190,7 @@ private[semantics] object NestedTrieProofs {
       case a: ADT[n] =>
         val cc = c.asInstanceOf[Constructor[n]]
         val dd = d.asInstanceOf[Constructor[n]]
-        if targs.isEmpty then a.injectivity(cc, dd) else a.injectivity(cc, dd, targs.head, targs.tail*)
+        if targs.isEmpty then a.disjointness(cc, dd) else a.disjointness(cc, dd, targs.head, targs.tail*)
   private def sameInj(c: Constructor[?], targs: Seq[Expr[Ind]]): THM =
     if targs.isEmpty then c.injectivity else c.injectivity(targs.head, targs.tail*)
 
