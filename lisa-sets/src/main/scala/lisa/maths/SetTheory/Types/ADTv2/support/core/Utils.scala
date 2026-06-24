@@ -14,14 +14,41 @@ import lisa.utils.fol.FOL.{Prop => FProp}
 
 import scala.compiletime.summonFrom
 
+private object MyVariables {
+
+  // Variables
+  val a, b, c, d = variable[Ind]
+  val f, g = variable[Ind]
+  val k, n, m = variable[Ind]
+  val r, s, t = variable[Ind]
+  val x, y, z = variable[Ind]
+  val α, β = variable[Ind]
+
+  var h: Variable[Ind] = variable[Ind]
+
+  val A, B = variable[Ind]
+
+  // Propositions
+  val p, p1, p2, p3, p4 = variable[Prop]
+  val q1, q2 = variable[Prop]
+
+  // Predicates
+  val P, Q = variable[Ind >>: Prop]
+  val schemPred = variable[Ind >>: Prop]
+  val P2 = variable[Ind >>: Ind >>: Prop]
+
+  // Constants
+  val N: Expr[Ind] = lisa.maths.SetTheory.Ordinals.Integer.ω
+
+}
+
 object Utils {
 
   object Constructors {
     var tagCounter = 0
   }
 
-  // export lisa.maths.SetTheory.Types.ADTv2.support.UniqueVariable
-  export lisa.maths.SetTheory.Types.ADTv2.support.MyVariables.*
+  export MyVariables.*
 
   // Variables used
 
@@ -44,19 +71,31 @@ object Utils {
 
   // Some useful shorthands for readability
 
+  // ∀ ∃ ∈ ⊆ λ
+  // ADTv2/**/*.scala
+
   def pair(x: Expr[Ind], y: Expr[Ind]): Expr[Ind] =
     Pair.pair(x)(y)
 
+  // @deprecated("Use `∈` instead", "v2.0")
+  // def forall(x: Variable[Ind], y: Expr[Prop]): Expr[Prop] = ∀(x, y)
+
+  // @deprecated("Use `∈` instead", "v2.0")
   def in(x: Expr[Ind], y: Expr[Ind]): Expr[Prop] = x ∈ y
 
+  // @deprecated("Use `⊆` instead", "v2.0")
   def subset(x: Expr[Ind], y: Expr[Ind]): Expr[Prop] = x ⊆ y
 
+  // @deprecated("Use `↾` instead", "v2.0")
   def restrictedFunction(f: Expr[Ind], d: Expr[Ind]): Expr[Ind] = f ↾ d
 
+  // @deprecated("Use `∃!` instead", "v2.0")
   def existsOne(v: Variable[Ind], body: Expr[Prop]): Expr[Prop] = ∃!(v, body)
 
+  // @deprecated("Use `⋃` instead", "v2.0")
   def unionRange(f: Expr[Ind]): Expr[Ind] = ⋃(range(f))
 
+  // @deprecated("Use `λ` instead", "v2.0")
   def lam(v: Variable[Ind], body: Expr[Prop]): Expr[Ind >>: Prop] = λ(v, body)
 
   // Syntactic sugar for sequences
@@ -109,7 +148,6 @@ object Utils {
   extension (arg: ConstructorArg)
     def getOrElse(adt: Expr[Ind]): Expr[Ind] = arg match
       case SelfRef => adt
-      // case RegularArg(tpe) => typeExprToTerm(tpe)
       case TypeArg(name) => Variable[Ind](name)
 
   def typeExprToTerm(name: String): Variable[Ind] =

@@ -4,13 +4,14 @@ import lisa.maths.Quantifiers
 import lisa.maths.SetTheory.Functions.BasicTheorems.appTyping
 import lisa.maths.SetTheory.Functions.BasicTheorems.funcBetweenEqInFuncSpace
 import lisa.maths.SetTheory.Functions.Function.abs
+import lisa.maths.SetTheory.Functions.Pi.Pi
 import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.utils.debug.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.FunctionAbstractions.TAbsConstOn
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.equivalenceApply
 import lisa.maths.SetTheory.Types.TypingHelpers._
+import lisa.maths.SetTheory.Types.TypingRules.TAbs
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[recursion] final class LimitConstruction[N <: Arity](
@@ -18,7 +19,6 @@ private[recursion] final class LimitConstruction[N <: Arity](
     val approxSeq: ApproxSequence[N],
     val approxStab: ApproxStabilization[N]
 ) {
-
   val nVar = variable[Ind]
   val mVar = variable[Ind]
   val kVar = variable[Ind]
@@ -108,12 +108,16 @@ private[recursion] final class LimitConstruction[N <: Arity](
       thenHave(thesis) by Restate
     }
 
+    val T1 = variable[Ind]
+    val T2 = variable[Ind >>: Ind]
+    val e = variable[Ind >>: Ind]
+    have(
+      ∀(a ∈ spec.argType, app(G(limitIndex(a)))(a) ∈ λ(y, spec.returnType)(a))
+    ) by Restate.from(everyValueTyped)
+    
     val absTypedAtPi = have(
       abs(spec.argType)(λ(a, app(G(limitIndex(a)))(a))) ∈ Pi(spec.argType)(λ(y, spec.returnType))
-    ) by Tautology.from(
-      everyValueTyped,
-      TAbsConstOn(spec.argType, spec.returnType, λ(a, app(G(limitIndex(a)))(a)))
-    )
+    ) by Cut(lastStep, TAbs of (T1 := spec.argType, T2 := λ(y, spec.returnType), e := λ(a, app(G(limitIndex(a)))(a))))
 
     have(limitFun :: spec.typ) by Congruence.from(absTypedAtPi)
     thenHave(thesis) by Restate

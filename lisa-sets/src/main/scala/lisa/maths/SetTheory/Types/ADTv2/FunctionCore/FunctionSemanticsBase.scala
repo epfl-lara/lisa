@@ -1,5 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.FunctionCore
 
+import lisa.maths.Quantifiers.∃!
+import lisa.maths.Quantifiers.existsOneAlternativeDefinition
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
@@ -7,8 +9,8 @@ import lisa.maths.SetTheory.Types.ADTv2.encoding._
 import lisa.maths.SetTheory.Types.ADTv2.support.UniqueCharacterizedSymbol
 import lisa.maths.SetTheory.Types.ADTv2.support.core.**
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.semantics.ExistsOneBuilder
 import lisa.maths.SetTheory.Types.TypingHelpers._
+import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
@@ -45,13 +47,20 @@ class FunctionSemanticsBase[N <: Arity](data: SemanticFunctionInputs[N]) {
    * Assemble `existsOne(f, untypedDef)` from the separately-proved existence and
    * pointwise-uniqueness facts supplied by the strategy.
    */
-  private val uniqueness: THM = 
-    ExistsOneBuilder(
-      witnessVar  = f,
-      definitionAt = definitionFormula,
-      existence   = data.existence.witnessExists,
-      pairwiseUniqueness = data.uniqueness.pointwiseUniqueness
-  ).theorem
+  private val uniqueness: THM = Lemma(∃!(f, untypedDef)) {
+    have(∀(y, definitionFormula(x) /\ definitionFormula(y) ==> (x === y))) by
+      RightForall(data.uniqueness.pointwiseUniqueness)
+    val uniquenessAll = thenHave(
+      ∀(x, ∀(y, definitionFormula(x) /\ definitionFormula(y) ==> (x === y)))
+    ) by RightForall
+
+    val altDef = existsOneAlternativeDefinition of (x := f, P := λ(f, untypedDef))
+
+    have(
+      ∃(f, untypedDef) /\ ∀(x, ∀(y, definitionFormula(x) /\ definitionFormula(y) ==> (x === y)))
+    ) by RightAnd(data.existence.witnessExists, uniquenessAll)
+    thenHave(thesis) by Substitute(altDef)
+  }
 
   private val definedClassFunction: UniqueCharacterizedSymbol =
     UniqueCharacterizedSymbol(

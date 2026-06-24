@@ -398,7 +398,7 @@ class SemanticADT[N <: Arity](
         )
         have(thesis) by Restate.from(lastStep)
       }
-      val newFact = have(newBefore <=> newAfter) by Tautology.from(impliesEquivalence, lastStep, fact)
+      val newFact = have(newBefore <=> newAfter) by Tautology.from(lastStep, fact)
       (newBefore, newAfter, newFact)
     )
     have(underlying.induction.statement.right.head |- thesis.right.head) by Cut(
@@ -501,7 +501,7 @@ class SemanticADT[N <: Arity](
                     val newF = forall(v, nextF2)
                     thenHave(exists(v, !(nextF2)) |- newW) by LeftExists
 
-                    val newFact = have(!newF |- newW) by Tautology.from(lastStep, existsNeg)
+                    val newFact = have(!newF |- newW) by Restate.from(lastStep)
 
                     (newF, newW, newFact)
                   )
