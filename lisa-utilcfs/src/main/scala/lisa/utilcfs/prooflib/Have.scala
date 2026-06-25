@@ -4,59 +4,57 @@ import lisa.utilcfs.K
 import lisa.utilcfs.fol.FOL.*
 
 trait SequentTactic:
-  def apply(using sourcecode.File, sourcecode.Line)(using Library, Proof)(conclusion: Sequent): ProofJudgement
+  def apply(using sourcecode.File, sourcecode.Line)(using Library)(conclusion: Sequent): ProofJudgement
 trait PremiseSequentTactic:
-  def apply(using sourcecode.File, sourcecode.Line)(using Library, Proof)(conclusion: Sequent, premise: K.Thm): ProofJudgement
+  def apply(using sourcecode.File, sourcecode.Line)(using Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement
 
 trait SequentTacticM[+T]:
-  def apply(using sourcecode.File, sourcecode.Line)(using Library, Proof)(conclusion: Sequent): ProofCarrier[T]
+  def apply(using sourcecode.File, sourcecode.Line)(using Library)(conclusion: Sequent): ProofCarrier[T]
 trait PremiseSequentTacticM[+T]:
-  def apply(using sourcecode.File, sourcecode.Line)(using Library, Proof)(conclusion: Sequent, premise: K.Thm): ProofCarrier[T]
+  def apply(using sourcecode.File, sourcecode.Line)(using Library)(conclusion: Sequent, premise: K.Thm): ProofCarrier[T]
 
 private def noPreviousStep(using file: sourcecode.File, line: sourcecode.Line): ProofError =
   SoftError("thenHave requires a previous theorem in the local proof context.", file, line)
 
-private def failedPreviousStep(using lib: Library, proof: Proof)(file: sourcecode.File, line: sourcecode.Line)(statement: Sequent): ProofJudgement =
+private def failedPreviousStep(using lib: Library, proof: Proof)(file: sourcecode.File, line: sourcecode.Line)(statement: Sequent): K.Thm =
   val error = noPreviousStep
-  K.Sorry(using lib.theory)(statement.underlying) match
-    case Left(err) => ProofCarrier(Set(error, SoftError(err.toString, file, line)), statement.underlying, None, ())
-    case Right(thm) => proof.absorb(ProofCarrier(Set(error), statement.underlying, Some(thm), ()))
+  proof.absorbDestruct(ProofCarrier(Set(error), statement.underlying, None, ()))._1
 
-private inline def record[T](judgement: ProofCarrier[T])(using proof: Proof): ProofCarrier[T] =
-  proof.absorb(judgement)
+private inline def record[T](using proof: Proof)(judgement: ProofCarrier[T]): (K.Thm, T) =
+  proof.absorbDestruct(judgement)
 
 class HaveSequent(val statement: Sequent):
-  infix def by(using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: SequentTactic): ProofJudgement =
+  infix def by(using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: SequentTactic): K.Thm =
     by(using lib, proof, file, line)
-      ((conclusion: Sequent) => tactic.apply(using file, line)(using lib, proof)(conclusion))
+      ((conclusion: Sequent) => tactic.apply(using file, line)(using lib)(conclusion))
 
-  infix def by(using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: Sequent => ProofJudgement): ProofJudgement =
-    record(tactic(statement))
+  infix def by(using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: Sequent => ProofJudgement): K.Thm =
+    record(tactic(statement))._1
 
 class ThenHaveSequent(val statement: Sequent):
-  infix def by(using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: PremiseSequentTactic): ProofJudgement =
+  infix def by(using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: PremiseSequentTactic): K.Thm =
     by(using lib, proof, file, line)
-      ((conclusion: Sequent, premise: K.Thm) => tactic.apply(using file, line)(using lib, proof)(conclusion, premise))
+      ((conclusion: Sequent, premise: K.Thm) => tactic.apply(using file, line)(using lib)(conclusion, premise))
 
-  infix def by(using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: (Sequent, K.Thm) => ProofJudgement): ProofJudgement =
+  infix def by(using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: (Sequent, K.Thm) => ProofJudgement): K.Thm =
     proof.last match
-      case Some(j) => record(tactic(statement, j))
+      case Some(j) => record(tactic(statement, j))._1
       case None => failedPreviousStep(file, line)(statement)
 
 class HaveMSequent(val statement: Sequent):
-  infix def by[T](using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: SequentTacticM[T]): ProofCarrier[T] =
+  infix def by[T](using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: SequentTacticM[T]): (K.Thm, T) =
     by(using lib, proof, file, line)
-      ((conclusion: Sequent) => tactic.apply(using file, line)(using lib, proof)(conclusion))
+      ((conclusion: Sequent) => tactic.apply(using file, line)(using lib)(conclusion))
 
-  infix def by[T](using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: Sequent => ProofCarrier[T]): ProofCarrier[T] =
+  infix def by[T](using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: Sequent => ProofCarrier[T]): (K.Thm, T) =
     record(tactic(statement))
 
 class ThenHaveMSequent(val statement: Sequent):
-  infix def by[T](using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: PremiseSequentTacticM[T]): ProofCarrier[T] =
+  infix def by[T](using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: PremiseSequentTacticM[T]): (K.Thm, T) =
     by(using lib, proof, file, line)
-      ((conclusion: Sequent, premise: K.Thm) => tactic.apply(using file, line)(using lib, proof)(conclusion, premise))
+      ((conclusion: Sequent, premise: K.Thm) => tactic.apply(using file, line)(using lib)(conclusion, premise))
 
-  infix def by[T](using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: (Sequent, K.Thm) => ProofCarrier[T]): ProofCarrier[T] =
+  infix def by[T](using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: (Sequent, K.Thm) => ProofCarrier[T]): (K.Thm, T) =
     proof.last match
       case Some(j) => record(tactic(statement, j))
       case None => throw new NoSuchElementException("thenHaveM requires a previous theorem in the local proof context. Cannot synthesize a return value.")
@@ -73,11 +71,11 @@ def haveM(statement: Sequent): HaveMSequent =
 def thenHaveM(statement: Sequent): ThenHaveMSequent =
   ThenHaveMSequent(statement)
 
-def have(using proof: Proof)(judgement: ProofJudgement): ProofJudgement =
-  proof.absorb(judgement)
+inline def have(using lib: Library, proof: Proof)(thm: K.Thm): K.Thm =
+  have(ProofJudgement(thm))
 
-def have(using lib: Library, proof: Proof)(thm: K.Thm): ProofJudgement =
-  proof.absorb(ProofCarrier(Set.empty, thm.statement, Some(thm), ()))
+def have(using proof: Proof)(judgement: ProofJudgement): K.Thm =
+  proof.absorbDestruct(judgement)._1
 
 def lastStep(using proof: Proof): K.Thm =
   proof.last.getOrElse:

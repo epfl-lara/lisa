@@ -33,10 +33,7 @@ final case class ProofCarrier[+T](
     * function.
     */
   def flatMap[U](f: (T, Thm) => ProofCarrier[U]): ProofCarrier[U] =
-    val just = justification.getOrElse:
-      K.Sorry(statement) match
-        case Right(j) => j
-    val next = f(payload, just)
+    val next = f(payload, destruct._1)
     next.copy(errors = errors ++ next.errors)
 
   /**
@@ -67,7 +64,18 @@ final case class ProofCarrier[+T](
   def judgement: ProofJudgement =
     copy(payload = ())
 
+  /**
+    * The carrier's theorem and payload, using a sorry theorem when no
+    * justification was produced.
+    */
+  def destruct: (Thm, T) =
+    justification.getOrElse(K.sorry(using lib.theory)(statement)) -> payload
+
 type ProofJudgement = ProofCarrier[Unit]
+
+object ProofJudgement:
+  def apply(using lib: Library)(just: Thm): ProofJudgement =
+    ProofCarrier(Set.empty, just.statement, Some(just), ())
 
 extension (kernelResult: Either[ProofError, Thm])(using lib: Library)
   def lift(intendedConclusion: Sequent): ProofJudgement =

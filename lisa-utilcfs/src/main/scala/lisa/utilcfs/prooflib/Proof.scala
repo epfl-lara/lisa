@@ -31,6 +31,9 @@ final class Proof private (val lib: Library, val goal: Option[Sequent]):
     carrier.justification.foreach(thm => lastKnown = Some(thm))
     carrier
 
+  def absorbDestruct[T](carrier: ProofCarrier[T]): (Thm, T) =
+    absorb(carrier).destruct
+
   private def child(goal: Option[Sequent] = None): Proof =
     new Proof(lib, goal)
 
