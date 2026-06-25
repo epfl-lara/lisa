@@ -18,7 +18,7 @@ object SimpleInduction extends lisa.Main {
     val negFalse = have(not * fals === tru) by Restate.from(not.elim(fals))
     val negTrue = have(not * tru === fals) by Restate.from(not.elim(tru))
 
-    have(thesis) by Induction(b, bool) {
+    have(thesis) by Induction() {
       Case(tru) subproof {
         have(not * (not * tru) === tru) by Congruence.from(negTrue, negFalse)
       }
@@ -31,7 +31,7 @@ object SimpleInduction extends lisa.Main {
   section("Induction on Nat")
 
   val natReflexive = Theorem((n :: nat) |- n === n) {
-    have(thesis) by Induction(n, nat) {
+    have(thesis) by Induction() {
       Case(zero) subproof {
         have(thesis) by RightRefl
       }
@@ -42,7 +42,7 @@ object SimpleInduction extends lisa.Main {
   }
 
   val doubleIsNat = Theorem((n :: nat) |- double * n :: nat) {
-    have(thesis) by Induction(n, nat) {
+    have(thesis) by Induction() {
       Case(zero) subproof {
         have(thesis) by Congruence.from(
           double.elim(zero),

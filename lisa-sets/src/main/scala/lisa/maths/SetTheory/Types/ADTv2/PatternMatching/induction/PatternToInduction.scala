@@ -18,21 +18,24 @@ final case class InductionBranch[N <: Arity, T](
     typingAssumptions: Seq[Expr[Prop]],
     guardAssumptions: Seq[Expr[Prop]],
     payload: T
-)
+){
+
+  def map[U](f: T => U): InductionBranch[N, U] = 
+    InductionBranch(constructor, binders, recursiveBinders, typingAssumptions, guardAssumptions, f(payload))
+
+}
 
 final case class InductionBranchSystem[N <: Arity, T](
     domain: SpecializedADT[N],
     system: PatternSystem[N],
     branchesByConstructor: Map[Constructor[N], Seq[InductionBranch[N, T]]]
 ) {
-  def constructors: Seq[Constructor[N]] =
-    domain.base.constructors
 
   def branchesFor(constructor: Constructor[N]): Seq[InductionBranch[N, T]] =
     branchesByConstructor.getOrElse(constructor, Seq.empty)
 
   val branches: Seq[InductionBranch[N, T]] =
-    constructors.flatMap(branchesFor)
+    domain.base.constructors.flatMap(branchesFor)
 
 }
 
