@@ -38,11 +38,10 @@ private[proofs] trait WitnessProofContext[N <: Arity] {
     "CaseDefinedWitness expects caseMembership to coincide with patternMatching.caseMembership."
   )
 
-  protected val contextPremise: Expr[Prop] =
-    simplify(seqAnd(contextPremises))
+  protected val contextPremise: Expr[Prop] = seqAnd(contextPremises)
 
   protected def contextualize(formula: Expr[Prop]): Expr[Prop] =
-    if contextPremises.isEmpty then formula else contextPremise ==> formula
+    if contextPremises.isEmpty then formula else simplify(contextPremise ==> formula)
 
   protected def constructorHead(pattern: Pattern[N]): ConstructorHeadPattern[N] =
     ConstructorHeadPattern.require(pattern)

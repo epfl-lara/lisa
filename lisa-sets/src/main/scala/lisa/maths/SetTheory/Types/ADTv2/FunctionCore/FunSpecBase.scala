@@ -33,6 +33,7 @@ private[ADTv2] abstract class FunSpecBase[N <: Arity](
   def typeConstraint(fVar: Expr[Ind]): Expr[Prop] =
     fVar :: typ
 
+  // TODO ??? : move this to be a Pattern method (be careful with bodyFor ownership)
   def patternConstraint(pattern: Pattern[N], fVar: Expr[Ind]): Expr[Prop] =
     forallSeq(
       pattern.binders,

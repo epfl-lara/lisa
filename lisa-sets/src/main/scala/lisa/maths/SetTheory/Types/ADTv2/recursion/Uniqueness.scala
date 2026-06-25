@@ -47,8 +47,8 @@ private[recursion] final class Uniqueness[N <: Arity](
         val maybeEquality = asIndEquality(conclusion)
 
         maybeEquality.flatMap((lhs, rhs) =>
-          val expectedApplication = functionHead * pattern.inputTermAt(vars)
-          val expectedPremise = simplify(pattern.branchPremiseAt(vars))
+          val expectedApplication = functionHead * pattern.inputTerm
+          val expectedPremise = pattern.branchPremise
           if (lhs == expectedApplication || rhs == expectedApplication) && antecedent == expectedPremise then Some(vars -> candidate)
           else None
         )

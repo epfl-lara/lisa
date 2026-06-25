@@ -211,50 +211,31 @@ private[recursion] final class Existence[N <: Arity](
   })
 
   // ─────────────────────────────────────────────────────────────────────────
-  // defAtFixedPoint: (f :: A→T) ∧ W(f) = f ⊢ Def(f)
-  // ─────────────────────────────────────────────────────────────────────────
-
-  private val defAtFixedPoint: THM = Lemma(
-    (spec.typeConstraint(f), recWitness(f) === f) |- spec.definitionAt(f)
-  ) {
-
-    val wfEqF = assume(recWitness(f) === f)
-    val fTyped = assume(spec.typeConstraint(f))
-
-    val caseFacts = spec.patternMatching.patterns
-      .map(pattern =>
-        val vars = pattern.binders
-        val body = pattern.body.substitute(spec.selfPlaceholder := f).asInstanceOf[Expr[Ind]]
-        val witnessCaseSchema = recWitness.witnessCase(pattern).of(spec.selfPlaceholder := f)
-
-        val allForalls = have(
-          forallSeq(vars, pattern.branchPremise ==> (recWitness(f) * pattern.inputTerm === body))
-        ) by Tautology.from(witnessCaseSchema)
-
-        val instantiated = vars.foldLeft(allForalls)((acc, v) =>
-          acc.statement.right.head match
-            case forall(_, phi) => thenHave(phi) by InstantiateForall(v)
-            case _ => acc
-        )
-
-        val withF = have(pattern.branchPremise ==> (f * pattern.inputTerm === body)) by
-          Substitute(wfEqF)(instantiated)
-
-        vars.foldRight(withF)((v, acc) => thenHave(∀(v, acc.statement.right.head)) by RightForall)
-      )
-      .toSeq
-
-    have(thesis) by RightAnd((fTyped +: caseFacts)*)
-  }
-  
-
-  // ─────────────────────────────────────────────────────────────────────────
   // witnessExists: ∃f, Def(f)
   // ─────────────────────────────────────────────────────────────────────────
 
   val witnessExists: THM = Lemma(∃(f, spec.definitionAt(f))) {
 
-    have(spec.definitionAt(limitFun)) by Cuts(defAtFixedPoint of (f := limitFun))(limitHasType, limitIsFixedPoint)
+    val wfEqF = have(recWitness(f) === f |- recWitness(f) === f) by Hypothesis
+    val fTyped = have(spec.typeConstraint(f) |- spec.typeConstraint(f)) by Hypothesis
+
+    val caseFacts = spec.patternMatching.patterns.map(pattern =>
+
+        val body = pattern.body.substitute(spec.selfPlaceholder := f)
+        val witnessCaseSchema = recWitness.witnessCase(pattern).of(spec.selfPlaceholder := f)
+        
+        val allForalls = have(
+          spec.typeConstraint(f) |- forallSeq(pattern.binders, pattern.branchPremise ==> (recWitness(f) * pattern.inputTerm === body))
+        ) by Tautology.from(witnessCaseSchema)
+
+        have((spec.typeConstraint(f),recWitness(f) === f) |- spec.patternConstraint(pattern, f)) by Substitute(wfEqF)(allForalls)
+
+    ).toSeq
+
+    have((spec.typeConstraint(f),recWitness(f) === f) |- spec.equationConstraint(f)) by RightAnd(caseFacts*)
+    have((spec.typeConstraint(f), recWitness(f) === f) |- spec.definitionAt(f)) by RightAnd(fTyped, lastStep)
+    have(spec.definitionAt(limitFun)) by Cuts(lastStep of (f := limitFun))(limitHasType, limitIsFixedPoint)
     thenHave(thesis) by RightExists
+
   }
 }
