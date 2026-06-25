@@ -20,6 +20,7 @@ object K {
 
   val Helpers = P.Helpers
   val Sorry = P.Sorry
+  inline def sorry(using theory: Theory)(statement: Sequent): Thm = P.sorry(using theory)(statement)
   val Axiom = P.Axiom
   val Definition = P.Definition
   val Restate = P.Restate
