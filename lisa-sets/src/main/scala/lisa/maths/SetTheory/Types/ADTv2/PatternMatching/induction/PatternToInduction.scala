@@ -3,6 +3,7 @@ package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.induction
 import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.ConstructorHeadPattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
 import lisa.maths.SetTheory.Types.ADTv2.interface.SpecializedADT
 import lisa.utils.debug.Time
@@ -10,51 +11,85 @@ import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.simplify
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
+final case class InductionBranch[N <: Arity, T](
+    constructor: Constructor[N],
+    binders: Seq[Variable[Ind]],
+    recursiveBinders: Seq[Variable[Ind]],
+    typingAssumptions: Seq[Expr[Prop]],
+    guardAssumptions: Seq[Expr[Prop]],
+    payload: T
+)
+
+final case class InductionBranchSystem[N <: Arity, T](
+    domain: SpecializedADT[N],
+    system: PatternSystem[N],
+    branchesByConstructor: Map[Constructor[N], Seq[InductionBranch[N, T]]]
+) {
+  def constructors: Seq[Constructor[N]] =
+    domain.base.constructors
+
+  def branchesFor(constructor: Constructor[N]): Seq[InductionBranch[N, T]] =
+    branchesByConstructor.getOrElse(constructor, Seq.empty)
+
+  val branches: Seq[InductionBranch[N, T]] =
+    constructors.flatMap(branchesFor)
+
+}
+
 object PatternToInduction {
 
+  private def ensureCoverage[N <: Arity, T](
+    domain: SpecializedADT[N], 
+    branches: Seq[InductionBranch[N, T]]
+  ): Either[String, Seq[InductionBranch[N, T]]] =
+    val covered = branches.map(_.constructor).toSet
+    val missing = domain.base.constructors.filterNot(covered.contains)
+    missing.headOption match
+      case Some(constructor) =>
+        Left(s"Induction pattern system is missing constructor ${constructor.name}.")
+      case None => Right(branches)
 
-  def compileWithPayload[N <: Arity, T](
+  def compile[N <: Arity, T](
       domain: SpecializedADT[N],
       system: PatternSystem[N],
       payloads: Seq[T]
-  ): Either[String, InductionBranchSystemWithPayload[N, T]] =
-    Time.measure("PatternSystem -> InductionBranchSystemWithPayload") {
+  ): Either[String, InductionBranchSystem[N, T]] =
+    Time.measure("PatternSystem -> InductionBranchSystem") {
 
-      val compiledBranches: Either[String, Seq[InductionBranch[N]]] =
-        system.patterns.foldLeft[Either[String, Seq[InductionBranch[N]]]](Right(Seq.empty)) {
-          case (Left(err), _) => Left(err)
-          case (Right(acc), pattern) =>
-            compileBranch(domain, pattern).map(acc :+ _)
-        }
+      if system.patterns.size != payloads.size then
+        Left(
+          s"Induction payload attachment mismatch: ${system.patterns.size} compiled branches for ${payloads.size} payloads."
+        )
+      else
 
-      def ensureCoverage(branches: Seq[InductionBranch[N]]): Either[String, Unit] =
-        val covered = branches.map(_.constructor).toSet
-        val missing = domain.base.constructors.filterNot(covered.contains)
-        missing.headOption match
-          case Some(constructor) =>
-            Left(s"Induction pattern system is missing constructor ${constructor.name}.")
-          case None => Right(())
+        val compiledBranches: Either[String, Seq[InductionBranch[N, T]]] =
+          system.patterns.zip(payloads).map { 
+            case (pattern, payload) => compileBranch(domain, pattern, payload) 
+          }.foldLeft[Either[String, Seq[InductionBranch[N, T]]]](Right(Seq.empty)) {
+            case (Left(err), _) => Left(err)
+            case (Right(acc), branch) => branch.map(acc :+ _)
+          } match
+            case Left(err) => Left(err)
+            case Right(branches) => ensureCoverage(domain, branches)
 
-      for
-        branches <- compiledBranches
-        _ <- ensureCoverage(branches)
-        _ <-
-          if branches.size == payloads.size then Right(())
-          else
-            Left(
-              s"Induction payload attachment mismatch: ${branches.size} compiled branches for ${payloads.size} payload(s)."
-            )
-      yield InductionBranchSystemWithPayload(
-        domain = domain,
-        branchesByConstructor =
-          branches.zip(payloads).map((branch, payload) => branch.constructor -> InductionBranchWithPayload(branch, payload)).groupBy(_._1).view.mapValues(_.map(_._2)).toMap.withDefaultValue(Seq.empty)
-      )
+        compiledBranches match
+          case Left(err) => Left(err)
+          case Right(compiledBranches) =>
+            Right( InductionBranchSystem(
+              domain = domain,
+              system = system,
+              branchesByConstructor =
+                compiledBranches.map(
+                  branch => branch.constructor -> branch
+                ).groupBy(_._1).view.mapValues(_.map(_._2)).toMap.withDefaultValue(Seq.empty)
+            ))
     }
 
-  private def compileBranch[N <: Arity](
+  private def compileBranch[N <: Arity, T](
       domain: SpecializedADT[N],
-      pattern: lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern[N]
-  ): Either[String, InductionBranch[N]] =
+      pattern: Pattern[N],
+      payload: T
+  ): Either[String, InductionBranch[N, T]] =
     pattern match
       case constructorPattern: ConstructorHeadPattern[N] =>
         if constructorPattern.specializedAdtTerm != domain.term then
@@ -81,7 +116,8 @@ object PatternToInduction {
               typingAssumptions = constructorPattern
                 .typingSignatureAt(constructorPattern.binders)
                 .map { case (variable, typ) => variable :: typ },
-              guardAssumptions = guardAssumptions
+              guardAssumptions = guardAssumptions,
+              payload = payload
             )
           )
       case _ =>

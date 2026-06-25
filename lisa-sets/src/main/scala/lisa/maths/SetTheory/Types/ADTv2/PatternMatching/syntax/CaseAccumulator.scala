@@ -1,7 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.syntax
 
 import lisa.maths.SetTheory.SetTheory._
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.induction.InductionBranchSystemWithPayload
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.induction.InductionBranchSystem
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.induction.PatternToInduction
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.constructor.ConstructorPattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.constructor.ConstructorPatternSystem
@@ -46,46 +46,16 @@ class CaseAccumulator[N <: Arity, T, R](val comp: R) {
       case Some(err) => Left(err)
       case None => Right(buildPatternSystem(adt, bodyAt = ev))
 
-  def compilePatterns(adt: SpecializedADT[N]): Either[String, PatternSystem[N]] =
-    validateCoverage(adt.base) match
-      case Some(err) => Left(err)
-      case None =>
-        Right(buildPatternSystem(adt, bodyAt = _ => ∅))
-
   def compileForInduction(
       adt: SpecializedADT[N]
-  ): Either[String, InductionBranchSystemWithPayload[N, T]] =
-    for
-      patternSystem <- compilePatterns(adt)
-      compiled <- PatternToInduction.compileWithPayload(
-        adt,
-        patternSystem,
-        underlying.toSeq.map(_._3)
-      )
-    yield compiled
-
-  /**
-   * Validates coverage and builds a constructor-keyed map for use in induction proofs.
-   *
-   * Unlike [[compile]], this method requires:
-   *   - all arguments to be binder variables (no nested patterns), and
-   *   - at most one pattern per constructor.
-   *
-   * Returns [[Left]] with an error message on any violation.
-   */
-  def validateAndBuild(adt: ADT[N]): Either[String, Map[Constructor[N], (Seq[Variable[Ind]], T)]] =
-    validateCoverage(adt) match
+  ): Either[String, InductionBranchSystem[N, T]] =
+    validateCoverage(adt.base) match
       case Some(err) => Left(err)
-      case None =>
-        underlying.foldLeft[Either[String, Map[Constructor[N], (Seq[Variable[Ind]], T)]]](Right(Map.empty)) {
-          case (Left(err), _) => Left(err)
-          case (Right(acc), (cons, args, value)) =>
-            if acc.contains(cons) then Left(s"Multiple patterns for ${cons.name} are not supported in induction proofs.")
-            else
-              val vars = args.collect { case v: Variable[Ind] => v }
-              if vars.size != args.size then Left(s"Case ${cons.name}: induction requires variable binders, found a concrete term argument.")
-              else Right(acc + (cons -> (vars, value)))
-        }
+      case None => PatternToInduction.compile(
+          adt,
+          buildPatternSystem(adt, bodyAt = _ => ∅),
+          underlying.toSeq.map(_._3)
+        )
 
   private def validateCoverage(adt: ADT[N]): Option[String] =
     val constructors = adt.constructors.toSet
@@ -128,7 +98,7 @@ class CaseAccumulator[N <: Arity, T, R](val comp: R) {
       adt: SpecializedADT[N],
       typeSubstitutions: Seq[lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution],
       bodyAt: T => Expr[Ind]
-  ): PatternSystem[N] =
+  ): NestedPatternSystem[N] =
     val patterns = underlying.toSeq.map { case (cons, args, body) =>
       NestedConstructorPattern.fromArgs(
         cons.semantic,
