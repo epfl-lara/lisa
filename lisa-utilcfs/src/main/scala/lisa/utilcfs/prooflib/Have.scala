@@ -27,14 +27,16 @@ private inline def record[T](judgement: ProofCarrier[T])(using proof: Proof): Pr
 
 class HaveSequent(val statement: Sequent):
   infix def by(using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: SequentTactic): ProofJudgement =
-    by((conclusion: Sequent) => tactic.apply(using file, line)(using lib, proof)(conclusion))
+    by(using lib, proof, file, line)
+      ((conclusion: Sequent) => tactic.apply(using file, line)(using lib, proof)(conclusion))
 
-  infix def by(using lib: Library, proof: Proof)(tactic: Sequent => ProofJudgement): ProofJudgement =
+  infix def by(using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: Sequent => ProofJudgement): ProofJudgement =
     record(tactic(statement))
 
 class ThenHaveSequent(val statement: Sequent):
   infix def by(using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: PremiseSequentTactic): ProofJudgement =
-    by((conclusion: Sequent, premise: K.Thm) => tactic.apply(using file, line)(using lib, proof)(conclusion, premise))
+    by(using lib, proof, file, line)
+      ((conclusion: Sequent, premise: K.Thm) => tactic.apply(using file, line)(using lib, proof)(conclusion, premise))
 
   infix def by(using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: (Sequent, K.Thm) => ProofJudgement): ProofJudgement =
     proof.last match
@@ -43,14 +45,16 @@ class ThenHaveSequent(val statement: Sequent):
 
 class HaveMSequent(val statement: Sequent):
   infix def by[T](using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: SequentTacticM[T]): ProofCarrier[T] =
-    by((conclusion: Sequent) => tactic.apply(using file, line)(using lib, proof)(conclusion))
+    by(using lib, proof, file, line)
+      ((conclusion: Sequent) => tactic.apply(using file, line)(using lib, proof)(conclusion))
 
-  infix def by[T](using lib: Library, proof: Proof)(tactic: Sequent => ProofCarrier[T]): ProofCarrier[T] =
+  infix def by[T](using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: Sequent => ProofCarrier[T]): ProofCarrier[T] =
     record(tactic(statement))
 
 class ThenHaveMSequent(val statement: Sequent):
   infix def by[T](using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: PremiseSequentTacticM[T]): ProofCarrier[T] =
-    by((conclusion: Sequent, premise: K.Thm) => tactic.apply(using file, line)(using lib, proof)(conclusion, premise))
+    by(using lib, proof, file, line)
+      ((conclusion: Sequent, premise: K.Thm) => tactic.apply(using file, line)(using lib, proof)(conclusion, premise))
 
   infix def by[T](using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: (Sequent, K.Thm) => ProofCarrier[T]): ProofCarrier[T] =
     proof.last match
