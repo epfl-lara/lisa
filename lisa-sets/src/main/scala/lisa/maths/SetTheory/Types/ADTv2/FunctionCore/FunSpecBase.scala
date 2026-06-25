@@ -23,15 +23,34 @@ private[ADTv2] abstract class FunSpecBase[N <: Arity](
 
   protected def bodyFor(pattern: Pattern[N], fVar: Expr[Ind]): Expr[Ind]
 
-  def untypedDefinition(fVar: Expr[Ind]): Expr[Prop] =
-    (fVar :: typ) /\ simplify(
-      seqAnd(
-        cases.map(pattern =>
-          forallSeq(
-            pattern.binders,
-            pattern.branchPremise ==> (fVar * pattern.inputTerm === bodyFor(pattern, fVar))
-          )
-        )
-      )
+  /**
+   * Placeholder variable the defining predicate is stated about. The canonical
+   * [[definitionFormula]] is a closed formula over this variable; concrete
+   * candidates are obtained by substituting it (see [[definitionAt]]).
+   */
+  val placeholder: Variable[Ind]
+
+  def typeConstraint(fVar: Expr[Ind]): Expr[Prop] =
+    fVar :: typ
+
+  def patternConstraint(pattern: Pattern[N], fVar: Expr[Ind]): Expr[Prop] =
+    forallSeq(
+      pattern.binders,
+      pattern.branchPremise ==> (fVar * pattern.inputTerm === bodyFor(pattern, fVar))
     )
+
+  def equationConstraint(fVar: Expr[Ind]): Expr[Prop] =
+    simplify(seqAnd(cases.map(pattern => patternConstraint(pattern, fVar))))
+
+  /**
+   * The defining predicate, stated about [[placeholder]]. A single canonical
+   * formula value (lazy to avoid the subclass initialization-order trap), so the
+   * proofs fold/unfold the *same* syntactic object rather than rebuilding it.
+   */
+  lazy val definitionFormula: Expr[Prop] =
+    typeConstraint(placeholder) /\ equationConstraint(placeholder)
+
+  /** The defining predicate specialized to the candidate `fVar`. */
+  def definitionAt(fVar: Expr[Ind]): Expr[Prop] =
+    definitionFormula.substitute(placeholder := fVar)
 }

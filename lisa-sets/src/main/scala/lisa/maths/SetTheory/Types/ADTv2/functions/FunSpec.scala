@@ -25,6 +25,13 @@ private[functions] final class FunSpec[N <: Arity](
     override val returnType: Expr[Ind]
 ) extends FunSpecBase[N](functionName, adt, argType, patternMatching, returnType) {
 
+  // No self-reference here, so the placeholder is just a fresh candidate. It must
+  // be fresh w.r.t. every variable occurring in the patterns: a pattern *binder*
+  // sharing the candidate's name (even though the bodies never reference the
+  // function) would be captured when `definitionAt` substitutes the placeholder.
+  override val placeholder: Variable[Ind] =
+    Variable[Ind](freshId(cases.flatMap(p => p.binders :+ p.inputTerm :+ p.body), functionName))
+
   protected def bodyFor(pattern: Pattern[N], fVar: Expr[Ind]): Expr[Ind] =
     pattern.body
 }

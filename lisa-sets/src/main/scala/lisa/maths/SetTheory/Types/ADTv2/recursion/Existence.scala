@@ -10,9 +10,10 @@ import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.FunctionCore.ExistenceProof
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ApproximationChainFacts
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.LimitKernel
-import lisa.utils.debug.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.tactics.Cuts
 import lisa.maths.SetTheory.Types.TypingHelpers._
+import lisa.utils.debug.Time
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
@@ -214,11 +215,11 @@ private[recursion] final class Existence[N <: Arity](
   // ─────────────────────────────────────────────────────────────────────────
 
   private val defAtFixedPoint: THM = Lemma(
-    ((f :: spec.typ) /\ (recWitness(f) === f)) |- spec.untypedDefinition(f)
+    (spec.typeConstraint(f), recWitness(f) === f) |- spec.definitionAt(f)
   ) {
 
-    val fTyped = assume(f :: spec.typ)
     val wfEqF = assume(recWitness(f) === f)
+    val fTyped = assume(spec.typeConstraint(f))
 
     val caseFacts = spec.patternMatching.patterns
       .map(pattern =>
@@ -227,7 +228,7 @@ private[recursion] final class Existence[N <: Arity](
         val witnessCaseSchema = recWitness.witnessCase(pattern).of(spec.selfPlaceholder := f)
 
         val allForalls = have(
-          forallSeq(vars, pattern.branchPremiseAt(vars) ==> (recWitness(f) * pattern.inputTermAt(vars) === body))
+          forallSeq(vars, pattern.branchPremise ==> (recWitness(f) * pattern.inputTerm === body))
         ) by Tautology.from(witnessCaseSchema)
 
         val instantiated = vars.foldLeft(allForalls)((acc, v) =>
@@ -236,7 +237,7 @@ private[recursion] final class Existence[N <: Arity](
             case _ => acc
         )
 
-        val withF = have(pattern.branchPremiseAt(vars) ==> (f * pattern.inputTermAt(vars) === body)) by
+        val withF = have(pattern.branchPremise ==> (f * pattern.inputTerm === body)) by
           Substitute(wfEqF)(instantiated)
 
         vars.foldRight(withF)((v, acc) => thenHave(∀(v, acc.statement.right.head)) by RightForall)
@@ -251,12 +252,9 @@ private[recursion] final class Existence[N <: Arity](
   // witnessExists: ∃f, Def(f)
   // ─────────────────────────────────────────────────────────────────────────
 
-  val witnessExists: THM = Lemma(∃(f, spec.untypedDefinition(f))) {
+  val witnessExists: THM = Lemma(∃(f, spec.definitionAt(f))) {
 
-    have(((limitFun :: spec.typ) /\ (recWitness(limitFun) === limitFun))) by
-        RightAnd(limitHasType, limitIsFixedPoint)
-    have(spec.untypedDefinition(limitFun)) by Cut(lastStep, defAtFixedPoint of (f := limitFun))
-
+    have(spec.definitionAt(limitFun)) by Cuts(defAtFixedPoint of (f := limitFun))(limitHasType, limitIsFixedPoint)
     thenHave(thesis) by RightExists
   }
 }

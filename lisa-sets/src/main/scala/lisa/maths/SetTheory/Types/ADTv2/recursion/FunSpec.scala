@@ -11,14 +11,19 @@ import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitutio
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 class FunSpec[N <: Arity](
-    override val functionName: String,
-    override val adt: SemanticADT[N],
-    override val argType: Expr[Ind],
+    functionName: String,
+    adt: SemanticADT[N],
+    argType: Expr[Ind],
     val typeSubstitutions: Seq[TypeSubstitution],
     val selfPlaceholder: Variable[Ind],
-    override val patternMatching: PatternSystem[N],
-    override val returnType: Expr[Ind]
+    patternMatching: PatternSystem[N],
+    returnType: Expr[Ind]
 ) extends FunSpecBase[N](functionName, adt, argType, patternMatching, returnType) {
+
+  // The candidate the defining predicate is stated about is exactly the
+  // self-reference: both denote the function being defined. With this choice
+  // `bodyFor(pattern, placeholder) == pattern.body`.
+  override val placeholder: Variable[Ind] = selfPlaceholder
 
   protected def bodyFor(pattern: Pattern[N], fVar: Expr[Ind]): Expr[Ind] =
     pattern.body.substitute(selfPlaceholder := fVar)

@@ -35,8 +35,8 @@ trait UniquenessProof[N <: Arity] {
    * `Def[f:=x] /\ Def[f:=y] ==> (x === y)` — any two solutions agree.
    */
   lazy val pointwiseUniqueness: THM =
-    val xDef = spec.untypedDefinition(x)
-    val yDef = spec.untypedDefinition(y)
+    val xDef = spec.definitionAt(x)
+    val yDef = spec.definitionAt(y)
     Lemma(xDef /\ yDef ==> (x === y)) {
 
       have(thesis) by Tautology.from(
