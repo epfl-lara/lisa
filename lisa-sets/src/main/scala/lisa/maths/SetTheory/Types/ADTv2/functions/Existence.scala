@@ -40,7 +40,7 @@ private[functions] final class Existence[N <: Arity](
   val witnessExists: THM = Lemma(∃(f, spec.untypedDefinition(f))) {
     val patternCaseFacts = spec.cases.map(pattern => witness.witnessCaseByPattern(pattern))
     have(witnessCases) by Tautology.from(patternCaseFacts*)
-    have(witnessDefinition) by Tautology.from(lastStep, witness.witnessHasType)
+    have(witnessDefinition) by RightAnd(lastStep, witness.witnessHasType)
     thenHave(∃(f, spec.untypedDefinition(f))) by RightExists
   }
 }

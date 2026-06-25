@@ -196,14 +196,12 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
    *  Formally it is the only function whose codomain is the ADT such that for all
    *  variables x1 :: S1, ...,xn :: Sn c * x1 * ... * xn = (tagc, (x1, (..., (xn, ∅)...))
    */
-  private val untypedDefinition = internals.untypedDefinition
-
-  private val definedClassFunction = UniqueCharacterizedSymbol(
+  private val definedClassFunction = UniqueCharacterizedSymbol.fromParts(
     name = fullName,
     typeVariablesSeq = typeVariablesSeq,
     witnessVar = c,
     definitionAt = c0 => internals.untypedDefinition.substitute(c := c0)
-  )(internals.uniqueness)
+  )(internals.existence, internals.pairwiseUniqueness)
 
   val id = definedClassFunction.id
 
@@ -218,13 +216,6 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
    * Constructor where type variables are instantiated with schematic variables.
    */
   private val term: Expr[Ind] = definedClassFunction.term
-
-  /**
-   *  Lemma --- Characterization of this constructor.
-   *
-   *  `∀c. term = c <=> c ∈ typ /\ ∀x1,...,xn. c * x1 * ... * xn = (tagc, ...)`
-   */
-  private val classFunctionCharacterization: THM = definedClassFunction.characterization
 
   /**
    *  Constructor where type variables are instantiated with schematic variables and
@@ -268,16 +259,7 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
       wellTypedFormula(semanticSignature) ==> (appliedTerm === structuralTerm)
     )
   ) {
-    have(forall(c, (term === c) <=> untypedDefinition)) by
-      Restate.from(classFunctionCharacterization)
-    thenHave(
-      (term === term) <=>
-        ((term :: typ) /\ forallSeq(
-          variables,
-          wellTypedFormula(semanticSignature) ==> (appliedTerm === structuralTerm)
-        ))
-    ) by InstantiateForall(term)
-    thenHave(thesis) by Weakening
+    have(thesis) by Weakening(definedClassFunction.definitionFact)
   }
 
   /**
@@ -288,16 +270,7 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
    *  Type variables remain schematic at the semantic layer.
    */
   val intro = Lemma(using name = sourcecode.FullName(s"${fullName}/intro"))(term :: typ) {
-    have(forall(c, (term === c) <=> untypedDefinition)) by
-      Restate.from(classFunctionCharacterization)
-    thenHave(
-      (term === term) <=>
-        ((term :: typ) /\ forallSeq(
-          variables,
-          wellTypedFormula(semanticSignature) ==> (appliedTerm === structuralTerm)
-        ))
-    ) by InstantiateForall(term)
-    thenHave(thesis) by Weakening
+    have(thesis) by Weakening(definedClassFunction.definitionFact)
   }
 
   /**

@@ -1,7 +1,5 @@
 package lisa.maths.SetTheory.Types.ADTv2.encoding
 
-import lisa.maths.Quantifiers.∃!
-import lisa.maths.Quantifiers.existsOneAlternativeDefinition
 import lisa.maths.SetTheory.Functions.BasicTheorems
 import lisa.maths.SetTheory.Functions.Function.abs
 import lisa.maths.SetTheory.Functions.Function.functionBetween
@@ -123,7 +121,7 @@ private[encoding] final class ConstructorInternals[N <: Arity](
     thenHave(thesis) by QuantifiersIntro(variables)
   }
 
-  private val existence: THM = Lemma(∃(c, untypedDefinition)) {
+  val existence: THM = Lemma(∃(c, untypedDefinition)) {
     have(
       (witness :: typ) /\
         forallSeq(
@@ -254,7 +252,7 @@ private[encoding] final class ConstructorInternals[N <: Arity](
     }
   }
   
-  private val pairwiseUniqueness: THM = Lemma(xDef /\ yDef ==> (x === y)) {
+  val pairwiseUniqueness: THM = Lemma(xDef /\ yDef ==> (x === y)) {
     assume(xDef, yDef)
 
     if variables.isEmpty then
@@ -271,18 +269,4 @@ private[encoding] final class ConstructorInternals[N <: Arity](
       )
   }
 
-  val uniqueness: THM = Lemma(∃!(c, untypedDefinition)) {
-    have(∀(y, untypedDefinition.substitute(c := x) /\ untypedDefinition.substitute(c := y) ==> (x === y))) by
-      RightForall(pairwiseUniqueness)
-    val uniquenessAll = thenHave(
-      ∀(x, ∀(y, untypedDefinition.substitute(c := x) /\ untypedDefinition.substitute(c := y) ==> (x === y)))
-    ) by RightForall
-
-    val altDef = existsOneAlternativeDefinition of (x := c, P := λ(c, untypedDefinition))
-
-    have(
-      ∃(c, untypedDefinition) /\ ∀(x, ∀(y, untypedDefinition.substitute(c := x) /\ untypedDefinition.substitute(c := y) ==> (x === y)))
-    ) by RightAnd(existence, uniquenessAll)
-    thenHave(thesis) by Substitute(altDef)
-  }
 }

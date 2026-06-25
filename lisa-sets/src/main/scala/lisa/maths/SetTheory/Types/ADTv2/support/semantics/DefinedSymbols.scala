@@ -2,6 +2,8 @@ package lisa.maths.SetTheory.Types.ADTv2.support.semantics
 
 import lisa.maths.Quantifiers.existsOneEpsilon
 import lisa.maths.Quantifiers.existsOneEpsilonUniqueness
+import lisa.maths.Quantifiers.∃!
+import lisa.maths.Quantifiers.existsOneAlternativeDefinition
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.utils.prooflib.BasicStepTactic.Restate
@@ -256,4 +258,45 @@ final class UniqueCharacterizedSymbol(
       thenHave(thesis) by RightForall
     }
 
+}
+
+object UniqueCharacterizedSymbol {
+
+  /**
+   * Builds a [[UniqueCharacterizedSymbol]] directly from separately proved
+   * existence and pairwise-uniqueness facts, assembling the `∃!` premise its
+   * primary constructor needs via [[UniqueExistence.fromParts]].
+   *
+   * This is the natural entry point for callers (the constructor encoding and
+   * the function semantics layer) that prove existence and pointwise uniqueness
+   * separately rather than already having an `∃!` theorem in hand.
+   *
+   * @param existence proves `∃(witnessVar, definitionAt(witnessVar))`
+   * @param pointwiseUniqueness proves `definitionAt(x) /\ definitionAt(y) ==> (x === y)`
+   */
+  def fromParts(
+      name: String,
+      typeVariablesSeq: Seq[Variable[Ind]],
+      witnessVar: Variable[Ind],
+      definitionAt: Expr[Ind] => Expr[Prop]
+  )(
+      existence: THM,
+      pointwiseUniqueness: THM
+  ): UniqueCharacterizedSymbol =
+    new UniqueCharacterizedSymbol(name, typeVariablesSeq, witnessVar, definitionAt)(
+      Lemma(∃!(witnessVar, definitionAt(witnessVar))) {
+        have(∀(y, definitionAt(x) /\ definitionAt(y) ==> (x === y))) by
+          RightForall(pointwiseUniqueness)
+        val uniquenessAll = thenHave(
+          ∀(x, ∀(y, definitionAt(x) /\ definitionAt(y) ==> (x === y)))
+        ) by RightForall
+
+        val altDef = existsOneAlternativeDefinition of (x := witnessVar, P := λ(witnessVar, definitionAt(witnessVar)))
+
+        have(
+          ∃(witnessVar, definitionAt(witnessVar)) /\ ∀(x, ∀(y, definitionAt(x) /\ definitionAt(y) ==> (x === y)))
+        ) by RightAnd(existence, uniquenessAll)
+        thenHave(thesis) by Substitute(altDef)
+      }
+    )
 }

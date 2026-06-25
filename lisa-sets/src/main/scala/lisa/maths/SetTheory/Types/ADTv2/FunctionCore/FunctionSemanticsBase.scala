@@ -1,7 +1,5 @@
 package lisa.maths.SetTheory.Types.ADTv2.FunctionCore
 
-import lisa.maths.Quantifiers.∃!
-import lisa.maths.Quantifiers.existsOneAlternativeDefinition
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
@@ -10,7 +8,6 @@ import lisa.maths.SetTheory.Types.ADTv2.support.UniqueCharacterizedSymbol
 import lisa.maths.SetTheory.Types.ADTv2.support.core.**
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers._
-import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
@@ -37,46 +34,27 @@ class FunctionSemanticsBase[N <: Arity](data: SemanticFunctionInputs[N]) {
   val typeArity: N = data.spec.typeArity
   val typ: Expr[Ind] = data.spec.typ
 
-  private val untypedDef: Expr[Prop] =
-    data.spec.untypedDefinition(f)
-
   private def definitionFormula(f0: Expr[Ind]): Expr[Prop] =
     data.spec.untypedDefinition(f0)
 
   /**
-   * Assemble `existsOne(f, untypedDef)` from the separately-proved existence and
-   * pointwise-uniqueness facts supplied by the strategy.
+   * The defined symbol, characterized by `forall(f, (term === f) <=> untypedDef)`,
+   * assembled from the separately-proved existence and pointwise-uniqueness facts
+   * supplied by the strategy.
    */
-  private val uniqueness: THM = Lemma(∃!(f, untypedDef)) {
-    have(∀(y, definitionFormula(x) /\ definitionFormula(y) ==> (x === y))) by
-      RightForall(data.uniqueness.pointwiseUniqueness)
-    val uniquenessAll = thenHave(
-      ∀(x, ∀(y, definitionFormula(x) /\ definitionFormula(y) ==> (x === y)))
-    ) by RightForall
-
-    val altDef = existsOneAlternativeDefinition of (x := f, P := λ(f, untypedDef))
-
-    have(
-      ∃(f, untypedDef) /\ ∀(x, ∀(y, definitionFormula(x) /\ definitionFormula(y) ==> (x === y)))
-    ) by RightAnd(data.existence.witnessExists, uniquenessAll)
-    thenHave(thesis) by Substitute(altDef)
-  }
-
   private val definedClassFunction: UniqueCharacterizedSymbol =
-    UniqueCharacterizedSymbol(
+    UniqueCharacterizedSymbol.fromParts(
       name = name,
       typeVariablesSeq = typeVariablesSeq,
       witnessVar = f,
       definitionAt = definitionFormula
-    )(uniqueness)
+    )(data.existence.witnessExists, data.uniqueness.pointwiseUniqueness)
 
   val id: Identifier = definedClassFunction.id
 
   val term: Expr[Ind] = definedClassFunction.term
 
   def term(args: Seq[Expr[Ind]]): Expr[Ind] = definedClassFunction.term(args)
-
-  private val classFunctionCharacterization: THM = definedClassFunction.characterization
 
   val patterns: Seq[Pattern[N]] =
     data.buildPatterns(term)
@@ -94,28 +72,13 @@ class FunctionSemanticsBase[N <: Arity](data: SemanticFunctionInputs[N]) {
               (term * pattern.inputTerm === pattern.body)
           )
         ) {
-          have(forall(f, (term === f) <=> untypedDef)) by
-            Restate.from(classFunctionCharacterization)
-
-          thenHave(
-            (term === term) <=>
-              (term :: typ) /\
-              (seqAnd(patterns.map { branch =>
-                forallSeq(
-                  branch.binders,
-                  branch.branchPremise ==>
-                    (term * branch.inputTerm === branch.body)
-                )
-              }))
-          ) by InstantiateForall(term)
-
-          thenHave(
+          have(
             forallSeq(
               pattern.binders,
               pattern.branchPremise ==>
                 (term * pattern.inputTerm === pattern.body)
             )
-          ) by Weakening
+          ) by Weakening(definedClassFunction.definitionFact)
 
           pattern.binders.foldLeft(lastStep)((_, _) =>
             lastStep.statement.right.head match
@@ -179,18 +142,6 @@ class FunctionSemanticsBase[N <: Arity](data: SemanticFunctionInputs[N]) {
    * Typing introduction: the defined symbol inhabits its function type.
    */
   val intro: THM = Lemma(term :: typ) {
-    have(forall(f, (term === f) <=> untypedDef)) by
-      Restate.from(classFunctionCharacterization)
-    thenHave(
-      (term === term) <=>
-        (term :: typ) /\
-        (seqAnd(patterns.map { pattern =>
-          forallSeq(
-            pattern.binders,
-            pattern.branchPremise ==> (term * pattern.inputTerm === pattern.body)
-          )
-        }))
-    ) by InstantiateForall(term)
-    thenHave(thesis) by Weakening
+    have(thesis) by Weakening(definedClassFunction.definitionFact)
   }
 }
