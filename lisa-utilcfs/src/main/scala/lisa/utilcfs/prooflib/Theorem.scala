@@ -41,7 +41,7 @@ final class Theorem
         case None =>
           inner.judgement
 
-  val innerThm: K.Thm = judgement.justification.getOrElse(K.sorry(using library.theory)(statement.underlying))
+  val innerThm: K.Thm = judgement.destruct._1
   val errors: Set[ProofError] = judgement.errors
 
   // TODO: if errors.nonEmpty and strict mode?
