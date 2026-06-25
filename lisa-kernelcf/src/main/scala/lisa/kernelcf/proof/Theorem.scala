@@ -139,7 +139,13 @@ case object Sorry extends Step:
  
   def apply(using theory: Theory)(statement: Sequent): Result[Thm] = 
     Right(Thm(statement, this, theory, Set.empty, usesSorry = true))
-  
+
+/**
+ * Perform a sorry step and trivially unwrap the result type.
+ */
+def sorry(using theory: Theory)(statement: Sequent): Thm =
+  Sorry(statement) match
+    case Right(thm) => thm
 case object Axiom extends Step:
   type ErrorType = Nothing // Axiom does not throw its own errors
 
