@@ -1,70 +1,38 @@
 package lisa.maths.SetTheory.Types.ADTv2.functions
 
-import lisa.maths.SetTheory.Functions.BasicTheorems
-import lisa.maths.SetTheory.Functions.Function
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.FunctionCore.UniquenessProof
-import lisa.maths.SetTheory.Types.ADTv2.support.InstantiateForallSeq
+import lisa.utils.prooflib.InstantiateForallSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[functions] final class Uniqueness[N <: Arity](
-    spec: FunSpec[N]
+    override protected val spec: FunSpec[N]
 ) extends UniquenessProof[N] {
+
+  private val argType = spec.argType
 
   private def definitionFormula(v: Variable[Ind]): Expr[Prop] =
     spec.untypedDefinition(v)
 
-  lazy val pointwiseUniqueness: THM =
-    Lemma(definitionFormula(x) /\ definitionFormula(y) ==> (x === y)) {
-      assume(definitionFormula(x) /\ definitionFormula(y))
-      val xDefinition = have(definitionFormula(x)) by Tautology
-      val yDefinition = have(definitionFormula(y)) by Tautology
+  protected lazy val pointwiseAgreement: THM =
+    val xDefFormula = definitionFormula(x)
+    val yDefFormula = definitionFormula(y)
+    val pointInput = variable[Ind]
+    Lemma(
+      xDefFormula /\ yDefFormula |- ∀(pointInput, pointInput ∈ argType ==> (x * pointInput === y * pointInput))
+    ) {
+      val hyp = assume(xDefFormula /\ yDefFormula)
 
-      val xTyped = have(x :: spec.typ) by Tautology.from(xDefinition)
-      val yTyped = have(y :: spec.typ) by Tautology.from(yDefinition)
+      val xDefinition = have(xDefFormula) by Weakening(hyp)
+      val yDefinition = have(yDefFormula) by Weakening(hyp)
 
-      val xBetween = have(Function.functionBetween(x)(spec.argType)(spec.returnType)) by Tautology.from(
-        BasicTheorems.funcBetweenEqInFuncSpace of (
-          f := x,
-          A := spec.argType,
-          B := spec.returnType
-        ),
-        xTyped
-      )
-      val yBetween = have(Function.functionBetween(y)(spec.argType)(spec.returnType)) by Tautology.from(
-        BasicTheorems.funcBetweenEqInFuncSpace of (
-          f := y,
-          A := spec.argType,
-          B := spec.returnType
-        ),
-        yTyped
-      )
-
-      val xOnDomain = have(Function.functionOn(x)(spec.argType)) by Tautology.from(
-        BasicTheorems.functionBetweenIsFunctionOn of (
-          f := x,
-          A := spec.argType,
-          B := spec.returnType
-        ),
-        xBetween
-      )
-      val yOnDomain = have(Function.functionOn(y)(spec.argType)) by Tautology.from(
-        BasicTheorems.functionBetweenIsFunctionOn of (
-          f := y,
-          A := spec.argType,
-          B := spec.returnType
-        ),
-        yBetween
-      )
-
-      val pointInput = variable[Ind]
       val constructorDisjunction = simplify(spec.patternMatching.caseCoverage(pointInput))
 
-      val decompositionAtInput = have(pointInput ∈ spec.argType |- constructorDisjunction) subproof {
-        have(pointInput ∈ spec.argType ==> constructorDisjunction) by
+      val decompositionAtInput = have(pointInput ∈ argType |- constructorDisjunction) subproof {
+        have(pointInput ∈ argType ==> constructorDisjunction) by
           InstantiateForall(pointInput)(spec.patternMatching.coverage)
         thenHave(thesis) by Restate
       }
@@ -118,25 +86,13 @@ private[functions] final class Uniqueness[N <: Arity](
           have(constructorDisjunction |- (x * pointInput === y * pointInput)) by
             LeftOr(branchEqualities*)
 
-      have(pointInput ∈ spec.argType |- (x * pointInput === y * pointInput)) by
+      have(pointInput ∈ argType |- (x * pointInput === y * pointInput)) by
         Cut(decompositionAtInput, equalityFromCases)
-      thenHave(pointInput ∈ spec.argType ==> (x * pointInput === y * pointInput)) by RightImplies
-      val pointwiseOnDomain = thenHave(
-        ∀(pointInput, pointInput ∈ spec.argType ==> (x * pointInput === y * pointInput))
+      thenHave(pointInput ∈ argType ==> (x * pointInput === y * pointInput)) by RightImplies
+      thenHave(
+        ∀(pointInput, pointInput ∈ argType ==> (x * pointInput === y * pointInput))
       ) by RightForall
-
-      have(x === y) by Tautology.from(
-        BasicTheorems.extensionality of (
-          f := x,
-          g := y,
-          A := spec.argType,
-          x := pointInput
-        ),
-        xOnDomain,
-        yOnDomain,
-        pointwiseOnDomain
-      )
-      thenHave(thesis) by Tautology
+      thenHave(thesis) by Restate
     }
 
 }

@@ -6,18 +6,13 @@ import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.recursion.FunSpec
 import lisa.maths.SetTheory.Types.ADTv2.recursion.Witness
-import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.CaseBodySubstitution.substitutedCaseBody
-import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.SpecializedConstructorFacts
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.specializedConstructors
-import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.WitnessCaseExtensionality
-import lisa.maths.SetTheory.Types.ADTv2.support.InstantiateForallSeq
+import lisa.utils.prooflib.InstantiateForallSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeFormula
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
-import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.utils.debug.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Cut
-import lisa.utils.prooflib.BasicStepTactic.Hypothesis
 import lisa.utils.prooflib.BasicStepTactic.Weakening
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
@@ -26,56 +21,22 @@ private[recursion] final class WitnessAgreement[N <: Arity](
     val recWitness: Witness[N]
 ) {
 
-  val leftFun = variable[Ind]
-  val rightFun = variable[Ind]
-  val nVar = variable[Ind]
+  private val leftFun = variable[Ind]
+  private val rightFun = variable[Ind]
+  private val nVar = variable[Ind]
   private val vVar = variable[Ind]
 
   private def isHeightPred(hh: Expr[Ind]): Expr[Prop] =
     specializeFormula(spec.adt.height.predicate(hh), spec.typeSubstitutions)
 
-  private val heightFun: Expr[Ind] = specializeTerm(spec.adt.height.function, spec.typeSubstitutions)
-  private val heightFunValid: THM = spec.adt.height.validAt(spec.typeSubstitutions)
+  private val heightFun: Expr[Ind] = spec.heightFun
+  private val heightFunValid: THM = spec.heightFunValid
   private val heightSuccStrong = spec.adt.height.successorStrongAt(spec.typeSubstitutions)
   private val constructorsAt = specializedConstructors(spec.adt.constructors, spec.typeSubstitutions)
 
-  private def instantiateWitnessAtPattern(using
-      proof: lisa.SetTheoryLibrary.Proof
-  )(
-      pattern: Pattern[N],
-      selfTerm: Expr[Ind],
-      selfTyped: proof.Fact,
-      patternPremise: proof.Fact,
-      body: Expr[Ind]
-  ): proof.Fact = {
-    val witnessSchema = recWitness.witnessCase(pattern).of(spec.selfPlaceholder := selfTerm)
-    val witnessBase = witnessSchema.statement.right.head match
-      case _ ==> consequent =>
-        have(consequent) by Tautology.from(witnessSchema, selfTyped)
-      case _ => throw UnreachableException
-
-    val witnessAtVars = have(
-      pattern.freshBranchPremise ==> (recWitness(selfTerm) * pattern.freshInputTerm === body)
-    ) by InstantiateForallSeq(pattern.variables2)(witnessBase)
-
-    witnessAtVars.statement.right.head match
-      case _ ==> consequent =>
-        val premise = pattern.freshBranchPremise
-        val mp = have(Set[Expr[Prop]](premise ==> consequent, premise) |- consequent) by
-          LeftImplies.withParameters(premise, consequent)(
-            have(premise |- premise) by Hypothesis,
-            have(consequent |- consequent) by Hypothesis
-          )
-        val viaImpl = have((witnessAtVars.statement.left + premise) |- consequent) by
-          Cut(witnessAtVars, mp)
-        have((witnessAtVars.statement.left ++ patternPremise.statement.left) |- consequent) by
-          Cut(patternPremise, viaImpl)
-      case _ => throw UnreachableException
-  }
-
   private val agreeOnSlice = ∀(vVar ∈ app(heightFun)(nVar), app(leftFun)(vVar) === app(rightFun)(vVar))
 
-  val witnessAgreementAtSucc: THM = Time.measure(s"WA/witnessAgreementAtSucc")(
+  private val witnessAgreementAtSucc: THM = Time.measure(s"WA/witnessAgreementAtSucc")(
     Lemma(
       (
         leftFun :: spec.typ,
@@ -94,10 +55,10 @@ private[recursion] final class WitnessAgreement[N <: Arity](
 
         val goalW = app(recWitness(leftFun))(a) === app(recWitness(rightFun))(a)
 
-        // Orchestration (height decomposition + branch selection + assembly) is shared
-        // with the uniqueness step via PointwiseAgreementStep; only the per-pattern
-        // proof — recursive-argument agreements + witness case equations + pointwise
-        // extensionality — is witness-specific and lives in the callback below.
+        // Orchestration (height decomposition + branch selection + per-pattern assembly)
+        // is shared with the uniqueness step via PointwiseAgreementStep; only the
+        // witness-specific case equation `recWitness(slice) * input === body` is supplied
+        // here, via the [[PatternCaseEquations]] callback below.
         val agreementAtSucc = PointwiseAgreementStep.pointwiseAgreementOnSucc(
           patternMatching = spec.patternMatching,
           heightFun = heightFun,
@@ -108,81 +69,57 @@ private[recursion] final class WitnessAgreement[N <: Arity](
           hValid = hValid,
           heightSuccStrong = heightSuccStrong,
           goalEqAt = goalW
-        )(new PointwiseAgreementStep.SelectedPatternProver[N] {
-          def apply(using
-              proof: lisa.SetTheoryLibrary.Proof
-          )(
-              sc: SpecializedConstructorFacts[N],
-              argsTypedAtHeight: proof.Fact,
-              argsTypedSemantic: proof.Fact,
-              aEqApplied: proof.Fact
-          ): Pattern[N] => proof.Fact = {
-            // Re-establish the ambient facts the callback needs directly in this
-            // (inner) proof. Capturing them from the enclosing lemma proof is not
-            // possible: a fact lifts into a nested proof only where that nesting is
-            // statically known, which the abstract `proof` here is not. Re-`assume`ing
-            // hypotheses already in the lemma's antecedent is idempotent.
-            val leftTyped = assume(leftFun :: spec.typ)
-            val rightTyped = assume(rightFun :: spec.typ)
-            val nInN = assume(nVar ∈ N)
-            val hValid = have(isHeightPred(heightFun)) by Weakening(heightFunValid)
-            val agreeForall = have(
+        )(new PointwiseAgreementStep.PatternCaseEquations[N] {
+          val recursiveType: Expr[Ind] = spec.argType
+          val heightMembershipMonotonic: THM = spec.adt.height.membershipMonotonicAt(spec.typeSubstitutions)
+          val sliceLeft: Expr[Ind] = leftFun
+          val sliceRight: Expr[Ind] = rightFun
+
+          // Each method re-`assume`s the ambient hypotheses (idempotent) since it runs in a
+          // nested proof, not the enclosing lemma proof.
+          def sliceAgreement(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+            have(
               ∀(vVar, (vVar ∈ app(heightFun)(nVar)) ==> (app(leftFun)(vVar) === app(rightFun)(vVar)))
             ) by Restate.from(assume(agreeOnSlice))
 
-            val selfArgEqualities = sc.selfRefVariables2.map(v =>
-              val vInHeight = have(v ∈ app(heightFun)(nVar)) by Restate.from(argsTypedAtHeight)
-              RecursiveAgreement.selfAgreementFromForall(
-                heightFun = heightFun,
-                currentIndex = nVar,
-                leftFun = leftFun,
-                rightFun = rightFun,
-                agreeForall = agreeForall,
-                point = v,
-                pointInHeight = vInHeight
-              )
-            )
+          // Witness case equations carry their own contexts, so body equality needs no extra
+          // ambient assumptions.
+          def bodyEqAssumptions(using proof: lisa.SetTheoryLibrary.Proof)(
+              pattern: Pattern[N],
+              patternGuard: proof.Fact
+          ): Set[Expr[Prop]] = Set.empty
 
-            (pattern: Pattern[N]) =>
-              have(pattern.branchSelectionBody(a) |- goalW) subproof {
-                val selectedPattern = assume(pattern.branchSelectionBody(a))
-                val patternGuard = have(pattern.freshBranchCondition) by Weakening(selectedPattern)
-                val aEqPattern = have(a === pattern.freshInputTerm) by Weakening(selectedPattern)
-                val patternPremise = have(pattern.freshBranchPremise) by Tautology.from(argsTypedSemantic, patternGuard)
-                val innerAgreements = RecursiveAgreement.selfAgreementFromForallAt2(
-                  pattern = pattern,
-                  recursiveType = spec.argType,
-                  heightMembershipMonotonic = spec.adt.height.membershipMonotonicAt(spec.typeSubstitutions),
-                  argsTypedAtHeight = argsTypedAtHeight,
-                  leafTyping = patternPremise,
-                  patternGuard = patternGuard,
-                  heightFun = heightFun,
-                  hValid = hValid,
-                  currentIndex = nVar,
-                  currentIndexInN = nInN,
-                  leftFun = leftFun,
-                  rightFun = rightFun,
-                  agreeForall = agreeForall
-                )
+          def caseEquation(using proof: lisa.SetTheoryLibrary.Proof)(
+              pattern: Pattern[N],
+              slice: Expr[Ind],
+              patternPremise: proof.Fact,
+              patternGuard: proof.Fact,
+              bodyEqAssumptions: Set[Expr[Prop]]
+          ): (Expr[Ind], proof.Fact) = {
+            val selfTyped = assume(slice :: spec.typ)
+            val body = pattern.body
+              .substitute(spec.selfPlaceholder := slice)
+              .substitute(pattern.binders.zip(pattern.variables2).map((from, to) => from := to)*)
 
-                val bodyLeft = substitutedCaseBody(pattern, spec.selfPlaceholder, leftFun, pattern.variables2)
-                val bodyRight = substitutedCaseBody(pattern, spec.selfPlaceholder, rightFun, pattern.variables2)
-                val bodyEq = LambdaBodyEquality.prove(bodyLeft, bodyRight, selfArgEqualities ++ innerAgreements)
-                val witnessAtLeft = instantiateWitnessAtPattern(pattern, leftFun, leftTyped, patternPremise, bodyLeft)
-                val witnessAtRight = instantiateWitnessAtPattern(pattern, rightFun, rightTyped, patternPremise, bodyRight)
+            val witnessSchema = recWitness.witnessCase(pattern).of(spec.selfPlaceholder := slice)
+            val witnessBase = witnessSchema.statement.right.head match
+              case _ ==> consequent =>
+                have(consequent) by Tautology.from(witnessSchema, selfTyped)
+              case _ => throw UnreachableException
 
-                val witnessesAgreeAtA = WitnessCaseExtensionality.pointwiseAgreementAt(
-                  leftWitness = recWitness(leftFun),
-                  rightWitness = recWitness(rightFun),
-                  ambientTerm = a,
-                  ambientEqInput = aEqPattern,
-                  leftAtInput = witnessAtLeft,
-                  rightAtInput = witnessAtRight,
-                  bodyEquality = bodyEq
-                )
+            val witnessAtVars = have(
+              pattern.freshBranchPremise ==> (recWitness(slice) * pattern.freshInputTerm === body)
+            ) by InstantiateForallSeq(pattern.variables2)(witnessBase)
 
-                have(goalW) by Restate.from(witnessesAgreeAtA)
-              }
+            val instantiateWitness = witnessAtVars.statement.right.head match
+              case _ ==> consequent =>
+                val premise = pattern.freshBranchPremise
+                val viaImpl = have((witnessAtVars.statement.left + premise) |- consequent) by
+                  Weakening(witnessAtVars)
+                have((witnessAtVars.statement.left ++ patternPremise.statement.left) |- consequent) by
+                  Cut(patternPremise, viaImpl)
+              case _ => throw UnreachableException
+            (body, instantiateWitness)
           }
         })
 
@@ -190,4 +127,48 @@ private[recursion] final class WitnessAgreement[N <: Arity](
       }
     }
   )
+
+  /** Specializes [[witnessAgreementAtSucc]] to the ambient point `a` and chains the
+    * resulting witness agreement `app(recWitness(lhs))(a) === app(recWitness(rhs))(a)`
+    * through the caller-supplied `bridges` to prove the equation `goal`.
+    *
+    * `goal` is the endpoint equation to prove; `bridges` are the remaining equalities
+    * that, together with the derived witness agreement, connect its two sides. A
+    * single `Congruence` closes the chain from those equality facts, so the bridges
+    * need no particular order or orientation.
+    *
+    * This packages both the four-step witness-agreement ritual (instantiate the
+    * lemma, discharge its premises, instantiate the `∀` at `a`, discharge the height
+    * membership) and the equational chaining shared by the limit step in `Existence`
+    * and the successor step in `ApproxStabilization`.
+    */
+  def witnessesAgreeAt(using proof: lisa.SetTheoryLibrary.Proof)(
+      lhs: Expr[Ind],
+      rhs: Expr[Ind],
+      index: Expr[Ind],
+      lhsTyped: proof.Fact,
+      rhsTyped: proof.Fact,
+      indexInN: proof.Fact,
+      sliceAgreement: proof.Fact,
+      pointInHeightSucc: proof.Fact,
+      goal: Expr[Prop],
+      bridges: Seq[proof.Fact]
+  ): proof.Fact = {
+    val lemma = witnessAgreementAtSucc.of(leftFun := lhs, rightFun := rhs, nVar := index)
+    val agreeOnSucc = have(lemma.statement.right.head) by Tautology.from(
+      lemma,
+      lhsTyped,
+      rhsTyped,
+      indexInN,
+      sliceAgreement
+    )
+    val impl = have(
+      (a ∈ app(heightFun)(S(index))) ==> (app(recWitness(lhs))(a) === app(recWitness(rhs))(a))
+    ) by InstantiateForall(a)(agreeOnSucc)
+    val witnessesAgreeAtA = have(
+      app(recWitness(lhs))(a) === app(recWitness(rhs))(a)
+    ) by Tautology.from(impl, pointInHeightSucc)
+
+    have(goal) by Congruence.from((bridges :+ witnessesAgreeAtA)*)
+  }
 }

@@ -1,16 +1,17 @@
-package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics
+package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.nested
 
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
 import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
 import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
-import lisa.maths.SetTheory.Types.ADTv2.support.core.QuantifiersIntro
+import lisa.utils.prooflib.QuantifiersIntro
+import lisa.utils.prooflib.InstantiateForallSeq
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.nested.NestedTrie.{allConstructors, peelApp}
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.altEqualityTransitivity
-import lisa.maths.SetTheory.Types.ADTv2.support.Time
-import lisa.maths.SetTheory.Types.TypingHelpers
+import lisa.utils.debug.Time
 import lisa.maths.SetTheory.Types.TypingHelpers.::
-import lisa.utils.prooflib.BasicStepTactic.LeftExists
 import lisa.utils.prooflib.BasicStepTactic.LeftOr
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.BasicStepTactic.RightExists
@@ -39,14 +40,6 @@ private[semantics] object NestedTrieProofs {
 
   type Ty = (ADT[?], Seq[Expr[Ind]])
 
-  private def allConstructors: Seq[Constructor[?]] =
-    ADT.allADTs.toSeq.flatMap(_.constructors)
-
-  private def peelApp(t: Expr[Ind]): (Expr[Ind], List[Expr[Ind]]) =
-    TypingHelpers.`*`.unapply(t) match
-      case Some((f, x)) => val (h, as) = peelApp(f); (h, as :+ x)
-      case None => (t, Nil)
-
   def parse(term: Expr[Ind]): RPat =
     term match
       case v: Variable[Ind] @unchecked => RVar(v)
@@ -68,15 +61,21 @@ private[semantics] object NestedTrieProofs {
   def resolvedChildTypes(c: Constructor[?], targs: Seq[Expr[Ind]]): Seq[Option[Ty]] =
     childTypes(c, targs)
 
+  // Resolved ADT type of a constructor's guarded argument position, after applying
+  // the pattern's type substitutions. Used wherever a guard term must be parsed
+  // and proved against its own argument type.
+  private def guardTypeAt(
+      cSem: SemanticConstructor[?],
+      pos: Int,
+      typeSubst: Seq[lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution]
+  ): Ty =
+    ADT.unapply(cSem.semanticSignature2(pos)._2.substitute(typeSubst*).asInstanceOf[Expr[Ind]]).get
+
   def termOf(p: RPat, ty: Ty): Expr[Ind] = p match
     case RVar(v) => v
     case RCon(c, args) =>
       val cts = childTypes(c, ty._2)
       appSeq(c.semantic.term(ty._2))(args.zip(cts).map((a, ct) => termOf(a, ct.get)))
-
-  def bindersOf(p: RPat): List[Variable[Ind]] = p match
-    case RVar(v) => List(v)
-    case RCon(_, args) => args.flatMap(bindersOf)
 
   private def caseArgs(pp: NestedConstructorPattern[?]): Seq[Expr[Ind]] =
     (0 until pp.arity).map(i => pp.guards.find(_.position == i).map(_.guardTerm).getOrElse(pp.topBinders(i)))
@@ -86,6 +85,40 @@ private[semantics] object NestedTrieProofs {
     if args.isEmpty then pp.semanticConstructor.name
     else s"${pp.semanticConstructor.name}(${args.mkString(", ")})"
 
+  private def instantiatePrefix(formula: Expr[Prop], args: Seq[Expr[Ind]]): Expr[Prop] =
+    args.foldLeft(formula) { (current, arg) =>
+      current match
+        // case forall(qv, phi) => phi.substituteUnsafe(Map(qv -> arg)).asInstanceOf[Expr[Prop]]
+        case forall(qv, phi) => phi.substitute(qv := arg)
+        case _               => current
+    }
+
+  private def instAll(thm: THM, terms: Seq[Expr[Ind]])(using proof: lisa.SetTheoryLibrary.Proof): Unit =
+    val source = have(thm.statement.right.head) by Tautology.from(thm)
+    val instantiated = instantiatePrefix(source.statement.right.head, terms)
+    have(instantiated) by InstantiateForallSeq(terms)(source)
+
+  private def typeProof(p: RPat, ty: Ty)(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+    val goal = termOf(p, ty) :: ty._1.termAt(ty._2)
+    p match
+      case RVar(_) => have(goal) by Tautology
+      case RCon(c, args) =>
+        val cts = childTypes(c, ty._2)
+        val argFacts = args.zip(cts).map((a, t) => typeProof(a, t.get))
+        val intro = if ty._2.isEmpty then c.introApp else c.introApp(ty._2.head, ty._2.tail*)
+        val substs = c.semantic.variables.zip(args.map(termOf(_, ty))).map((v, t) => v := t)
+        val introInst: proof.Fact = if substs.isEmpty then intro else intro.of(substs*)
+        have(goal) by Tautology.from((introInst +: argFacts)*)
+
+  private def switchIdx(cols: List[ColP], rows: List[RowP]): Option[Int] = {
+    cols.indices.find(j => 
+      rows.exists(_.pats(j) match {
+          case RCon(_, _) => true
+          case _ => false
+        })
+      )
+    }
+  
   private def interfaceConstructor(pp: NestedConstructorPattern[?]): Constructor[?] =
     ADT.allADTs.toSeq
       .flatMap(_.constructors)
@@ -157,7 +190,7 @@ private[semantics] object NestedTrieProofs {
       case a: ADT[n] =>
         val cc = c.asInstanceOf[Constructor[n]]
         val dd = d.asInstanceOf[Constructor[n]]
-        if targs.isEmpty then a.injectivity(cc, dd) else a.injectivity(cc, dd, targs.head, targs.tail*)
+        if targs.isEmpty then a.disjointness(cc, dd) else a.disjointness(cc, dd, targs.head, targs.tail*)
   private def sameInj(c: Constructor[?], targs: Seq[Expr[Ind]]): THM =
     if targs.isEmpty then c.injectivity else c.injectivity(targs.head, targs.tail*)
 
@@ -174,6 +207,7 @@ private[semantics] object NestedTrieProofs {
   // ════════════════════════════════════════════════════════════════════════
   //  Disjointness:  binderTypings |- ¬(pattern_i === pattern_j)
   // ════════════════════════════════════════════════════════════════════════
+  // TODO:??? factorize with injectEq (see also incompatibleProof)
   def incompatibleProof(domain: Ty, p: RPat, q: RPat): THM =
     val path = divergePath(p, q).getOrElse(
       throw new IllegalArgumentException("incompatibleProof: patterns are compatible (overlap).")
@@ -184,31 +218,6 @@ private[semantics] object NestedTrieProofs {
 
     Lemma((typedHyps |- !(tp === tq))) { sp ?=>
       typedHyps.foreach(h => assume(h))
-
-      // Instantiate the outer ∀-prefix of `thm` with `terms`; leaves the body fact.
-      def instAll(thm: THM, terms: Seq[Expr[Ind]]): Unit =
-        var fact: sp.Fact = have(thm.statement.right.head) by Tautology.from(thm)
-        terms.foreach { t =>
-          fact.statement.right.head match
-            case forall(qv, phi) =>
-              fact = have(phi.substituteUnsafe(Map(qv -> t)).asInstanceOf[Expr[Prop]]) by
-                InstantiateForall(t)(fact)
-            case _ => ()
-        }
-
-      // Proves `termOf(p) :: type`: variables from the assumed hypotheses,
-      // constructor applications from `introApp` (recursively on the arguments).
-      def typeProof(p: RPat, ty: Ty): sp.Fact =
-        val goal = termOf(p, ty) :: ty._1.termAt(ty._2)
-        p match
-          case RVar(_) => have(goal) by Tautology
-          case RCon(c, args) =>
-            val cts = childTypes(c, ty._2)
-            val argFacts = args.zip(cts).map((a, t) => typeProof(a, t.get))
-            val intro = if ty._2.isEmpty then c.introApp else c.introApp(ty._2.head, ty._2.tail*)
-            val substs = c.semantic.variables.zip(args.map(termOf(_, ty))).map((v, t) => v := t)
-            val introInst: sp.Fact = if substs.isEmpty then intro else intro.of(substs*)
-            have(goal) by Tautology.from((introInst +: argFacts)*)
 
       def typings(args: List[RPat], cts: Seq[Option[Ty]]): Seq[sp.Fact] =
         args.zip(cts).map((a, t) => typeProof(a, t.get))
@@ -271,6 +280,103 @@ private[semantics] object NestedTrieProofs {
     case a \/ b => flatOr(a) ++ flatOr(b)
     case _ => List(f)
 
+  private def proveByCongruence(using proof: lisa.SetTheoryLibrary.Proof)(formula: Expr[Prop], eqFacts: List[proof.Fact]): proof.Fact =
+    formula match
+      case lhs /\ rhs =>
+        val leftFact = proveByCongruence(lhs, eqFacts)
+        val rightFact = proveByCongruence(rhs, eqFacts)
+        have(formula) by RightAnd(leftFact, rightFact)
+      case _ =>
+        have(formula) by Congruence.from(eqFacts*)
+
+  private def finishCoverLeaf(
+      inner: List[Variable[Ind]],
+      wits: List[Expr[Ind]],
+      body: Expr[Prop],
+      branchCondition: Expr[Prop],
+      eqForms: List[Expr[Prop]],
+      bigOr: Expr[Prop]
+  )(
+      proveInputEq: (Seq[SubstPair], List[Expr[Prop]]) => Unit
+  )(using proof: lisa.SetTheoryLibrary.Proof): Unit =
+    val sub = inner.zip(wits).map((from, to) => from := to)
+    val eqFacts = eqForms.map(ef => have(ef) by Restate)
+    val condEq = proveByCongruence(branchCondition.substitute(sub*), eqFacts)
+    proveInputEq(sub, eqForms)
+    val inputEq = lastStep
+    have(body.substitute(sub*).asInstanceOf[Expr[Prop]]) by Tautology.from(inputEq, condEq)
+    for k <- (inner.length - 1) to 0 by -1 do
+      val goal = existsSeq(
+        inner.drop(k),
+        body.substitute(inner.take(k).zip(wits.take(k)).map((f, t) => f := t)*).asInstanceOf[Expr[Prop]]
+      )
+      thenHave(goal) by RightExists
+    have(bigOr) by Tautology.from(lastStep)
+
+  private def coverSwitchBranch(
+      cols: List[ColP],
+      rows: List[RowP],
+      eqForms: List[Expr[Prop]],
+      bigOr: Expr[Prop],
+      fv: List[Int] => Variable[Ind]
+  )(
+      recurse: (List[ColP], List[RowP], List[Expr[Prop]]) => lisa.SetTheoryLibrary.Proof ?=> Unit
+  )(using proof: lisa.SetTheoryLibrary.Proof): Unit =
+    val j = switchIdx(cols, rows).getOrElse(
+      throw new IllegalArgumentException("coverSwitchBranch requires a switchable column.")
+    )
+    val col = cols(j); val (adt, targs) = col.ty; val v = col.value
+    val elimThm = if targs.isEmpty then adt.elim else adt.elim(targs.head, targs.tail*)
+    val implForm = (elimThm.statement.right.head: @unchecked) match
+      case forall(y, body) => body.substitute(y := v)
+    val inst = have(implForm) by InstantiateForall(v)(elimThm)
+    val isCv = (implForm: @unchecked) match { case _ ==> concl => concl }
+    val disjFact = have(isCv) by Tautology.from(inst)
+
+    val branchFacts = flatOr(isCv).zip(adt.constructors).map { (d, c) =>
+      val (evars, body) = peelExists(d)
+      val cts = childTypes(c, targs)
+      val freshArg = (0 until c.semantic.arity).map(i => fv(col.occ :+ i)).toList
+      val rename = evars.zip(freshArg).toMap.asInstanceOf[Map[Variable[?], Expr[?]]]
+      val bodyR = if rename.isEmpty then body else body.substituteUnsafe(rename).asInstanceOf[Expr[Prop]]
+      val childCols = freshArg.indices.map(i => ColP(col.occ :+ i, fv(col.occ :+ i), cts(i).get)).toList
+      val childRows = rows.flatMap { rr =>
+        rr.pats(j) match
+          case RCon(cc, as) if cc.id == c.id => Some(RowP(rr.pats.patch(j, as, 1), rr.clause))
+          case RCon(_, _) => None
+          case RVar(_) =>
+            Some(RowP(rr.pats.patch(j, List.fill(c.semantic.arity)(RVar(variable[Ind])), 1), rr.clause))
+      }
+      val newCols = cols.patch(j, childCols, 1)
+      val newEq: Expr[Prop] = v === appSeq(c.semantic.term(targs))(freshArg)
+
+      val matrixFact = have(bodyR |- bigOr) subproof {
+        assume(bodyR)
+        recurse(newCols, childRows, eqForms :+ newEq)
+        have(bigOr) by Tautology.from(lastStep)
+      }
+      have(existsSeq(freshArg, bodyR) |- bigOr) by QuantifiersIntro(freshArg)(matrixFact)
+    }
+
+    val combined =
+      if branchFacts.size == 1 then have(isCv |- bigOr) by Tautology.from(branchFacts.head)
+      else have(isCv |- bigOr) by LeftOr(branchFacts*)
+    have(bigOr) by Tautology.from(disjFact, combined)
+
+  // Generic trie recursion shared by every coverage-shaped proof: descend through
+  // the switches via `coverSwitchBranch`, and hand each leaf row (plus the chained
+  // path equalities) to the caller-supplied `leaf`. Only the leaf differs between
+  // `coverageProof`, `coverageCaseShape` and `branchSelectionForCaseShape`.
+  private def coverTrie(bigOr: Expr[Prop], fv: List[Int] => Variable[Ind])(
+      leaf: (RowP, List[Expr[Prop]]) => lisa.SetTheoryLibrary.Proof ?=> Unit
+  )(cols: List[ColP], rows: List[RowP], eqForms: List[Expr[Prop]])(using proof: lisa.SetTheoryLibrary.Proof): Unit =
+    switchIdx(cols, rows) match
+      case None => leaf(rows.head, eqForms)
+      case Some(_) =>
+        coverSwitchBranch(cols, rows, eqForms, bigOr, fv) { (newCols, childRows, newEqForms) =>
+          coverTrie(bigOr, fv)(leaf)(newCols, childRows, newEqForms)
+        }
+
   def coverageProof(domain: Ty, clauses: Seq[(Constructor[?], Seq[Expr[Ind]])]): THM =
     val x = Variable[Ind]("scrutX")
     val dTerm = domain._1.termAt(domain._2)
@@ -293,71 +399,18 @@ private[semantics] object NestedTrieProofs {
     val disjuncts = pats.map(p => existsSeq(binderVars(p, Nil), x === recon(p, domain, Nil)))
     val bigOr = seqOr(disjuncts)
 
-    def switchIdx(cols: List[ColP], rows: List[RowP]): Option[Int] =
-      cols.indices.find(j => rows.exists(_.pats(j) match { case RCon(_, _) => true; case _ => false }))
-
     Lemma(∀(x :: dTerm, bigOr)) {
       // `using proof` so each (possibly nested) call binds to the right proof.
       // `eqForms` carries the chained `value === c(children)` equalities of the
       // path (each a conjunct of an assumed body), re-derived as facts at the leaf.
-      def cover(cols: List[ColP], rows: List[RowP], eqForms: List[Expr[Prop]])(using proof: lisa.SetTheoryLibrary.Proof): Unit =
-        switchIdx(cols, rows) match
-          case None =>
-            val r = rows.head
-            val eqFacts = eqForms.map(ef => have(ef) by Tautology)
-            have(x === recon(pats(r.clause), domain, Nil)) by Congruence.from(eqFacts*)
-            have(disjuncts(r.clause)) by QuantifiersIntro(binderVars(pats(r.clause), Nil))(lastStep)
-            have(bigOr) by Tautology.from(lastStep)
-          case Some(j) =>
-            val col = cols(j); val (adt, targs) = col.ty; val v = col.value
-            val elimThm = if targs.isEmpty then adt.elim else adt.elim(targs.head, targs.tail*)
-            val implForm = (elimThm.statement.right.head: @unchecked) match
-              case forall(y, body) => body.substituteUnsafe(Map(y -> v)).asInstanceOf[Expr[Prop]]
-            val inst = have(implForm) by InstantiateForall(v)(elimThm)
-            val isCv = (implForm: @unchecked) match { case _ ==> concl => concl }
-            val disjFact = have(isCv) by Tautology.from(inst)
-
-            // One branch fact `renamedDisjunct |- bigOr` per constructor disjunct.
-            // The disjuncts are in `adt.constructors` order, so we can zip them.
-            val branchFacts = flatOr(isCv).zip(adt.constructors).map { (d, c) =>
-              val (evars, body) = peelExists(d)
-              val cts = childTypes(c, targs)
-              val freshArg = (0 until c.semantic.arity).map(i => fv(col.occ :+ i)).toList
-              val rename = evars.zip(freshArg).toMap.asInstanceOf[Map[Variable[?], Expr[?]]]
-              val bodyR = if rename.isEmpty then body else body.substituteUnsafe(rename).asInstanceOf[Expr[Prop]]
-
-              // child columns/rows
-              val childCols = freshArg.indices.map(i => ColP(col.occ :+ i, fv(col.occ :+ i), cts(i).get)).toList
-              val childRows = rows.flatMap { rr =>
-                rr.pats(j) match
-                  case RCon(cc, as) if cc.id == c.id => Some(RowP(rr.pats.patch(j, as, 1), rr.clause))
-                  case RCon(_, _) => None
-                  case RVar(_) =>
-                    Some(RowP(rr.pats.patch(j, List.fill(c.semantic.arity)(RVar(variable[Ind])), 1), rr.clause))
-              }
-              val newCols = cols.patch(j, childCols, 1)
-              val newEq: Expr[Prop] = v === appSeq(c.semantic.term(targs))(freshArg)
-
-              val matrixFact = have(bodyR |- bigOr) subproof {
-                assume(bodyR)
-                cover(newCols, childRows, eqForms :+ newEq)
-                have(bigOr) by Tautology.from(lastStep)
-              }
-              // bind the fresh witnesses:  existsSeq(freshArg, bodyR) |- bigOr
-              freshArg.reverse.foldLeft[proof.Fact](matrixFact) { (fact, w) =>
-                thenHave(∃(w, fact.statement.left.head) |- bigOr) by LeftExists
-              }
-              lastStep
-            }
-
-            val combined =
-              if branchFacts.size == 1 then have(isCv |- bigOr) by Tautology.from(branchFacts.head)
-              else have(isCv |- bigOr) by LeftOr(branchFacts*)
-            have(bigOr) by Tautology.from(disjFact, combined)
-
       have(x :: dTerm ==> bigOr) subproof {
         assume(x :: dTerm)
-        cover(List(ColP(Nil, x, domain)), pats.zipWithIndex.map((p, i) => RowP(List(p), i)), Nil)
+        coverTrie(bigOr, fv) { (r, eqForms) =>
+          val eqFacts = eqForms.map(ef => have(ef) by Tautology)
+          have(x === recon(pats(r.clause), domain, Nil)) by Congruence.from(eqFacts*)
+          have(disjuncts(r.clause)) by QuantifiersIntro(binderVars(pats(r.clause), Nil))(lastStep)
+          have(bigOr) by Tautology.from(lastStep)
+        }(List(ColP(Nil, x, domain)), pats.zipWithIndex.map((p, i) => RowP(List(p), i)), Nil)
       }
       thenHave(∀(x :: dTerm, bigOr)) by RightForall
     }
@@ -391,84 +444,22 @@ private[semantics] object NestedTrieProofs {
     val disjuncts = patterns.map(p => existsSeq(p.variables2, p.freshBranchPremise /\ (x === p.freshInputTerm))).toList
     val bigOr = simplify(seqOr(disjuncts))
 
-    def switchIdx(cols: List[ColP], rows: List[RowP]): Option[Int] =
-      cols.indices.find(j => rows.exists(_.pats(j) match { case RCon(_, _) => true; case _ => false }))
-
     Lemma(∀(x :: dTerm, bigOr)) {
-      def cover(cols: List[ColP], rows: List[RowP], eqForms: List[Expr[Prop]])(using proof: lisa.SetTheoryLibrary.Proof): Unit =
-        switchIdx(cols, rows) match
-          case None =>
-            val r = rows.head
-            val p = patterns(r.clause)
-            val v2 = p.variables2.toList
-            val deepOccs = rvarOccs(pats(r.clause), Nil).filter(_.length >= 2)
-            val wits: List[Expr[Ind]] =
-              (0 until p.arity).map(i => valueAt(List(i))).toList ++ deepOccs.map(valueAt)
-            val sub = v2.zip(wits).map((from, to) => from := to)
-            val body = p.freshBranchPremise /\ (x === p.freshInputTerm)
-
-            val eqFacts = eqForms.map(ef => have(ef) by Tautology)
-            def proveByCongruence(formula: Expr[Prop]): proof.Fact =
-              formula match
-                case lhs /\ rhs =>
-                  val leftFact = proveByCongruence(lhs)
-                  val rightFact = proveByCongruence(rhs)
-                  have(formula) by Tautology.from(leftFact, rightFact)
-                case _ =>
-                  have(formula) by Congruence.from(eqFacts*)
-            // body at the chosen witnesses: typing from the context, equalities by Congruence.
-            val inputEq = have((x === p.freshInputTerm).substitute(sub*)) by Congruence.from(eqFacts*)
-            val condEq = proveByCongruence(p.freshBranchCondition.substitute(sub*).asInstanceOf[Expr[Prop]])
-            val typ = have(p.freshTypingFormula.substitute(sub*).asInstanceOf[Expr[Prop]]) by Tautology
-            have(body.substitute(sub*).asInstanceOf[Expr[Prop]]) by Tautology.from(inputEq, condEq, typ)
-            // introduce the existentials over variables2 with these witnesses
-            for k <- (v2.length - 1) to 0 by -1 do
-              val goal = existsSeq(v2.drop(k), body.substitute(v2.take(k).zip(wits.take(k)).map((f, t) => f := t)*).asInstanceOf[Expr[Prop]])
-              thenHave(goal) by RightExists
-            have(bigOr) by Tautology.from(lastStep)
-          case Some(j) =>
-            val col = cols(j); val (adt, targs) = col.ty; val v = col.value
-            val elimThm = if targs.isEmpty then adt.elim else adt.elim(targs.head, targs.tail*)
-            val implForm = (elimThm.statement.right.head: @unchecked) match
-              case forall(y, b) => b.substituteUnsafe(Map(y -> v)).asInstanceOf[Expr[Prop]]
-            val inst = have(implForm) by InstantiateForall(v)(elimThm)
-            val isCv = (implForm: @unchecked) match { case _ ==> concl => concl }
-            val disjFact = have(isCv) by Tautology.from(inst)
-
-            val branchFacts = flatOr(isCv).zip(adt.constructors).map { (d, c) =>
-              val (evars, b) = peelExists(d)
-              val cts = childTypes(c, targs)
-              val freshArg = (0 until c.semantic.arity).map(i => fv(col.occ :+ i)).toList
-              val rename = evars.zip(freshArg).toMap.asInstanceOf[Map[Variable[?], Expr[?]]]
-              val bodyR = if rename.isEmpty then b else b.substituteUnsafe(rename).asInstanceOf[Expr[Prop]]
-              val childCols = freshArg.indices.map(i => ColP(col.occ :+ i, fv(col.occ :+ i), cts(i).get)).toList
-              val childRows = rows.flatMap { rr =>
-                rr.pats(j) match
-                  case RCon(cc, as) if cc.id == c.id => Some(RowP(rr.pats.patch(j, as, 1), rr.clause))
-                  case RCon(_, _) => None
-                  case RVar(_) =>
-                    Some(RowP(rr.pats.patch(j, List.fill(c.semantic.arity)(RVar(variable[Ind])), 1), rr.clause))
-              }
-              val newCols = cols.patch(j, childCols, 1)
-              val newEq: Expr[Prop] = v === appSeq(c.semantic.term(targs))(freshArg)
-              val matrixFact = have(bodyR |- bigOr) subproof {
-                assume(bodyR)
-                cover(newCols, childRows, eqForms :+ newEq)
-                have(bigOr) by Tautology.from(lastStep)
-              }
-              freshArg.reverse.foldLeft[proof.Fact](matrixFact) { (fact, w) =>
-                thenHave(∃(w, fact.statement.left.head) |- bigOr) by LeftExists
-              }
-              lastStep
-            }
-            val combined =
-              if branchFacts.size == 1 then have(isCv |- bigOr) by Tautology.from(branchFacts.head)
-              else have(isCv |- bigOr) by LeftOr(branchFacts*)
-            have(bigOr) by Tautology.from(disjFact, combined)
-
       have(x :: dTerm ==> bigOr) subproof {
         assume(x :: dTerm)
-        cover(List(ColP(Nil, x, domain)), pats.zipWithIndex.map((p, i) => RowP(List(p), i)), Nil)
+        coverTrie(bigOr, fv) { (r, eqForms) =>
+          val p = patterns(r.clause)
+          val inner = p.variables2.toList
+          val deepOccs = rvarOccs(pats(r.clause), Nil).filter(_.length >= 2)
+          val wits: List[Expr[Ind]] =
+            (0 until p.arity).map(i => valueAt(List(i))).toList ++ deepOccs.map(valueAt)
+          val body = p.freshBranchPremise /\ (x === p.freshInputTerm)
+
+          finishCoverLeaf(inner, wits, body, p.freshBranchCondition, eqForms, bigOr) { (sub, eqs) =>
+            val eqFacts = eqs.map(ef => have(ef) by Restate)
+            have((x === p.freshInputTerm).substitute(sub*)) by Congruence.from(eqFacts*)
+          }
+        }(List(ColP(Nil, x, domain)), pats.zipWithIndex.map((p, i) => RowP(List(p), i)), Nil)
       }
       thenHave(∀(x :: dTerm, bigOr)) by RightForall
     }
@@ -493,8 +484,6 @@ private[semantics] object NestedTrieProofs {
     // `eqForms`; rooting at only the first guard leaves the others unprovable.
     val guardPositions: List[Int] =
       patterns.flatMap(_.guards.map(_.position)).distinct.sorted.toList
-    def guardTyAt(pos: Int): Ty =
-      ADT.unapply(cSem.semanticSignature2(pos)._2.substitute(typeSubst*).asInstanceOf[Expr[Ind]]).get
     val typedPart = wellTypedFormula(cSem.semanticSignature2).substitute(typeSubst*).asInstanceOf[Expr[Prop]]
     val inputEqC = (term === cSem.appliedTerm2).substitute(typeSubst*).asInstanceOf[Expr[Prop]]
 
@@ -515,92 +504,31 @@ private[semantics] object NestedTrieProofs {
     def fv(occ: List[Int]): Variable[Ind] =
       rootVars.getOrElse(occ, fvMemo.getOrElseUpdate(occ, Variable[Ind](s"bsf${fvMemo.size}")))
 
-    def switchIdx(cols: List[ColP], rows: List[RowP]): Option[Int] =
-      cols.indices.find(j => rows.exists(_.pats(j) match { case RCon(_, _) => true; case _ => false }))
-
+    
+    
     Lemma(forallSeq(topVars, (typedPart /\ inputEqC) ==> bigOr)) {
-      def cover(cols: List[ColP], rows: List[RowP], eqForms: List[Expr[Prop]])(using proof: lisa.SetTheoryLibrary.Proof): Unit =
-        switchIdx(cols, rows) match
-          case None =>
-            val r = rows.head
-            val p = patterns(r.clause)
-            val inner = innerVarsOf(r.clause)
-            // Leaf occurrences across *all* of this clause's guards, prefixed by
-            // each guard's position so they line up with the trie's `fv` keys (and
-            // with `inner`, which lists the inner binders guard-by-guard in order).
-            val occs = p.freshGuards
-              .flatMap(g => rvarOccs(parse(g.guardTerm), List(g.position)))
-              .toList
-            val wits = occs.map(fv(_): Expr[Ind])
-            val sub = inner.zip(wits).map((f, t) => f := t)
-            val body = p.branchSelectionBody(term)
-            val eqFacts = eqForms.map(ef => have(ef) by Tautology)
-            def proveByCongruence(formula: Expr[Prop]): proof.Fact =
-              formula match
-                case lhs /\ rhs =>
-                  val leftFact = proveByCongruence(lhs)
-                  val rightFact = proveByCongruence(rhs)
-                  have(formula) by Tautology.from(leftFact, rightFact)
-                case _ =>
-                  have(formula) by Congruence.from(eqFacts*)
-            val condEq = proveByCongruence(p.freshBranchCondition.substitute(sub*).asInstanceOf[Expr[Prop]])
-            val inEq = have(term === p.freshInputTerm) by Tautology
-            // inner-binder typings come from the context (the eliminator's wellTyped conjuncts).
-            have(body.substitute(sub*).asInstanceOf[Expr[Prop]]) by Tautology.from(condEq, inEq)
-            for k <- (inner.length - 1) to 0 by -1 do
-              val goal = existsSeq(inner.drop(k), body.substitute(inner.take(k).zip(wits.take(k)).map((f, t) => f := t)*).asInstanceOf[Expr[Prop]])
-              thenHave(goal) by RightExists
-            have(bigOr) by Tautology.from(lastStep)
-          case Some(j) =>
-            val col = cols(j); val (adt, targs) = col.ty; val v = col.value
-            val elimThm = if targs.isEmpty then adt.elim else adt.elim(targs.head, targs.tail*)
-            val implForm = (elimThm.statement.right.head: @unchecked) match
-              case forall(y, b) => b.substituteUnsafe(Map(y -> v)).asInstanceOf[Expr[Prop]]
-            val inst = have(implForm) by InstantiateForall(v)(elimThm)
-            val isCv = (implForm: @unchecked) match { case _ ==> concl => concl }
-            val disjFact = have(isCv) by Tautology.from(inst)
-            val branchFacts = flatOr(isCv).zip(adt.constructors).map { (d, c) =>
-              val (evars, b) = peelExists(d)
-              val cts = childTypes(c, targs)
-              val freshArg = (0 until c.semantic.arity).map(i => fv(col.occ :+ i)).toList
-              val rename = evars.zip(freshArg).toMap.asInstanceOf[Map[Variable[?], Expr[?]]]
-              val bodyR = if rename.isEmpty then b else b.substituteUnsafe(rename).asInstanceOf[Expr[Prop]]
-              val childCols = freshArg.indices.map(i => ColP(col.occ :+ i, fv(col.occ :+ i), cts(i).get)).toList
-              val childRows = rows.flatMap { rr =>
-                rr.pats(j) match
-                  case RCon(cc, as) if cc.id == c.id => Some(RowP(rr.pats.patch(j, as, 1), rr.clause))
-                  case RCon(_, _) => None
-                  case RVar(_) =>
-                    Some(RowP(rr.pats.patch(j, List.fill(c.semantic.arity)(RVar(variable[Ind])), 1), rr.clause))
-              }
-              val newCols = cols.patch(j, childCols, 1)
-              val newEq: Expr[Prop] = v === appSeq(c.semantic.term(targs))(freshArg)
-              val matrixFact = have(bodyR |- bigOr) subproof {
-                assume(bodyR)
-                cover(newCols, childRows, eqForms :+ newEq)
-                have(bigOr) by Tautology.from(lastStep)
-              }
-              freshArg.reverse.foldLeft[proof.Fact](matrixFact) { (fact, w) =>
-                thenHave(∃(w, fact.statement.left.head) |- bigOr) by LeftExists
-              }
-              lastStep
-            }
-            val combined =
-              if branchFacts.size == 1 then have(isCv |- bigOr) by Tautology.from(branchFacts.head)
-              else have(isCv |- bigOr) by LeftOr(branchFacts*)
-            have(bigOr) by Tautology.from(disjFact, combined)
-
       have((typedPart /\ inputEqC) ==> bigOr) subproof {
         assume(typedPart); assume(inputEqC)
-        val rootCols = guardPositions.map(pos => ColP(List(pos), cSem.variables2(pos), guardTyAt(pos)))
+        val rootCols = guardPositions.map(pos => ColP(List(pos), cSem.variables2(pos), guardTypeAt(cSem, pos, typeSubst)))
         val rootRows = patterns.zipWithIndex.map { (p, i) =>
           val byPos = guardsByPos(p)
           RowP(guardPositions.map(pos => byPos.getOrElse(pos, RVar(cSem.variables2(pos)))), i)
         }.toList
-        cover(rootCols, rootRows, Nil)
+        coverTrie(bigOr, fv) { (r, eqForms) =>
+          val p = patterns(r.clause)
+          val inner = innerVarsOf(r.clause)
+          val occs = p.freshGuards
+            .flatMap(g => rvarOccs(parse(g.guardTerm), List(g.position)))
+            .toList
+          val wits = occs.map(fv(_): Expr[Ind])
+          val body = p.branchSelectionBody(term)
+
+          finishCoverLeaf(inner, wits, body, p.freshBranchCondition, eqForms, bigOr) { (_, _) =>
+            have(term === p.freshInputTerm) by Tautology
+          }
+        }(rootCols, rootRows, Nil)
       }
-      for vv <- topVars.reverse do thenHave(∀(vv, lastStep.statement.right.head)) by RightForall
-      have(thesis) by Tautology.from(lastStep)
+      have(thesis) by QuantifiersIntro(topVars)(lastStep)
     }
 
   // ════════════════════════════════════════════════════════════════════════
@@ -613,6 +541,47 @@ private[semantics] object NestedTrieProofs {
     p1 match
       case p1c: NestedConstructorPattern[n] =>
         incompatibleCaseShapeN[n](p1c, p2.asInstanceOf[NestedConstructorPattern[n]])
+
+  private[semantics] def sameHeadGuardEquality[N <: lisa.utils.prooflib.ProofTacticLib.Arity](
+      p1: NestedConstructorPattern[N],
+      p2: NestedConstructorPattern[N],
+      guard1: BranchGuard,
+      guard2: BranchGuard
+  ): THM =
+    Lemma(
+      (p1.branchPremise1 /\ p2.freshBranchPremise /\ (p1.inputTerm1 === p2.inputTerm2)) ==>
+        (guard1.guardTerm === guard2.guardTerm)
+    ) {
+      val branch = assume(p1.branchPremise1 /\ p2.freshBranchPremise /\ (p1.inputTerm1 === p2.inputTerm2))
+      val branch1Typed = have(p1.branchPremise1) by Tautology.from(branch)
+      val branch2Typed = have(p2.freshBranchPremise) by Tautology.from(branch)
+      val inputsEqual = have(p1.inputTerm1 === p2.inputTerm2) by Tautology.from(branch)
+
+      val ctorInj = constructorInjectivity(p1)
+      val injectivitySchema = have(ctorInj.statement.right.head) by Tautology.from(ctorInj)
+      var injectivityAtVars = injectivitySchema
+      injectivityAtVars = have(
+        injectivityAtVars.statement.right.head match
+          case formula => instantiatePrefix(formula, p1.variables1.take(p1.arity) ++ p2.variables2.take(p2.arity))
+      ) by InstantiateForallSeq(p1.variables1.take(p1.arity) ++ p2.variables2.take(p2.arity))(injectivityAtVars)
+
+      val guardedArgsEqual = have(guard1.binder === guard2.binder) by
+        Tautology.from(injectivityAtVars, branch1Typed, branch2Typed, inputsEqual)
+      val guard1Eq = have(guard1.binder === guard1.guardTerm) by Tautology.from(branch1Typed)
+      val guard2Eq = have(guard2.binder === guard2.guardTerm) by Tautology.from(branch2Typed)
+      val guard1EqRev = have(guard1.guardTerm === guard1.binder) by Congruence.from(guard1Eq)
+      val guard1ToGuard2Binder =
+        have(guard1.guardTerm === guard2.binder) by Tautology.from(
+          altEqualityTransitivity of (x := guard1.guardTerm, y := guard1.binder, z := guard2.binder),
+          guard1EqRev,
+          guardedArgsEqual
+        )
+      have(thesis) by Tautology.from(
+        altEqualityTransitivity of (x := guard1.guardTerm, y := guard2.binder, z := guard2.guardTerm),
+        guard1ToGuard2Binder,
+        guard2Eq
+      )
+    }
 
   private def incompatibleCaseShapeN[N <: lisa.utils.prooflib.ProofTacticLib.Arity](
       p1: NestedConstructorPattern[N],
@@ -631,29 +600,21 @@ private[semantics] object NestedTrieProofs {
         val b1 = have(p1.branchPremise1) by Tautology.from(branch)
         val b2 = have(p2.freshBranchPremise) by Tautology.from(branch)
         val inj = crossInj(adt, c1, c2, targs)
-        var fact = have(inj.statement.right.head) by Tautology.from(inj)
-        (top1 ++ top2).foreach { t =>
-          fact.statement.right.head match
-            case forall(qv, phi) =>
-              fact = have(phi.substituteUnsafe(Map(qv -> t)).asInstanceOf[Expr[Prop]]) by InstantiateForall(t)(fact)
-            case _ => ()
-        }
+        val fact0 = have(inj.statement.right.head) by Tautology.from(inj)
+        val target = instantiatePrefix(fact0.statement.right.head, top1 ++ top2)
+        val fact = have(target) by InstantiateForallSeq(top1 ++ top2)(fact0)
         have(!(p1.inputTerm1 === p2.inputTerm2)) by Tautology.from(fact, b1, b2)
       }}
     else
       val guards1 = p1.guardsAt(p1.variables1)
       val guards2 = p2.freshGuards
-      val selectedGuardsAndPath = guards1
+      val selectedGuards = guards1
         .zip(guards2)
         .collectFirst {
           case (guard1, guard2)
               if guard1.position == guard2.position &&
                 divergePath(parse(guard1.guardTerm), parse(guard2.guardTerm)).nonEmpty =>
-            (
-              guard1,
-              guard2,
-              divergePath(parse(guard1.guardTerm), parse(guard2.guardTerm)).get
-            )
+            (guard1, guard2)
         }
         .getOrElse(
           throw new IllegalArgumentException(
@@ -666,103 +627,33 @@ private[semantics] object NestedTrieProofs {
                |${renderOverlapTrie(p1, p2)}""".stripMargin
           )
         )
-      val (guard1, guard2, guardPath) = selectedGuardsAndPath
-      val guardTy: Ty =
-        val t = p1.semanticConstructor
-          .semanticSignature2(guard1.position)
-          ._2
-          .substitute(p1.typeSubstitutions*)
-          .asInstanceOf[Expr[Ind]]
-        ADT.unapply(t).get
+      val (guard1, guard2) = selectedGuards
+      val guardTy: Ty = guardTypeAt(p1.semanticConstructor, guard1.position, p1.typeSubstitutions)
 
       Time.measure("NestedTrieProofs/Incompatible Eq") {
         Lemma(
           (p1.branchPremise1 /\ p2.freshBranchPremise) ==> !(p1.inputTerm1 === p2.inputTerm2)
         ) {
           sp ?=> Time.measure("inner"){
-          val t00 = Time.get()
-          // --- locals: instAll / typeProof / disprove on the guard terms ---
-          def instAll(thm: THM, terms: Seq[Expr[Ind]]): Unit =
-            var fact: sp.Fact = have(thm.statement.right.head) by Tautology.from(thm)
-            terms.foreach { t =>
-              fact.statement.right.head match
-                case forall(qv, phi) =>
-                  fact = have(phi.substituteUnsafe(Map(qv -> t)).asInstanceOf[Expr[Prop]]) by
-                    InstantiateForall(t)(fact)
-                case _ => ()
-            }
-          def typeProof(p: RPat, ty: Ty): sp.Fact =
-            val goal = termOf(p, ty) :: ty._1.termAt(ty._2)
-            p match
-              case RVar(_) => have(goal) by Tautology // inner-binder typing from the branch premises
-              case RCon(c, args) =>
-                val cts = childTypes(c, ty._2)
-                val argFacts = args.zip(cts).map((a, t) => typeProof(a, t.get))
-                val intro = if ty._2.isEmpty then c.introApp else c.introApp(ty._2.head, ty._2.tail*)
-                val substs = c.semantic.variables.zip(args.map(termOf(_, ty))).map((v, t) => v := t)
-                val introInst: sp.Fact = if substs.isEmpty then intro else intro.of(substs*)
-                have(goal) by Tautology.from((introInst +: argFacts)*)
-          def disprove(p: RPat, q: RPat, ty: Ty, path: List[Int]): Unit =
-            val tpc = termOf(p, ty); val tqc = termOf(q, ty)
-            (p, q) match
-              case (RCon(c, as), RCon(d, bs)) if path.isEmpty =>
-                val ctsC = childTypes(c, ty._2); val ctsD = childTypes(d, ty._2)
-                instAll(crossInj(ty._1, c, d, ty._2), as.zip(ctsC).map((a, t) => termOf(a, t.get)) ++ bs.zip(ctsD).map((b, t) => termOf(b, t.get)))
-                val injInst = lastStep
-                val tys = as.zip(ctsC).map((a, t) => typeProof(a, t.get)) ++ bs.zip(ctsD).map((b, t) => typeProof(b, t.get))
-                have(!(tpc === tqc)) by Tautology.from((injInst +: tys)*)
-              case (RCon(c, as), RCon(_, bs)) =>
-                val i = path.head; val cts = childTypes(c, ty._2)
-                disprove(as(i), bs(i), cts(i).get, path.tail)
-                val argDiseq = lastStep
-                instAll(sameInj(c, ty._2), as.zip(cts).map((a, t) => termOf(a, t.get)) ++ bs.zip(cts).map((b, t) => termOf(b, t.get)))
-                val injInst = lastStep
-                val tys = as.zip(cts).map((a, t) => typeProof(a, t.get)) ++ bs.zip(cts).map((b, t) => typeProof(b, t.get))
-                have(!(tpc === tqc)) by Tautology.from((injInst +: argDiseq +: tys)*)
-              case _ => throw new IllegalArgumentException("disprove: malformed path.")
-
           // --- outer structure (mirrors the existing incompatible) ---
-          val t0 = Time.get()
           val branch = assume(p1.branchPremise1 /\ p2.freshBranchPremise)
-          val branch1Typed = have(p1.branchPremise1) by Tautology.from(branch)
-          val branch2Typed = have(p2.freshBranchPremise) by Tautology.from(branch)
           assume(p1.inputTerm1 === p2.inputTerm2)
           val inputsEqual = have(p1.inputTerm1 === p2.inputTerm2) by Hypothesis
 
-          val t1 = Time.get()
-          val ctorInj = constructorInjectivity(p1)
-          val injectivitySchema = have(ctorInj.statement.right.head) by Tautology.from(ctorInj)
-          var injectivityAtVars = injectivitySchema
-          for v <- p1.variables1.take(p1.arity) ++ p2.variables2.take(p2.arity) do
-            injectivityAtVars.statement.right.head match
-              case forall(qv, phi) =>
-                injectivityAtVars = have(phi.substituteUnsafe(Map(qv -> v)).asInstanceOf[Expr[Prop]]) by
-                  InstantiateForall(v)(injectivityAtVars)
-              case _ => ()
-
-          val t2 = Time.get()
-          val guardedArgsEqual = have(guard1.binder === guard2.binder) by
-            Tautology.from(injectivityAtVars, branch1Typed, branch2Typed, inputsEqual)
-          val guard1Eq = have(guard1.binder === guard1.guardTerm) by Tautology.from(branch1Typed)
-          val guard2Eq = have(guard2.binder === guard2.guardTerm) by Tautology.from(branch2Typed)
-          val guard1EqRev = have(guard1.guardTerm === guard1.binder) by Congruence.from(guard1Eq)
-          val guard1ToGuard2Binder =
-            have(guard1.guardTerm === guard2.binder) by Tautology.from(altEqualityTransitivity of (x := guard1.guardTerm, y := guard1.binder, z := guard2.binder), guard1EqRev, guardedArgsEqual)
-          val guardTermsEqual =
-            have(guard1.guardTerm === guard2.guardTerm) by Tautology.from(altEqualityTransitivity of (x := guard1.guardTerm, y := guard2.binder, z := guard2.guardTerm), guard1ToGuard2Binder, guard2Eq)
-          val t4 = Time.get()
+          val commonEquality = sameHeadGuardEquality(p1, p2, guard1, guard2)
+          val guardTermsEqual = have(guard1.guardTerm === guard2.guardTerm) by Tautology.from(commonEquality, branch, inputsEqual)
 
           // the new part: guard terms are distinct by the recursive peel
           val rp1 = parse(guard1.guardTerm); val rp2 = parse(guard2.guardTerm)
-          val t5 = Time.get()
-          Time.register("part 0", t0 - t00)
-          Time.register("part 1", t1 - t0)
-          Time.register("part 2", t2 - t1)
-          Time.register("part 3", t4 - t2)
-          Time.register("part 4", t5 - t4)
+          val guardDisequalityKernel = incompatibleProof(guardTy, rp1, rp2)
+          val guardTypingFacts =
+            wellTypedSet(bindersTyped(rp1, guardTy) ++ bindersTyped(rp2, guardTy)).toSeq.map(h =>
+              have(h) by Tautology.from(branch)
+            )
+          val guardDisequality = have(!(guard1.guardTerm === guard2.guardTerm)) by
+            Tautology.from((guardDisequalityKernel +: guardTypingFacts)*)
 
-          Time.measure("disprove")(disprove(rp1, rp2, guardTy, guardPath))
-          have(thesis) by Tautology.from(guardTermsEqual, lastStep)
+          have(thesis) by Tautology.from(guardTermsEqual, guardDisequality)
         }}
       }
 
@@ -786,25 +677,7 @@ private[semantics] object NestedTrieProofs {
     val topInjThm: THM = constructorInjectivity(pp)
 
     Lemma(forallSeq(v1 ++ v2, (bp1 /\ bp2) ==> simplify(A <=> seqEqV))) {
-      def instAll(thm: THM, terms: Seq[Expr[Ind]])(using proof: lisa.SetTheoryLibrary.Proof): Unit =
-        var fact: proof.Fact = have(thm.statement.right.head) by Tautology.from(thm)
-        terms.foreach { t =>
-          fact.statement.right.head match
-            case forall(qv, phi) =>
-              fact = have(phi.substituteUnsafe(Map(qv -> t)).asInstanceOf[Expr[Prop]]) by InstantiateForall(t)(fact)
-            case _ => ()
-        }
-      def typeProof(p: RPat, ty: Ty)(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
-        val goal = termOf(p, ty) :: ty._1.termAt(ty._2)
-        p match
-          case RVar(_) => have(goal) by Tautology
-          case RCon(c, args) =>
-            val cts = childTypes(c, ty._2)
-            val argFacts = args.zip(cts).map((a, t) => typeProof(a, t.get))
-            val intro = if ty._2.isEmpty then c.introApp else c.introApp(ty._2.head, ty._2.tail*)
-            val substs = c.semantic.variables.zip(args.map(termOf(_, ty))).map((v, t) => v := t)
-            val introInst: proof.Fact = if substs.isEmpty then intro else intro.of(substs*)
-            have(goal) by Tautology.from((introInst +: argFacts)*)
+      
       // From `termOf(rp1) = termOf(rp2)` derive the leaf (inner-binder) equalities,
       // indexed by the exact binder pair they justify.
       def injectEq(rp1: RPat, rp2: RPat, ty: Ty, eqFact: lisa.SetTheoryLibrary.Proof#Fact)(using proof: lisa.SetTheoryLibrary.Proof): Map[(Variable[Ind], Variable[Ind]), proof.Fact] =
@@ -849,12 +722,7 @@ private[semantics] object NestedTrieProofs {
         }
 
       def guardType(guard: BranchGuard): Ty =
-        val t = pp.semanticConstructor
-          .semanticSignature2(guard.position)
-          ._2
-          .substitute(pp.typeSubstitutions*)
-          .asInstanceOf[Expr[Ind]]
-        ADT.unapply(t).get
+        guardTypeAt(pp.semanticConstructor, guard.position, pp.typeSubstitutions)
 
       have((bp1 /\ bp2) ==> simplify(A <=> seqEqV)) subproof {
         assume(bp1); assume(bp2)
@@ -897,7 +765,6 @@ private[semantics] object NestedTrieProofs {
         }
         have(simplify(A <=> seqEqV)) by Tautology.from(fwd, bwd)
       }
-      for vv <- (v1 ++ v2).reverse do thenHave(∀(vv, lastStep.statement.right.head)) by RightForall
-      have(thesis) by Tautology.from(lastStep)
+      have(thesis) by QuantifiersIntro(v1 ++ v2)(lastStep)
     }
 }

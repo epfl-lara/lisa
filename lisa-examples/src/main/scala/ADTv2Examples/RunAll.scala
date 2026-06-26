@@ -1,11 +1,11 @@
 package ADTv2Examples
 
-import ADTv2Examples.builder.{DebugADTs, MonomorphicADTs, PolymorphicADTs, Specialization}
+import ADTv2Examples.builder.{MonomorphicADTs, PolymorphicADTs, Specialization}
 import ADTv2Examples.functions.{HigherOrderRecursion, RecursiveFunctions, SimpleFunctions, NestedPatterns}
 import ADTv2Examples.proofs.{SimpleInduction, NestedPatternInduction, TypecheckIntegration, Injectivity, Computation}
-import ADTv2Examples.endtoend.{NatAndListLibrary, LibraryFeatures}
+import ADTv2Examples.endtoend.{NatAndListLibrary, LibraryADTs, LibraryFunctions}
 import ADTv2Examples.overview.FeatureTour
-import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.utils.debug.Time
 
 object RunAll {
 
@@ -24,7 +24,6 @@ object RunAll {
     "ADTv2Examples.builder.MonomorphicADTs" -> Entry.Main(MonomorphicADTs.main),
     "ADTv2Examples.builder.PolymorphicADTs" -> Entry.Main(PolymorphicADTs.main),
     "ADTv2Examples.builder.Specialization" -> Entry.Main(Specialization.main),
-    "ADTv2Examples.builder.DebugADTs" -> Entry.Skip("Debugs ADTs are only used for performance testing"),
     "ADTv2Examples.functions.SimpleFunctions" -> Entry.Main(SimpleFunctions.main),
     "ADTv2Examples.functions.RecursiveFunctions" -> Entry.Main(RecursiveFunctions.main),
     "ADTv2Examples.functions.HigherOrderRecursion" -> Entry.Main(HigherOrderRecursion.main),
@@ -35,7 +34,8 @@ object RunAll {
     "ADTv2Examples.proofs.Injectivity" -> Entry.Main(Injectivity.main),
     "ADTv2Examples.proofs.Computation" -> Entry.Main(Computation.main),
     "ADTv2Examples.endtoend.NatAndListLibrary" -> Entry.Main(NatAndListLibrary.main),
-    "ADTv2Examples.endtoend.LibraryFeatures" -> Entry.Main(LibraryFeatures.main),
+    "ADTv2Examples.endtoend.LibraryADTs" -> Entry.Main(LibraryADTs.main),
+    "ADTv2Examples.endtoend.LibraryFunctions" -> Entry.Main(LibraryFunctions.main),
     "ADTv2Examples.overview.FeatureTour" -> Entry.Main(FeatureTour.main)
   )
 

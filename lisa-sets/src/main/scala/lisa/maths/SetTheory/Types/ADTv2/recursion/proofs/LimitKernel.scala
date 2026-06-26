@@ -26,7 +26,7 @@ private[recursion] object LimitKernel {
   def limitIndexWitnessAt(heightFun0: Expr[Ind], limitIndex0: Expr[Ind >>: Ind], point0: Expr[Ind]): Expr[Prop] =
     (limitIndex0(point0) ∈ N) /\ (point0 ∈ app(heightFun0)(limitIndex0(point0)))
 
-  def limitIndexDefinitionAt(heightFun0: Expr[Ind], limitIndex0: Expr[Ind >>: Ind], point0: Expr[Ind]): Expr[Prop] =
+  private def limitIndexDefinitionAt(heightFun0: Expr[Ind], limitIndex0: Expr[Ind >>: Ind], point0: Expr[Ind]): Expr[Prop] =
     limitIndex0(point0) === ε(nVar, (nVar ∈ N) /\ (point0 ∈ app(heightFun0)(nVar)))
 
   def limitFunDefinition(
@@ -37,7 +37,7 @@ private[recursion] object LimitKernel {
   ): Expr[Prop] =
     limitFun0 === abs(argType0)(λ(pointVar, app(G0(limitIndex0(pointVar)))(pointVar)))
 
-  def approxAgreementAt(
+  private def approxAgreementAt(
       heightFun0: Expr[Ind],
       G0: Expr[Ind >>: Ind],
       point0: Expr[Ind],
@@ -52,7 +52,7 @@ private[recursion] object LimitKernel {
       )
     )
 
-  val pointHasSomeHeight: THM = Lemma(
+  private val pointHasSomeHeight: THM = Lemma(
     (pointHeightCharAt(argType, heightFun, pointVar), pointVar ∈ argType) |- ∃(nVar, (nVar ∈ N) /\ (pointVar ∈ app(heightFun)(nVar)))
   ) {
     val pointHeightChar = assume(pointHeightCharAt(argType, heightFun, pointVar))
@@ -63,7 +63,7 @@ private[recursion] object LimitKernel {
     )
   }
 
-  val heightMembershipImpliesInArgType: THM = Lemma(
+  private val heightMembershipImpliesInArgType: THM = Lemma(
     (pointHeightCharAt(argType, heightFun, pointVar), nVar ∈ N, pointVar ∈ app(heightFun)(nVar)) |- pointVar ∈ argType
   ) {
     val pointHeightChar = assume(pointHeightCharAt(argType, heightFun, pointVar))
@@ -84,7 +84,7 @@ private[recursion] object LimitKernel {
     thenHave(thesis) by Restate
   }
 
-  val limitIndexWitness: THM = Lemma(
+  private val limitIndexWitness: THM = Lemma(
     (
       pointHeightCharAt(argType, heightFun, pointVar),
       limitIndexDefinitionAt(heightFun, limitIndex, pointVar),
@@ -116,7 +116,7 @@ private[recursion] object LimitKernel {
     have(thesis) by Congruence.from(limitIndexDef, epsilonWitness)
   }
 
-  val limitValueAtIndex: THM = Lemma(
+  private val limitValueAtIndex: THM = Lemma(
     (limitFunDefinition(argType, limitFun, G, limitIndex), pointVar ∈ argType) |-
       app(limitFun)(pointVar) === app(G(limitIndex(pointVar)))(pointVar)
   ) {
@@ -140,7 +140,7 @@ private[recursion] object LimitKernel {
     have(thesis) by Congruence.from(limitDef, betaAtPoint)
   }
 
-  val limitAtHeight: THM = Lemma(
+  private val limitAtHeight: THM = Lemma(
     (
       pointHeightCharAt(argType, heightFun, pointVar),
       limitIndexDefinitionAt(heightFun, limitIndex, pointVar),

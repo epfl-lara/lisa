@@ -40,6 +40,5 @@ final class CaseDefinedWitness[N <: Arity](
     protected val pairWitness: Variable[Ind],
     protected val caseMembership: Expr[Ind] => Expr[Prop],
     protected val checkReturnType: Map[Pattern[N], JUSTIFICATION],
-    protected val constructorTagDisequalities: Map[(SemanticConstructor[N], SemanticConstructor[N]), THM],
     protected val contextPremises: Seq[Expr[Prop]] = Seq.empty
 ) extends WitnessApplicationProofs[N]

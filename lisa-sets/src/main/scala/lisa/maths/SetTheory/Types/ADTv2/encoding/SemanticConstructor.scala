@@ -1,6 +1,5 @@
 package lisa.maths.SetTheory.Types.ADTv2.encoding
 
-import lisa.maths.SetTheory.Base.Pair
 import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
@@ -9,11 +8,11 @@ import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.instantiatedThe
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.normalizeTypeSubstitutions
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.resolvedTypeArguments
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.theoremAt
-import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
+import lisa.utils.prooflib.InstantiateForallSeq
+import lisa.utils.prooflib.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.core.**
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts._
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.constructorTagDisequality
+import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.altEqualityTransitivity
 import lisa.maths.SetTheory.Types.ADTv2.support.semantics.UniqueCharacterizedSymbol
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
 import lisa.maths.SetTheory.Types.TypingHelpers.::
@@ -49,8 +48,8 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  */
 class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcecode.File)(
     val name: String,
-    val underlying: SyntacticConstructor,
-    val adt: SyntacticADT[N]
+    private[encoding] val underlying: SyntacticConstructor,
+    adt: SyntacticADT[N]
 ) {
 
   private def normalizedTypeArguments(
@@ -146,17 +145,20 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
   def branchAtHeight(heightSet: Expr[Ind], term: Expr[Ind]): Expr[Prop] =
     existsSeq(variables2, branchPremiseAtHeight(heightSet, term))
 
-  def selfRefVariables2: Seq[Variable[Ind]] =
-    syntacticSignature(variables2).collect { case (v, lisa.maths.SetTheory.Types.ADTv2.syntax.AST.SelfRef) =>
-      v
-    }
-
   /**
-   * Type of this constructor.
+   *  Constructor arguments whose domain is the ADT itself, i.e. the recursive
+   *  positions, taken from `vars`.
    */
+  def recursiveBinders(vars: Seq[Variable[Ind]]): Seq[Variable[Ind]] =
+    syntacticSignature(vars).collect { case (v, SelfRef) => v }
+
+  def selfRefVariables2: Seq[Variable[Ind]] = recursiveBinders(variables2)
+
   val typ: Expr[Ind] =
-    // semanticSignature.unzip._2.foldRight[Expr[Ind]](adt.term)((a, b) => a |=> b)
     semanticSignature.unzip._2.foldRight[Expr[Ind]](adt.term)((a, b) => (a ->: b))
+
+  val adtName: String = adt.name
+  val adtTerm: Expr[Ind] = adt.term
 
   /**
    * Arity of this constructor.
@@ -166,18 +168,18 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
   /**
    * Internal representation of this constructor (i.e. as a tuple).
    */
-  val structuralTerm: Expr[Ind] = underlying.term
+  private[encoding] val structuralTerm: Expr[Ind] = underlying.term
 
   /**
    * Internal representation of this constructor (i.e. as a tuple).
    */
-  val structuralTerm1: Expr[Ind] = underlying.term1
+  private[encoding] val structuralTerm1: Expr[Ind] = underlying.term1
 
   /**
    *  Internal representation of this constructor (i.e. as a tuple) with an alternative
    *  set of variables.
    */
-  val structuralTerm2: Expr[Ind] = underlying.term2
+  private[encoding] val structuralTerm2: Expr[Ind] = underlying.term2
 
   private val internals = new ConstructorInternals[N](
     adt = adt,
@@ -194,14 +196,12 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
    *  Formally it is the only function whose codomain is the ADT such that for all
    *  variables x1 :: S1, ...,xn :: Sn c * x1 * ... * xn = (tagc, (x1, (..., (xn, ∅)...))
    */
-  private val untypedDefinition = internals.untypedDefinition
-
-  private val definedClassFunction = UniqueCharacterizedSymbol(
+  private val definedClassFunction = UniqueCharacterizedSymbol.fromParts(
     name = fullName,
     typeVariablesSeq = typeVariablesSeq,
     witnessVar = c,
     definitionAt = c0 => internals.untypedDefinition.substitute(c := c0)
-  )(internals.uniqueness)
+  )(internals.existence, internals.pairwiseUniqueness)
 
   val id = definedClassFunction.id
 
@@ -216,13 +216,6 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
    * Constructor where type variables are instantiated with schematic variables.
    */
   private val term: Expr[Ind] = definedClassFunction.term
-
-  /**
-   *  Lemma --- Characterization of this constructor.
-   *
-   *  `∀c. term = c <=> c ∈ typ /\ ∀x1,...,xn. c * x1 * ... * xn = (tagc, ...)`
-   */
-  private val classFunctionCharacterization: THM = definedClassFunction.characterization
 
   /**
    *  Constructor where type variables are instantiated with schematic variables and
@@ -251,6 +244,8 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
    */
   val appliedTerm2: Expr[Ind] = appliedTerm(variables2)
 
+  // –––– Theorems ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+
   /**
    *  Lemma --- This constructor is equal to its internal representation.
    *
@@ -264,16 +259,7 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
       wellTypedFormula(semanticSignature) ==> (appliedTerm === structuralTerm)
     )
   ) {
-    have(forall(c, (term === c) <=> untypedDefinition)) by
-      Restate.from(classFunctionCharacterization)
-    thenHave(
-      (term === term) <=>
-        ((term :: typ) /\ forallSeq(
-          variables,
-          wellTypedFormula(semanticSignature) ==> (appliedTerm === structuralTerm)
-        ))
-    ) by InstantiateForall(term)
-    thenHave(thesis) by Weakening
+    have(thesis) by Weakening(definedClassFunction.definitionFact)
   }
 
   /**
@@ -284,292 +270,46 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
    *  Type variables remain schematic at the semantic layer.
    */
   val intro = Lemma(using name = sourcecode.FullName(s"${fullName}/intro"))(term :: typ) {
-    have(forall(c, (term === c) <=> untypedDefinition)) by
-      Restate.from(classFunctionCharacterization)
-    thenHave(
-      (term === term) <=>
-        ((term :: typ) /\ forallSeq(
-          variables,
-          wellTypedFormula(semanticSignature) ==> (appliedTerm === structuralTerm)
-        ))
-    ) by InstantiateForall(term)
-    thenHave(term :: typ) by Weakening
-    thenHave(thesis) by Restate
+    have(thesis) by Weakening(definedClassFunction.definitionFact)
   }
 
-  def semanticTypingFromHeight(heightFun: Expr[Ind], n: Expr[Ind]): THM = Lemma(
-    (adt.isHeight(heightFun), n ∈ N, heightTypingFormula(app(heightFun)(n))) |-
-      wellTypedFormula(semanticSignature2)
-  ) {
-    val hValid = assume(adt.isHeight(heightFun))
-    val nInN = assume(n ∈ N)
-    val argsTypedAtHeight = assume(heightTypingFormula(app(heightFun)(n)))
+  /**
+   *  Theorem --- Disjointness of distinct constructors at the applied-term level.
+   *
+   *  Two well-typed applications of distinct constructors are never equal. 
+   */
+  def disjointness(other: SemanticConstructor[?]): THM = {
+    require(this != other, "disjointness requires two distinct constructors.")
 
-    val exTypedAtHeight = have(
-      ∃(k, (k ∈ N) /\ heightTypingFormula(app(heightFun)(k)))
-    ) subproof {
-      have((n ∈ N) /\ heightTypingFormula(app(heightFun)(n))) by
-        Tautology.from(nInN, argsTypedAtHeight)
-      thenHave(thesis) by RightExists
-    }
-
-    val termsHaveHeightAtH = have(
-      heightTypingFormula(adt.term) <=>
-        ∃(k, (k ∈ N) /\ heightTypingFormula(app(heightFun)(k)))
-    ) by Tautology.from(
-      hValid,
-      adt
-        .termsHaveHeight(underlying)
-        .of(h := heightFun)
-        .of(underlying.variables.zip(underlying.variables2).map((from, to) => from := to)*)
-    )
-
-    val argsTypedAtTerm = have(heightTypingFormula(adt.term)) by
-      Tautology.from(termsHaveHeightAtH, exTypedAtHeight)
-    have(wellTypedFormula(semanticSignature2)) by Restate.from(argsTypedAtTerm)
-  }
-
-  def appliedEqualityFromStructural(heightFun: Expr[Ind], n: Expr[Ind], term0: Expr[Ind]): THM =
     Lemma(
-      (adt.isHeight(heightFun), n ∈ N, branchPremiseAtHeight(app(heightFun)(n), term0)) |-
-        (term0 === appliedTerm2)
+      (wellTypedFormula(semanticSignature1) /\ wellTypedFormula(other.semanticSignature2)) ==>
+        !(appliedTerm1 === other.appliedTerm2)
     ) {
-      assume(adt.isHeight(heightFun))
-      assume(n ∈ N)
-      assume(branchPremiseAtHeight(app(heightFun)(n), term0))
-      val argsTypedAtHeight = have(heightTypingFormula(app(heightFun)(n))) by Tautology
-      val termEqStructural = have(term0 === structuralTerm2) by Tautology
-
-      val argsTypedSemantic = have(wellTypedFormula(semanticSignature2)) by
-        Cut(argsTypedAtHeight, semanticTypingFromHeight(heightFun, n))
-
-      val shortBase = have(shortDefinition.statement.right.head) by Tautology.from(shortDefinition)
-      val shortAtVars2 = variables2.foldLeft(shortBase)((_, v2) =>
-        lastStep.statement.right.head match
-          case forall(v, phi) =>
-            thenHave(phi.substituteUnsafe(Map(v -> v2)).asInstanceOf[Expr[Prop]]) by
-              InstantiateForall(v2)
-          case _ => throw UnreachableException
-      )
-      val appliedEqStructural = shortAtVars2.statement.right.head match
-        case _ ==> consequent =>
-          have(consequent) by Tautology.from(shortAtVars2, argsTypedSemantic)
-        case _ => throw UnreachableException
-      have(term0 === appliedTerm2) by Tautology.from(
-        altEqualityTransitivity of (x := term0, y := structuralTerm2, z := appliedTerm2),
-        termEqStructural,
-        appliedEqStructural
-      )
-    }
-
-  def recursiveArgInHeight(heightFun: Expr[Ind], heightIndex: Expr[Ind]): THM =
-    Lemma(
-      (adt.isHeight(heightFun), heightIndex ∈ N, wellTypedFormula(semanticSignature1), appliedTerm1 ∈ app(heightFun)(S(heightIndex))) |-
-        wellTypedFormula(underlying.signature1)(app(heightFun)(heightIndex))
-    ) {
-      val hValid = assume(adt.isHeight(heightFun))
-      val nInN = assume(heightIndex ∈ N)
-      val argsTypedSemantic = assume(wellTypedFormula(semanticSignature1))
-      val appliedInSucc = assume(appliedTerm1 ∈ app(heightFun)(S(heightIndex)))
-
-      val shortBase = have(shortDefinition.statement.right.head) by Tautology.from(shortDefinition)
-      val shortAtVars1 = variables1.foldLeft(shortBase)((_, v1) =>
-        lastStep.statement.right.head match
-          case forall(v, phi) =>
-            thenHave(phi.substituteUnsafe(Map(v -> v1)).asInstanceOf[Expr[Prop]]) by InstantiateForall(v1)
-          case _ => throw UnreachableException
-      )
-      val appliedEqStructural = shortAtVars1.statement.right.head match
-        case _ ==> consequent =>
-          have(consequent) by Tautology.from(shortAtVars1, argsTypedSemantic)
-        case _ => throw UnreachableException
-
-      val structuralInSucc = have(structuralTerm1 ∈ app(heightFun)(S(heightIndex))) by Congruence.from(
-        appliedEqStructural,
-        appliedInSucc
-      )
-
-      val isConstructorAtHeight = have(adt.isConstructor(structuralTerm1, app(heightFun)(heightIndex))) by Tautology.from(
-        hValid,
-        nInN,
-        structuralInSucc,
-        adt.heightSuccessorStrong of (h := heightFun, x := structuralTerm1, n := heightIndex),
-        equivalenceApply of (
-          p1 := structuralTerm1 ∈ app(heightFun)(S(heightIndex)),
-          p2 := adt.isConstructor(structuralTerm1, app(heightFun)(heightIndex))
-        )
-      )
-
-      val constructorBranches = adt.constructors.map { other =>
-        // Distinct fresh names per argument: `variable[Ind]` derives its identifier
-        // from the enclosing val (`branchVars`), so `.map(_ => variable[Ind])` would
-        // give every argument the *same* identifier — collapsing e.g. `cons(a)(b)`
-        // into `cons(branchVars)(branchVars)` and breaking the injectivity/Congruence
-        // reasoning below for any constructor of arity ≥ 2.
-        val branchVars = other.variables2.indices.map(i => Variable[Ind](s"branchVar$i")).toSeq
-        val branchSubsts = other.variables2.zip(branchVars).map { case (v, fresh) => v := fresh }
-        val branchSignature = branchVars.zip(other.signature2.map(_._2))
-        val branchTerm = other.term2.substitute(branchSubsts*).asInstanceOf[Expr[Ind]]
-        val branch = existsSeq(
-          branchVars,
-          wellTypedFormula(branchSignature)(app(heightFun)(heightIndex)) /\
-            (structuralTerm1 === branchTerm)
-        )
-        val branchBody =
-          wellTypedFormula(branchSignature)(app(heightFun)(heightIndex)) /\
-            (structuralTerm1 === branchTerm)
-
-        if other == underlying then
-          val directBranch = have(branchBody |- wellTypedFormula(underlying.signature1)(app(heightFun)(heightIndex))) subproof {
-            assume(branchBody)
-            val argsTypedAtHeight = have(wellTypedFormula(branchSignature)(app(heightFun)(heightIndex))) by Tautology
-            val structuralEquality = have(structuralTerm1 === branchTerm) by Tautology
-            val varsEqual = have(variables1 === branchVars) by Tautology.from(
-              structuralEquality,
-              underlying.injectivity.of(branchSubsts*),
-              equivalenceApply of (
-                p1 := structuralTerm1 === branchTerm,
-                p2 := seqEq(variables1, branchVars)
-              )
-            )
-            val transportedTyping = syntacticSignature.zipWithIndex.map { case ((v1, arg), idx) =>
-              val v2 = branchVars(idx)
-              val vEq = have(v1 === v2) by Tautology.from(varsEqual)
-              // `argsTypedAtHeight` is a conjunction of all argument typings; Congruence
-              // only inspects top-level hypotheses, so first split out *this* argument's
-              // typing with Tautology, then transport it across `v1 = v2`.
-              arg match
-                case lisa.maths.SetTheory.Types.ADTv2.syntax.AST.SelfRef =>
-                  val v2Typed = have(v2 ∈ app(heightFun)(heightIndex)) by Tautology.from(argsTypedAtHeight)
-                  have(v1 ∈ app(heightFun)(heightIndex)) by Congruence.from(v2Typed, vEq)
-                case lisa.maths.SetTheory.Types.ADTv2.syntax.AST.TypeArg(name) =>
-                  val v2Typed = have(v2 ∈ typeExprToTerm(name)) by Tautology.from(argsTypedAtHeight)
-                  have(v1 ∈ typeExprToTerm(name)) by Congruence.from(v2Typed, vEq)
-            }
-            have(wellTypedFormula(underlying.signature1)(app(heightFun)(heightIndex))) by Tautology.from(
-              transportedTyping*
-            )
-          }
-          val rawBranch = branchVars.reverse.foldLeft(directBranch -> branchBody) { case ((fact, premise), v) =>
-            val wrappedPremise = ∃(v, premise)
-            val lifted = have(fact.statement -<? premise +<? wrappedPremise) by
-              LeftExists.withParameters(premise, v)(fact)
-            (lifted, wrappedPremise)
-          }
-          have(branch |- wellTypedFormula(underlying.signature1)(app(heightFun)(heightIndex))) by Tautology.from(rawBranch._1)
+      // Specialize each constructor's short definition before introducing any
+      // assumption (instantiation requires an empty context). Nullary constructors
+      // have an un-quantified `shortDefinition`, so there is nothing to instantiate.
+      val p1Impl =
+        if variables1.isEmpty then shortDefinition
         else
-          val directBranch = have(branchBody |- wellTypedFormula(underlying.signature1)(app(heightFun)(heightIndex))) subproof {
-            assume(branchBody)
-            val structuralEquality = have(structuralTerm1 === branchTerm) by Tautology
-            val impossible = have(!(structuralTerm1 === branchTerm)) by
-              Tautology.from(adt.injectivity(underlying, other).of(branchSubsts*))
-            have(wellTypedFormula(underlying.signature1)(app(heightFun)(heightIndex))) by Tautology.from(
-              structuralEquality,
-              impossible
-            )
-          }
-          val rawBranch = branchVars.reverse.foldLeft(directBranch -> branchBody) { case ((fact, premise), v) =>
-            val wrappedPremise = ∃(v, premise)
-            val lifted = have(fact.statement -<? premise +<? wrappedPremise) by
-              LeftExists.withParameters(premise, v)(fact)
-            (lifted, wrappedPremise)
-          }
-          have(branch |- wellTypedFormula(underlying.signature1)(app(heightFun)(heightIndex))) by Tautology.from(rawBranch._1)
-      }
+          have(wellTypedFormula(semanticSignature1) ==> (appliedTerm1 === structuralTerm1)) by
+            InstantiateForallSeq(variables1)(shortDefinition)
+      val p1 = have(wellTypedSet(semanticSignature1) |- appliedTerm1 === structuralTerm1) by Restate.from(p1Impl)
+      
+      val p2Impl =
+        if other.variables2.isEmpty then other.shortDefinition
+        else
+          have(wellTypedFormula(other.semanticSignature2) ==> (other.appliedTerm2 === other.structuralTerm2)) by
+            InstantiateForallSeq(other.variables2)(other.shortDefinition)
+      val p2 = have(wellTypedSet(other.semanticSignature2) |- other.appliedTerm2 === other.structuralTerm2) by Restate.from(p2Impl)
 
-      have(adt.isConstructor(structuralTerm1, app(heightFun)(heightIndex)) |- wellTypedFormula(underlying.signature1)(app(heightFun)(heightIndex))) by LeftOr(
-        constructorBranches*
-      )
-      have(wellTypedFormula(underlying.signature1)(app(heightFun)(heightIndex))) by Tautology.from(
-        isConstructorAtHeight,
-        lastStep
-      )
+
+      val structuralDisequality = underlying.disjointness(other.underlying)
+
+      have(
+        (wellTypedSet(semanticSignature1) ++ wellTypedSet(other.semanticSignature2)) |-
+          !(appliedTerm1 === other.appliedTerm2)
+      ) by Congruence.from(p1, p2, structuralDisequality)
       thenHave(thesis) by Restate
-    }
-
-  def semanticTypingFromHeightAt(
-      substitutions: Seq[TypeSubstitution]
-  )(heightFun: Expr[Ind], n: Expr[Ind])(using sourcecode.Line, sourcecode.File): THM = {
-    val normalized = normalizeTypeSubstitutions("constructor", fullName, typeVariablesSeq, substitutions)
-    instantiatedTheorem(
-      theoremOwner = renderAppliedSymbol(fullName, typeVariablesSeq.size, normalizedTypeArguments(normalized)),
-      suffix = "semanticTypingFromHeight",
-      substitutions = normalized,
-      baseTheorem = semanticTypingFromHeight(heightFun, n)
-    )
-  }
-
-  def recursiveArgInHeightAt(
-      substitutions: Seq[TypeSubstitution]
-  )(heightFun: Expr[Ind], heightIndex: Expr[Ind])(using sourcecode.Line, sourcecode.File): THM = {
-    val normalized = normalizeTypeSubstitutions("constructor", fullName, typeVariablesSeq, substitutions)
-    val typeInstantiated = instantiatedTheorem(
-      theoremOwner = renderAppliedSymbol(fullName, typeVariablesSeq.size, normalizedTypeArguments(normalized)),
-      suffix = "recursiveArgInHeight",
-      substitutions = normalized,
-      baseTheorem = recursiveArgInHeight(heightFun, heightIndex)
-    )
-    val valueSubstitutions = variables1.zip(variables2).map((from, to) => from := to)
-    Lemma(typeInstantiated.statement.substitute(valueSubstitutions*)) {
-      have(thesis) by Restate.from(typeInstantiated.of(valueSubstitutions*))
-    }
-  }
-
-  def appliedEqualityFromStructuralAt(
-      substitutions: Seq[TypeSubstitution]
-  )(heightFun: Expr[Ind], n: Expr[Ind], term0: Expr[Ind])(using sourcecode.Line, sourcecode.File): THM = {
-    val normalized = normalizeTypeSubstitutions("constructor", fullName, typeVariablesSeq, substitutions)
-    instantiatedTheorem(
-      theoremOwner = renderAppliedSymbol(fullName, typeVariablesSeq.size, normalizedTypeArguments(normalized)),
-      suffix = "appliedEqualityFromStructural",
-      substitutions = normalized,
-      baseTheorem = appliedEqualityFromStructural(heightFun, n, term0)
-    )
-  }
-
-  def structuralPairDecomposition(other: SemanticConstructor[?]): THM =
-    Lemma(
-      (structuralTerm1 === other.structuralTerm2) <=>
-        ((underlying.tagTerm === other.underlying.tagTerm) /\
-          (underlying.subterm1 === other.underlying.subterm2))
-    ) {
-      have(thesis) by Restate.from(
-        Pair.extensionality of (
-          a := underlying.tagTerm,
-          b := underlying.subterm1,
-          c := other.underlying.tagTerm,
-          d := other.underlying.subterm2
-        )
-      )
-    }
-
-  def structuralDisjointness(other: SemanticConstructor[?]): THM = {
-    require(this != other, "structuralDisjointness requires two distinct constructors.")
-
-    val minTag = Math.min(underlying.tag, other.underlying.tag)
-    val maxTag = Math.max(underlying.tag, other.underlying.tag)
-
-    Lemma(!(structuralTerm1 === other.structuralTerm2)) {
-      val tagsFromStructuralEq = have(
-        structuralTerm1 === other.structuralTerm2 |-
-          (underlying.tagTerm === other.underlying.tagTerm) /\
-          (underlying.subterm1 === other.underlying.subterm2)
-      ) by Tautology.from(structuralPairDecomposition(other))
-
-      val tagsEqual = have(
-        structuralTerm1 === other.structuralTerm2 |- underlying.tagTerm === other.underlying.tagTerm
-      ) by Tautology.from(tagsFromStructuralEq)
-
-      val tagsDifferent = have(!(underlying.tagTerm === other.underlying.tagTerm)) by Tautology.from(
-        constructorTagDisequality(
-          underlying.tagTerm,
-          other.underlying.tagTerm,
-          minTag,
-          maxTag
-        )
-      )
-
-      have(thesis) by Tautology.from(tagsEqual, tagsDifferent)
     }
   }
 
@@ -582,16 +322,12 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
    *  e.g. Cons(head1, tail1) === Cons(head2, tail2) <=> head1 === head2 /\ tail1 ===
    *  tail2
    */
-  lazy val injectivity = {
-    val vars1WellTyped: Set[Expr[Prop]] = wellTypedSet(semanticSignature1)
-    val vars2WellTyped: Set[Expr[Prop]] = wellTypedSet(semanticSignature2)
-
+  val injectivity = {
+    
     val lemmaName = sourcecode.FullName(s"${fullName}/injectivity")
-    if arity == 0 then {
-      Lemma(using name = lemmaName)(appliedTerm1 === appliedTerm2) {
-        have(thesis) by RightRefl
-      }
-    } else
+    if arity == 0 then 
+      Lemma(using name = lemmaName)(appliedTerm1 === appliedTerm2) {have(thesis) by RightRefl}
+    else
       val typedAssumption =
         simplify(wellTypedFormula(semanticSignature1 ++ semanticSignature2))
       Lemma(using name = lemmaName)(
@@ -601,114 +337,35 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
         )
       ) {
 
-        have(
-          forallSeq(
-            variables1,
-            wellTypedFormula(semanticSignature1) ==> (appliedTerm1 === structuralTerm1)
-          )
-        ) by Restate.from(shortDefinition)
+        val vars1WellTyped: Set[Expr[Prop]] = wellTypedSet(semanticSignature1)
+        val vars2WellTyped: Set[Expr[Prop]] = wellTypedSet(semanticSignature2)
 
-        variables1.foldLeft(lastStep)((fact, v) =>
-          fact.statement.right.head match
-            case forall(_, phi) => thenHave(phi) by InstantiateForall(v)
-            case _ => throw UnreachableException
-        )
-        val tappTerm1Def = thenHave(vars1WellTyped |- appliedTerm1 === structuralTerm1) by
-          Restate
+        // Both applications reduce to their structural terms once the arguments are well-typed.
+        have(wellTypedFormula(semanticSignature1) ==> (appliedTerm1 === structuralTerm1)) by
+          InstantiateForallSeq(variables1)(shortDefinition)
+        val tappTerm1Def = thenHave(vars1WellTyped |- appliedTerm1 === structuralTerm1) by Restate
 
-        have(
-          forallSeq(
-            variables2,
-            wellTypedFormula(semanticSignature2) ==> (appliedTerm2 === structuralTerm2)
-          )
-        ) by Restate.from(shortDefinition)
-
-        variables2.foldLeft(lastStep)((fact, v) =>
-          fact.statement.right.head match
-            case forall(_, phi) => thenHave(phi) by InstantiateForall(v)
-            case _ => throw UnreachableException
-        )
-        val tappTerm2Def = thenHave(vars2WellTyped |- appliedTerm2 === structuralTerm2) by
-          Restate
-
-        val s0 = have(
-          vars2WellTyped + (appliedTerm1 === appliedTerm2) |-
-            appliedTerm1 === structuralTerm2
-        ) by Cut(
-          tappTerm2Def,
-          altEqualityTransitivity of
-            (x := appliedTerm1, y := appliedTerm2, z := structuralTerm2)
-        )
-        have(
-          vars1WellTyped + (appliedTerm1 === structuralTerm2) |-
-            structuralTerm1 === structuralTerm2
-        ) by Cut(
-          tappTerm1Def,
-          altEqualityTransitivity of
-            (x := structuralTerm1, y := appliedTerm1, z := structuralTerm2)
-        )
-        have(
-          (vars1WellTyped ++ vars2WellTyped) + (appliedTerm1 === appliedTerm2) |-
-            structuralTerm1 === structuralTerm2
-        ) by Cut(s0, lastStep)
-        val forward = thenHave(
-          vars1WellTyped ++ vars2WellTyped |- (appliedTerm1 === appliedTerm2) ==>
-            (structuralTerm1 === structuralTerm2)
-        ) by RightImplies
-
-        val s1 = have(
-          vars1WellTyped + (structuralTerm1 === structuralTerm2) |-
-            appliedTerm1 === structuralTerm2
-        ) by Cut(
-          tappTerm1Def,
-          altEqualityTransitivity of
-            (x := appliedTerm1, y := structuralTerm1, z := structuralTerm2)
-        )
-        have(
-          vars2WellTyped + (appliedTerm1 === structuralTerm2) |-
-            appliedTerm1 === appliedTerm2
-        ) by Cut(
-          tappTerm2Def,
-          altEqualityTransitivity of
-            (x := appliedTerm1, y := structuralTerm2, z := appliedTerm2)
-        )
-        have(
-          (vars1WellTyped ++ vars2WellTyped) + (structuralTerm1 === structuralTerm2) |-
-            appliedTerm1 === appliedTerm2
-        ) by Cut(s1, lastStep)
-        val backward = thenHave(
-          vars1WellTyped ++ vars2WellTyped |- (structuralTerm1 === structuralTerm2) ==>
-            (appliedTerm1 === appliedTerm2)
-        ) by RightImplies
+        have(wellTypedFormula(semanticSignature2) ==> (appliedTerm2 === structuralTerm2)) by
+          InstantiateForallSeq(variables2)(shortDefinition)
+        val tappTerm2Def = thenHave(vars2WellTyped |- appliedTerm2 === structuralTerm2) by Restate
 
         val definitionUnfolding = have(
           vars1WellTyped ++ vars2WellTyped |- (appliedTerm1 === appliedTerm2) <=>
             (structuralTerm1 === structuralTerm2)
-        ) by RightIff(forward, backward)
+        ) by Congruence.from(tappTerm2Def, tappTerm1Def)
 
         have(
           (appliedTerm1 === appliedTerm2) <=> (structuralTerm1 === structuralTerm2) |-
             (appliedTerm1 === appliedTerm2) <=> seqEq(variables1, variables2)
-        ) by Cut(
-          underlying.injectivity,
-          equivalenceRewriting of
-            (
-              p1 := (appliedTerm1 === appliedTerm2),
-              p2 := (structuralTerm1 === structuralTerm2),
-              p3 := seqEq(variables1, variables2)
-            )
-        )
+        ) by Congruence.from(underlying.injectivity)
+
         val equalityCharacterization = have(
           vars1WellTyped ++ vars2WellTyped |-
             simplify((appliedTerm1 === appliedTerm2) <=> (variables1 === variables2))
         ) by Cut(definitionUnfolding, lastStep)
 
-        have(typedAssumption ==> simplify((appliedTerm1 === appliedTerm2) <=> (variables1 === variables2))) subproof {
-          assume(typedAssumption)
-          val typed = have(typedAssumption) by Hypothesis
-          have(simplify((appliedTerm1 === appliedTerm2) <=> (variables1 === variables2))) by
-            Tautology.from(equalityCharacterization, typed)
-        }
+        have(typedAssumption ==> simplify((appliedTerm1 === appliedTerm2) <=> (variables1 === variables2))) by
+          Restate.from(equalityCharacterization)
         thenHave(thesis) by QuantifiersIntro(variables1 ++ variables2)
       }
   }
@@ -716,12 +373,11 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
   /**
    * Case generated by this constructor when performing a proof by induction
    */
-  lazy val inductiveCase: Expr[Prop] = syntacticSignature
+  val inductiveCase: Expr[Prop] = syntacticSignature
     .foldRight[Expr[Prop]](P(appliedTerm1)) { (el, fc) =>
       val (v, typ) = el
       typ match
         case SelfRef => forall(v, (v :: adt.term) ==> (P(v) ==> fc))
-        // case RegularArg(t) => forall(v, (v :: typeExprToTerm(t)) ==> fc)
         case TypeArg(name) => forall(v, (v :: typeExprToTerm(name)) ==> fc)
     }
 
@@ -757,4 +413,169 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
       suffix = "injectivity",
       baseTheorem = injectivity
     )
+
+
+  // –––– Exported semantic theorems ––––––––––––––––––––––––––––––––––––––––––
+
+  private def semanticTypingFromHeight(heightFun: Expr[Ind], n: Expr[Ind]): THM = Lemma(
+    (adt.isHeight(heightFun), n ∈ N, heightTypingFormula(app(heightFun)(n))) |-
+      wellTypedFormula(semanticSignature2)
+  ) {
+    assume(adt.isHeight(heightFun))
+    assume(n ∈ N)
+    assume(heightTypingFormula(app(heightFun)(n)))
+
+    have((n ∈ N) /\ heightTypingFormula(app(heightFun)(n))) by Restate
+    val exTypedAtHeight = thenHave(
+      ∃(k, (k ∈ N) /\ heightTypingFormula(app(heightFun)(k)))
+    ) by RightExists
+
+    have(thesis) by Tautology.from(
+      adt
+        .termsHaveHeight(underlying)
+        .of(h := heightFun)
+        .of(underlying.variables.zip(underlying.variables2).map((from, to) => from := to)*), 
+      exTypedAtHeight
+    )
+  }
+
+  private def appliedEqualityFromStructural(heightFun: Expr[Ind], n: Expr[Ind], term0: Expr[Ind]): THM =
+    Lemma(
+      (adt.isHeight(heightFun), n ∈ N, branchPremiseAtHeight(app(heightFun)(n), term0)) |-
+        (term0 === appliedTerm2)
+    ) {
+      assume(adt.isHeight(heightFun))
+      assume(n ∈ N)
+      assume(branchPremiseAtHeight(app(heightFun)(n), term0))
+      
+      val shortBase = have(shortDefinition.statement.right.head) by Tautology.from(shortDefinition)
+      val shortAtVars2 = have(wellTypedFormula(semanticSignature2) ==> (appliedTerm2 === structuralTerm2)) by
+        InstantiateForallSeq(variables2)(shortBase)
+      have(term0 === appliedTerm2) by Tautology.from(
+        altEqualityTransitivity of (x := term0, y := structuralTerm2, z := appliedTerm2),
+        shortAtVars2,
+        semanticTypingFromHeight(heightFun, n)
+      )
+    }
+
+  private def recursiveArgInHeight(heightFun: Expr[Ind], heightIndex: Expr[Ind]): THM =
+    Lemma(
+      (adt.isHeight(heightFun), heightIndex ∈ N, wellTypedFormula(semanticSignature1), appliedTerm1 ∈ app(heightFun)(S(heightIndex))) |-
+        wellTypedFormula(underlying.signature1)(app(heightFun)(heightIndex))
+    ) {
+      val hValid = assume(adt.isHeight(heightFun))
+      val nInN = assume(heightIndex ∈ N)
+      assume(wellTypedFormula(semanticSignature1))
+      val appliedInSucc = assume(appliedTerm1 ∈ app(heightFun)(S(heightIndex)))
+
+      // The application equals the structural term once the arguments are well-typed.
+      val shortBase = have(shortDefinition.statement.right.head) by Tautology.from(shortDefinition)
+      have(wellTypedFormula(semanticSignature1) ==> (appliedTerm1 === structuralTerm1)) by
+        InstantiateForallSeq(variables1)(shortBase)
+      val appliedEqStructural = have(appliedTerm1 === structuralTerm1) by Restate.from(lastStep)
+
+      val structuralInSucc = have(structuralTerm1 ∈ app(heightFun)(S(heightIndex))) by Congruence.from(
+        appliedEqStructural,
+        appliedInSucc
+      )
+
+
+      val constructorBranches = adt.constructors.map { other =>
+        // Distinct fresh names per argument: `variable[Ind]` derives its identifier
+        // from the enclosing val (`branchVars`), so `.map(_ => variable[Ind])` would
+        // give every argument the *same* identifier — collapsing e.g. `cons(a)(b)`
+        // into `cons(branchVars)(branchVars)` and breaking the injectivity/Congruence
+        // reasoning below for any constructor of arity ≥ 2.
+        val branchVars = other.variables2.indices.map(i => Variable[Ind](s"branchVar$i")).toSeq
+        val branchSubsts = other.variables2.zip(branchVars).map { case (v, fresh) => v := fresh }
+        val branchSignature = branchVars.zip(other.signature2.map(_._2))
+        val branchTerm = other.term2.substitute(branchSubsts*).asInstanceOf[Expr[Ind]]
+        val branchBody =
+          wellTypedFormula(branchSignature)(app(heightFun)(heightIndex)) /\
+            (structuralTerm1 === branchTerm)
+        val branch = existsSeq(branchVars, branchBody)
+
+        val directBranch = if other == underlying then
+          val transportedTyping = syntacticSignature.zipWithIndex.map { case ((v1, arg), idx) =>
+            val v2 = branchVars(idx)
+            val vEq = have(branchBody |- v1 === v2) by Weakening(underlying.injectivity.of(branchSubsts*))
+            // `argsTypedAtHeight` is a conjunction of all argument typings; Congruence
+            // only inspects top-level hypotheses, so first split out *this* argument's
+            // typing with Tautology, then transport it across `v1 = v2`.
+            arg match
+              case lisa.maths.SetTheory.Types.ADTv2.syntax.AST.SelfRef =>
+                val v2Typed = have(branchBody |- v2 ∈ app(heightFun)(heightIndex)) by Restate
+                have(branchBody |- v1 ∈ app(heightFun)(heightIndex)) by Congruence.from(v2Typed, vEq)
+              case lisa.maths.SetTheory.Types.ADTv2.syntax.AST.TypeArg(name) =>
+                val v2Typed = have(branchBody |- v2 ∈ typeExprToTerm(name)) by Restate
+                have(branchBody |- v1 ∈ typeExprToTerm(name)) by Congruence.from(v2Typed, vEq)
+          }
+          have(branchBody |- wellTypedFormula(underlying.signature1)(app(heightFun)(heightIndex))) by 
+            Tautology.from(transportedTyping*)
+
+        else
+          have(branchBody |- wellTypedFormula(underlying.signature1)(app(heightFun)(heightIndex))) by 
+            Tautology.from(underlying.disjointness(other).of(branchSubsts*))
+
+          
+        val rawBranch = branchVars.reverse.foldLeft(directBranch -> branchBody) { case ((fact, premise), v) =>
+          val wrappedPremise = ∃(v, premise)
+          val lifted = have(fact.statement -<? premise +<? wrappedPremise) by
+            LeftExists.withParameters(premise, v)(fact)
+          (lifted, wrappedPremise)
+        }
+        have(branch |- wellTypedFormula(underlying.signature1)(app(heightFun)(heightIndex))) by Tautology.from(rawBranch._1)
+      }
+
+      have(adt.isConstructor(structuralTerm1, app(heightFun)(heightIndex)) |- wellTypedFormula(underlying.signature1)(app(heightFun)(heightIndex))) by LeftOr(
+        constructorBranches*
+      )
+      have(thesis) by Tautology.from(
+        hValid,
+        nInN,
+        structuralInSucc,
+        adt.heightSuccessorStrong of (h := heightFun, x := structuralTerm1, n := heightIndex),
+        lastStep
+      )
+    }
+
+  def semanticTypingFromHeightAt(
+      substitutions: Seq[TypeSubstitution]
+  )(heightFun: Expr[Ind], n: Expr[Ind])(using sourcecode.Line, sourcecode.File): THM = {
+    val normalized = normalizeTypeSubstitutions("constructor", fullName, typeVariablesSeq, substitutions)
+    instantiatedTheorem(
+      theoremOwner = renderAppliedSymbol(fullName, typeVariablesSeq.size, normalizedTypeArguments(normalized)),
+      suffix = "semanticTypingFromHeight",
+      substitutions = normalized,
+      baseTheorem = semanticTypingFromHeight(heightFun, n)
+    )
+  }
+
+  def recursiveArgInHeightAt(
+      substitutions: Seq[TypeSubstitution]
+  )(heightFun: Expr[Ind], heightIndex: Expr[Ind])(using sourcecode.Line, sourcecode.File): THM = {
+    val normalized = normalizeTypeSubstitutions("constructor", fullName, typeVariablesSeq, substitutions)
+    val valueSubstitutions = variables1.zip(variables2).map((from, to) => from := to)
+    instantiatedTheorem(
+      theoremOwner = renderAppliedSymbol(fullName, typeVariablesSeq.size, normalizedTypeArguments(normalized)),
+      suffix = "recursiveArgInHeight",
+      substitutions = normalized ++ valueSubstitutions,
+      baseTheorem = recursiveArgInHeight(heightFun, heightIndex)
+    )
+  }
+
+  def appliedEqualityFromStructuralAt(
+      substitutions: Seq[TypeSubstitution]
+  )(heightFun: Expr[Ind], n: Expr[Ind], term0: Expr[Ind])(using sourcecode.Line, sourcecode.File): THM = {
+    val normalized = normalizeTypeSubstitutions("constructor", fullName, typeVariablesSeq, substitutions)
+    instantiatedTheorem(
+      theoremOwner = renderAppliedSymbol(fullName, typeVariablesSeq.size, normalizedTypeArguments(normalized)),
+      suffix = "appliedEqualityFromStructural",
+      substitutions = normalized,
+      baseTheorem = appliedEqualityFromStructural(heightFun, n, term0)
+    )
+  }
+
+
+
 }

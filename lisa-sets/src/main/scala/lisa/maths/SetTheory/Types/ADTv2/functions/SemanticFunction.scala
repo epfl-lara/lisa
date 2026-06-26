@@ -5,7 +5,7 @@ import lisa.maths.SetTheory.Types.ADTv2.FunctionCore.{FunctionSemanticsBase, Sem
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
 import lisa.maths.SetTheory.Types.ADTv2.encoding._
-import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.utils.debug.Time
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 final class SemanticFunction[N <: Arity](

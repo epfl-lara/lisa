@@ -1,19 +1,18 @@
 package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.syntax
 
 import lisa.maths.SetTheory.SetTheory._
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.induction.InductionBranchSystemWithPayload
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.induction.InductionBranchSystem
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.induction.PatternToInduction
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.ConstructorPattern
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.ConstructorPatternSystem
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.MultiLevelNestedPatternSystem
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.NestedConstructorPattern
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.NestedPatternSystem
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.constructor.ConstructorPattern
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.constructor.ConstructorPatternSystem
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.nested.NestedPatternSystem
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.nested.NestedConstructorPattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
 import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
 import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
 import lisa.maths.SetTheory.Types.ADTv2.interface.SpecializedADT
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.substitutionsFromArgs
-import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.utils.debug.Time
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
@@ -47,46 +46,16 @@ class CaseAccumulator[N <: Arity, T, R](val comp: R) {
       case Some(err) => Left(err)
       case None => Right(buildPatternSystem(adt, bodyAt = ev))
 
-  def compilePatterns(adt: SpecializedADT[N]): Either[String, PatternSystem[N]] =
-    validateCoverage(adt.base) match
-      case Some(err) => Left(err)
-      case None =>
-        Right(buildPatternSystem(adt, bodyAt = _ => ∅))
-
   def compileForInduction(
       adt: SpecializedADT[N]
-  ): Either[String, InductionBranchSystemWithPayload[N, T]] =
-    for
-      patternSystem <- compilePatterns(adt)
-      compiled <- PatternToInduction.compileWithPayload(
-        adt,
-        patternSystem,
-        underlying.toSeq.map(_._3)
-      )
-    yield compiled
-
-  /**
-   * Validates coverage and builds a constructor-keyed map for use in induction proofs.
-   *
-   * Unlike [[compile]], this method requires:
-   *   - all arguments to be binder variables (no nested patterns), and
-   *   - at most one pattern per constructor.
-   *
-   * Returns [[Left]] with an error message on any violation.
-   */
-  def validateAndBuild(adt: ADT[N]): Either[String, Map[Constructor[N], (Seq[Variable[Ind]], T)]] =
-    validateCoverage(adt) match
+  ): Either[String, InductionBranchSystem[N, T]] =
+    validateCoverage(adt.base) match
       case Some(err) => Left(err)
-      case None =>
-        underlying.foldLeft[Either[String, Map[Constructor[N], (Seq[Variable[Ind]], T)]]](Right(Map.empty)) {
-          case (Left(err), _) => Left(err)
-          case (Right(acc), (cons, args, value)) =>
-            if acc.contains(cons) then Left(s"Multiple patterns for ${cons.name} are not supported in induction proofs.")
-            else
-              val vars = args.collect { case v: Variable[Ind] => v }
-              if vars.size != args.size then Left(s"Case ${cons.name}: induction requires variable binders, found a concrete term argument.")
-              else Right(acc + (cons -> (vars, value)))
-        }
+      case None => PatternToInduction.compile(
+          adt,
+          buildPatternSystem(adt, bodyAt = _ => ∅),
+          underlying.toSeq.map(_._3)
+        )
 
   private def validateCoverage(adt: ADT[N]): Option[String] =
     val constructors = adt.constructors.toSet
@@ -129,32 +98,25 @@ class CaseAccumulator[N <: Arity, T, R](val comp: R) {
       adt: SpecializedADT[N],
       typeSubstitutions: Seq[lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution],
       bodyAt: T => Expr[Ind]
-  ): PatternSystem[N] =
-    val patterns = Time.measure(s"PatternSystem nested pattern extraction") {
-      underlying.toSeq.map { case (cons, args, body) =>
-        NestedConstructorPattern.fromArgs(
-          cons.semantic,
-          args.map {
-            case v: Variable[Ind] => Left(v)
-            case t => Right(t.substitute(typeSubstitutions*).asInstanceOf[Expr[Ind]])
-          },
-          bodyAt(body).substitute(typeSubstitutions*).asInstanceOf[Expr[Ind]],
-          typeSubstitutions,
-          adt.term
-        )
-      }
+  ): NestedPatternSystem[N] =
+    val patterns = underlying.toSeq.map { case (cons, args, body) =>
+      NestedConstructorPattern.fromArgs(
+        cons.semantic,
+        args.map {
+          case v: Variable[Ind] => Left(v)
+          case t => Right(t.substitute(typeSubstitutions*).asInstanceOf[Expr[Ind]])
+        },
+        bodyAt(body).substitute(typeSubstitutions*).asInstanceOf[Expr[Ind]],
+        typeSubstitutions,
+        adt.term
+      )
     }
+    
     // A non-nullary (deeply nested) guard ⇒ multi-level system; otherwise the
     // restricted nullary-split system (which also supports recursion).
-    val isMultiLevel = patterns.exists(_.guards.exists(_.resolvedNullary.isEmpty))
-    if isMultiLevel then
-      Time.measure(s"PatternSystem build MultiLevelNestedPatternSystem") {
-        MultiLevelNestedPatternSystem(adt.base.semantic, patterns, typeSubstitutions, adt.term)
-      }
-    else
-      Time.measure(s"PatternSystem build NestedPatternSystem") {
-        NestedPatternSystem(adt.base.semantic, patterns, typeSubstitutions, adt.term)
-      }
+    Time.measure(s"PatternSystem build NestedPatternSystem") {
+      NestedPatternSystem(adt.base.semantic, patterns, typeSubstitutions, adt.term)
+    }
 
   private def buildPatternSystem(
       adt: SpecializedADT[N],
@@ -168,17 +130,8 @@ class CaseAccumulator[N <: Arity, T, R](val comp: R) {
         args.exists(!_.isInstanceOf[Variable[Ind]])
       }
       val system =
-        if isNested then
-          Time.measure(s"PatternSystem build nested (${adt.base.name})") {
-            buildNestedSystem(adt, typeSubstitutions, bodyAt)
-          }
-        else
-          Time.measure(s"ConstructorPatternSystem building") {
-            buildConstructorSystem(adt, typeSubstitutions, bodyAt)
-          }
-      // Time.log(
-      //   s"${adt.base.name}: using ${system.getClass.getSimpleName} with ${system.patterns.size} pattern(s)."
-      // )
+        if isNested then buildNestedSystem(adt, typeSubstitutions, bodyAt)
+        else buildConstructorSystem(adt, typeSubstitutions, bodyAt)
       system
     }
 }

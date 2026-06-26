@@ -1,12 +1,13 @@
-package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics
+package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.nested
 
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticADT
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
 import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
 import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{Pattern, PatternSystem}
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
-import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.utils.debug.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.forallSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.seqOr
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.wellTypedFormula
@@ -23,7 +24,7 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  * `WitnessFunctionProofs`. `branchSelectionFor` (recursion only) is not yet
  * implemented.
  */
-private[PatternMatching] final case class MultiLevelNestedPatternSystem[N <: Arity](
+private[PatternMatching] final case class NestedPatternSystem[N <: Arity](
     domain: SemanticADT[N],
     override val patterns: Seq[NestedConstructorPattern[N]],
     typeSubstitutions: Seq[TypeSubstitution] = Seq.empty,
@@ -45,14 +46,14 @@ private[PatternMatching] final case class MultiLevelNestedPatternSystem[N <: Ari
   override def supportsAutomaticCoverage: Boolean = false
 
   override lazy val coverage: THM =
-    Time.measure(s"MultiLevelNestedPatternSystem/Coverage") {
+    Time.measure(s"NestedPatternSystem/Coverage") {
       NestedTrieProofs.coverageCaseShape((adt, targs), clauses, patterns)
     }
 
   override def incompatible(pattern1: Pattern[N], pattern2: Pattern[N]): THM =
     incompatibleCache.getOrElseUpdate(
       (pattern1, pattern2),
-      Time.measure(s"MultiLevelNestedPatternSystem/Incompatible") {
+      Time.measure(s"NestedPatternSystem/Incompatible") {
         NestedTrieProofs.incompatibleCaseShape(
           pattern1.asInstanceOf[NestedConstructorPattern[?]],
           pattern2.asInstanceOf[NestedConstructorPattern[?]]
@@ -63,7 +64,7 @@ private[PatternMatching] final case class MultiLevelNestedPatternSystem[N <: Ari
   override def branchSelectionFor(constructor: SemanticConstructor[N], term: Expr[Ind]): THM =
     branchSelectionCache.getOrElseUpdate(
       (constructor, term),
-      Time.measure(s"Pattern/Branch selection") {
+      Time.measure(s"NestedPatternSystem/BranchSelection") {
         val pats = patternsFor(constructor).map(_.asInstanceOf[NestedConstructorPattern[N]])
         if pats.forall(_.guards.isEmpty) then
           // single unconditional pattern: the selection is trivial.
@@ -131,7 +132,7 @@ private[PatternMatching] final case class MultiLevelNestedPatternSystem[N <: Ari
     val overlaps = NestedTrie.overlaps(tree)
     require(
       gaps.isEmpty,
-      s"""MultiLevelNestedPatternSystem rejected the nested pattern set for ADT ${adt.name} because it is not exhaustive.
+      s"""NestedPatternSystem rejected the nested pattern set for ADT ${adt.name} because it is not exhaustive.
          |${formattedGapSummary(tree)}
          |This means some constructor combination is not matched by any clause.
          |Decision trie:
@@ -139,7 +140,7 @@ private[PatternMatching] final case class MultiLevelNestedPatternSystem[N <: Ari
     )
     require(
       overlaps.isEmpty,
-      s"""MultiLevelNestedPatternSystem rejected the nested pattern set for ADT ${adt.name} because some clauses overlap and would require an explicit priority rule.
+      s"""NestedPatternSystem rejected the nested pattern set for ADT ${adt.name} because some clauses overlap and would require an explicit priority rule.
          |${formattedOverlapSummary(tree)}
          |Decision trie:
          |${NestedTrie.render(tree)}""".stripMargin

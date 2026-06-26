@@ -7,7 +7,7 @@ import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.Ordinals.Integer.{omegaSuccessorInduction, subsetBelowSucc, unionInOmega}
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
-import lisa.maths.SetTheory.Types.ADTv2.support.Time
+import lisa.utils.debug.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.altEqualityTransitivity
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.equivalenceApply
@@ -36,7 +36,7 @@ private[recursion] object ApproximationChainFacts {
       (upperVar ∈ N) ==> ∀(lowerVar, (lowerVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun0)(lowerVar)) ==> ((lowerVar ⊆ upperVar) ==> (pointVar ∈ app(heightFun0)(upperVar)))))
     )
 
-  val approximantsAgreeFromSubset: THM = Time.measure(s"AppCF/approximantsAgreeFromSubset")(
+  private val approximantsAgreeFromSubset: THM = Time.measure(s"AppCF/approximantsAgreeFromSubset")(
     Lemma(
       (
         stabilizationSchema(heightFun, G),
@@ -121,15 +121,9 @@ private[recursion] object ApproximationChainFacts {
                 val heightMonoAtNInst = have(
                   (nVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun)(nVar)) ==> ((nVar ⊆ uVar) ==> (pointVar ∈ app(heightFun)(uVar))))
                 ) by InstantiateForall(nVar)(heightMonoUpper)
-                val heightMonoAtLower = have(
-                  (nVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun)(nVar)) ==> ((nVar ⊆ uVar) ==> (pointVar ∈ app(heightFun)(uVar))))
-                ) by Restate.from(heightMonoAtNInst)
-                val heightMonoAtN = have(
-                  (nVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun)(nVar)) ==> ((nVar ⊆ uVar) ==> (pointVar ∈ app(heightFun)(uVar))))
-                ) by Restate.from(heightMonoAtLower)
                 val heightMonoAtPoint = have(
                   ∀(pointVar, (pointVar ∈ app(heightFun)(nVar)) ==> ((nVar ⊆ uVar) ==> (pointVar ∈ app(heightFun)(uVar))))
-                ) by Tautology.from(nInN, heightMonoAtN)
+                ) by Tautology.from(nInN, heightMonoAtNInst)
                 val heightMonoAtA = have(
                   (a ∈ app(heightFun)(nVar)) ==> ((nVar ⊆ uVar) ==> (a ∈ app(heightFun)(uVar)))
                 ) by InstantiateForall(a)(heightMonoAtPoint)
@@ -194,7 +188,7 @@ private[recursion] object ApproximationChainFacts {
     }
   )
 
-  val approximantsAgreeAcrossHeights: THM = Time.measure(s"AppCF/approximantsAgreeAcrossHeights")(
+  private val approximantsAgreeAcrossHeights: THM = Time.measure(s"AppCF/approximantsAgreeAcrossHeights")(
     Lemma(
       (
         stabilizationSchema(heightFun, G),
@@ -322,15 +316,13 @@ private[recursion] object ApproximationChainFacts {
       approximantsAgreeFromSubset.of(heightFun := heightFun0, G := G0, nVar := n0, mVar := m0, a := point0)
     )
 
-  def approximantsAgreeAcrossHeightsAt(
+  def approximantsAgreeAcrossHeightsAt(using
+      proof: lisa.SetTheoryLibrary.Proof)(
       heightFun0: Expr[Ind],
       G0: Expr[Ind >>: Ind],
       n0: Expr[Ind],
       m0: Expr[Ind],
-      point0: Expr[Ind]
-  )(using
-      proof: lisa.SetTheoryLibrary.Proof
-  )(
+      point0: Expr[Ind],
       stabilization0: proof.Fact,
       heightMembershipMonotonic0: proof.Fact
   ): proof.Fact =

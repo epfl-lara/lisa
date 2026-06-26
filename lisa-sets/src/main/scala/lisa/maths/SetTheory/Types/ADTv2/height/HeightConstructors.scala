@@ -9,8 +9,9 @@ import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.height.proofs.CoreFacts
 import lisa.maths.SetTheory.Types.ADTv2.height.proofs.SuccessorFacts
 import lisa.maths.SetTheory.Types.ADTv2.height.proofs.UniquenessFacts
-import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
+import lisa.utils.prooflib.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.tactics.Cuts
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 final class HeightConstructors[N <: Arity](
@@ -26,16 +27,6 @@ final class HeightConstructors[N <: Arity](
   private def inIntroImage(s: Expr[Ind])(y: Expr[Ind]): Expr[Prop] =
     base.inIntroImage(s)(y)
 
-  private def constructorPredicate(
-      c: HeightConstructorData,
-      x: Expr[Ind],
-      s: Expr[Ind]
-  ): Expr[Prop] =
-    existsSeq(c.variables, wellTypedFormula(c.signature)(s) /\ (x === c.term))
-
-  val heightExists = Lemma(exists(h, base.isHeight(h))) {
-    have(thesis) by Restate.from(heightStageSet.heightExists)
-  }
 
   /**
    *  Lemma --- If two functions are the height function then they are the same.
@@ -44,8 +35,7 @@ final class HeightConstructors[N <: Arity](
    */
   val heightUniqueness = Lemma((base.isHeight(f), base.isHeight(h)) |- f === h) {
 
-    have(thesis) by Tautology.from(
-      UniquenessFacts.uniquenessAt(isConstructor, f, h),
+    have(thesis) by Cuts(UniquenessFacts.uniquenessAt(isConstructor, f, h))(
       introFunctionMonoHyp,
       base.heightIsCore of (h := f),
       base.heightIsCore of (h := h)
@@ -55,24 +45,20 @@ final class HeightConstructors[N <: Arity](
   val heightExistsOne = Lemma(existsOne(h, base.isHeight(h))) {
 
     val existencePart = have(∃(h, base.isHeight(h))) by
-      Restate.from(heightExists of (h := h))
+      Restate.from(heightStageSet.heightExists of (h := h))
 
     have(base.isHeight(f) /\ base.isHeight(h) ==> (f === h)) by
       Restate.from(heightUniqueness)
-    thenHave(
-      ∀(h, base.isHeight(f) /\ base.isHeight(h) ==> (f === h))
-    ) by RightForall
     val uniquenessAll = thenHave(
       ∀(f, ∀(h, base.isHeight(f) /\ base.isHeight(h) ==> (f === h)))
-    ) by RightForall
+    ) by Generalize
 
     have(
       ∃(h, base.isHeight(h)) /\
         ∀(f, ∀(h, base.isHeight(f) /\ base.isHeight(h) ==> (f === h)))
-    ) by Tautology.from(existencePart, uniquenessAll)
+    ) by RightAnd(existencePart, uniquenessAll)
 
-    have(thesis) by Tautology.from(
-      lastStep,
+    thenHave(thesis) by Substitute(
       existsOneAlternativeDefinition of (x := h, P := λ(h, base.isHeight(h)))
     )
   }
@@ -81,82 +67,31 @@ final class HeightConstructors[N <: Arity](
    *  Lemma --- The introduction function is monotonic with respect to set inclusion.
    *
    *  `s ⊆ t |- introductionFunction(s) ⊆ introductionFunction(t)`
+   *
+   * Derived from `isConstructorMonoHyp` (the concrete `isConstructor` monotonicity) plus
+   * subset elimination for the membership disjunct: `inIntroImage` is just
+   * `isConstructor(x)(s) \/ in(x, s)`, so monotonicity of each disjunct lifts to the whole.
+   * This avoids re-proving the constructor-by-constructor argument that already lives in
+   * `isConstructorMonoHyp`.
    */
-  private[ADTv2] lazy val introductionFunctionMononotic = Lemma(
-    subset(s, t) |-
-      inIntroImage(s)(x) ==> inIntroImage(t)(x)
-  ) {
-    val subsetST = s ⊆ t
-    val isConstructorXS = isConstructor(x)(s)
-    val isConstructorXT = isConstructor(x)(t)
-
-    have(s ⊆ t |- forall(z, in(z, s) ==> in(z, t))) by
-      Congruence.from(subsetAxiom of (x := s, y := t))
-    val subsetElimination = thenHave(s ⊆ t |- in(z, s) ==> in(z, t)) by
-      InstantiateForall(z)
-
-    val isConstructorXSImpliesT =
-      for c <- constructors yield
-        val labelEq = x === c.term
-        val isConstructorCXS = constructorPredicate(c, x, s)
-        val varsWellTypedS = wellTypedFormula(c.signature)(s)
-        val varsWellTypedT = wellTypedFormula(c.signature)(t)
-
-        if c.arity == 0 then have((subsetST, isConstructorCXS) |- isConstructorXT) by Restate
-        else
-          val andSeq =
-            for (v, ty) <- c.signature
-            yield have((subsetST, varsWellTypedS) |- in(v, ty.getOrElse(t))) by
-              Weakening(subsetElimination of (z := v))
-          val expandingDomain = have((subsetST, varsWellTypedS) |- varsWellTypedT) by
-            RightAnd(andSeq*)
-          val weakeningLabelEq = have(labelEq |- labelEq) by Hypothesis
-          have((subsetST, varsWellTypedS, labelEq) |- varsWellTypedT /\ labelEq) by
-            RightAnd(expandingDomain, weakeningLabelEq)
-
-          val existsCXS = existsSeq(c.variables, varsWellTypedS /\ labelEq)
-          val existsCXT = existsSeq(c.variables, varsWellTypedT /\ labelEq)
-
-          thenHave((subsetST, varsWellTypedS, labelEq) |- existsCXT) by
-            QuantifiersIntro(c.variables)
-          thenHave((subsetST, varsWellTypedS /\ labelEq) |- existsCXT) by LeftAnd
-          thenHave((subsetST, existsCXS) |- existsCXT) by QuantifiersIntro(c.variables)
-          have((subsetST, isConstructorCXS) |- isConstructorXT) by Tautology.from(lastStep)
-
-    val constructorBranch =
-      if constructors.isEmpty then have((subsetST, isConstructorXS) |- isConstructorXT) by Restate
-      else
-        have((subsetST, isConstructorXS) |- isConstructorXT) by LeftOr(
-          isConstructorXSImpliesT*
-        )
-
-    val constructorCase = have((subsetST, isConstructorXS) |- inIntroImage(t)(x)) by
-      Tautology.from(constructorBranch)
-
-    val subsetEliminationX = have(s ⊆ t |- in(x, s) ==> in(x, t)) by
-      Restate.from(subsetElimination of (z := x))
-    have((subsetST, in(x, s)) |- in(x, t)) by Tautology.from(subsetEliminationX)
-    val membershipCase = have((subsetST, in(x, s)) |- inIntroImage(t)(x)) by
-      Tautology.from(lastStep)
-
-    have((subsetST, inIntroImage(s)(x)) |- inIntroImage(t)(x)) by
-      Tautology.from(constructorCase, membershipCase)
-    thenHave(thesis) by RightImplies
-  }
-
   private lazy val introFunctionMonoHyp: THM = Lemma(
     CoreFacts.introFunctionMono.substitute(CoreFacts.isConstructor := isConstructor)
   ) {
-    have(introductionFunctionMononotic.statement) by
-      Restate.from(introductionFunctionMononotic)
-    thenHave(subset(s, t) |- forall(x, inIntroImage(s)(x) ==> inIntroImage(t)(x))) by
-      RightForall
-    thenHave(subset(s, t) ==> forall(x, inIntroImage(s)(x) ==> inIntroImage(t)(x))) by
-      RightImplies
-    thenHave(
-      forall(t, subset(s, t) ==> forall(x, inIntroImage(s)(x) ==> inIntroImage(t)(x)))
-    ) by RightForall
-    thenHave(thesis) by RightForall
+    val ctorMono = have(subset(s, t) |- isConstructor(x)(s) ==> isConstructor(x)(t)) by Cut(
+      isConstructorMonoHyp,
+      CoreFacts.isConstructorMonotonic.of(CoreFacts.isConstructor := isConstructor)
+    )
+    have(subset(s, t) |- forall(z, in(z, s) ==> in(z, t))) by
+      Congruence.from(subsetAxiom of (x := s, y := t))
+    val memMono = thenHave(subset(s, t) |- in(x, s) ==> in(x, t)) by InstantiateForall(x)
+
+    have(subset(s, t) |- inIntroImage(s)(x) ==> inIntroImage(t)(x)) by
+      Tautology.from(ctorMono, memMono)
+    thenHave(subset(s, t) |- forall(x, inIntroImage(s)(x) ==> inIntroImage(t)(x))) by RightForall
+
+
+    thenHave(subset(s, t) ==> forall(x, inIntroImage(s)(x) ==> inIntroImage(t)(x))) by RightImplies
+    thenHave(thesis) by Generalize
   }
 
   private lazy val isConstructorMonoHyp: THM = Lemma(
@@ -169,14 +104,13 @@ final class HeightConstructors[N <: Arity](
     val isConstructorXSImpliesT =
       for c <- constructors yield
         val labelEq = x === c.term
-        val isConstructorCXS = constructorPredicate(c, x, s)
-        val isConstructorCXT = constructorPredicate(c, x, t)
+        val isConstructorCXS = heightStageSet.constructorPredicate(c, x, s)
+        val isConstructorCXT = heightStageSet.constructorPredicate(c, x, t)
         val varsWellTypedS = wellTypedFormula(c.signature)(s)
         val varsWellTypedT = wellTypedFormula(c.signature)(t)
 
         if c.arity == 0 then
-          have((subsetST, isConstructorCXS) |- isConstructorCXT) by Restate
-          have((subsetST, isConstructorCXS) |- isConstructorXT) by Tautology.from(lastStep)
+          have((subsetST, isConstructorCXS) |- isConstructorXT) by Restate
         else
           have(s ⊆ t |- forall(z, in(z, s) ==> in(z, t))) by
             Congruence.from(subsetAxiom of (x := s, y := t))
@@ -202,33 +136,11 @@ final class HeightConstructors[N <: Arity](
     val constructorBranch =
       if constructors.isEmpty then have((subsetST, isConstructorXS) |- isConstructorXT) by Restate
       else
-        have((subsetST, isConstructorXS) |- isConstructorXT) by LeftOr(
-          isConstructorXSImpliesT*
-        )
+        have((subsetST, isConstructorXS) |- isConstructorXT) by 
+          LeftOr(isConstructorXSImpliesT*)
 
-    have((subsetST, isConstructorXS) |- isConstructorXT) by Restate.from(constructorBranch)
-    thenHave(subsetST |- isConstructorXS ==> isConstructorXT) by RightImplies
-    thenHave(subset(s, t) ==> (isConstructor(x)(s) ==> isConstructor(x)(t))) by Restate
-    thenHave(forall(x, subset(s, t) ==> (isConstructor(x)(s) ==> isConstructor(x)(t)))) by
-      RightForall
-    thenHave(forall(t, forall(x, subset(s, t) ==> (isConstructor(x)(s) ==> isConstructor(x)(t))))) by
-      RightForall
-    thenHave(thesis) by RightForall
-  }
-
-  /**
-   *  Lemma --- The extended introduction function is monotonic with respect to set
-   *  inclusion.
-   */
-  private[ADTv2] val extIntroMonotonic = Lemma(
-    subset(f, g) |-
-      base.inExtIntroImage(f)(x) ==>
-      base.inExtIntroImage(g)(x)
-  ) {
-    have(thesis) by Tautology.from(
-      introFunctionMonoHyp,
-      CoreFacts.extIntroMonotonicAt(isConstructor, f, g, x)
-    )
+    have(subset(s, t) ==> (isConstructor(x)(s) ==> isConstructor(x)(t))) by Restate.from(constructorBranch)
+    thenHave(thesis) by Generalize
   }
 
   /**
@@ -237,28 +149,21 @@ final class HeightConstructors[N <: Arity](
   val heightMonotonic = Lemma(
     (base.isHeight(h), in(n, N), in(m, N), subset(m, n)) |- subset(app(h, m), app(h, n))
   ) {
-    have(thesis) by Tautology.from(
+    have(thesis) by Cuts(CoreFacts.heightMonotonicAt(isConstructor, h, n, m))(
       base.heightIsCore,
-      introFunctionMonoHyp,
-      CoreFacts.heightMonotonicAt(isConstructor, h, n, m)
+      introFunctionMonoHyp
     )
   }
 
   val heightMembershipMonotonic = Lemma(
-    (base.isHeight(h), in(n, N), in(m, N), subset(m, n), in(x, app(h, m))) |- in(x, app(h, n))
+    (base.isHeight(h), n ∈ N, m ∈ N, m ⊆ n, x ∈ app(h, m)) |- in(x, app(h, n))
   ) {
-    val hIsHeight = assume(base.isHeight(h))
-    val nInN = assume(in(n, N))
-    val mInN = assume(in(m, N))
-    val mSubN = assume(subset(m, n))
-    val xInHm = assume(in(x, app(h, m)))
+    assume(base.isHeight(h), n ∈ N, m ∈ N, m ⊆ n, x ∈ app(h, m))
 
-    val hSubset = have(subset(app(h, m), app(h, n))) by
-      Tautology.from(hIsHeight, nInN, mInN, mSubN, heightMonotonic)
+    val hSubset = have(app(h, m) ⊆ app(h, n)) by Weakening(heightMonotonic)
 
-    have(in(x, app(h, n))) by Tautology.from(
+    have(x ∈ app(h, m) ==> x ∈ app(h, n)) by Cut(
       hSubset,
-      xInHm,
       Subset.membership of (x := app(h, m), y := app(h, n), z := x)
     )
     thenHave(thesis) by Restate
@@ -267,20 +172,13 @@ final class HeightConstructors[N <: Arity](
   val heightSuccessorInclusion = Lemma(
     (base.isHeight(h), in(n, N), in(x, app(h, n))) |- in(x, app(h, S(n)))
   ) {
-    val hIsHeight = assume(base.isHeight(h))
+    assume(base.isHeight(h))
     val nInN = assume(in(n, N))
-    val xInHn = assume(in(x, app(h, n)))
-    val succInN = have(in(S(n), N)) by Tautology.from(
-      successorInOmega of (n := n),
-      nInN
-    )
-    have(in(x, app(h, S(n)))) by Tautology.from(
-      hIsHeight,
+    assume(in(x, app(h, n)))
+    val succInN = have(in(S(n), N)) by Substitute(successorInOmega of (n := n))(nInN)
+    have(in(x, app(h, S(n)))) by Cuts(heightMembershipMonotonic of (m := n, n := S(n)))(
       succInN,
-      nInN,
-      subsetSuccessor of (n := n),
-      xInHn,
-      heightMembershipMonotonic of (m := n, n := S(n))
+      subsetSuccessor of (n := n)
     )
     thenHave(thesis) by Restate
   }
@@ -292,42 +190,20 @@ final class HeightConstructors[N <: Arity](
     (base.isHeight(h), in(n, N)) |-
       in(x, app(h, S(n))) <=> inIntroImage(app(h, n))(x)
   ) {
-    have(thesis) by Tautology.from(
+    have(thesis) by Cuts(SuccessorFacts.heightSuccessorWeakAt(isConstructor, h, n, x))(
       base.heightIsCore,
-      introFunctionMonoHyp,
-      SuccessorFacts.heightSuccessorWeakAt(isConstructor, h, n, x)
+      introFunctionMonoHyp
     )
-  }
-
-  /**
-   *  Base case used by the internal nat induction in heightSuccessorStrong.
-   */
-  private[ADTv2] lazy val introductionImageAtHeightZeroIsConstructor = Lemma(
-    base.isHeight(h) |-
-      inIntroImage(app(h, ∅))(x) ==> isConstructor(x)(app(h, ∅))
-  ) {
-    val isContructorXHEmptySet = isConstructor(x)(app(h, ∅))
-    val baseCaseLeft = have(isContructorXHEmptySet |- isContructorXHEmptySet) by
-      Hypothesis
-    val baseCaseRight = have((base.isHeight(h), in(x, app(h, ∅))) |- ()) by
-      Restate.from(base.heightZero)
-    have((base.isHeight(h), inIntroImage(app(h, ∅))(x)) |- isContructorXHEmptySet) by
-      LeftOr(baseCaseLeft, baseCaseRight)
-    thenHave(
-      base.isHeight(h) |-
-        inIntroImage(app(h, ∅))(x) ==> isContructorXHEmptySet
-    ) by RightImplies
   }
 
   private[ADTv2] lazy val heightSuccessorStrong = Lemma(
     (base.isHeight(h), in(n, N)) |-
       in(x, app(h, S(n))) <=> isConstructor(x)(app(h, n))
   ) {
-    have(thesis) by Tautology.from(
+    have(thesis) by Cuts(SuccessorFacts.heightSuccessorStrongAt(isConstructor, h, n, x))(
       base.heightIsCore,
       introFunctionMonoHyp,
-      isConstructorMonoHyp,
-      SuccessorFacts.heightSuccessorStrongAt(isConstructor, h, n, x)
+      isConstructorMonoHyp
     )
   }
 }

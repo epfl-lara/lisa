@@ -3,11 +3,12 @@ package lisa.maths.SetTheory.Types.ADTv2.height.proofs
 import lisa.maths.SetTheory.Base.Extensionality
 import lisa.maths.SetTheory.Functions.BasicTheorems.extensionality
 import lisa.maths.SetTheory.Functions.BasicTheorems.functionOnIffFunctionWithDomain
-import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.Ordinals.Integer.omegaSuccessorInduction
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.tactics.Cuts
+import lisa.maths.SetTheory.Functions.Function.{function, functionOn, dom}
 
 private[height] object UniquenessFacts {
 
@@ -21,39 +22,29 @@ private[height] object UniquenessFacts {
   private val zeroCase = Lemma(
     (CoreFacts.introFunctionMono, CoreFacts.isHeightCore(f), CoreFacts.isHeightCore(g)) |- stageEq(∅)
   ) {
-    val fZero = have(
-      (CoreFacts.introFunctionMono, CoreFacts.isHeightCore(f), CoreFacts.isHeightCore(g)) |- !in(x, app(f, ∅))
-    ) by Tautology.from(SuccessorFacts.heightZero.of(h := f))
-    val gZero = have(
-      (CoreFacts.introFunctionMono, CoreFacts.isHeightCore(f), CoreFacts.isHeightCore(g)) |- !in(x, app(g, ∅))
-    ) by Tautology.from(SuccessorFacts.heightZero.of(h := g))
-    have(
-      (CoreFacts.introFunctionMono, CoreFacts.isHeightCore(f), CoreFacts.isHeightCore(g)) |- in(x, app(f, ∅)) <=> in(x, app(g, ∅))
-    ) by Tautology.from(fZero, gZero)
+    assume(CoreFacts.introFunctionMono, CoreFacts.isHeightCore(f), CoreFacts.isHeightCore(g))
+    // x ∉ app(f, ∅) and x ∉ app(g, ∅), so both memberships are equivalent (both false).
+    val contraF = have(x ∈ app(f, ∅) |- ()) by LeftNot(SuccessorFacts.heightZero.of(h := f))
+    have(x ∈ app(f, ∅) |- x ∈ app(g, ∅)) by Weakening(contraF)
+    val fwd = thenHave(x ∈ app(f, ∅) ==> x ∈ app(g, ∅)) by RightImplies
+    val contraG = have(x ∈ app(g, ∅) |- ()) by LeftNot(SuccessorFacts.heightZero.of(h := g))
+    have(x ∈ app(g, ∅) |- x ∈ app(f, ∅)) by Weakening(contraG)
+    val bwd = thenHave(x ∈ app(g, ∅) ==> x ∈ app(f, ∅)) by RightImplies
+    have((x ∈ app(f, ∅)) <=> (x ∈ app(g, ∅))) by RightIff(fwd, bwd)
     thenHave(thesis) by Extensionality
   }
 
   private val succCase = Lemma(
-    (CoreFacts.introFunctionMono, CoreFacts.isHeightCore(f), CoreFacts.isHeightCore(g), in(n, N), stageEqN) |- stageEqSuccN
+    (CoreFacts.introFunctionMono, CoreFacts.isHeightCore(f), CoreFacts.isHeightCore(g), n ∈ N, stageEqN) |- stageEqSuccN
   ) {
-    val fSucc = have(
-      (CoreFacts.introFunctionMono, CoreFacts.isHeightCore(f), CoreFacts.isHeightCore(g), in(n, N), stageEqN) |-
-        in(x, app(f, S(n))) <=> CoreFacts.inIntroImage(app(f, n))(x)
-    ) by Tautology.from(SuccessorFacts.heightSuccessorWeak.of(h := f))
-    val gSucc = have(
-      (CoreFacts.introFunctionMono, CoreFacts.isHeightCore(f), CoreFacts.isHeightCore(g), in(n, N), stageEqN) |-
-        in(x, app(g, S(n))) <=> CoreFacts.inIntroImage(app(g, n))(x)
-    ) by Tautology.from(SuccessorFacts.heightSuccessorWeak.of(h := g))
+    assume(CoreFacts.introFunctionMono, CoreFacts.isHeightCore(f), CoreFacts.isHeightCore(g), n ∈ N, stageEqN)
 
-    have(
-      (CoreFacts.introFunctionMono, CoreFacts.isHeightCore(f), CoreFacts.isHeightCore(g), in(n, N), stageEqN) |-
-        CoreFacts.inIntroImage(app(f, n))(x) <=> CoreFacts.inIntroImage(app(g, n))(x)
-    ) by Congruence
-
-    have(
-      (CoreFacts.introFunctionMono, CoreFacts.isHeightCore(f), CoreFacts.isHeightCore(g), in(n, N), stageEqN) |-
-        in(x, app(f, S(n))) <=> in(x, app(g, S(n)))
-    ) by Tautology.from(fSucc, gSucc, lastStep)
+    // heightSuccessorWeak rewrites each membership at S(n) to the intro-image at n; the assumed
+    // stageEqN (app(f, n) === app(g, n)) makes those intro-images equal by congruence closure.
+    have(x ∈ app(f, S(n)) <=> x ∈ app(g, S(n))) by Congruence.from(
+      SuccessorFacts.heightSuccessorWeak.of(h := f),
+      SuccessorFacts.heightSuccessorWeak.of(h := g)
+    )
     thenHave(thesis) by Extensionality
   }
 
@@ -61,45 +52,39 @@ private[height] object UniquenessFacts {
     (CoreFacts.introFunctionMono, CoreFacts.isHeightCore(f), CoreFacts.isHeightCore(g)) |- f === g
   ) {
 
-    val induction = have(
-      (
-        CoreFacts.introFunctionMono,
-        CoreFacts.isHeightCore(f),
-        CoreFacts.isHeightCore(g),
-        ∀(n, in(n, N) ==> (stageEqN ==> stageEqSuccN))
-      ) |- ∀(n, in(n, N) ==> stageEqN)
-    ) by Tautology.from(zeroCase, omegaSuccessorInduction of (P := lam(n, stageEqN)))
+    assume(CoreFacts.introFunctionMono, CoreFacts.isHeightCore(f), CoreFacts.isHeightCore(g))
 
-    have(
-      (CoreFacts.introFunctionMono, CoreFacts.isHeightCore(f), CoreFacts.isHeightCore(g), in(n, N)) |- stageEqN ==> stageEqSuccN
-    ) by RightImplies(succCase)
-    thenHave(
-      (CoreFacts.introFunctionMono, CoreFacts.isHeightCore(f), CoreFacts.isHeightCore(g)) |- in(n, N) ==> (stageEqN ==> stageEqSuccN)
-    ) by RightImplies
-    val stepForall = thenHave(
-      (CoreFacts.introFunctionMono, CoreFacts.isHeightCore(f), CoreFacts.isHeightCore(g)) |- ∀(n, in(n, N) ==> (stageEqN ==> stageEqSuccN))
-    ) by RightForall
+    // Inductive step, packaged as a bounded ∀.
+    have(n ∈ N ==> (stageEqN ==> stageEqSuccN)) by Restate.from(succCase)
+    val stepForall = thenHave(∀(n, n ∈ N ==> (stageEqN ==> stageEqSuccN))) by RightForall
 
-    val stagesEqual = have(
-      (CoreFacts.introFunctionMono, CoreFacts.isHeightCore(f), CoreFacts.isHeightCore(g)) |- ∀(n, in(n, N) ==> stageEqN)
-    ) by Cut(stepForall, induction)
+    // ω-induction: from stageEq(∅) (zeroCase) and the step, get ∀ n ∈ N, app(f, n) === app(g, n).
+    val inductionInstance = have(
+      (stageEq(∅), ∀(n, n ∈ N ==> (stageEqN ==> stageEqSuccN))) |- ∀(n, n ∈ N ==> stageEqN)
+    ) by Weakening(omegaSuccessorInduction of (P := λ(n, stageEqN)))
+    val allStageEq = have(∀(n, n ∈ N ==> stageEqN)) by Cuts(inductionInstance)(
+      zeroCase,
+      stepForall
+    )
 
-    val fOnN = have(
-      (CoreFacts.introFunctionMono, CoreFacts.isHeightCore(f), CoreFacts.isHeightCore(g)) |- functionOn(f)(N)
-    ) by Tautology.from(
+    // f and g are functions on N (isHeightCore gives function(·) ∧ dom(·) === N).
+    val fProps = have(function(f) /\ (dom(f) === N)) by Restate
+    have((function(f) /\ (dom(f) === N)) |- functionOn(f)(N)) by Weakening(
       functionOnIffFunctionWithDomain of (f := f, A := N)
     )
-    val gOnN = have(
-      (CoreFacts.introFunctionMono, CoreFacts.isHeightCore(f), CoreFacts.isHeightCore(g)) |- functionOn(g)(N)
-    ) by Tautology.from(
+    val fOnN = have(functionOn(f)(N)) by Cut(fProps, lastStep)
+
+    val gProps = have(function(g) /\ (dom(g) === N)) by Restate
+    have((function(g) /\ (dom(g) === N)) |- functionOn(g)(N)) by Weakening(
       functionOnIffFunctionWithDomain of (f := g, A := N)
     )
+    val gOnN = have(functionOn(g)(N)) by Cut(gProps, lastStep)
 
-    have(thesis) by Tautology.from(
+    // Functional extensionality on N.
+    have(thesis) by Cuts(extensionality of (f := f, g := g, A := N))(
+      allStageEq,
       fOnN,
-      gOnN,
-      stagesEqual,
-      extensionality of (f := f, g := g, A := N)
+      gOnN
     )
   }
 

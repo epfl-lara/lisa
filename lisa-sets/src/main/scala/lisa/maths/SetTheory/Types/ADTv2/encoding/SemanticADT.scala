@@ -7,7 +7,7 @@ import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.instantiatedThe
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.normalizeTypeSubstitutions
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.resolvedTypeArguments
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.theoremAt
-import lisa.maths.SetTheory.Types.ADTv2.support.QuantifiersIntro
+import lisa.utils.prooflib.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.core.**
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts._
@@ -49,18 +49,8 @@ class SemanticADT[N <: Arity](
 
   final class HeightAdapter private[SemanticADT] () {
     def predicate(h: Expr[Ind]): Expr[Prop] = underlying.isHeight(h)
-    lazy val function: Expr[Ind] = underlying.height
-    lazy val valid: THM = underlying.heightValid
-    val exists: THM = underlying.heightExists
-    val monotonic: THM = underlying.heightMonotonic
-    val membershipMonotonic: THM = underlying.heightMembershipMonotonic
-    val successorInclusion: THM = underlying.heightSuccessorInclusion
-    val zero: THM = underlying.heightZero
-    val successorStrong: THM = underlying.heightSuccessorStrong
-    val termHasHeight: THM = underlying.termHasHeight
-    def termsHaveHeight(c: SyntacticConstructor): THM = underlying.termsHaveHeight(c)
-    def termsHaveHeight(c: SemanticConstructor[N]): THM = underlying.termsHaveHeight(c.underlying)
-
+    val function: Expr[Ind] = underlying.height
+    
     def validAt(
         substitutions: Seq[TypeSubstitution]
     )(using sourcecode.Line, sourcecode.File): THM =
@@ -68,7 +58,7 @@ class SemanticADT[N <: Arity](
         theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
         suffix = "height/valid",
         substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
-        baseTheorem = valid
+        baseTheorem = underlying.heightValid
       )
 
     def existsAt(
@@ -78,7 +68,7 @@ class SemanticADT[N <: Arity](
         theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
         suffix = "height/exists",
         substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
-        baseTheorem = exists
+        baseTheorem = underlying.heightExists
       )
 
     def monotonicAt(
@@ -88,7 +78,7 @@ class SemanticADT[N <: Arity](
         theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
         suffix = "height/monotonic",
         substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
-        baseTheorem = monotonic
+        baseTheorem = underlying.heightMonotonic
       )
 
     def zeroAt(
@@ -98,7 +88,7 @@ class SemanticADT[N <: Arity](
         theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
         suffix = "height/zero",
         substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
-        baseTheorem = zero
+        baseTheorem = underlying.heightZero
       )
 
     def membershipMonotonicAt(
@@ -108,7 +98,7 @@ class SemanticADT[N <: Arity](
         theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
         suffix = "height/membershipMonotonic",
         substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
-        baseTheorem = membershipMonotonic
+        baseTheorem = underlying.heightMembershipMonotonic
       )
 
     def successorInclusionAt(
@@ -118,7 +108,7 @@ class SemanticADT[N <: Arity](
         theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
         suffix = "height/successorInclusion",
         substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
-        baseTheorem = successorInclusion
+        baseTheorem = underlying.heightSuccessorInclusion
       )
 
     def successorStrongAt(
@@ -128,7 +118,7 @@ class SemanticADT[N <: Arity](
         theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
         suffix = "height/successorStrong",
         substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
-        baseTheorem = successorStrong
+        baseTheorem = underlying.heightSuccessorStrong
       )
 
     def termHasHeightAt(
@@ -138,7 +128,7 @@ class SemanticADT[N <: Arity](
         theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
         suffix = "height/termHasHeight",
         substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
-        baseTheorem = termHasHeight
+        baseTheorem = underlying.termHasHeight
       )
 
     def termsHaveHeightAt(
@@ -149,7 +139,7 @@ class SemanticADT[N <: Arity](
         theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
         suffix = "height/termsHaveHeight",
         substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
-        baseTheorem = termsHaveHeight(c)
+        baseTheorem = underlying.termsHaveHeight(c)
       )
 
     def termsHaveHeightAt(
@@ -207,7 +197,7 @@ class SemanticADT[N <: Arity](
    *
    *  e.g. Nil != Cons(head, tail)
    */
-  def injectivity(c1: SemanticConstructor[N], c2: SemanticConstructor[N]) =
+  def disjointness(c1: SemanticConstructor[N], c2: SemanticConstructor[N]) =
 
     val vars1WellTyped: Set[Expr[Prop]] = wellTypedSet(c1.semanticSignature1)
     val vars2WellTyped: Set[Expr[Prop]] = wellTypedSet(c2.semanticSignature2)
@@ -278,7 +268,7 @@ class SemanticADT[N <: Arity](
       }
 
       have(!(c1.structuralTerm1 === c2.structuralTerm2)) by
-        Restate.from(underlying.injectivity(c1.underlying, c2.underlying))
+        Restate.from(c1.underlying.disjointness(c2.underlying))
       thenHave(c1.structuralTerm1 === c2.structuralTerm2 |- ()) by Restate
 
       have(
@@ -408,7 +398,7 @@ class SemanticADT[N <: Arity](
         )
         have(thesis) by Restate.from(lastStep)
       }
-      val newFact = have(newBefore <=> newAfter) by Tautology.from(impliesEquivalence, lastStep, fact)
+      val newFact = have(newBefore <=> newAfter) by Tautology.from(lastStep, fact)
       (newBefore, newAfter, newFact)
     )
     have(underlying.induction.statement.right.head |- thesis.right.head) by Cut(
@@ -511,7 +501,7 @@ class SemanticADT[N <: Arity](
                     val newF = forall(v, nextF2)
                     thenHave(exists(v, !(nextF2)) |- newW) by LeftExists
 
-                    val newFact = have(!newF |- newW) by Tautology.from(lastStep, existsNeg)
+                    val newFact = have(!newF |- newW) by Restate.from(lastStep)
 
                     (newF, newW, newFact)
                   )
@@ -603,7 +593,7 @@ class SemanticADT[N <: Arity](
       baseTheorem = elim
     )
 
-  def injectivityAt(
+  def disjointnessAt(
       c1: SemanticConstructor[N],
       c2: SemanticConstructor[N],
       substitutions: Seq[TypeSubstitution]
@@ -612,8 +602,8 @@ class SemanticADT[N <: Arity](
       displayName = name,
       typeVariables = typeVariablesSeq,
       typeArgs = normalizedTypeArguments(substitutions),
-      suffix = s"${c1.name}-${c2.name}/injectivity",
-      baseTheorem = injectivity(c1, c2)
+      suffix = s"${c1.name}-${c2.name}/disjointness",
+      baseTheorem = disjointness(c1, c2)
     )
 
 }

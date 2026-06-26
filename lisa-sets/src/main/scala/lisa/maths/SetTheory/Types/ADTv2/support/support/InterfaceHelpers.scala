@@ -3,7 +3,7 @@ package lisa.maths.SetTheory.Types.ADTv2.support
 import lisa.maths.SetTheory.Functions.Function.app
 import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.SetTheory.{_, given}
-import lisa.maths.SetTheory.Types.ADTv2.support.core.QuantifiersIntro
+import lisa.utils.prooflib.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.UnreachableException
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.a

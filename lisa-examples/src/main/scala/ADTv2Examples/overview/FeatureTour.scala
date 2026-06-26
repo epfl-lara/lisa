@@ -44,11 +44,11 @@ object FeatureTour extends lisa.Main {
   show(some.intro(nat)) // Option — under-shown elsewhere
   show(inl.intro(nat, bool)) // Union — two type arguments
 
-  // ── 3. Injectivity ──────────────────────────────────────────────────────
+  // ── 3. Disjointness ──────────────────────────────────────────────────────
   // Distinct constructors of the same ADT are provably distinct.
-  section("3. Constructor injectivity")
-  show(option.injectivity(some, none, nat))
-  show(union.injectivity(inl, inr, nat, bool))
+  section("3. Constructor disjointness")
+  show(option.disjointness(some, none, nat))
+  show(union.disjointness(inl, inr, nat, bool))
 
   // ── 4. Recursive functions (recFun) ─────────────────────────────────────
   // `pred`, `double`, `length` are recursive functions over an ADT.  Each has

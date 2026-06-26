@@ -1,4 +1,4 @@
-package lisa.maths.SetTheory.Types.ADTv2.support.proofs
+package lisa.maths.SetTheory.Types.ADTv2.height.proofs
 
 import lisa.maths.Quantifiers.existentialConjunctionWithClosedFormula
 import lisa.maths.Quantifiers.existentialEquivalenceDistribution

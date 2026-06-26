@@ -1,19 +1,10 @@
-package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics
+package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.nested
 
 import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
 import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
 import lisa.maths.SetTheory.Types.TypingHelpers
 
-/**
- * Real-typed port of the prototype trie compiler for multi-level nested patterns
- * (see scratch/NestedPatternChecker.scala). Pure: it inspects the live
- * `ADT`/`Constructor` interface objects and the `Expr[Ind]` arguments coming out
- * of `CaseAccumulator`, and decides whether a `Case` set is in scope for the
- * proposed (exhaustive, non-overlapping) nested-pattern system. It produces no
- * proofs — it emits the decision trie that the coverage / incompatible proof
- * generators would consume.
- */
 private[semantics] object NestedTrie {
 
   // ── Pattern AST ────────────────────────────────────────────────────────────
@@ -40,13 +31,13 @@ private[semantics] object NestedTrie {
 
   // All registered constructors, keyed by their term-level identifier. Mirrors
   // NestedConstructorPattern.resolveNullaryGuard's global lookup.
-  private def allConstructors: Seq[Constructor[?]] =
+  private[semantics] def allConstructors: Seq[Constructor[?]] =
     ADT.allADTs.toSeq.flatMap(_.constructors)
 
   // Peel a set-application spine `c * a0 * a1 * …` (built by the `*` DSL operator,
   // i.e. nested `app(...)`) into its head and value arguments, using the `*`
   // extractor from TypingHelpers.
-  private def peelApp(t: Expr[Ind]): (Expr[Ind], List[Expr[Ind]]) =
+  private[semantics] def peelApp(t: Expr[Ind]): (Expr[Ind], List[Expr[Ind]]) =
     TypingHelpers.`*`.unapply(t) match
       case Some((f, x)) => val (h, as) = peelApp(f); (h, as :+ x)
       case None => (t, Nil)
@@ -95,7 +86,7 @@ private[semantics] object NestedTrie {
       case None =>
         rows match
           case Nil => Fail(Nil, Nil)
-          case r :: rest =>
+          case scala.collection.immutable.::(r, rest) =>
             val extra = cols.zip(r.pats).collect {
               case (Col(o, _), PVar(n)) if n != "_" => (n, o)
             }

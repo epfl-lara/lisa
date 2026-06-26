@@ -8,8 +8,7 @@ import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
 import lisa.maths.SetTheory.Types.ADTv2.encoding._
 import lisa.maths.SetTheory.Types.ADTv2.support.DefinedSymbol
-import lisa.maths.SetTheory.Types.ADTv2.support.Time
-import lisa.maths.SetTheory.Types.ADTv2.support.proofs.UsefulTheorems.{constructorTagDisequality as tagDisequalityLemma}
+import lisa.utils.debug.Time
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.ProofTacticLib.Arity
@@ -45,28 +44,6 @@ private[ADTv2] abstract class WitnessBase[N <: Arity](
 
   private val witnessBound: Expr[Ind] = argType × returnType
 
-  private def constructorTagDisequality(
-      c1: SemanticConstructor[N],
-      c2: SemanticConstructor[N]
-  ): THM = {
-    require(c1 != c2, "constructorTagDisequality requires two distinct constructors.")
-    val minTag = Math.min(c1.underlying.tag, c2.underlying.tag)
-    val maxTag = Math.max(c1.underlying.tag, c2.underlying.tag)
-    tagDisequalityLemma(
-      c1.underlying.tagTerm,
-      c2.underlying.tagTerm,
-      minTag,
-      maxTag
-    )
-  }
-
-  private lazy val constructorTagDisequalities: Map[(SemanticConstructor[N], SemanticConstructor[N]), THM] =
-    (for
-      c1 <- adt.constructors
-      c2 <- adt.constructors
-      if c1 != c2
-    yield (c1, c2) -> constructorTagDisequality(c1, c2)).toMap
-
   protected lazy val witnessSemantics: CaseDefinedWitness[N] =
     Time.measure("Witness/CaseDefinedWitness")(
       new CaseDefinedWitness[N](
@@ -81,7 +58,6 @@ private[ADTv2] abstract class WitnessBase[N <: Arity](
         pairWitness = pairWitness,
         caseMembership = caseMembership,
         checkReturnType = checkReturnType,
-        constructorTagDisequalities = constructorTagDisequalities,
         contextPremises = contextPremises
       )
     )

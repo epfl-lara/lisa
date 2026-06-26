@@ -22,14 +22,11 @@ private[PatternMatching] trait ConstructorHeadPattern[N <: Arity] extends Patter
 
   def typeSubstitutions: Seq[TypeSubstitution] = Seq.empty
 
-  def specializedAdtTerm: Expr[Ind] = semanticConstructor.adt.term
+  def specializedAdtTerm: Expr[Ind] = semanticConstructor.adtTerm
 
   override def name: String = semanticConstructor.name
 
   override def arity: Int = semanticConstructor.arity
-
-  def correspondsTo(candidate: SemanticConstructor[N]): Boolean =
-    semanticConstructor == candidate
 
   override def matchesConstructorCase(constructor: SemanticConstructor[N], args: Seq[Expr[Ind]]): Boolean =
     semanticConstructor == constructor &&
@@ -52,7 +49,7 @@ private[PatternMatching] trait ConstructorHeadPattern[N <: Arity] extends Patter
       c: SemanticConstructor[N],
       args: Seq[Variable[Ind]]
   ): THM = Lemma(
-    wellTypedFormula(c.semanticSignature(args)) |- (c.appliedTerm(args) :: c.adt.term)
+    wellTypedFormula(c.semanticSignature(args)) |- (c.appliedTerm(args) :: c.adtTerm)
   ) {
     have(c.term(c.typeVariablesSeq) :: c.typ) by Restate.from(c.intro)
     val introTyping = lastStep
@@ -101,23 +98,21 @@ private[PatternMatching] trait ConstructorHeadPattern[N <: Arity] extends Patter
 
   def inputTerm2: Expr[Ind] = inputTermAt(variables2)
 
-  def typingFormula1: Expr[Prop] = typingFormulaAt(variables1)
-
-  def typingFormula2: Expr[Prop] = typingFormulaAt(variables2)
-
   def branchPremise1: Expr[Prop] = branchPremiseAt(variables1)
 
-  def structuralTerm1: Expr[Ind] = specializeTerm(semanticConstructor.structuralTerm1, typeSubstitutions)
-
-  def structuralTerm2: Expr[Ind] = specializeTerm(semanticConstructor.structuralTerm2, typeSubstitutions)
-
-  def tagTerm1: Expr[Ind] = specializeTerm(semanticConstructor.underlying.tagTerm, typeSubstitutions)
-
-  def tagTerm2: Expr[Ind] = specializeTerm(semanticConstructor.underlying.tagTerm, typeSubstitutions)
-
-  def subterm1: Expr[Ind] = specializeTerm(semanticConstructor.underlying.subterm1, typeSubstitutions)
-
-  def subterm2: Expr[Ind] = specializeTerm(semanticConstructor.underlying.subterm2, typeSubstitutions)
+  /**
+   * Disjointness of this pattern's head from another, distinct head: their well-typed
+   * applied terms can never be equal. Specializes the semantic constructor's
+   * [[SemanticConstructor.disjointness]] to this pattern's type substitutions.
+   */
+  def disjointness(other: ConstructorHeadPattern[N]): THM = {
+    val base = semanticConstructor.disjointness(other.semanticConstructor)
+    if typeSubstitutions.isEmpty then base
+    else
+      Lemma(base.statement.substitute(typeSubstitutions*)) {
+        have(thesis) by Restate.from(base.of(typeSubstitutions*))
+      }
+  }
 
   def injectivity: THM = {
     val base = semanticConstructor.injectivity
