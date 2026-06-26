@@ -37,20 +37,6 @@ private[recursion] object LimitKernel {
   ): Expr[Prop] =
     limitFun0 === abs(argType0)(λ(pointVar, app(G0(limitIndex0(pointVar)))(pointVar)))
 
-  private def approxAgreementAt(
-      heightFun0: Expr[Ind],
-      G0: Expr[Ind >>: Ind],
-      point0: Expr[Ind],
-      left0: Expr[Ind],
-      right0: Expr[Ind]
-  ): Expr[Prop] =
-    (left0 ∈ N) ==> (
-      (right0 ∈ N) ==> (
-        (point0 ∈ app(heightFun0)(left0)) ==> (
-          (point0 ∈ app(heightFun0)(right0)) ==> (app(G0(left0))(point0) === app(G0(right0))(point0))
-        )
-      )
-    )
 
   private val pointHasSomeHeight: THM = Lemma(
     (pointHeightCharAt(argType, heightFun, pointVar), pointVar ∈ argType) |- ∃(nVar, (nVar ∈ N) /\ (pointVar ∈ app(heightFun)(nVar)))
@@ -145,7 +131,8 @@ private[recursion] object LimitKernel {
       pointHeightCharAt(argType, heightFun, pointVar),
       limitIndexDefinitionAt(heightFun, limitIndex, pointVar),
       limitFunDefinition(argType, limitFun, G, limitIndex),
-      approxAgreementAt(heightFun, G, pointVar, limitIndex(pointVar), nVar),
+      ApproximationChainFacts.stabilizationSchema(heightFun, G),
+      ApproximationChainFacts.heightMembershipMonotonicSchema(heightFun),
       nVar ∈ N,
       pointVar ∈ app(heightFun)(nVar)
     ) |- app(limitFun)(pointVar) === app(G(nVar))(pointVar)
@@ -153,7 +140,8 @@ private[recursion] object LimitKernel {
     val pointHeightChar = assume(pointHeightCharAt(argType, heightFun, pointVar))
     val limitIndexDef = assume(limitIndexDefinitionAt(heightFun, limitIndex, pointVar))
     val limitDef = assume(limitFunDefinition(argType, limitFun, G, limitIndex))
-    val approxAgreement = assume(approxAgreementAt(heightFun, G, pointVar, limitIndex(pointVar), nVar))
+    val stabSchema = assume(ApproximationChainFacts.stabilizationSchema(heightFun, G))
+    val monoSchema = assume(ApproximationChainFacts.heightMembershipMonotonicSchema(heightFun))
     val indexInN = assume(nVar ∈ N)
     val pointInHeight = assume(pointVar ∈ app(heightFun)(nVar))
     val heightMembershipInst = have(
@@ -195,7 +183,9 @@ private[recursion] object LimitKernel {
 
     val agreeAtHeight = have(app(G(limitIndex(pointVar)))(pointVar) === app(G(nVar))(pointVar)) by
       Tautology.from(
-        approxAgreement,
+        ApproximationChainFacts.approximantsAgreeAcrossHeightsAt(heightFun, G, limitIndex(pointVar), nVar, pointVar),
+        stabSchema,
+        monoSchema,
         limitIndexInN,
         indexInN,
         pointInLimitHeight,
@@ -237,16 +227,34 @@ private[recursion] object LimitKernel {
       G0: Expr[Ind >>: Ind],
       limitIndex0: Expr[Ind >>: Ind],
       point0: Expr[Ind],
-      n0: Expr[Ind]
+      n0: Expr[Ind],
+      stabilization0: THM,
+      heightMembershipMonotonic: THM,
+      heightFunValid: THM
   )(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
-    limitAtHeight.of(
-      argType := argType0,
-      heightFun := heightFun0,
-      limitFun := limitFun0,
-      G := G0,
-      limitIndex := limitIndex0,
-      pointVar := point0,
-      nVar := n0
+    val monoSchema = ApproximationChainFacts.heightMembershipMonotonicSchemaAt(
+      heightFun0, heightMembershipMonotonic, heightFunValid
+    )
+    have(
+      (
+        pointHeightCharAt(argType0, heightFun0, point0),
+        limitIndexDefinitionAt(heightFun0, limitIndex0, point0),
+        limitFunDefinition(argType0, limitFun0, G0, limitIndex0),
+        n0 ∈ N,
+        point0 ∈ app(heightFun0)(n0)
+      ) |- app(limitFun0)(point0) === app(G0(n0))(point0)
+    ) by Tautology.from(
+      limitAtHeight.of(
+        argType := argType0,
+        heightFun := heightFun0,
+        limitFun := limitFun0,
+        G := G0,
+        limitIndex := limitIndex0,
+        pointVar := point0,
+        nVar := n0
+      ),
+      stabilization0,
+      monoSchema
     )
 
   def initialize(): Unit = {

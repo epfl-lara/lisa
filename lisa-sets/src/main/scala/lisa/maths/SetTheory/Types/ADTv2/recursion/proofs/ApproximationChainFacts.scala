@@ -11,6 +11,7 @@ import lisa.utils.debug.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.altEqualityTransitivity
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.equivalenceApply
+import lisa.utils.prooflib.BasicStepTactic.Cut
 import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.BasicStepTactic.RightImplies
 
@@ -27,10 +28,10 @@ private[recursion] object ApproximationChainFacts {
   private val pointVar = variable[Ind]
   private val stabVar = variable[Ind]
 
-  private def stabilizationSchema(heightFun0: Expr[Ind], G0: Expr[Ind >>: Ind]): Expr[Prop] =
+  private[proofs] def stabilizationSchema(heightFun0: Expr[Ind], G0: Expr[Ind >>: Ind]): Expr[Prop] =
     ∀(stabVar, (stabVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun0)(stabVar)) ==> (app(G0(stabVar))(pointVar) === app(G0(S(stabVar)))(pointVar))))
 
-  private def heightMembershipMonotonicSchema(heightFun0: Expr[Ind]): Expr[Prop] =
+  private[proofs] def heightMembershipMonotonicSchema(heightFun0: Expr[Ind]): Expr[Prop] =
     ∀(
       upperVar,
       (upperVar ∈ N) ==> ∀(lowerVar, (lowerVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun0)(lowerVar)) ==> ((lowerVar ⊆ upperVar) ==> (pointVar ∈ app(heightFun0)(upperVar)))))
@@ -188,7 +189,7 @@ private[recursion] object ApproximationChainFacts {
     }
   )
 
-  private val approximantsAgreeAcrossHeights: THM = Time.measure(s"AppCF/approximantsAgreeAcrossHeights")(
+  private[proofs] val approximantsAgreeAcrossHeights: THM = Time.measure(s"AppCF/approximantsAgreeAcrossHeights")(
     Lemma(
       (
         stabilizationSchema(heightFun, G),
@@ -251,20 +252,14 @@ private[recursion] object ApproximationChainFacts {
     }
   )
 
-  def stabilizationSchemaAt(
+  private[proofs] def heightMembershipMonotonicSchemaAt(using proof: lisa.SetTheoryLibrary.Proof)(
       heightFun0: Expr[Ind],
-      G0: Expr[Ind >>: Ind],
-      stabilization0: THM
-  )(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
-    have(stabilizationSchema(heightFun0, G0)) by Restate.from(stabilization0)
-
-  def heightMembershipMonotonicSchemaAt(
-      heightFun0: Expr[Ind],
-      heightMembershipMonotonic0: THM
-  )(using proof: lisa.SetTheoryLibrary.Proof)(isHeightPredFact: proof.Fact): proof.Fact = {
+      heightMembershipMonotonic0: THM,
+      isHeightPredFact: THM
+  ): proof.Fact = {
     val monoAtVars = have(
       (upperVar ∈ N, lowerVar ∈ N, lowerVar ⊆ upperVar, pointVar ∈ app(heightFun0)(lowerVar)) |- pointVar ∈ app(heightFun0)(upperVar)
-    ) by Tautology.from(
+    ) by Cut(
       isHeightPredFact,
       heightMembershipMonotonic0.of(h := heightFun0, n := upperVar, m := lowerVar, x := pointVar)
     )
@@ -296,18 +291,22 @@ private[recursion] object ApproximationChainFacts {
     have(heightMembershipMonotonicSchema(heightFun0)) by RightForall(monoImpU)
   }
 
-  def approximantsAgreeFromSubsetAt(
+  def approximantsAgreeFromSubsetAt(using
+      proof: lisa.SetTheoryLibrary.Proof)(
       heightFun0: Expr[Ind],
       G0: Expr[Ind >>: Ind],
       n0: Expr[Ind],
       m0: Expr[Ind],
-      point0: Expr[Ind]
-  )(using
-      proof: lisa.SetTheoryLibrary.Proof
-  )(
+      point0: Expr[Ind],
       stabilization0: proof.Fact,
-      heightMembershipMonotonic0: proof.Fact
+      heightMembershipMonotonic: THM,
+      heightFunValid: THM
   ): proof.Fact =
+    val heightMembershipMonotonic0 = heightMembershipMonotonicSchemaAt(
+      heightFun0,
+      heightMembershipMonotonic,
+      heightFunValid
+    )
     have(
       (n0 ∈ N, m0 ∈ N, n0 ⊆ m0, point0 ∈ app(heightFun0)(n0)) |- app(G0(n0))(point0) === app(G0(m0))(point0)
     ) by Tautology.from(
@@ -316,23 +315,15 @@ private[recursion] object ApproximationChainFacts {
       approximantsAgreeFromSubset.of(heightFun := heightFun0, G := G0, nVar := n0, mVar := m0, a := point0)
     )
 
-  def approximantsAgreeAcrossHeightsAt(using
-      proof: lisa.SetTheoryLibrary.Proof)(
+  
+  def approximantsAgreeAcrossHeightsAt(using proof: lisa.SetTheoryLibrary.Proof)(
       heightFun0: Expr[Ind],
       G0: Expr[Ind >>: Ind],
       n0: Expr[Ind],
       m0: Expr[Ind],
-      point0: Expr[Ind],
-      stabilization0: proof.Fact,
-      heightMembershipMonotonic0: proof.Fact
+      point0: Expr[Ind]
   ): proof.Fact =
-    have(
-      (n0 ∈ N, m0 ∈ N, point0 ∈ app(heightFun0)(n0), point0 ∈ app(heightFun0)(m0)) |- app(G0(n0))(point0) === app(G0(m0))(point0)
-    ) by Tautology.from(
-      stabilization0,
-      heightMembershipMonotonic0,
-      approximantsAgreeAcrossHeights.of(heightFun := heightFun0, G := G0, nVar := n0, mVar := m0, a := point0)
-    )
+    approximantsAgreeAcrossHeights.of(heightFun := heightFun0, G := G0, nVar := n0, mVar := m0, a := point0)
 
   def initialize(): Unit = {
     val _ = approximantsAgreeFromSubset
