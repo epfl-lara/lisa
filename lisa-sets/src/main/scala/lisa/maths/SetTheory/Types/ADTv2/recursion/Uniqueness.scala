@@ -6,10 +6,11 @@ import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.PatternSchemas
 import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.RecFunctionInduction
 import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.asIndEquality
-import lisa.utils.debug.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.semantics.DefinedProperty
+import lisa.maths.SetTheory.Types.ADTv2.support.tactics.Cuts
 import lisa.maths.SetTheory.Types.TypingHelpers._
+import lisa.utils.debug.Time
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[recursion] final class Uniqueness[N <: Arity](
@@ -121,13 +122,9 @@ private[recursion] final class Uniqueness[N <: Arity](
       val yDefinition = have(yDefFormula) by Weakening(hyp)
       val defY = have(Def(y)) by Cut(yDefinition, defSym.foldAt(y))
 
-      val pointwiseWithY = have(
-        Def(y) |- ∀(pointInput, pointInput ∈ argType ==> (x * pointInput === y * pointInput))
-      ) by Cut(defX, pointwiseCoreLemma)
-
       have(
         ∀(pointInput, pointInput ∈ argType ==> (x * pointInput === y * pointInput))
-      ) by Cut(defY, pointwiseWithY)
+      ) by Cuts(pointwiseCoreLemma)(defX, defY)
       thenHave(thesis) by Restate
     }
 }
