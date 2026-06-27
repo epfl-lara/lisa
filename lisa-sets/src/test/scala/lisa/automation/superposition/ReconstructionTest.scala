@@ -6,7 +6,7 @@ import lisa.utils.K
 import lisa.tptp.Problem
 import lisa.tptp.KernelParser.{problemToKernel, strictMapAtom, strictMapTerm, strictMapVariable}
 
-/** Tests for proof reconstruction ([[Reconstruction]] via [[Bridge.proveAndReconstruct]]). */
+/** Tests for proof reconstruction ([[Reconstruction]] via [[Bridge.solve]] + [[Bridge.reconstruct]]). */
 class ReconstructionTest extends AnyFunSuite:
 
   // kernel construction helpers (clauses as sequents: negative atoms left, positive right)
@@ -22,7 +22,9 @@ class ReconstructionTest extends AnyFunSuite:
 
   /** Reconstruct, then assert the proof is kernel-valid, concludes `⊢`, and imports inputs once each. */
   private def check(name: String, clauses: List[K.Sequent]): Unit =
-    val proof = Bridge.proveAndReconstruct(clauses, maxGiven = 10000)
+    val proof: Option[K.SCProof] = Bridge.solve(clauses, maxGiven = 10000) match
+      case s: Bridge.Outcome.Success => Some(s.reconstructKernelProof)
+      case _ => None
     assert(proof.isDefined, s"$name: expected a refutation")
     val p = proof.get
     assert(K.SCProofChecker.checkSCProof(p).isValid, s"$name: proof rejected by the kernel: ${K.SCProofChecker.checkSCProof(p)}")
@@ -75,6 +77,16 @@ class ReconstructionTest extends AnyFunSuite:
     check(
       "factoring",
       List(sequent(Set(), Set(ap(p, x), ap(p, y))), sequent(Set(ap(p, a), ap(p, b)), Set()))
+    )
+  }
+
+  test("first-order needing unit deletion: {P(a) ∨ Q(b)}, {¬P(x)}, {¬Q(b)}") {
+    val x = vr("X"); val p = pred("P", 1); val q = pred("Q", 1); val a = cst("a"); val b = cst("b")
+    // {¬P(x)} unit-deletes P(a) → {Q(b)}, then {¬Q(b)} unit-deletes Q(b) → □. The shrunk clauses are
+    // ordinary resolvents, so the proof must still reconstruct to a kernel-valid `⊢`.
+    check(
+      "unit deletion",
+      List(sequent(Set(), Set(ap(p, a), ap(q, b))), sequent(Set(ap(p, x)), Set()), sequent(Set(ap(q, b)), Set()))
     )
   }
 
@@ -150,7 +162,9 @@ class ReconstructionTest extends AnyFunSuite:
       val f = new java.io.File(synDir.get, name)
       assume(f.exists, s"$f not found")
       val problem: Problem = problemToKernel(f)(using (strictMapAtom, strictMapTerm, strictMapVariable))
-      val proof = Bridge.proveAndReconstructProblem(problem, maxGiven = 50000)
+      val proof: Option[K.SCProof] = Bridge.solveTPTPProblem(problem, maxGiven = 50000) match
+        case s: Bridge.Outcome.Success => Some(s.reconstructKernelProof)
+        case _ => None
       assert(proof.isDefined, s"$name: expected a refutation")
       val p = proof.get
       assert(K.SCProofChecker.checkSCProof(p).isValid, s"$name: kernel rejected the proof: ${K.SCProofChecker.checkSCProof(p)}")

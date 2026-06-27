@@ -17,8 +17,15 @@ import Core.*
  * stops at the empty clause `□` (refutation) or when the passive set empties (saturation); `maxGiven`
  * bounds the work otherwise.
  *
- * No simplification (subsumption / demodulation) and no term indexing yet -- Phases 2 and 4. On a
- * refutation the loop returns the empty clause, whose [[Justification]] DAG later feeds reconstruction.
+ * Phase-2 simplification adds θ-**subsumption** (via [[Subsumption.subsumes]]) and **unit deletion** (the
+ * unit case of subsumption resolution, via [[Subsumption.unitDeletionResolvent]]), both against the active
+ * set only (passive-redundant clauses are caught lazily when selected). One combined scan per direction:
+ * *forward* (in [[forwardSimplify]]) discards or shrinks a new/just-selected clause; *backward* (in
+ * [[backwardSimplify]]) deletes or shrinks active clauses, run before the given joins active. Subsumption
+ * deletion needs no reconstruction (a deleted clause never enters `□`'s [[Justification]] DAG), and a
+ * unit-deletion result is an ordinary resolvent (`Inference.resolve`), so it reconstructs with no new
+ * machinery either. Demodulation and term indexing are still Phases 3 and 4. On a refutation the loop
+ * returns the empty clause, whose DAG later feeds reconstruction.
  */
 object Discount:
   enum Result:
@@ -26,8 +33,29 @@ object Discount:
     case Saturated
     case Unknown
 
-final class Discount(bank: TermBank, trail: Trail, ageRatio: Int = 1, weightRatio: Int = 1, factorAfterCheck: Boolean = false):
+final class Discount(
+    bank: TermBank,
+    trail: Trail,
+    ageRatio: Int = 1,
+    weightRatio: Int = 1,
+    factorAfterCheck: Boolean = false,
+    forwardSubsumption: Boolean = true,
+    backwardSubsumption: Boolean = true,
+    forwardUnitDeletion: Boolean = true,
+    backwardUnitDeletion: Boolean = true,
+    // Off by default: with no term indexing (Phase 4), forward-simplifying every *generated* clause costs
+    // an O(|active|) scan per clause and is empirically a net loss -- the mandatory selection-time pass
+    // still catches every redundant clause before it activates. Revisit once indexing makes it cheap.
+    // (seed-42 ablation: gen=67 refuted vs nogen=71, strictly more, no regressions. See Benchmarks.md.)
+    // Governs forward subsumption *and* forward unit deletion at the generation point.
+    forwardSimplifyAtGeneration: Boolean = false):
   import Discount.Result
+
+  // Simplification counters (observability / benchmarks); reset at the start of each `saturate`.
+  var forwardSubsumed: Int = 0
+  var backwardSubsumed: Int = 0
+  var forwardUnitDeleted: Int = 0
+  var backwardUnitDeleted: Int = 0
 
   // Passive set: two views over the same clauses, with lazy deletion -- a clause selected via one
   // stays a stale entry in the other, skipped on pop. Age is just a FIFO queue: clauses are enqueued
@@ -53,35 +81,59 @@ final class Discount(bank: TermBank, trail: Trail, ageRatio: Int = 1, weightRati
   /**
    * Saturate `initial` (plus everything derived from it). Returns [[Result.Refutation]] with the empty
    * clause if `□` is derived, [[Result.Saturated]] if the passive set empties without one, or
-   * [[Result.Unknown]] if `maxGiven` given-clause activations are reached first.
+   * [[Result.Unknown]] if the `maxGiven` given-clause budget or the `maxMillis` wall-clock budget is
+   * reached first. The time budget is checked once per given clause (cheap), so the loop stops cleanly
+   * rather than relying on the caller to abandon a runaway thread.
    */
-  def saturate(initial: Seq[Clause], maxGiven: Int = Int.MaxValue): Result =
+  def saturate(initial: Seq[Clause], maxGiven: Int = Int.MaxValue, maxMillis: Long = Long.MaxValue): Result =
     byAge.clear(); byWeight.clear(); livePassive.clear(); active.clear(); balance = 0
+    forwardSubsumed = 0; backwardSubsumed = 0; forwardUnitDeleted = 0; backwardUnitDeleted = 0
     val it = initial.iterator
     while it.hasNext do
       addPassive(it.next()) match
         case Some(empty) => return Result.Refutation(empty)
         case None => ()
+    val checkTime: Boolean = maxMillis != Long.MaxValue
+    val deadline: Long = if checkTime then System.nanoTime() + maxMillis * 1000000L else 0L
     var givenCount = 0
-    while !livePassive.isEmpty && givenCount < maxGiven do
+    while !livePassive.isEmpty && givenCount < maxGiven && (!checkTime || System.nanoTime() < deadline) do
       val gc = popGiven()
-      givenCount += 1
-      activate(gc) match
-        case Some(empty) => return Result.Refutation(empty)
-        case None => ()
+      // forward simplify the given against active: it may have been subsumed (skip) or shrunk by unit
+      // deletion (process the shorter clause) by clauses that became active while it sat in passive.
+      // A skip is not counted as a processed given (count activations only).
+      (if forwardSubsumption || forwardUnitDeletion then forwardSimplify(gc) else Some(gc)) match
+        case None => () // subsumed at selection: drop it
+        case Some(g) =>
+          if g.isEmpty then return Result.Refutation(g) // unit deletion closed the clause
+          else
+            givenCount += 1
+            activate(g) match
+              case Some(empty) => return Result.Refutation(empty)
+              case None => ()
     if livePassive.isEmpty then Result.Saturated else Result.Unknown
 
-  /** Canonicalise `c` and add it to passive; returns the empty clause if `c` canonicalises to `□`. */
+  /** Canonicalise `c` and add it to passive; returns the empty clause if `c` is (or simplifies to) `□`.
+   *  When [[forwardSimplifyAtGeneration]] is on, `c` is forward-simplified against active first (after the
+   *  `□` check, so a derived empty clause is never lost): subsumed ⇒ discarded, shrunk ⇒ the shorter clause
+   *  is enqueued. Off by default -- the given is forward-simplified at selection regardless. */
   private def addPassive(c: Clause): Option[Clause] =
     Inference.canonicalize(bank, c) match
       case None => None // tautology: discard
-      case Some(cc) =>
-        if cc.isEmpty then Some(cc)
+      case Some(cc0) =>
+        if cc0.isEmpty then Some(cc0)
         else
-          byAge.enqueue(cc)
-          byWeight.enqueue(cc)
-          livePassive.add(cc.id)
-          None
+          val simplified: Option[Clause] =
+            if forwardSimplifyAtGeneration && (forwardSubsumption || forwardUnitDeletion) then forwardSimplify(cc0)
+            else Some(cc0)
+          simplified match
+            case None => None // subsumed by an active clause: discard
+            case Some(cc) =>
+              if cc.isEmpty then Some(cc) // unit deletion closed it
+              else
+                byAge.enqueue(cc)
+                byWeight.enqueue(cc)
+                livePassive.add(cc.id)
+                None
 
   /** Pick the next given clause by the age/weight ratio, removing it from passive: scan the chosen
    *  queue, skipping stale (already-selected) entries. A live clause is guaranteed when the passive set
@@ -106,9 +158,16 @@ final class Discount(bank: TermBank, trail: Trail, ageRatio: Int = 1, weightRati
     if livePassive.contains(c.id) then { livePassive.remove(c.id); true }
     else false
 
-  /** Move `gc` into active and generate all resolvents (against active) and factors (of itself). */
+  /** Move `gc` into active and generate all resolvents (against active) and factors (of itself).
+   *  Backward simplification first deletes/shrinks active clauses using `gc` -- run before `gc` joins
+   *  active (so it never simplifies itself) and before generation (so deleted clauses produce no
+   *  inferences). A backward unit deletion that closes a clause to `□` is returned as a refutation. */
   private def activate(gc: Clause): Option[Clause] =
     val gSel: Array[Int] = gc.select(bank)
+    if backwardSubsumption || backwardUnitDeletion then
+      backwardSimplify(gc) match
+        case Some(empty) => return Some(empty)
+        case None => ()
     active += gc
     // resolution: gc's selected literals against each active clause's selected literals
     var ai = 0
@@ -150,6 +209,67 @@ final class Discount(bank: TermBank, trail: Trail, ageRatio: Int = 1, weightRati
               case None => ()
           gj += 1
       gi2 += 1
+    None
+
+  /** Forward simplify `m` against the active set in one scan (active only -- DISCOUNT does not
+   *  forward-check passive): if some active clause subsumes `m`, return `None` (discard it); otherwise
+   *  apply unit deletions by active units, returning the (possibly shrunk) clause -- `Some(□)` if a unit
+   *  deletion closed it. A single pass: after a shrink the scan continues with the shorter clause, and any
+   *  residual redundancy is caught when that clause is later selected. */
+  private def forwardSimplify(m0: Clause): Option[Clause] =
+    var m: Clause = m0
+    var i = 0
+    while i < active.length do
+      val c: Clause = active(i)
+      if forwardSubsumption && Subsumption.subsumes(bank, trail, c, m) then
+        forwardSubsumed += 1
+        return None // subsumed: discard `m`
+      if forwardUnitDeletion && c.size == 1 then
+        Subsumption.unitDeletionResolvent(bank, trail, c, m) match
+          case Some(r) =>
+            forwardUnitDeleted += 1
+            val cr: Clause = Inference.canonicalize(bank, r).getOrElse(r)
+            if cr.isEmpty then return Some(cr) // unit conflict closed the clause
+            m = cr // continue the scan with the shrunk clause
+          case None => ()
+      i += 1
+    Some(m)
+
+  /** Backward simplify the active set using `gc` in one scan (`gc` not yet in active): delete each
+   *  active clause `gc` subsumes, and shrink each that `gc` unit-deletes a literal from (the shrunk clause
+   *  is re-added through [[addPassive]] after the scan, to avoid mutating `active` mid-iteration). Removal
+   *  is swap-with-last + truncate (O(1)); `active` is unordered, so reordering is harmless, and the
+   *  swapped-in element is re-checked by *not* advancing the index. Returns `Some(□)` if a backward unit
+   *  deletion closes a clause. Deletion needs no reconstruction; a shrunk clause is an ordinary resolvent. */
+  private def backwardSimplify(gc: Clause): Option[Clause] =
+    val gcUnit: Boolean = gc.size == 1
+    var shrunk: mutable.ArrayBuffer[Clause] = null // re-added after the scan (lazily allocated)
+    var i = 0
+    while i < active.length do
+      val m: Clause = active(i)
+      var removed = false
+      if backwardSubsumption && Subsumption.subsumes(bank, trail, gc, m) then
+        backwardSubsumed += 1
+        removed = true
+      else if backwardUnitDeletion && gcUnit then
+        Subsumption.unitDeletionResolvent(bank, trail, gc, m) match
+          case Some(r) =>
+            backwardUnitDeleted += 1
+            if shrunk == null then shrunk = mutable.ArrayBuffer.empty
+            shrunk += r
+            removed = true
+          case None => ()
+      if removed then
+        active(i) = active(active.length - 1)
+        active.remove(active.length - 1)
+      else i += 1
+    if shrunk != null then
+      var k = 0
+      while k < shrunk.length do
+        addPassive(shrunk(k)) match
+          case Some(empty) => return Some(empty)
+          case None => ()
+        k += 1
     None
 
   /** Whether `lit`'s atom is an equality `s = t` (factoring skips these; equality factoring is Phase 3). */

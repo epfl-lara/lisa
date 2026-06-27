@@ -6,7 +6,7 @@ import lisa.tptp.Problem
 import lisa.tptp.KernelParser.{problemToKernel, strictMapAtom, strictMapTerm, strictMapVariable}
 
 /**
- * Baseline test: the prover ([[Bridge.solveProblem]]) on a sample of easy TPTP `SYN` problems.
+ * Baseline test: the prover ([[Bridge.solve]]) on a sample of easy TPTP `SYN` problems.
  *
  * These are small, self-contained, no-equality, unsatisfiable clausal problems (SPC
  * `CNF_UNS_EPR_NEQ_HRN`) — exactly the fragment Phase-1 ordered resolution handles. They are located
@@ -33,6 +33,6 @@ class SynBaselineTest extends AnyFunSuite:
       val f = new java.io.File(synDir.get, name)
       assume(f.exists, s"$f not found")
       val problem: Problem = problemToKernel(f)(using (strictMapAtom, strictMapTerm, strictMapVariable))
-      assert(Bridge.solveProblem(problem, maxGiven = 50000))
+      assert(Bridge.solveTPTPProblem(problem, maxGiven = 50000).refuted)
     }
   }

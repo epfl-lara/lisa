@@ -290,9 +290,14 @@ object Core:
      */
     def mkClause(lits: Array[Literal], justification: Justification = Justification.Input): Clause =
       var w = 0
+      var pos = 0
+      var predBits = 0L
       var i = 0
       while i < lits.length do
-        w += literalWeight(lits(i))
+        val l: Literal = lits(i)
+        w += literalWeight(l)
+        if isPositive(l) then pos += 1
+        predBits |= 1L << (headSymbol(atomOf(l)) & 63) // head-symbol fingerprint (mod 64)
         i += 1
       val id: Int = clauseCounter
       clauseCounter += 1
@@ -301,7 +306,7 @@ object Core:
         case Justification.Resolution(l, _, r, _) => math.max(l.age, r.age) + 1
         case Justification.Factoring(p, _, _) => p.age + 1
         case Justification.Canonicalization(p) => p.age // a simplification of one clause: same generation
-      new Clause(lits, w, id, justification, age)
+      new Clause(lits, w, id, justification, age, pos, lits.length - pos, predBits)
 
     // --- internals ------------------------------------------------------------------------
 
@@ -428,13 +433,22 @@ object Core:
    * `selected` literal indices, computed by [[select]] when the clause is activated (so clauses
    * discarded before activation never pay for it). An empty literal array denotes the empty clause
    * (falsity).
+   *
+   * It also caches a cheap **subsumption signature** -- `posCount`/`negCount` (literal polarity
+   * counts) and `predBits` (a 64-bit fingerprint OR-ing one bit per literal's head-symbol code mod
+   * 64). These give the O(1) necessary-condition pre-filter for θ-subsumption: a clause `c` can
+   * subsume `d` only if `c.size <= d.size`, `c.posCount <= d.posCount`, `c.negCount <= d.negCount`,
+   * `c.weight <= d.weight`, and `(c.predBits & d.predBits) == c.predBits` (see `Subsumption`).
    */
   final class Clause private[Core] (
       val literals: Array[Literal],
       val weight: Int,
       val id: Int,
       val justification: Justification,
-      val age: Int):
+      val age: Int,
+      val posCount: Int,
+      val negCount: Int,
+      val predBits: Long):
     private var _selected: Array[Int] = null
 
     /**
@@ -492,6 +506,10 @@ object Core:
     // reused worklist for `unify`: two parallel primitive int stacks (no boxing, no tuple allocation)
     private val workTerm: IntArrayList = new IntArrayList()
     private val workScope: IntArrayList = new IntArrayList()
+
+    // reused worklist for `matchTerm`: pattern terms paired with target terms (scopes are fixed args)
+    private val matchPat: IntArrayList = new IntArrayList()
+    private val matchTgt: IntArrayList = new IntArrayList()
 
     // reused per-scope memo for `occurs`: derefed terms already proven free of the searched variable.
     // Avoids re-walking shared subterms (the arena is a DAG); cleared at the start of each `occurs`.
@@ -569,6 +587,51 @@ object Core:
               workTerm.push(bank.arg(dy, i)); workScope.push(dsy)
               i += 1
       true
+
+    /**
+     * One-sided (first-order) matching: extend the current bindings so that `(pat, ps)` becomes
+     * syntactically equal to `(tgt, ts)`, binding **only** pattern-scope (`ps`) variables and treating
+     * the target as rigid. Returns `true` on success -- the trail then holds the matcher, an extension
+     * of any incoming bindings -- and `false` on failure, leaving partial bindings on the trail; the
+     * caller restores the trail either way, exactly the [[unify]] protocol. The two scopes must
+     * differ (`ps != ts`, the usual `0`/`1`).
+     *
+     * This is matching, not unification, so it is markedly cheaper: target variables never bind, so
+     * there are no binding chains to follow on the target side and **no occurs check** is needed. A
+     * pattern variable can only ever bind to a target subterm, and target subterms are hash-consed
+     * within one bank, so a re-encountered bound pattern variable is checked against the current
+     * target by a single offset comparison (`bound != t`) -- structurally equal target terms share one
+     * offset, and every pattern binding lives in scope `ts`, so the scope need not be compared. The
+     * worklist's pattern slot only ever holds genuine subterms of `pat` (a variable is a leaf -- bind
+     * or compare -- never expanded), which is what keeps the scopes from getting tangled.
+     */
+    def matchTerm(pat: Term, ps: Scope, tgt: Term, ts: Scope): Boolean =
+      matchPat.clear()
+      matchTgt.clear()
+      matchPat.push(pat); matchTgt.push(tgt)
+      while !matchPat.isEmpty do
+        val p: Term = matchPat.popInt()
+        val t: Term = matchTgt.popInt()
+        if bank.isVar(p) then
+          val v: Variable = bank.varNum(p)
+          val bt: Array[Term] = boundTerm(ps)
+          val bound: Term = if v < bt.length then bt(v) else -1
+          if bound < 0 then bind(v, ps, t, ts) // unbound pattern variable: bind it to the target term
+          else if bound != t then return false // bound already: the target must be the identical term
+        else if bank.isVar(t) then return false // pattern compound vs a rigid target variable
+        else if bank.headSymbol(p) != bank.headSymbol(t) then return false
+        else
+          val n: Int = bank.arity(p) // equal head symbols imply equal arity
+          var i = 0
+          while i < n do
+            matchPat.push(bank.arg(p, i)); matchTgt.push(bank.arg(t, i))
+            i += 1
+      true
+
+    /** Match literal `pl` (pattern, scope `ps`) onto `tl` (target, scope `ts`): same polarity and the
+     *  atoms match one-sidedly. Extends the trail like [[matchTerm]]; the caller restores it. */
+    def matchLiteral(pl: Literal, ps: Scope, tl: Literal, ts: Scope): Boolean =
+      bank.isPositive(pl) == bank.isPositive(tl) && matchTerm(bank.atomOf(pl), ps, bank.atomOf(tl), ts)
 
     /** Whether the unbound variable `(varT, varScope)` occurs in `(t, s)` (with dereferencing). */
     private def occurs(varT: Term, varScope: Scope, t: Term, s: Scope): Boolean =

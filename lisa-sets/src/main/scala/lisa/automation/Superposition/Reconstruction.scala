@@ -22,8 +22,9 @@ import Core.*
  * set-sequents). The mgu is recomputed by re-unifying the recorded literals; the conclusion's variable
  * numbering is recovered by replaying the inference's `Applier` over the surviving literals.
  *
- * Assumes symbol identifiers have index 0 (true for kernel- and TPTP-sourced inputs), so a rebuilt
- * symbol matches the original constant.
+ * Symbols are interned by their full identifier string ([[Bridge]] uses `id.toString`, which encodes
+ * the counter index `id.no`), so a rebuilt symbol's identifier is recovered exactly via [[identOf]]
+ * (e.g. `e_1` round-trips as `Identifier("e", 1)`, not the wrong `Identifier("e_1", 0)`).
  */
 object Reconstruction:
 
@@ -141,13 +142,18 @@ object Reconstruction:
       if bank.isVar(t) then vars(bank.varNum(t).num)
       else
         val info: SymbolInfo = sig.info(bank.headSymbol(t))
-        var e: K.Expression = K.Constant(K.Identifier(info.name), sortFor(info.arity, info.isPredicate))
+        var e: K.Expression = K.Constant(identOf(info.name), sortFor(info.arity, info.isPredicate))
         val n = bank.arity(t)
         var k = 0
         while k < n do
           e = K.Application(e, kernelize(bank.arg(t, k), vars))
           k += 1
         e
+
+    /** Parse an interned symbol name (a kernel `Identifier.toString`) back to the exact identifier,
+     *  recovering a trailing counter index (`"e_1"` → `Identifier("e", 1)`). Inverse of the [[Bridge]]
+     *  intern key, using the kernel's own `String`→`Identifier` conversion. */
+    private def identOf(name: String): K.Identifier = K.given_Conversion_String_Identifier(name)
 
     /** The kernel sort of a symbol: `Ind → … → Ind → (Prop|Ind)` with `arity` argument places. */
     private def sortFor(arity: Int, isPredicate: Boolean): K.Sort =

@@ -122,3 +122,118 @@ class DiscountTest extends AnyFunSuite:
         assert(inputLeaves(empty) >= 2) // derived from at least two input clauses
       case other => fail(s"expected Refutation, got $other")
   }
+
+  // --- subsumption (Phase 2) ------------------------------------------------------------------
+
+  test("backward subsumption deletes an active clause subsumed by the given") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 1); val a = const("a"); val x = v(0)
+    // {P(a)} is selected first (equal weight, smaller id), then the more general {P(x)} subsumes it.
+    val d = new Discount(bank, trail)
+    val r = d.saturate(Seq(clause(pos(app(p, a))), clause(pos(app(p, x)))))
+    assert(r == Discount.Result.Saturated)
+    assert(d.backwardSubsumed == 1) // {P(x)} backward-subsumes the already-active {P(a)}
+    assert(d.forwardSubsumed == 0) // {P(a)} does not subsume {P(x)} (a cannot match the rigid x)
+  }
+
+  test("forward subsumption skips a subsumed clause at selection") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 1); val q = pred("Q", 1); val a = const("a"); val b = const("b"); val x = v(0)
+    // {P(x)} (lighter) is activated first; the heavier {P(a), Q(b)} is then subsumed on selection.
+    val d = new Discount(bank, trail)
+    val r = d.saturate(Seq(clause(pos(app(p, x))), clause(pos(app(p, a)), pos(app(q, b)))))
+    assert(r == Discount.Result.Saturated)
+    assert(d.forwardSubsumed == 1) // {P(a), Q(b)} subsumed by the active {P(x)}
+    assert(d.backwardSubsumed == 0)
+  }
+
+  test("forward subsumption discards a generated clause (addPassive path)") {
+    val fx = new Fix; import fx.*
+    bank.selector = FirstNegativeSelector // all-positive clauses resolve on their first (canonical) literal
+    // `a` is interned first, so it has the smallest symbol code and sorts first under canonicalisation --
+    // ensuring the all-positive {a,c} keeps `a` as its selected literal so resolution on a/¬a fires.
+    val a = prop("a"); val b = prop("b"); val c = prop("c")
+    // {b,c} is activated first; resolving {¬a,b} and {a,c} regenerates {b,c}, which the active {b,c} subsumes.
+    // Force forward simplify at generation on (it is off by default) so this exercises the addPassive path.
+    val d = new Discount(bank, trail, forwardSimplifyAtGeneration = true)
+    val r = d.saturate(Seq(clause(pos(b), pos(c)), clause(neg(a), pos(b)), clause(pos(a), pos(c))))
+    assert(r == Discount.Result.Saturated)
+    assert(d.forwardSubsumed >= 1) // the resolvent {b,c} is subsumed by the active {b,c} at addPassive
+    assert(d.backwardSubsumed == 0)
+  }
+
+  test("with both flags off, subsumption is inert (pure simplification)") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 1); val a = const("a"); val x = v(0)
+    // same inputs as the backward-subsumption test, but no simplification: same verdict, no deletions.
+    val d = new Discount(bank, trail, forwardSubsumption = false, backwardSubsumption = false)
+    val r = d.saturate(Seq(clause(pos(app(p, a))), clause(pos(app(p, x)))))
+    assert(r == Discount.Result.Saturated)
+    assert(d.forwardSubsumed == 0 && d.backwardSubsumed == 0)
+  }
+
+  test("subsumption preserves a refutation verdict (flags on and off agree)") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 1); val q = pred("Q", 1); val a = const("a"); val x = v(0)
+    val cs = Seq(
+      clause(neg(app(p, x)), pos(app(q, x))), // ¬P(x) ∨ Q(x)
+      clause(pos(app(p, a))), //                 P(a)
+      clause(neg(app(q, a))) //                  ¬Q(a)
+    )
+    val on = new Discount(bank, trail, forwardSubsumption = true, backwardSubsumption = true)
+    val off = new Discount(bank, trail, forwardSubsumption = false, backwardSubsumption = false)
+    assert(on.saturate(cs).isInstanceOf[Discount.Result.Refutation])
+    assert(off.saturate(cs).isInstanceOf[Discount.Result.Refutation])
+  }
+
+  // --- unit deletion (Phase 2 P1) -------------------------------------------------------------
+
+  test("forward unit deletion shrinks the given at selection") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 1); val q = pred("Q", 1); val a = const("a"); val b = const("b"); val x = v(0)
+    // {¬P(x)} (lighter) activates first; selecting {P(a), Q(b)} then unit-deletes P(a) -> {Q(b)}.
+    val d = new Discount(bank, trail)
+    val r = d.saturate(Seq(clause(pos(app(p, a)), pos(app(q, b))), clause(neg(app(p, x)))))
+    assert(r == Discount.Result.Saturated)
+    assert(d.forwardUnitDeleted == 1)
+    assert(d.backwardUnitDeleted == 0)
+  }
+
+  test("backward unit deletion shrinks an active clause") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 1); val q = pred("Q", 1); val a = const("a"); val b = const("b"); val x = v(0)
+    // Force age (FIFO) selection so {P(a), Q(b)} activates before the lighter unit {¬P(x)}; the unit then
+    // backward-unit-deletes P(a) out of the active clause.
+    val d = new Discount(bank, trail, ageRatio = 1, weightRatio = 0)
+    val r = d.saturate(Seq(clause(pos(app(p, a)), pos(app(q, b))), clause(neg(app(p, x)))))
+    assert(r == Discount.Result.Saturated)
+    assert(d.backwardUnitDeleted == 1)
+    assert(d.forwardUnitDeleted == 0)
+  }
+
+  test("a unit conflict via unit deletion closes the clause to □ (refutation)") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 1); val q = pred("Q", 1); val a = const("a"); val b = const("b"); val x = v(0)
+    // {¬P(x)} deletes P(a) -> {Q(b)}; {¬Q(b)} then deletes Q(b) -> □.
+    val cs = Seq(clause(pos(app(p, a)), pos(app(q, b))), clause(neg(app(p, x))), clause(neg(app(q, b))))
+    assert(new Discount(bank, trail).saturate(cs).isInstanceOf[Discount.Result.Refutation])
+  }
+
+  test("with unit-deletion flags off it is inert (pure simplification)") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 1); val q = pred("Q", 1); val a = const("a"); val b = const("b"); val x = v(0)
+    val cs = Seq(clause(pos(app(p, a)), pos(app(q, b))), clause(neg(app(p, x))))
+    val d = new Discount(bank, trail, forwardUnitDeletion = false, backwardUnitDeletion = false)
+    assert(d.saturate(cs) == Discount.Result.Saturated)
+    assert(d.forwardUnitDeleted == 0 && d.backwardUnitDeleted == 0)
+  }
+
+  test("unit deletion preserves a refutation verdict (flags on and off agree)") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 1); val q = pred("Q", 1); val a = const("a"); val b = const("b"); val x = v(0)
+    val cs = Seq(clause(pos(app(p, a)), pos(app(q, b))), clause(neg(app(p, x))), clause(neg(app(q, b))))
+    val on = new Discount(bank, trail, forwardUnitDeletion = true, backwardUnitDeletion = true)
+    val off = new Discount(bank, trail, forwardUnitDeletion = false, backwardUnitDeletion = false)
+    assert(on.saturate(cs).isInstanceOf[Discount.Result.Refutation])
+    assert(off.saturate(cs).isInstanceOf[Discount.Result.Refutation])
+  }

@@ -16,45 +16,69 @@ import Core.*
  * `¬a₁ ∨ … ∨ ¬aₘ ∨ b₁ ∨ … ∨ bₙ`. So formulas on the **left** become **negative** literals and those
  * on the **right** become **positive** literals; the empty sequent `⊢` is the empty clause `□`.
  *
- * Both entry points return `true` iff the input clause set is refuted (the empty clause is derived,
- * i.e. the set is unsatisfiable), and `false` if the search saturates without `□` or hits the
- * `maxGiven` budget. With an unbounded `maxGiven` the search is a semi-decision procedure: it may not
- * terminate on a satisfiable first-order set. The loop uses [[CompleteBestLiteralSelector]] (Vampire's
- * complete default selector) so resolution is refutation-complete (equality is treated as an ordinary
- * predicate for now — no paramodulation until Phase 3).
+ * The entry point is [[solve]]: it runs the saturation **once** and returns an [[Outcome]] — a
+ * [[Outcome.Success]] carrying the empty clause `□` and everything needed to reconstruct a proof (the
+ * [[TermBank]] and the per-input variable maps), [[Outcome.Saturated]] (no `□`: the set is satisfiable),
+ * or [[Outcome.Timeout]] (a budget was hit before deciding). [[solveTPTPProblem]] is the same for a
+ * [[lisa.tptp.Problem]] (it converts then solves), and
+ * `success.reconstructKernelProof` turns a `Success` into a kernel proof. With an
+ * unbounded budget the search is a semi-decision procedure: it may not terminate on a satisfiable
+ * first-order set. The loop uses [[CompleteBestLiteralSelector]] (Vampire's complete default selector)
+ * so resolution is refutation-complete (equality is treated as an ordinary predicate for now — no
+ * paramodulation until Phase 3).
  */
 object Bridge:
 
   /**
-   * Run the prover on a collection of clauses given as kernel sequents (`left ⊢ right` = the clause
+   * The result of a [[solve]] run: a [[Outcome.Success]] (the empty clause `□` was derived) carrying
+   * everything needed to reconstruct a kernel proof, [[Outcome.Saturated]] (the passive set was
+   * exhausted without `□` — the clause set is satisfiable, a genuine decision), or [[Outcome.Timeout]]
+   * (a budget was hit before deciding — the set's status is unknown).
+   */
+  sealed trait Outcome:
+    /** Whether the set was refuted (`□` derived). */
+    def refuted: Boolean = this match
+      case _: Outcome.Success => true
+      case Outcome.Saturated | Outcome.Timeout => false
+
+  object Outcome:
+    /**
+     * A refutation. Holds the empty clause `empty` and the run's [[TermBank]] plus the per-input-clause
+     * variable maps (`inputs`) — the context [[reconstructKernelProof]] needs to rebuild the proof.
+     */
+    final case class Success(empty: Clause, bank: TermBank, inputs: collection.Map[Int, Reconstruction.InputInfo]) extends Outcome:
+      /**
+       * Reconstruct a kernel [[lisa.utils.K.SCProof]] from this refutation: its imports are the input
+       * clause-sequents and its conclusion is the empty sequent `⊢`. Uses the bank and per-input data
+       * carried here — no re-solving. See [[Reconstruction]].
+       */
+      def reconstructKernelProof: K.SCProof = Reconstruction.reconstruct(empty, bank, inputs)
+
+    /** The passive set was exhausted without deriving `□`: the clause set is satisfiable (a decision). */
+    case object Saturated extends Outcome
+
+    /** A budget — the `maxGiven` given-clause count or the `maxMillis` wall-clock limit — was hit before
+     *  the search could decide. Not a decision: the set's status is unknown. */
+    case object Timeout extends Outcome
+
+  /**
+   * Run the saturation **once** on a clause set (kernel sequents `left ⊢ right` = the clause
    * `¬left ∨ right`). Builds a fresh bank + complete selector, converts each sequent in that bank, and
-   * saturates. Returns `true` iff the set is refuted (the empty clause is derivable), `false` if the
-   * search saturates without `□` or hits the `maxGiven` budget.
+   * saturates within the `maxGiven` given-clause and `maxMillis` wall-clock budgets. Returns
+   * [[Outcome.Success]] with the empty clause (and the context to reconstruct it) iff `□` is derived,
+   * else [[Outcome.Saturated]] (passive exhausted) or [[Outcome.Timeout]] (budget hit). The per-input
+   * variable maps are always recorded so a `Success` can be reconstructed later (cheap: O(input size);
+   * the proof DAG itself is only walked by [[Outcome.Success.reconstructKernelProof]]).
    */
-  def solve(sequents: Iterable[K.Sequent], maxGiven: Int = Int.MaxValue): Boolean =
-    val sig: Signature = new Signature
-    val bank: TermBank = new TermBank(sig)
-    val trail: Trail = new Trail(bank)
-    bank.selector = new CompleteBestLiteralSelector(new KBO(bank))
-    val clauses: Seq[Clause] = sequents.iterator.map(s => clauseOfSequent(bank, s)).toSeq
-    new Discount(bank, trail).saturate(clauses, maxGiven) match
-      case Discount.Result.Refutation(_) => true
-      case _ => false
-
-  /**
-   * Run the prover on a [[lisa.tptp.Problem]] whose formulas are each a pure clause (a possibly
-   * universally-quantified disjunction of literals, e.g. a TPTP `cnf` problem). Returns `true` iff the
-   * set is refuted.
-   */
-  def solveProblem(problem: Problem, maxGiven: Int = Int.MaxValue): Boolean =
-    solve(problemSequents(problem), maxGiven)
-
-  /**
-   * Like [[solve]], but on a refutation reconstruct a kernel [[lisa.utils.K.SCProof]] whose imports are
-   * the given sequents and whose conclusion is the empty sequent `⊢`. Returns `None` if no refutation
-   * is found within `maxGiven`. See [[Reconstruction]].
-   */
-  def proveAndReconstruct(sequents: Iterable[K.Sequent], maxGiven: Int = Int.MaxValue): Option[K.SCProof] =
+  def solve(
+      sequents: Iterable[K.Sequent],
+      maxGiven: Int = Int.MaxValue,
+      maxMillis: Long = Long.MaxValue,
+      forwardSubsumption: Boolean = true,
+      backwardSubsumption: Boolean = true,
+      forwardUnitDeletion: Boolean = true,
+      backwardUnitDeletion: Boolean = true,
+      forwardSimplifyAtGeneration: Boolean = false): Outcome =
     val sig: Signature = new Signature
     val bank: TermBank = new TermBank(sig)
     val trail: Trail = new Trail(bank)
@@ -66,14 +90,33 @@ object Bridge:
       inputs(c.id) = (s, vars.iterator.map((kv, n) => n -> kv).toMap)
       c
     }.toSeq
-    new Discount(bank, trail).saturate(clauses, maxGiven) match
-      case Discount.Result.Refutation(empty) => Some(Reconstruction.reconstruct(empty, bank, inputs))
-      case _ => None
+    new Discount(
+      bank,
+      trail,
+      forwardSubsumption = forwardSubsumption,
+      backwardSubsumption = backwardSubsumption,
+      forwardUnitDeletion = forwardUnitDeletion,
+      backwardUnitDeletion = backwardUnitDeletion,
+      forwardSimplifyAtGeneration = forwardSimplifyAtGeneration
+    ).saturate(clauses, maxGiven, maxMillis) match
+      case Discount.Result.Refutation(empty) => Outcome.Success(empty, bank, inputs)
+      case Discount.Result.Saturated => Outcome.Saturated
+      case Discount.Result.Unknown => Outcome.Timeout
 
-  /** [[proveAndReconstruct]] for a [[lisa.tptp.Problem]] of pure clauses. */
-  def proveAndReconstructProblem(problem: Problem, maxGiven: Int = Int.MaxValue): Option[K.SCProof] =
-    proveAndReconstruct(problemSequents(problem), maxGiven)
+  /** [[solve]] on a [[lisa.tptp.Problem]] whose formulas are each a pure clause (e.g. a TPTP `cnf`
+   *  problem): converts it to clause-sequents and hands them to [[solve]]. */
+  def solveTPTPProblem(
+      problem: Problem,
+      maxGiven: Int = Int.MaxValue,
+      maxMillis: Long = Long.MaxValue,
+      forwardSubsumption: Boolean = true,
+      backwardSubsumption: Boolean = true,
+      forwardUnitDeletion: Boolean = true,
+      backwardUnitDeletion: Boolean = true,
+      forwardSimplifyAtGeneration: Boolean = false): Outcome =
+    solve(problemSequents(problem), maxGiven, maxMillis, forwardSubsumption, backwardSubsumption, forwardUnitDeletion, backwardUnitDeletion, forwardSimplifyAtGeneration)
 
+  /** Convert a [[lisa.tptp.Problem]] of pure clauses (e.g. a TPTP `cnf` problem) to clause-sequents. */
   private def problemSequents(problem: Problem): Seq[K.Sequent] =
     problem.formulas.map {
       case s: AnnotatedSequent => s.sequent
@@ -83,9 +126,14 @@ object Bridge:
   // -----------------------------------------------------------------------------------------
   // Kernel FOL -> internal clause conversion
   //
-  // Function/predicate symbols are interned by (name, arity) into the shared signature (so they are
-  // consistent across clauses); equality "=" lands on the reserved [[EqualitySymbol]]. Each clause has
-  // its own variable numbering (0, 1, …), since clause variables are independent.
+  // Function/predicate symbols are interned by (full identifier, arity) into the shared signature (so
+  // they are consistent across clauses); equality "=" lands on the reserved [[EqualitySymbol]]. The
+  // intern key is the identifier's *whole* string `id.toString` -- NOT `id.name` -- because the kernel
+  // stores a trailing numeric suffix as the counter index `id.no` (e.g. `e_1` is `Identifier("e", 1)`,
+  // so `e_1` and `e_2` share the name `"e"` and differ only in `no`). Keying on `name` alone would
+  // collapse them into one constant (silently corrupting the problem); `toString` is injective here,
+  // since sanitised identifier names never contain the counter separator `_`. Each clause has its own
+  // variable numbering (0, 1, …), since clause variables are independent.
   // -----------------------------------------------------------------------------------------
 
   private def clauseOfSequent(bank: TermBank, seq: K.Sequent): Clause =
@@ -137,7 +185,7 @@ object Bridge:
     val (head, args) = headAndArgs(f)
     head match
       case c: K.Constant =>
-        val sym: Symbol = bank.signature.intern(c.id.name, args.size, isPredicate = true)
+        val sym: Symbol = bank.signature.intern(c.id.toString, args.size, isPredicate = true)
         bank.mkApp(sym, args.iterator.map(a => term(bank, vars, a)).toArray)
       case other =>
         throw IllegalArgumentException(s"not a pure clause: literal head is not a predicate constant: $other")
@@ -150,7 +198,7 @@ object Bridge:
         val (head, args) = headAndArgs(t)
         head match
           case c: K.Constant =>
-            val sym: Symbol = bank.signature.intern(c.id.name, args.size, isPredicate = false)
+            val sym: Symbol = bank.signature.intern(c.id.toString, args.size, isPredicate = false)
             bank.mkApp(sym, args.iterator.map(a => term(bank, vars, a)).toArray)
           case other =>
             throw IllegalArgumentException(s"not first-order: term head is not a constant (applied variable?): $other")

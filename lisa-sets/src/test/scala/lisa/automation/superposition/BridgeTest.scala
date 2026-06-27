@@ -14,7 +14,7 @@ import lisa.tptp.KernelParser.{annotatedStatementToKernel, problemToKernel, empt
  * clausal problems below are built from inline TPTP `cnf`/`fof` clauses parsed by Lisa's real TPTP
  * parser. The final test additionally loads a genuine `cnf` problem from a `.p` file (written to a
  * temp file), exercising `lisa.tptp.problemToKernel`. To run against the real SYN collection, set the
- * `TPTP` env var and call `Bridge.solveProblem(problemToKernel(File(...)))`.
+ * `TPTP` env var and call `Bridge.solveTPTPProblem(problemToKernel(File(...)))`.
  */
 class BridgeTest extends AnyFunSuite:
 
@@ -32,17 +32,17 @@ class BridgeTest extends AnyFunSuite:
   test("kernel sequents: {P} and {¬P} are refuted") {
     val p = pred("P", 0)
     // {P} = ⊢ P ; {¬P} = P ⊢
-    assert(Bridge.solve(List(sequent(Set(), Set(p)), sequent(Set(p), Set())), maxGiven = 10000))
+    assert(Bridge.solve(List(sequent(Set(), Set(p)), sequent(Set(p), Set())), maxGiven = 10000).refuted)
   }
 
   test("kernel sequents: the empty sequent is the empty clause (refuted)") {
-    assert(Bridge.solve(List(sequent(Set(), Set())), maxGiven = 10000))
+    assert(Bridge.solve(List(sequent(Set(), Set())), maxGiven = 10000).refuted)
   }
 
   test("kernel sequents: a satisfiable set is not refuted") {
     val pa = ap(pred("P", 1), cst("a"))
     val qb = ap(pred("Q", 1), cst("b"))
-    assert(!Bridge.solve(List(sequent(Set(), Set(pa)), sequent(Set(), Set(qb))), maxGiven = 10000))
+    assert(!Bridge.solve(List(sequent(Set(), Set(pa)), sequent(Set(), Set(qb))), maxGiven = 10000).refuted)
   }
 
   test("kernel sequents: first-order resolution refutes") {
@@ -51,14 +51,14 @@ class BridgeTest extends AnyFunSuite:
     val pa = ap(pred("P", 1), cst("a")); val qa = ap(pred("Q", 1), cst("a"))
     // {¬P(x), Q(x)} = P(x) ⊢ Q(x) ; {P(a)} = ⊢ P(a) ; {¬Q(a)} = Q(a) ⊢
     val cs = List(sequent(Set(px), Set(qx)), sequent(Set(), Set(pa)), sequent(Set(qa), Set()))
-    assert(Bridge.solve(cs, maxGiven = 10000))
+    assert(Bridge.solve(cs, maxGiven = 10000).refuted)
   }
 
   test("kernel sequents: propositional refutation needing several resolutions") {
     val p = pred("P", 0); val q = pred("Q", 0)
     // {P∨Q} = ⊢ P,Q ; {¬P} = P ⊢ ; {¬Q} = Q ⊢
     val cs = List(sequent(Set(), Set(p, q)), sequent(Set(p), Set()), sequent(Set(q), Set()))
-    assert(Bridge.solve(cs, maxGiven = 10000))
+    assert(Bridge.solve(cs, maxGiven = 10000).refuted)
   }
 
   // --- entry point 2: lisa.tptp.Problem -----------------------------------------------------
@@ -103,11 +103,11 @@ class BridgeTest extends AnyFunSuite:
   )
 
   test("tptp problems: unsatisfiable clausal problems are refuted") {
-    unsatisfiable.foreach(pr => assert(Bridge.solveProblem(pr, maxGiven = 20000), s"expected a refutation for ${pr.name}"))
+    unsatisfiable.foreach(pr => assert(Bridge.solveTPTPProblem(pr, maxGiven = 20000).refuted, s"expected a refutation for ${pr.name}"))
   }
 
   test("tptp problems: satisfiable clausal problems are not refuted") {
-    satisfiable.foreach(pr => assert(!Bridge.solveProblem(pr, maxGiven = 20000), s"expected no refutation for ${pr.name}"))
+    satisfiable.foreach(pr => assert(!Bridge.solveTPTPProblem(pr, maxGiven = 20000).refuted, s"expected no refutation for ${pr.name}"))
   }
 
   test("tptp problem loaded from a real cnf .p file is refuted") {
@@ -124,6 +124,6 @@ class BridgeTest extends AnyFunSuite:
     try
       java.nio.file.Files.write(f.toPath, content.getBytes("UTF-8"))
       val pr: Problem = problemToKernel(f)(using (strictMapAtom, strictMapTerm, strictMapVariable))
-      assert(Bridge.solveProblem(pr, maxGiven = 10000))
+      assert(Bridge.solveTPTPProblem(pr, maxGiven = 10000).refuted)
     finally f.delete()
   }

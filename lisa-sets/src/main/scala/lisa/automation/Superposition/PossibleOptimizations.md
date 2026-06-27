@@ -58,6 +58,59 @@ follow, and hash-consing already hashes/compares only identity words (`functor`/
 epoch-stamped scratch when Phase 2 defines the need, sized to it, and route `occurs` through the
 traversal-mark part then (retiring `occursClean`). Don't pre-commit a layout now.
 
+## Subsumption matcher (`Subsumption.scala`, Phase 2) — deferred refinements
+
+`subsumes` already applies the O(1) `sigSubsumes` pre-filter (size / pos / neg / weight / `predBits`),
+a `□` and a unit fast path, an injective backtracking matcher (`matchRec`, heaviest-`c`-literal-first
+via `orderByWeightDesc`), and **Check 1 — per-literal weight skip** (E `ccl_subsumption.c:541`): a
+target literal is skipped before `matchLiteral` unless `literalWeight(target) >= literalWeight(ci)`,
+which is necessary since `ci σ = target ⇒ weight(target) >= weight(ci)`. Two further E-style
+refinements are deferred. **Both are pure optimizations — they must not change the boolean result of
+`subsumes`** (guard with a brute-force differential test before trusting either).
+
+- **Check 2 — subsume-order literal sorting + early cut-off** (E `ccl_subsumption.c:531-535`). E keeps
+  both clauses' literals in a quasi-order so the matcher can `continue` past too-big candidates and
+  `return false` once it passes too-small ones, instead of my pure heaviest-first heuristic with a full
+  inner scan. Port:
+  - A total comparator `compareSubsume(bank, l1, l2)` next to `compareLiterals` in `Core.scala`,
+    ascending by the keys matching respects: **(1) polarity, (2) head predicate symbol** (both invariant
+    under matching), **(3) `literalWeight`** (non-decreasing under matching), **(4) `compareStructural`**
+    tie-break (→ total/deterministic). Then `ci` can match target `dj` only within the *contiguous block*
+    of `d` sharing `ci`'s polarity+predicate with `weight >= weight(ci)`.
+  - A **cached index permutation** on `Clause`, `_subsumeOrder: Array[Int]` computed lazily, mirroring
+    `_selected` (immutable literals → safe to cache; amortizes the sort of a target `d` checked against
+    many subsumers in forward subsumption). **Must be a separate index array — never permute
+    `literals`**, since `Justification.Resolution`/`Factoring` store literal *indices* into it.
+  - In the matcher, iterate `d`'s candidates for `ci` over `d.subsumeOrder`: skip groups whose
+    `(polarity, pred)` is below `ci`'s, scan `ci`'s group from the first `weight >= weight(ci)` entry
+    (skipping `used` ones), and **break** as soon as `(polarity, pred)` exceeds `ci`'s. The injective
+    `used[]` set still applies (used candidates skipped within the block; contiguity preserved).
+  - *Optional* stronger `c`-branching: order `c`'s literals **most-constrained-first** (fewest candidates
+    in their `(polarity, pred, weight>=)` block within `d`) instead of pure heaviest-first.
+  - Correctness note to document: every skip/break only discards a `dj` that provably cannot match `ci`
+    (wrong polarity/predicate, or too light), so reachable matches are unchanged.
+  - **Cost/benefit:** payoff scales with literals-per-clause and per-predicate fan-out; most clausal
+    clauses have 2–4 literals, so over our benchmark the delta vs. Check 1 alone may be small. E-standard
+    and a clean stepping stone to Phase-4 indexing — worth doing, but **gate "keep it" on the benchmark**
+    (it's fine to ship Check 1 alone). Loop-level impact is only measurable once subsumption is wired into
+    `Discount` and run on the seed-42 benchmark.
+
+- **Check 3 — finer symbol filtering: deferred to Phase 4 (indexing).** Our coarse `predBits` (1 bit per
+  head symbol mod 64, OR-ed) is the right Phase-2 cost/benefit point under a linear active scan. The
+  finer discriminators both belong with term indexing, not the linear scan:
+  - *E*'s **feature-vector index** (`ccl_freqvectors.c`): a trie over `[pos_lit_no, neg_lit_no]` then,
+    **per symbol**, `{occurrences in pos lits, occurrences in neg lits}` (+ optional `{max depth pos,
+    max depth neg}`), retrieving only clauses dominated feature-by-feature — per-symbol *counts*, where
+    `predBits` is per-symbol *presence* (and collides mod 64).
+  - *Vampire*'s **literal substitution-tree index** (`ForwardSubsumptionAndResolution.cpp`): queries each
+    candidate literal for generalizations, so retrieval itself enforces predicate/polarity/matchability —
+    no clause-level fingerprint at all. (Vampire's only clause-level numeric test is `length`.)
+  - Plan for Phase 4: replace the linear active scan + `predBits` with one of these indexes. No code now.
+  - *Optional* near-free Phase-2 middle ground (not adopted — we deliberately keep `predBits` coarse):
+    split into `posPredBits` / `negPredBits` (head symbols in positive vs. negative literals); subsumption
+    then needs `posPredBits(c) ⊆ posPredBits(d)` **and** `negPredBits(c) ⊆ negPredBits(d)` — strictly
+    stronger, still two `Long` ANDs, at the cost of one extra field per `Clause`.
+
 ## KBO vs. E / Vampire — feature gap (for when we revisit)
 
 How our KBO (`KBO.scala`) compares to E (`cto_kbolin.c`) and Vampire (`KBO.cpp`). Rows below
