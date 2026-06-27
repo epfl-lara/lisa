@@ -43,6 +43,14 @@ final class Discount(
     backwardSubsumption: Boolean = true,
     forwardUnitDeletion: Boolean = true,
     backwardUnitDeletion: Boolean = true,
+    // General (multi-literal side) subsumption resolution. Off by default: unlike unit deletion (which only
+    // fires for unit side clauses), it runs a match search for *every* non-subsuming active clause, so
+    // without term indexing (Phase 4) it is a much heavier forward/backward cost of uncertain payoff.
+    forwardSubsumptionResolution: Boolean = false,
+    backwardSubsumptionResolution: Boolean = false,
+    // Condensation: replace a new clause by an equivalent shorter factor of itself. Clause-local (no active
+    // scan), applied once at creation. Off by default pending its seed-42 ablation.
+    condensation: Boolean = false,
     // Off by default: with no term indexing (Phase 4), forward-simplifying every *generated* clause costs
     // an O(|active|) scan per clause and is empirically a net loss -- the mandatory selection-time pass
     // still catches every redundant clause before it activates. Revisit once indexing makes it cheap.
@@ -56,6 +64,9 @@ final class Discount(
   var backwardSubsumed: Int = 0
   var forwardUnitDeleted: Int = 0
   var backwardUnitDeleted: Int = 0
+  var forwardSubsumptionResolved: Int = 0 // multi-literal-side forward SR
+  var backwardSubsumptionResolved: Int = 0
+  var condensed: Int = 0
 
   // Passive set: two views over the same clauses, with lazy deletion -- a clause selected via one
   // stays a stale entry in the other, skipped on pop. Age is just a FIFO queue: clauses are enqueued
@@ -88,6 +99,7 @@ final class Discount(
   def saturate(initial: Seq[Clause], maxGiven: Int = Int.MaxValue, maxMillis: Long = Long.MaxValue): Result =
     byAge.clear(); byWeight.clear(); livePassive.clear(); active.clear(); balance = 0
     forwardSubsumed = 0; backwardSubsumed = 0; forwardUnitDeleted = 0; backwardUnitDeleted = 0
+    forwardSubsumptionResolved = 0; backwardSubsumptionResolved = 0; condensed = 0
     val it = initial.iterator
     while it.hasNext do
       addPassive(it.next()) match
@@ -113,18 +125,26 @@ final class Discount(
     if livePassive.isEmpty then Result.Saturated else Result.Unknown
 
   /** Canonicalise `c` and add it to passive; returns the empty clause if `c` is (or simplifies to) `□`.
-   *  When [[forwardSimplifyAtGeneration]] is on, `c` is forward-simplified against active first (after the
-   *  `□` check, so a derived empty clause is never lost): subsumed ⇒ discarded, shrunk ⇒ the shorter clause
-   *  is enqueued. Off by default -- the given is forward-simplified at selection regardless. */
+   *  Immediate (clause-local) simplification -- canonicalisation then condensation -- is applied first; then,
+   *  when [[forwardSimplifyAtGeneration]] is on, `c` is forward-simplified against active (subsumed ⇒
+   *  discarded, shrunk ⇒ the shorter clause enqueued). Forward simplification at generation is off by
+   *  default -- the given is forward-simplified at selection regardless. */
   private def addPassive(c: Clause): Option[Clause] =
     Inference.canonicalize(bank, c) match
       case None => None // tautology: discard
       case Some(cc0) =>
         if cc0.isEmpty then Some(cc0)
         else
+          // condensation: clause-local, run on every new clause (cannot produce □ or a tautology)
+          val cc: Clause =
+            if condensation then
+              val cd: Clause = Subsumption.condense(bank, trail, cc0)
+              if cd ne cc0 then condensed += 1
+              cd
+            else cc0
           val simplified: Option[Clause] =
-            if forwardSimplifyAtGeneration && (forwardSubsumption || forwardUnitDeletion) then forwardSimplify(cc0)
-            else Some(cc0)
+            if forwardSimplifyAtGeneration && (forwardSubsumption || forwardUnitDeletion) then forwardSimplify(cc)
+            else Some(cc)
           simplified match
             case None => None // subsumed by an active clause: discard
             case Some(cc) =>
@@ -212,10 +232,10 @@ final class Discount(
     None
 
   /** Forward simplify `m` against the active set in one scan (active only -- DISCOUNT does not
-   *  forward-check passive): if some active clause subsumes `m`, return `None` (discard it); otherwise
-   *  apply unit deletions by active units, returning the (possibly shrunk) clause -- `Some(□)` if a unit
-   *  deletion closed it. A single pass: after a shrink the scan continues with the shorter clause, and any
-   *  residual redundancy is caught when that clause is later selected. */
+   *  forward-check passive): if some active clause subsumes `m`, return `None` (discard it); otherwise apply
+   *  subsumption resolution by active clauses (unit deletion for unit sides, general SR for longer ones),
+   *  returning the (possibly shrunk) clause -- `Some(□)` if a resolution closed it. A single pass: after a
+   *  shrink the scan continues with the shorter clause, residual redundancy caught when it is later selected. */
   private def forwardSimplify(m0: Clause): Option[Clause] =
     var m: Clause = m0
     var i = 0
@@ -224,25 +244,27 @@ final class Discount(
       if forwardSubsumption && Subsumption.subsumes(bank, trail, c, m) then
         forwardSubsumed += 1
         return None // subsumed: discard `m`
-      if forwardUnitDeletion && c.size == 1 then
-        Subsumption.unitDeletionResolvent(bank, trail, c, m) match
-          case Some(r) =>
-            forwardUnitDeleted += 1
-            val cr: Clause = Inference.canonicalize(bank, r).getOrElse(r)
-            if cr.isEmpty then return Some(cr) // unit conflict closed the clause
-            m = cr // continue the scan with the shrunk clause
+      // resolution arm runs only on clauses `c` does not subsume; gated by side size + flag
+      if (if c.size == 1 then forwardUnitDeletion else forwardSubsumptionResolution) then
+        Subsumption.subsumptionResolutionResolvent(bank, trail, c, m) match
+          case Some(r) => // `r` is the canonical shrunk clause (it entails `m`)
+            if c.size == 1 then forwardUnitDeleted += 1 else forwardSubsumptionResolved += 1
+            if r.isEmpty then return Some(r) // resolution closed the clause
+            m = r // continue the scan with the shrunk clause
           case None => ()
       i += 1
     Some(m)
 
-  /** Backward simplify the active set using `gc` in one scan (`gc` not yet in active): delete each
-   *  active clause `gc` subsumes, and shrink each that `gc` unit-deletes a literal from (the shrunk clause
-   *  is re-added through [[addPassive]] after the scan, to avoid mutating `active` mid-iteration). Removal
-   *  is swap-with-last + truncate (O(1)); `active` is unordered, so reordering is harmless, and the
-   *  swapped-in element is re-checked by *not* advancing the index. Returns `Some(□)` if a backward unit
-   *  deletion closes a clause. Deletion needs no reconstruction; a shrunk clause is an ordinary resolvent. */
+  /** Backward simplify the active set using `gc` in one scan (`gc` not yet in active): delete each active
+   *  clause `gc` subsumes, and shrink each that `gc` subsumption-resolves a literal from (unit deletion if
+   *  `gc` is a unit, general SR otherwise). The shrunk clause is re-added through [[addPassive]] after the
+   *  scan, to avoid mutating `active` mid-iteration. Removal is swap-with-last + truncate (O(1)); `active`
+   *  is unordered, so reordering is harmless, and the swapped-in element is re-checked by *not* advancing the
+   *  index. Returns `Some(□)` if a resolution closes a clause. Deletion needs no reconstruction; a shrunk
+   *  clause is an ordinary resolvent. */
   private def backwardSimplify(gc: Clause): Option[Clause] =
     val gcUnit: Boolean = gc.size == 1
+    val srOn: Boolean = if gcUnit then backwardUnitDeletion else backwardSubsumptionResolution
     var shrunk: mutable.ArrayBuffer[Clause] = null // re-added after the scan (lazily allocated)
     var i = 0
     while i < active.length do
@@ -251,10 +273,10 @@ final class Discount(
       if backwardSubsumption && Subsumption.subsumes(bank, trail, gc, m) then
         backwardSubsumed += 1
         removed = true
-      else if backwardUnitDeletion && gcUnit then
-        Subsumption.unitDeletionResolvent(bank, trail, gc, m) match
+      else if srOn then
+        Subsumption.subsumptionResolutionResolvent(bank, trail, gc, m) match
           case Some(r) =>
-            backwardUnitDeleted += 1
+            if gcUnit then backwardUnitDeleted += 1 else backwardSubsumptionResolved += 1
             if shrunk == null then shrunk = mutable.ArrayBuffer.empty
             shrunk += r
             removed = true

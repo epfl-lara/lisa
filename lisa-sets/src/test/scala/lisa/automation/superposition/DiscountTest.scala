@@ -237,3 +237,68 @@ class DiscountTest extends AnyFunSuite:
     assert(on.saturate(cs).isInstanceOf[Discount.Result.Refutation])
     assert(off.saturate(cs).isInstanceOf[Discount.Result.Refutation])
   }
+
+  // --- general subsumption resolution (off by default; enabled explicitly here) ----------------
+
+  test("forward general subsumption resolution shrinks the given at selection") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 1); val q = pred("Q", 1); val r = pred("R", 1)
+    val a = const("a"); val b = const("b"); val x = v(0)
+    // {¬P(x), Q(x)} (lighter) activates first; selecting {P(a), Q(a), R(b)} then SR-resolves P(a) → {Q(a), R(b)}.
+    val d = new Discount(bank, trail, forwardSubsumptionResolution = true)
+    val cs = Seq(clause(pos(app(p, a)), pos(app(q, a)), pos(app(r, b))), clause(neg(app(p, x)), pos(app(q, x))))
+    assert(d.saturate(cs) == Discount.Result.Saturated)
+    assert(d.forwardSubsumptionResolved == 1)
+    assert(d.backwardSubsumptionResolved == 0)
+  }
+
+  test("backward general subsumption resolution shrinks an active clause") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 1); val q = pred("Q", 1); val r = pred("R", 1)
+    val a = const("a"); val b = const("b"); val x = v(0)
+    // Force age order so {P(a), Q(a), R(b)} activates before the (multi-literal) side {¬P(x), Q(x)}.
+    val d = new Discount(bank, trail, ageRatio = 1, weightRatio = 0, backwardSubsumptionResolution = true)
+    val cs = Seq(clause(pos(app(p, a)), pos(app(q, a)), pos(app(r, b))), clause(neg(app(p, x)), pos(app(q, x))))
+    assert(d.saturate(cs) == Discount.Result.Saturated)
+    assert(d.backwardSubsumptionResolved == 1)
+    assert(d.forwardSubsumptionResolved == 0)
+  }
+
+  test("general subsumption resolution is off by default and inert when disabled") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 1); val q = pred("Q", 1); val r = pred("R", 1)
+    val a = const("a"); val b = const("b"); val x = v(0)
+    val cs = Seq(clause(pos(app(p, a)), pos(app(q, a)), pos(app(r, b))), clause(neg(app(p, x)), pos(app(q, x))))
+    val d = new Discount(bank, trail) // SR flags default false
+    assert(d.saturate(cs) == Discount.Result.Saturated)
+    assert(d.forwardSubsumptionResolved == 0 && d.backwardSubsumptionResolved == 0)
+  }
+
+  // --- condensation (off by default; enabled explicitly here) -----------------------------------
+
+  test("condensation shrinks a clause at creation") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 1); val a = const("a"); val x = v(0)
+    // {P(x), P(a)} condenses to {P(a)} when it enters passive
+    val d = new Discount(bank, trail, condensation = true)
+    assert(d.saturate(Seq(clause(pos(app(p, x)), pos(app(p, a))))) == Discount.Result.Saturated)
+    assert(d.condensed == 1)
+  }
+
+  test("condensation is off by default and inert when disabled") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 1); val a = const("a"); val x = v(0)
+    val d = new Discount(bank, trail) // condensation defaults false
+    assert(d.saturate(Seq(clause(pos(app(p, x)), pos(app(p, a))))) == Discount.Result.Saturated)
+    assert(d.condensed == 0)
+  }
+
+  test("condensation preserves a refutation verdict (flags on and off agree)") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 1); val a = const("a"); val x = v(0)
+    val cs = Seq(clause(pos(app(p, x)), pos(app(p, a))), clause(neg(app(p, a))))
+    val on = new Discount(bank, trail, condensation = true)
+    val off = new Discount(bank, trail, condensation = false)
+    assert(on.saturate(cs).isInstanceOf[Discount.Result.Refutation])
+    assert(off.saturate(cs).isInstanceOf[Discount.Result.Refutation])
+  }

@@ -119,49 +119,102 @@ object Subsumption:
       false
 
   /**
-   * Unit deletion -- the unit case of subsumption resolution. If `unit` is a one-literal clause `{L}` and
-   * some literal `K` of `main` has the **opposite** polarity with `atom(L)` *matching* `atom(K)`
-   * one-sidedly (so `Lσ = ¬K` with σ binding only the unit's variables), then `main` is redundant given
-   * the shorter clause `main \ {K}`. Returns that clause; `None` if no such `K` exists.
+   * Subsumption resolution -- a *simplifying* resolution. If `side = C' ∨ L` and some literal `K` of `main`
+   * has the **opposite** polarity to `L` under a one-sided σ with `Lσ = ¬K` **and** `C'σ ⊆ main \ {K}`
+   * (the rest of `side` injectively matches the rest of `main`, σ binding only `side`'s variables), then
+   * `main` is redundant given the shorter clause `main \ {K}`. Returns that clause; `None` otherwise. The
+   * **unit case** (`|side| = 1`, so `C' = ∅` and the second condition is vacuous) is *unit deletion*.
    *
-   * The one-sided **match** (not full unification) is the guard that makes this a *simplification*: it
-   * forces the resolvent's literals to be a sub-multiset of `main`'s (σ leaves `main` rigid), so the
-   * resolvent subsumes `main` and deleting `main` is sound. A two-sided unifier that bound `main`'s
-   * variables would instead be a *generating* resolution, whose resolvent is only an instance of `main`
-   * and does **not** subsume it.
+   * One-sidedness (matching, not unification) is the guard that makes this a *simplification* rather than a
+   * generating resolution: σ leaves `main` rigid, so the resolvent's literals are a sub-multiset of
+   * `main`'s and the resolvent subsumes `main`, so deleting `main` is sound. A two-sided unifier that bound
+   * `main`'s variables would yield only an instance of `main`, which does not subsume it.
    *
-   * The result is built via [[Inference.resolve]], so it carries an ordinary `Justification.Resolution`
-   * (densely renumbered, reconstruction-faithful) -- unit deletion needs **no** dedicated justification or
+   * The result is the canonicalised resolvent, an ordinary clause (`Justification.Resolution`, densely
+   * renumbered, reconstruction-faithful) -- subsumption resolution needs **no** dedicated justification or
    * reconstruction step; the loop simply deletes `main` (deletion is reconstruction-free, like subsumption).
+   *
+   * **Why the [[subsumes]] gate.** Replacing `main` by the resolvent is a *redundancy* deletion; it preserves
+   * refutational **completeness** only if the kept clause entails `main` (subsumes it). For a *unit* side the
+   * resolvent is `main \ {K} ⊆ main`, which always does. For a *longer* side `resolve`'s mgu binds only `L`'s
+   * variables, so when `C'` has variables outside `L` the built clause is `C'σ₀ ∪ M'` (those variables left
+   * free) rather than `main \ {K}`, and need not entail `main`; we therefore keep the result **only when it
+   * `subsumes` `main`**. Deleting a non-entailed clause would not be *unsound* (the prover never derives a
+   * false `□`) but would break completeness -- it could discard a clause a refutation needs and wrongly
+   * saturate. The gate is conservative: it can miss SR steps whose `C'` carries extra variables (a complete
+   * version needs the full matcher σ and a dedicated reconstruction -- deferred, see PossibleOptimizations.md).
    */
-  def unitDeletionResolvent(bank: TermBank, trail: Trail, unit: Clause, main: Clause): Option[Clause] =
-    if unit.size != 1 then return None
-    val l: Literal = unit.literals(0)
-    // O(1) pre-filter: `K` must share `L`'s predicate (so `unit`'s single predicate bit must occur in
-    // `main`) and have the opposite polarity (so `main` must hold a literal of that polarity).
-    if (unit.predBits & main.predBits) == 0L then return None
-    val pL: Boolean = bank.isPositive(l)
-    if pL then { if main.negCount == 0 then return None }
-    else if main.posCount == 0 then return None
-    val aL: Term = bank.atomOf(l)
-    val dl: Array[Literal] = main.literals
-    var j = 0
-    while j < dl.length do
-      val k: Literal = dl(j)
-      if bank.isPositive(k) != pL then // complementary polarity: a candidate to resolve away
-        val s: Int = trail.save()
-        val matched: Boolean = trail.matchTerm(aL, PatScope, bank.atomOf(k), TgtScope)
-        trail.restore(s)
-        // build via resolve (re-unifies; here the mgu equals the matcher, so it yields `main \ {K}`)
-        if matched then return Inference.resolve(bank, trail, unit, 0, main, j)
-      j += 1
+  def subsumptionResolutionResolvent(bank: TermBank, trail: Trail, side: Clause, main: Clause): Option[Clause] =
+    // O(1) pre-filter, sound for SR: every predicate of `side` occurs in `main` (`C'`'s in `M'`, `L`'s as
+    // `¬K`), and `side` is no longer / no heavier (σ only grows terms, and `C'σ ⊆ M'`, `Lσ = ¬K`).
+    if side.size > main.size || side.weight > main.weight then return None
+    if (side.predBits & main.predBits) != side.predBits then return None
+    val sl: Array[Literal] = side.literals
+    val ml: Array[Literal] = main.literals
+    val unit: Boolean = sl.length == 1 // C' empty: the resolvent is `main \ {K}`, which always subsumes `main`
+    var iL = 0
+    while iL < sl.length do
+      val aL: Term = bank.atomOf(sl(iL))
+      val pL: Boolean = bank.isPositive(sl(iL))
+      var iK = 0
+      while iK < ml.length do
+        if bank.isPositive(ml(iK)) != pL then // complementary candidate: L could resolve K away
+          // cheap one-sided pre-check (necessary for the resolvent to subsume `main`); restore before resolve
+          val s: Int = trail.save()
+          val matched: Boolean = trail.matchTerm(aL, PatScope, bank.atomOf(ml(iK)), TgtScope)
+          trail.restore(s)
+          if matched then
+            Inference.resolve(bank, trail, side, iL, main, iK) match
+              case Some(raw) =>
+                val rc: Clause = Inference.canonicalize(bank, raw).getOrElse(raw)
+                // keep `rc` and delete `main` only if `rc` entails `main` (completeness gate; see above)
+                if unit || subsumes(bank, trail, rc, main) then return Some(rc)
+              case None => ()
+        iK += 1
+      iL += 1
     None
 
   /**
-   * Indices `0 until lits.length` ordered by descending literal weight. Matching the heaviest
-   * (most specific) literals first prunes the search: they have the fewest candidate targets, so
-   * a clash is found before cheap, ambiguous literals fan the search out. Insertion sort -- clause
-   * literal counts are tiny, so this beats a comparator-driven sort and allocates nothing extra.
+   * Condensation: replace `c` by an equivalent shorter clause when one exists. A *condensation* is a factor
+   * `cσ` (two same-polarity literals unified and merged) that is strictly shorter than `c` and **subsumes**
+   * it. A factor is an instance, so `c ⊨ cσ` already; the `subsumes` gate adds `cσ ⊨ c`, making them
+   * equivalent, so replacing `c` by `cσ` is sound and completeness-preserving. (Without the gate the factor is
+   * only a weaker instance, and deleting `c` would drop a constraint -- a completeness failure.)
+   *
+   * Returns the fully-condensed clause -- iterating, since one merge can expose another -- or `c` itself if it
+   * is already condensed. The result is an ordinary factor (`Justification.Factoring`, chained when several
+   * merges apply), so condensation needs no dedicated reconstruction. Unlike the generating factoring in the
+   * loop, condensation is a *simplification*, so it is not restricted to selected or positive literals: it
+   * tries every same-polarity pair.
+   */
+  def condense(bank: TermBank, trail: Trail, c: Clause): Clause =
+    var cur: Clause = c
+    var progress = true
+    while progress do
+      progress = false
+      val cl: Array[Literal] = cur.literals
+      var i = 0
+      while i < cl.length && !progress do
+        var j = i + 1
+        while j < cl.length && !progress do
+          // `factor` only merges same-polarity literals; pre-check avoids the call for the rest
+          if bank.isPositive(cl(i)) == bank.isPositive(cl(j)) then
+            Inference.factor(bank, trail, cur, i, j) match
+              case Some(f) =>
+                Inference.canonicalize(bank, f) match
+                  // keep the (shorter) factor only when it subsumes `cur` -- then `cur ≡ factor`
+                  case Some(fc) if subsumes(bank, trail, fc, cur) => cur = fc; progress = true
+                  case _ => ()
+              case None => ()
+          j += 1
+        i += 1
+    cur
+
+  /**
+   * Indices `0 until lits.length` ordered by descending literal weight. Matching the heaviest (most specific)
+   * literals first prunes the search: they have the fewest candidate targets, so a clash is found before
+   * cheap, ambiguous literals fan the search out. Insertion sort -- clause literal counts are tiny, so this
+   * beats a comparator-driven sort.
    */
   private def orderByWeightDesc(bank: TermBank, lits: Array[Literal]): Array[Int] =
     val n: Int = lits.length
@@ -171,7 +224,7 @@ object Subsumption:
       order(i) = i
       i += 1
     var a = 1
-    while a < n do
+    while a < order.length do
       val key: Int = order(a)
       val kw: Int = bank.literalWeight(lits(key))
       var b: Int = a - 1

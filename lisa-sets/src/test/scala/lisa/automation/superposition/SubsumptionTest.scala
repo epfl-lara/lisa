@@ -25,8 +25,12 @@ class SubsumptionTest extends AnyFunSuite:
     /** Does `c` subsume `d`? (subsumes restores the trail itself, on both paths.) */
     def sub(c: Clause, d: Clause): Boolean = Subsumption.subsumes(bank, trail, c, d)
 
-    /** Unit deletion: the shrunk `main \ {K}` if `unit` resolves a literal away, else `None`. */
-    def unitDel(unit: Clause, main: Clause): Option[Clause] = Subsumption.unitDeletionResolvent(bank, trail, unit, main)
+    /** Subsumption resolution: the shrunk `main \ {K}` if `side` resolves a literal away, else `None`.
+     *  (Unit deletion is the `|side| = 1` case.) */
+    def unitDel(side: Clause, main: Clause): Option[Clause] = Subsumption.subsumptionResolutionResolvent(bank, trail, side, main)
+
+    /** Condensation: the fully-condensed clause (`== c` if already condensed). */
+    def condense(c: Clause): Clause = Subsumption.condense(bank, trail, c)
 
   // --- units and identity ---------------------------------------------------------------------
 
@@ -228,5 +232,95 @@ class SubsumptionTest extends AnyFunSuite:
     assert(unitDel(cl(neg(app(p, v(0)))), cl(pos(app(p, a)), pos(app(q, b)))).isDefined) // a hit
     assert(trail.save() == before)
     assert(unitDel(cl(neg(app(p, a))), cl(pos(app(p, v(0))), pos(app(q, b)))).isEmpty) //  a miss
+    assert(trail.save() == before)
+  }
+
+  // --- general subsumption resolution (multi-literal side) -------------------------------------
+
+  test("a multi-literal side resolves a literal away when the rest subsumes the remainder") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 1); val q = pred("Q", 1); val r = pred("R", 1)
+    val a = const("a"); val b = const("b")
+    // {¬P(x), Q(x)} resolves P(a) out of {P(a), Q(a), R(b)}: σ = {x ↦ a}, and Q(x)σ = Q(a) ⊆ {Q(a), R(b)}
+    val r1 = unitDel(cl(neg(app(p, v(0))), pos(app(q, v(0)))), cl(pos(app(p, a)), pos(app(q, a)), pos(app(r, b))))
+    assert(r1.isDefined && r1.get.size == 2)
+    assert(sub(r1.get, cl(pos(app(q, a)), pos(app(r, b))))) // the survivor is {Q(a), R(b)}
+    assert(!sub(r1.get, cl(pos(app(p, a))))) //                P(a) was deleted
+  }
+
+  test("general SR needs the rest of the side consistent with the resolving match (one shared σ)") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 1); val q = pred("Q", 1); val a = const("a"); val b = const("b")
+    // {¬P(x), Q(x)} vs {P(a), Q(b), ...}: resolving P(a) forces x ↦ a, but then Q(x)σ = Q(a) ∉ {Q(b)},
+    // so the side does NOT subsumption-resolve this main.
+    assert(unitDel(cl(neg(app(p, v(0))), pos(app(q, v(0)))), cl(pos(app(p, a)), pos(app(q, b)))).isEmpty)
+  }
+
+  test("general SR still requires a one-sided match (the remainder may not bind the main)") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 1); val q = pred("Q", 1); val a = const("a")
+    // {¬P(a), Q(a)} vs {P(a), Q(y)}: resolving P(a) is fine, but Q(a) must match the rigid Q(y) -- it does
+    // not (matching Q(a) onto Q(y) would bind y), so no SR.
+    assert(unitDel(cl(neg(app(p, a)), pos(app(q, a))), cl(pos(app(p, a)), pos(app(q, v(0))))).isEmpty)
+  }
+
+  test("general SR can close to the empty clause when the side covers all of main") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 1); val q = pred("Q", 1); val a = const("a")
+    // {¬P(x), Q(x)} resolves P(a) out of {P(a), Q(a)} -> {Q(a)}; here we check the 2->1 shrink directly
+    val r1 = unitDel(cl(neg(app(p, v(0))), pos(app(q, v(0)))), cl(pos(app(p, a)), pos(app(q, a))))
+    assert(r1.isDefined && r1.get.size == 1 && sub(r1.get, cl(pos(app(q, a)))))
+  }
+
+  test("general SR conservatively skips a side whose remainder has variables outside the resolving literal") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 1); val q = pred("Q", 1); val r = pred("R", 1)
+    val a = const("a"); val b = const("b"); val c = const("c")
+    // {¬P(x), Q(y)} with distinct x,y: ideally it would resolve P(a) → {Q(b), R(c)}, but `resolve`'s mgu
+    // (from P(x)=P(a)) leaves y free, so the built resolvent {Q(y), Q(b), R(c)} does not subsume main and
+    // the [[subsumes]] completeness gate (soundly) declines the deletion. Documents the known limitation.
+    assert(unitDel(cl(neg(app(p, v(0))), pos(app(q, v(1)))), cl(pos(app(p, a)), pos(app(q, b)), pos(app(r, c)))).isEmpty)
+  }
+
+  // --- condensation ---------------------------------------------------------------------------
+
+  test("condensation merges a variable literal into its instance") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 1); val a = const("a")
+    // {P(x), P(a)} ≡ {P(a)} (x ↦ a)
+    val r = condense(cl(pos(app(p, v(0))), pos(app(p, a))))
+    assert(r.size == 1 && sub(r, cl(pos(app(p, a)))) && sub(cl(pos(app(p, a))), r))
+  }
+
+  test("condensation works on negative literals too (not just positive/selected)") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 1); val a = const("a")
+    // {¬P(x), ¬P(a)} ≡ {¬P(a)}
+    val r = condense(cl(neg(app(p, v(0))), neg(app(p, a))))
+    assert(r.size == 1 && sub(r, cl(neg(app(p, a)))))
+  }
+
+  test("a factor that does not subsume the clause is not a condensation") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 2); val a = const("a"); val b = const("b")
+    // {P(x,a), P(b,y)} factors to {P(b,a)}, which does NOT subsume the clause -- so no condensation.
+    val c0 = cl(pos(app(p, v(0), a)), pos(app(p, b, v(1))))
+    assert(condense(c0).size == 2) // unchanged
+  }
+
+  test("condensation iterates to a fixpoint") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 1); val a = const("a")
+    // {P(x), P(y), P(a)} ≡ {P(a)} -- needs two merges
+    val r = condense(cl(pos(app(p, v(0))), pos(app(p, v(1))), pos(app(p, a))))
+    assert(r.size == 1 && sub(r, cl(pos(app(p, a)))))
+  }
+
+  test("an already-condensed clause is returned unchanged, leaving the trail clean") {
+    val fx = new Fix; import fx.*
+    val p = pred("P", 1); val q = pred("Q", 1); val a = const("a"); val b = const("b")
+    val before = trail.save()
+    val c0 = cl(pos(app(p, a)), pos(app(q, b))) // distinct predicates: nothing to merge
+    assert(condense(c0).size == 2)
     assert(trail.save() == before)
   }

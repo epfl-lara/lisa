@@ -118,3 +118,88 @@ Run via the `subs` mode of the `Evaluation` main (`both` | `fwd` | `bwd` | `none
 - **Why**: forward subsumption stops redundant clauses from *entering* passive (controls the search-space
   explosion = coverage); backward only cleans the *active* set, so alone it can't stem the passive flood.
   This is the textbook division of labour, and the reason the default keeps both on.
+
+### Ablation: forward subsumption at generation vs. selection-only (seed 42)
+
+DISCOUNT forward-checks the given at selection regardless; the question is whether to *also* forward-check
+freshly **generated** clauses before they enter passive. Run via the `gen`/`nogen` token
+(`Evaluation 42 100 15000 100000 both nogen`).
+
+| Config | REFUTED | TIMEOUT | SATURATED | BAD_PROOF | refute total |
+|---|---:|---:|---:|---:|---:|
+| `gen` — forward subsumption at generation **and** selection | 67 | 33 | 0 | 0 | 30763 ms |
+| `nogen` — forward subsumption **only at selection** | 71 | 29 | 0 | 0 | 28171 ms |
+
+Strictly monotonic: `nogen` solved everything `gen` did **plus 4** (`FLD013-3`, `FLD060-4`, `LCL217-1`,
+`SYN575-1`), none lost. **Without term indexing**, forward-subsuming every generated clause is an
+O(|active|) scan on a high-volume path that mostly re-scans survivors the selection check would re-scan
+anyway; dropping it frees time for useful inference, tipping borderline problems over. **Default flipped to
+`forwardSimplifyAtGeneration = false`** (revisit once Phase-4 indexing makes the generation check cheap —
+the passive-bloat saving would likely tip it back).
+
+### Phase 2 (P1): unit deletion (seed 42)
+
+Adds **unit deletion** (the unit case of subsumption resolution): a unit clause `{L}` deletes any literal
+`K` of another clause with `Lσ = ¬K` (one-sided match), forward (at selection) and backward (against
+active). The shrunk clause is built via `Inference.resolve`, so it is an ordinary resolvent — **no new
+`Justification` or reconstruction code**, and deletion of the original is reconstruction-free. Measured on
+top of the new default (subsumption fwd+bwd, `nogen`):
+
+| Config | REFUTED | TIMEOUT | SATURATED | BAD_PROOF | refute total |
+|---|---:|---:|---:|---:|---:|
+| subsumption only (`unit none`) | 71 | 29 | 0 | 0 | 24549 ms |
+| + unit deletion (default) | **74** | 26 | 0 | 0 | 33548 ms |
+
+Strictly monotonic again: **+3, all TIMEOUT → REFUTED, none lost** — `GRP124-3.004`, `GRP124-8.004`,
+`GRP130-2.003` (group-theory problems, where ground unit facts trim literals off larger clauses). Still
+`saturated=0`, `bad_proof=0`: every unit-deletion refutation reconstructs to a kernel-valid `⊢`.
+
+**Current Phase-2 default** = forward+backward subsumption + forward+backward unit deletion, forward
+simplification at selection only → **74/100 refuted on seed 42** (vs. the Phase-1 baseline's 35).
+
+### Phase 2 (P1): general subsumption resolution (seed 42)
+
+Generalises unit deletion to multi-literal side clauses `C' ∨ L` (`Lσ = ¬K`, `C'σ ⊆ main \ {K}`). Built via
+`resolve` and kept only when the resolvent `subsumes` `main` — a **completeness gate** (see
+`PossibleOptimizations.md`): it is conservative (skips SR steps whose `C'` carries variables outside `L`)
+but never deletes a clause it doesn't entail. **Off by default** — it runs `subsumes(rc, main)` per candidate,
+much heavier than unit deletion. Run via the `sr` token (`Evaluation … both nogen both both`).
+
+| Config | REFUTED | TIMEOUT | SATURATED | BAD_PROOF | refute total |
+|---|---:|---:|---:|---:|---:|
+| unit deletion only (`sr none`) | 74 | 26 | 0 | 0 | 35133 ms |
+| + general SR (`sr both`) | **79** | 21 | 0 | 0 | 81595 ms |
+
+Strictly monotonic: **+5, all TIMEOUT → REFUTED, none lost** (`SYN442/455/482/488/498-1`), `saturated=0`,
+`bad_proof=0`. Cost is real: total refute time ~2.3× (per-candidate `subsumes`), so the +5 came without any
+regression *on this sample* but the headroom isn't guaranteed elsewhere — hence the default stays off pending
+a multi-seed robustness check.
+
+> **Completeness lesson (the bug behind the gate).** A first cut deleted `main` whenever the guard matched,
+> *without* the `subsumes(rc, main)` check. On seed 42 that turned `SYN036-4` `REFUTED → SATURATED`: building
+> via `resolve` only yields `main \ {K}` when every side variable is in `L`; otherwise it leaves a variable
+> free and the kept clause doesn't entail `main`, so deleting `main` discarded a clause a refutation needed.
+> Not a *soundness* failure (no false `□` is ever derived) but a *completeness* one (a real refutation is
+> missed and the set wrongly saturates) — which is exactly what the `saturated`-must-stay-0 metric guards.
+
+### Phase 2 (P2): condensation (seed 42)
+
+Replaces a clause by an equivalent shorter factor of itself (a factor that `subsumes` it), applied once at
+creation (clause-local). Built via `Inference.factor` + the `subsumes` gate ⇒ ordinary `Factoring`
+justification, no new reconstruction. **Off by default.** Run via the `cond` token (`Evaluation … none on`).
+
+| Config | REFUTED | TIMEOUT | SATURATED | BAD_PROOF | refute total |
+|---|---:|---:|---:|---:|---:|
+| condensation off (default) | 74 | 26 | 0 | 0 | 32652 ms |
+| condensation on | 71 | 29 | 0 | 0 | 49778 ms |
+
+**Net loss: −3** (`FLD037-1`, `GRP124-8.004`, `GRP130-2.003`, all REFUTED → TIMEOUT), refute time ~1.5×.
+Correct (`saturated=0`, `bad_proof=0`) but not worth it on this fragment: condensation runs an O(n²)
+`factor`+`subsumes` scan on *every* new clause, yet condensable clauses (two literals that coincide under a
+substitution) are rare in pure no-equality clausal problems — so it is mostly overhead that tips
+boundary-timeout problems over the wall. **Default stays off.** (Expected to earn its place once equality /
+arithmetic make collapsible literals common — Phase 4.)
+
+**End-of-Phase-2 default** = forward+backward subsumption + forward+backward unit deletion, at selection
+only; general subsumption resolution and condensation implemented but **off by default** (neither a net win
+on the no-equality fragment without indexing) → **74/100 refuted on seed 42**, `saturated=0`, `bad_proof=0`.

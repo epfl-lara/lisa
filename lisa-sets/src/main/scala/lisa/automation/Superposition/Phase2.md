@@ -320,3 +320,58 @@ the next.
    subsumption absorb variants and defer? (Recommended: defer.)
 3. **Subsumption semantics**: multiset (length-respecting, the standard — recommended) vs set
    inclusion. We propose multiset with the `|C| ≤ |D|` filter, matching all three reference provers.
+
+---
+
+## 11. Condensation (P2) — detailed plan
+
+The last Phase-2 rule, and the cheapest: **clause-local**, reusing machinery already built (factoring +
+`subsumes`), with **no new `Core`/`Reconstruction` code**.
+
+**What it is.** A *condensation* of `C` is a factor `Cσ` (two same-polarity literals unified and merged)
+that is **strictly shorter** than `C` and **subsumes** `C`. A factor is always an instance, so `C ⊨ Cσ`
+already; the subsumption gate adds `Cσ ⊨ C`, making them **equivalent**, so we replace `C` by the shorter
+`Cσ`. It generalises `canonicalize`'s syntactic duplicate-literal removal to literals that coincide only
+*after* a substitution: `{P(x), P(a)} → {P(a)}`, `{P(x), P(y)} → {P(x)}`.
+
+**It is just factoring used as a simplification.** Same `Inference.factor` call as the generating rule;
+the difference is the *action* (replace `C` vs. add the factor) and the *guard*. Two consequences:
+- **Build** via `Inference.factor` → an ordinary factor with `Justification.Factoring`; **reconstruct** as
+  Phase-1 factoring. No new machinery.
+- **The `subsumes(factor, C)` gate is completeness-critical** (same lesson as subsumption resolution). The
+  factor is an *instance*, hence weaker; keeping it and deleting `C` is safe only when it also subsumes `C`
+  (so `C ≡ Cσ`). Without the gate we would drop a constraint — missing refutations and wrongly saturating
+  (a completeness failure, not a soundness one). The gate correctly **rejects** e.g. `{P(x,a), P(b,y)} →
+  {P(b,a)}`, where the factor does not subsume the clause (a generating factor, not a condensation).
+
+**Differences from the generating factoring in `activate`:**
+- **Clause-local**: depends only on `C`, so it runs **once at clause creation** (in `addPassive`, after
+  `canonicalize`) — no forward/backward variants, no active-set scan, far cheaper than subsumption/SR.
+- **All same-polarity pairs (positive *and* negative), all literals** — not just *selected* / *positive*
+  ones. Selection is a refinement of the *generating* calculus; a simplification yielding an equivalent
+  clause is not subject to it (same reason backward subsumption / unit deletion ignore selection).
+- **Iterated to a fixpoint**: one merge can expose another, so condense repeatedly until none subsumes.
+
+**Primitive** (`Subsumption.scala`): `condense(bank, trail, c): Clause` — the fully-condensed clause
+(`== c` if none applies). Loop over unordered same-polarity literal pairs `(i, j)`; build
+`f = canonicalize(Inference.factor(c, i, j))`; if `f` is defined (not a tautology) and `subsumes(f, c)`,
+set `c = f` and restart; return `c` when no pair condenses. (`factor` returns `None` for non-unifiable /
+opposite-polarity pairs; pre-checking polarity avoids the call.) Cannot produce `□` (a factor of a
+non-empty clause keeps ≥1 literal); `canonicalize`'s `None` is handled defensively.
+
+**Loop integration** (`Discount.scala`): in `addPassive`, after `canonicalize` and the `□` check, before
+forward-simplify/enqueue — the §6 order *tautology → condensation → forward subsumption*. A `condensation`
+flag (default decided by benchmark) and a `condensed` counter. Runs on every new clause regardless of the
+generation flag, since it is clause-local and cheap.
+
+**Reconstruction**: none new — a condensed clause carries a (possibly chained) `Justification.Factoring`,
+already reconstructed by Phase 1. A `ReconstructionTest` confirms a refutation routed through a condensed
+clause reconstructs to kernel-valid `⊢`.
+
+**Tests**: `{P(x), P(a)} → {P(a)}`; negative `{¬P(x), ¬P(a)} → {¬P(a)}`; non-condensation `{P(x,a),
+P(b,y)}` unchanged (gate rejects); iterated `{P(x), P(y), P(a)} → {P(a)}`; already-condensed unchanged;
+trail clean. Loop: a clause condensed at creation (counter > 0); flag parity (off ⇒ inert, same verdict).
+
+**Benchmark**: a `cond` ablation axis in `Evaluation`; re-run seed 42 (require `saturated=0`, `bad_proof=0`)
+and decide the default from the delta. Prior: likelier to earn on-by-default than general SR (clause-local,
+no active scan), but the benchmark decides.

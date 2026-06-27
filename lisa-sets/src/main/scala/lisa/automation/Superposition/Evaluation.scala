@@ -21,12 +21,14 @@ import lisa.tptp.KernelParser.{problemToKernel, strictMapAtom, strictMapTerm, st
  *
  * Both need the `TPTP` env var pointing at the TPTP root (the directory containing `Problems/`). Run:
  * {{{
- *   TPTP=/path/to/TPTP-v9.2.1 sbt "lisa-sets/runMain lisa.automation.superposition.Evaluation [seed] [n] [timeoutMs] [maxGiven] [subs] [gen] [unit]"
+ *   TPTP=/path/to/TPTP-v9.2.1 sbt "lisa-sets/runMain lisa.automation.superposition.Evaluation [seed] [n] [timeoutMs] [maxGiven] [subs] [gen] [unit] [sr] [cond]"
  *   TPTP=/path/to/TPTP-v9.2.1 sbt "lisa-sets/runMain lisa.automation.superposition.Evaluation curated [timeoutMs] [maxGiven]"
  * }}}
- * `subs` and `unit` each select a `both` (default) / `fwd` / `bwd` / `none` configuration, for subsumption
- * and unit deletion respectively. `gen` (orthogonal) controls *where* forward simplification runs: `gen`
- * on freshly generated clauses **and** at given-selection; `nogen` (default) only at given-selection.
+ * `subs`, `unit`, and `sr` each select a `both` / `fwd` / `bwd` / `none` configuration, for subsumption,
+ * unit deletion, and general (multi-literal-side) subsumption resolution respectively; `cond` is `on`/`off`
+ * for condensation. Defaults: `subs` and `unit` on, `sr` and `cond` off. `gen` (orthogonal) controls *where*
+ * forward simplification runs: `gen` on freshly generated clauses **and** at given-selection; `nogen`
+ * (default) only at given-selection.
  * The solve loop honours `timeoutMs` cooperatively (checked per given clause), so a budgeted run stops
  * cleanly; a daemon-thread hard cap a few seconds later only backstops a pathological single step.
  */
@@ -59,6 +61,9 @@ object Evaluation:
       case _ =>
         val (fwd, bwd) = subsumptionMode(args.lift(4))
         val (fwdUD, bwdUD) = directionMode(args.lift(6), "unit-deletion")
+        val (fwdSR, bwdSR) = args.lift(7) match
+          case None => (false, false) // general subsumption resolution is off by default
+          case some => directionMode(some, "subsumption-resolution")
         benchmark(
           seed = args.lift(0).map(_.toLong).getOrElse(0L),
           n = args.lift(1).map(_.toInt).getOrElse(100),
@@ -68,8 +73,18 @@ object Evaluation:
           backwardSubsumption = bwd,
           forwardUnitDeletion = fwdUD,
           backwardUnitDeletion = bwdUD,
+          forwardSubsumptionResolution = fwdSR,
+          backwardSubsumptionResolution = bwdSR,
+          condensation = onOffMode(args.lift(8), "condensation"),
           forwardSimplifyAtGeneration = generationMode(args.lift(5))
         )
+
+  /** Parse an `on`/`off` token (default off). Used for the orthogonal condensation axis. */
+  private def onOffMode(arg: Option[String], what: String): Boolean =
+    arg.map(_.toLowerCase) match
+      case None | Some("off") => false
+      case Some("on")         => true
+      case Some(other)        => sys.error(s"unknown $what mode '$other' (use on|off)")
 
   /** Parse the optional subsumption-mode token into (forward, backward) flags. Default: both on. */
   private def subsumptionMode(arg: Option[String]): (Boolean, Boolean) = directionMode(arg, "subsumption")
@@ -108,6 +123,9 @@ object Evaluation:
       backwardSubsumption: Boolean = true,
       forwardUnitDeletion: Boolean = true,
       backwardUnitDeletion: Boolean = true,
+      forwardSubsumptionResolution: Boolean = false,
+      backwardSubsumptionResolution: Boolean = false,
+      condensation: Boolean = false,
       forwardSimplifyAtGeneration: Boolean = false): Unit =
     val tptpRoot: Option[File] = sys.env.get("TPTP").map(new File(_)).filter(_.isDirectory)
     if tptpRoot.isEmpty then
@@ -121,12 +139,17 @@ object Evaluation:
           Using(scala.io.Source.fromFile(list))(_.getLines().map(_.trim).filter(_.nonEmpty).toVector).get
         val sample: Vector[String] = new scala.util.Random(seed).shuffle(all).take(n)
         val cfg: String =
-          s"fwdSubs=$forwardSubsumption bwdSubs=$backwardSubsumption fwdUD=$forwardUnitDeletion bwdUD=$backwardUnitDeletion fwdSimplifyAtGen=$forwardSimplifyAtGeneration"
+          s"fwdSubs=$forwardSubsumption bwdSubs=$backwardSubsumption fwdUD=$forwardUnitDeletion bwdUD=$backwardUnitDeletion " +
+            s"fwdSR=$forwardSubsumptionResolution bwdSR=$backwardSubsumptionResolution cond=$condensation fwdSimplifyAtGen=$forwardSimplifyAtGeneration"
         println(s"list=${list.getPath} (${all.size} problems), seed=$seed, n=${sample.size}, timeout=${timeoutMs}ms, maxGiven=$maxGiven, $cfg")
         printHeader()
         report(
           sample.map(rel =>
-            solveRow(new File(tptpRoot.get, rel), timeoutMs, maxGiven, forwardSubsumption, backwardSubsumption, forwardUnitDeletion, backwardUnitDeletion, forwardSimplifyAtGeneration)
+            solveRow(
+              new File(tptpRoot.get, rel), timeoutMs, maxGiven, forwardSubsumption, backwardSubsumption,
+              forwardUnitDeletion, backwardUnitDeletion, forwardSubsumptionResolution, backwardSubsumptionResolution,
+              condensation, forwardSimplifyAtGeneration
+            )
           ),
           sample.size
         )
@@ -180,6 +203,9 @@ object Evaluation:
       backwardSubsumption: Boolean = true,
       forwardUnitDeletion: Boolean = true,
       backwardUnitDeletion: Boolean = true,
+      forwardSubsumptionResolution: Boolean = false,
+      backwardSubsumptionResolution: Boolean = false,
+      condensation: Boolean = false,
       forwardSimplifyAtGeneration: Boolean = false): (String, Long) =
     val name = f.getName
     if !f.exists then
@@ -197,7 +223,11 @@ object Evaluation:
           // cooperative time budget inside the loop; a daemon hard cap a few seconds later backstops a
           // pathological single step that overshoots between time checks.
           val outcome = withTimeout(timeoutMs + 5000L)(
-            Bridge.solveTPTPProblem(problem, maxGiven, timeoutMs, forwardSubsumption, backwardSubsumption, forwardUnitDeletion, backwardUnitDeletion, forwardSimplifyAtGeneration)
+            Bridge.solveTPTPProblem(
+              problem, maxGiven, timeoutMs, forwardSubsumption, backwardSubsumption, forwardUnitDeletion,
+              backwardUnitDeletion, forwardSubsumptionResolution, backwardSubsumptionResolution, condensation,
+              forwardSimplifyAtGeneration
+            )
           )
           val ms = (System.nanoTime() - t0) / 1000000
           val (result, detail) = outcome match

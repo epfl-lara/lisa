@@ -33,12 +33,15 @@ object Reconstruction:
 
   /**
    * Reconstruct the refutation rooted at `empty` into a kernel proof. `inputs` maps each input clause's
-   * id to its original sequent and variable map (supplied by [[Bridge]]).
+   * id to its original sequent and variable map (supplied by [[Bridge]]). `schematicNames` are the interned
+   * symbol names that came from **schematic function variables** (Phase-3 abstraction of non-first-order
+   * subterms); they are rebuilt as kernel `Variable`s rather than `Constant`s so a later `InstSchema` can
+   * instantiate them back.
    */
-  def reconstruct(empty: Clause, bank: TermBank, inputs: collection.Map[Int, InputInfo]): K.SCProof =
-    new Builder(bank, inputs).reconstructProof(empty)
+  def reconstruct(empty: Clause, bank: TermBank, inputs: collection.Map[Int, InputInfo], schematicNames: Set[String] = Set.empty): K.SCProof =
+    new Builder(bank, inputs, schematicNames).reconstructProof(empty)
 
-  private final class Builder(bank: TermBank, inputs: collection.Map[Int, InputInfo]):
+  private final class Builder(bank: TermBank, inputs: collection.Map[Int, InputInfo], schematicNames: Set[String]):
     private val sig: Signature = bank.signature
     private val steps: mutable.ArrayBuffer[K.SCProofStep] = mutable.ArrayBuffer.empty
     private val imports: mutable.ArrayBuffer[K.Sequent] = mutable.ArrayBuffer.empty
@@ -142,7 +145,10 @@ object Reconstruction:
       if bank.isVar(t) then vars(bank.varNum(t).num)
       else
         val info: SymbolInfo = sig.info(bank.headSymbol(t))
-        var e: K.Expression = K.Constant(identOf(info.name), sortFor(info.arity, info.isPredicate))
+        val id: K.Identifier = identOf(info.name)
+        val sort: K.Sort = sortFor(info.arity, info.isPredicate)
+        // a Phase-3 abstraction symbol round-trips as a schematic `Variable` (so `InstSchema` can target it)
+        var e: K.Expression = if schematicNames.contains(info.name) then K.Variable(id, sort) else K.Constant(id, sort)
         val n = bank.arity(t)
         var k = 0
         while k < n do

@@ -46,13 +46,18 @@ object Bridge:
      * A refutation. Holds the empty clause `empty` and the run's [[TermBank]] plus the per-input-clause
      * variable maps (`inputs`) — the context [[reconstructKernelProof]] needs to rebuild the proof.
      */
-    final case class Success(empty: Clause, bank: TermBank, inputs: collection.Map[Int, Reconstruction.InputInfo]) extends Outcome:
+    final case class Success(
+        empty: Clause,
+        bank: TermBank,
+        inputs: collection.Map[Int, Reconstruction.InputInfo],
+        schematicNames: Set[String] = Set.empty) extends Outcome:
       /**
        * Reconstruct a kernel [[lisa.utils.K.SCProof]] from this refutation: its imports are the input
        * clause-sequents and its conclusion is the empty sequent `⊢`. Uses the bank and per-input data
-       * carried here — no re-solving. See [[Reconstruction]].
+       * carried here — no re-solving. `schematicNames` (Phase-3 abstraction symbols) are rebuilt as kernel
+       * variables. See [[Reconstruction]].
        */
-      def reconstructKernelProof: K.SCProof = Reconstruction.reconstruct(empty, bank, inputs)
+      def reconstructKernelProof: K.SCProof = Reconstruction.reconstruct(empty, bank, inputs, schematicNames)
 
     /** The passive set was exhausted without deriving `□`: the clause set is satisfiable (a decision). */
     case object Saturated extends Outcome
@@ -78,7 +83,14 @@ object Bridge:
       backwardSubsumption: Boolean = true,
       forwardUnitDeletion: Boolean = true,
       backwardUnitDeletion: Boolean = true,
-      forwardSimplifyAtGeneration: Boolean = false): Outcome =
+      forwardSubsumptionResolution: Boolean = false,
+      backwardSubsumptionResolution: Boolean = false,
+      condensation: Boolean = false,
+      forwardSimplifyAtGeneration: Boolean = false,
+      // Phase-3 abstraction symbols: kernel `Variable`s that, although applied (or bare-but-listed here),
+      // are to be treated as **function symbols** by the prover (not clause variables) and rebuilt as
+      // variables in reconstruction. Empty for ordinary clausal input.
+      functionVars: Set[K.Variable] = Set.empty): Outcome =
     val sig: Signature = new Signature
     val bank: TermBank = new TermBank(sig)
     val trail: Trail = new Trail(bank)
@@ -86,10 +98,11 @@ object Bridge:
     val inputs = mutable.Map.empty[Int, Reconstruction.InputInfo]
     val clauses: Seq[Clause] = sequents.iterator.map { s =>
       val vars = mutable.HashMap.empty[K.Variable, Int]
-      val c = clauseOfSequent(bank, s, vars)
+      val c = clauseOfSequent(bank, s, vars, functionVars)
       inputs(c.id) = (s, vars.iterator.map((kv, n) => n -> kv).toMap)
       c
     }.toSeq
+    val schematicNames: Set[String] = functionVars.map(_.id.toString)
     new Discount(
       bank,
       trail,
@@ -97,9 +110,12 @@ object Bridge:
       backwardSubsumption = backwardSubsumption,
       forwardUnitDeletion = forwardUnitDeletion,
       backwardUnitDeletion = backwardUnitDeletion,
+      forwardSubsumptionResolution = forwardSubsumptionResolution,
+      backwardSubsumptionResolution = backwardSubsumptionResolution,
+      condensation = condensation,
       forwardSimplifyAtGeneration = forwardSimplifyAtGeneration
     ).saturate(clauses, maxGiven, maxMillis) match
-      case Discount.Result.Refutation(empty) => Outcome.Success(empty, bank, inputs)
+      case Discount.Result.Refutation(empty) => Outcome.Success(empty, bank, inputs, schematicNames)
       case Discount.Result.Saturated => Outcome.Saturated
       case Discount.Result.Unknown => Outcome.Timeout
 
@@ -113,8 +129,15 @@ object Bridge:
       backwardSubsumption: Boolean = true,
       forwardUnitDeletion: Boolean = true,
       backwardUnitDeletion: Boolean = true,
+      forwardSubsumptionResolution: Boolean = false,
+      backwardSubsumptionResolution: Boolean = false,
+      condensation: Boolean = false,
       forwardSimplifyAtGeneration: Boolean = false): Outcome =
-    solve(problemSequents(problem), maxGiven, maxMillis, forwardSubsumption, backwardSubsumption, forwardUnitDeletion, backwardUnitDeletion, forwardSimplifyAtGeneration)
+    solve(
+      problemSequents(problem), maxGiven, maxMillis, forwardSubsumption, backwardSubsumption,
+      forwardUnitDeletion, backwardUnitDeletion, forwardSubsumptionResolution, backwardSubsumptionResolution,
+      condensation, forwardSimplifyAtGeneration
+    )
 
   /** Convert a [[lisa.tptp.Problem]] of pure clauses (e.g. a TPTP `cnf` problem) to clause-sequents. */
   private def problemSequents(problem: Problem): Seq[K.Sequent] =
@@ -137,13 +160,14 @@ object Bridge:
   // -----------------------------------------------------------------------------------------
 
   private def clauseOfSequent(bank: TermBank, seq: K.Sequent): Clause =
-    clauseOfSequent(bank, seq, mutable.HashMap.empty[K.Variable, Int])
+    clauseOfSequent(bank, seq, mutable.HashMap.empty[K.Variable, Int], Set.empty)
 
-  /** As above, but threads a caller-owned variable map (kernel variable → internal number) for reconstruction. */
-  private def clauseOfSequent(bank: TermBank, seq: K.Sequent, vars: mutable.HashMap[K.Variable, Int]): Clause =
+  /** As above, but threads a caller-owned variable map (kernel variable → internal number) for reconstruction
+   *  and the set of `functionVars` (Phase-3 abstraction symbols treated as function symbols, not variables). */
+  private def clauseOfSequent(bank: TermBank, seq: K.Sequent, vars: mutable.HashMap[K.Variable, Int], functionVars: Set[K.Variable]): Clause =
     val lits: List[Literal] =
-      seq.left.toList.map(f => literal(bank, vars, f, positive = false)) :::
-        seq.right.toList.map(f => literal(bank, vars, f, positive = true))
+      seq.left.toList.map(f => literal(bank, vars, f, positive = false, functionVars)) :::
+        seq.right.toList.map(f => literal(bank, vars, f, positive = true, functionVars))
     bank.mkClause(lits.toArray)
 
 
@@ -175,33 +199,38 @@ object Bridge:
     case _ => List(e)
 
   /** Convert one literal: peel a leading `¬` (flipping polarity), then build the atom. */
-  private def literal(bank: TermBank, vars: mutable.HashMap[K.Variable, Int], f: K.Expression, positive: Boolean): Literal =
+  private def literal(bank: TermBank, vars: mutable.HashMap[K.Variable, Int], f: K.Expression, positive: Boolean, functionVars: Set[K.Variable]): Literal =
     f match
-      case K.Application(n, inner) if n == K.neg => literal(bank, vars, inner, !positive)
-      case _ => bank.mkLiteral(atomTerm(bank, vars, f), positive)
+      case K.Application(n, inner) if n == K.neg => literal(bank, vars, inner, !positive, functionVars)
+      case _ => bank.mkLiteral(atomTerm(bank, vars, f, functionVars), positive)
 
   /** Build the internal atom term for a predicate application (head must be a predicate constant). */
-  private def atomTerm(bank: TermBank, vars: mutable.HashMap[K.Variable, Int], f: K.Expression): Term =
+  private def atomTerm(bank: TermBank, vars: mutable.HashMap[K.Variable, Int], f: K.Expression, functionVars: Set[K.Variable]): Term =
     val (head, args) = headAndArgs(f)
     head match
       case c: K.Constant =>
         val sym: Symbol = bank.signature.intern(c.id.toString, args.size, isPredicate = true)
-        bank.mkApp(sym, args.iterator.map(a => term(bank, vars, a)).toArray)
+        bank.mkApp(sym, args.iterator.map(a => term(bank, vars, a, functionVars)).toArray)
       case other =>
         throw IllegalArgumentException(s"not a pure clause: literal head is not a predicate constant: $other")
 
-  /** Build an internal term: a variable (renumbered per clause), or a function/constant application. */
-  private def term(bank: TermBank, vars: mutable.HashMap[K.Variable, Int], t: K.Expression): Term =
+  /** Build an internal term: a clause variable (renumbered per clause), a function/constant application, or a
+   *  Phase-3 abstraction symbol — a schematic function *variable* in `functionVars`, interned as a function
+   *  symbol (applied or bare-nullary) rather than treated as a clause variable. */
+  private def term(bank: TermBank, vars: mutable.HashMap[K.Variable, Int], t: K.Expression, functionVars: Set[K.Variable]): Term =
     t match
+      case v: K.Variable if functionVars.contains(v) => // bare nullary abstraction symbol
+        bank.mkConst(bank.signature.intern(v.id.toString, 0, isPredicate = false))
       case v: K.Variable => bank.mkVar(Core.Variable(vars.getOrElseUpdate(v, vars.size)))
       case _ =>
         val (head, args) = headAndArgs(t)
-        head match
-          case c: K.Constant =>
-            val sym: Symbol = bank.signature.intern(c.id.toString, args.size, isPredicate = false)
-            bank.mkApp(sym, args.iterator.map(a => term(bank, vars, a)).toArray)
+        val sym: Symbol = head match
+          case c: K.Constant => bank.signature.intern(c.id.toString, args.size, isPredicate = false)
+          case v: K.Variable if functionVars.contains(v) => // applied abstraction symbol `F(fv…)`
+            bank.signature.intern(v.id.toString, args.size, isPredicate = false)
           case other =>
             throw IllegalArgumentException(s"not first-order: term head is not a constant (applied variable?): $other")
+        bank.mkApp(sym, args.iterator.map(a => term(bank, vars, a, functionVars)).toArray)
 
   /** Decompose a curried application `f(a₁)…(aₙ)` into its head `f` and argument list `[a₁, …, aₙ]`. */
   private def headAndArgs(e: K.Expression): (K.Expression, List[K.Expression]) = e match

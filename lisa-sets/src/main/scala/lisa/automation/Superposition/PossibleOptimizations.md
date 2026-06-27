@@ -111,6 +111,28 @@ refinements are deferred. **Both are pure optimizations — they must not change
     then needs `posPredBits(c) ⊆ posPredBits(d)` **and** `negPredBits(c) ⊆ negPredBits(d)` — strictly
     stronger, still two `Long` ANDs, at the cost of one extra field per `Clause`.
 
+## Complete general subsumption resolution (Phase 2 P1) — deferred
+
+`Subsumption.subsumptionResolutionResolvent` does subsumption resolution (delete literal `K` from `main`
+using side `C' ∨ L` with `Lσ = ¬K` and `C'σ ⊆ main \ {K}`). It builds the result via `Inference.resolve`
+(an ordinary resolvent ⇒ no new justification/reconstruction) and **keeps it only when it `subsumes`
+`main`** — a completeness gate.
+
+The gate is **conservative**: `resolve`'s mgu binds only `L`'s variables, so when `C'` has a variable not
+in `L`, the built clause is `C'σ₀ ∪ M'` (that variable left free), which need not entail `main`, so the gate
+declines and that SR step is missed. (Deleting it anyway would not be unsound — the prover never derives a
+false `□` — but would break **completeness**: it could discard a clause a refutation needs and wrongly
+saturate. This was caught on seed 42, `SYN036-4` going `REFUTED → SATURATED`, before the gate was added.)
+
+A **complete** version (capturing the free-`C'`-variable cases) needs the *full* matcher σ, not just
+`resolve`'s mgu: match `L`↔`¬K` and `C'`↔`M'` to get σ (already done by a `matchTerm` + `matchRec` pass),
+build `main \ {K}` by dropping `K` and densely renumbering, and record a
+`Justification.SubsumptionResolution(side, sideLit, main, mainLit)` whose reconstruction instantiates `side`
+by σ, resolves with `main`, then canonicalises (`Reconstruction.scala`, `Core.Justification` + its `age`
+rule — the Phase2.md §7 plan). Deferred: the conservative gate already captures the common (shared-variable)
+cases at no reconstruction cost; the complete version adds kernel-reconstruction complexity for the rarer
+free-variable cases. Revisit if a benchmark shows those cases matter.
+
 ## KBO vs. E / Vampire — feature gap (for when we revisit)
 
 How our KBO (`KBO.scala`) compares to E (`cto_kbolin.c`) and Vampire (`KBO.cpp`). Rows below

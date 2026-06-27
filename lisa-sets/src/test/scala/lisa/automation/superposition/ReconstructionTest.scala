@@ -20,9 +20,16 @@ class ReconstructionTest extends AnyFunSuite:
 
   private val emptySequent: K.Sequent = K.Sequent(Set.empty, Set.empty)
 
-  /** Reconstruct, then assert the proof is kernel-valid, concludes `⊢`, and imports inputs once each. */
-  private def check(name: String, clauses: List[K.Sequent]): Unit =
-    val proof: Option[K.SCProof] = Bridge.solve(clauses, maxGiven = 10000) match
+  /** Reconstruct, then assert the proof is kernel-valid, concludes `⊢`, and imports inputs once each.
+   *  `subsumptionResolution` / `condensation` enable those (default-off) simplifications. */
+  private def check(name: String, clauses: List[K.Sequent], subsumptionResolution: Boolean = false, condensation: Boolean = false): Unit =
+    val proof: Option[K.SCProof] = Bridge.solve(
+      clauses,
+      maxGiven = 10000,
+      forwardSubsumptionResolution = subsumptionResolution,
+      backwardSubsumptionResolution = subsumptionResolution,
+      condensation = condensation
+    ) match
       case s: Bridge.Outcome.Success => Some(s.reconstructKernelProof)
       case _ => None
     assert(proof.isDefined, s"$name: expected a refutation")
@@ -87,6 +94,33 @@ class ReconstructionTest extends AnyFunSuite:
     check(
       "unit deletion",
       List(sequent(Set(), Set(ap(p, a), ap(q, b))), sequent(Set(ap(p, x)), Set()), sequent(Set(ap(q, b)), Set()))
+    )
+  }
+
+  test("first-order needing general subsumption resolution: {¬P(x) ∨ Q(x)}, {P(a) ∨ Q(a) ∨ R(b)}, {¬Q(a)}, {¬R(b)}") {
+    val x = vr("X"); val p = pred("P", 1); val q = pred("Q", 1); val r = pred("R", 1); val a = cst("a"); val b = cst("b")
+    // {¬P(x), Q(x)} SR-resolves P(a) out of {P(a), Q(a), R(b)} → {Q(a), R(b)} (a multi-literal-side step);
+    // then {¬Q(a)}, {¬R(b)} close it. The SR result is an ordinary resolvent, so it must reconstruct.
+    check(
+      "general SR",
+      List(
+        sequent(Set(ap(p, x)), Set(ap(q, x))),
+        sequent(Set(), Set(ap(p, a), ap(q, a), ap(r, b))),
+        sequent(Set(ap(q, a)), Set()),
+        sequent(Set(ap(r, b)), Set())
+      ),
+      subsumptionResolution = true
+    )
+  }
+
+  test("first-order needing condensation: {P(x) ∨ P(a)}, {¬P(a)}") {
+    val x = vr("X"); val p = pred("P", 1); val a = cst("a")
+    // {P(x), P(a)} condenses to {P(a)} (a factor of itself), then {¬P(a)} closes it. The condensed clause
+    // carries a Factoring justification, so the proof must still reconstruct to a kernel-valid `⊢`.
+    check(
+      "condensation",
+      List(sequent(Set(), Set(ap(p, x), ap(p, a))), sequent(Set(ap(p, a)), Set())),
+      condensation = true
     )
   }
 
