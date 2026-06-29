@@ -34,9 +34,6 @@ class FunctionSemanticsBase[N <: Arity](data: SemanticFunctionInputs[N]) {
   val typeArity: N = data.spec.typeArity
   val typ: Expr[Ind] = data.spec.typ
 
-  private def definitionFormula(f0: Expr[Ind]): Expr[Prop] =
-    data.spec.untypedDefinition(f0)
-
   /**
    * The defined symbol, characterized by `forall(f, (term === f) <=> untypedDef)`,
    * assembled from the separately-proved existence and pointwise-uniqueness facts
@@ -47,7 +44,7 @@ class FunctionSemanticsBase[N <: Arity](data: SemanticFunctionInputs[N]) {
       name = name,
       typeVariablesSeq = typeVariablesSeq,
       witnessVar = f,
-      definitionAt = definitionFormula
+      definitionAt = data.spec.definitionAt
     )(data.existence.witnessExists, data.uniqueness.pointwiseUniqueness)
 
   val id: Identifier = definedClassFunction.id

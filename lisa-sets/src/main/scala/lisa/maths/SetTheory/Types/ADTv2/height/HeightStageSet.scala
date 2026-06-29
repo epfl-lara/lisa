@@ -8,12 +8,14 @@ import lisa.maths.SetTheory.Base.Singleton
 import lisa.maths.SetTheory.Base.Subset
 import lisa.maths.SetTheory.Base.Union
 import lisa.maths.SetTheory.Base.Union.∪
-import lisa.maths.SetTheory.Cardinal.Universe
+import lisa.maths.SetTheory.Base.CartesianProduct
+import lisa.maths.SetTheory.Base.CartesianProduct.×
 import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.height.proofs.CoreFacts
 import lisa.utils.prooflib.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.tactics.Cuts
+import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.ConstructorArg
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 final class HeightStageSet[N <: Arity](
@@ -21,7 +23,6 @@ final class HeightStageSet[N <: Arity](
     constructors: Seq[HeightConstructorData],
     isConstructor: Expr[Ind >>: Ind >>: Prop]
 ) {
-  private val U = variable[Ind]
   private val φ = variable[Ind >>: Prop]
 
   private[height] def constructorPredicate(
@@ -31,231 +32,165 @@ final class HeightStageSet[N <: Arity](
   ): Expr[Prop] =
     existsSeq(c.variables, wellTypedFormula(c.signature)(s) /\ (x === c.term))
 
+  // ── Finite-union helpers (plain ZF), used to assemble the bounding set for Separation. ──
+  // (Mirror of the helpers in `HeightTerms`; kept local to avoid a cross-file dependency.)
+
+  /** Left-nested union of a finite sequence of sets, seeded with `∅`. */
+  private def unionList(elems: Seq[Expr[Ind]]): Expr[Ind] =
+    elems.foldLeft[Expr[Ind]](∅)(_ ∪ _)
+
+  private val subsetOfUnion = Lemma(x ⊆ y |- x ⊆ (y ∪ z)) {
+    val yInUnion = have(y ⊆ (y ∪ z)) by Restate.from(Union.leftSubset of (x := y, y := z))
+    have(thesis) by Cut(yInUnion, Subset.transitivity of (x := x, y := y, z := y ∪ z))
+  }
+
+  /** Every member of a finite sequence is a subset of its union [[unionList]].
+    * Produces `|- subset(ni, unionList(elems))` (assuming `ni` occurs in `elems`).
+    */
+  private def memberSubsetOfUnionList(elems: Seq[Expr[Ind]], ni: Expr[Ind])(using
+      proof: lisa.SetTheoryLibrary.Proof
+  ): proof.Fact = {
+    val seed = have(True |- True) by Restate
+    elems
+      .foldLeft[(proof.Fact, Expr[Ind], Expr[Ind])]((seed, ∅, ∅)) { case ((thmAcc, u, lastN), nj) =>
+        val curHyp = thmAcc.statement.left.head
+        val newU = u ∪ nj
+        val newN = if nj == ni then nj else lastN
+
+        val stepThm =
+          if nj == ni then
+            // We reach `ni`: `ni ⊆ u ∪ ni` (covers the first element, where `u == ∅`).
+            have(curHyp |- subset(newN, newU)) by Restate.from(Union.rightSubset of (x := u, y := ni))
+          else if newN == ∅ then
+            // `ni` not seen yet (tracked subset is `∅`): `∅ ⊆ newU`.
+            have(curHyp |- subset(newN, newU)) by Restate.from(Subset.leftEmpty of (x := newU))
+          else
+            // Extend the established `ni ⊆ u` by another union member.
+            have(curHyp |- subset(newN, newU)) by Cut(thmAcc, subsetOfUnion of (x := newN, y := u, z := nj))
+
+        (stepThm, newU, newN)
+      }
+      ._1
+  }
+
   private val stageSetExistsCtor = Lemma(
     ∃(s, ∀(x, in(x, s) <=> base.inExtIntroImage(f)(x)))
   ) {
     val unionRangeF = unionRange(f)
 
-    def finiteSet(elems: Seq[Expr[Ind]]): Expr[Ind] =
-      elems match
-        case Seq(e) => Singleton.singleton(e)
-        case e +: rest => Singleton.singleton(e) ∪ finiteSet(rest)
-        case Seq() => Singleton.singleton(∅)
+    // Bounding strategy (plain ZF, no Tarski universe): every constructor term
+    //   c.term = (tagTerm, (v₁, (… , (vₖ, ∅))))
+    // lies in the iterated cartesian product matching its pairing shape,
+    //   ctorProduct(c) = {tagTerm} × (D₁ × (… × (Dₖ × {∅}))),  Dᵢ = ty.getOrElse(⋃range f),
+    // which is a set by Replacement/Union (no large-cardinal assumption). The stage is then
+    // carved out of  bound = ⋃range f ∪ ctorProduct(c₁) ∪ … ∪ ctorProduct(cₘ)  by Separation.
+    def domainOf(ty: ConstructorArg): Expr[Ind] = ty.getOrElse(unionRangeF)
 
-    def elementInFiniteSet(elems: Seq[Expr[Ind]], target: Expr[Ind]): THM =
-      elems match
-        case Seq(e) =>
-          require(e == target, s"Target $target not found in finite set seed.")
-          Lemma(in(target, finiteSet(elems))) {
-            // `finiteSet(Seq(e))` is `{e}` and `e == target`, so membership is reflexivity.
-            have(thesis) by Restate.from(Singleton.membership of (x := e, y := target))
-          }
-        case e +: rest =>
-          if e == target then
-            Lemma(in(target, finiteSet(elems))) {
-              // `target ∈ {e}`, hence `target` is in the left disjunct of the union.
-              have(in(target, Singleton.singleton(e))) by Restate.from(Singleton.membership of (x := e, y := target))
-              thenHave(in(target, Singleton.singleton(e)) \/ in(target, finiteSet(rest))) by Weakening
-              thenHave(thesis) by
-                Substitute(Union.membership of (x := Singleton.singleton(e), y := finiteSet(rest), z := target))
-            }
-          else
-            val rec = elementInFiniteSet(rest, target)
-            Lemma(in(target, finiteSet(elems))) {
-              // `target ∈ finiteSet(rest)` by recursion, hence in the right disjunct of the union.
-              have(in(target, finiteSet(rest))) by Restate.from(rec)
-              thenHave(in(target, Singleton.singleton(e)) \/ in(target, finiteSet(rest))) by Weakening
-              thenHave(thesis) by
-                Substitute(Union.membership of (x := Singleton.singleton(e), y := finiteSet(rest), z := target))
-            }
-        case Seq() =>
-          throw IllegalArgumentException("Empty finite seed.")
+    def subProduct(sig: Seq[(Variable[Ind], ConstructorArg)]): Expr[Ind] =
+      sig.foldRight[Expr[Ind]](Singleton.singleton(∅)) { case ((_, ty), acc) => domainOf(ty) × acc }
 
-    val seedElems =
-      unionRangeF +: (
-        constructors.flatMap(_.signature.map(_._2.getOrElse(unionRangeF))) ++
-          constructors.map(_.tagTerm)
-      )
-    val seed = finiteSet(seedElems)
-    val stageBound = Universe.universeOf(seed)
-    val stageBody = { x ∈ stageBound | base.inExtIntroImage(f)(x) }
+    def ctorProduct(c: HeightConstructorData): Expr[Ind] =
+      Singleton.singleton(c.tagTerm) × subProduct(c.signature)
 
-    val universeFact = have(
-      Universe.isUniverse(stageBound) /\ in(seed, stageBound)
-    ) by Restate.from(Universe.universeOfIsUniverse of (x := seed))
-    val isUniverseBound = have(Universe.isUniverse(stageBound)) by Weakening(universeFact)
-    val seedInBound = have(in(seed, stageBound)) by Weakening(universeFact)
-
-    def memberOfUniverse(container: Expr[Ind], elem: Expr[Ind]): THM = Lemma(
-      (Universe.isUniverse(stageBound), in(container, stageBound), in(elem, container)) |- in(elem, stageBound)
-    ) {
-      // A universe is transitive: members of `container` are members of the universe.
-      val containerSubset = have(
-        (Universe.isUniverse(stageBound), in(container, stageBound)) |- subset(container, stageBound)
-      ) by Restate.from(Universe.universeTransitivity of (U := stageBound, x := container))
-      have(
-        (Universe.isUniverse(stageBound), in(container, stageBound)) |- in(elem, container) ==> in(elem, stageBound)
-      ) by Cut(containerSubset, Subset.membership of (x := container, y := stageBound, z := elem))
-      thenHave(thesis) by Restate
-    }
-
-    def seedElementInUniverse(elem: Expr[Ind]): THM = {
-      val inSeed = elementInFiniteSet(seedElems, elem)
-      Lemma((Universe.isUniverse(stageBound), in(seed, stageBound)) |- in(elem, stageBound)) {
-        have(thesis) by Cut(inSeed, memberOfUniverse(seed, elem))
-      }
-    }
-
-    val emptyInUniverse = Lemma((Universe.isUniverse(stageBound), in(seed, stageBound)) |- in(∅, stageBound)) {
-      val emptySubsetSeed = have(subset(∅, seed)) by Restate.from(Subset.leftEmpty of (x := seed))
-      have(thesis) by Cuts(
-        Universe.universeSubsetClosure of (U := stageBound, A := seed, B := ∅)
-      )(emptySubsetSeed)
-    }
-
-    def orderedPairInUniverse(a0: Expr[Ind], b0: Expr[Ind]): THM = Lemma(
-      (Universe.isUniverse(stageBound), in(a0, stageBound), in(b0, stageBound)) |- in(pair(a0, b0), stageBound)
-    ) {
-      val singletonA = have(
-        (Universe.isUniverse(stageBound), in(a0, stageBound)) |- in(Singleton.singleton(a0), stageBound)
-      ) subproof {
-        have(
-          (Universe.isUniverse(stageBound), in(a0, stageBound)) |- in(unorderedPair(a0, a0), stageBound)
-        ) by Restate.from(
-          Universe.universePairingClosure of (U := stageBound, x := a0, y := a0)
-        )
-        thenHave(thesis) by Substitute(Singleton.singleton.definition of (x := a0))
-      }
-      val pairXY = have(
-        (Universe.isUniverse(stageBound), in(a0, stageBound), in(b0, stageBound)) |- in(unorderedPair(a0, b0), stageBound)
-      ) by Restate.from(Universe.universePairingClosure of (U := stageBound, x := a0, y := b0))
-      // The ordered pair `(a0, b0)` is the Kuratowski pair `{{a0}, {a0, b0}}`; build it by pairing closure.
-      val nestedPair = have(
-        (
-          Universe.isUniverse(stageBound),
-          in(Singleton.singleton(a0), stageBound),
-          in(unorderedPair(a0, b0), stageBound)
-        ) |- in(unorderedPair(Singleton.singleton(a0), unorderedPair(a0, b0)), stageBound)
-      ) by Restate.from(
-        Universe.universePairingClosure of (
-          U := stageBound,
-          x := Singleton.singleton(a0),
-          y := unorderedPair(a0, b0)
-        )
-      )
-      have(
-        (
-          Universe.isUniverse(stageBound),
-          in(a0, stageBound),
-          in(b0, stageBound)
-        ) |- in(unorderedPair(Singleton.singleton(a0), unorderedPair(a0, b0)), stageBound)
-      ) by Cuts(nestedPair)(singletonA, pairXY)
-      thenHave(thesis) by Substitute(lisa.maths.SetTheory.Base.Pair.pair.definition of (x := a0, y := b0))
-    }
-
-    def constructorTermInUniverse(c: HeightConstructorData): THM = {
+    // Each constructor term lives in its product, given its arguments are well-typed in ⋃range f.
+    def constructorTermInProduct(c: HeightConstructorData)(using
+        proof: lisa.SetTheoryLibrary.Proof
+    ): proof.Fact = {
       val typedArgs = wellTypedFormula(c.signature)(unionRangeF)
-      Lemma((typedArgs, Universe.isUniverse(stageBound), in(seed, stageBound)) |- in(c.term, stageBound)) {
-        // Each constructor variable `v` lives in its declared domain `d`, itself a seed element of the universe.
-        def variableInUniverse(v: Variable[Ind], d: Expr[Ind]): THM = Lemma(
-          (typedArgs, Universe.isUniverse(stageBound), in(seed, stageBound)) |- in(v, stageBound)
-        ) {
+      val emptyInSeed = have(in(∅, Singleton.singleton(∅))) by
+        Restate.from(Singleton.membership of (x := ∅, y := ∅))
+      // Build the nested-pair subterm right-to-left, threading membership in the matching product.
+      val emptySet: Expr[Ind] = ∅
+      val subBuild = c.signature.reverse.foldLeft((emptySet, Singleton.singleton(∅), emptyInSeed)) {
+        case ((curSub, curProd, curFact), (v, ty)) =>
+          val d = domainOf(ty)
           val vInD = have(typedArgs |- in(v, d)) by Restate
-          val dInU = have((Universe.isUniverse(stageBound), in(seed, stageBound)) |- in(d, stageBound)) by
-            Restate.from(seedElementInUniverse(d))
-          have(thesis) by Cuts(memberOfUniverse(d, v))(dInU, vInD)
-        }
-
-        val initialSubtermFact = have((typedArgs, Universe.isUniverse(stageBound), in(seed, stageBound)) |- in(∅, stageBound)) by
-          Weakening(emptyInUniverse)
-        val emptySet: Expr[Ind] = ∅
-        // Build the nested-pair subterm right-to-left, keeping each prefix inside the universe.
-        val subtermBuild = c.signature.reverse.foldLeft((emptySet, initialSubtermFact)) { (acc, sig) =>
-          val (currentSubterm, currentFact) = acc
-          val (v, ty) = sig
-          val d = ty.getOrElse(unionRangeF)
-          val vInU = have((typedArgs, Universe.isUniverse(stageBound), in(seed, stageBound)) |- in(v, stageBound)) by
-            Restate.from(variableInUniverse(v, d))
-          val pairInU = have((typedArgs, Universe.isUniverse(stageBound), in(seed, stageBound)) |- in(pair(v, currentSubterm), stageBound)) by
-            Cuts(orderedPairInUniverse(v, currentSubterm))(vInU, currentFact)
-          (pair(v, currentSubterm), pairInU)
-        }
-        val subtermInUniverse = have((typedArgs, Universe.isUniverse(stageBound), in(seed, stageBound)) |- in(c.subterm, stageBound)) by
-          Restate.from(subtermBuild._2)
-
-        val tagInUniverse = have(
-          (Universe.isUniverse(stageBound), in(seed, stageBound)) |- in(c.tagTerm, stageBound)
-        ) by Restate.from(seedElementInUniverse(c.tagTerm))
-        val tagInUniverseFull = have((typedArgs, Universe.isUniverse(stageBound), in(seed, stageBound)) |- in(c.tagTerm, stageBound)) by
-          Weakening(tagInUniverse)
-        // `c.term == (tagTerm, subterm)`; pair them inside the universe. When `tagTerm` and
-        // `subterm` coincide (nullary constructor: both `∅`), the pairing lemma has a single
-        // membership hypothesis, so one discharge suffices.
-        if c.tagTerm == c.subterm then
-          have(thesis) by Cuts(orderedPairInUniverse(c.tagTerm, c.subterm))(subtermInUniverse)
-        else
-          have(thesis) by Cuts(orderedPairInUniverse(c.tagTerm, c.subterm))(tagInUniverseFull, subtermInUniverse)
+          val pairFact = have(typedArgs |- in(pair(v, curSub), d × curProd)) by
+            Cuts(CartesianProduct.membershipSufficientCondition of (x := v, A := d, y := curSub, B := curProd))(vInD, curFact)
+          (pair(v, curSub), d × curProd, pairFact)
       }
+      val subtermInProduct = have(typedArgs |- in(c.subterm, subProduct(c.signature))) by
+        Restate.from(subBuild._3)
+
+      val tagInSingleton = have(in(c.tagTerm, Singleton.singleton(c.tagTerm))) by
+        Restate.from(Singleton.membership of (x := c.tagTerm, y := c.tagTerm))
+      // `c.term == (tagTerm, subterm)`; pair them inside `{tagTerm} × subProduct`.
+      have(typedArgs |- in(c.term, ctorProduct(c))) by Cuts(
+        CartesianProduct.membershipSufficientCondition of
+          (x := c.tagTerm, A := Singleton.singleton(c.tagTerm), y := c.subterm, B := subProduct(c.signature))
+      )(tagInSingleton, subtermInProduct)
     }
 
-    val unionRangeInUniverse = have(
-      (Universe.isUniverse(stageBound), in(seed, stageBound)) |- in(unionRangeF, stageBound)
-    ) by Restate.from(seedElementInUniverse(unionRangeF))
+    val products = constructors.map(ctorProduct)
+    val seedElems = unionRangeF +: products
+    val bound = unionList(seedElems)
+
+    val unionRangeSubsetBound = have(subset(unionRangeF, bound)) by
+      Restate.from(memberSubsetOfUnionList(seedElems, unionRangeF))
 
     val constructorOnlyCase =
       if constructors.isEmpty then
         // With no constructors `isConstructor(x)(·)` is `False`, so the implication holds vacuously.
-        have(isConstructor(x)(unionRangeF) |- in(x, stageBound)) by Restate
+        have(isConstructor(x)(unionRangeF) |- in(x, bound)) by Restate
       else
         val branches = constructors.map(c =>
           val typedEq = wellTypedFormula(c.signature)(unionRangeF) /\ (x === c.term)
-          val termInU = constructorTermInUniverse(c)
-          val branch = have(typedEq |- in(x, stageBound)) subproof {
+          val termInProductFact = constructorTermInProduct(c)
+          val prodSubsetBound = have(subset(ctorProduct(c), bound)) by
+            Restate.from(memberSubsetOfUnionList(seedElems, ctorProduct(c)))
+          val branch = have(typedEq |- in(x, bound)) subproof {
             val xEqTerm = have(typedEq |- x === c.term) by Restate
             val typedArgsFact = have(typedEq |- wellTypedFormula(c.signature)(unionRangeF)) by Restate
-            // The constructor term lives in the universe; rewrite `x` to it via the equality.
-            val termInUFact = have(typedEq |- in(c.term, stageBound)) by
-              Cuts(termInU)(typedArgsFact, isUniverseBound, seedInBound)
-            have(typedEq |- in(x, stageBound) <=> in(c.term, stageBound)) by Congruence.from(xEqTerm)
-            have(thesis) by Substitute(lastStep)(termInUFact)
+            // The constructor term lives in its product, itself a subset of `bound`; rewrite `x` to it.
+            val termInProd = have(typedEq |- in(c.term, ctorProduct(c))) by Cut(typedArgsFact, termInProductFact)
+            val termInBound = have(typedEq |- in(c.term, bound)) by Tautology.from(
+              termInProd,
+              prodSubsetBound,
+              Subset.membership of (x := ctorProduct(c), y := bound, z := c.term)
+            )
+            have(typedEq |- in(x, bound) <=> in(c.term, bound)) by Congruence.from(xEqTerm)
+            have(thesis) by Substitute(lastStep)(termInBound)
           }
-          have(constructorPredicate(c, x, unionRangeF) |- in(x, stageBound)) by
+          have(constructorPredicate(c, x, unionRangeF) |- in(x, bound)) by
             QuantifiersIntro(c.variables)(branch)
         )
-        have(isConstructor(x)(unionRangeF) |- in(x, stageBound)) by
+        have(isConstructor(x)(unionRangeF) |- in(x, bound)) by
           LeftOr(branches*)
 
-    val constructorCaseToUniverse = have(
-      (base.inExtIntroImage(f)(x), isConstructor(x)(unionRangeF)) |- in(x, stageBound)
+    val constructorCaseToBound = have(
+      (base.inExtIntroImage(f)(x), isConstructor(x)(unionRangeF)) |- in(x, bound)
     ) by Weakening(constructorOnlyCase)
 
-    val membershipInUniverse = have(in(x, unionRangeF) |- in(x, stageBound)) by
-      Cuts(memberOfUniverse(unionRangeF, x))(unionRangeInUniverse, isUniverseBound, seedInBound)
-    val membershipCaseToUniverse = have(
-      (base.inExtIntroImage(f)(x), in(x, unionRangeF)) |- in(x, stageBound)
-    ) by Weakening(membershipInUniverse)
+    val membershipInBound = have(in(x, unionRangeF) |- in(x, bound)) by Tautology.from(
+      unionRangeSubsetBound,
+      Subset.membership of (x := unionRangeF, y := bound, z := x)
+    )
+    val membershipCaseToBound = have(
+      (base.inExtIntroImage(f)(x), in(x, unionRangeF)) |- in(x, bound)
+    ) by Weakening(membershipInBound)
 
-    val extIntroInUniverse = have(base.inExtIntroImage(f)(x) |- in(x, stageBound)) subproof {
+    val extIntroInBound = have(base.inExtIntroImage(f)(x) |- in(x, bound)) subproof {
       // `inExtIntroImage` unfolds to `(f ≠ ∅) ∧ (isConstructor(x)(⋃f) ∨ x ∈ ⋃f)`; split the disjunction.
       val introBranch = have(base.inExtIntroImage(f)(x) |- isConstructor(x)(unionRangeF) \/ in(x, unionRangeF)) by Restate
-      have((base.inExtIntroImage(f)(x), isConstructor(x)(unionRangeF) \/ in(x, unionRangeF)) |- in(x, stageBound)) by
-        LeftOr(constructorCaseToUniverse, membershipCaseToUniverse)
+      have((base.inExtIntroImage(f)(x), isConstructor(x)(unionRangeF) \/ in(x, unionRangeF)) |- in(x, bound)) by
+        LeftOr(constructorCaseToBound, membershipCaseToBound)
       have(thesis) by Cut(introBranch, lastStep)
     }
 
-    // `stageBody = { x ∈ stageBound | inExtIntroImage(f)(x) }`; its membership unfolds by comprehension.
-    val stageBodyMembership = have(in(x, stageBody) <=> in(x, stageBound) /\ base.inExtIntroImage(f)(x)) by
+    // `stageBody = { x ∈ bound | inExtIntroImage(f)(x) }`; its membership unfolds by comprehension.
+    val stageBody = { x ∈ bound | base.inExtIntroImage(f)(x) }
+    val stageBodyMembership = have(in(x, stageBody) <=> in(x, bound) /\ base.inExtIntroImage(f)(x)) by
       Restate.from(
-        Comprehension.membership of (x := x, y := stageBound, φ := λ(x, base.inExtIntroImage(f)(x)))
+        Comprehension.membership of (x := x, y := bound, φ := λ(x, base.inExtIntroImage(f)(x)))
       )
 
-    have(in(x, stageBody) |- in(x, stageBound) /\ base.inExtIntroImage(f)(x)) by
+    have(in(x, stageBody) |- in(x, bound) /\ base.inExtIntroImage(f)(x)) by
       Substitute(stageBodyMembership)(have(in(x, stageBody) |- in(x, stageBody)) by Hypothesis)
     have(in(x, stageBody) |- base.inExtIntroImage(f)(x)) by Weakening(lastStep)
     val forward = thenHave(in(x, stageBody) ==> base.inExtIntroImage(f)(x)) by Restate
 
-    have(base.inExtIntroImage(f)(x) |- in(x, stageBound) /\ base.inExtIntroImage(f)(x)) by RightAnd(
-      extIntroInUniverse,
+    have(base.inExtIntroImage(f)(x) |- in(x, bound) /\ base.inExtIntroImage(f)(x)) by RightAnd(
+      extIntroInBound,
       have(base.inExtIntroImage(f)(x) |- base.inExtIntroImage(f)(x)) by Hypothesis
     )
     thenHave(base.inExtIntroImage(f)(x) |- in(x, stageBody)) by Substitute(stageBodyMembership)

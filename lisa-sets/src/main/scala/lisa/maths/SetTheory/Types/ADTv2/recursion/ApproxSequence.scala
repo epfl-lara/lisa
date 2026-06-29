@@ -8,17 +8,16 @@ import lisa.maths.SetTheory.Functions.Predef.app
 import lisa.maths.SetTheory.Functions.Predef.functionOn
 import lisa.maths.SetTheory.Functions.Predef.↾
 import lisa.maths.SetTheory.Ordinals.Integer.{emptyInOmega, omegaSuccessorInduction, selfInSuccessor, successorInOmega}
+import lisa.maths.SetTheory.Ordinals.Integer
+import lisa.maths.SetTheory.Ordinals.Ordinal
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.Ordinals.OmegaFacts
 import lisa.maths.SetTheory.Ordinals.TransfiniteRecursion
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Ordinals.Integer
+import lisa.maths.SetTheory.Types.ADTv2.support.tactics.Cuts
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Types.TypingHelpers._
-import lisa.utils.prooflib.BasicStepTactic.Cut
-import lisa.utils.prooflib.BasicStepTactic.LeftExists
-import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
@@ -100,13 +99,14 @@ private[recursion] final class ApproxSequence[N <: Arity](
   private val approxSeq: Expr[Ind] = TransfiniteRecursion
     .transfiniteRecursionFunction(stepFunc)(N)
 
-  private val recSpec: THM = Lemma(
+  private val recSpecFormula =
     functionOn(approxSeq)(N) /\ ∀(x ∈ N, app(approxSeq)(x) === stepFunc(x)(approxSeq ↾ x))
-  ) {
-    have(thesis) by Tautology.from(
-      OmegaFacts.isOrdinal,
+
+  private val recSpec: THM = Lemma(recSpecFormula) {
+    val specAtN = have(Ordinal.ordinal(N) |- recSpecFormula) by Restate.from(
       TransfiniteRecursion.transfiniteRecursionFunctionSpec.of(Func := stepFunc, α := N)
     )
+    have(thesis) by Cut(OmegaFacts.isOrdinal, specAtN)
   }
 
   def G(n: Expr[Ind]): Expr[Ind] = app(approxSeq)(n)
@@ -152,7 +152,8 @@ private[recursion] final class ApproxSequence[N <: Arity](
       Cut(existence, Quantifiers.existsEpsilon.of(x := yVar, P := Q))
     val epsImp = have(Q(ε(yVar, Q(yVar))) ==> (ε(yVar, Q(yVar)) === target)) by
       InstantiateForall(ε(yVar, Q(yVar)))(uniqueness)
-    val epsEq = have(ε(yVar, Q(yVar)) === target) by Tautology.from(epsQ, epsImp)
+    val epsToTarget = have(Q(ε(yVar, Q(yVar))) |- ε(yVar, Q(yVar)) === target) by Restate.from(epsImp)
+    val epsEq = have(ε(yVar, Q(yVar)) === target) by Cut(epsQ, epsToTarget)
 
     val recIdx = have(index ∈ N |- G(index) === target) by Congruence.from(eqIdx, betaEq, epsEq)
     have(G(index) === target) by Cut(indexInN, recIdx)
@@ -167,17 +168,23 @@ private[recursion] final class ApproxSequence[N <: Arity](
       (jVar ∈ N) /\ (∅ === S(jVar)) /\ (yVar === recWitness(app(approxSeq ↾ ∅)(jVar)))
     val Q = λ(yVar, ((∅ === ∅) /\ (yVar === recWitness(g0))) \/ ∃(jVar, succBody))
 
-    have(Q(recWitness(g0))) by Tautology
+    have(Q(recWitness(g0))) by Restate
     val exists = thenHave(∃(yVar, Q(yVar))) by RightExists
 
     // The ∃j disjunct forces ∅ === S(j), which is impossible.
-    val zEqSj = have(succBody |- ∅ === S(jVar)) by Tautology
+    val zEqSj = have(succBody |- ∅ === S(jVar)) by Restate
     val SjEq0 = have(succBody |- S(jVar) === ∅) by Congruence.from(zEqSj)
-    val noSucc = have(succBody |- ()) by Tautology.from(SjEq0, Integer.zeroIsNotSucc.of(n := jVar))
+    val notSucc = have(succBody |- !(S(jVar) === ∅)) by Weakening(Integer.zeroIsNotSucc.of(n := jVar))
+    val contradiction = have((succBody, !(S(jVar) === ∅)) |- ()) by LeftNot(SjEq0)
+    val noSucc = have(succBody |- ()) by Cut(notSucc, contradiction)
 
     val noSuccEx = have(∃(jVar, succBody) |- ()) by LeftExists(noSucc)
-    val disj = have(Q(yVar) |- ((∅ === ∅) /\ (yVar === recWitness(g0))) \/ ∃(jVar, succBody)) by Restate
-    have(Q(yVar) ==> (yVar === recWitness(g0))) by Tautology.from(disj, noSuccEx)
+    val disj = have(Q(yVar) |- (yVar === recWitness(g0)) \/ ∃(jVar, succBody)) by Restate
+    val fromLeft = have(yVar === recWitness(g0) |- yVar === recWitness(g0)) by Restate
+    val fromRight = have(∃(jVar, succBody) |- yVar === recWitness(g0)) by Weakening(noSuccEx)
+    val fromDisj = have((yVar === recWitness(g0)) \/ ∃(jVar, succBody) |- yVar === recWitness(g0)) by LeftOr(fromLeft, fromRight)
+    have(Q(yVar) |- yVar === recWitness(g0)) by Cut(disj, fromDisj)
+    thenHave(Q(yVar) ==> (yVar === recWitness(g0))) by RightImplies
     val uniqueness = thenHave(∀(yVar, Q(yVar) ==> (yVar === recWitness(g0)))) by RightForall
 
     val emptyInN = have(∅ ∈ N) by Restate.from(emptyInOmega)
@@ -193,7 +200,9 @@ private[recursion] final class ApproxSequence[N <: Arity](
   val approxSucc: THM = Lemma(∀(kVar ∈ N, G(S(kVar)) === recWitness(G(kVar)))) {
     have(kVar ∈ N |- G(S(kVar)) === recWitness(G(kVar))) subproof {
       val kInNat = assume(kVar ∈ N)
-      val SkInNat = have(S(kVar) ∈ N) by Tautology.from(kInNat, successorInOmega.of(n := kVar))
+
+      have( kVar ∈ N |- S(kVar) ∈ N ) by Weakening(successorInOmega.of(n := kVar))
+      val SkInNat = have(S(kVar) ∈ N) by Cut(kInNat, lastStep)
 
       val hSk = approxSeq ↾ S(kVar)
       val succBody =
@@ -211,27 +220,36 @@ private[recursion] final class ApproxSequence[N <: Arity](
             (recWitness(app(hSk)(kVar)) === recWitness(app(hSk)(jVar)))
         )
       ) by RightExists
-      thenHave(Q(recWitness(app(hSk)(kVar)))) by Tautology
+      thenHave(
+        ((S(kVar) === ∅) /\ (recWitness(app(hSk)(kVar)) === recWitness(g0))) \/
+          ∃(jVar,
+            (jVar ∈ N) /\ (S(kVar) === S(jVar)) /\
+              (recWitness(app(hSk)(kVar)) === recWitness(app(hSk)(jVar)))
+          )
+      ) by RightOr
+      thenHave(Q(recWitness(app(hSk)(kVar)))) by Restate
       val exY = thenHave(∃(yVar, Q(yVar))) by RightExists
+
+      val zeroBranch = (S(kVar) === ∅) /\ (yVar === recWitness(g0))
+      val succBranch = ∃(jVar, succBody)
 
       // Uniqueness: the ∃j disjunct gives S(k) === S(j), so injectivity forces j === k;
       // the S(k) === ∅ disjunct is impossible.
       val yEq = have(succBody |- yVar === recWitness(app(hSk)(jVar))) by Restate
       val jEqK = have(succBody |- kVar === jVar) by 
-        Tautology.from(Integer.successorInjectivity.of(n := kVar, m := jVar))
+        Weakening(Integer.successorInjectivity.of(n := kVar, m := jVar))
       have(succBody |- yVar === recWitness(app(hSk)(kVar))) by Congruence.from(yEq, jEqK)
-      val fromExJ =
-        thenHave(∃(jVar, succBody) |- yVar === recWitness(app(hSk)(kVar))) by LeftExists
+      val fromExJ = thenHave(succBranch |- yVar === recWitness(app(hSk)(kVar))) by LeftExists
 
-      val disj = have(
-        Q(yVar) |- ((S(kVar) === ∅) /\ (yVar === recWitness(g0))) \/ ∃(jVar, succBody)
-      ) by Restate
-      val exJ = have(Q(yVar) |- ∃(jVar, succBody)) by Tautology.from(
-        disj, 
-        Integer.zeroIsNotSucc.of(n := kVar)
-      )
+      val fromZero = have(zeroBranch |- succBranch) by Weakening(Integer.zeroIsNotSucc.of(n := kVar))
+      val fromSucc = have(succBranch |- succBranch) by Restate
+      val fromDisj = have(zeroBranch \/ succBranch |- succBranch) by LeftOr(fromZero, fromSucc)
+
+      val disj = have(Q(yVar) |- zeroBranch \/ succBranch) by Restate
+      val exJ = have(Q(yVar) |- succBranch) by Cut(disj, fromDisj)
+
       have(Q(yVar) |- yVar === recWitness(app(hSk)(kVar))) by Cut(exJ, fromExJ)
-      thenHave(Q(yVar) ==> (yVar === recWitness(app(hSk)(kVar)))) by Restate
+      thenHave(Q(yVar) ==> (yVar === recWitness(app(hSk)(kVar)))) by RightImplies
       val uniq =
         thenHave(∀(yVar, Q(yVar) ==> (yVar === recWitness(app(hSk)(kVar))))) by RightForall
         
@@ -239,11 +257,12 @@ private[recursion] final class ApproxSequence[N <: Arity](
       val kInSk = have(kVar ∈ S(kVar)) by Weakening(selfInSuccessor.of(n := kVar))
       val GmOn = have(functionOn(approxSeq)(N)) by Weakening(recSpec)
       val GmDom = have(dom(approxSeq) === N) by
-        Tautology.from(GmOn, BasicTheorems.functionOnDomain.of(f := approxSeq, A := N))
+        Cut(GmOn, BasicTheorems.functionOnDomain.of(f := approxSeq, A := N))
       val kInDom = have(kVar ∈ dom(approxSeq)) by Congruence.from(kInNat, GmDom)
       val hSkAtK = have(app(hSk)(kVar) === G(kVar)) by
-        Tautology.from(
-          Restriction.restrictedApp.of(f := approxSeq, x := kVar, A := S(kVar)),
+        Cuts(
+          Restriction.restrictedApp.of(f := approxSeq, x := kVar, A := S(kVar))
+        )(
           BasicTheorems.functionOnIsFunction.of(f := approxSeq, A := N),
           GmOn, 
           kInDom,
@@ -267,13 +286,14 @@ private[recursion] final class ApproxSequence[N <: Arity](
     val P = variable[Ind >>: Prop]
     val prop = λ(nVar, G(nVar) :: spec.typ)
 
-    val epsStep = have(∃(f0, f0 :: spec.typ) |- g0 :: spec.typ) by
-      Restate.from(Quantifiers.existsEpsilon.of(x := f0, P := λ(f0, f0 :: spec.typ)))
-    val g0Typed = have(g0 :: spec.typ) by Cut(seedExists, epsStep)
+    val g0Typed = have(g0 :: spec.typ) by 
+      Cut(seedExists, Quantifiers.existsEpsilon.of(x := f0, P := λ(f0, f0 :: spec.typ)))
 
     // Base case: G(0) = W(g₀), typed because g₀ is.
+    val witnessTypeAtG0 = have((g0 :: spec.typ) |- recWitness(g0) :: spec.typ) by
+      Restate.from(recWitness.witnessHasType.of(spec.selfPlaceholder := g0))
     val witnessAtG0Typed = have(recWitness(g0) :: spec.typ) by
-      Tautology.from(g0Typed, recWitness.witnessHasType.of(spec.selfPlaceholder := g0))
+      Cut(g0Typed, witnessTypeAtG0)
     have(G(∅) :: spec.typ) by Congruence.from(approxZero, witnessAtG0Typed)
     val base = thenHave(prop(∅)) by Restate
 
@@ -283,19 +303,22 @@ private[recursion] final class ApproxSequence[N <: Arity](
       val nInNat = assume(nVar ∈ N)
       val ih = assume(prop(nVar))
 
-      val approxSuccAtN = have(nVar ∈ N ==> (G(S(nVar)) === recWitness(G(nVar)))) by
+      have(nVar ∈ N ==> (G(S(nVar)) === recWitness(G(nVar)))) by
         InstantiateForall(nVar)(approxSucc)
+      val approxSuccAtN = thenHave((nVar ∈ N) |- (G(S(nVar)) === recWitness(G(nVar)))) by Restate
       val gSuccEq = have(G(S(nVar)) === recWitness(G(nVar))) by
-        Tautology.from(nInNat, approxSuccAtN)
+        Cut(nInNat, approxSuccAtN)
+      val witnessTypeAtGn = have(prop(nVar) |- recWitness(G(nVar)) :: spec.typ) by
+        Weakening(recWitness.witnessHasType.of(spec.selfPlaceholder := G(nVar)))
       val witnessAtGnTyped = have(recWitness(G(nVar)) :: spec.typ) by
-        Tautology.from(ih, recWitness.witnessHasType.of(spec.selfPlaceholder := G(nVar)))
+        Cut(ih, witnessTypeAtGn)
       have(G(S(nVar)) :: spec.typ) by Congruence.from(gSuccEq, witnessAtGnTyped)
       thenHave(thesis) by Restate
     }
     val step = thenHave(∀(nVar, (nVar ∈ N) ==> (prop(nVar) ==> prop(S(nVar))))) by RightForall
 
     have(∀(nVar, (nVar ∈ N) ==> prop(nVar))) by
-      Tautology.from(omegaSuccessorInduction of (P := prop), base, step)
+      Cuts(omegaSuccessorInduction of (P := prop))(base, step)
     thenHave(thesis) by Restate
   }
 }

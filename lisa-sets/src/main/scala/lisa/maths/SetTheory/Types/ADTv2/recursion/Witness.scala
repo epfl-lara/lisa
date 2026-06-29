@@ -58,4 +58,6 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N])
       bodyAt = _.body,
       extraPremisesAt = _ => Set(typingPremise)
     )
+
+  private val _ = witnessSemantics
 }

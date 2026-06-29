@@ -2,6 +2,7 @@ package lisa.maths.SetTheory.Types.ADTv2.support.tactics
 
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.utils.prooflib.BasicStepTactic.Cut
+import lisa.utils.prooflib.ProofTacticLib.UnapplicableProofTactic
 import scala.util.boundary
 
 /**
@@ -40,7 +41,13 @@ import scala.util.boundary
  */
 object Cuts extends lisa.utils.prooflib.ProofTacticLib.ProofTactic {
 
-  def apply(using proof: lisa.SetTheoryLibrary.Proof)(
+  override val name: String = "Cuts"
+
+  def apply(using
+      proof: lisa.SetTheoryLibrary.Proof,
+      line: sourcecode.Line,
+      file: sourcecode.File
+  )(
       main: proof.Fact
   )(
       sideFacts: proof.Fact*
@@ -60,7 +67,26 @@ object Cuts extends lisa.utils.prooflib.ProofTacticLib.ProofTactic {
               val resRight = fact.statement.right.filterNot(r => isSame(r, phi)) ++ acc.statement.right
               have(resLeft |- resRight) by Cut.withParameters(phi)(fact, acc)
         }
-        have(bot) by Restate.from(combined)
+        // The closing `Restate` carries this file's location, so a failure here
+        // points at `Cuts.scala` rather than the call site. Re-raise with the
+        // caller's `line`/`file` and the leftover sequent, which is what actually
+        // helps diagnose an undischarged hypothesis or an unmatched side fact.
+        try have(bot) by Restate.from(combined)
+        catch
+          case _: UnapplicableProofTactic =>
+            throw UnapplicableProofTactic(
+              Cuts,
+              proof,
+              s"""after cutting every side fact, the accumulated sequent was
+                 |    ${combined.statement}
+                 |which Restate could not reconcile with the goal
+                 |    $bot
+                 |Each hypothesis of `main` must be discharged by a side fact whose
+                 |conclusion matches it (up to OL-normalization), and whatever remains
+                 |must be OL-equivalent to the goal. A leftover hypothesis, or a side
+                 |fact whose conclusion does not match any hypothesis, is the usual
+                 |cause.""".stripMargin
+            )(using line, file)
       }
 
 }

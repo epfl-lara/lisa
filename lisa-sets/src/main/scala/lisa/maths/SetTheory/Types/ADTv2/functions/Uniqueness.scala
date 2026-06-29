@@ -14,12 +14,9 @@ private[functions] final class Uniqueness[N <: Arity](
 
   private val argType = spec.argType
 
-  private def definitionFormula(v: Variable[Ind]): Expr[Prop] =
-    spec.untypedDefinition(v)
-
   protected lazy val pointwiseAgreement: THM =
-    val xDefFormula = definitionFormula(x)
-    val yDefFormula = definitionFormula(y)
+    val xDefFormula = spec.definitionAt(x)
+    val yDefFormula = spec.definitionAt(y)
     val pointInput = variable[Ind]
     Lemma(
       xDefFormula /\ yDefFormula |- ∀(pointInput, pointInput ∈ argType ==> (x * pointInput === y * pointInput))

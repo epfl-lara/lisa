@@ -10,11 +10,8 @@ import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFact
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.constructorBranchAtHeight
 import lisa.utils.prooflib.InstantiateForallSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.utils.prooflib.BasicStepTactic.Cut
-import lisa.utils.prooflib.BasicStepTactic.LeftExists
-import lisa.utils.prooflib.BasicStepTactic.LeftOr
-import lisa.utils.prooflib.BasicStepTactic.RightForall
-import lisa.utils.prooflib.BasicStepTactic.Weakening
+import lisa.maths.SetTheory.Types.ADTv2.support.tactics.Cuts
+import lisa.utils.debug.Time
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
@@ -104,7 +101,7 @@ private[recursion] object PointwiseAgreementStep {
       goalEqAt: Expr[Prop]
   )(
       caseEqs: PatternCaseEquations[N]
-  ): proof.Fact = {
+  ): proof.Fact = Time.measure("pointwiseAgreementOnSucc") {
     val pointwiseAtSucc =
       have((ambientTerm ∈ app(heightFun)(S(currentIndex))) ==> goalEqAt) subproof {
         val aInHeightOrd = assume(ambientTerm ∈ app(heightFun)(S(currentIndex)))
@@ -112,12 +109,16 @@ private[recursion] object PointwiseAgreementStep {
         val constructorDisjunction =
           constructorDisjunctionAtHeight(constructorsAt, app(heightFun)(currentIndex), ambientTerm)
 
-        val decomposeAtA = have(constructorDisjunction) by Tautology.from(
+        // `heightSuccStrong` instantiated at the point gives the membership/constructor
+        // biconditional; discharge its two side conditions by Cut, then rewrite the
+        // height-membership hypothesis through it to land on the constructor disjunction.
+        val heightSuccIff = have(
+          (ambientTerm ∈ app(heightFun)(S(currentIndex))) <=> constructorDisjunction
+        ) by Cuts(heightSuccStrong of (h := heightFun, n := currentIndex, x := ambientTerm))(
           hValid,
-          currentIndexInN,
-          aInHeightOrd,
-          heightSuccStrong of (h := heightFun, n := currentIndex, x := ambientTerm)
+          currentIndexInN
         )
+        val decomposeAtA = have(constructorDisjunction) by Substitute(heightSuccIff)(aInHeightOrd)
 
         val branchEqualities = constructorsAt.map { sc =>
           val c = sc.underlying
@@ -129,15 +130,15 @@ private[recursion] object PointwiseAgreementStep {
 
             val argsTypedAtHeight = have(sc.heightTypingFormula(app(heightFun)(currentIndex))) by Restate
             val argsTypedSemantic = have(wellTypedFormula(sc.semanticSignature2)) by
-              Tautology.from(hValid, currentIndexInN, sc.semanticTypingFromHeight(heightFun, currentIndex))
+              Cuts(sc.semanticTypingFromHeight(heightFun, currentIndex))(hValid, currentIndexInN, argsTypedAtHeight)
             val aEqApplied = have(ambientTerm === sc.appliedTerm2) by
-              Tautology.from(hValid, currentIndexInN, sc.appliedEqualityFromStructural(heightFun, currentIndex, ambientTerm))
+              Cuts(sc.appliedEqualityFromStructural(heightFun, currentIndex, ambientTerm))(hValid, currentIndexInN)
 
             // Agreements at the constructor's direct self-referential arguments, derived
             // from the slice-agreement hypothesis; reused inside every pattern subproof.
             val sliceAgreement = caseEqs.sliceAgreement
             val selfArgEqualities = sc.selfRefVariables2.map(v =>
-              val vInHeight = have(v ∈ app(heightFun)(currentIndex)) by Tautology.from(argsTypedAtHeight)
+              val vInHeight = have(v ∈ app(heightFun)(currentIndex)) by Weakening(argsTypedAtHeight)
               agreementAt(heightFun, currentIndex, caseEqs.sliceLeft, caseEqs.sliceRight, sliceAgreement, v, vInHeight)
             )
 
@@ -149,7 +150,10 @@ private[recursion] object PointwiseAgreementStep {
                 val selectedPattern = assume(pattern.branchSelectionBody(ambientTerm))
                 val patternGuard = have(pattern.freshBranchCondition) by Weakening(selectedPattern)
                 val inputEq = have(ambientTerm === pattern.freshInputTerm) by Weakening(selectedPattern)
-                val patternPremise = have(pattern.freshBranchPremise) by Tautology.from(argsTypedSemantic, patternGuard)
+                have(pattern.freshTypingFormula) by Tautology.from(argsTypedSemantic)
+                val patternPremiseConj = have(pattern.freshTypingFormula /\ pattern.freshBranchCondition) by
+                  RightAnd(lastStep, patternGuard)
+                val patternPremise = have(pattern.freshBranchPremise) by Weakening(patternPremiseConj)
 
                 val innerAgreements = pattern.recursiveAgreementPoints(caseEqs.recursiveType).map { point =>
                   val pointInHeight = pattern.recursiveAgreementPointInHeight(
@@ -184,9 +188,12 @@ private[recursion] object PointwiseAgreementStep {
               (wellTypedFormula(sc.semanticSignature2) /\ (ambientTerm === sc.appliedTerm2)) |-
                 seqOr(constructorPatterns.map(pattern => pattern.branchSelectionDisjunct(ambientTerm)))
             ) by InstantiateForallSeq(c.variables2)(selectionSchemaInContext)
+            val selectionConjunction = have(
+              wellTypedFormula(sc.semanticSignature2) /\ (ambientTerm === sc.appliedTerm2)
+            ) by RightAnd(argsTypedSemantic, aEqApplied)
             val selectedBranch = have(
               seqOr(constructorPatterns.map(pattern => pattern.branchSelectionDisjunct(ambientTerm)))
-            ) by Tautology.from(selectionAtCtorVars, argsTypedSemantic, aEqApplied)
+            ) by Cut(selectionConjunction, selectionAtCtorVars)
 
             val patternEqualities = constructorPatterns.map { pattern =>
               val rawEq = rawEqFor(pattern)
@@ -216,7 +223,7 @@ private[recursion] object PointwiseAgreementStep {
             (lifted, wrappedPremise)
           }
 
-          have(constructorBranchAtHeight(sc, app(heightFun)(currentIndex), ambientTerm) |- goalEqAt) by Tautology.from(rawBranch._1)
+          have(constructorBranchAtHeight(sc, app(heightFun)(currentIndex), ambientTerm) |- goalEqAt) by Restate.from(rawBranch._1)
         }
 
         val branchesToGoal =
@@ -224,7 +231,8 @@ private[recursion] object PointwiseAgreementStep {
           else have(constructorDisjunction |- goalEqAt) by LeftOr(branchEqualities*)
 
         have(goalEqAt) by Cut(decomposeAtA, branchesToGoal)
-        thenHave(ambientTerm ∈ app(heightFun)(S(currentIndex)) ==> goalEqAt) by RightImplies.withParameters(ambientTerm ∈ app(heightFun)(S(currentIndex)), goalEqAt)
+        thenHave(ambientTerm ∈ app(heightFun)(S(currentIndex)) ==> goalEqAt) by 
+          RightImplies.withParameters(ambientTerm ∈ app(heightFun)(S(currentIndex)), goalEqAt)
       }
 
     have((ambientTerm ∈ app(heightFun)(S(currentIndex))) ==> goalEqAt) by Restate.from(pointwiseAtSucc)
