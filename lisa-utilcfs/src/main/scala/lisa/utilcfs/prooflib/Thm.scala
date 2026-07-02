@@ -5,8 +5,10 @@ import lisa.utilcfs.fol.FOL.*
 
 final case class Thm(statement: Sequent, kernel: K.Thm):
   def kernelStatement: K.Sequent = kernel.statement
-  def left: Set[K.Expression] = kernel.statement.left
-  def right: Set[K.Expression] = kernel.statement.right
+  def left: Set[Expr[Prop]] = statement.left
+  def right: Set[Expr[Prop]] = statement.right
+  def leftK: Set[K.Expression] = kernel.statement.left
+  def rightK: Set[K.Expression] = kernel.statement.right
 
 object Thm:
   def apply(kernel: K.Thm): Thm =
@@ -15,4 +17,4 @@ object Thm:
   def liftFormula(expression: K.Expression): Expr[Prop] =
     liftExpression(expression).asInstanceOf[Expr[Prop]]
 
-  given Conversion[Thm, K.Thm] = _.kernel
+  given asKernel: Conversion[Thm, K.Thm] = _.kernel
