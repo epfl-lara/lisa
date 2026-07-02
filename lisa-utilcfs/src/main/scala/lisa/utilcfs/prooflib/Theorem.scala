@@ -14,7 +14,7 @@ sealed trait TheoremKind:
     new Theorem(this)(using library)(sourceFile, sourceLine, fullName, name)(statement)(carrier)
 
 case object Theorem extends TheoremKind:
-  given Conversion[Theorem, K.Thm] = _.thm
+  given Conversion[Theorem, Thm] = _.thm
 
 case object Lemma extends TheoremKind
 
@@ -34,26 +34,27 @@ final class Theorem
     val proof = Proof.withGoal(underlyingGoal)
     val inner = computeProof(using proof).withErrors(proof.errors)
     // is the proven statement the actual goal or reduced to it trivially?
-    if inner.statement == underlyingGoal then 
+    if inner.statement.underlying == underlyingGoal then 
       // done
       inner.judgement
     else
       // try weakening, else fail softly
       inner.justification match
         case Some(thm) =>
-          K.Weakening(using library.theory)(underlyingGoal, thm)
+          K.Weakening(using library.theory)(underlyingGoal, thm.kernel)
             .fold(_ =>
               // weakening failed
               val error = SoftError(withParams("The proven statement is not the same as the goal and cannot be weakened to it.", "Proven" -> inner.statement, "Goal" -> underlyingGoal), file, line)
               inner.judgement.withError(error),
               // weakening succeeded
-              inner.judgement.withJustification
+              thm => inner.judgement.withJustification(Thm(thm))
             )
         case None =>
           inner.judgement
 
-  val innerThm: K.Thm = judgement.destruct._1
-  def thm: K.Thm = innerThm
+  val innerThm: Thm = judgement.destruct._1
+  def thm: Thm = innerThm
+  def kernel: K.Thm = innerThm.kernel
   val errors: Set[ProofError] = judgement.errors
 
   // MUTABLY update the theorem registry

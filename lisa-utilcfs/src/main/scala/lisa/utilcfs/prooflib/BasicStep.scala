@@ -35,7 +35,7 @@ object BasicStep:
   private def inferenceFailure(file: sourcecode.File, line: sourcecode.Line)(message: String, conclusion: Sequent, params: (String, Any)*)(using Library): ProofJudgement =
     ProofCarrier(
       Set(SoftError(withParams(message, ("Conclusion", conclusion) +: params*), file, line)),
-      conclusion.underlying,
+      conclusion,
       None,
       ()
     )
@@ -45,7 +45,7 @@ object BasicStep:
   ///////////////////////////////////////////////////////////////////////////////
 
   private def successful(thm: K.Thm)(using Library): ProofJudgement =
-    ProofCarrier(Set.empty, thm.statement, Some(thm), ())
+    ProofJudgement(thm)
 
   /**
     * Weakening helper. Does not handle errors like [[Weakening.apply]].
@@ -79,7 +79,7 @@ object BasicStep:
       val underlying = conclusion.underlying
       K.Sorry(using library.theory)(underlying)
         .mapLeft(liftError)
-        .lift(underlying)
+        .lift(conclusion)
 
   object Axiom extends SequentTactic:
     private def liftError(err: K.Axiom.ErrorType): ProofError = 
@@ -90,7 +90,7 @@ object BasicStep:
       val underlying = conclusion.underlying
       K.Axiom(using library.theory)(underlying)
         .mapLeft(liftError)
-        .lift(underlying)
+        .lift(conclusion)
 
   object Hypothesis extends SequentTactic:
     private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, pivot: Expr[Prop])(err: K.Hypothesis.ErrorType): ProofError = 
@@ -116,7 +116,7 @@ object BasicStep:
     def withParameters(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(pivot: Expr[Prop])(conclusion: Sequent): ProofJudgement =
       K.Hypothesis(using library.theory)(conclusion.underlying, pivot.underlying)
         .mapLeft(liftError(file, line)(conclusion, pivot))
-        .lift(conclusion.underlying)
+        .lift(conclusion)
         
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent): ProofJudgement =
       val pivot =
@@ -136,7 +136,7 @@ object BasicStep:
             file,
             line
           )
-          ProofCarrier(Set(error), conclusion.underlying, None, ())
+          ProofCarrier(Set(error), conclusion, None, ())
 
   object Restate extends SequentTactic, PremiseSequentTactic:
     private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, premise: K.Thm)(err: K.Restate.ErrorType): ProofError =
@@ -148,7 +148,7 @@ object BasicStep:
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
       K.Restate(using library.theory)(conclusion.underlying, premise)
         .mapLeft(liftError(file, line)(conclusion, premise))
-        .lift(conclusion.underlying)
+        .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent): ProofJudgement =
       Tautology(using file, line)(using library)(conclusion)
@@ -165,7 +165,7 @@ object BasicStep:
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent): ProofJudgement =
       K.RestateTrue(using library.theory)(conclusion.underlying)
         .mapLeft(liftError(file, line)(conclusion))
-        .lift(conclusion.underlying)
+        .lift(conclusion)
 
   object Cut:
     private def prove(conclusion: K.Sequent, prem1: K.Thm, prem2: K.Thm, phi: KF.Expression)(using library: Library): K.Cut.Result[K.Thm] =
@@ -191,7 +191,7 @@ object BasicStep:
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, prem1, prem2, phi.underlying)
         .mapLeft(liftError(file, line)(conclusion, prem1, prem2, phi))
-        .lift(conclusion.underlying)
+        .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(prem1: K.Thm, prem2: K.Thm)(
         conclusion: Sequent
@@ -230,7 +230,7 @@ object BasicStep:
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, premise, phi.underlying, psi.underlying)
         .mapLeft(liftError(file, line)(conclusion, premise, phi, psi))
-        .lift(conclusion.underlying)
+        .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
       val underlying = conclusion.underlying
@@ -267,7 +267,7 @@ object BasicStep:
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, premises, disjuncts.map(_.underlying))
         .mapLeft(liftError(file, line)(conclusion, premises, disjuncts))
-        .lift(conclusion.underlying)
+        .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(premises: Seq[K.Thm])(conclusion: Sequent): ProofJudgement =
       val underlying = conclusion.underlying
@@ -316,7 +316,7 @@ object BasicStep:
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, prem1, prem2, phi.underlying, psi.underlying)
         .mapLeft(liftError(file, line)(conclusion, prem1, prem2, phi, psi))
-        .lift(conclusion.underlying)
+        .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(prem1: K.Thm, prem2: K.Thm)(
         conclusion: Sequent
@@ -357,7 +357,7 @@ object BasicStep:
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, premise, phi.underlying, psi.underlying)
         .mapLeft(liftError(file, line)(conclusion, premise, phi, psi))
-        .lift(conclusion.underlying)
+        .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
       val underlying = conclusion.underlying
@@ -392,7 +392,7 @@ object BasicStep:
     ): ProofJudgement =
       prove(conclusion.underlying, premise, phi.underlying)
         .mapLeft(liftError(file, line)(conclusion, premise, phi))
-        .lift(conclusion.underlying)
+        .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
       val underlying = conclusion.underlying
@@ -428,7 +428,7 @@ object BasicStep:
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, premise, phi.underlying, x.underlying, term.underlying)
         .mapLeft(liftError(file, line)(conclusion, premise, phi, x, term))
-        .lift(conclusion.underlying)
+        .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
       val underlying = conclusion.underlying
@@ -472,7 +472,7 @@ object BasicStep:
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, premise, phi.underlying, x.underlying)
         .mapLeft(liftError(file, line)(conclusion, premise, phi, x))
-        .lift(conclusion.underlying)
+        .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
       val underlying = conclusion.underlying
@@ -514,7 +514,7 @@ object BasicStep:
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, premises, conjuncts.map(_.underlying))
         .mapLeft(liftError(file, line)(conclusion, premises, conjuncts))
-        .lift(conclusion.underlying)
+        .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(premises: Seq[K.Thm])(conclusion: Sequent): ProofJudgement =
       val underlying = conclusion.underlying
@@ -556,7 +556,7 @@ object BasicStep:
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, premise, phi.underlying, psi.underlying)
         .mapLeft(liftError(file, line)(conclusion, premise, phi, psi))
-        .lift(conclusion.underlying)
+        .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
       val underlying = conclusion.underlying
@@ -594,7 +594,7 @@ object BasicStep:
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, premise, phi.underlying, psi.underlying)
         .mapLeft(liftError(file, line)(conclusion, premise, phi, psi))
-        .lift(conclusion.underlying)
+        .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
       val underlying = conclusion.underlying
@@ -636,7 +636,7 @@ object BasicStep:
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, prem1, prem2, phi.underlying, psi.underlying)
         .mapLeft(liftError(file, line)(conclusion, prem1, prem2, phi, psi))
-        .lift(conclusion.underlying)
+        .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(prem1: K.Thm, prem2: K.Thm)(
         conclusion: Sequent
@@ -672,7 +672,7 @@ object BasicStep:
     ): ProofJudgement =
       prove(conclusion.underlying, premise, phi.underlying)
         .mapLeft(liftError(file, line)(conclusion, premise, phi))
-        .lift(conclusion.underlying)
+        .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
       val underlying = conclusion.underlying
@@ -708,7 +708,7 @@ object BasicStep:
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, premise, phi.underlying, x.underlying)
         .mapLeft(liftError(file, line)(conclusion, premise, phi, x))
-        .lift(conclusion.underlying)
+        .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
       val underlying = conclusion.underlying
@@ -750,7 +750,7 @@ object BasicStep:
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, premise, phi.underlying, x.underlying, term.underlying)
         .mapLeft(liftError(file, line)(conclusion, premise, phi, x, term))
-        .lift(conclusion.underlying)
+        .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
       val underlying = conclusion.underlying
@@ -794,7 +794,7 @@ object BasicStep:
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, premise, phi.underlying, x.underlying, term.underlying)
         .mapLeft(liftError(file, line)(conclusion, premise, phi, x, term))
-        .lift(conclusion.underlying)
+        .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
       val underlying = conclusion.underlying
@@ -821,7 +821,7 @@ object BasicStep:
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
       K.Weakening(using library.theory)(conclusion.underlying, premise)
         .mapLeft(liftError(file, line)(conclusion, premise))
-        .lift(conclusion.underlying)
+        .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(premise: K.Thm)(conclusion: Sequent): ProofJudgement =
       apply(using file, line)(using library)(conclusion, premise)
@@ -847,7 +847,7 @@ object BasicStep:
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, premise, equality.underlying)
         .mapLeft(liftError(file, line)(conclusion, premise, equality))
-        .lift(conclusion.underlying)
+        .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
       val underlying = conclusion.underlying
@@ -874,7 +874,7 @@ object BasicStep:
     ): ProofJudgement =
       prove(conclusion.underlying, equality.underlying)
         .mapLeft(liftError(file, line)(conclusion, equality))
-        .lift(conclusion.underlying)
+        .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent): ProofJudgement =
       val underlying = conclusion.underlying
@@ -918,7 +918,7 @@ object BasicStep:
       val lambdaPhiK = (lambdaPhi._1.map(_.underlying), lambdaPhi._2.underlying)
       prove(conclusion.underlying, premise, equalitiesK, lambdaPhiK)
         .mapLeft(liftError(file, line)(conclusion, premise, equalities, lambdaPhi))
-        .lift(conclusion.underlying)
+        .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
       val underlying = conclusion.underlying
@@ -970,7 +970,7 @@ object BasicStep:
       val lambdaPhiK = (lambdaPhi._1.map(_.underlying), lambdaPhi._2.underlying)
       prove(conclusion.underlying, premise, equalitiesK, lambdaPhiK)
         .mapLeft(liftError(file, line)(conclusion, premise, equalities, lambdaPhi))
-        .lift(conclusion.underlying)
+        .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
       val underlying = conclusion.underlying
@@ -1010,7 +1010,7 @@ object BasicStep:
       val substK = subst.map { case (v, e) => v.underlying -> e.underlying }
       prove(conclusion.underlying, premise, substK)
         .mapLeft(liftError(file, line)(conclusion, premise, subst))
-        .lift(conclusion.underlying)
+        .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(subst: SubstPair*)(
         premise: K.Thm
