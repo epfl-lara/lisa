@@ -4,7 +4,7 @@ import scala.annotation.targetName
 
 object TacticM:
   def apply[T](using proof: Proof)(run: Proof ?=> ProofCarrier[T]): ProofCarrier[T] =
-    proof.withSubcontext(run)
+    proof.withSubcontext()(run)
 
   @targetName("applyPure")
   def apply[T](using proof: Proof)(run: Proof ?=> T): Proof ?=> ProofCarrier[T] =
