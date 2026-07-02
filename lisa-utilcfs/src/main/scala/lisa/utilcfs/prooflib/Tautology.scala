@@ -3,14 +3,15 @@ package lisa.utilcfs.prooflib
 import lisa.utilcfs.K
 import lisa.utilcfs.fol.FOL.*
 import lisa.utilcfs.prooflib.Helpers.withParams
+import lisa.utilcfs.prooflib.ProofHelpers.*
 
 object Tautology extends SequentTactic with PremiseSequentTactic:
 
   def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent): ProofJudgement =
-    from()(conclusion)
+    from(using file, line)()(conclusion)
 
   def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
-    from(premise)(conclusion)
+    from(using file, line)(premise)(conclusion)
 
   def from(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(premises: K.Thm*)(conclusion: Sequent): ProofJudgement =
     solve(conclusion.underlying, premises) match
@@ -28,7 +29,7 @@ object Tautology extends SequentTactic with PremiseSequentTactic:
     * the premises. The `Have` machinery supplies that theorem.
     */
   def fromLastStep(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(premises: K.Thm*): (Sequent, K.Thm) => ProofJudgement =
-    (conclusion, lastStep) => from((lastStep +: premises.toSeq)*)(conclusion)
+    (conclusion, lastStep) => from(using file, line)(lastStep +: premises.toSeq*)(conclusion)
 
   /**
     * Attempts to prove a kernel sequent propositionally, returning a theorem
