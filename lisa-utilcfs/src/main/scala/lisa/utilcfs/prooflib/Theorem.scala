@@ -6,8 +6,12 @@ import lisa.utilcfs.collection.Extensions.*
 import lisa.utilcfs.prooflib.Helpers.withParams
 
 sealed trait TheoremKind:
-  def apply(using library: Library, sourceFile: sourcecode.File, sourceLine: sourcecode.Line, fullName: sourcecode.FullName, name: sourcecode.Name)(statement: Sequent)(computeProof: Proof ?=> ProofJudgement): Theorem =
-    new Theorem(this)(using library)(sourceFile, sourceLine, fullName, name)(statement)(computeProof)
+  def apply[T](using library: Library, sourceFile: sourcecode.File, sourceLine: sourcecode.Line, fullName: sourcecode.FullName, name: sourcecode.Name)(statement: Sequent)(computeProof: Proof ?=> T): Theorem =
+    def carrier(using proof: Proof): ProofCarrier[?] =
+      computeProof(using proof) match
+        case carrier: ProofCarrier[?] => carrier
+        case _ => proof.pure(())
+    new Theorem(this)(using library)(sourceFile, sourceLine, fullName, name)(statement)(carrier)
 
 case object Theorem extends TheoremKind
 case object Lemma extends TheoremKind
@@ -15,9 +19,14 @@ case object Lemma extends TheoremKind
 final class Theorem 
   (theoremKind: TheoremKind)
   (using library: Library)
-  (sourceFile: sourcecode.File, sourceLine: sourcecode.Line, fullName: sourcecode.FullName, name: sourcecode.Name)
-  (statement: Sequent)
+  (val file: sourcecode.File, val line: sourcecode.Line, val fullName: sourcecode.FullName, val name: sourcecode.Name)
+  (val Statement: Sequent)
   (computeProof: Proof ?=> ProofCarrier[?]):
+  val kind: TheoremKind = theoremKind
+  val shortName: String = 
+    fullName.toString.split('.').lastOption.getOrElse(name.toString)
+  val statement: Sequent = Statement
+
   val judgement: ProofJudgement = 
     val underlyingGoal = statement.underlying
     val proof = Proof.withGoal(underlyingGoal)
@@ -42,6 +51,10 @@ final class Theorem
           inner.judgement
 
   val innerThm: K.Thm = judgement.destruct._1
+  def thm: K.Thm = innerThm
   val errors: Set[ProofError] = judgement.errors
+
+  // MUTABLY update the theorem registry
+  library.theorems.register(this)
 
   // TODO: if errors.nonEmpty and strict mode?
