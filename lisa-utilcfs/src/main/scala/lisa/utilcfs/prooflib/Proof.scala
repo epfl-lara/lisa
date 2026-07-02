@@ -8,17 +8,30 @@ import lisa.kernelcf.proof.Thm
 import scala.collection.mutable
 import scala.collection.View
 
-final class Proof private (val lib: Library, val goal: Option[Sequent]):
+final class Proof private (val lib: Library, val goal: Option[Sequent], inheritedAssumptions: Iterable[K.Expression] = Nil):
   given Library = lib
   given K.Theory = lib.theory
 
   private val currentErrors: mutable.Set[ProofError] = mutable.Set.empty
+  private val currentAssumptions: mutable.Set[K.Expression] = mutable.Set.from(inheritedAssumptions)
 
   var lastKnown: Option[Thm] = None
 
   def last: Option[Thm] = lastKnown
 
   def errors: View[ProofError] = currentErrors.view
+
+  def assumptions: View[K.Expression] = currentAssumptions.view
+
+  def assume(formula: K.Expression): Unit =
+    currentAssumptions += formula
+
+  def assume(formulas: Iterable[K.Expression]): Unit =
+    currentAssumptions ++= formulas
+
+  def withAssumptions(statement: Sequent): Sequent =
+    if currentAssumptions.isEmpty then statement
+    else Sequent(statement.left ++ currentAssumptions, statement.right)
 
   def report(error: ProofError): Unit =
     currentErrors += error
@@ -35,10 +48,10 @@ final class Proof private (val lib: Library, val goal: Option[Sequent]):
     absorb(carrier).destruct
 
   private def child(goal: Option[Sequent] = None): Proof =
-    new Proof(lib, goal)
+    new Proof(lib, goal, currentAssumptions)
 
-  def withSubcontext[T](inner: Proof ?=> ProofCarrier[T]): ProofCarrier[T] =
-    val subproof = child()
+  def withSubcontext[T](goal: Option[Sequent] = None)(inner: Proof ?=> ProofCarrier[T]): ProofCarrier[T] =
+    val subproof = child(goal)
     val carrier = inner(using subproof)
     val merged = carrier.withErrors(subproof.errors)
     report(merged.errors)
