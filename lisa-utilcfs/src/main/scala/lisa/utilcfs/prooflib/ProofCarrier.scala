@@ -68,7 +68,7 @@ final case class ProofCarrier[+T](
     * justification was produced.
     */
   def destruct: (Thm, T) =
-    justification.getOrElse(Thm(K.sorry(using lib.theory)(statement.underlying))) -> payload
+    justification.getOrElse(Thm(statement, K.sorry(using lib.theory)(statement.underlying))) -> payload
 
 type ProofJudgement = ProofCarrier[Unit]
 
@@ -86,4 +86,4 @@ extension (kernelResult: Either[ProofError, K.Thm])(using lib: Library)
         ProofCarrier(Set(err), intendedConclusion, None, ())
       case Right(j) => 
         assert(j.statement == intendedConclusion.underlying, s"Justification statement ${j.statement} does not match intended conclusion $intendedConclusion")
-        ProofCarrier(Set.empty, intendedConclusion, Some(Thm(j)), ())
+        ProofCarrier(Set.empty, intendedConclusion, Some(Thm(intendedConclusion, j)), ())
