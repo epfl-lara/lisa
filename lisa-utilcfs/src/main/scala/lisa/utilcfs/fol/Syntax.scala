@@ -257,6 +257,27 @@ trait Syntax {
   }
 
   /**
+   * Lightweight front expression backed directly by a kernel expression.
+   * Useful when preserving source/front shape is less important than avoiding
+   * a recursive rebuild of an already-checked kernel expression.
+   */
+  final class LiftedExpr[S](val underlying: K.Expression) extends Expr[S] {
+    val sort: K.Sort = underlying.sort
+    def freeVars: Set[Variable[?]] =
+      underlying.freeVariables.map(v => Variable.unsafe(v.id, v.sort))
+    def freeTermVars: Set[Variable[Ind]] =
+      freeVars.collect { case v if v.sort == K.Ind => v.asInstanceOf[Variable[Ind]] }
+    def constants: Set[Constant[?]] =
+      underlying.constants.map(c => Constant.unsafe(c.id, c.sort))
+
+    def substituteUnsafe(m: Map[Variable[?], Expr[?]]): Expr[S] =
+      val subst = m.map((v, e) => v.underlying -> e.underlying)
+      LiftedExpr[S](K.substituteVariables(underlying, subst))
+
+    override def toString: String = underlying.toString
+  }
+
+  /**
    * (Inline) extractor object for unsafe applications
    */
   object #@ {

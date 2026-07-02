@@ -1,9 +1,9 @@
 package lisa.utilcfs.prooflib
 
 import lisa.utilcfs.K
+import lisa.utilcfs.fol.FOL.*
 
 import lisa.kernelcf.proof.Sequent
-import lisa.kernelcf.proof.Thm
 
 import scala.collection.mutable
 import scala.collection.View
@@ -13,7 +13,7 @@ final class Proof private (val lib: Library, val goal: Option[Sequent], inherite
   given K.Theory = lib.theory
 
   private val currentErrors: mutable.Set[ProofError] = mutable.Set.empty
-  private val currentAssumptions: mutable.Set[K.Expression] = mutable.Set.from(inheritedAssumptions)
+  private val currentAssumptions: mutable.Set[Expr[Prop]] = mutable.Set.from(inheritedAssumptions.map(Thm.liftFormula))
 
   var lastKnown: Option[Thm] = None
 
@@ -21,17 +21,17 @@ final class Proof private (val lib: Library, val goal: Option[Sequent], inherite
 
   def errors: View[ProofError] = currentErrors.view
 
-  def assumptions: View[K.Expression] = currentAssumptions.view
+  def assumptions: View[Expr[Prop]] = currentAssumptions.view
 
-  def assume(formula: K.Expression): Unit =
+  def assume(formula: Expr[Prop]): Unit =
     currentAssumptions += formula
 
-  def assume(formulas: Iterable[K.Expression]): Unit =
+  def assume(formulas: Iterable[Expr[Prop]]): Unit =
     currentAssumptions ++= formulas
 
-  def withAssumptions(statement: Sequent): Sequent =
+  def withAssumptions(statement: lisa.utilcfs.fol.FOL.Sequent): lisa.utilcfs.fol.FOL.Sequent =
     if currentAssumptions.isEmpty then statement
-    else Sequent(statement.left ++ currentAssumptions, statement.right)
+    else lisa.utilcfs.fol.FOL.Sequent(statement.left ++ currentAssumptions, statement.right)
 
   def report(error: ProofError): Unit =
     currentErrors += error
@@ -48,7 +48,7 @@ final class Proof private (val lib: Library, val goal: Option[Sequent], inherite
     absorb(carrier).destruct
 
   private def child(goal: Option[Sequent] = None): Proof =
-    new Proof(lib, goal, currentAssumptions)
+    new Proof(lib, goal, currentAssumptions.map(_.underlying))
 
   def withSubcontext[T](goal: Option[Sequent] = None)(inner: Proof ?=> ProofCarrier[T]): ProofCarrier[T] =
     val subproof = child(goal)
@@ -64,7 +64,7 @@ final class Proof private (val lib: Library, val goal: Option[Sequent], inherite
         case Some(j) => j
         case None => 
           K.Sorry(goal.getOrElse(Sequent(Set.empty, Set(K.top)))) match
-            case Right(j) => j
+            case Right(j) => Thm(j)
     ProofCarrier(
       currentErrors.toSet,
       lastJudgement.statement,

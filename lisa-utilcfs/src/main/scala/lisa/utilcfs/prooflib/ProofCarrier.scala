@@ -1,11 +1,10 @@
 package lisa.utilcfs.prooflib
 
-import lisa.kernelcf.proof.{Sequent, Thm}
 import lisa.utilcfs.K
 
 final case class ProofCarrier[+T](
     errors: Set[ProofError],
-    statement: Sequent,
+    statement: lisa.utilcfs.fol.FOL.Sequent,
     justification: Option[Thm],
     payload: T
 )(using lib: Library):
@@ -69,7 +68,7 @@ final case class ProofCarrier[+T](
     * justification was produced.
     */
   def destruct: (Thm, T) =
-    justification.getOrElse(K.sorry(using lib.theory)(statement)) -> payload
+    justification.getOrElse(Thm(K.sorry(using lib.theory)(statement.underlying))) -> payload
 
 type ProofJudgement = ProofCarrier[Unit]
 
@@ -77,11 +76,14 @@ object ProofJudgement:
   def apply(using lib: Library)(just: Thm): ProofJudgement =
     ProofCarrier(Set.empty, just.statement, Some(just), ())
 
-extension (kernelResult: Either[ProofError, Thm])(using lib: Library)
-  def lift(intendedConclusion: Sequent): ProofJudgement =
+  def apply(using lib: Library)(just: K.Thm): ProofJudgement =
+    ProofJudgement(Thm(just))
+
+extension (kernelResult: Either[ProofError, K.Thm])(using lib: Library)
+  def lift(intendedConclusion: lisa.utilcfs.fol.FOL.Sequent): ProofJudgement =
     kernelResult match
       case Left(err) => 
         ProofCarrier(Set(err), intendedConclusion, None, ())
       case Right(j) => 
-        assert(j.statement == intendedConclusion, s"Justification statement ${j.statement} does not match intended conclusion $intendedConclusion")
-        ProofCarrier(Set.empty, intendedConclusion, Some(j), ())
+        assert(j.statement == intendedConclusion.underlying, s"Justification statement ${j.statement} does not match intended conclusion $intendedConclusion")
+        ProofCarrier(Set.empty, intendedConclusion, Some(Thm(j)), ())
