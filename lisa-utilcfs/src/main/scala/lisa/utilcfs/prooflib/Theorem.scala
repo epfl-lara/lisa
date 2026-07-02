@@ -47,7 +47,7 @@ final class Theorem
               val error = SoftError(withParams("The proven statement is not the same as the goal and cannot be weakened to it.", "Proven" -> inner.statement, "Goal" -> underlyingGoal), file, line)
               inner.judgement.withError(error),
               // weakening succeeded
-              thm => inner.judgement.withJustification(Thm(thm))
+              thm => inner.judgement.withJustification(Thm(statement, thm))
             )
         case None =>
           inner.judgement

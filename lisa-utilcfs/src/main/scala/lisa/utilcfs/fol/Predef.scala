@@ -312,11 +312,10 @@ trait Predef extends ExprOps {
     case l: K.Lambda => asFrontLambda(l)
 
   /**
-   * Lifts a kernel expression into a front expression without recursively
-   * rebuilding its structure.
+   * Lifts a kernel expression into its front expression tree.
    */
   def liftExpression(e: K.Expression): Expr[?] =
-    LiftedExpr(e)
+    asFrontExpression(e)
 
   /**
    * Maps a kernel constant to a corresponding front-end constant.
