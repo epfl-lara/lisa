@@ -6,4 +6,4 @@ object Exports:
   export P.ProofHelpers.*
   export P.BasicStep.*
   export P.{Lemma, Theorem}
-  export P.Tautology
+  export P.{Congruence, Generalize, InstantiateForall, Substitute, Tableau, Tautology}

@@ -138,7 +138,7 @@ object BasicStep:
           )
           ProofCarrier(Set(error), conclusion.underlying, None, ())
 
-  object Restate extends PremiseSequentTactic:
+  object Restate extends SequentTactic, PremiseSequentTactic:
     private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, premise: K.Thm)(err: K.Restate.ErrorType): ProofError =
       err match
         case _: K.Restate.NotImplying =>
@@ -149,6 +149,12 @@ object BasicStep:
       K.Restate(using library.theory)(conclusion.underlying, premise)
         .mapLeft(liftError(file, line)(conclusion, premise))
         .lift(conclusion.underlying)
+
+    def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent): ProofJudgement =
+      Tautology(using file, line)(using library)(conclusion)
+
+    def from(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(premise: K.Thm)(conclusion: Sequent): ProofJudgement =
+      apply(using file, line)(using library)(conclusion, premise)
 
   object RestateTrue extends SequentTactic:
     private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent)(err: K.RestateTrue.ErrorType): ProofError =
@@ -276,6 +282,11 @@ object BasicStep:
             case i => weakening(underlying, premises(i))
 
         inferred.fold(inferenceFailure(file, line)("Could not infer disjuncts for LeftOr.", conclusion, "Premises" -> premises))(successful)
+
+    def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(prem1: K.Thm, prem2: K.Thm, rest: K.Thm*)(
+        conclusion: Sequent
+    ): ProofJudgement =
+      apply(using file, line)(using library)(prem1 +: prem2 +: rest)(conclusion)
 
   object LeftImplies:
     private def prove(conclusion: K.Sequent, prem1: K.Thm, prem2: K.Thm, phi: KF.Expression, psi: KF.Expression)(using
@@ -518,6 +529,11 @@ object BasicStep:
             case i => weakening(underlying, premises(i))
 
         inferred.fold(inferenceFailure(file, line)("Could not infer conjuncts for RightAnd.", conclusion, "Premises" -> premises))(successful)
+
+    def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(prem1: K.Thm, prem2: K.Thm, rest: K.Thm*)(
+        conclusion: Sequent
+    ): ProofJudgement =
+      apply(using file, line)(using library)(prem1 +: prem2 +: rest)(conclusion)
 
   object RightOr extends PremiseSequentTactic:
     private def prove(conclusion: K.Sequent, premise: K.Thm, phi: KF.Expression, psi: KF.Expression)(using library: Library): K.RightOr.Result[K.Thm] =
@@ -806,6 +822,9 @@ object BasicStep:
       K.Weakening(using library.theory)(conclusion.underlying, premise)
         .mapLeft(liftError(file, line)(conclusion, premise))
         .lift(conclusion.underlying)
+
+    def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(premise: K.Thm)(conclusion: Sequent): ProofJudgement =
+      apply(using file, line)(using library)(conclusion, premise)
 
   object LeftRefl extends PremiseSequentTactic:
     private def prove(conclusion: K.Sequent, premise: K.Thm, equality: KF.Expression)(using library: Library): K.LeftRefl.Result[K.Thm] =

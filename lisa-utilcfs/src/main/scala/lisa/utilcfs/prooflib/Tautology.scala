@@ -6,7 +6,6 @@ import lisa.utilcfs.prooflib.Helpers.withParams
 import lisa.utilcfs.prooflib.ProofHelpers.*
 
 object Tautology extends SequentTactic with PremiseSequentTactic:
-
   def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent): ProofJudgement =
     from(using file, line)()(conclusion)
 
