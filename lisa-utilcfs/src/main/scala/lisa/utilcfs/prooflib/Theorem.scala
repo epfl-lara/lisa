@@ -13,7 +13,9 @@ sealed trait TheoremKind:
         case _ => proof.pure(())
     new Theorem(this)(using library)(sourceFile, sourceLine, fullName, name)(statement)(carrier)
 
-case object Theorem extends TheoremKind
+case object Theorem extends TheoremKind:
+  given Conversion[Theorem, K.Thm] = _.thm
+
 case object Lemma extends TheoremKind
 
 final class Theorem 
@@ -42,7 +44,7 @@ final class Theorem
           K.Weakening(using library.theory)(underlyingGoal, thm)
             .fold(_ =>
               // weakening failed
-              val error = SoftError(withParams("The proven statement is not the same as the goal and cannot be weakened to it.", "Proven" -> inner.statement, "Goal" -> underlyingGoal), sourceFile, sourceLine)
+              val error = SoftError(withParams("The proven statement is not the same as the goal and cannot be weakened to it.", "Proven" -> inner.statement, "Goal" -> underlyingGoal), file, line)
               inner.judgement.withError(error),
               // weakening succeeded
               inner.judgement.withJustification

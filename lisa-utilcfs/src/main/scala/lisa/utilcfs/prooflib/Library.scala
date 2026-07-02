@@ -21,8 +21,9 @@ abstract class Library:
      * Mutably update the named theorem registry
      */
     private[prooflib] def register(theorem: Theorem): Unit =
-      require(!theoremByFullName.contains(theorem.fullName), s"Theorem ${theorem.fullName} is already registered.")
-      theoremByFullName.update(theorem.fullName, theorem)
+      val fullName = theorem.fullName.toString
+      require(!theoremByFullName.contains(fullName), s"Theorem $fullName is already registered.")
+      theoremByFullName.update(fullName, theorem)
       theoremByShortName.updateWith(theorem.shortName):
         case Some(existing) => Some(existing :+ theorem)
         case None => Some(Vector(theorem))

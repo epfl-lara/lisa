@@ -159,8 +159,6 @@ object ProofHelpers:
       val conclusion = thm.frontStatement.substitute(insts*)
       BasicStep.InstSchema(using file, line)(using library)(insts*)(thm)(conclusion).destruct._1
 
-  given Conversion[Theorem, K.Thm] = _.thm
-
   extension (theorem: Theorem)
     /** Instantiates a theorem schema and returns the resulting theorem. */
     infix def of(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(insts: SubstPair*): K.Thm =
