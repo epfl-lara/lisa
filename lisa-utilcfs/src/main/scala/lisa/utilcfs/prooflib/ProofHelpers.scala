@@ -42,7 +42,7 @@ object ProofHelpers:
                 carrier.judgement
                   .withError(SoftError(withParams("Subproof does not prove the requested conclusion.", "Proven" -> carrier.statement, "Conclusion" -> conclusion, "Reason" -> error), file, line))
                   .copy(statement = conclusion),
-              thm => carrier.judgement.withJustification(Thm(thm))
+              thm => carrier.judgement.withJustification(Thm(conclusion, thm))
             )
         case None =>
           carrier.judgement

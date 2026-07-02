@@ -14,7 +14,7 @@ object Tautology extends SequentTactic with PremiseSequentTactic:
 
   def from(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(premises: Thm*)(conclusion: Sequent): ProofJudgement =
     solve(conclusion.underlying, premises.map(_.kernel)) match
-      case Right(thm) => ProofJudgement(thm)
+      case Right(thm) => ProofCarrier(Set.empty, conclusion, Some(Thm(conclusion, thm)), ())
       case Left(message) =>
         ProofCarrier(
           Set(SoftError(withParams(message, "Conclusion" -> conclusion, "Premises" -> premises), file, line)),
