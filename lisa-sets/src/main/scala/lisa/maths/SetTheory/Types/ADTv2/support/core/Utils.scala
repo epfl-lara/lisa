@@ -1,9 +1,6 @@
 package lisa.maths.SetTheory.Types.ADTv2.support.core
 
-import lisa.maths.Quantifiers.∃!
 import lisa.maths.SetTheory.Base.Pair
-import lisa.maths.SetTheory.Functions.Predef._
-import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
 import lisa.maths.SetTheory.Types.TypingHelpers._
@@ -65,10 +62,6 @@ object Utils {
     case _ => ()
   }
 
-  def toTerm(n: Int): Expr[Ind] =
-    require(n >= 0, "n must be a non-negative integer")
-    if n == 0 then ∅ else S(toTerm(n - 1))
-
   // Some useful shorthands for readability
 
   // ∀ ∃ ∈ ⊆ λ
@@ -76,27 +69,6 @@ object Utils {
 
   def pair(x: Expr[Ind], y: Expr[Ind]): Expr[Ind] =
     Pair.pair(x)(y)
-
-  // @deprecated("Use `∈` instead", "v2.0")
-  // def forall(x: Variable[Ind], y: Expr[Prop]): Expr[Prop] = ∀(x, y)
-
-  // @deprecated("Use `∈` instead", "v2.0")
-  def in(x: Expr[Ind], y: Expr[Ind]): Expr[Prop] = x ∈ y
-
-  // @deprecated("Use `⊆` instead", "v2.0")
-  def subset(x: Expr[Ind], y: Expr[Ind]): Expr[Prop] = x ⊆ y
-
-  // @deprecated("Use `↾` instead", "v2.0")
-  def restrictedFunction(f: Expr[Ind], d: Expr[Ind]): Expr[Ind] = f ↾ d
-
-  // @deprecated("Use `∃!` instead", "v2.0")
-  def existsOne(v: Variable[Ind], body: Expr[Prop]): Expr[Prop] = ∃!(v, body)
-
-  // @deprecated("Use `⋃` instead", "v2.0")
-  def unionRange(f: Expr[Ind]): Expr[Ind] = ⋃(range(f))
-
-  // @deprecated("Use `λ` instead", "v2.0")
-  def lam(v: Variable[Ind], body: Expr[Prop]): Expr[Ind >>: Prop] = λ(v, body)
 
   // Syntactic sugar for sequences
 

@@ -12,12 +12,13 @@ import lisa.maths.SetTheory.Relations.Relation.R
 import lisa.maths.SetTheory.Relations.Relation.relationBetween
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
-import lisa.utils.prooflib.InstantiateForallSeq
-import lisa.utils.prooflib.QuantifiersIntro
-import lisa.utils.debug.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers._
+import lisa.utils.prooflib.InstantiateForallSeq
+import lisa.utils.prooflib.QuantifiersIntro
+import lisa.maths.Quantifiers.∃!
 import lisa.maths.Quantifiers.existsOneAlternativeDefinition
+import lisa.utils.debug.Time
 import lisa.utils.prooflib.BasicStepTactic.LeftExists
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.BasicStepTactic.RightForall
@@ -625,7 +626,7 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
   private val witnessUniqueValue: THM = Time.measure("witness/UniqueValue") {
     Lemma(
       contextualize(
-        ∀(inputTerm ∈ argType, existsOne(outputTerm, pair(inputTerm, outputTerm) ∈ witness))
+        ∀(inputTerm ∈ argType, ∃!(outputTerm, pair(inputTerm, outputTerm) ∈ witness))
       )
     ) {
 
@@ -652,7 +653,7 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
       ) by InstantiateForall(inputTerm)(witnessSingleValued)
 
       val pointwiseUnique = have(
-        (inputTerm ∈ argType) ==> existsOne(outputTerm, pointwisePredicate(outputTerm))
+        (inputTerm ∈ argType) ==> ∃!(outputTerm, pointwisePredicate(outputTerm))
       ) by Tautology.from(
         existsOneAlternativeDefinition of (P := λ(outputTerm, pointwisePredicate(outputTerm))),
         totalityAtInput,
@@ -660,7 +661,7 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
       )
       
       val core = have(
-        ∀(inputTerm, (inputTerm ∈ argType) ==> existsOne(outputTerm, pointwisePredicate(outputTerm)))
+        ∀(inputTerm, (inputTerm ∈ argType) ==> ∃!(outputTerm, pointwisePredicate(outputTerm)))
       ) by RightForall(pointwiseUnique)
 
       have(thesis) by Restate.from(core)

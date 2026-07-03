@@ -27,6 +27,10 @@ class SyntacticConstructor(
     val variables2: Seq[Variable[Ind]]
 ) {
 
+  private def toTerm(n: Int): Expr[Ind] =
+    require(n >= 0, "n must be a non-negative integer")
+    if n == 0 then ∅ else S(toTerm(n - 1))
+
   /**
    * Unique identifier of this constructor
    */

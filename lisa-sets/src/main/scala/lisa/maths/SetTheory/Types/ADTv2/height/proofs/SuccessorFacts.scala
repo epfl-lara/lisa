@@ -50,13 +50,13 @@ private[height] object SuccessorFacts {
     val heightResNonEmptyLemma = have(heightResNonEmpty <=> ⊤) by 
       Restate.from(lastStep)
 
-    have(m ∈ N ==> (subset(m, n) ==> subset(app(h, m), app(h, n)))) by 
+    have(m ∈ N ==> (m ⊆ n ==> app(h, m) ⊆ app(h, n))) by 
       Restate.from(CoreFacts.heightMonotonic)
     val monotonicityForall = thenHave(
-      ∀(m ∈ N, (subset(m, n) ==> subset(app(h, m), app(h, n))))
+      ∀(m ∈ N, (m ⊆ n ==> app(h, m) ⊆app(h, n)))
     ) by RightForall
     val unionRangeRes = have(
-      unionRange(h ↾ S(n)) === app(h, n)
+      ⋃(range(h ↾ S(n))) === app(h, n)
     ) by Cuts(unionRangeCollapse)(
       hIsFunc,
       domEq,

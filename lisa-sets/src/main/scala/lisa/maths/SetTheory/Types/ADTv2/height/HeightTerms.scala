@@ -33,19 +33,19 @@ final class HeightTerms[N <: Arity](
     elems.foldLeft[Expr[Ind]](∅)(_ ∪ _)
 
   /** Closure of `ω` under finite unions: if every element of `elems` is in `N`, so is
-    * their union [[unionList]]. Produces `seqAnd(elems.map(_ ∈ N)) |- in(unionList(elems), N)`.
+    * their union [[unionList]]. Produces `seqAnd(elems.map(_ ∈ N)) |- unionList(elems) ∈ N`.
     */
   private def unionListInOmega(elems: Seq[Expr[Ind]])(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact = {
-    val seed = have(in(∅, N)) by Restate.from(emptyInOmega)
+    val seed = have(∅ ∈ N) by Restate.from(emptyInOmega)
     elems
       .foldLeft[(proof.Fact, Expr[Ind], Expr[Prop])]((seed, ∅, True)) { case ((thm, u, hyp), nh) =>
         val newU = u ∪ nh
-        val newHyp = if hyp == (True: Expr[Prop]) then in(nh, N) else hyp /\ in(nh, N)
-        val unionStep = have((in(u, N), in(nh, N)) |- in(newU, N)) by
+        val newHyp = if hyp == (True: Expr[Prop]) then nh ∈ N else hyp /\ nh ∈ N
+        val unionStep = have((u ∈ N, nh ∈ N) |- newU ∈ N) by
           Restate.from(unionInOmega of (a := u, b := nh))
-        if hyp == (True: Expr[Prop]) then have(in(nh, N) |- in(newU, N)) by Cut(thm, unionStep)
-        else have((hyp, in(nh, N)) |- in(newU, N)) by Cut(thm, unionStep)
-        val newThm = thenHave(newHyp |- in(newU, N)) by Restate
+        if hyp == (True: Expr[Prop]) then have(nh ∈ N |- newU ∈ N) by Cut(thm, unionStep)
+        else have((hyp, nh ∈ N) |- newU ∈ N) by Cut(thm, unionStep)
+        val newThm = thenHave(newHyp |- newU ∈ N) by Restate
         (newThm, newU, newHyp)
       }
       ._1
@@ -67,13 +67,13 @@ final class HeightTerms[N <: Arity](
         val stepThm =
           if nj == ni then
             // We reach `ni`: `ni ⊆ u ∪ ni` (covers the first element, where `u == ∅`).
-            have(curHyp |- subset(newN, newU)) by Restate.from(Union.rightSubset of (x := u, y := ni))
+            have(curHyp |- newN ⊆ newU) by Restate.from(Union.rightSubset of (x := u, y := ni))
           else if newN == ∅ then
             // `ni` not seen yet (tracked subset is `∅`): `∅ ⊆ newU`.
-            have(curHyp |- subset(newN, newU)) by Restate.from(Subset.leftEmpty of (x := newU))
+            have(curHyp |- newN ⊆ newU) by Restate.from(Subset.leftEmpty of (x := newU))
           else
             // Extend the established `ni ⊆ u` by another union member.
-            have(curHyp |- subset(newN, newU)) by Cut(thmAcc, subsetOfUnion of (x := newN, y := u, z := nj))
+            have(curHyp |- newN ⊆ newU) by Cut(thmAcc, subsetOfUnion of (x := newN, y := u, z := nj))
 
         (stepThm, newU, newN)
       }
@@ -86,35 +86,35 @@ final class HeightTerms[N <: Arity](
   ): Expr[Prop] = wellTypedFormula(c.signature)(s)
 
   val termHasHeight = Lemma(
-    base.isHeight(h) |- in(x, term) <=> ∃(n, n ∈ N /\ in(x, app(h, n)))
+    base.isHeight(h) |- x ∈ term <=> ∃(n, n ∈ N /\ x ∈ app(h, n))
   ) {
     // `term` is characterised by: x ∈ term  iff  x ∈ ⋃range(h) for *every* height h.
-    val termDef = forall(h, base.isHeight(h) ==> in(x, unionRange(h)))
-    val termDefinition = have(in(x, term) <=> termDef) by InstantiateForall(x)(termSatisfiesDefinition)
+    val termDef = forall(h, base.isHeight(h) ==> x ∈ ⋃(range(h)))
+    val termDefinition = have(x ∈ term <=> termDef) by InstantiateForall(x)(termSatisfiesDefinition)
 
     // Two halves of the defining equivalence, obtained by rewriting a hypothesis with it.
-    val termIsDef = have(in(x, term) |- termDef) by
-      Substitute(termDefinition)(have(in(x, term) |- in(x, term)) by Hypothesis)
-    val defIsTerm = have(termDef |- in(x, term)) by
+    val termIsDef = have(x ∈ term |- termDef) by
+      Substitute(termDefinition)(have(x ∈ term |- x ∈ term) by Hypothesis)
+    val defIsTerm = have(termDef |- x ∈ term) by
       Substitute(termDefinition)(have(termDef |- termDef) by Hypothesis)
 
     // Forward: x ∈ term and isHeight(h) give x ∈ ⋃range(h) by instantiating the ∀.
     have(termDef |- termDef) by Hypothesis
-    thenHave(termDef |- base.isHeight(h) ==> in(x, unionRange(h))) by InstantiateForall(h)
-    val defGivesUnion = thenHave((termDef, base.isHeight(h)) |- in(x, unionRange(h))) by Restate
-    have((in(x, term), base.isHeight(h)) |- in(x, unionRange(h))) by Cut(termIsDef, defGivesUnion)
-    val forward = thenHave(base.isHeight(h) |- in(x, term) ==> in(x, unionRange(h))) by Restate
+    thenHave(termDef |- base.isHeight(h) ==> x ∈ ⋃(range(h))) by InstantiateForall(h)
+    val defGivesUnion = thenHave((termDef, base.isHeight(h)) |- x ∈ ⋃(range(h))) by Restate
+    have((x ∈ term, base.isHeight(h)) |- x ∈ ⋃(range(h))) by Cut(termIsDef, defGivesUnion)
+    val forward = thenHave(base.isHeight(h) |- x ∈ term ==> x ∈ ⋃(range(h))) by Restate
 
     // Backward: any other height f equals h (heightUniqueness), so x ∈ ⋃range(h) gives the ∀.
-    have((f === h, in(x, unionRange(h))) |- in(x, unionRange(f))) by Congruence
-    have((base.isHeight(f), base.isHeight(h), in(x, unionRange(h))) |- in(x, unionRange(f))) by
+    have((f === h, x ∈ ⋃(range(h))) |- x ∈ ⋃(range(f))) by Congruence
+    have((base.isHeight(f), base.isHeight(h), x ∈ ⋃(range(h))) |- x ∈ ⋃(range(f))) by
       Cut(constructorsTheory.heightUniqueness, lastStep)
-    thenHave((base.isHeight(h), in(x, unionRange(h))) |- base.isHeight(f) ==> in(x, unionRange(f))) by RightImplies
-    thenHave((base.isHeight(h), in(x, unionRange(h))) |- forall(f, base.isHeight(f) ==> in(x, unionRange(f)))) by RightForall
-    have((base.isHeight(h), in(x, unionRange(h))) |- in(x, term)) by Cut(lastStep, defIsTerm)
-    val backward = thenHave(base.isHeight(h) |- in(x, unionRange(h)) ==> in(x, term)) by RightImplies
+    thenHave((base.isHeight(h), x ∈ ⋃(range(h))) |- base.isHeight(f) ==> x ∈ ⋃(range(f))) by RightImplies
+    thenHave((base.isHeight(h), x ∈ ⋃(range(h))) |- forall(f, base.isHeight(f) ==> x ∈ ⋃(range(f)))) by RightForall
+    have((base.isHeight(h), x ∈ ⋃(range(h))) |- x ∈ term) by Cut(lastStep, defIsTerm)
+    val backward = thenHave(base.isHeight(h) |- x ∈ ⋃(range(h)) ==> x ∈ term) by RightImplies
 
-    val termUnionIff = have(base.isHeight(h) |- in(x, term) <=> in(x, unionRange(h))) by RightIff(forward, backward)
+    val termUnionIff = have(base.isHeight(h) |- x ∈ term <=> x ∈ ⋃(range(h))) by RightIff(forward, backward)
 
     // Unfold isHeight(h) to extract function(h) and dom(h) === N.
     val hFunction = have(base.isHeight(h) |- function(h)) by Weakening(base.heightIsCore)
@@ -122,12 +122,12 @@ final class HeightTerms[N <: Arity](
 
     // Membership in ⋃range(h) unfolds to an existential over the domain of h.
     val unionMem =
-      have(base.isHeight(h) |- in(x, unionRange(h)) <=> ∃(n, in(n, dom(h)) /\ in(x, app(h, n)))) by
+      have(base.isHeight(h) |- x ∈ ⋃(range(h)) <=> ∃(n, n ∈ dom(h) /\ x ∈ app(h, n))) by
         Cut(hFunction, unionRangeMembership of (z := x))
 
     // Chain the two equivalences, then replace dom(h) with N.
     val termExistsDom =
-      have(base.isHeight(h) |- in(x, term) <=> ∃(n, in(n, dom(h)) /\ in(x, app(h, n)))) by
+      have(base.isHeight(h) |- x ∈ term <=> ∃(n, n ∈ dom(h) /\ x ∈ app(h, n))) by
         Substitute(unionMem)(termUnionIff)
     have(thesis) by Substitute(hDom)(termExistsDom)
   }
@@ -135,11 +135,11 @@ final class HeightTerms[N <: Arity](
   /** Per-argument "stage characterisation": typing `v` at the limit `term` is equivalent to
     * typing it at *some* finite stage `app(h, n)`.
     *   - `SelfRef`: this is exactly [[termHasHeight]] (typing depends on the stage).
-    *   - `TypeArg`: the typing `in(v, t)` is stage-independent, so the equivalence is just the
+    *   - `TypeArg`: the typing `v ∈ t` is stage-independent, so the equivalence is just the
     *     non-emptiness of `ω`.
     *
     * Produces `isHeight(h) |- atTerm <=> ∃n. (n ∈ N ∧ body(app(h, n)))`, with
-    * `atTerm = in(v, ty.getOrElse(term))` and `body(s) = in(v, ty.getOrElse(s))`.
+    * `atTerm = v ∈ ty.getOrElse(term)` and `body(s) = v ∈ ty.getOrElse(s)`.
     */
   private def argStageIff(v: Expr[Ind], ty: ConstructorArg)(using
       proof: lisa.SetTheoryLibrary.Proof
@@ -148,19 +148,19 @@ final class HeightTerms[N <: Arity](
       case SelfRef => termHasHeight of (x := v)
       case TypeArg(_) =>
         val t = ty.getOrElse(term)
-        val body = ∃(n, n ∈ N /\ in(v, t))
-        // Backward: any stage witness yields `in(v, t)` directly.
-        have((n ∈ N /\ in(v, t)) |- in(v, t)) by Restate
-        thenHave(body |- in(v, t)) by LeftExists
-        val bwd = thenHave(body ==> in(v, t)) by Restate
-        // Forward: `ω` is non-empty, so `in(v, t)` gives some stage witness.
-        have((n ∈ N, in(v, t)) |- n ∈ N /\ in(v, t)) by Restate
-        thenHave((n ∈ N, in(v, t)) |- body) by RightExists
-        thenHave((∃(n, n ∈ N), in(v, t)) |- body) by LeftExists
-        have(in(v, t) |- body) by Cut(existsInOmega, lastStep)
-        val fwd = thenHave(in(v, t) ==> body) by Restate
-        have(in(v, t) <=> body) by RightIff(fwd, bwd)
-        thenHave(base.isHeight(h) |- in(v, t) <=> body) by Weakening
+        val body = ∃(n, n ∈ N /\ v ∈ t)
+        // Backward: any stage witness yields `v ∈ t` directly.
+        have((n ∈ N /\ v ∈ t) |- v ∈ t) by Restate
+        thenHave(body |- v ∈ t) by LeftExists
+        val bwd = thenHave(body ==> v ∈ t) by Restate
+        // Forward: `ω` is non-empty, so `v ∈ t` gives some stage witness.
+        have((n ∈ N, v ∈ t) |- n ∈ N /\ v ∈ t) by Restate
+        thenHave((n ∈ N, v ∈ t) |- body) by RightExists
+        thenHave((∃(n, n ∈ N), v ∈ t) |- body) by LeftExists
+        have(v ∈ t |- body) by Cut(existsInOmega, lastStep)
+        val fwd = thenHave(v ∈ t ==> body) by Restate
+        have(v ∈ t <=> body) by RightIff(fwd, bwd)
+        thenHave(base.isHeight(h) |- v ∈ t <=> body) by Weakening
 
   val termsHaveHeight = constructors
     .map(c =>
@@ -170,8 +170,8 @@ final class HeightTerms[N <: Arity](
             ∃(n, n ∈ N /\ constructorVarsInDomain(c, app(h, n))))
       ) {
         // Per-argument typing predicates, as functions of a stage index `k`:
-        //   atTerm(v, ty) = in(v, ty.getOrElse(term))     -- a conjunct of `constructorVarsInDomain(c, term)`
-        //   body(v, ty)(k) = in(v, ty.getOrElse(app(h, k))) -- the matching conjunct at stage `k`
+        //   atTerm(v, ty) = v ∈ ty.getOrElse(term)     -- a conjunct of `constructorVarsInDomain(c, term)`
+        //   body(v, ty)(k) = v ∈ ty.getOrElse(app(h, k)) -- the matching conjunct at stage `k`
         // Their conjunction over the signature is exactly `constructorVarsInDomain`.
         val args = c.signature
         def bodyOf(v: Expr[Ind], ty: ConstructorArg)(k: Expr[Ind]): Expr[Prop] =
@@ -219,7 +219,7 @@ final class HeightTerms[N <: Arity](
 
             val wh = ε(n, n ∈ N /\ bodyOf(v, ty)(n))
             val whProp = have(exStage |- wh ∈ N /\ bodyOf(v, ty)(wh)) by
-              Restate.from(existsEpsilon of (x := n, P := lam(n, n ∈ N /\ bodyOf(v, ty)(n))))
+              Restate.from(existsEpsilon of (x := n, P := λ(n, n ∈ N /\ bodyOf(v, ty)(n))))
             val whBoth = have((base.isHeight(h), ctx) |- wh ∈ N /\ bodyOf(v, ty)(wh)) by Cut(existsStage, whProp)
             val whInNat = have((base.isHeight(h), ctx) |- wh ∈ N) by Weakening(whBoth)
             val whBody = have((base.isHeight(h), ctx) |- bodyOf(v, ty)(wh)) by Weakening(whBoth)
@@ -242,7 +242,7 @@ final class HeightTerms[N <: Arity](
           // Lift each argument's typing from its own stage `wh` up to the common stage `max`.
           val bodiesAtMax = witnesses.map { (v, ty, wh, whInNat, whBody) => ty match
             case SelfRef =>
-              val whInMax = have(subset(wh, max)) by Restate.from(memberSubsetOfUnionList(whsInNat, wh))
+              val whInMax = have(wh ⊆ max) by Restate.from(memberSubsetOfUnionList(whsInNat, wh))
               have((base.isHeight(h), constructorVarsInDomain(c, term)) |- v ∈ app(h, max)) by
                 Cuts(constructorsTheory.heightMembershipMonotonic of (x := v, m := wh, n := max))(
                   maxInNat,

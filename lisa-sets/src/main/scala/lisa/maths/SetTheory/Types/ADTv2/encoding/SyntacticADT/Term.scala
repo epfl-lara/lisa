@@ -1,5 +1,6 @@
 package lisa.maths.SetTheory.Types.ADTv2.encoding
 
+import lisa.maths.SetTheory.Functions.Predef.range
 import lisa.maths.SetTheory.Ordinals.Integer.successorInOmega
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
@@ -10,28 +11,29 @@ import lisa.maths.SetTheory.Types.ADTv2.support.semantics.UniqueDefinedSymbol
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.ProofTacticLib.Arity
+import lisa.maths.Quantifiers.∃!
 
 private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTBase[N] {
   this: SyntacticADT[N] =>
 
   private[encoding] def termDefinitionFormula(adt: Expr[Ind]): Expr[Prop] =
-    forall(t, t ∈ adt <=> forall(h, isHeight(h) ==> t ∈ unionRange(h)))
+    forall(t, t ∈ adt <=> forall(h, isHeight(h) ==> t ∈ ⋃(range(h))))
 
-  private[encoding] val termExistence = Lemma(existsOne(z, termDefinitionFormula(z))) {
+  private[encoding] val termExistence = Lemma(∃!(z, termDefinitionFormula(z))) {
     // `termDefinitionFormula(adt)` reads: t ∈ adt iff t belongs to the union of every height
     // approximation. The witness is the union of the range of a height function; because that
     // function is unique, "belongs to every height" collapses to "belongs to this one".
-    val belongsToEveryHeight = forall(h, isHeight(h) ==> in(t, unionRange(h)))
-    val inUnionRangeF = in(t, unionRange(f))
+    val belongsToEveryHeight = forall(h, isHeight(h) ==> t ∈ ⋃(range(h)))
+    val inUnionRangeF = t ∈ ⋃(range(f))
 
-    // STEP 1: existence — `unionRange(f)` satisfies the definition for any height function `f`.
+    // STEP 1: existence — `⋃(range(f))` satisfies the definition for any height function `f`.
     val existence = have(exists(z, termDefinitionFormula(z))) subproof {
       // Forward: membership in f's union implies membership in every height's union (heights are equal).
       have(inUnionRangeF |- inUnionRangeF) by Hypothesis
-      thenHave((f === h, inUnionRangeF) |- in(t, unionRange(h))) by
+      thenHave((f === h, inUnionRangeF) |- t ∈ ⋃(range(h))) by
         RightSubstEq.withParameters(List((f, h)), (Seq(f), inUnionRangeF))
-      have((isHeight(f), isHeight(h), inUnionRangeF) |- in(t, unionRange(h))) by Cut(heightUniqueness, lastStep)
-      thenHave((isHeight(f), inUnionRangeF) |- isHeight(h) ==> in(t, unionRange(h))) by RightImplies
+      have((isHeight(f), isHeight(h), inUnionRangeF) |- t ∈ ⋃(range(h))) by Cut(heightUniqueness, lastStep)
+      thenHave((isHeight(f), inUnionRangeF) |- isHeight(h) ==> t ∈ ⋃(range(h))) by RightImplies
       thenHave((isHeight(f), inUnionRangeF) |- belongsToEveryHeight) by RightForall
       val forward = thenHave(isHeight(f) |- inUnionRangeF ==> belongsToEveryHeight) by RightImplies
 
@@ -43,9 +45,9 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTBase[N]
       // Some height function exists, so the witness exists.
       have(isHeight(f) |- inUnionRangeF <=> belongsToEveryHeight) by RightIff(forward, backward)
       thenHave(isHeight(f) |- forall(t, inUnionRangeF <=> belongsToEveryHeight)) by RightForall
-      thenHave(isHeight(f) |- exists(z, forall(t, in(t, z) <=> belongsToEveryHeight))) by RightExists
-      thenHave(exists(f, isHeight(f)) |- exists(z, forall(t, in(t, z) <=> belongsToEveryHeight))) by LeftExists
-      have(exists(z, forall(t, in(t, z) <=> belongsToEveryHeight))) by Cut(heightExists of (h := f), lastStep)
+      thenHave(isHeight(f) |- exists(z, forall(t, t ∈ z <=> belongsToEveryHeight))) by RightExists
+      thenHave(exists(f, isHeight(f)) |- exists(z, forall(t, t ∈ z <=> belongsToEveryHeight))) by LeftExists
+      have(exists(z, forall(t, t ∈ z <=> belongsToEveryHeight))) by Cut(heightExists of (h := f), lastStep)
       thenHave(thesis) by Restate
     }
 
@@ -54,12 +56,12 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTBase[N]
     val uniqueness = have((termDefinitionFormula(x), termDefinitionFormula(y)) |- x === y) subproof {
       assume(termDefinitionFormula(x), termDefinitionFormula(y))
       have(termDefinitionFormula(x)) by Restate
-      val xDef = thenHave(in(t, x) <=> belongsToEveryHeight) by InstantiateForall(t)
+      val xDef = thenHave(t ∈ x <=> belongsToEveryHeight) by InstantiateForall(t)
       have(termDefinitionFormula(y)) by Restate
-      val yDef = thenHave(in(t, y) <=> belongsToEveryHeight) by InstantiateForall(t)
+      val yDef = thenHave(t ∈ y <=> belongsToEveryHeight) by InstantiateForall(t)
 
-      have(in(t, x) <=> in(t, y)) by Congruence.from(xDef, yDef)
-      thenHave(forall(t, in(t, x) <=> in(t, y))) by RightForall
+      have(t ∈ x <=> t ∈ y) by Congruence.from(xDef, yDef)
+      thenHave(forall(t, t ∈ x <=> t ∈ y)) by RightForall
       have(thesis) by Tautology.from(lastStep, extensionalityAxiom of (x := x, y := y, z := t))
     }
 
@@ -71,7 +73,7 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTBase[N]
     have(thesis) by Tautology.from(
       existence,
       uniquenessAll,
-      lisa.maths.Quantifiers.existsOneAlternativeDefinition of (x := z, P := lam(z, termDefinitionFormula(z)))
+      lisa.maths.Quantifiers.existsOneAlternativeDefinition of (x := z, P := λ(z, termDefinitionFormula(z)))
     )
   }
 
@@ -123,29 +125,29 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTBase[N]
   val intro = constructors
     .map(c =>
       c -> Lemma(
-        simplify(constructorVarsInDomain(c, term)) |- simplify(in(c.term, term))
+        simplify(constructorVarsInDomain(c, term)) |- simplify(c.term ∈ term)
       ) {
         val argsInTerm = constructorVarsInDomain(c, term)
         val argsInStageN = constructorVarsInDomain(c, app(h, n))
 
         // If the arguments all live in the ADT, they share a common height `n`.
-        val argsShareHeight = have((isHeight(h), argsInTerm) |- ∃(n, in(n, N) /\ argsInStageN)) by Cut(
+        val argsShareHeight = have((isHeight(h), argsInTerm) |- ∃(n, n ∈ N /\ argsInStageN)) by Cut(
           termsHaveHeight(c),
-          equivalenceApply of (p1 := argsInTerm, p2 := exists(n, in(n, N) /\ argsInStageN))
+          equivalenceApply of (p1 := argsInTerm, p2 := exists(n, n ∈ N /\ argsInStageN))
         )
 
         // An instance sitting in approximation `S(n)` has a height, hence lies in the ADT.
-        val succInN = have(in(n, N) |- in(S(n), N)) by Cut(successorInOmega, equivalenceApply of (p1 := in(n, N), p2 := in(S(n), N)))
-        have((in(n, N), in(c.term, app(h, S(n)))) |- in(S(n), N) /\ in(c.term, app(h, S(n)))) by RightAnd(succInN, have(in(c.term, app(h, S(n))) |- in(c.term, app(h, S(n)))) by Hypothesis)
-        thenHave((in(n, N), in(c.term, app(h, S(n)))) |- exists(m, in(m, N) /\ in(c.term, app(h, m)))) by RightExists
-        val instanceInTerm = have((isHeight(h), in(n, N), in(c.term, app(h, S(n)))) |- in(c.term, term)) by
+        val succInN = have(n ∈ N |- S(n) ∈ N) by Cut(successorInOmega, equivalenceApply of (p1 := n ∈ N, p2 := S(n) ∈ N))
+        have((n ∈ N, c.term ∈ app(h, S(n))) |- S(n) ∈ N /\ c.term ∈ app(h, S(n))) by RightAnd(succInN, have(c.term ∈ app(h, S(n)) |- c.term ∈ app(h, S(n))) by Hypothesis)
+        thenHave((n ∈ N, c.term ∈ app(h, S(n))) |- exists(m, m ∈ N /\ c.term ∈ app(h, m))) by RightExists
+        val instanceInTerm = have((isHeight(h), n ∈ N, c.term ∈ app(h, S(n))) |- c.term ∈ term) by
           Congruence.from(lastStep, termHasHeight of (x := c.term))
 
         // An element of the introduction image over approximation `n` sits in approximation `S(n)`.
         val instanceInIntroImage = inIntroImage(app(h, n))(c.term)
-        val imageInSuccessor = have((isHeight(h), in(n, N), instanceInIntroImage) |- in(c.term, app(h, S(n)))) by Cut(
+        val imageInSuccessor = have((isHeight(h), n ∈ N, instanceInIntroImage) |- c.term ∈ app(h, S(n))) by Cut(
           heightSuccessorWeak of (x := c.term),
-          equivalenceRevApply of (p1 := instanceInIntroImage, p2 := in(c.term, app(h, S(n))))
+          equivalenceRevApply of (p1 := instanceInIntroImage, p2 := c.term ∈ app(h, S(n)))
         )
 
         // Height-`n` arguments witness that the instance is in that introduction image.
@@ -160,16 +162,16 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTBase[N]
           (oldVariables, newVariables)
         )
         thenHave(argsInStageN |- instanceInIntroImage) by Weakening
-        have((isHeight(h), in(n, N), argsInStageN) |- in(c.term, app(h, S(n)))) by Cut(lastStep, imageInSuccessor)
+        have((isHeight(h), n ∈ N, argsInStageN) |- c.term ∈ app(h, S(n))) by Cut(lastStep, imageInSuccessor)
 
         // Chain everything: height-`n` arguments ⟹ instance in the ADT, then discharge the
         // existential height witness and the existence of a height function.
-        have((isHeight(h), in(n, N), argsInStageN) |- in(c.term, term)) by Cut(lastStep, instanceInTerm)
-        thenHave((isHeight(h), in(n, N) /\ argsInStageN) |- in(c.term, term)) by LeftAnd
-        thenHave((isHeight(h), exists(n, in(n, N) /\ argsInStageN)) |- in(c.term, term)) by LeftExists
-        have((isHeight(h), argsInTerm) |- in(c.term, term)) by Cut(argsShareHeight, lastStep)
-        thenHave((exists(h, isHeight(h)), argsInTerm) |- in(c.term, term)) by LeftExists
-        have(argsInTerm |- in(c.term, term)) by Cut(heightExists, lastStep)
+        have((isHeight(h), n ∈ N, argsInStageN) |- c.term ∈ term) by Cut(lastStep, instanceInTerm)
+        thenHave((isHeight(h), n ∈ N /\ argsInStageN) |- c.term ∈ term) by LeftAnd
+        thenHave((isHeight(h), exists(n, n ∈ N /\ argsInStageN)) |- c.term ∈ term) by LeftExists
+        have((isHeight(h), argsInTerm) |- c.term ∈ term) by Cut(argsShareHeight, lastStep)
+        thenHave((exists(h, isHeight(h)), argsInTerm) |- c.term ∈ term) by LeftExists
+        have(argsInTerm |- c.term ∈ term) by Cut(heightExists, lastStep)
       }
     )
     .toMap

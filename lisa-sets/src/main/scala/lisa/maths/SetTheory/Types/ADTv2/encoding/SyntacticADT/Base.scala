@@ -35,7 +35,7 @@ private[encoding] trait SyntacticADTBase[N <: Arity] {
   val isConstructor: Expr[Ind >>: Ind >>: Prop] = λ(x, λ(s, isConstructor(x, s)))
 
   def inIntroImage(s: Expr[Ind])(y: Expr[Ind]): Expr[Prop] =
-    isConstructor(y, s) \/ in(y, s)
+    isConstructor(y, s) \/ (y ∈ s)
 
   protected val heightConstructorData = constructors.map(c =>
     HeightConstructorData(

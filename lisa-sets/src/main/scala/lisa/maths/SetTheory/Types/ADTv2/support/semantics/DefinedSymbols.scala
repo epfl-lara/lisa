@@ -146,7 +146,7 @@ class DefinedProperty(
  *
  * `term := ε(x, Def(x))`
  *
- * where a theorem of the form `existsOne(x, Def(x))` is already available.
+ * where a theorem of the form `∃!(x, Def(x))` is already available.
  *
  * Besides the raw `DEF` symbol, it derives:
  *   - [[definitionFact]]: the theorem `Def(term)`

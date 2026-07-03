@@ -21,7 +21,7 @@ private[recursion] object LimitKernel {
   private val mVar = variable[Ind]
 
   def pointHeightCharAt(argType0: Expr[Ind], heightFun0: Expr[Ind], point0: Expr[Ind]): Expr[Prop] =
-    in(point0, argType0) <=> ∃(nVar, in(nVar, N) /\ in(point0, app(heightFun0)(nVar)))
+    (point0 ∈ argType0) <=> ∃(nVar, nVar ∈ N /\ point0 ∈ app(heightFun0)(nVar))
 
   def limitIndexWitnessAt(heightFun0: Expr[Ind], limitIndex0: Expr[Ind >>: Ind], point0: Expr[Ind]): Expr[Prop] =
     (limitIndex0(point0) ∈ N) /\ (point0 ∈ app(heightFun0)(limitIndex0(point0)))

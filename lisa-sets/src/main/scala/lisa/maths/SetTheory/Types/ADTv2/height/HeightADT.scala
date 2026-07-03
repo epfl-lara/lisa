@@ -17,15 +17,15 @@ final class HeightADT[N <: Arity](
     lisa.maths.SetTheory.Functions.Predef.app(f)(x)
 
   def inIntroImage(s: Expr[Ind])(y: Expr[Ind]): Expr[Prop] =
-    isConstructor(y)(s) \/ in(y, s)
+    isConstructor(y)(s) \/ (y ∈ s)
 
   def inExtIntroImage(f: Expr[Ind])(x: Expr[Ind]): Expr[Prop] =
-    (f =/= ∅) /\ inIntroImage(unionRange(f))(x)
+    (f =/= ∅) /\ inIntroImage(⋃(range(f)))(x)
 
   def isHeightCore(h: Expr[Ind]): Expr[Prop] =
     function(h) /\
       (dom(h) === N) /\
-      ∀(n ∈ N, ∀(x, in(x, app(h, n)) <=> inExtIntroImage(h ↾ n)(x)))
+      ∀(n ∈ N, ∀(x, x ∈ app(h, n) <=> inExtIntroImage(h ↾ n)(x)))
 
   // `isHeight` is an *opaque* defined predicate `${name}/isHeight[typeVars](h)` whose
   // definition unfolds to `isHeightCore(h)`. Keeping it opaque stops tactics (Tautology)
@@ -54,7 +54,7 @@ final class HeightADT[N <: Arity](
    *
    *  `!∃x ∈ adt. height(x) = 0`
    */
-  val heightZero = Lemma(isHeight(h) |- !in(x, app(h, ∅))) {
+  val heightZero = Lemma(isHeight(h) |- !(x ∈ app(h, ∅))) {
     have(thesis) by Cut(
       heightIsCore,
       SuccessorFacts.heightZeroAt(isConstructor, h, x)

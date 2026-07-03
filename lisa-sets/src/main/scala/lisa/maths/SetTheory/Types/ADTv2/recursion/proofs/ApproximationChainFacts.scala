@@ -69,7 +69,7 @@ private[recursion] object ApproximationChainFacts {
           have(nVar === ∅) by Tautology.from(
             nSubEmpty,
             Subset.rightEmpty of (x := nVar),
-            equivalenceApply of (p1 := subset(nVar, ∅), p2 := nVar === ∅)
+            equivalenceApply of (p1 := nVar ⊆ ∅, p2 := nVar === ∅)
           )
           thenHave(nVar === ∅) by Restate
           thenHave(app(G(nVar))(a) === app(G(∅))(a)) by Congruence

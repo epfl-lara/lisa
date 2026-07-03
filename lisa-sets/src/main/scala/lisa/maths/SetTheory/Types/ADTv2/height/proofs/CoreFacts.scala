@@ -24,7 +24,7 @@ private[height] object CoreFacts {
     isConstructor(y)(s) \/ (y ∈ s)
 
   def inExtIntroImage(f: Expr[Ind])(x: Expr[Ind]): Expr[Prop] =
-    (f =/= ∅) /\ inIntroImage(unionRange(f))(x)
+    (f =/= ∅) /\ inIntroImage(⋃(range(f)))(x)
 
   def isHeightCore(h: Expr[Ind]): Expr[Prop] =
     function(h) /\
@@ -126,14 +126,14 @@ private[height] object CoreFacts {
       inExtIntroImage(f)(x) ==>
       inExtIntroImage(g)(x)
   ) {
-    val introUnionF = inIntroImage(unionRange(f))(x)
-    val introUnionG = inIntroImage(unionRange(g))(x)
+    val introUnionF = inIntroImage(⋃(range(f)))(x)
+    val introUnionG = inIntroImage(⋃(range(g)))(x)
     assume(introFunctionMono, f ⊆ g)
 
     val introMono = have(introFunctionMono) by Hypothesis
-    have((unionRange(f) ⊆ unionRange(g)) ==> ∀(x, introUnionF ==> introUnionG)
-    ) by InstantiateForall(unionRange(f), unionRange(g))(introMono)
-    thenHave((unionRange(f) ⊆ unionRange(g)) |- ∀(x, introUnionF ==> introUnionG)) by Restate
+    have((⋃(range(f)) ⊆ ⋃(range(g))) ==> ∀(x, introUnionF ==> introUnionG)
+    ) by InstantiateForall(⋃(range(f)), ⋃(range(g)))(introMono)
+    thenHave((⋃(range(f)) ⊆ ⋃(range(g))) |- ∀(x, introUnionF ==> introUnionG)) by Restate
     have(f ⊆ g |- ∀(x, introUnionF ==> introUnionG)) by
       Cut(unionRangeMonotonic, lastStep)
     thenHave(introUnionF ==> introUnionG) by

@@ -10,13 +10,14 @@ import lisa.maths.SetTheory.Base.Union
 import lisa.maths.SetTheory.Base.Union.∪
 import lisa.maths.SetTheory.Base.CartesianProduct
 import lisa.maths.SetTheory.Base.CartesianProduct.×
+import lisa.maths.SetTheory.Functions.Predef.range
 import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.height.proofs.CoreFacts
-import lisa.utils.prooflib.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.tactics.Cuts
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.ConstructorArg
 import lisa.utils.prooflib.ProofTacticLib.Arity
+import lisa.utils.prooflib.QuantifiersIntro
 
 final class HeightStageSet[N <: Arity](
     base: HeightADT[N],
@@ -60,13 +61,13 @@ final class HeightStageSet[N <: Arity](
         val stepThm =
           if nj == ni then
             // We reach `ni`: `ni ⊆ u ∪ ni` (covers the first element, where `u == ∅`).
-            have(curHyp |- subset(newN, newU)) by Restate.from(Union.rightSubset of (x := u, y := ni))
+            have(curHyp |- newN ⊆ newU) by Restate.from(Union.rightSubset of (x := u, y := ni))
           else if newN == ∅ then
             // `ni` not seen yet (tracked subset is `∅`): `∅ ⊆ newU`.
-            have(curHyp |- subset(newN, newU)) by Restate.from(Subset.leftEmpty of (x := newU))
+            have(curHyp |- newN ⊆ newU) by Restate.from(Subset.leftEmpty of (x := newU))
           else
             // Extend the established `ni ⊆ u` by another union member.
-            have(curHyp |- subset(newN, newU)) by Cut(thmAcc, subsetOfUnion of (x := newN, y := u, z := nj))
+            have(curHyp |- newN ⊆ newU) by Cut(thmAcc, subsetOfUnion of (x := newN, y := u, z := nj))
 
         (stepThm, newU, newN)
       }
@@ -74,9 +75,9 @@ final class HeightStageSet[N <: Arity](
   }
 
   private val stageSetExistsCtor = Lemma(
-    ∃(s, ∀(x, in(x, s) <=> base.inExtIntroImage(f)(x)))
+    ∃(s, ∀(x, x ∈ s <=> base.inExtIntroImage(f)(x)))
   ) {
-    val unionRangeF = unionRange(f)
+    val unionRangeF = ⋃(range(f))
 
     // Bounding strategy (plain ZF, no Tarski universe): every constructor term
     //   c.term = (tagTerm, (v₁, (… , (vₖ, ∅))))
@@ -97,25 +98,25 @@ final class HeightStageSet[N <: Arity](
         proof: lisa.SetTheoryLibrary.Proof
     ): proof.Fact = {
       val typedArgs = wellTypedFormula(c.signature)(unionRangeF)
-      val emptyInSeed = have(in(∅, Singleton.singleton(∅))) by
+      val emptyInSeed = have(∅ ∈ Singleton.singleton(∅)) by
         Restate.from(Singleton.membership of (x := ∅, y := ∅))
       // Build the nested-pair subterm right-to-left, threading membership in the matching product.
       val emptySet: Expr[Ind] = ∅
       val subBuild = c.signature.reverse.foldLeft((emptySet, Singleton.singleton(∅), emptyInSeed)) {
         case ((curSub, curProd, curFact), (v, ty)) =>
           val d = domainOf(ty)
-          val vInD = have(typedArgs |- in(v, d)) by Restate
-          val pairFact = have(typedArgs |- in(pair(v, curSub), d × curProd)) by
+          val vInD = have(typedArgs |- v ∈ d) by Restate
+          val pairFact = have(typedArgs |- pair(v, curSub) ∈ (d × curProd)) by
             Cuts(CartesianProduct.membershipSufficientCondition of (x := v, A := d, y := curSub, B := curProd))(vInD, curFact)
           (pair(v, curSub), d × curProd, pairFact)
       }
-      val subtermInProduct = have(typedArgs |- in(c.subterm, subProduct(c.signature))) by
+      val subtermInProduct = have(typedArgs |- c.subterm ∈ subProduct(c.signature)) by
         Restate.from(subBuild._3)
 
-      val tagInSingleton = have(in(c.tagTerm, Singleton.singleton(c.tagTerm))) by
+      val tagInSingleton = have(c.tagTerm ∈ Singleton.singleton(c.tagTerm)) by
         Restate.from(Singleton.membership of (x := c.tagTerm, y := c.tagTerm))
       // `c.term == (tagTerm, subterm)`; pair them inside `{tagTerm} × subProduct`.
-      have(typedArgs |- in(c.term, ctorProduct(c))) by Cuts(
+      have(typedArgs |- c.term ∈ ctorProduct(c)) by Cuts(
         CartesianProduct.membershipSufficientCondition of
           (x := c.tagTerm, A := Singleton.singleton(c.tagTerm), y := c.subterm, B := subProduct(c.signature))
       )(tagInSingleton, subtermInProduct)
@@ -125,84 +126,84 @@ final class HeightStageSet[N <: Arity](
     val seedElems = unionRangeF +: products
     val bound = unionList(seedElems)
 
-    val unionRangeSubsetBound = have(subset(unionRangeF, bound)) by
+    val unionRangeSubsetBound = have(unionRangeF ⊆ bound) by
       Restate.from(memberSubsetOfUnionList(seedElems, unionRangeF))
 
     val constructorOnlyCase =
       if constructors.isEmpty then
         // With no constructors `isConstructor(x)(·)` is `False`, so the implication holds vacuously.
-        have(isConstructor(x)(unionRangeF) |- in(x, bound)) by Restate
+        have(isConstructor(x)(unionRangeF) |- x ∈ bound) by Restate
       else
         val branches = constructors.map(c =>
           val typedEq = wellTypedFormula(c.signature)(unionRangeF) /\ (x === c.term)
           val termInProductFact = constructorTermInProduct(c)
-          val prodSubsetBound = have(subset(ctorProduct(c), bound)) by
+          val prodSubsetBound = have(ctorProduct(c) ⊆ bound) by
             Restate.from(memberSubsetOfUnionList(seedElems, ctorProduct(c)))
-          val branch = have(typedEq |- in(x, bound)) subproof {
+          val branch = have(typedEq |- x ∈ bound) subproof {
             val xEqTerm = have(typedEq |- x === c.term) by Restate
             val typedArgsFact = have(typedEq |- wellTypedFormula(c.signature)(unionRangeF)) by Restate
             // The constructor term lives in its product, itself a subset of `bound`; rewrite `x` to it.
-            val termInProd = have(typedEq |- in(c.term, ctorProduct(c))) by Cut(typedArgsFact, termInProductFact)
-            val termInBound = have(typedEq |- in(c.term, bound)) by Tautology.from(
+            val termInProd = have(typedEq |- c.term ∈ ctorProduct(c)) by Cut(typedArgsFact, termInProductFact)
+            val termInBound = have(typedEq |- c.term ∈ bound) by Tautology.from(
               termInProd,
               prodSubsetBound,
               Subset.membership of (x := ctorProduct(c), y := bound, z := c.term)
             )
-            have(typedEq |- in(x, bound) <=> in(c.term, bound)) by Congruence.from(xEqTerm)
+            have(typedEq |- x ∈ bound <=> c.term ∈ bound) by Congruence.from(xEqTerm)
             have(thesis) by Substitute(lastStep)(termInBound)
           }
-          have(constructorPredicate(c, x, unionRangeF) |- in(x, bound)) by
+          have(constructorPredicate(c, x, unionRangeF) |- x ∈ bound) by
             QuantifiersIntro(c.variables)(branch)
         )
-        have(isConstructor(x)(unionRangeF) |- in(x, bound)) by
+        have(isConstructor(x)(unionRangeF) |- x ∈ bound) by
           LeftOr(branches*)
 
     val constructorCaseToBound = have(
-      (base.inExtIntroImage(f)(x), isConstructor(x)(unionRangeF)) |- in(x, bound)
+      (base.inExtIntroImage(f)(x), isConstructor(x)(unionRangeF)) |- x ∈ bound
     ) by Weakening(constructorOnlyCase)
 
-    val membershipInBound = have(in(x, unionRangeF) |- in(x, bound)) by Tautology.from(
+    val membershipInBound = have(x ∈ unionRangeF |- x ∈ bound) by Tautology.from(
       unionRangeSubsetBound,
       Subset.membership of (x := unionRangeF, y := bound, z := x)
     )
     val membershipCaseToBound = have(
-      (base.inExtIntroImage(f)(x), in(x, unionRangeF)) |- in(x, bound)
+      (base.inExtIntroImage(f)(x), x ∈ unionRangeF) |- x ∈ bound
     ) by Weakening(membershipInBound)
 
-    val extIntroInBound = have(base.inExtIntroImage(f)(x) |- in(x, bound)) subproof {
+    val extIntroInBound = have(base.inExtIntroImage(f)(x) |- x ∈ bound) subproof {
       // `inExtIntroImage` unfolds to `(f ≠ ∅) ∧ (isConstructor(x)(⋃f) ∨ x ∈ ⋃f)`; split the disjunction.
-      val introBranch = have(base.inExtIntroImage(f)(x) |- isConstructor(x)(unionRangeF) \/ in(x, unionRangeF)) by Restate
-      have((base.inExtIntroImage(f)(x), isConstructor(x)(unionRangeF) \/ in(x, unionRangeF)) |- in(x, bound)) by
+      val introBranch = have(base.inExtIntroImage(f)(x) |- isConstructor(x)(unionRangeF) \/ (x ∈ unionRangeF)) by Restate
+      have((base.inExtIntroImage(f)(x), isConstructor(x)(unionRangeF) \/ (x ∈ unionRangeF)) |- x ∈ bound) by
         LeftOr(constructorCaseToBound, membershipCaseToBound)
       have(thesis) by Cut(introBranch, lastStep)
     }
 
     // `stageBody = { x ∈ bound | inExtIntroImage(f)(x) }`; its membership unfolds by comprehension.
     val stageBody = { x ∈ bound | base.inExtIntroImage(f)(x) }
-    val stageBodyMembership = have(in(x, stageBody) <=> in(x, bound) /\ base.inExtIntroImage(f)(x)) by
+    val stageBodyMembership = have(x ∈ stageBody <=> x ∈ bound /\ base.inExtIntroImage(f)(x)) by
       Restate.from(
         Comprehension.membership of (x := x, y := bound, φ := λ(x, base.inExtIntroImage(f)(x)))
       )
 
-    have(in(x, stageBody) |- in(x, bound) /\ base.inExtIntroImage(f)(x)) by
-      Substitute(stageBodyMembership)(have(in(x, stageBody) |- in(x, stageBody)) by Hypothesis)
-    have(in(x, stageBody) |- base.inExtIntroImage(f)(x)) by Weakening(lastStep)
-    val forward = thenHave(in(x, stageBody) ==> base.inExtIntroImage(f)(x)) by Restate
+    have(x ∈ stageBody |- x ∈ bound /\ base.inExtIntroImage(f)(x)) by
+      Substitute(stageBodyMembership)(have(x ∈ stageBody |- x ∈ stageBody) by Hypothesis)
+    have(x ∈ stageBody |- base.inExtIntroImage(f)(x)) by Weakening(lastStep)
+    val forward = thenHave(x ∈ stageBody ==> base.inExtIntroImage(f)(x)) by Restate
 
-    have(base.inExtIntroImage(f)(x) |- in(x, bound) /\ base.inExtIntroImage(f)(x)) by RightAnd(
+    have(base.inExtIntroImage(f)(x) |- x ∈ bound /\ base.inExtIntroImage(f)(x)) by RightAnd(
       extIntroInBound,
       have(base.inExtIntroImage(f)(x) |- base.inExtIntroImage(f)(x)) by Hypothesis
     )
-    thenHave(base.inExtIntroImage(f)(x) |- in(x, stageBody)) by Substitute(stageBodyMembership)
-    val backward = thenHave(base.inExtIntroImage(f)(x) ==> in(x, stageBody)) by Restate
+    thenHave(base.inExtIntroImage(f)(x) |- x ∈ stageBody) by Substitute(stageBodyMembership)
+    val backward = thenHave(base.inExtIntroImage(f)(x) ==> x ∈ stageBody) by Restate
 
-    have(in(x, stageBody) <=> base.inExtIntroImage(f)(x)) by RightIff(forward, backward)
-    thenHave(∀(x, in(x, stageBody) <=> base.inExtIntroImage(f)(x))) by RightForall
+    have(x ∈ stageBody <=> base.inExtIntroImage(f)(x)) by RightIff(forward, backward)
+    thenHave(∀(x, x ∈ stageBody <=> base.inExtIntroImage(f)(x))) by RightForall
     thenHave(thesis) by RightExists
   }
 
   private val stageSetTerm: Expr[Ind >>: Ind] =
-    λ(f, ε(s, ∀(x, in(x, s) <=> base.inExtIntroImage(f)(x))))
+    λ(f, ε(s, ∀(x, x ∈ s <=> base.inExtIntroImage(f)(x))))
 
   private lazy val stageSetSpecInst: THM = Lemma(
     CoreFacts.stageSetSpec.substitute(
@@ -210,12 +211,12 @@ final class HeightStageSet[N <: Arity](
       CoreFacts.isConstructor := isConstructor
     )
   ) {
-    val body = ∀(x, in(x, s) <=> base.inExtIntroImage(f)(x))
+    val body = ∀(x, x ∈ s <=> base.inExtIntroImage(f)(x))
     have(∃(s, body)) by Restate.from(stageSetExistsCtor)
     have(body.substitute(s := ε(s, body))) by
       Cut(lastStep, existsEpsilon of (x := s, P := λ(s, body)))
-    thenHave(∀(x, in(x, stageSetTerm(f)) <=> base.inExtIntroImage(f)(x))) by Restate
-    thenHave(∀(f, ∀(x, in(x, stageSetTerm(f)) <=> base.inExtIntroImage(f)(x)))) by
+    thenHave(∀(x, x ∈ stageSetTerm(f) <=> base.inExtIntroImage(f)(x))) by Restate
+    thenHave(∀(f, ∀(x, x ∈ stageSetTerm(f) <=> base.inExtIntroImage(f)(x)))) by
       RightForall
     thenHave(thesis) by Restate
   }

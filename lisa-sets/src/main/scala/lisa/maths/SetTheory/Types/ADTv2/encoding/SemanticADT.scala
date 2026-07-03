@@ -379,22 +379,22 @@ class SemanticADT[N <: Arity](
             case TypeArg(typeName) =>
               val t = typeExprToTerm(typeName)
               thenHave(wellTypedVars.init |- v :: t ==> (fc1 <=> fc2)) by RightImplies
-              have(wellTypedVars.init |- (in(v, t) ==> fc1) <=> (v :: t ==> fc2)) by Cut(
+              have(wellTypedVars.init |- (v ∈ t ==> fc1) <=> (v :: t ==> fc2)) by Cut(
                 lastStep,
-                leftImpliesEquivalenceStrong of (p := in(v, t), p1 := fc1, p2 := fc2)
+                leftImpliesEquivalenceStrong of (p := v ∈ t, p1 := fc1, p2 := fc2)
               )
               thenHave(
-                wellTypedVars.init |- forall(v, (in(v, t) ==> fc1) <=> (v :: t ==> fc2))
+                wellTypedVars.init |- forall(v, (v ∈ t ==> fc1) <=> (v :: t ==> fc2))
               ) by RightForall
               have(
                 wellTypedVars.init |-
-                  forall(v, in(v, t) ==> fc1) <=> forall(v, v :: t ==> fc2)
+                  forall(v, v ∈ t ==> fc1) <=> forall(v, v :: t ==> fc2)
               ) by Cut(
                 lastStep,
                 universalEquivalenceDistribution of
-                  (P := lambda(v, in(v, t) ==> fc1), Q := lambda(v, v :: t ==> fc2))
+                  (P := lambda(v, v ∈ t ==> fc1), Q := lambda(v, v :: t ==> fc2))
               )
-              (forall(v, in(v, t) ==> fc1), forall(v, v :: t ==> fc2), wellTypedVars.init)
+              (forall(v, v ∈ t ==> fc1), forall(v, v :: t ==> fc2), wellTypedVars.init)
         )
         have(thesis) by Restate.from(lastStep)
       }

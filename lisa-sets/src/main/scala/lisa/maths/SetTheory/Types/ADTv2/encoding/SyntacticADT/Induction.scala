@@ -20,40 +20,40 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
       c -> c.signature.foldRight[Expr[Prop]](P(c.term))((el, fc) =>
         val (v, ty) = el
         ty match
-          case SelfRef => forall(v, in(v, term) ==> (P(v) ==> fc))
-          case TypeArg(typeName) => forall(v, in(v, typeExprToTerm(typeName)) ==> fc)
+          case SelfRef => forall(v, v ∈ term ==> (P(v) ==> fc))
+          case TypeArg(typeName) => forall(v, v ∈ typeExprToTerm(typeName) ==> fc)
       )
     )
     .toMap
 
   val induction = Time.measure("ADT induction")(
     Lemma(using name = s"${name}/induction")(
-      constructors.foldRight[Expr[Prop]](forall(x, in(x, term) ==> P(x)))((c, f) => inductiveCase(c) ==> f)
+      constructors.foldRight[Expr[Prop]](forall(x, x ∈ term ==> P(x)))((c, f) => inductiveCase(c) ==> f)
     ) {
       // The per-constructor inductive hypotheses the caller must supply, bundled together.
       val preconditions: Expr[Prop] = seqAnd(constructors.map(inductiveCase))
 
       // `stage(k)` states that every element of the height-`k` approximation satisfies P.
       // We prove the goal by ordinary induction over `k ∈ N` on this predicate.
-      def stage(k: Expr[Ind]): Expr[Prop] = forall(x, in(x, app(h, k)) ==> P(x))
+      def stage(k: Expr[Ind]): Expr[Prop] = forall(x, x ∈ app(h, k) ==> P(x))
       val stageN: Expr[Prop] = stage(n)
 
       // --- Base case: the height-0 approximation is empty, so `stage(∅)` holds vacuously. ---
-      have(isHeight(h) |- in(x, app(h, ∅)) ==> P(x)) by Weakening(heightZero)
+      have(isHeight(h) |- x ∈ app(h, ∅) ==> P(x)) by Weakening(heightZero)
       val baseCase = thenHave(isHeight(h) |- stage(∅)) by RightForall
 
       // Reduce the goal to the successor step: given the base case, ordinary induction over N
       // leaves only `stage(n) ==> stage(S(n))` to prove.
       val successorReduction = have(
-        (isHeight(h), forall(n, in(n, N) ==> (stageN ==> stage(S(n))))) |-
-          forall(n, in(n, N) ==> stageN)
-      ) by Tautology.from(baseCase, omegaSuccessorInduction of (P := lam(n, stageN)))
+        (isHeight(h), forall(n, n ∈ N ==> (stageN ==> stage(S(n))))) |-
+          forall(n, n ∈ N ==> stageN)
+      ) by Tautology.from(baseCase, omegaSuccessorInduction of (P := λ(n, stageN)))
 
       // --- Successor step: `stage(n) ==> stage(S(n))`. ---
       val successorStep = have(
-        (isHeight(h), preconditions) |- forall(n, in(n, N) ==> (stageN ==> stage(S(n))))
+        (isHeight(h), preconditions) |- forall(n, n ∈ N ==> (stageN ==> stage(S(n))))
       ) subproof {
-        // `in(n, N)` and `stage(n)` are carried explicitly (via `ctx`) since the closing
+        // `n ∈ N` and `stage(n)` are carried explicitly (via `ctx`) since the closing
         // steps discharge them; only the permanent hypotheses are assumed.
         assume(isHeight(h), preconditions)
 
@@ -61,7 +61,7 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
         // constructor whose arguments live in the height-`n` approximation. We show that any
         // such instance satisfies P.
         def ctx(extra: Expr[Prop]*): Seq[Expr[Prop]] =
-          Seq(isHeight(h), preconditions, in(n, N), stageN) ++ extra
+          Seq(isHeight(h), preconditions, n ∈ N, stageN) ++ extra
 
         val instanceSatisfiesP = have(ctx(isConstructor(x, app(h, n))) |- P(x)) subproof {
           if constructors.isEmpty then have(thesis) by Restate
@@ -71,17 +71,17 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
               val argsInTerm = wellTypedFormula(c.signature2)(term)
 
               // (1) Arguments living in the height-`n` approximation also live in the whole ADT.
-              val argsInTermFromStage = have((isHeight(h), in(n, N), argsInStage) |- argsInTerm) subproof {
-                assume(isHeight(h), in(n, N), argsInStage)
+              val argsInTermFromStage = have((isHeight(h), n ∈ N, argsInStage) |- argsInTerm) subproof {
+                assume(isHeight(h), n ∈ N, argsInStage)
                 val conjuncts = c.signature2.map { (v, ty) =>
                   ty match
                     case SelfRef =>
-                      val vHasHeight = (∃(n, in(n, N) /\ in(x, app(h, n)))).substitute(x := v)
-                      have(in(n, N) /\ in(v, app(h, n))) by Restate
+                      val vHasHeight = (∃(n, n ∈ N /\ x ∈ app(h, n))).substitute(x := v)
+                      have(n ∈ N /\ (v ∈ app(h, n))) by Restate
                       thenHave(vHasHeight) by RightExists
-                      have(in(v, term)) by Tautology.from(termHasHeight of (x := v), lastStep)
+                      have(v ∈ term) by Tautology.from(termHasHeight of (x := v), lastStep)
                     case TypeArg(typeName) =>
-                      have(in(v, typeExprToTerm(typeName))) by Restate
+                      have(v ∈ typeExprToTerm(typeName)) by Restate
                 }
                 if conjuncts.isEmpty then have(thesis) by Restate
                 else have(thesis) by RightAnd(conjuncts*)
@@ -90,10 +90,10 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
               // (2) Discharging the constructor's inductive hypothesis yields `P(c(args))`.
               //     The membership hypotheses are taken from (1); the `P` hypotheses from `stage(n)`.
               def cCtx(extra: Expr[Prop]*): Seq[Expr[Prop]] =
-                Seq(isHeight(h), inductiveCase(c), in(n, N), stageN) ++ extra
+                Seq(isHeight(h), inductiveCase(c), n ∈ N, stageN) ++ extra
 
               val pOnInstance = have(cCtx(argsInStage) |- P(c.term2)) subproof {
-                assume(isHeight(h), inductiveCase(c), in(n, N), stageN, argsInStage)
+                assume(isHeight(h), inductiveCase(c), n ∈ N, stageN, argsInStage)
                 have(inductiveCase(c)) by Restate
                 c.signature2.foldLeft(lastStep) { (fact, el) =>
                   val (v, ty) = el
@@ -105,7 +105,7 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
                         case (implies(_, implies(_, conclusion)), SelfRef) =>
                           val dischargeMembership = thenHave((argsInTerm, P(v)) |- conclusion) by Weakening
                           have(stageN |- stageN) by Hypothesis
-                          thenHave(stageN |- in(v, app(h, n)) ==> P(v)) by InstantiateForall(v)
+                          thenHave(stageN |- v ∈ app(h, n) ==> P(v)) by InstantiateForall(v)
                           thenHave((stageN, argsInStage) |- P(v)) by Weakening
                           have(argsInTerm |- conclusion) by Cut(lastStep, dischargeMembership)
                           have(conclusion) by Cut(argsInTermFromStage, lastStep)
@@ -128,34 +128,34 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
         }
 
         // The height-`S(n)` approximation is exactly the constructor instances over height `n`.
-        have((isHeight(h), in(n, N), in(x, app(h, S(n)))) |- isConstructor(x, app(h, n))) by
-          Cut(heightSuccessorStrong, equivalenceApply of (p1 := in(x, app(h, S(n))), p2 := isConstructor(x, app(h, n))))
-        have(ctx(in(x, app(h, S(n)))) |- P(x)) by Cut(lastStep, instanceSatisfiesP)
-        thenHave(ctx() |- in(x, app(h, S(n))) ==> P(x)) by RightImplies
+        have((isHeight(h), n ∈ N, x ∈ app(h, S(n))) |- isConstructor(x, app(h, n))) by
+          Cut(heightSuccessorStrong, equivalenceApply of (p1 := x ∈ app(h, S(n)), p2 := isConstructor(x, app(h, n))))
+        have(ctx(x ∈ app(h, S(n))) |- P(x)) by Cut(lastStep, instanceSatisfiesP)
+        thenHave(ctx() |- x ∈ app(h, S(n)) ==> P(x)) by RightImplies
         thenHave(ctx() |- stage(S(n))) by RightForall
-        thenHave((isHeight(h), preconditions, in(n, N)) |- stageN ==> stage(S(n))) by RightImplies
-        thenHave((isHeight(h), preconditions) |- in(n, N) ==> (stageN ==> stage(S(n)))) by RightImplies
+        thenHave((isHeight(h), preconditions, n ∈ N) |- stageN ==> stage(S(n))) by RightImplies
+        thenHave((isHeight(h), preconditions) |- n ∈ N ==> (stageN ==> stage(S(n)))) by RightImplies
         thenHave(thesis) by RightForall
       }
 
       // --- Conclusion: every element of `term` has some height `n`, hence satisfies P. ---
-      have((isHeight(h), preconditions) |- forall(n, in(n, N) ==> stageN)) by
+      have((isHeight(h), preconditions) |- forall(n, n ∈ N ==> stageN)) by
         Cut(successorStep, successorReduction)
-      thenHave((isHeight(h), preconditions) |- in(n, N) ==> stageN) by InstantiateForall(n)
-      thenHave((isHeight(h), preconditions, in(n, N)) |- stageN) by Restate
-      thenHave((isHeight(h), preconditions, in(n, N)) |- in(x, app(h, n)) ==> P(x)) by InstantiateForall(x)
-      thenHave((isHeight(h), preconditions, in(n, N) /\ in(x, app(h, n))) |- P(x)) by Restate
+      thenHave((isHeight(h), preconditions) |- n ∈ N ==> stageN) by InstantiateForall(n)
+      thenHave((isHeight(h), preconditions, n ∈ N) |- stageN) by Restate
+      thenHave((isHeight(h), preconditions, n ∈ N) |- x ∈ app(h, n) ==> P(x)) by InstantiateForall(x)
+      thenHave((isHeight(h), preconditions, n ∈ N /\ x ∈ app(h, n)) |- P(x)) by Restate
       val heightImpliesP = thenHave(
-        (isHeight(h), preconditions, exists(n, in(n, N) /\ in(x, app(h, n)))) |- P(x)
+        (isHeight(h), preconditions, exists(n, n ∈ N /\ x ∈ app(h, n))) |- P(x)
       ) by LeftExists
 
-      have((isHeight(h), in(x, term)) |- exists(n, in(n, N) /\ in(x, app(h, n)))) by
-        Cut(termHasHeight, equivalenceApply of (p1 := in(x, term), p2 := exists(n, in(n, N) /\ in(x, app(h, n)))))
-      have((isHeight(h), preconditions, in(x, term)) |- P(x)) by Cut(lastStep, heightImpliesP)
-      thenHave((exists(h, isHeight(h)), preconditions, in(x, term)) |- P(x)) by LeftExists
-      have((preconditions, in(x, term)) |- P(x)) by Cut(heightExists, lastStep)
-      thenHave(preconditions |- in(x, term) ==> P(x)) by RightImplies
-      thenHave(preconditions |- forall(x, in(x, term) ==> P(x))) by RightForall
+      have((isHeight(h), x ∈ term) |- exists(n, n ∈ N /\ x ∈ app(h, n))) by
+        Cut(termHasHeight, equivalenceApply of (p1 := x ∈ term, p2 := exists(n, n ∈ N /\ x ∈ app(h, n))))
+      have((isHeight(h), preconditions, x ∈ term) |- P(x)) by Cut(lastStep, heightImpliesP)
+      thenHave((exists(h, isHeight(h)), preconditions, x ∈ term) |- P(x)) by LeftExists
+      have((preconditions, x ∈ term) |- P(x)) by Cut(heightExists, lastStep)
+      thenHave(preconditions |- x ∈ term ==> P(x)) by RightImplies
+      thenHave(preconditions |- forall(x, x ∈ term ==> P(x))) by RightForall
       thenHave(thesis) by Restate
     }
   )

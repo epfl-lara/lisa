@@ -51,8 +51,8 @@ private[recursion] final class LimitConstruction[N <: Arity](
           aInArgType,
           termHasHeight of (x := a, h := heightFun),
           equivalenceApply of (
-            p1 := in(a, spec.argType),
-            p2 := ∃(nVar, in(nVar, N) /\ in(a, app(heightFun)(nVar)))
+            p1 := a ∈ spec.argType,
+            p2 := ∃(nVar ∈ N, a ∈ app(heightFun)(nVar))
           )
         )
 
