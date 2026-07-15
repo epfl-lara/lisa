@@ -3,6 +3,7 @@ package lisa.automation.superposition
 import scala.collection.mutable
 
 import lisa.utils.K
+import lisa.automation.clausification.Clausification
 
 /**
  * Phase 3 — clausification wiring.
@@ -89,3 +90,66 @@ object Clausal:
     case K.Ind             => true
     case K.Arrow(K.Ind, r) => firstOrderSort(r)
     case _                 => false
+
+  // ── The clausal-prover adapter for `Clausification.certifyClausal` ──────────────────────────────────────
+
+  /** Reshape a clausifier clause `Γ ⊢ Δ` (uniform literal-set form: literals on the RHS, negatives written
+   *  `¬A`) into the working sequent [[Bridge]] expects, where a negative literal's atom sits on the LHS: each
+   *  `¬A ∈ Δ` moves to the left as `A`. Propositionally equivalent, so a single `Restate` bridges the two. */
+  def toWorkingSequent(s: K.Sequent): K.Sequent =
+    val left = mutable.Set.from(s.left)
+    val right = mutable.Set.empty[K.Expression]
+    s.right.foreach {
+      case K.Application(K.neg, a) => left += a
+      case d                       => right += d
+    }
+    K.Sequent(left.toSet, right.toSet)
+
+  /** Abstract every maximal non-first-order subterm in a clause's literals to a schematic function symbol,
+   *  memoised across the whole problem via the shared `abs`. */
+  private def abstractSequent(abs: Abstraction, s: K.Sequent): K.Sequent =
+    K.Sequent(s.left.map(abs(_)), s.right.map(abs(_)))
+
+  /**
+   * The clausal prover to hand to [[lisa.automation.clausification.Clausification.certifyClausal]].
+   *
+   * Abstracts every non-first-order subterm (ε-terms) to a fresh schematic function symbol `F(fv…)`, refutes
+   * the resulting first-order clause set with [[Bridge]] (which reconstructs with each `F` inlined back to its
+   * ε-term), and presents the proof's imports as the **original** clausifier clauses via a per-used-import
+   * `Restate` into [[Bridge]]'s neg-moved working form. Conclusion is the empty sequent `⊢`, as the contract
+   * requires. Purely first-order problems take the same path with an empty abstraction (no `F`, no discharge).
+   */
+  def prove(problem: Clausification.Problem): K.SCProof =
+    proveOutcome(problem) match
+      case Right(proof) => proof
+      case Left(other)  => throw new RuntimeException(s"Clausal.prove: expected a refutation, got $other")
+
+  /**
+   * Like [[prove]] but budgeted and total: returns `Right(proof)` on a refutation, or `Left(outcome)` for a
+   * `Saturated`/`Timeout` [[Bridge.Outcome]] instead of throwing — so a benchmark can categorise the result.
+   * `maxGiven`/`maxMillis` bound the underlying [[Bridge]] search.
+   */
+  def proveOutcome(problem: Clausification.Problem, maxGiven: Int = Int.MaxValue, maxMillis: Long = Long.MaxValue): Either[Bridge.Outcome, K.SCProof] =
+    val abs = new Abstraction
+    val orig: IndexedSeq[K.Sequent] = problem.imports //               clausifier clauses (contract import list)
+    val absSeqs: IndexedSeq[K.Sequent] = orig.map(o => abstractSequent(abs, o))
+    val work: IndexedSeq[K.Sequent] = absSeqs.map(toWorkingSequent)
+    // Symbol variables the solver must treat as symbols rather than clause variables: the ε-abstraction
+    // functions `F` (explicit — includes bare-nullary ones), plus every non-`Ind`-sorted free variable in the
+    // clauses (Tseitin atoms `tsᵢ` and any Lisa predicate/function variable — clause variables are `Ind`).
+    val symbolVars: Set[K.Variable] =
+      abs.dischargeSubst.keySet ++
+        absSeqs.iterator.flatMap(s => (s.left ++ s.right).iterator.flatMap(_.freeVariables)).filter(_.sort != K.Ind).toSet
+    Bridge.solve(work, maxGiven, maxMillis, symbolVars = symbolVars, discharge = abs.dischargeSubst) match
+      case s: Bridge.Outcome.Success =>
+        val base: K.SCProof = s.reconstructKernelProof //              ε-bearing, imports = neg-moved ε-clauses, ∅ ⊢
+        val work0: IndexedSeq[K.Sequent] = orig.map(toWorkingSequent) // neg-moved ε-clauses; = base.imports
+        val steps = mutable.ArrayBuffer.empty[K.SCProofStep]
+        val premises: Seq[Int] = base.imports.map { w => //             each used working import ← Restate of its original
+          val i = work0.indexOf(w)
+          steps += K.Restate(w, -(i + 1))
+          steps.length - 1
+        }
+        steps += K.SCSubproof(base, premises) //                       conclusion ∅ ⊢, over the working imports
+        Right(K.SCProof(steps.toIndexedSeq, orig)) //                  imports = original clausifier clauses
+      case other => Left(other)

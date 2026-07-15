@@ -18,7 +18,7 @@ class KBOTest extends AnyFunSuite:
   class Fix:
     val sig: Signature = new Signature
     val bank: TermBank = new TermBank(sig)
-    val kbo: KBO = new KBO(bank)
+    val kbo: KBO = bank.order.kbo
 
     def fn(name: String, arity: Int): Symbol = sig.intern(name, arity, isPredicate = false)
     def const(name: String): Term = bank.mkConst(fn(name, 0))

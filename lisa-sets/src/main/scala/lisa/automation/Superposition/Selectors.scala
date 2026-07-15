@@ -100,16 +100,16 @@ object BestLiteralSelector extends LiteralSelector:
  * incomplete [[BestLiteralSelector]] (selector 1010), which shares the same comparator but always
  * picks just the single best literal.
  *
- * Literal maximality uses a resolution literal order: compare the atoms by the [[KBO]], breaking an
- * atom tie by polarity (a negative literal outranks the positive with the same atom). Equality is
- * treated as the ordinary binary symbol [[Core.EqualitySymbol]] for now; the proper equality/multiset
- * literal order is a Phase-3 (superposition) concern.
+ * Literal maximality is delegated to the shared [[Order]] (`ordering.maximalFlags`), the
+ * equality-aware literal order `≻_L`: for an equality literal it is the multiset extension of the KBO
+ * over the equation sides, for the rest the resolution order (atoms by KBO, `¬A ≻ A` on a tie), with
+ * equality ranked below non-equality. The selector and the equality inferences therefore share one
+ * order (and one KBO).
  *
- * Because [[kbo]] reuses mutable accumulator state, this selector -- like the ordering itself -- is
- * not thread-safe.
+ * Because the [[Order]]'s [[KBO]] reuses mutable accumulator state, this selector -- like the
+ * ordering itself -- is not thread-safe.
  */
-final class CompleteBestLiteralSelector(kbo: KBO) extends LiteralSelector:
-  import Cmp.*
+final class CompleteBestLiteralSelector(ordering: Order) extends LiteralSelector:
 
   def select(bank: TermBank, literals: Array[Literal]): Array[Int] =
     val n: Int = literals.length
@@ -118,7 +118,7 @@ final class CompleteBestLiteralSelector(kbo: KBO) extends LiteralSelector:
     else
       val q: Array[Int] = Array.tabulate(n)(identity) // literal indices in quality order, best first
       sortByQualityDesc(bank, literals, q)
-      val isMax: Array[Boolean] = maximalFlags(bank, literals)
+      val isMax: Array[Boolean] = ordering.maximalFlags(literals)
 
       var singleSelected: Int = -1
       if bank.isNegative(literals(q(0))) then singleSelected = q(0)
@@ -169,27 +169,3 @@ final class CompleteBestLiteralSelector(kbo: KBO) extends LiteralSelector:
         j -= 1
       q(j + 1) = x
       i += 1
-
-  /** `res(i)`: literal `i` is maximal -- no other literal is strictly greater in the resolution literal order. */
-  private def maximalFlags(bank: TermBank, literals: Array[Literal]): Array[Boolean] =
-    val n: Int = literals.length
-    val res: Array[Boolean] = new Array[Boolean](n)
-    var i = 0
-    while i < n do
-      var maximal: Boolean = true
-      var j = 0
-      while j < n && maximal do
-        if j != i && compareLit(bank, literals(j), literals(i)) == Gt then maximal = false
-        j += 1
-      res(i) = maximal
-      i += 1
-    res
-
-  /** Resolution literal order: compare atoms by the [[KBO]], breaking an atom tie by polarity (¬A ≻ A). */
-  private def compareLit(bank: TermBank, l1: Literal, l2: Literal): Cmp =
-    kbo.compare(bank.atomOf(l1), bank.atomOf(l2)) match
-      case Eq =>
-        val n1: Boolean = bank.isNegative(l1)
-        val n2: Boolean = bank.isNegative(l2)
-        if n1 == n2 then Eq else if n1 then Gt else Lt
-      case other => other

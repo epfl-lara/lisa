@@ -56,7 +56,14 @@ final class Discount(
     // still catches every redundant clause before it activates. Revisit once indexing makes it cheap.
     // (seed-42 ablation: gen=67 refuted vs nogen=71, strictly more, no regressions. See Benchmarks.md.)
     // Governs forward subsumption *and* forward unit deletion at the generation point.
-    forwardSimplifyAtGeneration: Boolean = false):
+    forwardSimplifyAtGeneration: Boolean = false,
+    // Generating equality inferences. Equality resolution/factoring are always run (inert without equality
+    // literals); this flag gates the heavier superposition enumeration (both directions) at activation.
+    superposition: Boolean = true,
+    // Demodulation (rewriting by active positive unit equalities): forward normal-forms the given at
+    // selection; backward rewrites active clauses when the given is a new unit equality. Inert without them.
+    forwardDemodulation: Boolean = true,
+    backwardDemodulation: Boolean = true):
   import Discount.Result
 
   // Simplification counters (observability / benchmarks); reset at the start of each `saturate`.
@@ -86,8 +93,13 @@ final class Discount(
   // Active (processed) set, scanned linearly (indexing is Phase 4).
   private val active: mutable.ArrayBuffer[Clause] = mutable.ArrayBuffer.empty
 
+  // The active demodulators: rewrite rules from the positive unit equalities in `active`, maintained
+  // incrementally (added on activation, dropped on deletion) so forward demodulation needn't re-filter
+  // `active` and re-extract `rules` on every given.
+  private val activeDemodulators: mutable.ArrayBuffer[Demodulation.Rule] = mutable.ArrayBuffer.empty
+
   // Ordering used only for the (optional) post-unification σ-maximality check on factors.
-  private lazy val kbo: KBO = new KBO(bank)
+  private def kbo: KBO = bank.order.kbo // the bank's shared KBO (post-unification σ-maximality check on factors)
 
   /**
    * Saturate `initial` (plus everything derived from it). Returns [[Result.Refutation]] with the empty
@@ -97,7 +109,7 @@ final class Discount(
    * rather than relying on the caller to abandon a runaway thread.
    */
   def saturate(initial: Seq[Clause], maxGiven: Int = Int.MaxValue, maxMillis: Long = Long.MaxValue): Result =
-    byAge.clear(); byWeight.clear(); livePassive.clear(); active.clear(); balance = 0
+    byAge.clear(); byWeight.clear(); livePassive.clear(); active.clear(); activeDemodulators.clear(); balance = 0
     forwardSubsumed = 0; backwardSubsumed = 0; forwardUnitDeleted = 0; backwardUnitDeleted = 0
     forwardSubsumptionResolved = 0; backwardSubsumptionResolved = 0; condensed = 0
     val it = initial.iterator
@@ -109,7 +121,7 @@ final class Discount(
     val deadline: Long = if checkTime then System.nanoTime() + maxMillis * 1000000L else 0L
     var givenCount = 0
     while !livePassive.isEmpty && givenCount < maxGiven && (!checkTime || System.nanoTime() < deadline) do
-      val gc = popGiven()
+      val gc = forwardDemodulate(popGiven()) // normal-form the given against active demodulators, then simplify
       // forward simplify the given against active: it may have been subsumed (skip) or shrunk by unit
       // deletion (process the shorter clause) by clauses that became active while it sat in passive.
       // A skip is not counted as a processed given (count activations only).
@@ -188,24 +200,46 @@ final class Discount(
       backwardSimplify(gc) match
         case Some(empty) => return Some(empty)
         case None => ()
+    backwardDemodulateStep(gc) match // if `gc` is a new unit equality, rewrite active clauses (before it joins active)
+      case Some(empty) => return Some(empty)
+      case None => ()
     active += gc
-    // resolution: gc's selected literals against each active clause's selected literals
+    if isPosUnitEq(gc) then activeDemodulators ++= Demodulation.rules(bank, bank.order, gc) // gc is a new demodulator
+    // Precompute once per activation (invariant across the active scan): which of gc's selected literals are
+    // non-equality (for ordinary resolution) and gc's usable superposition from-sides.
+    val gcSelNonEq: Array[Boolean] = new Array[Boolean](gSel.length)
+    var gm = 0
+    while gm < gSel.length do { gcSelNonEq(gm) = !isEquality(gc.literals(gSel(gm))); gm += 1 }
+    val gcFromSides: List[(Int, Int, Term, Symbol)] = if superposition then fromSides(gc, gSel) else Nil
+    // resolution + superposition against each active clause (gc now included, so self-inferences fire)
     var ai = 0
     while ai < active.length do
       val a: Clause = active(ai)
       val aSel: Array[Int] = a.select(bank)
       var gi = 0
       while gi < gSel.length do
-        var aj = 0
-        while aj < aSel.length do
-          Inference.resolve(bank, trail, gc, gSel(gi), a, aSel(aj)) match
-            case Some(r) =>
-              addPassive(r) match
-                case Some(empty) => return Some(empty)
+        if gcSelNonEq(gi) then // equalities go to superposition / equality resolution, not here
+          var aj = 0
+          while aj < aSel.length do
+            if !isEquality(a.literals(aSel(aj))) then
+              Inference.resolve(bank, trail, gc, gSel(gi), a, aSel(aj)) match
+                case Some(r) =>
+                  addPassive(r) match
+                    case Some(empty) => return Some(empty)
+                    case None => ()
                 case None => ()
-            case None => ()
-          aj += 1
+            aj += 1
         gi += 1
+      // superposition: gc's equations into `a` (precomputed from-sides), and `a`'s equations into gc (both
+      // directions; the a == gc self-pair is done once). The caller locates + unifies; `superpose` is build-only.
+      if superposition then
+        superposeUsing(gc, gcFromSides, a, aSel) match
+          case Some(empty) => return Some(empty)
+          case None => ()
+        if a.id != gc.id then
+          superposeFromInto(a, aSel, gc, gSel) match
+            case Some(empty) => return Some(empty)
+            case None => ()
       ai += 1
     // factoring: each unordered pair of distinct selected, positive, non-equality literals, once
     // (positive factoring only; equalities get equality-factoring in Phase 3). A literal that unifies
@@ -229,7 +263,121 @@ final class Discount(
               case None => ()
           gj += 1
       gi2 += 1
+    // equality resolution + equality factoring on the given (unary; enumerate all over the eligible set)
+    val order: Order = bank.order
+    addAll(Superposition.equalityResolution(bank, trail, order, gc, gSel)) match
+      case Some(empty) => return Some(empty)
+      case None => ()
+    addAll(Superposition.equalityFactoring(bank, trail, order, gc, gSel)) match
+      case Some(empty) => return Some(empty)
+      case None => ()
     None
+
+  /** Add each of `cs` to passive; returns `Some(□)` as soon as one is (or simplifies to) the empty clause. */
+  private def addAll(cs: List[Clause]): Option[Clause] =
+    var xs = cs
+    while xs.nonEmpty do
+      addPassive(xs.head) match
+        case Some(empty) => return Some(empty)
+        case None => ()
+      xs = xs.tail
+    None
+
+  /** `c`'s usable superposition from-sides: `(iFrom, fromSide, l, lHead)` for each eligible positive-equality
+   *  literal and each usable side (the `Gt` side, both if incomparable; never a variable side). Computed once
+   *  per activation for the given, since they're invariant across the active scan. */
+  private def fromSides(c: Clause, sel: Array[Int]): List[(Int, Int, Term, Symbol)] =
+    val order: Order = bank.order
+    val out = List.newBuilder[(Int, Int, Term, Symbol)]
+    var i = 0
+    while i < sel.length do
+      val iFrom: Int = sel(i)
+      val lit: Literal = c.literals(iFrom)
+      val atom: Term = bank.atomOf(lit)
+      if bank.isPositive(lit) && bank.headSymbol(atom) == EqualitySymbol then
+        val ori: Cmp = order.orient(atom)
+        var side = 0
+        while side < 2 do
+          val use: Boolean = ori match
+            case Cmp.Gt => side == 0
+            case Cmp.Lt => side == 1
+            case Cmp.Inc => true
+            case Cmp.Eq => false
+          if use then
+            val l: Term = bank.arg(atom, side)
+            if !bank.isVar(l) then out += ((iFrom, side, l, bank.headSymbol(l)))
+          side += 1
+      i += 1
+    out.result()
+
+  /** Superpose with each of `fromC`'s precomputed `fromSides` into `intoC`'s eligible literals (`intoSel`). */
+  private def superposeUsing(fromC: Clause, sides: List[(Int, Int, Term, Symbol)], intoC: Clause, intoSel: Array[Int]): Option[Clause] =
+    var fs = sides
+    while fs.nonEmpty do
+      val (iFrom, fromSide, l, lHead) = fs.head
+      var ii = 0
+      while ii < intoSel.length do
+        superposeAtPositions(fromC, iFrom, fromSide, l, lHead, intoC, intoSel(ii)) match
+          case Some(empty) => return Some(empty)
+          case None => ()
+        ii += 1
+      fs = fs.tail
+    None
+
+  /** All superpositions with `fromC` supplying the equation (eligible positive equalities in `fromSel`) into
+   *  `intoC`'s eligible literals (`intoSel`): usable `fromSide`s (the `Gt` side, both if incomparable) × every
+   *  non-variable into-subterm, head-pre-checked before unifying. Results go to `addPassive`; `Some(□)` on refutation. */
+  private def superposeFromInto(fromC: Clause, fromSel: Array[Int], intoC: Clause, intoSel: Array[Int]): Option[Clause] =
+    val order: Order = bank.order
+    var fi = 0
+    while fi < fromSel.length do
+      val iFrom: Int = fromSel(fi)
+      val fromLit: Literal = fromC.literals(iFrom)
+      val fromAtom: Term = bank.atomOf(fromLit)
+      if bank.isPositive(fromLit) && bank.headSymbol(fromAtom) == EqualitySymbol then
+        val ori: Cmp = order.orient(fromAtom)
+        var fromSide = 0
+        while fromSide < 2 do
+          val useSide: Boolean = ori match
+            case Cmp.Gt => fromSide == 0
+            case Cmp.Lt => fromSide == 1
+            case Cmp.Inc => true
+            case Cmp.Eq => false
+          if useSide then
+            val l: Term = bank.arg(fromAtom, fromSide)
+            if !bank.isVar(l) then // no superposition from a variable side
+              val lHead: Symbol = bank.headSymbol(l)
+              var ii = 0
+              while ii < intoSel.length do
+                val iInto: Int = intoSel(ii)
+                superposeAtPositions(fromC, iFrom, fromSide, l, lHead, intoC, iInto) match
+                  case Some(empty) => return Some(empty)
+                  case None => ()
+                ii += 1
+          fromSide += 1
+      fi += 1
+    None
+
+  /** Walk the non-variable subterms of `intoC`'s literal `iInto`; where the head matches the from-side `l`,
+   *  save + unify + build-only `superpose` + `addPassive`. Returns `Some(□)` on refutation. */
+  private def superposeAtPositions(fromC: Clause, iFrom: Int, fromSide: Int, l: Term, lHead: Symbol,
+                                   intoC: Clause, iInto: Int): Option[Clause] =
+    val intoAtom: Term = bank.atomOf(intoC.literals(iInto))
+    var refut: Option[Clause] = None
+    Superposition.foreachSubterm(bank, intoAtom) { (u, path) =>
+      if bank.headSymbol(u) == lHead then // cheap head pre-check (u and l both non-variable)
+        val saved: Int = trail.save()
+        if trail.unify(l, 0, u, 1) then
+          Superposition.superpose(bank, trail, bank.order, fromC, iFrom, fromSide, intoC, iInto, path) match
+            case Some(rr) =>
+              addPassive(rr) match
+                case Some(empty) => refut = Some(empty)
+                case None => ()
+            case None => ()
+        trail.restore(saved)
+      refut.isDefined // stop the walk if we've derived □
+    }
+    refut
 
   /** Forward simplify `m` against the active set in one scan (active only -- DISCOUNT does not
    *  forward-check passive): if some active clause subsumes `m`, return `None` (discard it); otherwise apply
@@ -282,6 +430,7 @@ final class Discount(
             removed = true
           case None => ()
       if removed then
+        if isPosUnitEq(m) then removeDemodulatorsOf(m) // keep the demodulator set in sync
         active(i) = active(active.length - 1)
         active.remove(active.length - 1)
       else i += 1
@@ -294,7 +443,55 @@ final class Discount(
         k += 1
     None
 
-  /** Whether `lit`'s atom is an equality `s = t` (factoring skips these; equality factoring is Phase 3). */
+  /** Normal-form `m` against the active positive unit equalities (the demodulators). Returns `m` unchanged
+   *  when demodulation is off or nothing rewrites. At selection `active` does not yet contain the given, so
+   *  the given never demodulates itself. */
+  private def forwardDemodulate(m: Clause): Clause =
+    if !forwardDemodulation || activeDemodulators.isEmpty then m
+    else Demodulation.normalForm(bank, trail, bank.order, m, activeDemodulators.toArray)
+
+  /** When `gc` is a new positive unit equality, rewrite the active clauses with it: each rewritten clause is
+   *  removed from active and its replacement re-added via `addPassive`. Returns `Some(□)` on refutation. */
+  private def backwardDemodulateStep(gc: Clause): Option[Clause] =
+    if !backwardDemodulation || !isPosUnitEq(gc) then None
+    else
+      var pairs = Demodulation.backwardDemodulate(bank, trail, bank.order, gc, active)
+      while pairs.nonEmpty do
+        val (removed, replacement) = pairs.head
+        removeFromActive(removed)
+        addPassive(replacement) match
+          case Some(empty) => return Some(empty)
+          case None => ()
+        pairs = pairs.tail
+      None
+
+  /** Remove the clause with `c`'s id from active (swap-with-last; active is unordered), keeping the
+   *  demodulator set in sync. */
+  private def removeFromActive(c: Clause): Unit =
+    if isPosUnitEq(c) then removeDemodulatorsOf(c)
+    var i = 0
+    while i < active.length do
+      if active(i).id == c.id then
+        active(i) = active(active.length - 1)
+        active.remove(active.length - 1)
+        return
+      i += 1
+
+  /** Drop from `activeDemodulators` the rules whose source is the (removed) clause `c`. */
+  private def removeDemodulatorsOf(c: Clause): Unit =
+    var i = 0
+    while i < activeDemodulators.length do
+      if activeDemodulators(i).source.id == c.id then
+        activeDemodulators(i) = activeDemodulators(activeDemodulators.length - 1)
+        activeDemodulators.remove(activeDemodulators.length - 1)
+      else i += 1
+
+  /** Whether `c` is a positive unit equality (a demodulator candidate). */
+  private def isPosUnitEq(c: Clause): Boolean =
+    c.literals.length == 1 && bank.isPositive(c.literals(0)) &&
+      bank.headSymbol(bank.atomOf(c.literals(0))) == EqualitySymbol
+
+  /** Whether `lit`'s atom is an equality `s = t` (ordinary resolution/factoring skip these). */
   private def isEquality(lit: Literal): Boolean =
     bank.headSymbol(bank.atomOf(lit)) == EqualitySymbol
 

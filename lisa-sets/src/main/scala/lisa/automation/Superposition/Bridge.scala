@@ -50,14 +50,16 @@ object Bridge:
         empty: Clause,
         bank: TermBank,
         inputs: collection.Map[Int, Reconstruction.InputInfo],
-        schematicNames: Set[String] = Set.empty) extends Outcome:
+        schematicNames: Set[String] = Set.empty,
+        discharge: Map[K.Variable, K.Expression] = Map.empty) extends Outcome:
       /**
        * Reconstruct a kernel [[lisa.utils.K.SCProof]] from this refutation: its imports are the input
        * clause-sequents and its conclusion is the empty sequent `⊢`. Uses the bank and per-input data
        * carried here — no re-solving. `schematicNames` (Phase-3 abstraction symbols) are rebuilt as kernel
-       * variables. See [[Reconstruction]].
+       * variables; when `discharge` maps them to their `λfv. e` values, they are instead inlined back to the
+       * original (ε-)terms so the proof is free of the abstraction symbols. See [[Reconstruction]].
        */
-      def reconstructKernelProof: K.SCProof = Reconstruction.reconstruct(empty, bank, inputs, schematicNames)
+      def reconstructKernelProof: K.SCProof = Reconstruction.reconstruct(empty, bank, inputs, schematicNames, discharge)
 
     /** The passive set was exhausted without deriving `□`: the clause set is satisfiable (a decision). */
     case object Saturated extends Outcome
@@ -87,22 +89,26 @@ object Bridge:
       backwardSubsumptionResolution: Boolean = false,
       condensation: Boolean = false,
       forwardSimplifyAtGeneration: Boolean = false,
-      // Phase-3 abstraction symbols: kernel `Variable`s that, although applied (or bare-but-listed here),
-      // are to be treated as **function symbols** by the prover (not clause variables) and rebuilt as
-      // variables in reconstruction. Empty for ordinary clausal input.
-      functionVars: Set[K.Variable] = Set.empty): Outcome =
+      // Schematic symbol variables: kernel `Variable`s that are to be treated as **symbols** by the prover
+      // (not clause variables) and rebuilt as variables in reconstruction. Dispatched by position: a symbol
+      // variable in a literal-head position is a **predicate** symbol, in a term position a **function**
+      // symbol (Phase-3 ε-abstractions `F`, and clausifier Tseitin atoms `tsᵢ`). Empty for ordinary input.
+      symbolVars: Set[K.Variable] = Set.empty,
+      // Phase-3 discharge: each abstraction symbol `F` ↦ its closed value `λfv. e`; when non-empty,
+      // reconstruction inlines `F` back to `e` so the produced proof contains the original (ε-)terms, not `F`.
+      discharge: Map[K.Variable, K.Expression] = Map.empty): Outcome =
     val sig: Signature = new Signature
     val bank: TermBank = new TermBank(sig)
     val trail: Trail = new Trail(bank)
-    bank.selector = new CompleteBestLiteralSelector(new KBO(bank))
+    bank.selector = new CompleteBestLiteralSelector(bank.order)
     val inputs = mutable.Map.empty[Int, Reconstruction.InputInfo]
     val clauses: Seq[Clause] = sequents.iterator.map { s =>
       val vars = mutable.HashMap.empty[K.Variable, Int]
-      val c = clauseOfSequent(bank, s, vars, functionVars)
+      val c = clauseOfSequent(bank, s, vars, symbolVars)
       inputs(c.id) = (s, vars.iterator.map((kv, n) => n -> kv).toMap)
       c
     }.toSeq
-    val schematicNames: Set[String] = functionVars.map(_.id.toString)
+    val schematicNames: Set[String] = symbolVars.map(_.id.toString)
     new Discount(
       bank,
       trail,
@@ -115,7 +121,7 @@ object Bridge:
       condensation = condensation,
       forwardSimplifyAtGeneration = forwardSimplifyAtGeneration
     ).saturate(clauses, maxGiven, maxMillis) match
-      case Discount.Result.Refutation(empty) => Outcome.Success(empty, bank, inputs, schematicNames)
+      case Discount.Result.Refutation(empty) => Outcome.Success(empty, bank, inputs, schematicNames, discharge)
       case Discount.Result.Saturated => Outcome.Saturated
       case Discount.Result.Unknown => Outcome.Timeout
 
@@ -163,11 +169,11 @@ object Bridge:
     clauseOfSequent(bank, seq, mutable.HashMap.empty[K.Variable, Int], Set.empty)
 
   /** As above, but threads a caller-owned variable map (kernel variable → internal number) for reconstruction
-   *  and the set of `functionVars` (Phase-3 abstraction symbols treated as function symbols, not variables). */
-  private def clauseOfSequent(bank: TermBank, seq: K.Sequent, vars: mutable.HashMap[K.Variable, Int], functionVars: Set[K.Variable]): Clause =
+   *  and the set of `symbolVars` (schematic variables treated as predicate/function symbols, not variables). */
+  private def clauseOfSequent(bank: TermBank, seq: K.Sequent, vars: mutable.HashMap[K.Variable, Int], symbolVars: Set[K.Variable]): Clause =
     val lits: List[Literal] =
-      seq.left.toList.map(f => literal(bank, vars, f, positive = false, functionVars)) :::
-        seq.right.toList.map(f => literal(bank, vars, f, positive = true, functionVars))
+      seq.left.toList.map(f => literal(bank, vars, f, positive = false, symbolVars)) :::
+        seq.right.toList.map(f => literal(bank, vars, f, positive = true, symbolVars))
     bank.mkClause(lits.toArray)
 
 
@@ -199,38 +205,43 @@ object Bridge:
     case _ => List(e)
 
   /** Convert one literal: peel a leading `¬` (flipping polarity), then build the atom. */
-  private def literal(bank: TermBank, vars: mutable.HashMap[K.Variable, Int], f: K.Expression, positive: Boolean, functionVars: Set[K.Variable]): Literal =
+  private def literal(bank: TermBank, vars: mutable.HashMap[K.Variable, Int], f: K.Expression, positive: Boolean, symbolVars: Set[K.Variable]): Literal =
     f match
-      case K.Application(n, inner) if n == K.neg => literal(bank, vars, inner, !positive, functionVars)
-      case _ => bank.mkLiteral(atomTerm(bank, vars, f, functionVars), positive)
+      case K.Application(n, inner) if n == K.neg => literal(bank, vars, inner, !positive, symbolVars)
+      case _ => bank.mkLiteral(atomTerm(bank, vars, f, symbolVars), positive)
 
-  /** Build the internal atom term for a predicate application (head must be a predicate constant). */
-  private def atomTerm(bank: TermBank, vars: mutable.HashMap[K.Variable, Int], f: K.Expression, functionVars: Set[K.Variable]): Term =
+  /** Build the internal atom term for a predicate application: the head must be a predicate constant, or a
+   *  schematic **predicate** variable listed in `symbolVars` (a clausifier Tseitin atom `tsᵢ`, or a Lisa
+   *  predicate variable) — interned as an (uninterpreted) predicate symbol. */
+  private def atomTerm(bank: TermBank, vars: mutable.HashMap[K.Variable, Int], f: K.Expression, symbolVars: Set[K.Variable]): Term =
     val (head, args) = headAndArgs(f)
     head match
       case c: K.Constant =>
         val sym: Symbol = bank.signature.intern(c.id.toString, args.size, isPredicate = true)
-        bank.mkApp(sym, args.iterator.map(a => term(bank, vars, a, functionVars)).toArray)
+        bank.mkApp(sym, args.iterator.map(a => term(bank, vars, a, symbolVars)).toArray)
+      case v: K.Variable if symbolVars.contains(v) =>
+        val sym: Symbol = bank.signature.intern(v.id.toString, args.size, isPredicate = true)
+        bank.mkApp(sym, args.iterator.map(a => term(bank, vars, a, symbolVars)).toArray)
       case other =>
-        throw IllegalArgumentException(s"not a pure clause: literal head is not a predicate constant: $other")
+        throw IllegalArgumentException(s"not a pure clause: literal head is not a predicate constant or symbol variable: $other")
 
   /** Build an internal term: a clause variable (renumbered per clause), a function/constant application, or a
-   *  Phase-3 abstraction symbol — a schematic function *variable* in `functionVars`, interned as a function
-   *  symbol (applied or bare-nullary) rather than treated as a clause variable. */
-  private def term(bank: TermBank, vars: mutable.HashMap[K.Variable, Int], t: K.Expression, functionVars: Set[K.Variable]): Term =
+   *  schematic **function** variable in `symbolVars` (a Phase-3 ε-abstraction `F`, or a Lisa function
+   *  variable), interned as a function symbol (applied or bare-nullary) rather than treated as a clause variable. */
+  private def term(bank: TermBank, vars: mutable.HashMap[K.Variable, Int], t: K.Expression, symbolVars: Set[K.Variable]): Term =
     t match
-      case v: K.Variable if functionVars.contains(v) => // bare nullary abstraction symbol
+      case v: K.Variable if symbolVars.contains(v) => // bare nullary function symbol
         bank.mkConst(bank.signature.intern(v.id.toString, 0, isPredicate = false))
       case v: K.Variable => bank.mkVar(Core.Variable(vars.getOrElseUpdate(v, vars.size)))
       case _ =>
         val (head, args) = headAndArgs(t)
         val sym: Symbol = head match
           case c: K.Constant => bank.signature.intern(c.id.toString, args.size, isPredicate = false)
-          case v: K.Variable if functionVars.contains(v) => // applied abstraction symbol `F(fv…)`
+          case v: K.Variable if symbolVars.contains(v) => // applied function symbol `F(fv…)`
             bank.signature.intern(v.id.toString, args.size, isPredicate = false)
           case other =>
             throw IllegalArgumentException(s"not first-order: term head is not a constant (applied variable?): $other")
-        bank.mkApp(sym, args.iterator.map(a => term(bank, vars, a, functionVars)).toArray)
+        bank.mkApp(sym, args.iterator.map(a => term(bank, vars, a, symbolVars)).toArray)
 
   /** Decompose a curried application `f(a₁)…(aₙ)` into its head `f` and argument list `[a₁, …, aₙ]`. */
   private def headAndArgs(e: K.Expression): (K.Expression, List[K.Expression]) = e match

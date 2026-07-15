@@ -33,20 +33,18 @@ object Inference:
         if !trail.unify(bank.atomOf(l1), 0, bank.atomOf(l2), 1) then None
         else
           val applier = trail.applier()
-          def inst(lit: Literal, scope: Scope): Literal =
-            bank.mkLiteral(applier.apply(bank.atomOf(lit), scope), bank.isPositive(lit))
           val out: Array[Literal] = new Array[Literal](c1.literals.length - 1 + c2.literals.length - 1)
           var n = 0
           var i = 0
           while i < c1.literals.length do
             if i != i1 then
-              out(n) = inst(c1.literals(i), 0)
+              out(n) = applier.applyLit(c1.literals(i), 0)
               n += 1
             i += 1
           i = 0
           while i < c2.literals.length do
             if i != i2 then
-              out(n) = inst(c2.literals(i), 1)
+              out(n) = applier.applyLit(c2.literals(i), 1)
               n += 1
             i += 1
           Some(bank.mkClause(out, Justification.Resolution(c1, i1, c2, i2)))
@@ -65,6 +63,16 @@ object Inference:
    * yet (Phase 3 and Phase 2 respectively).
    */
   def canonicalize(bank: TermBank, c: Clause): Option[Clause] =
+    // Discard a clause containing a positive trivial equality `s = s` (a tautology). A negative `s ≠ s` is
+    // left for equality resolution to close (it carries a proper Justification). Scanned before the `n <= 1`
+    // early return so unit `{s = s}` clauses are caught too.
+    var t = 0
+    while t < c.literals.length do
+      val l: Literal = c.literals(t)
+      if bank.isPositive(l) then
+        val a: Term = bank.atomOf(l)
+        if bank.headSymbol(a) == EqualitySymbol && bank.arg(a, 0) == bank.arg(a, 1) then return None
+      t += 1
     val n: Int = c.literals.length
     if n <= 1 then Some(c) // nothing to sort, dedup, or make complementary
     else
@@ -114,14 +122,12 @@ object Inference:
         if !trail.unify(bank.atomOf(li), 0, bank.atomOf(lj), 0) then None
         else
           val applier = trail.applier()
-          def inst(lit: Literal): Literal =
-            bank.mkLiteral(applier.apply(bank.atomOf(lit), 0), bank.isPositive(lit))
           val out: Array[Literal] = new Array[Literal](c.literals.length - 1)
           var n = 0
           var k = 0
           while k < c.literals.length do
             if k != j then
-              out(n) = inst(c.literals(k))
+              out(n) = applier.applyLit(c.literals(k), 0)
               n += 1
             k += 1
           Some(bank.mkClause(out, Justification.Factoring(c, i, j)))

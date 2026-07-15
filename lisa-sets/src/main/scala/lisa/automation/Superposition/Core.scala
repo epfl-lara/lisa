@@ -44,6 +44,9 @@ object Core:
   extension (v: Variable) inline def num: Int = v
   extension (f: Symbol) inline def code: Int = f
 
+  /** The arena offset backing a [[Term]] — a stable, unique `Int` key for hash-consed terms. Inline no-op. */
+  extension (t: Term) inline def offset: Int = t
+
   /**
    * The equality predicate, reserved as the arity-2 symbol with code `0`: every [[Signature]]
    * pre-interns it at construction (under the name `"="`), so user symbols start at code 1 and no
@@ -167,6 +170,12 @@ object Core:
 
     /** The literal-selection strategy applied by [[Clause.select]] at activation; swap to plug in a policy. */
     var selector: LiteralSelector = BestLiteralSelector
+
+    /** The canonical KBO-based [[Order]] over this bank's terms — **one** shared instance (one `orient`
+     *  cache, one `KBO`) for the selector, the generating equality inferences, and demodulation. Lazy so it
+     *  is built after the signature is in place; the KBO reads weights/precedence live, so early forcing is
+     *  harmless. */
+    lazy val order: Order = new Order(new KBO(this))
 
     // cached comparator (closing over this bank) for in-place primitive sorting of literal arrays
     private val literalOrder: LongComparator = (a, b) => compareLiterals(this, a, b)
@@ -306,6 +315,10 @@ object Core:
         case Justification.Resolution(l, _, r, _) => math.max(l.age, r.age) + 1
         case Justification.Factoring(p, _, _) => p.age + 1
         case Justification.Canonicalization(p) => p.age // a simplification of one clause: same generation
+        case Justification.Superposition(f, _, _, in, _, _) => math.max(f.age, in.age) + 1
+        case Justification.EqualityResolution(p, _) => p.age + 1
+        case Justification.EqualityFactoring(p, _, _, _, _) => p.age + 1
+        case Justification.Demodulation(t, _, _, ru, _) => math.max(t.age, ru.age) // simplification: same generation band
       new Clause(lits, w, id, justification, age, pos, lits.length - pos, predBits)
 
     // --- internals ------------------------------------------------------------------------
@@ -424,6 +437,26 @@ object Core:
      * this as a pass-through for now -- but later simplifications recorded the same way will not be.
      */
     case Canonicalization(parent: Clause)
+
+    /**
+     * Superposition: rewrite `into`'s literal `intoLit` at subterm position `pos` (a path of argument
+     * indices into the atom) using the positive equality at `from`'s literal `fromLit`, whose side
+     * `fromSide` (0/1) is the rewriting LHS. Both parents are retained for reconstruction.
+     */
+    case Superposition(from: Clause, fromLit: Int, fromSide: Int, into: Clause, intoLit: Int, pos: Array[Int])
+    /** Equality resolution: unify the two sides of `parent`'s negative equality `lit` (`s ≠ t`) and drop it. */
+    case EqualityResolution(parent: Clause, lit: Int)
+    /** Equality factoring on `parent`'s positive equalities: the maximal `dropped` is removed, `kept` retained;
+     *  `droppedSide`/`keptSide` are the unified sides (`mgu` of `dropped`'s `droppedSide` and `kept`'s `keptSide`),
+     *  recorded so reconstruction can recompute the substitution. */
+    case EqualityFactoring(parent: Clause, dropped: Int, droppedSide: Int, kept: Int, keptSide: Int)
+
+    /**
+     * Demodulation (rewriting): `target`'s literal `targetLit` is rewritten at subterm position `pos`
+     * (a path of argument indices into the atom) by the positive unit equality `rule`, whose side
+     * `ruleSide` (0/1) is the matched left-hand side. A simplification; `target` is the rewritten premise.
+     */
+    case Demodulation(target: Clause, targetLit: Int, pos: Array[Int], rule: Clause, ruleSide: Int)
 
   /**
    * A clause is an array of [[Literal]]s (a disjunction); no canonical ordering or
@@ -711,6 +744,10 @@ object Core:
             val res: Term = bank.mkApp(bank.headSymbol(dt), out)
             memo(ds).put(dt, res)
             res
+
+      /** Instantiate a whole literal in scope `s` under the current bindings, preserving its polarity. */
+      def applyLit(l: Literal, s: Scope): Literal =
+        bank.mkLiteral(apply(bank.atomOf(l), s), bank.isPositive(l))
 
   // -----------------------------------------------------------------------------------------
   // small helpers

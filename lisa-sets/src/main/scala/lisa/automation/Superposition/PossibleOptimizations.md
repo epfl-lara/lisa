@@ -160,6 +160,31 @@ what unlocks our ground fast path and ground-subterm short-circuit, but preclude
 different weights over the same bank. The deferred substitution-aware path would reintroduce weight
 accumulation (no cache for `σ(s)`); the unidirectional path is the hot one for demodulation.
 
+## FOF / large-theory evaluation (Phase 3+) — deferred
+
+Surfaced by the FOF benchmark (`FofEvaluation`, see Phase3.md item 7–8 / Benchmarks.md). None blocks the
+current no-equality FOF fragment; revisit when broadening coverage.
+
+- **CSR / SUMO (large-theory) problems.** The `CSR` domain (359 of the 1303 FOF-NEQ theorems, ~27%) is
+  *excluded* from the dataset: every one `include`s a giant (30k–40k-line) SUMO ontology, so they blow any
+  clausification size budget, and their long numeric-suffixed identifiers stress the parser. In CASC these live
+  in the FOF division proper (there is no LTB division in recent editions), handled by **relevance filtering /
+  axiom selection** (SInE-style) — pick the few relevant axioms before clausifying — plus a real memory ceiling.
+  We do none of that yet. Revisit: add relevance filtering + a streaming/size-bounded clausifier so the SUMO
+  family can at least be *attempted* instead of skipped.
+- **Very big / deeply-nested problems: parsing.** Lisa's TPTP parser (`KernelParser.convertToKernel`) is
+  recursive-descent and `StackOverflowError`s on deeply-nested formulas (the parameterised `LCL…+1.0NN` modal
+  encodings; `LCL648+1.020` in the sample). The harness now catches it as `PARSE_ERR` rather than crashing.
+  Fixes: parse on a large-stack thread (`new Thread(null, r, name, 64<<20)`, as `ClausificationTPTPBench` does)
+  or bump `-Xss`; ideally make the parser iterative. Note: for the rating-1.00 `LCL` family, parsing only moves
+  the failure to TIMEOUT — no solve gained — so this is robustness/reporting, not throughput.
+- **Lemma selection (library-lemma discharge + relevance).** `certifyClausal` leaves the 5 library-lemma
+  statements (`existsEpsilonIff` + the four prenex-lift equivalences) as **undischarged imports**; a proper
+  tactic must cut them against the real Lisa theorems (Phase-3 packaging, still parked). More broadly, for
+  large theories the prover should **select** which hypotheses/lemmas to feed the solver (SInE / signature-based
+  relevance), rather than clausifying and loading everything — this is the same axiom-selection need as the CSR
+  item, and the two should be designed together.
+
 ## DISCOUNT loop (`Discount.scala`, Phase 1) — deferred work
 
 - **Passive queues: a binary heap + a FIFO, with lazy deletion.** `byWeight` is a binary-heap
@@ -200,3 +225,60 @@ accumulation (no cache for `σ(s)`); the unidirectional path is the hot one for 
   default `bank.selector` is still `BestLiteralSelector` (making selector 10 the default would require
   the bank to own a `KBO`). `FirstNegativeSelector` remains as a simple alternative. The loop routes
   all selection through `bank.selector` at activation.
+
+## Equality ordering (`Order.scala`, Phase 4)
+
+- **Cache orientation on the atom record itself, not in a side map (E / Vampire style).** `Order.orient`
+  memoises the `≻`-orientation of each equality atom in an `Int2IntOpenHashMap` keyed on the atom's arena
+  `offset` (storing the `Cmp` ordinal, `-1` = uncomputed). E and Vampire instead cache it **on the
+  literal/atom itself** — E's `EPIsOriented` flag (`ccl_eqn.c`), Vampire's `getEqualityArgumentOrder`
+  storing `ArgumentOrderVals` on the shared `Literal` — an O(1) read with no hashing. We could stash the
+  orientation in a spare slot of the equality-atom record in the hash-consed bank, next to the cached
+  `weight` / `isGround` / `freeVarMask`. Caveats: it is a record-layout change for a property only
+  equality atoms have, and orientation is **not known at construction time** (it depends on the KBO, set
+  up after interning), so it would be a lazily-filled mutable field (sentinel = uncomputed). The side map
+  is the simpler choice for now; revisit if `orient` shows up hot once superposition (Step 2) drives it.
+
+- **Single shared `Order` / `KBO` — done.** The `TermBank` now owns a lazy `bank.order` (one `KBO`, one
+  `orient` cache); the selector (`Bridge`), the generating inferences, demodulation, and `Discount`'s factor
+  after-check all use it, so there is no longer a per-consumer `new Order(new KBO(bank))`.
+
+- **Maximality pairwise double-work.** `maximalFlags` / `isMaximal` compare each literal pair in both
+  directions (`compareLit(j,i)` and `compareLit(i,j)` redo the same KBO work reversed). Computing each
+  unordered pair once + `rev` halves the KBO calls on the maximality scan; marginal for small clauses
+  (Vampire/E do the naive O(n²) too), worth it only if profiling flags large clauses.
+
+- **Equality-atom side comparison** is already specialised: `compareSamePolarity` / `compareDiffPolarity`
+  compute each of the ≤4 distinct term comparisons once (vs the generic `termMultisetCompare` loop's
+  up-to-~32 on the doubled `{s,s,t,t}` sides), validated against that generic routine as an oracle.
+
+## Demodulation (`Demodulation.scala`, Phase 4 Step 3) — deferred
+
+From the Vampire/E source comparison; none blocks a correct Step 3, all are throughput.
+
+- **Term indexing for rewriting (Phase 5).** Both provers map subterm→rule through an index: Vampire a
+  CodeTree LHS index (forward) + substitution tree subterm index (backward); E perfect discrimination
+  trees (forward) + a fingerprint subterm index (backward). Ours does a **linear scan** of the active unit
+  equations. This is the real scaling fix — same deferral as the resolution active-set scan.
+- **Normal-form date (`SysDate`) caching + rewrite links.** E stamps each term cell with the date it was
+  proven in normal form (skip re-normalising unchanged terms) and stores rewrite links **in the shared
+  term cell**, so all occurrences rewrite at once. Our hash-consed `TermBank` could carry an analogous
+  `(normalForm, date)` scratch word — this is exactly the epoch-stamped per-term scratch already flagged
+  in the `occurs` note above; size it to demodulation when we build it.
+- **`normalForm` re-walks and rebuilds per step.** The current fixpoint calls `rewriteOnce` repeatedly:
+  each step re-runs `foreachSubterm` from the top (re-scanning unchanged subterms) and materialises a
+  whole new `Clause` — one clause + `Justification.Demodulation` node **per single rewrite**. E instead
+  normalises leftmost-innermost in one in-place pass and builds a **single** clause. Fixing it needs the
+  `SysDate` caching above *and* a rewrite-**trace** reconstruction (a list of `(position, rule)` steps
+  recorded in one justification, replayed by the kernel) to replace the one-clause-per-step chain — so it
+  is coupled to the Step-5 reconstruction design, not a standalone perf change.
+- **Cheap one-sided orientation check.** The post-match `lσ ≻ rσ` re-check wants a `compareUnidirectional`
+  (Vampire) — return only whether `Gt`, don't compute the full `Cmp`. Already listed as deferred in the
+  KBO feature-gap table; demodulation is its hot caller.
+- **Index-level pruning.** E's PDT **age/size constraints** (prune a subtree by min weight / max date) and
+  Vampire's **`TermOrderingDiagrams`** (precompiled per-demodulator orientation decision) — both ride on
+  the index, so they come with Phase-5 indexing.
+- **E's `CPLimitedRW` two-pass.** When a *restricted* rewrite of a maximal positive literal's big side
+  succeeds and changes that literal's maximality, E clears the restriction and re-runs the clause
+  unrestricted. A correctness subtlety to honour once the restricted-rewrite (encompassment) gate is in;
+  our simplest form can conservatively re-run the whole clause to a fixpoint.

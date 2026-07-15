@@ -147,7 +147,7 @@ class InferenceTest extends AnyFunSuite:
 
   test("complete selector (10): selects the single best literal when it is negative") {
     val fx = new Fix; import fx.*
-    val sel = new CompleteBestLiteralSelector(new KBO(bank))
+    val sel = new CompleteBestLiteralSelector(bank.order)
     val p = pred("P", 1); val q = pred("Q", 1); val a = const("a"); val b = const("b")
     val cl = clause(neg(app(p, a)), pos(app(q, b))) // ¬P(a) is best (key 3), so it is selected alone
     assert(sel.select(bank, cl.literals).toSeq == Seq(0))
@@ -155,7 +155,7 @@ class InferenceTest extends AnyFunSuite:
 
   test("complete selector (10): selects all maximal positives in an all-positive clause") {
     val fx = new Fix; import fx.*
-    val sel = new CompleteBestLiteralSelector(new KBO(bank))
+    val sel = new CompleteBestLiteralSelector(bank.order)
     val p = pred("P", 1); val x = v(0); val y = v(1)
     val cl = clause(pos(app(p, x)), pos(app(p, y))) // P(x), P(y) KBO-incomparable -> both maximal
     assert(sel.select(bank, cl.literals).toSeq == Seq(0, 1)) // both selected (this is the completeness fix)
@@ -163,7 +163,7 @@ class InferenceTest extends AnyFunSuite:
 
   test("complete selector (10): a dominated positive literal is not selected") {
     val fx = new Fix; import fx.*
-    val sel = new CompleteBestLiteralSelector(new KBO(bank))
+    val sel = new CompleteBestLiteralSelector(bank.order)
     val p = pred("P", 1); val f = fn("f", 1); val a = const("a")
     val cl = clause(pos(app(p, a)), pos(app(p, app(f, a)))) // P(a) ≺ P(f(a)); only the latter is maximal
     assert(sel.select(bank, cl.literals).toSeq == Seq(1))
@@ -171,7 +171,7 @@ class InferenceTest extends AnyFunSuite:
 
   test("complete selector (10): a maximal positive outranks a lighter negative") {
     val fx = new Fix; import fx.*
-    val sel = new CompleteBestLiteralSelector(new KBO(bank))
+    val sel = new CompleteBestLiteralSelector(bank.order)
     val p = pred("P", 1); val q = pred("Q", 1); val f = fn("f", 1); val a = const("a")
     val cl = clause(pos(app(p, app(f, a))), neg(app(q, a))) // P(f(a)) [w3, maximal] vs ¬Q(a) [w2]
     assert(sel.select(bank, cl.literals).toSeq == Seq(0)) // the maximal positive, not the lighter negative

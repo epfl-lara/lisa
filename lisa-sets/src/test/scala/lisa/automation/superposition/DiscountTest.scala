@@ -73,7 +73,7 @@ class DiscountTest extends AnyFunSuite:
 
   test("complete selector (Vampire's default 10) drives a first-order refutation") {
     val fx = new Fix; import fx.*
-    bank.selector = new CompleteBestLiteralSelector(new KBO(bank))
+    bank.selector = new CompleteBestLiteralSelector(bank.order)
     val p = pred("P", 1); val q = pred("Q", 1); val a = const("a"); val x = v(0)
     val cs = Seq(
       clause(neg(app(p, x)), pos(app(q, x))), // ¬P(x) ∨ Q(x)
@@ -85,7 +85,7 @@ class DiscountTest extends AnyFunSuite:
 
   test("complete selector refutes a factoring problem (selects all maximal positives)") {
     val fx = new Fix; import fx.*
-    bank.selector = new CompleteBestLiteralSelector(new KBO(bank))
+    bank.selector = new CompleteBestLiteralSelector(bank.order)
     val p = pred("P", 1); val a = const("a"); val b = const("b"); val x = v(0); val y = v(1)
     val cs = Seq(
       clause(pos(app(p, x)), pos(app(p, y))), //  P(x) ∨ P(y) -- both maximal, both selected
@@ -96,7 +96,7 @@ class DiscountTest extends AnyFunSuite:
 
   test("the factoring after-check still refutes the factoring problem") {
     val fx = new Fix; import fx.*
-    bank.selector = new CompleteBestLiteralSelector(new KBO(bank))
+    bank.selector = new CompleteBestLiteralSelector(bank.order)
     val p = pred("P", 1); val a = const("a"); val b = const("b"); val x = v(0); val y = v(1)
     val cs = Seq(clause(pos(app(p, x)), pos(app(p, y))), clause(neg(app(p, a)), neg(app(p, b))))
     val d = new Discount(bank, trail, factorAfterCheck = true)
@@ -118,6 +118,10 @@ class DiscountTest extends AnyFunSuite:
           case Justification.Resolution(l, _, r, _) => inputLeaves(l) + inputLeaves(r)
           case Justification.Factoring(par, _, _) => inputLeaves(par)
           case Justification.Canonicalization(par) => inputLeaves(par)
+          case Justification.Superposition(from, _, _, into, _, _) => inputLeaves(from) + inputLeaves(into)
+          case Justification.EqualityResolution(par, _) => inputLeaves(par)
+          case Justification.EqualityFactoring(par, _, _, _, _) => inputLeaves(par)
+          case Justification.Demodulation(t, _, _, ru, _) => inputLeaves(t) + inputLeaves(ru)
         assert(empty.isEmpty)
         assert(inputLeaves(empty) >= 2) // derived from at least two input clauses
       case other => fail(s"expected Refutation, got $other")

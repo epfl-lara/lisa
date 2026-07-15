@@ -38,15 +38,25 @@ object Reconstruction:
    * subterms); they are rebuilt as kernel `Variable`s rather than `Constant`s so a later `InstSchema` can
    * instantiate them back.
    */
-  def reconstruct(empty: Clause, bank: TermBank, inputs: collection.Map[Int, InputInfo], schematicNames: Set[String] = Set.empty): K.SCProof =
-    new Builder(bank, inputs, schematicNames).reconstructProof(empty)
+  def reconstruct(
+      empty: Clause,
+      bank: TermBank,
+      inputs: collection.Map[Int, InputInfo],
+      schematicNames: Set[String] = Set.empty,
+      discharge: Map[K.Variable, K.Expression] = Map.empty
+  ): K.SCProof =
+    new Builder(bank, inputs, schematicNames, discharge).reconstructProof(empty)
 
-  private final class Builder(bank: TermBank, inputs: collection.Map[Int, InputInfo], schematicNames: Set[String]):
+  private final class Builder(bank: TermBank, inputs: collection.Map[Int, InputInfo], schematicNames: Set[String], discharge: Map[K.Variable, K.Expression]):
     private val sig: Signature = bank.signature
     private val steps: mutable.ArrayBuffer[K.SCProofStep] = mutable.ArrayBuffer.empty
     private val imports: mutable.ArrayBuffer[K.Sequent] = mutable.ArrayBuffer.empty
     private val memo: mutable.Map[Int, Recon] = mutable.Map.empty
     private val trail: Trail = new Trail(bank)
+    // Phase-3 abstraction discharge, keyed by interned symbol name for [[kernelize]]: each schematic function
+    // symbol `F` maps to its closed value `λfv. e` (the original non-first-order subterm), inlined so the
+    // rebuilt proof is purely `e`-bearing (no `F`, no trailing `InstSchema`). Empty for ordinary clausal input.
+    private val dischargeByName: Map[String, K.Expression] = discharge.map((v, e) => v.id.toString -> e).toMap
 
     def reconstructProof(empty: Clause): K.SCProof =
       refOf(empty)
@@ -73,9 +83,19 @@ object Reconstruction:
       case Justification.Canonicalization(p) => refOf(p) // sort/dedup are no-ops on a set-sequent
       case Justification.Factoring(p, i, j) => buildFactoring(c, p, i, j)
       case Justification.Resolution(l, i, r, j) => buildResolution(c, l, i, r, j)
+      case _: Justification.Superposition | _: Justification.EqualityResolution | _: Justification.EqualityFactoring |
+          _: Justification.Demodulation =>
+        throw new NotImplementedError("equality-inference reconstruction is Phase 4 Step 5")
+
+    /** Inline the Phase-3 discharge into a sequent: substitute every schematic `F` by its `λfv. e` value and
+     *  β-normalise, turning `F`-bearing atoms into `e`-bearing ones. Identity when nothing was abstracted. */
+    private def dischargeSeq(s: K.Sequent): K.Sequent =
+      if discharge.isEmpty then s
+      else K.Sequent(s.left.map(e => K.substituteVariables(e, discharge).betaNormalForm), s.right.map(e => K.substituteVariables(e, discharge).betaNormalForm))
 
     private def buildInput(c: Clause): Recon =
-      val (origSeq, vm) = inputs(c.id)
+      val (rawOrigSeq, vm) = inputs(c.id)
+      val origSeq = dischargeSeq(rawOrigSeq) // present the import with `F` inlined back to its ε-term
       val cv: Int => K.Variable = n => canonVar(c.id, n)
       val imp = addImport(origSeq)
       if vm.isEmpty then Recon(imp, origSeq, cv)
@@ -145,20 +165,23 @@ object Reconstruction:
       if bank.isVar(t) then vars(bank.varNum(t).num)
       else
         val info: SymbolInfo = sig.info(bank.headSymbol(t))
-        val id: K.Identifier = identOf(info.name)
-        val sort: K.Sort = sortFor(info.arity, info.isPredicate)
-        // a Phase-3 abstraction symbol round-trips as a schematic `Variable` (so `InstSchema` can target it)
-        var e: K.Expression = if schematicNames.contains(info.name) then K.Variable(id, sort) else K.Constant(id, sort)
         val n = bank.arity(t)
-        var k = 0
-        while k < n do
-          e = K.Application(e, kernelize(bank.arg(t, k), vars))
-          k += 1
-        e
+        val args: IndexedSeq[K.Expression] = (0 until n).map(k => kernelize(bank.arg(t, k), vars))
+        dischargeByName.get(info.name) match
+          // a discharged Phase-3 abstraction symbol `F(args)` is inlined to `(λfv. e)(args)`, β-reduced to `e`
+          case Some(lam) => args.foldLeft(lam)((acc, a) => K.Application(acc, a)).betaNormalForm
+          case None =>
+            val id: K.Identifier = identOf(info.name)
+            val sort: K.Sort = sortFor(info.arity, info.isPredicate)
+            // an undischarged schematic symbol round-trips as a `Variable` (so a later `InstSchema` can target it)
+            val head: K.Expression = if schematicNames.contains(info.name) then K.Variable(id, sort) else K.Constant(id, sort)
+            args.foldLeft(head)((acc, a) => K.Application(acc, a))
 
     /** Parse an interned symbol name (a kernel `Identifier.toString`) back to the exact identifier,
      *  recovering a trailing counter index (`"e_1"` → `Identifier("e", 1)`). Inverse of the [[Bridge]]
-     *  intern key, using the kernel's own `String`→`Identifier` conversion. */
+     *  intern key, using the kernel's own `String`→`Identifier` conversion. Well-defined because every legal
+     *  Lisa identifier is either `_`-free or a valid `name_counter` (the TPTP parser's `sanitize` guarantees
+     *  this by escaping `_` to `$u`), so the `toString`/parse round-trip is lossless. */
     private def identOf(name: String): K.Identifier = K.given_Conversion_String_Identifier(name)
 
     /** The kernel sort of a symbol: `Ind → … → Ind → (Prop|Ind)` with `arity` argument places. */

@@ -203,3 +203,34 @@ arithmetic make collapsible literals common — Phase 4.)
 **End-of-Phase-2 default** = forward+backward subsumption + forward+backward unit deletion, at selection
 only; general subsumption resolution and condensation implemented but **off by default** (neither a net win
 on the no-equality fragment without indexing) → **74/100 refuted on seed 42**, `saturated=0`, `bad_proof=0`.
+
+## Phase 3 — FOF (non-clausal) benchmark (`FofEvaluation`, seed 42, clean 944 set)
+
+Second dataset (`tptp-fof-fo-noeq-thm.txt`): non-clausal TPTP theorems selected the same way as the clausal
+set but by `SPC = FOF_THM_{RFO,EPR}_NEQ` (no equality, no arithmetic), **CSR/SUMO excluded** (944 problems).
+Each problem is parsed, run through `certifyClausal` (or the uncertified `clausalForm`) with `Clausal.prove`,
+and **every refutation is kernel-checked** (`bad_proof` must stay 0). Per-problem `clausify / prover / check`
+timings are reported. Timeout 10 s, `maxGiven`/`maxSize` 50000.
+
+| Milestone | REFUTED | SATURATED | TIMEOUT | HARD_TIMEOUT | BAD_PROOF | SKIPPED | PARSE_ERR |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| initial (with CSR in sample, 1303 set) | 45 | 9 | 21 | 9 | 0 | 14 | 2 |
+| clean 944 set, before clausifier fixes | 50 | 9 | 21 | 9 | 0 | 0 | 1 |
+| + η-expand fix (over-reached into ε)   | 50 | 1 | 21 | 9 | **9** | 0 | 1 |
+| + ε left untouched + ⊤/⊥ absorption     | **60** | **0** | ~30 | 9 | **0** | 0 | 1 |
+
+**Certified vs. uncertified clausification** (same clauses, so same solve count): uncertified `clausalForm`
+(pure transforms, no proof) is ~**2× faster total, ~20× on the median** refute time — the certified pipeline's
+proof-building + kernel-checking dominates most easy problems. Per-phase: on easy solves the `check` of the
+composed proof often exceeds the `prover` time.
+
+**Bugs found via this benchmark (both clausification, both fixed — see Phase3.md item 8):** (1) η-reduced
+quantifiers stranded as opaque atoms in clauses (`betaNormalForm` η-reduces `λy.p(x,y)→p(x)`; the `Forall`
+extractor needs a `Lambda`) → `etaExpandQuantifiers` on ∀/∃ only; (2) `⊤`/`⊥` (`$true`/`$false`) not absorbed
+in NNF → survived as uninterpreted atoms → NNF `mkAnd`/`mkOr` absorption laws. `SATURATED 9 → 0`,
+`REFUTED 50 → 60`, `bad_proof 0`.
+
+**Remaining failures are dominated by rating-1.00 problems** — the `LCL…+1.0NN` "'naive relational encoding of
+modal logic"' family is unsolved by *any* ATP system (rating 1.00), and `LCL648+1.020` even overflows the
+recursive TPTP parser's stack. These discriminate nothing; a fair reading of "how many are in reach" should
+split the timeouts by TPTP rating.

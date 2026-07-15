@@ -217,11 +217,18 @@ clausal behaviour is unchanged.
     `no` field → `toString` is `skAbs`, `skAbs_1`, …). They must **not** contain two `_`: the kernel's
     `String → Identifier` allows at most one underscore (the counter separator) or it throws
     `InvalidIdentifierException`.
-- **`Bridge.scala`** — `solve(...)` gained `functionVars: Set[K.Variable] = Set.empty`, threaded through
-  `clauseOfSequent`/`literal`/`atomTerm`/`term`. In `term`, a head in `functionVars` is interned as a
-  **function symbol** (applied `F(fv…)`) and a bare nullary one as a constant (`bank.mkConst`), instead of
-  the old "applied variable ⇒ throw". `Outcome.Success` gained `schematicNames: Set[String]` (=
-  `functionVars.map(_.id.toString)`), passed into reconstruction.
+- **`Bridge.scala`** — `solve(...)` gained `symbolVars: Set[K.Variable] = Set.empty` (generalised from the
+  earlier `functionVars`), threaded through `clauseOfSequent`/`literal`/`atomTerm`/`term`. A schematic symbol
+  variable is dispatched **by position**: in `atomTerm` (a literal head) it is interned as a **predicate**
+  symbol — this is how clausifier Tseitin atoms `tsᵢ` (and Lisa predicate variables) are ingested — and in
+  `term` (an argument) as a **function** symbol (applied `F(fv…)`, or a bare nullary constant), instead of the
+  old "applied/head variable ⇒ throw". Clause variables (sort `Ind`, not listed) stay variables. `Clausal.prove`
+  populates `symbolVars` with the ε-abstraction functions **plus every non-`Ind`-sorted free variable** in the
+  clauses (so `tsᵢ` are caught automatically; `Ind` clause vars are not). `Outcome.Success` gained
+  `schematicNames: Set[String]` (= `symbolVars.map(_.id.toString)`), passed into reconstruction; the ε-functions
+  are additionally `discharge`d (inlined), while `tsᵢ` are emitted as `Variable`s for the clausifier's own
+  `InstSchema` to discharge. Non-clausal problems needing genuine Tseitin naming now refute end-to-end
+  (`ClausalTest`: "Tseitin end-to-end … refuted by Bridge").
 - **`Reconstruction.scala`** — `reconstruct(...)`/`Builder` gained `schematicNames: Set[String]`; `kernelize`
   rebuilds a symbol whose name ∈ `schematicNames` as a kernel `Variable` (not `Constant`), with the same
   identifier + `sortFor(arity, isPredicate)` sort, so the round-tripped `F` equals the original abstraction
@@ -270,3 +277,96 @@ the `Saturated`/`Timeout` failure path (§3.5). Tests per §5.
 - Changed: `superposition/Bridge.scala` (`functionVars`, `Outcome.Success.schematicNames`),
   `superposition/Reconstruction.scala` (`schematicNames`, `kernelize`).
 - Read-only dependency: `lisa.automation.clausification.Clausification.certifyClausal` (do **not** edit; §6).
+
+### Contract investigation (read of `Clausification.scala`, 2026-06-28)
+
+Traced how the pipeline splices the downstream prover's `SCProof` (`certifyTseitinFlat` line ~1087,
+`certifyNegated` line 805). Findings that pin the composition:
+
+1. **Imports contract — confirmed.** The prover is called on `Problem(clauseSequents, None)`; its returned
+   `SCProof.imports` must equal those clause-sequents in order (the wrapper `certifyClausal` then appends the
+   library lemmas — `wrappedProver`, line 731 — and asserts `sameImportList(downstream.imports,
+   newProblem.imports ++ libImports)`, line 1193). So we return `imports = problem.hypotheses`; the lemmas are
+   handled for us.
+
+2. **Clause format is now UNIFORM literal-sets (clausifier change, 2026-07-12).** Originally `finalAxioms`
+   interleaved two shapes: Tseitin **new-clauses** as literal-sets `Sequent(∅, {lits})`, but **already-clausal
+   axioms** and Tseitin **final-rewrites** as single-formula `() ⊢ φ` with `φ` a `∨`-of-literals (there are
+   **no** `∀` at this stage — `isClause`/`isAtom` reject `Forall` and `tseitinStep.descend` has no `Forall`
+   case, so universals are already free variables). We moved the split into the clausifier: `certifyTseitinFlat`
+   now emits every residual axiom/rewrite in the same `Sequent(∅, clauseLiterals(·).toSet)` form at the point it
+   is declared clausal, bridged by one `Restate` (`clauseSetRef`). So **every** clause the prover receives is a
+   literal-set with negatives as `¬A`. `clauseOfSequent` ingests all of them directly; no `∨`-split or `∀`-strip
+   in the adapter.
+
+3. **Conclusion contract — CONFIRMED empirically = the EMPTY sequent `⊢`.** `downstream` is embedded as
+   `ClausificationSubproof(downstream, recPremises)` (line 1195, **no** assumptions), so its conclusion
+   propagates unchanged up through Tseitin/Prenex/Skolem/Nnf; `certifyNegated` (line 824) `Cut`s the negated
+   conjecture `¬φ` (t1 = `⊢ φ, ¬φ`) against the lifted subproof to conclude `⊢ φ`. That `Cut` requires the
+   subproof to conclude `¬φ ⊢` (**empty RHS**), i.e. the prover must conclude the **empty sequent `⊢`** — the
+   `Sorry` stub's `{all literals} ⊢` was a genuine placeholder (a `Sorry` is not kernel-checked, so it never
+   had to be derivable). **No `Weakening`.** A probe (`ClausalTest`: "Bridge satisfies the certifyClausal prover
+   contract") confirmed it: `{all literals} ⊢` fails the `Cut` (*"LHS of second premise contains a formula
+   absent from the conclusion"*); `∅ ⊢` composes to a kernel-valid proof of `⊢ P`.
+
+4. **The adapter's only reshape: move negatives to the LHS.** `Bridge`/`Reconstruction` expect a **negative
+   literal's atom on the LHS** (every spike/Discount test passes `Sequent({a}, ∅)`), but the clausifier writes
+   negatives as `¬A` on the **RHS**. Handed `⊢ ¬P` verbatim, `Bridge` concludes `⊢ ¬P` (not `∅ ⊢`) — the `Cut`
+   in `Reconstruction.buildResolution` leaves `¬P` on the right. Fix (probe-confirmed): **reshape** each clause
+   by moving every `¬A ∈ Δ` to the LHS as `A` (`toWorkingSequent`), solve that, then present imports = the
+   **original** clausifier clauses via a per-used-import `Restate` bridging original ⟺ working (propositionally
+   equivalent — the same `Restate` also absorbs the placement, and now that clauses arrive as literal-sets
+   (item 2) there is nothing to split). Validated end-to-end for both the `Q==0` fast path (multi-literal
+   already-clausal axiom, real `Bridge`) and the `Q>0` Tseitin path (multi-literal final-rewrite, `Sorry`-checked
+   composition) in `ClausalTest`.
+
+5. **ε discharge — DONE, via inline reconstruction (not a trailing `InstSchema`).** The schematic `F` is now a
+   purely **`Bridge`-internal** solving device: `Reconstruction` inlines each `F(args)` back to `(λfv. e)(args)`
+   β-reduced (`kernelize`) and discharges the imported sequents likewise (`dischargeSeq` in `buildInput`), so the
+   kernel proof is **purely ε-bearing** — no `F`, no trailing `InstSchema`, no import-internalization. This works
+   because the discharge substitution `{F := λfv.e}` commutes with reconstruction's clause-variable renaming `σ`
+   (disjoint domains; the fresh `fv` introduced by the discharge get renamed correctly by `σ`), keeping every
+   `InstSchema`/`Cut` step valid; the ε-terms are treated opaquely by the kernel, exactly as an uninterpreted
+   Skolem symbol would be. This **avoids** the internalize-imports-to-LHS + `InstSchema` route originally
+   sketched here, which foundered on ProofIR's soundness restriction (can't thread a clause-var-bearing
+   assumption through the `InstSchema` steps that rename those very vars). Implemented as: `Bridge.solve` /
+   `Reconstruction.reconstruct` gain a `discharge: Map[Variable, Expression]`; `Clausal.prove` is the adapter
+   (abstract → `Bridge.solve(functionVars, discharge)` → neg-move `Restate` reshape to the original clauses).
+   Validated end-to-end (`ClausalTest`: "ε end-to-end … Skolemizes to an ε-term"): `∀x.P(x)` conjecture →
+   `¬P(ε(λx.¬P(x)))` clause → abstracted, refuted, reconstructed ε-bearing → kernel-valid `⊢ ∀x.P(x)`. All 139
+   superposition tests green.
+
+6. **Non-clausal problems map to solver symbols (`Bridge.symbolVars`).** Generalised `functionVars` to
+   `symbolVars`, dispatched by position: a schematic `Variable` in a **literal head** is interned as an
+   (uninterpreted) **predicate** — how clausifier Tseitin atoms `tsᵢ` (and Lisa predicate variables) are
+   ingested — and in a **term position** as a **function**. `Clausal.prove` collects `symbolVars` = the
+   ε-abstraction functions ∪ every non-`Ind`-sorted free variable in the clauses (so `tsᵢ`, which are Prop-sorted,
+   are caught automatically). The ε-functions are additionally `discharge`d (inlined); `tsᵢ` are emitted as
+   `Variable`s for the clausifier's own `InstSchema` to discharge. Non-clausal problems needing genuine Tseitin
+   naming now refute end-to-end.
+
+7. **FOF evaluation dataset + harness (`FofEvaluation`) and the uncertified path.** Built a second dataset the
+   same way as the clausal `Evaluation` set — by TPTP `SPC` header `FOF_THM_{RFO,EPR}_NEQ` (non-clausal, theorem,
+   no equality, no arithmetic) — as `tptp-fof-fo-noeq-thm.txt`. The `CSR` (SUMO) domain is excluded (all 359 are
+   giant numeric ontologies; see PossibleOptimizations), leaving **944** problems. `FofEvaluation.sample(n=100,
+   seed=42)` draws the same seeded way as `Evaluation`; `benchmark` parses each, runs `certifyClausal` (or the
+   uncertified path) with `Clausal.prove`, kernel-checks every refutation, and reports per-phase
+   **clausify / prover / check** timings. `UncertifiedClausification.clausalForm` computes the **identical**
+   clause set via the pure transforms only (no proof) — clause-identity test-verified — and is ~**2× faster total,
+   ~20× on the median** (proof-building/checking dominates most easy problems).
+
+8. **Two clausification bugs found via the benchmark's SATURATED theorems, both fixed.**
+   - **η-reduced quantifiers stranded in clauses.** The kernel's `betaNormalForm` η-reduces `λy. p(x,y) → p(x)`,
+     so `∀y. p(x,y)` = `∀(λy. …)` comes back as `∀(p(x))`, which the `Forall`/`Exists` extractors (they need an
+     explicit `Lambda`) miss — leaving the quantifier as an opaque atom in the clause → unresolvable → SATURATED
+     (Pelletier 50 was one). Fix: `Clausification.etaExpandQuantifiers` after skolem's `betaNormalForm`, on
+     `∀`/`∃` only (**not** ε-terms — they're abstracted wholesale and re-expanding their interior desyncs them
+     from the β-normalised discharge, which broke import matching → BAD_PROOF; that was the fix's own first
+     over-reach, now corrected).
+   - **Boolean constants `⊤`/`⊥` not absorbed.** `toNNF` treated `$true`/`$false` as atoms, so they survived as
+     uninterpreted 0-ary predicates that block resolution (the `LCL` modal encodings pad with `$false`). Fix:
+     smart constructors `mkAnd`/`mkOr` applying the absorption laws in `toNNF` — propositional equivalences, so
+     the `certifyNnf` `Restate` still discharges them (no proof change).
+   Net on the seeded-100 (clean 944): **SATURATED 9 → 0, REFUTED 50 → 60, BAD_PROOF 0**, all kernel-checked. The
+   remaining failures are dominated by rating-1.00 `LCL…+1.0NN` modal encodings (unsolved by *any* ATP system;
+   `LCL648+1.020` even overflows the recursive parser's stack) — not a gap on our side.
