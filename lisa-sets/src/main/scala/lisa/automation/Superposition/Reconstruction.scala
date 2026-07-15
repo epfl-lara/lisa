@@ -83,9 +83,10 @@ object Reconstruction:
       case Justification.Canonicalization(p) => refOf(p) // sort/dedup are no-ops on a set-sequent
       case Justification.Factoring(p, i, j) => buildFactoring(c, p, i, j)
       case Justification.Resolution(l, i, r, j) => buildResolution(c, l, i, r, j)
-      case _: Justification.Superposition | _: Justification.EqualityResolution | _: Justification.EqualityFactoring |
-          _: Justification.Demodulation =>
-        throw new NotImplementedError("equality-inference reconstruction is Phase 4 Step 5")
+      case Justification.Superposition(from, fi, fs, into, ii, pos) => buildSuperposition(c, from, fi, fs, into, ii, pos)
+      case Justification.Demodulation(target, ti, pos, rule, rs) => buildDemodulation(c, target, ti, pos, rule, rs)
+      case Justification.EqualityResolution(p, i) => buildEqualityResolution(c, p, i)
+      case Justification.EqualityFactoring(p, d, ds, k, ks) => buildEqualityFactoring(c, p, d, ds, k, ks)
 
     /** Inline the Phase-3 discharge into a sequent: substitute every schematic `F` by its `λfv. e` value and
      *  β-normalise, turning `F`-bearing atoms into `e`-bearing ones. Identity when nothing was abstracted. */
@@ -139,6 +140,140 @@ object Reconstruction:
       val resolvent = K.Sequent(t1seq.left ++ (t2seq.left - phi), (t1seq.right - phi) ++ t2seq.right)
       Recon(addStep(K.Cut(resolvent, t1ref, t2ref, phi)), resolvent, cv)
 
+    // --- equality inferences (Phase 4 Step 5) ------------------------------------------------------
+    //
+    // Superposition and demodulation share one shape ([[buildRewrite]]): instantiate both parents by the
+    // recomputed unifier/matcher, `SubstEq` the rewritten literal in the *into/target* instance (adding the
+    // equation `l=r` to its antecedent), then `Cut` the *from/rule* instance (carrying `l=r` on the right)
+    // against it. Equality resolution collapses a unified disequality `s≉t` with `LeftRefl`; equality
+    // factoring is a single `RightSubstEq` (plus a reorientation when the two equalities' sides disagree).
+
+    private def buildSuperposition(c: Clause, from: Clause, iFrom: Int, fromSide: Int, into: Clause, iInto: Int, pos: Array[Int]): Recon =
+      val fromAtom = bank.atomOf(from.literals(iFrom))
+      val l = bank.arg(fromAtom, fromSide)
+      buildRewrite(
+        c, from, iFrom, fromSide, into, iInto, pos,
+        establish = () => { trail.unify(l, 0, Superposition.subtermAt(bank, bank.atomOf(into.literals(iInto)), pos), 1); () },
+        replay = ap =>
+          // reproduce [[Superposition.superpose]]'s applier order so the conclusion's fresh var numbering matches `c`
+          ap.apply(l, 0); ap.apply(bank.arg(fromAtom, 1 - fromSide), 0); ap.apply(bank.atomOf(into.literals(iInto)), 1)
+          var k = 0
+          while k < into.literals.length do { ap.apply(bank.atomOf(into.literals(k)), 1); k += 1 }
+          k = 0
+          while k < from.literals.length do { ap.apply(bank.atomOf(from.literals(k)), 0); k += 1 }
+      )
+
+    private def buildDemodulation(c: Clause, target: Clause, iTarget: Int, pos: Array[Int], rule: Clause, ruleSide: Int): Recon =
+      val ruleAtom = bank.atomOf(rule.literals(0)) // the demodulator is a positive unit equality
+      val l = bank.arg(ruleAtom, ruleSide)
+      buildRewrite(
+        c, rule, 0, ruleSide, target, iTarget, pos,
+        establish = () => { trail.matchTerm(l, 0, Superposition.subtermAt(bank, bank.atomOf(target.literals(iTarget)), pos), 1); () },
+        replay = ap =>
+          // reproduce [[Demodulation.tryRewrite]]'s applier order (rule sides first, then target literals in order)
+          ap.apply(l, 0); ap.apply(bank.arg(ruleAtom, 1 - ruleSide), 0)
+          var k = 0
+          while k < target.literals.length do { ap.apply(bank.atomOf(target.literals(k)), 1); k += 1 }
+      )
+
+    /**
+     * The common superposition/demodulation reconstruction: `from` (scope 0) rewrites `into`'s literal `iInto`
+     * at subterm `pos` with the equation on `from`'s side `fromSide`. `establish` re-binds the trail with the
+     * unifier (superposition) or matcher (demodulation); `replay` re-runs the [[Trail.Applier]] in the
+     * generating code's order so the conclusion's fresh variables match `c`. Emits a `SubstEq` (Right if the
+     * rewritten literal is positive, else Left) that adds `lσ=rσ` to the antecedent, then a `Cut` on `lσ=rσ`.
+     */
+    private def buildRewrite(
+        c: Clause, from: Clause, iFrom: Int, fromSide: Int, into: Clause, iInto: Int, pos: Array[Int],
+        establish: () => Unit, replay: trail.Applier => Unit): Recon =
+      val pFrom = refOf(from); val pInto = refOf(into)
+      val cv: Int => K.Variable = n => canonVar(c.id, n)
+      val fromAtom = bank.atomOf(from.literals(iFrom))
+      val intoLit = into.literals(iInto)
+      val intoAtom = bank.atomOf(intoLit)
+      val saved = trail.save()
+      establish()
+      val applier = trail.applier()
+      replay(applier)
+      val substFrom = substOf(from, pFrom.vars, applier, scope = 0, cv)
+      val substInto = substOf(into, pInto.vars, applier, scope = 1, cv)
+      val botFrom = substSeq(pFrom.seq, substFrom)
+      val botInto = substSeq(pInto.seq, substInto)
+      // the equation's two stored sides (a0=a1 on `from`'s right) and the rewrite's occurrence sK → replacement tK
+      val a0 = K.substituteVariables(kernelize(bank.arg(fromAtom, 0), pFrom.vars), substFrom)
+      val a1 = K.substituteVariables(kernelize(bank.arg(fromAtom, 1), pFrom.vars), substFrom)
+      val sK = K.substituteVariables(kernelize(Superposition.subtermAt(bank, intoAtom, pos), pInto.vars), substInto)
+      val tK = K.substituteVariables(kernelize(bank.arg(fromAtom, 1 - fromSide), pFrom.vars), substFrom)
+      val hole = freshHole()
+      val phiBody = K.substituteVariables(kernelizeHole(intoAtom, pInto.vars, pos, 0, hole), substInto)
+      val phiOfS = K.substituteVariables(phiBody, Map(hole -> sK)) // the into-literal's atom instance (φ(s))
+      val phiOfT = K.substituteVariables(phiBody, Map(hole -> tK)) // the rewritten atom (φ(t))
+      val eq = mkEqK(sK, tK) // lifted equation the SubstEq adds to the antecedent / the Cut resolves on
+      trail.restore(saved)
+      val (refInto, seqInto) = instStep(pInto, substInto, botInto)
+      val (refFrom0, seqFrom0) = instStep(pFrom, substFrom, botFrom)
+      // orient the `from` instance's equation to `sK=tK` (its stored order is a0=a1; flip when rewriting side 1)
+      val (refFrom, seqFrom) = if fromSide == 0 then (refFrom0, seqFrom0) else flipEqRight(refFrom0, seqFrom0, a0, a1)
+      val (refSubst, seqSubst) =
+        if bank.isPositive(intoLit) then
+          val bot = K.Sequent(seqInto.left + eq, (seqInto.right - phiOfS) + phiOfT)
+          (addStep(K.RightSubstEq(bot, refInto, Seq((sK, tK)), (Seq(hole), phiBody))), bot)
+        else
+          val bot = K.Sequent((seqInto.left - phiOfS) + eq + phiOfT, seqInto.right)
+          (addStep(K.LeftSubstEq(bot, refInto, Seq((sK, tK)), (Seq(hole), phiBody))), bot)
+      val concl = K.Sequent(seqFrom.left ++ (seqSubst.left - eq), (seqFrom.right - eq) ++ seqSubst.right)
+      Recon(addStep(K.Cut(concl, refFrom, refSubst, eq)), concl, cv)
+
+    private def buildEqualityResolution(c: Clause, parent: Clause, i: Int): Recon =
+      val pC = refOf(parent)
+      val cv: Int => K.Variable = n => canonVar(c.id, n)
+      val atom = bank.atomOf(parent.literals(i)) // the negative equality s ≉ t
+      val saved = trail.save()
+      trail.unify(bank.arg(atom, 0), 0, bank.arg(atom, 1), 0)
+      val applier = trail.applier()
+      replaySurvivors(applier, parent, skip = i, scope = 0)
+      val substC = substOf(parent, pC.vars, applier, scope = 0, cv)
+      val botC = substSeq(pC.seq, substC)
+      val refl = K.substituteVariables(kernelize(atom, pC.vars), substC) // sσ = sσ, reflexive after unification
+      trail.restore(saved)
+      val (refC, seqC) = instStep(pC, substC, botC)
+      val concl = K.Sequent(seqC.left - refl, seqC.right)
+      Recon(addStep(K.LeftRefl(concl, refC, refl)), concl, cv)
+
+    private def buildEqualityFactoring(c: Clause, parent: Clause, i: Int, iSide: Int, j: Int, jSide: Int): Recon =
+      val pC = refOf(parent)
+      val cv: Int => K.Variable = n => canonVar(c.id, n)
+      val atomI = bank.atomOf(parent.literals(i)) // dropped equality s ≈ t (factored side iSide = s)
+      val s = bank.arg(atomI, iSide); val t = bank.arg(atomI, 1 - iSide)
+      val tp = bank.arg(bank.atomOf(parent.literals(j)), 1 - jSide) // partner's other side t'
+      val saved = trail.save()
+      trail.unify(s, 0, bank.arg(bank.atomOf(parent.literals(j)), jSide), 0) // σ = mgu(s, s')
+      val applier = trail.applier()
+      // reproduce [[Superposition.factorOne]]'s applier order (s, t, t', then the survivors, skipping i)
+      applier.apply(s, 0); applier.apply(t, 0); applier.apply(tp, 0)
+      replaySurvivors(applier, parent, skip = i, scope = 0)
+      val substC = substOf(parent, pC.vars, applier, scope = 0, cv)
+      val botC = substSeq(pC.seq, substC)
+      val hole = freshHole()
+      val phiBody = K.substituteVariables(kernelizeHole(atomI, pC.vars, Array(1 - iSide), 0, hole), substC)
+      val tK = K.substituteVariables(kernelize(t, pC.vars), substC) // tσ
+      val tpK = K.substituteVariables(kernelize(tp, pC.vars), substC) // t'σ
+      val pK = K.substituteVariables(kernelize(s, pC.vars), substC) // sσ = s'σ (the shared maximal side)
+      val phiOfS = K.substituteVariables(phiBody, Map(hole -> tK)) // literal i's atom instance (φ(s))
+      val phiOfT = K.substituteVariables(phiBody, Map(hole -> tpK)) // the rewritten atom (φ(t)) in atom i's side order
+      val eq = mkEqK(tK, tpK) // the introduced disequality's atom tσ = t'σ (added to the antecedent)
+      trail.restore(saved)
+      val (refC, seqC) = instStep(pC, substC, botC)
+      // rewrite literal i (P≈tσ, on the right) to P≈t'σ using tσ=t'σ; adds tσ≠t'σ to the left (the new negative literal)
+      val bot1 = K.Sequent(seqC.left + eq, (seqC.right - phiOfS) + phiOfT)
+      val step1 = addStep(K.RightSubstEq(bot1, refC, Seq((tK, tpK)), (Seq(hole), phiBody)))
+      // φ(t) came out in literal i's side order; if the kept partner j stores the reverse order, reorient it to merge
+      if iSide == jSide then Recon(step1, bot1, cv)
+      else
+        val (fa, fb) = if iSide == 0 then (pK, tpK) else (tpK, pK) // the two sides of φ(t), stored order
+        val (step2, bot2) = flipEqRight(step1, bot1, fa, fb)
+        Recon(step2, bot2, cv)
+
     /** Emit an `InstSchema` for a non-empty substitution, else reuse the premise directly (identity-σ). */
     private def instStep(p: Recon, subst: Map[K.Variable, K.Expression], bot: K.Sequent): (Int, K.Sequent) =
       if subst.isEmpty then (p.ref, p.seq) else (addStep(K.InstSchema(bot, p.ref, subst)), bot)
@@ -164,18 +299,60 @@ object Reconstruction:
     private def kernelize(t: Term, vars: Int => K.Variable): K.Expression =
       if bank.isVar(t) then vars(bank.varNum(t).num)
       else
-        val info: SymbolInfo = sig.info(bank.headSymbol(t))
         val n = bank.arity(t)
         val args: IndexedSeq[K.Expression] = (0 until n).map(k => kernelize(bank.arg(t, k), vars))
-        dischargeByName.get(info.name) match
-          // a discharged Phase-3 abstraction symbol `F(args)` is inlined to `(λfv. e)(args)`, β-reduced to `e`
-          case Some(lam) => args.foldLeft(lam)((acc, a) => K.Application(acc, a)).betaNormalForm
-          case None =>
-            val id: K.Identifier = identOf(info.name)
-            val sort: K.Sort = sortFor(info.arity, info.isPredicate)
-            // an undischarged schematic symbol round-trips as a `Variable` (so a later `InstSchema` can target it)
-            val head: K.Expression = if schematicNames.contains(info.name) then K.Variable(id, sort) else K.Constant(id, sort)
-            args.foldLeft(head)((acc, a) => K.Application(acc, a))
+        applySymbol(bank.headSymbol(t), args)
+
+    /** Apply interned symbol `head` to already-kernelised `args`, honouring Phase-3 discharge (inline a
+     *  schematic `F` to its `λfv. e` value, β-reduced) and the schematic-symbol convention (an undischarged
+     *  schematic symbol round-trips as a `Variable`, so a later `InstSchema` can target it). */
+    private def applySymbol(head: Symbol, args: IndexedSeq[K.Expression]): K.Expression =
+      val info: SymbolInfo = sig.info(head)
+      dischargeByName.get(info.name) match
+        case Some(lam) => args.foldLeft(lam)((acc, a) => K.Application(acc, a)).betaNormalForm
+        case None =>
+          val id: K.Identifier = identOf(info.name)
+          val sort: K.Sort = sortFor(info.arity, info.isPredicate)
+          val hd: K.Expression = if schematicNames.contains(info.name) then K.Variable(id, sort) else K.Constant(id, sort)
+          args.foldLeft(hd)((acc, a) => K.Application(acc, a))
+
+    /** Kernelise `t` but emit `hole` in place of the subterm at position `pos` (a path of argument indices),
+     *  yielding a context `φ(hole)`; everything off the path is kernelised normally via [[kernelize]]. */
+    private def kernelizeHole(t: Term, vars: Int => K.Variable, pos: Array[Int], depth: Int, hole: K.Variable): K.Expression =
+      if depth == pos.length then hole
+      else
+        val n: Int = bank.arity(t)
+        val k: Int = pos(depth)
+        val args: IndexedSeq[K.Expression] =
+          (0 until n).map(i => if i == k then kernelizeHole(bank.arg(t, i), vars, pos, depth + 1, hole) else kernelize(bank.arg(t, i), vars))
+        applySymbol(bank.headSymbol(t), args)
+
+    /** A kernel equality atom `a = b`, built with the exact constant [[kernelize]] produces for `=`. */
+    private def mkEqK(a: K.Expression, b: K.Expression): K.Expression = applySymbol(EqualitySymbol, IndexedSeq(a, b))
+
+    private var holeCounter: Int = 0
+
+    /** A fresh `Ind` context variable for a substitution lambda, distinct from every `canonVar` (`reconV…`). */
+    private def freshHole(): K.Variable =
+      val h = K.Variable(K.Identifier("reconHole", holeCounter), K.Ind)
+      holeCounter += 1
+      h
+
+    /**
+     * Flip an equality on the **right** of a derived sequent: given a step `ref` proving `Γ ⊢ Δ, a=b`, emit a
+     * short derivation of `Γ ⊢ Δ, b=a` (reflexivity + one `RightSubstEq` + a `Cut`) and return its reference and
+     * sequent. Used to reorient a rewriting equation whose stored side order is the reverse of the one the
+     * `SubstEq` step needs.
+     */
+    private def flipEqRight(ref: Int, seq: K.Sequent, a: K.Expression, b: K.Expression): (Int, K.Sequent) =
+      val ab = mkEqK(a, b)
+      val ba = mkEqK(b, a)
+      val aa = mkEqK(a, a)
+      val r1 = addStep(K.RightRefl(K.Sequent(Set.empty, Set(aa)), aa)) // ⊢ a=a
+      val hole = freshHole()
+      val r2 = addStep(K.RightSubstEq(K.Sequent(Set(ab), Set(ba)), r1, Seq((a, b)), (Seq(hole), mkEqK(hole, a)))) // a=b ⊢ b=a
+      val outSeq = K.Sequent(seq.left, (seq.right - ab) + ba)
+      (addStep(K.Cut(outSeq, ref, r2, ab)), outSeq)
 
     /** Parse an interned symbol name (a kernel `Identifier.toString`) back to the exact identifier,
      *  recovering a trailing counter index (`"e_1"` → `Identifier("e", 1)`). Inverse of the [[Bridge]]

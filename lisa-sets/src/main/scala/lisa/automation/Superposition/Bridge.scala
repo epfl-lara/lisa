@@ -89,6 +89,9 @@ object Bridge:
       backwardSubsumptionResolution: Boolean = false,
       condensation: Boolean = false,
       forwardSimplifyAtGeneration: Boolean = false,
+      // Master equality switch: when off, all equality inferences (superposition, equality resolution/factoring,
+      // demodulation) are skipped, leaving pure ordered resolution + factoring. Use for equality-free problems.
+      equality: Boolean = true,
       // Schematic symbol variables: kernel `Variable`s that are to be treated as **symbols** by the prover
       // (not clause variables) and rebuilt as variables in reconstruction. Dispatched by position: a symbol
       // variable in a literal-head position is a **predicate** symbol, in a term position a **function**
@@ -119,7 +122,8 @@ object Bridge:
       forwardSubsumptionResolution = forwardSubsumptionResolution,
       backwardSubsumptionResolution = backwardSubsumptionResolution,
       condensation = condensation,
-      forwardSimplifyAtGeneration = forwardSimplifyAtGeneration
+      forwardSimplifyAtGeneration = forwardSimplifyAtGeneration,
+      equality = equality
     ).saturate(clauses, maxGiven, maxMillis) match
       case Discount.Result.Refutation(empty) => Outcome.Success(empty, bank, inputs, schematicNames, discharge)
       case Discount.Result.Saturated => Outcome.Saturated
@@ -138,11 +142,12 @@ object Bridge:
       forwardSubsumptionResolution: Boolean = false,
       backwardSubsumptionResolution: Boolean = false,
       condensation: Boolean = false,
-      forwardSimplifyAtGeneration: Boolean = false): Outcome =
+      forwardSimplifyAtGeneration: Boolean = false,
+      equality: Boolean = true): Outcome =
     solve(
       problemSequents(problem), maxGiven, maxMillis, forwardSubsumption, backwardSubsumption,
       forwardUnitDeletion, backwardUnitDeletion, forwardSubsumptionResolution, backwardSubsumptionResolution,
-      condensation, forwardSimplifyAtGeneration
+      condensation, forwardSimplifyAtGeneration, equality = equality
     )
 
   /** Convert a [[lisa.tptp.Problem]] of pure clauses (e.g. a TPTP `cnf` problem) to clause-sequents. */

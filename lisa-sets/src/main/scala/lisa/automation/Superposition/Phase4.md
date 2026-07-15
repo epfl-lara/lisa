@@ -224,11 +224,25 @@ work into the loop, so this is more than "register alongside resolution/factorin
 demodulation; a saturation (satisfiable equality set) terminating in `Saturated`; equality literals are
 not double-handled by ordinary resolution; a regression that Phase 1–3 no-equality behavior is unchanged.
 
-## Step 5 — Reconstruction (`Reconstruction.scala` + `Justification`)
+## Step 5 — Reconstruction (`Reconstruction.scala` + `Justification`) — **done**
+
+**Implemented** exactly as planned below, in `Reconstruction.scala` only (no other production file changed).
+`build` now dispatches the four cases to `buildSuperposition` / `buildDemodulation` (sharing one
+`buildRewrite` core) / `buildEqualityResolution` / `buildEqualityFactoring`. Superposition and demodulation
+emit `RightSubstEq`/`LeftSubstEq` (polarity of the rewritten literal picks Left vs Right) adding `lσ=rσ` to
+the antecedent, then `Cut` the (possibly reoriented) equation-bearing parent instance on `lσ=rσ`; equality
+resolution is one `LeftRefl` on the unified `sσ=sσ`; equality factoring is one `RightSubstEq` (plus a
+`flipEqRight` reorientation when the dropped and kept sides disagree). The fresh-variable numbering of each
+conclusion is reproduced by re-running the `Applier` in the *generating code's exact order*. Reversed
+stored-side orientation is handled by `flipEqRight` (a `RightRefl`+`RightSubstEq`+`Cut` micro-derivation of
+symmetry). Kernel-checked end-to-end (`ReconstructionTest`'s equality cases: superposition, equality
+resolution, demodulation incl. the flip) and at the individual-inference level (`EqualityReconstructionTest`:
+superposition into positive/negative literals, both from-orientations, non-unit from-clause, and equality
+factoring with/without reorientation).
 
 The four `Justification` cases (`Superposition`, `EqualityResolution`, `EqualityFactoring`, `Demodulation`)
-**already exist** (added during Steps 2–4) and are currently stubbed in `Reconstruction.build` with a
-`NotImplementedError`; this step replaces the stubs. Each records parents + literal/subterm positions (as
+**already exist** (added during Steps 2–4) and were previously stubbed in `Reconstruction.build` with a
+`NotImplementedError`; this step replaced the stubs. Each records parents + literal/subterm positions (as
 `Array[Int]`) plus just enough to recompute the substitution — **no stored unifier** (recompute from
 positions, as we do for resolution and as LADR's `para_pos` does): `Superposition` stores `fromSide`,
 `Demodulation` stores `rule`/`ruleSide`, `EqualityFactoring` stores the two unified sides

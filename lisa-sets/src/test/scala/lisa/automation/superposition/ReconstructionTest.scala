@@ -176,6 +176,63 @@ class ReconstructionTest extends AnyFunSuite:
   }
 
   // -----------------------------------------------------------------------------------------
+  // Equality reconstruction (Phase 4 Step 5): superposition, equality resolution, equality
+  // factoring, and demodulation. Each problem is refuted using the equality inferences, and the
+  // kernel must accept the reconstructed `RightSubstEq`/`LeftSubstEq`/`LeftRefl` derivation.
+  // -----------------------------------------------------------------------------------------
+
+  private def eqK(s: K.Expression, t: K.Expression): K.Expression =
+    ap(K.Constant(K.Identifier("="), K.Ind -> (K.Ind -> K.Prop)), s, t)
+
+  test("equality: superposition + equality resolution {f(a)≈a}, {¬(f(f(a))≈a)}") {
+    val f = fn("f", 1); val a = cst("a")
+    // f(a)≈a rewrites f(f(a))≈a's inner subterm, then equality resolution closes the reflexive disequality
+    check("ueq f", List(sequent(Set(), Set(eqK(ap(f, a), a))), sequent(Set(eqK(ap(f, ap(f, a)), a)), Set())))
+  }
+
+  test("equality: a group-like rewrite chain {g(x)≈x}, {¬(g(g(b))≈b)}") {
+    val g = fn("g", 1); val x = vr("X"); val b = cst("b")
+    check("ueq g", List(sequent(Set(), Set(eqK(ap(g, x), x))), sequent(Set(eqK(ap(g, ap(g, b)), b)), Set())))
+  }
+
+  test("equality: two axioms superposing {f(x)≈g(x)}, {g(a)≈b}, {¬(f(a)≈b)}") {
+    val f = fn("f", 1); val g = fn("g", 1); val a = cst("a"); val b = cst("b"); val x = vr("X")
+    check(
+      "ueq fg",
+      List(
+        sequent(Set(), Set(eqK(ap(f, x), ap(g, x)))),
+        sequent(Set(), Set(eqK(ap(g, a), b))),
+        sequent(Set(eqK(ap(f, a), b)), Set())
+      )
+    )
+  }
+
+  test("equality: equality resolution needing unification {¬(f(x)≈f(a))}, plus a fact using x") {
+    val f = fn("f", 1); val a = cst("a"); val x = vr("X"); val p = pred("P", 1)
+    // {¬P(x) ∨ f(x)≉f(a)} : eq-resolution unifies x↦a leaving ¬P(a); then {P(a)} closes it
+    check(
+      "eqres",
+      List(
+        sequent(Set(ap(p, x), eqK(ap(f, x), ap(f, a))), Set()),
+        sequent(Set(), Set(ap(p, a)))
+      )
+    )
+  }
+
+  test("equality: a non-unit equality clause exercising factoring {a≈b ∨ a≈c}, {¬(a≈b)}, {¬(a≈c)}, {¬(b≈c)}") {
+    val a = cst("a"); val b = cst("b"); val c = cst("c")
+    check(
+      "factoring",
+      List(
+        sequent(Set(), Set(eqK(a, b), eqK(a, c))),
+        sequent(Set(eqK(a, b)), Set()),
+        sequent(Set(eqK(a, c)), Set()),
+        sequent(Set(eqK(b, c)), Set())
+      )
+    )
+  }
+
+  // -----------------------------------------------------------------------------------------
   // Reconstruction over real TPTP problems: the 20 easy SYN clausal problems.
   // Located via the TPTP env var (the TPTP root); cancelled (not failed) when it is unset.
   // -----------------------------------------------------------------------------------------

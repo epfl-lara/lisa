@@ -57,14 +57,28 @@ final class Discount(
     // (seed-42 ablation: gen=67 refuted vs nogen=71, strictly more, no regressions. See Benchmarks.md.)
     // Governs forward subsumption *and* forward unit deletion at the generation point.
     forwardSimplifyAtGeneration: Boolean = false,
-    // Generating equality inferences. Equality resolution/factoring are always run (inert without equality
-    // literals); this flag gates the heavier superposition enumeration (both directions) at activation.
+    // Master equality switch. When off, **every** equality-specific part of the loop is skipped --
+    // superposition, equality resolution, equality factoring, and forward/backward demodulation (plus the
+    // demodulator upkeep) -- reducing the loop to pure ordered resolution + factoring. Set it off for
+    // equality-free problems (nothing is lost, and the equality enumerations/upkeep are not paid for); the
+    // finer-grained flags below then have no effect. On (the default), each equality inference is governed by
+    // its own flag.
+    equality: Boolean = true,
+    // Generating equality inferences. Equality resolution/factoring are always run when `equality` is on
+    // (inert without equality literals); this flag gates the heavier superposition enumeration (both
+    // directions) at activation.
     superposition: Boolean = true,
     // Demodulation (rewriting by active positive unit equalities): forward normal-forms the given at
     // selection; backward rewrites active clauses when the given is a new unit equality. Inert without them.
     forwardDemodulation: Boolean = true,
     backwardDemodulation: Boolean = true):
   import Discount.Result
+
+  // Effective equality-inference switches: each is the master `equality` flag AND its own flag. When
+  // `equality` is off they are all false, so every equality-specific inference and its upkeep is skipped.
+  private val superpositionOn: Boolean = equality && superposition
+  private val forwardDemodulationOn: Boolean = equality && forwardDemodulation
+  private val backwardDemodulationOn: Boolean = equality && backwardDemodulation
 
   // Simplification counters (observability / benchmarks); reset at the start of each `saturate`.
   var forwardSubsumed: Int = 0
@@ -204,13 +218,13 @@ final class Discount(
       case Some(empty) => return Some(empty)
       case None => ()
     active += gc
-    if isPosUnitEq(gc) then activeDemodulators ++= Demodulation.rules(bank, bank.order, gc) // gc is a new demodulator
+    if forwardDemodulationOn && isPosUnitEq(gc) then activeDemodulators ++= Demodulation.rules(bank, bank.order, gc) // gc is a new demodulator
     // Precompute once per activation (invariant across the active scan): which of gc's selected literals are
     // non-equality (for ordinary resolution) and gc's usable superposition from-sides.
     val gcSelNonEq: Array[Boolean] = new Array[Boolean](gSel.length)
     var gm = 0
     while gm < gSel.length do { gcSelNonEq(gm) = !isEquality(gc.literals(gSel(gm))); gm += 1 }
-    val gcFromSides: List[(Int, Int, Term, Symbol)] = if superposition then fromSides(gc, gSel) else Nil
+    val gcFromSides: List[(Int, Int, Term, Symbol)] = if superpositionOn then fromSides(gc, gSel) else Nil
     // resolution + superposition against each active clause (gc now included, so self-inferences fire)
     var ai = 0
     while ai < active.length do
@@ -232,7 +246,7 @@ final class Discount(
         gi += 1
       // superposition: gc's equations into `a` (precomputed from-sides), and `a`'s equations into gc (both
       // directions; the a == gc self-pair is done once). The caller locates + unifies; `superpose` is build-only.
-      if superposition then
+      if superpositionOn then
         superposeUsing(gc, gcFromSides, a, aSel) match
           case Some(empty) => return Some(empty)
           case None => ()
@@ -264,13 +278,14 @@ final class Discount(
           gj += 1
       gi2 += 1
     // equality resolution + equality factoring on the given (unary; enumerate all over the eligible set)
-    val order: Order = bank.order
-    addAll(Superposition.equalityResolution(bank, trail, order, gc, gSel)) match
-      case Some(empty) => return Some(empty)
-      case None => ()
-    addAll(Superposition.equalityFactoring(bank, trail, order, gc, gSel)) match
-      case Some(empty) => return Some(empty)
-      case None => ()
+    if equality then
+      val order: Order = bank.order
+      addAll(Superposition.equalityResolution(bank, trail, order, gc, gSel)) match
+        case Some(empty) => return Some(empty)
+        case None => ()
+      addAll(Superposition.equalityFactoring(bank, trail, order, gc, gSel)) match
+        case Some(empty) => return Some(empty)
+        case None => ()
     None
 
   /** Add each of `cs` to passive; returns `Some(□)` as soon as one is (or simplifies to) the empty clause. */
@@ -447,13 +462,13 @@ final class Discount(
    *  when demodulation is off or nothing rewrites. At selection `active` does not yet contain the given, so
    *  the given never demodulates itself. */
   private def forwardDemodulate(m: Clause): Clause =
-    if !forwardDemodulation || activeDemodulators.isEmpty then m
+    if !forwardDemodulationOn || activeDemodulators.isEmpty then m
     else Demodulation.normalForm(bank, trail, bank.order, m, activeDemodulators.toArray)
 
   /** When `gc` is a new positive unit equality, rewrite the active clauses with it: each rewritten clause is
    *  removed from active and its replacement re-added via `addPassive`. Returns `Some(□)` on refutation. */
   private def backwardDemodulateStep(gc: Clause): Option[Clause] =
-    if !backwardDemodulation || !isPosUnitEq(gc) then None
+    if !backwardDemodulationOn || !isPosUnitEq(gc) then None
     else
       var pairs = Demodulation.backwardDemodulate(bank, trail, bank.order, gc, active)
       while pairs.nonEmpty do

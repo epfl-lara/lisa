@@ -75,3 +75,29 @@ class EqualitySaturationTest extends AnyFunSuite:
     val d = new Discount(bank, trail, superposition = false, forwardDemodulation = false, backwardDemodulation = false)
     assert(d.saturate(Seq(axiom, goal), maxGiven = 1000) == Discount.Result.Saturated)
   }
+
+  test("the master equality=false switch skips every equality inference (UEQ not refuted)") {
+    val fx = new Fix; import fx.*
+    val f = fn("f", 1); val a = const("a")
+    val axiom = clause(pos(mkEq(app(f, a), a)))
+    val goal = clause(neg(mkEq(app(f, app(f, a)), a)))
+    // superposition, equality resolution, equality factoring AND demodulation are all off ⇒ nothing derivable
+    val d = new Discount(bank, trail, equality = false)
+    assert(d.saturate(Seq(axiom, goal), maxGiven = 1000) == Discount.Result.Saturated)
+  }
+
+  test("equality=false disables equality resolution too (a ≠ a is not closed)") {
+    val fx = new Fix; import fx.*
+    val a = const("a")
+    // contrast with "equality resolution alone refutes a ≠ a": that inference is gated by the master flag
+    assert(new Discount(bank, trail, equality = false).saturate(Seq(clause(neg(mkEq(a, a))))) == Discount.Result.Saturated)
+  }
+
+  test("equality=false leaves ordinary resolution intact (a purely propositional refutation still closes)") {
+    val fx = new Fix; import fx.*
+    val P = pred("P", 0)
+    val cs = Seq(clause(pos(app(P))), clause(neg(app(P)))) // {P}, {¬P}
+    new Discount(bank, trail, equality = false).saturate(cs) match
+      case Discount.Result.Refutation(empty) => assert(empty.isEmpty)
+      case other => fail(s"expected Refutation, got $other")
+  }

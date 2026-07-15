@@ -23,8 +23,10 @@ import lisa.automation.clausification.ClausificationStressTest.problemSize
  *
  * Needs the `TPTP` env var pointing at the TPTP root (the directory containing `Problems/`). Run:
  * {{{
- *   TPTP=/path/to/TPTP-v9.2.1 sbt "lisa-sets/runMain lisa.automation.superposition.FofEvaluation [seed] [n] [timeoutMs] [maxGiven]"
+ *   TPTP=/path/to/TPTP-v9.2.1 sbt "lisa-sets/runMain lisa.automation.superposition.FofEvaluation [seed] [n] [timeoutMs] [maxGiven] [maxSize] [cert|uncert] [equality]"
  * }}}
+ * The 6th arg `uncert` skips certification; the 7th arg `off` skips all equality inferences (superposition,
+ * equality resolution/factoring, demodulation) — this list is equality-free, so `off` measures their inert cost.
  * Every `REFUTED` is reconstructed and kernel-checked (the library-lemma statements remain trusted imports
  * until the tactic discharges them), so a `bad_proof` flags a composition/reconstruction bug.
  */
@@ -69,7 +71,8 @@ object FofEvaluation:
       timeoutMs = args.lift(2).map(_.toLong).getOrElse(15000L),
       maxGiven = args.lift(3).map(_.toInt).getOrElse(100000),
       maxSize = args.lift(4).map(_.toInt).getOrElse(50000),
-      certified = args.lift(5).forall(_.toLowerCase != "uncert") // 6th arg "uncert" ⇒ skip certification
+      certified = args.lift(5).forall(_.toLowerCase != "uncert"), // 6th arg "uncert" ⇒ skip certification
+      equality = args.lift(6).forall(_.toLowerCase != "off") //     7th arg "off" ⇒ skip all equality inferences
     )
 
   /**
@@ -80,16 +83,16 @@ object FofEvaluation:
    * — the same clauses either way, so the delta measures the proof-building cost. Prints a per-problem row and
    * a category summary.
    */
-  def benchmark(seed: Long = 42, n: Int = 100, timeoutMs: Long = 15000L, maxGiven: Int = 100000, maxSize: Int = 50000, certified: Boolean = true): Unit =
+  def benchmark(seed: Long = 42, n: Int = 100, timeoutMs: Long = 15000L, maxGiven: Int = 100000, maxSize: Int = 50000, certified: Boolean = true, equality: Boolean = true): Unit =
     val tptpRoot: Option[File] = sys.env.get("TPTP").map(new File(_)).filter(_.isDirectory)
     if tptpRoot.isEmpty then
       println("Set the TPTP environment variable to the TPTP root (the directory containing Problems/).")
       return
     val picked = sample(n, seed)
     val mode = if certified then "certified" else "uncertified"
-    println(s"list=$listFileName (${allProblems.size} problems), seed=$seed, n=${picked.size}, timeout=${timeoutMs}ms, maxGiven=$maxGiven, maxSize=$maxSize, mode=$mode")
+    println(s"list=$listFileName (${allProblems.size} problems), seed=$seed, n=${picked.size}, timeout=${timeoutMs}ms, maxGiven=$maxGiven, maxSize=$maxSize, mode=$mode, equality=$equality")
     println(f"${"PROBLEM"}%-20s ${"HYP"}%4s ${"CJ"}%3s  ${"RESULT"}%-12s ${"clausify"}%10s ${"prover"}%10s ${"check"}%9s")
-    val rows = picked.map(rel => solveRow(new File(tptpRoot.get, rel), timeoutMs, maxGiven, maxSize, certified))
+    val rows = picked.map(rel => solveRow(new File(tptpRoot.get, rel), timeoutMs, maxGiven, maxSize, certified, equality))
     report(rows, picked.size)
 
   /** Per-problem outcome plus a breakdown of where the wall-clock went: `clausifyMs` (the (un)certifying
@@ -118,7 +121,7 @@ object FofEvaluation:
       catch case e: Throwable => println(s"threw ${e.getClass.getSimpleName}: ${e.getMessage}")
 
   /** Parse + clausify + solve one problem, kernel-check any refutation, print a per-phase row. */
-  private def solveRow(f: File, timeoutMs: Long, maxGiven: Int, maxSize: Int, certified: Boolean): Timing =
+  private def solveRow(f: File, timeoutMs: Long, maxGiven: Int, maxSize: Int, certified: Boolean, equality: Boolean = true): Timing =
     val name = f.getName
     if !f.exists then { println(f"$name%-20s ${"-- file not found --"}"); Timing("MISSING") }
     else
@@ -137,7 +140,7 @@ object FofEvaluation:
           if fsize > maxSize then
             println(f"$name%-20s $hyps%4d $cj%3s  ${"SKIPPED"}%-12s  (|F|=$fsize > $maxSize)")
             return Timing("SKIPPED")
-          val res = withTimeout(timeoutMs + 5000L)(solveOne(cprob, timeoutMs, maxGiven, certified)) match
+          val res = withTimeout(timeoutMs + 5000L)(solveOne(cprob, timeoutMs, maxGiven, certified, equality)) match
             case Some(Success(t)) => t
             case Some(Failure(e)) => Timing(s"ERROR(${e.getClass.getSimpleName})")
             case None             => Timing("HARD_TIMEOUT")
@@ -150,12 +153,12 @@ object FofEvaluation:
   /** Run the (un)certified pipeline once, timing each phase. The prover is timed from **inside** its closure
    *  (accumulated nanos), so clausification time = total − prover even though `certifyClausal` calls the prover
    *  mid-descent (CPS). Runs on the worker thread inside [[withTimeout]]. */
-  private def solveOne(cprob: Clausification.Problem, timeoutMs: Long, maxGiven: Int, certified: Boolean): Timing =
+  private def solveOne(cprob: Clausification.Problem, timeoutMs: Long, maxGiven: Int, certified: Boolean, equality: Boolean = true): Timing =
     val proverNanos = new java.util.concurrent.atomic.AtomicLong(0L)
     val prover: Clausification.Problem => K.SCProof = p =>
       val ps = System.nanoTime()
       try
-        Clausal.proveOutcome(p, maxGiven, timeoutMs) match
+        Clausal.proveOutcome(p, maxGiven, timeoutMs, equality) match
           case Right(proof) => proof
           case Left(other)  => throw new NonRefutation(other)
       finally proverNanos.addAndGet(System.nanoTime() - ps)
