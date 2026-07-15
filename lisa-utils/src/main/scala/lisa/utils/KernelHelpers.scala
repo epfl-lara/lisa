@@ -180,9 +180,9 @@ object KernelHelpers {
       case SimpleAnd(children, polarity) =>
         val pol = if polarity then "" else "!"
         s"${pol}and(${children.map(_.repr).mkString(", ")})"
-      case SimpleForall(x, inner, polarity) =>
+      case sf @ SimpleForall(inner, polarity) =>
         val pol = if polarity then "" else "!"
-        s"${pol}∀$x.${inner.repr}"
+        s"${pol}∀${sf.id}.${inner.repr}"
       case SimpleLiteral(polarity) =>
         val pol = if polarity then "" else "!"
         s"${pol}lit"
@@ -201,8 +201,8 @@ object KernelHelpers {
       case SimpleApplication(arg1, arg2, polarity) =>
         val pol = if polarity then "" else "!"
         s"${pol}(${arg1.repr}(${arg2.repr}))"
-      case SimpleLambda(x, inner) =>
-        s"λ${x.repr}.${inner.repr}"
+      case sl @ SimpleLambda(inner) =>
+        s"λ${sl.v.repr}.${inner.repr}"
 
   }
 

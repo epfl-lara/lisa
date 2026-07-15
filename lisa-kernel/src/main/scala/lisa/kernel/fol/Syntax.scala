@@ -1,5 +1,6 @@
 package lisa.kernel.fol
 
+
 /**
  * Defines the syntax of statements Lisa's kernel
  *
@@ -179,6 +180,8 @@ private[fol] trait Syntax {
     private case class LambdaKey(v: Long, body: Long)
 
     private def cache[K, V]: mutable.Map[K, V] = mutable.Map.empty[K, V]
+    private def getOrCreate[K, V](map: mutable.Map[K, V], key: K, create: => V): V =
+      map.getOrElseUpdate(key, create)
 
     private val variables = cache[VariableKey, Variable]
     private val constants = cache[ConstantKey, Constant]
@@ -186,19 +189,19 @@ private[fol] trait Syntax {
     private val lambdas = cache[LambdaKey, Lambda]
 
     def variable(id: Identifier, sort: Sort): Variable =
-      if (enabled) variables.getOrElseUpdate(VariableKey(id, sort), new Variable(id, sort))
+      if (enabled) getOrCreate(variables, VariableKey(id, sort), new Variable(id, sort))
       else new Variable(id, sort)
 
     def constant(id: Identifier, sort: Sort): Constant =
-      if (enabled) constants.getOrElseUpdate(ConstantKey(id, sort), new Constant(id, sort))
+      if (enabled) getOrCreate(constants, ConstantKey(id, sort), new Constant(id, sort))
       else new Constant(id, sort)
 
     def application(f: Expression, arg: Expression): Application =
-      if (enabled) applications.getOrElseUpdate(ApplicationKey(f.uniqueNumber, arg.uniqueNumber), new Application(f, arg))
+      if (enabled) getOrCreate(applications, ApplicationKey(f.uniqueNumber, arg.uniqueNumber), new Application(f, arg))
       else new Application(f, arg)
 
     def lambda(v: Variable, body: Expression): Lambda =
-      if (enabled) lambdas.getOrElseUpdate(LambdaKey(v.uniqueNumber, body.uniqueNumber), new Lambda(v, body))
+      if (enabled) getOrCreate(lambdas, LambdaKey(v.uniqueNumber, body.uniqueNumber), new Lambda(v, body))
       else new Lambda(v, body)
   }
 
@@ -260,25 +263,26 @@ private[fol] trait Syntax {
     }
 
     /**
-     * The beta-normal form of the expression and if it is in beta-normal form.
+     * The beta-eta normal form of the expression.
+     * Which algorithm is used is controlled by [[BetaNormMode.useNbe]].
      */
-    val (betaNormalForm: Expression, isBetaNormal: Boolean) = this match {
-      case Application(f, arg) => {
-        val f1 = f.betaNormalForm
-        val a2 = arg.betaNormalForm
-        f1 match {
-          case Lambda(v, body) => {
-            (substituteVariables(body, Map(v -> a2)).betaNormalForm, false)
-          }
-          case _ if f.isBetaNormal && arg.isBetaNormal => (this, true)
-          case _ => (Application(f1, a2), false)
+    lazy val (betaNormalForm: Expression, isBetaNormal: Boolean) = this match {
+      case Application(f, arg) =>
+        f.betaNormalForm match {
+          case Lambda(x, body) => (substituteVariables(body, Map(x -> arg)).betaNormalForm, false)
+          case nf              => 
+            if (f.isBetaNormal && arg.isBetaNormal) (this, true)
+            else (Application(nf, arg.betaNormalForm), false)
         }
-      }
-      case Lambda(v, Application(f, arg)) if v == arg && !f.freeVariables.contains(v) => (f.betaNormalForm, false)
-      case Lambda(v, inner) if inner.isBetaNormal => (this, true)
-      case Lambda(v, inner) => (Lambda(v, inner.betaNormalForm), false)
+      case Lambda(x, body) =>
+        val nb = body.betaNormalForm
+        nb match {
+          case Application(g, y: Variable) if y == x && !g.freeVariables.contains(x) => (g, false)
+          case _ if body.isBetaNormal => (this, true)
+          case _                                                                     => (Lambda(x, nb), false)
+        }
       case _ => (this, true)
-    }
+  }
 
     /**
      * @return The list of free variables in the expression.
