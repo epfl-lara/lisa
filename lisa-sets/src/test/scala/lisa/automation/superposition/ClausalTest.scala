@@ -120,6 +120,17 @@ class ClausalTest extends AnyFunSuite:
     assert(FofEvaluation.sample(2000, 42).size == 944) //      n larger than the list returns all of it
   }
 
+  test("EqFofEvaluation.sample: reproducible seeded draw from the equality-bearing FOF dataset") {
+    assert(EqFofEvaluation.allProblems.size == 5589) //        FOF_THM_{RFO,EPR}_{SEQ,PEQ}, CSR excluded, .p only
+    val s = EqFofEvaluation.sample() //                        defaults: n = 100, seed = 42
+    assert(s.size == 100 && s.toSet.size == 100) //            distinct
+    assert(s == EqFofEvaluation.sample(100, 42)) //            deterministic for a fixed seed
+    assert(s != EqFofEvaluation.sample(100, 7)) //             a different seed gives a different draw
+    assert(s.forall(_.startsWith("Problems/"))) //             TPTP-root-relative paths
+    assert(EqFofEvaluation.sample(9999, 42).size == 5589) //   n larger than the list returns all of it
+    assert(EqFofEvaluation.allProblems.forall(p => !p.startsWith("Problems/CSR/") && p.endsWith(".p"))) // CSR excluded, .p only
+  }
+
   test("Pelletier 50: an η-reduced inner ∀ is still clausified (was saturating) and refutes end-to-end") {
     val bigf = pred("bigf", 2); val a = fn("a", 0); val x = vr("x"); val y = vr("y"); val x1 = vr("x1"); val y1 = vr("y1")
     def all(v: K.Variable, b: K.Expression) = K.Application(K.forall, K.Lambda(v, b))

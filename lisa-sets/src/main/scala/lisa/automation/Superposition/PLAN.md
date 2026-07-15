@@ -89,5 +89,4 @@ do not edit outside `superposition/`.
 
 - **Equality** in the prover (superposition/paramodulation/demodulation) — Phase 4. Clausification itself is
   equality-agnostic, so Phase-3 wiring is validated on no-equality goals; equality goals start working once
-  Phase 4 lands, with no change to the wiring.
-- **Performance** of the combined pipeline (large-formula clausification blowup, indexing) — Phase 5.
+  Phase 4 lands, with no change to the wiring. — Phase 5.
