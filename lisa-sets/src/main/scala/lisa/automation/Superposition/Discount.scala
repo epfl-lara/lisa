@@ -33,6 +33,11 @@ object Discount:
     case Saturated
     case Unknown
 
+  /** Loop instrumentation captured per `saturate`: `givenProcessed` (given clauses activated — the throughput
+   *  measure), the peak sizes of the `active` and live-`passive` sets, and `passiveEnqueued` (total clauses ever
+   *  put on passive). */
+  final case class LoopStats(givenProcessed: Int, peakActive: Int, peakPassive: Int, passiveEnqueued: Int)
+
 final class Discount(
     bank: TermBank,
     trail: Trail,
@@ -103,6 +108,15 @@ final class Discount(
   var backwardSubsumptionResolved: Int = 0
   var condensed: Int = 0
 
+  // Throughput / scale instrumentation (reset at the start of each `saturate`).
+  var givenProcessed: Int = 0  // given clauses activated (the throughput measure)
+  var peakActive: Int = 0      // max |active| over the run
+  var peakPassive: Int = 0     // max live-passive size over the run
+  var passiveEnqueued: Int = 0 // total clauses ever enqueued to passive
+
+  /** Snapshot of the loop instrumentation (valid after `saturate` returns). */
+  def loopStats: Discount.LoopStats = Discount.LoopStats(givenProcessed, peakActive, peakPassive, passiveEnqueued)
+
   // Passive set: two views over the same clauses, with lazy deletion -- a clause selected via one
   // stays a stale entry in the other, skipped on pop. Age is just a FIFO queue: clauses are enqueued
   // in strictly increasing `id` order (ids are monotonic and each insertion is a fresh clause), so
@@ -141,6 +155,7 @@ final class Discount(
     intoIndex.clear(); fromIndex.clear()
     forwardSubsumed = 0; backwardSubsumed = 0; forwardUnitDeleted = 0; backwardUnitDeleted = 0
     forwardSubsumptionResolved = 0; backwardSubsumptionResolved = 0; condensed = 0
+    givenProcessed = 0; peakActive = 0; peakPassive = 0; passiveEnqueued = 0
     val it = initial.iterator
     while it.hasNext do
       addPassive(it.next()) match
@@ -148,8 +163,7 @@ final class Discount(
         case None => ()
     val checkTime: Boolean = maxMillis != Long.MaxValue
     val deadline: Long = if checkTime then System.nanoTime() + maxMillis * 1000000L else 0L
-    var givenCount = 0
-    while !livePassive.isEmpty && givenCount < maxGiven && (!checkTime || System.nanoTime() < deadline) do
+    while !livePassive.isEmpty && givenProcessed < maxGiven && (!checkTime || System.nanoTime() < deadline) do
       val gc = forwardDemodulate(popGiven()) // normal-form the given against active demodulators, then simplify
       // forward simplify the given against active: it may have been subsumed (skip) or shrunk by unit
       // deletion (process the shorter clause) by clauses that became active while it sat in passive.
@@ -159,7 +173,7 @@ final class Discount(
         case Some(g) =>
           if g.isEmpty then return Result.Refutation(g) // unit deletion closed the clause
           else
-            givenCount += 1
+            givenProcessed += 1
             activate(g) match
               case Some(empty) => return Result.Refutation(empty)
               case None => ()
@@ -194,6 +208,9 @@ final class Discount(
                 byAge.enqueue(cc)
                 byWeight.enqueue(cc)
                 livePassive.add(cc.id)
+                passiveEnqueued += 1
+                val live = livePassive.size()
+                if live > peakPassive then peakPassive = live
                 None
 
   /** Pick the next given clause by the age/weight ratio, removing it from passive: scan the chosen
@@ -233,6 +250,7 @@ final class Discount(
       case Some(empty) => return Some(empty)
       case None => ()
     active += gc
+    if active.length > peakActive then peakActive = active.length
     if forwardDemodulationOn && isPosUnitEq(gc) then activeDemodulators ++= Demodulation.rules(bank, bank.order, gc) // gc is a new demodulator
     if indexedSuperposition then addToIndices(gc) // index gc *before* querying, so the gc-into-gc self-pair fires
     // Precompute once per activation (invariant across the active scan): which of gc's selected literals are

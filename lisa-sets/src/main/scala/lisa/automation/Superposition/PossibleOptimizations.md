@@ -300,3 +300,27 @@ code, and the win is modest (entries are amortized-once allocations, not hot-pat
 class` first, then A/B a SoA leaf against it on the seed-42 benchmark and keep whichever wins.** The hot-path
 allocation to avoid regardless is per-*query* — retrieval pushes candidates through a callback / reused
 buffer, never a freshly-allocated `List`/tuple (this part is in the Step-1 plan, not deferred).
+
+## Fingerprint bucket representation — measured, `ObjectOpenHashSet` kept (Phase 5 Step 1)
+
+`Buckets.Bucket[E]` (the per-leaf entry collection in `Fingerprint.scala`) is an **opaque type over
+`ObjectOpenHashSet[E]`** — the simplest of three forms we implemented and benchmarked on the seed-42 equality
+set (`EqFofEvaluation 42 100`, index on, certified), using the **given-clauses-processed** throughput counter
+(`Discount.LoopStats`, surfaced via `Bridge.solve`'s `onStats` and printed by `EqFofEvaluation`) rather than
+the refuted count:
+
+| Bucket form | given total (throughput) | refuted (noisy!) |
+|---|---|---|
+| `ObjectOpenHashSet` only (kept) | 749,817 | 16 |
+| adaptive array→set (upgrade past 16) | 731,275 | 15 |
+| `ArrayBuffer` only | — | 15 |
+
+All three are **throughput-equivalent (within ~2%)**; the earlier "adaptive 19 / hash-set 16 / array 15"
+*refuted-count* comparison was **timing noise** — the *same* adaptive bucket swung 19↔15 refuted between runs
+(±4 near the 15 s wall boundary). Per problem, refuted problems process an *identical* given count under all
+forms, and timeout problems scatter ±few-% both ways. So bucket ops are a negligible slice of per-given work
+(unification / superposition build / KBO dominate), and the JVM almost certainly escape-analysis-elides the
+hash-set iterator on `foreach`, so the predicted "iterator alloc on the hot path" never bites. **Lesson: judge
+Phase-5 steps by `given` throughput, not refuted count.** The adaptive/array variants and this measurement are
+in the git history; revisit only if a future step makes bucket removal (backward simplification) hot enough to
+matter.

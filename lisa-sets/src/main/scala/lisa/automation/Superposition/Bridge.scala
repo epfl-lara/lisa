@@ -95,6 +95,9 @@ object Bridge:
       // Term indexing (Phase 5): find superposition partners via a fingerprint index over the active set rather
       // than the linear scan. Same inferences (so the proof is unchanged); kept as a flag for A/B benchmarking.
       fingerprintIndexing: Boolean = true,
+      // Loop instrumentation sink: invoked with the loop's [[Discount.LoopStats]] (given-clause throughput + peak
+      // active/passive sizes) after saturation, for any outcome. Default no-op.
+      onStats: Discount.LoopStats => Unit = _ => (),
       // Schematic symbol variables: kernel `Variable`s that are to be treated as **symbols** by the prover
       // (not clause variables) and rebuilt as variables in reconstruction. Dispatched by position: a symbol
       // variable in a literal-head position is a **predicate** symbol, in a term position a **function**
@@ -115,7 +118,7 @@ object Bridge:
       c
     }.toSeq
     val schematicNames: Set[String] = symbolVars.map(_.id.toString)
-    new Discount(
+    val discount = new Discount(
       bank,
       trail,
       forwardSubsumption = forwardSubsumption,
@@ -128,7 +131,10 @@ object Bridge:
       forwardSimplifyAtGeneration = forwardSimplifyAtGeneration,
       equality = equality,
       fingerprintIndexing = fingerprintIndexing
-    ).saturate(clauses, maxGiven, maxMillis) match
+    )
+    val result = discount.saturate(clauses, maxGiven, maxMillis)
+    onStats(discount.loopStats)
+    result match
       case Discount.Result.Refutation(empty) => Outcome.Success(empty, bank, inputs, schematicNames, discharge)
       case Discount.Result.Saturated => Outcome.Saturated
       case Discount.Result.Unknown => Outcome.Timeout
@@ -148,11 +154,13 @@ object Bridge:
       condensation: Boolean = false,
       forwardSimplifyAtGeneration: Boolean = false,
       equality: Boolean = true,
-      fingerprintIndexing: Boolean = true): Outcome =
+      fingerprintIndexing: Boolean = true,
+      onStats: Discount.LoopStats => Unit = _ => ()): Outcome =
     solve(
       problemSequents(problem), maxGiven, maxMillis, forwardSubsumption, backwardSubsumption,
       forwardUnitDeletion, backwardUnitDeletion, forwardSubsumptionResolution, backwardSubsumptionResolution,
-      condensation, forwardSimplifyAtGeneration, equality = equality, fingerprintIndexing = fingerprintIndexing
+      condensation, forwardSimplifyAtGeneration, equality = equality, fingerprintIndexing = fingerprintIndexing,
+      onStats = onStats
     )
 
   /** Convert a [[lisa.tptp.Problem]] of pure clauses (e.g. a TPTP `cnf` problem) to clause-sequents. */
