@@ -282,3 +282,21 @@ From the Vampire/E source comparison; none blocks a correct Step 3, all are thro
   succeeds and changes that literal's maximality, E clears the restriction and re-runs the clause
   unrestricted. A correctness subtlety to honour once the restricted-rewrite (encompassment) gate is in;
   our simplest form can conservatively re-run the whole clause to a fixpoint.
+
+## Fingerprint index payload — SoA at the trie leaf (Phase 5 Step 1)
+
+The fingerprint term index ([Phase5.md](Phase5.md) Step 1) stores, at each trie leaf, the set of index
+entries whose term has that fingerprint. The plan uses a small **`final class`** per entry
+(`IntoEntry(clause, litIndex, pos)` / `FromEntry(clause, litIndex, side)`) — one object per indexed subterm,
+no boxing (a tuple would box the `Int`/opaque-`Int` fields). Entries are allocated once per active subterm at
+activation, so the per-object cost is amortized, not per-query.
+
+A **structure-of-arrays (SoA)** leaf is the codebase-idiomatic alternative to compare: instead of a list of
+entry objects, the leaf holds parallel primitive columns — a `mutable.ArrayBuffer[Clause]`, an `IntArrayList`
+of `litIndex` (packed with `side` for the from-index), and positions (`Array[Array[Int]]`, or paths packed
+into a `Long` with a length header since paths are short). This eliminates per-entry objects entirely and
+iterates cache-friendly parallel arrays, matching the arena/flat-array style of `Core.scala`. It is more
+code, and the win is modest (entries are amortized-once allocations, not hot-path), so: **ship the `final
+class` first, then A/B a SoA leaf against it on the seed-42 benchmark and keep whichever wins.** The hot-path
+allocation to avoid regardless is per-*query* — retrieval pushes candidates through a callback / reused
+buffer, never a freshly-allocated `List`/tuple (this part is in the Step-1 plan, not deferred).

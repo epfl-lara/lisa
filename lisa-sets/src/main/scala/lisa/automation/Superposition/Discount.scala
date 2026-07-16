@@ -1,6 +1,6 @@
 package lisa.automation.superposition
 
-import it.unimi.dsi.fastutil.ints.IntOpenHashSet
+import it.unimi.dsi.fastutil.ints.{IntArrayList, IntOpenHashSet}
 
 import scala.collection.mutable
 
@@ -71,7 +71,12 @@ final class Discount(
     // Demodulation (rewriting by active positive unit equalities): forward normal-forms the given at
     // selection; backward rewrites active clauses when the given is a new unit equality. Inert without them.
     forwardDemodulation: Boolean = true,
-    backwardDemodulation: Boolean = true):
+    backwardDemodulation: Boolean = true,
+    // Term indexing (Phase 5): find superposition partners via a fingerprint index over the active set instead
+    // of the linear scan. Same inferences (the index is a candidate filter, confirmed by real unification), so
+    // reconstruction is unchanged; only the order candidates are found in — hence clause ids and the search
+    // trajectory — differs. Kept as a flag so the indexed and linear paths can be A/B-compared.
+    fingerprintIndexing: Boolean = true):
   import Discount.Result
 
   // Effective equality-inference switches: each is the master `equality` flag AND its own flag. When
@@ -79,6 +84,15 @@ final class Discount(
   private val superpositionOn: Boolean = equality && superposition
   private val forwardDemodulationOn: Boolean = equality && forwardDemodulation
   private val backwardDemodulationOn: Boolean = equality && backwardDemodulation
+  // Superposition via the fingerprint index (vs the linear active scan). Only meaningful when superposition runs.
+  private val indexedSuperposition: Boolean = superpositionOn && fingerprintIndexing
+
+  // Fingerprint indices over the active set for superposition (Phase 5 Step 1): the *into* index holds every
+  // non-variable subterm of active clauses' selected literals (rewrite targets); the *from* index holds the
+  // usable maximal sides of their selected positive equalities (rewrite sources). Maintained incrementally
+  // alongside `active`. Only populated/queried when `indexedSuperposition`.
+  private val intoIndex: FingerprintIndex[IntoEntry] = new FingerprintIndex(bank)
+  private val fromIndex: FingerprintIndex[FromEntry] = new FingerprintIndex(bank)
 
   // Simplification counters (observability / benchmarks); reset at the start of each `saturate`.
   var forwardSubsumed: Int = 0
@@ -124,6 +138,7 @@ final class Discount(
    */
   def saturate(initial: Seq[Clause], maxGiven: Int = Int.MaxValue, maxMillis: Long = Long.MaxValue): Result =
     byAge.clear(); byWeight.clear(); livePassive.clear(); active.clear(); activeDemodulators.clear(); balance = 0
+    intoIndex.clear(); fromIndex.clear()
     forwardSubsumed = 0; backwardSubsumed = 0; forwardUnitDeleted = 0; backwardUnitDeleted = 0
     forwardSubsumptionResolved = 0; backwardSubsumptionResolved = 0; condensed = 0
     val it = initial.iterator
@@ -219,6 +234,7 @@ final class Discount(
       case None => ()
     active += gc
     if forwardDemodulationOn && isPosUnitEq(gc) then activeDemodulators ++= Demodulation.rules(bank, bank.order, gc) // gc is a new demodulator
+    if indexedSuperposition then addToIndices(gc) // index gc *before* querying, so the gc-into-gc self-pair fires
     // Precompute once per activation (invariant across the active scan): which of gc's selected literals are
     // non-equality (for ordinary resolution) and gc's usable superposition from-sides.
     val gcSelNonEq: Array[Boolean] = new Array[Boolean](gSel.length)
@@ -246,7 +262,7 @@ final class Discount(
         gi += 1
       // superposition: gc's equations into `a` (precomputed from-sides), and `a`'s equations into gc (both
       // directions; the a == gc self-pair is done once). The caller locates + unifies; `superpose` is build-only.
-      if superpositionOn then
+      if superpositionOn && !fingerprintIndexing then // linear-scan superposition; the indexed path runs after the loop
         superposeUsing(gc, gcFromSides, a, aSel) match
           case Some(empty) => return Some(empty)
           case None => ()
@@ -255,6 +271,11 @@ final class Discount(
             case Some(empty) => return Some(empty)
             case None => ()
       ai += 1
+    // indexed superposition (Phase 5): the same inferences via the fingerprint index rather than the active scan
+    if indexedSuperposition then
+      superposeIndexed(gc, gSel, gcFromSides) match
+        case Some(empty) => return Some(empty)
+        case None => ()
     // factoring: each unordered pair of distinct selected, positive, non-equality literals, once
     // (positive factoring only; equalities get equality-factoring in Phase 3). A literal that unifies
     // with a selected (maximal) one is itself maximal, hence also selected, so pairing within the
@@ -394,6 +415,85 @@ final class Discount(
     }
     refut
 
+  // --- indexed superposition (Phase 5) -----------------------------------------------------------
+
+  /** Indexed superposition: the same inferences as [[superposeUsing]] + [[superposeFromInto]] with partners
+   *  found via the fingerprint indices instead of the active scan. `gc` is already in both indices, so Pass 1
+   *  (gc's equations rewriting into active into-subterms) also covers the `gc`-into-`gc` self-pair; Pass 2
+   *  (active equations rewriting into gc's subterms) therefore *skips* candidates from `gc` itself. Every
+   *  candidate is confirmed by a real unification in [[superposeVerified]], so the inference set is identical. */
+  private def superposeIndexed(gc: Clause, gSel: Array[Int], gcFromSides: List[(Int, Int, Term, Symbol)]): Option[Clause] =
+    var refut: Option[Clause] = None
+    // Pass 1: gc supplies the equation; query the into-index with each usable from-side `l`.
+    var fs = gcFromSides
+    while fs.nonEmpty && refut.isEmpty do
+      val (iFrom, fromSide, l, _) = fs.head
+      intoIndex.retrieveUnifiable(l) { e =>
+        if refut.isEmpty then refut = superposeVerified(gc, iFrom, fromSide, e.clause, e.litIndex, e.pos)
+      }
+      fs = fs.tail
+    // Pass 2: active clauses supply the equation; query the from-index with each of gc's non-variable subterms.
+    var gi = 0
+    while gi < gSel.length && refut.isEmpty do
+      val iInto: Int = gSel(gi)
+      Superposition.foreachSubterm(bank, bank.atomOf(gc.literals(iInto))) { (u, path) =>
+        fromIndex.retrieveUnifiable(u) { e =>
+          if refut.isEmpty && e.clause.id != gc.id then // gc-into-gc already done in Pass 1
+            refut = superposeVerified(e.clause, e.litIndex, e.side, gc, iInto, path.toIntArray)
+        }
+        refut.isDefined // stop the subterm walk on refutation
+      }
+      gi += 1
+    refut
+
+  /** Verify + build one located superposition: unify `fromC`'s side `fromSide` with `intoC`'s subterm at `pos`,
+   *  then the build-only [[Superposition.superpose]] and `addPassive`. Restores the trail. `Some(□)` on refutation. */
+  private def superposeVerified(fromC: Clause, iFrom: Int, fromSide: Int, intoC: Clause, iInto: Int, pos: Array[Int]): Option[Clause] =
+    val l: Term = bank.arg(bank.atomOf(fromC.literals(iFrom)), fromSide)
+    val u: Term = Superposition.subtermAt(bank, bank.atomOf(intoC.literals(iInto)), pos)
+    val saved: Int = trail.save()
+    var res: Option[Clause] = None
+    if trail.unify(l, 0, u, 1) then
+      Superposition.superpose(bank, trail, bank.order, fromC, iFrom, fromSide, intoC, iInto, IntArrayList.wrap(pos)) match
+        case Some(rr) => res = addPassive(rr)
+        case None => ()
+    trail.restore(saved)
+    res
+
+  /** Index `c`'s superposition terms: every non-variable subterm of its selected literals into the into-index,
+   *  and each usable maximal side of its selected positive equalities into the from-index. */
+  private def addToIndices(c: Clause): Unit =
+    val sel: Array[Int] = c.selected
+    var k = 0
+    while k < sel.length do
+      val iLit: Int = sel(k)
+      Superposition.foreachSubterm(bank, bank.atomOf(c.literals(iLit))) { (u, path) =>
+        intoIndex.insert(u, new IntoEntry(c, iLit, path.toIntArray)); false
+      }
+      k += 1
+    var xs = fromSides(c, sel)
+    while xs.nonEmpty do
+      val (iFrom, fromSide, l, _) = xs.head
+      fromIndex.insert(l, new FromEntry(c, iFrom, fromSide))
+      xs = xs.tail
+
+  /** Remove `c`'s superposition terms from the indices (re-derived, matched by value equality) when `c` leaves
+   *  the active set. Mirrors [[addToIndices]]. */
+  private def removeFromIndices(c: Clause): Unit =
+    val sel: Array[Int] = c.selected
+    var k = 0
+    while k < sel.length do
+      val iLit: Int = sel(k)
+      Superposition.foreachSubterm(bank, bank.atomOf(c.literals(iLit))) { (u, path) =>
+        intoIndex.remove(u, new IntoEntry(c, iLit, path.toIntArray)); false
+      }
+      k += 1
+    var xs = fromSides(c, sel)
+    while xs.nonEmpty do
+      val (iFrom, fromSide, l, _) = xs.head
+      fromIndex.remove(l, new FromEntry(c, iFrom, fromSide))
+      xs = xs.tail
+
   /** Forward simplify `m` against the active set in one scan (active only -- DISCOUNT does not
    *  forward-check passive): if some active clause subsumes `m`, return `None` (discard it); otherwise apply
    *  subsumption resolution by active clauses (unit deletion for unit sides, general SR for longer ones),
@@ -446,6 +546,7 @@ final class Discount(
           case None => ()
       if removed then
         if isPosUnitEq(m) then removeDemodulatorsOf(m) // keep the demodulator set in sync
+        if indexedSuperposition then removeFromIndices(m) // keep the fingerprint indices in sync
         active(i) = active(active.length - 1)
         active.remove(active.length - 1)
       else i += 1
@@ -484,6 +585,7 @@ final class Discount(
    *  demodulator set in sync. */
   private def removeFromActive(c: Clause): Unit =
     if isPosUnitEq(c) then removeDemodulatorsOf(c)
+    if indexedSuperposition then removeFromIndices(c)
     var i = 0
     while i < active.length do
       if active(i).id == c.id then

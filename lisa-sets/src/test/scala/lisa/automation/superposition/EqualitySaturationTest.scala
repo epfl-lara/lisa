@@ -101,3 +101,35 @@ class EqualitySaturationTest extends AnyFunSuite:
       case Discount.Result.Refutation(empty) => assert(empty.isEmpty)
       case other => fail(s"expected Refutation, got $other")
   }
+
+  test("fingerprint-indexed superposition and the linear scan reach the same verdict (A/B equivalence)") {
+    // The index is a candidate filter confirmed by real unification, so both paths must generate the same
+    // inference set and hence the same refuted/saturated verdict (clause ids differ, the outcome doesn't).
+    def cat(r: Discount.Result): String = r match
+      case _: Discount.Result.Refutation => "refuted"
+      case Discount.Result.Saturated     => "saturated"
+      case Discount.Result.Unknown       => "unknown"
+    def verdict(indexed: Boolean, build: Fix => Seq[Clause]): String =
+      val fx = new Fix
+      val cs = build(fx)
+      cat(new Discount(fx.bank, fx.trail, fingerprintIndexing = indexed).saturate(cs, maxGiven = 5000))
+
+    val builders: Seq[(String, Fix => Seq[Clause])] = Seq(
+      "ueq f(a)=a ⊢ f(f(a))=a" -> { fx => import fx.*; val f = fn("f", 1); val a = const("a")
+        Seq(clause(pos(mkEq(app(f, a), a))), clause(neg(mkEq(app(f, app(f, a)), a)))) },
+      "chain b=a,c=b,d=c ⊢ d=a" -> { fx => import fx.*
+        val a = const("a"); val b = const("b"); val c = const("c"); val d = const("d")
+        Seq(clause(pos(mkEq(b, a))), clause(pos(mkEq(c, b))), clause(pos(mkEq(d, c))), clause(neg(mkEq(d, a)))) },
+      "two axioms f(x)=g(x), g(a)=b ⊢ f(a)=b" -> { fx => import fx.*
+        val f = fn("f", 1); val g = fn("g", 1); val a = const("a"); val b = const("b"); val x = v(0)
+        Seq(clause(pos(mkEq(app(f, x), app(g, x)))), clause(pos(mkEq(app(g, a), b))), clause(neg(mkEq(app(f, a), b)))) },
+      "superpose into a predicate: f(a)=b, P(f(a)), ¬P(b)" -> { fx => import fx.*
+        val P = pred("P", 1); val f = fn("f", 1); val a = const("a"); val b = const("b")
+        Seq(clause(pos(mkEq(app(f, a), b))), clause(pos(app(P, app(f, a)))), clause(neg(app(P, b)))) },
+      "satisfiable a=b, P(a)" -> { fx => import fx.*
+        val a = const("a"); val b = const("b"); val P = pred("P", 1)
+        Seq(clause(pos(mkEq(a, b))), clause(pos(app(P, a)))) }
+    )
+    for (name, b) <- builders do
+      assert(verdict(indexed = true, b) == verdict(indexed = false, b), s"index vs scan verdict differ on: $name")
+  }

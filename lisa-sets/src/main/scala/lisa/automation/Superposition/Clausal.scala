@@ -129,7 +129,7 @@ object Clausal:
    * `Saturated`/`Timeout` [[Bridge.Outcome]] instead of throwing — so a benchmark can categorise the result.
    * `maxGiven`/`maxMillis` bound the underlying [[Bridge]] search.
    */
-  def proveOutcome(problem: Clausification.Problem, maxGiven: Int = Int.MaxValue, maxMillis: Long = Long.MaxValue, equality: Boolean = true): Either[Bridge.Outcome, K.SCProof] =
+  def proveOutcome(problem: Clausification.Problem, maxGiven: Int = Int.MaxValue, maxMillis: Long = Long.MaxValue, equality: Boolean = true, fingerprintIndexing: Boolean = true): Either[Bridge.Outcome, K.SCProof] =
     val abs = new Abstraction
     val orig: IndexedSeq[K.Sequent] = problem.imports //               clausifier clauses (contract import list)
     val absSeqs: IndexedSeq[K.Sequent] = orig.map(o => abstractSequent(abs, o))
@@ -140,7 +140,7 @@ object Clausal:
     val symbolVars: Set[K.Variable] =
       abs.dischargeSubst.keySet ++
         absSeqs.iterator.flatMap(s => (s.left ++ s.right).iterator.flatMap(_.freeVariables)).filter(_.sort != K.Ind).toSet
-    Bridge.solve(work, maxGiven, maxMillis, symbolVars = symbolVars, discharge = abs.dischargeSubst, equality = equality) match
+    Bridge.solve(work, maxGiven, maxMillis, symbolVars = symbolVars, discharge = abs.dischargeSubst, equality = equality, fingerprintIndexing = fingerprintIndexing) match
       case s: Bridge.Outcome.Success =>
         val base: K.SCProof = s.reconstructKernelProof //              ε-bearing, imports = neg-moved ε-clauses, ∅ ⊢
         val work0: IndexedSeq[K.Sequent] = orig.map(toWorkingSequent) // neg-moved ε-clauses; = base.imports
