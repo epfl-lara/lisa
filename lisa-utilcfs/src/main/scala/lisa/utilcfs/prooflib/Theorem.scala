@@ -6,12 +6,12 @@ import lisa.utilcfs.collection.Extensions.*
 import lisa.utilcfs.prooflib.Helpers.withParams
 
 sealed trait TheoremKind:
-  def apply(using library: Library, sourceFile: sourcecode.File, sourceLine: sourcecode.Line, fullName: sourcecode.FullName, name: sourcecode.Name)(statement: Sequent)(computeProof: Proof ?=> Any): Theorem =
+  def apply(using library: Library, output: OutputManager, sourceFile: sourcecode.File, sourceLine: sourcecode.Line, fullName: sourcecode.FullName, name: sourcecode.Name)(statement: Sequent)(computeProof: Proof ?=> Any): Theorem =
     def carrier(using proof: Proof): ProofCarrier[?] =
       computeProof(using proof) match
         case carrier: ProofCarrier[?] => carrier
         case _ => proof.pure(())
-    new Theorem(this)(using library)(sourceFile, sourceLine, fullName, name)(statement)(carrier)
+    new Theorem(this)(using library, output)(sourceFile, sourceLine, fullName, name)(statement)(carrier)
 
 case object Theorem extends TheoremKind:
   given asThm: Conversion[Theorem, Thm] = _.thm
@@ -21,13 +21,13 @@ case object Lemma extends TheoremKind
 
 final class Theorem 
   (theoremKind: TheoremKind)
-  (using library: Library)
+  (using library: Library, output: OutputManager)
   (val file: sourcecode.File, val line: sourcecode.Line, val fullName: sourcecode.FullName, val name: sourcecode.Name)
   (val Statement: Sequent)
   (computeProof: Proof ?=> ProofCarrier[?]):
   val kind: TheoremKind = theoremKind
   val shortName: String = 
-    fullName.toString.split('.').lastOption.getOrElse(name.toString)
+    fullName.value.split('.').lastOption.getOrElse(name.value)
   val statement: Sequent = Statement
 
   val judgement: ProofJudgement = 
@@ -59,11 +59,17 @@ final class Theorem
               inner.judgement
 
   val innerThm: Thm = judgement.destruct._1
-  def thm: Thm = innerThm
+  def thm: Thm = innerThm.copy(isSchema = true)
   def kernel: K.Thm = innerThm.kernel
   val errors: Set[ProofError] = judgement.errors
 
   // MUTABLY update the theorem registry
   library.theorems.register(this)
+
+  private val state = s"  $kind $shortName := $statement"
+  output.output(if errors.isEmpty then OutputManager.GREEN(state) else OutputManager.RED(state))
+  errors.toSeq
+    .sortBy(error => (error.file.value, error.line.value, error.message))
+    .foreach(error => output.output(OutputManager.RED(s"    ${error.file.value}:${error.line.value}: ${error.message}")))
 
   // TODO: if errors.nonEmpty and strict mode?
