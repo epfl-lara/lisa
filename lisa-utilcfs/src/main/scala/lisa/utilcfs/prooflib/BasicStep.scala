@@ -55,9 +55,6 @@ object BasicStep:
   private inline def weakening(conclusion: K.Sequent, premise: K.Thm)(using library: Library): Option[K.Thm] =
     K.Weakening(using library.theory)(conclusion, premise).toOption
 
-  private def localTermCandidates(instance: KF.Expression, variable: KF.Variable): Iterator[KF.Expression] =
-    Iterator.single(variable: KF.Expression) ++ termsIn(Seq(instance)).iterator
-
   ///////////////////////////////////////////////////////////////////////////////
   // Basic Step Definitions
   //

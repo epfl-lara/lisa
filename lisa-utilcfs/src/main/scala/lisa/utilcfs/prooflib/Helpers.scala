@@ -104,6 +104,10 @@ object Helpers:
   def termsIn(expressions: Iterable[KF.Expression]): Vector[KF.Expression] =
     distinctEq(subexpressions(expressions).filter(_.sort == KF.Ind))
 
+  /** Candidate instantiating terms for a quantified variable against a local formula instance. */
+  def localTermCandidates(instance: KF.Expression, variable: KF.Variable): Iterator[KF.Expression] =
+    Iterator.single(variable: KF.Expression) ++ termsIn(Seq(instance)).iterator
+
   /** Converts equal function heads into universally quantified pointwise equalities. */
   def liftedEqualities(equalities: Seq[(KF.Expression, KF.Expression)]): Seq[KF.Expression] =
     def liftEquality(s: KF.Expression, t: KF.Expression): KF.Expression =
@@ -144,15 +148,19 @@ object Helpers:
     val (args, body) = stripForalls(expression)
     body match
       case KF.equality(left, right) =>
-        for
-          s <- unappliedHead(left, args)
-          t <- unappliedHead(right, args)
-        yield s -> t
+        if args.isEmpty then Some(left -> right)
+        else
+          for
+            s <- unappliedHead(left, args)
+            t <- unappliedHead(right, args)
+          yield s -> t
       case KF.iff(left, right) =>
-        for
-          s <- unappliedHead(left, args)
-          t <- unappliedHead(right, args)
-        yield s -> t
+        if args.isEmpty then Some(left -> right)
+        else
+          for
+            s <- unappliedHead(left, args)
+            t <- unappliedHead(right, args)
+          yield s -> t
       case _ => None
 
   /** Builds a common abstraction of source and target by replacing matching s/t differences with variable. */
