@@ -45,19 +45,15 @@ val commonSettings3 = commonSettings ++ Seq(
 def withTests(project: Project): ClasspathDependency =
   project % "compile->compile;test->test"
 
-def githubProject(repo: String, commitHash: String) = RootProject(uri(s"$repo#$commitHash"))
-
-lazy val customTstpParser = githubProject("https://github.com/SC-TPTP/scala-tptp-parser.git", "0b4ffa55c71415e925080608707c78ada1d750e5")
-
 lazy val root = Project(
   id = "lisa",
   base = file(".")
 )
   .settings(commonSettings3)
-  .dependsOn(kernel, withTests(utils), withTests(sets)) // Everything but `examples`
-  .aggregate(utils) // To run tests on all modules
+  .dependsOn(kernelcf, utilcfs, setslcf)
+  .aggregate(utilcfs, setslcf)
 
-Compile / run := (sets / Compile / run).evaluated
+Compile / run := (setslcf / Compile / run).evaluated
 
 lazy val kernel = Project(
   id = "lisa-kernel",
@@ -85,26 +81,23 @@ lazy val utilcfs = Project(
   .settings(commonSettings3)
   .dependsOn(kernelcf)
 
-lazy val sets = Project(
-  id = "lisa-sets",
-  base = file("lisa-sets")
+lazy val setslcf = Project(
+  id = "lisa-setslcf",
+  base = file("lisa-setslcf")
 )
   .settings(commonSettings3)
-  .dependsOn(kernel, withTests(utils))
-lazy val utils = Project(
-  id = "lisa-utils",
-  base = file("lisa-utils")
-)
   .settings(
-    commonSettings3 ++ Seq(
-      libraryDependencies += "ch.epfl.lara" %% "scallion" % "0.6" from "https://github.com/epfl-lara/scallion/releases/download/v0.6/scallion_3-0.6.jar",
-      libraryDependencies += "ch.epfl.lara" %% "silex" % "0.6" from "https://github.com/epfl-lara/silex/releases/download/v0.6/silex_3-0.6.jar",
-      libraryDependencies += "com.lihaoyi" %% "mainargs" % "0.7.6"
-    )
+    Compile / unmanagedSources := {
+      val src = (Compile / scalaSource).value
+      (src ** "*.scala").get.filter { file =>
+        val path = IO.relativize(src, file).getOrElse("")
+        path == "lisa/Main.scala" ||
+        path == "lisa/SetTheoryLibrary.scala" ||
+        path.startsWith("lisa/maths/")
+      }
+    }
   )
-  .dependsOn(kernel)
-  .dependsOn(customTstpParser)
-//.settings(libraryDependencies += "io.github.leoprover" % "scala-tptp-parser_2.13" % "1.4")
+  .dependsOn(kernelcf, utilcfs)
 
 ThisBuild / assemblyMergeStrategy := {
   case PathList("module-info.class") => MergeStrategy.discard

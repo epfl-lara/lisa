@@ -1,0 +1,45 @@
+package lisa.maths.SetTheory.Base
+
+import lisa.SetTheoryLibrary
+import lisa.SetTheoryLibrary.{_, given}
+import lisa.utilcfs.fol.FOL.{_, given}
+import lisa.utilcfs.prooflib.Exports.*
+import lisa.utilcfs.prooflib.Subproof
+
+/**
+ * Given the equivalence `z ∈ x <=> z ∈ y`, proves that `x = y` if `z` is free.
+ *
+ * {{{
+ *  Γ ⊢ z ∈ x <=> z ∈ y, Δ
+ * ------------------------
+ *      Γ ⊢ x === y, Δ
+ * }}}
+ * where `z` is not free in `Γ` or `Δ`.
+ */
+def Extensionality(using proof: SetTheoryLibrary.Proof)(premise: Thm)(conclusion: Sequent): ProofJudgement = {
+  val x, y = variable[Ind]
+
+  val premiseSeq = premise.statement
+  val boundVars = premiseSeq.left.flatMap(_.freeVars)
+
+  inline def valid(z1: Variable[Ind], z2: Variable[Ind], x: Expr[Ind], y: Expr[Ind]) =
+    z1 == z2 && !boundVars.contains(z1) && conclusion.right.exists(isSame(_, x === y))
+
+  val pivot: Option[(Variable[Ind], Expr[Ind], Expr[Ind])] = premiseSeq.right.collectFirst {
+    case ((z: Variable[Ind]) ∈ x) <=> ((z_ : Variable[Ind]) ∈ y) if valid(z, z_, x, y) => (z, x, y)
+  }
+
+  pivot match {
+    case None =>
+      invalidTactic("Could not find a formula of the form z ∈ x <=> z ∈ y in the RHS of the premise.")
+    case Some((z, x_, y_)) =>
+      Subproof {
+        val equiv = z ∈ x_ <=> z ∈ y_
+        val eq = x_ === y_
+        val baseSequent = premiseSeq ->> equiv
+
+        have(baseSequent +>> forall(z, equiv)) by RightForall.withParameters(equiv, z)(premise)
+        thenHave(baseSequent +>> eq) by Tautology.fromLastStep(extensionalityAxiom of (x := x_, y := y_))
+      }
+  }
+}
