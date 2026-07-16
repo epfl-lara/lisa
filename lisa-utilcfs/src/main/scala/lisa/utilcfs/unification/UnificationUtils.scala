@@ -137,7 +137,7 @@ object UnificationUtils:
    *
    * @param assignments mappings to initialize the substitution with
    */
-  class Substitution private (
+  case class Substitution private (
       protected val assignments: Map[Variable[?], Expr[?]],
       protected val freeVariables: Set[Variable[?]]
   ):
@@ -394,12 +394,12 @@ object UnificationUtils:
                 RewriteResult(c, r, Abs(freshVar, e))
         case _ => None
 
-  /** Keeps the first representative of each instantiated rewrite formula. */
+  /** Keeps the first occurrence of each instantiated rewrite rule. */
   def distinctRules(rules: Iterable[InstantiatedRewriteRule]): Vector[InstantiatedRewriteRule] =
-    val seen = mutable.LinkedHashSet.empty[Expr[Prop]]
+    val seen = mutable.LinkedHashSet.empty[InstantiatedRewriteRule]
     val out = Vector.newBuilder[InstantiatedRewriteRule]
     rules.foreach: rule =>
-      if seen.add(rule.toFormula) then out += rule
+      if seen.add(rule) then out += rule
     out.result()
 
   /** Matches every base formula to some target formula by rewriting. */

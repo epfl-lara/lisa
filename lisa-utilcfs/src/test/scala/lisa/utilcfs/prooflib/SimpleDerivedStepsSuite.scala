@@ -2,6 +2,7 @@ package lisa.utilcfs.prooflib
 
 import lisa.utilcfs.K
 import lisa.utilcfs.fol.FOL.{_, given}
+import lisa.utilcfs.prooflib.ProofHelpers.of
 import org.scalatest.funsuite.AnyFunSuite
 
 class SimpleDerivedStepsSuite extends AnyFunSuite:
@@ -55,6 +56,11 @@ class SimpleDerivedStepsSuite extends AnyFunSuite:
     val premise = axiom(() |- forall(x, forall(y, R(x)(y))))
     assertValid(InstantiateForall(a, b)(() |- R(a)(b), premise))
 
+  test("InstantiateForall weakens an implication instance"):
+    given Library = TestLibrary()
+    val premise = axiom(() |- forall(x, P(x) ==> Q(x)))
+    assertValid(InstantiateForall(a)(P(a) |- Q(a), premise))
+
   test("InstantiateForall infers a single instantiation term"):
     given Library = TestLibrary()
     val premise = axiom(() |- forall(x, P(x)))
@@ -85,6 +91,15 @@ class SimpleDerivedStepsSuite extends AnyFunSuite:
     val judgement = Substitute(a === b)((P(a), a === b) |- P(b), premise)
     assertValid(judgement)
 
+  test("Substitute simultaneously rewrites repeated occurrences on the right"):
+    given Library = TestLibrary()
+    val premise = axiom(() |- (R(F(a))(F(a)) /\ R(G(a))(G(a))))
+    val judgement = Substitute(F(a) === x, G(a) === y)(
+      (F(a) === x, G(a) === y) |- (R(x)(x) /\ R(y)(y)),
+      premise
+    )
+    assertValid(judgement)
+
   test("Substitute rewrites the left side using a formula equality on the left"):
     given Library = TestLibrary()
     val premise = axiom(P(a) |- Q(a))
@@ -111,6 +126,34 @@ class SimpleDerivedStepsSuite extends AnyFunSuite:
     val equality = axiom(() |- (a === b))
     val judgement = Substitute.from(premise, equality)(P(a) |- P(b))
     assertValid(judgement)
+
+  test("Substitute weakens its rewritten conclusion"):
+    given Library = TestLibrary()
+    val premise = axiom(() |- P(a))
+    val equality = axiom(() |- (a === b))
+    assertValid(Substitute.from(premise, equality)(Q(a) |- P(b)))
+
+  test("Substitute carries assumptions from theorem equalities"):
+    given Library = TestLibrary()
+    val premise = axiom(P(a) |- P(a))
+    val equality = axiom(R(a)(b) |- (a === b))
+    val judgement = Substitute.from(premise, equality)((P(a), R(a)(b)) |- P(b))
+    assertValid(judgement)
+
+  test("Substitute rewrites two left formulas with theorem instances"):
+    given Library = TestLibrary()
+    val premise = axiom((P(a), P(b)) |- R(a)(b))
+    val equality = axiom(() |- (P(x) <=> Q(x)))
+    val judgement = Substitute.from(premise, equality.of(x := a), equality.of(x := b))(
+      (Q(a), Q(b)) |- R(a)(b)
+    )
+    assertValid(judgement)
+
+  test("Substitute infers instantiations from library schema rules"):
+    given library: Library = TestLibrary()
+    val premise = axiom(P(a) |- P(a))
+    val equality = library.Axiom(P(x) <=> Q(x))
+    assertValid(Substitute.from(premise, equality)(P(a) |- Q(a)))
 
   test("Substitute rewrites through a lifted whole-function equality"):
     given Library = TestLibrary()

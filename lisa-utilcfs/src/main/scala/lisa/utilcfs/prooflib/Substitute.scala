@@ -27,7 +27,7 @@ object Substitute extends SequentTactic, DerivedFromPremises:
    * Extracts a theorem substitution into a `RewriteRule`.
    */
   def extractRule(thm: Thm): Option[RewriteRule] =
-    if thm.left.isEmpty && thm.right.size == 1 then extractRule(thm.right.head) else None
+    if thm.right.size == 1 then extractRule(thm.right.head) else None
 
   /**
    * Checks if a raw substitution input can be used as a rewrite rule (is === or
@@ -57,7 +57,9 @@ object Substitute extends SequentTactic, DerivedFromPremises:
       val rule = extractRule(thm).get
       sourceMap += rule -> thm
       sourceMap += rule.swap -> thm
-      ctx = ctx.withFreeRule(rule).withFreeRule(rule.swap)
+      ctx =
+        if thm.isSchema then ctx.withFreeRule(rule).withFreeRule(rule.swap)
+        else ctx.withConfinedRule(rule).withConfinedRule(rule.swap)
     formulaRules.foreach: formula =>
       val rule = extractRule(formula).get
       val source = rule.source
@@ -75,6 +77,10 @@ object Substitute extends SequentTactic, DerivedFromPremises:
   private def instantiateSource(using file: File, line: Line)(using library: Library)(source: Thm, rule: InstantiatedRewriteRule): Thm =
     if rule.subst.isEmpty then source else source.of(rule.subst.asSubstPair*)
 
+  private def distinctDischarges(rules: Iterable[InstantiatedRewriteRule]): Vector[InstantiatedRewriteRule] =
+    val seen = scala.collection.mutable.LinkedHashSet.empty[Expr[Prop]]
+    rules.iterator.filter(rule => seen.add(rule.toFormula)).toVector
+
   private def cutDischarges(using file: File, line: Line)(using library: Library)(
       conclusion: Sequent,
       start: Thm,
@@ -91,7 +97,9 @@ object Substitute extends SequentTactic, DerivedFromPremises:
       val judgement = BasicStep.Cut.withParameters(formula)(source.kernel, current.kernel)(next)
       if judgement.isValid then current = judgement.destruct._1
       else failure = Some(judgement)
-    failure.getOrElse(BasicStep.Restate(conclusion, current.kernel))
+    failure.getOrElse:
+      val restated = BasicStep.Restate(conclusion, current.kernel)
+      if restated.isValid then restated else BasicStep.Weakening(conclusion, current.kernel)
 
   private def rewriteWithRules(using file: File, line: Line)(using library: Library)(
       conclusion: Sequent,
@@ -141,12 +149,14 @@ object Substitute extends SequentTactic, DerivedFromPremises:
   ): ProofJudgement =
     val leftRules = distinctRules(leftRewrites.flatMap(_.rules))
     val rightRules = distinctRules(rightRewrites.flatMap(_.rules))
-    val allRules = distinctRules(leftRules ++ rightRules)
+    val allRules = distinctDischarges(leftRules ++ rightRules)
     val discharges = allRules.map(rule => rule -> instantiateSource(sourceMap(rule.rule), rule))
 
     // start proof
     val leftFormulas = leftRules.map(_.toFormula).toSet
-    val preLeft = leftRewrites.map(_.toLeft).toSet
+    // Reuse the input side: reconstructing it from rewrite contexts is
+    // redundant and may choose a different OL-equivalent representative.
+    val preLeft = premise.left
     val postLeft = leftRewrites.map(_.toRight).toSet
     val leftCtx = leftRewrites.headOption.map(_.ctx).getOrElse(RewriteContext.empty)
     val leftVars = leftRules.map(leftCtx.representativeVariable)
@@ -169,7 +179,7 @@ object Substitute extends SequentTactic, DerivedFromPremises:
 
         // right rewrites
         val rightFormulas = rightRules.map(_.toFormula).toSet
-        val preRight = rightRewrites.map(_.toLeft).toSet
+        val preRight = premise.right
         val postRight = rightRewrites.map(_.toRight).toSet
         val rightCtx = rightRewrites.headOption.map(_.ctx).getOrElse(RewriteContext.empty)
         val rightVars = rightRules.map(rightCtx.representativeVariable)
