@@ -3,8 +3,6 @@ package lisa.utilcfs.prooflib
 import lisa.utilcfs.K
 import lisa.utilcfs.fol.FOL.*
 
-import lisa.kernelcf.proof.Sequent
-
 import scala.collection.mutable
 import scala.collection.View
 
@@ -45,13 +43,15 @@ final class Proof private (val lib: Library, val goal: Option[Sequent], inherite
     carrier
 
   def absorbDestruct[T](carrier: ProofCarrier[T]): (Thm, T) =
-    absorb(carrier).destruct
+    val result = absorb(carrier).destruct
+    lastKnown = Some(result._1)
+    result
 
-  private def child(goal: Option[Sequent] = None): Proof =
-    new Proof(lib, goal, currentAssumptions.map(_.underlying))
+  private def child(goal: Option[Sequent] = None, inheritAssumptions: Boolean = true): Proof =
+    new Proof(lib, goal, if inheritAssumptions then currentAssumptions.map(_.underlying) else Nil)
 
-  def withSubcontext[T](goal: Option[Sequent] = None)(inner: Proof ?=> ProofCarrier[T]): ProofCarrier[T] =
-    val subproof = child(goal)
+  def withSubcontext[T](goal: Option[Sequent] = None, inheritAssumptions: Boolean = true)(inner: Proof ?=> ProofCarrier[T]): ProofCarrier[T] =
+    val subproof = child(goal, inheritAssumptions)
     val carrier = inner(using subproof)
     val merged = carrier.withErrors(subproof.errors)
     report(merged.errors)
@@ -63,7 +63,7 @@ final class Proof private (val lib: Library, val goal: Option[Sequent], inherite
       last match
         case Some(j) => j
         case None => 
-          K.Sorry(goal.getOrElse(Sequent(Set.empty, Set(K.top)))) match
+          K.Sorry(goal.map(_.underlying).getOrElse(K.Sequent(Set.empty, Set(K.top)))) match
             case Right(j) => Thm(j)
     ProofCarrier(
       currentErrors.toSet,
@@ -75,6 +75,7 @@ final class Proof private (val lib: Library, val goal: Option[Sequent], inherite
 object Proof:
   private def empty(using lib: Library): Proof = new Proof(lib, None)
   def withGoal(using lib: Library)(goal: Sequent): Proof = new Proof(lib, Some(goal))
+  def withKernelGoal(using lib: Library)(goal: K.Sequent): Proof = withGoal(Thm.liftSequent(goal))
 
   def withContext[T](using lib: Library)(inner: Proof ?=> ProofCarrier[T]): ProofCarrier[T] =
     val proof = Proof.empty

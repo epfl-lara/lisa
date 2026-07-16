@@ -6,7 +6,7 @@ import lisa.utilcfs.collection.Extensions.*
 import lisa.utilcfs.prooflib.Helpers.withParams
 
 sealed trait TheoremKind:
-  def apply[T](using library: Library, sourceFile: sourcecode.File, sourceLine: sourcecode.Line, fullName: sourcecode.FullName, name: sourcecode.Name)(statement: Sequent)(computeProof: Proof ?=> T): Theorem =
+  def apply(using library: Library, sourceFile: sourcecode.File, sourceLine: sourcecode.Line, fullName: sourcecode.FullName, name: sourcecode.Name)(statement: Sequent)(computeProof: Proof ?=> Any): Theorem =
     def carrier(using proof: Proof): ProofCarrier[?] =
       computeProof(using proof) match
         case carrier: ProofCarrier[?] => carrier
@@ -14,7 +14,8 @@ sealed trait TheoremKind:
     new Theorem(this)(using library)(sourceFile, sourceLine, fullName, name)(statement)(carrier)
 
 case object Theorem extends TheoremKind:
-  given Conversion[Theorem, Thm] = _.thm
+  given asThm: Conversion[Theorem, Thm] = _.thm
+  given asKernel: Conversion[Theorem, K.Thm] = _.kernel
 
 case object Lemma extends TheoremKind
 
@@ -31,26 +32,31 @@ final class Theorem
 
   val judgement: ProofJudgement = 
     val underlyingGoal = statement.underlying
-    val proof = Proof.withGoal(underlyingGoal)
+    val proof = Proof.withGoal(statement)
     val inner = computeProof(using proof).withErrors(proof.errors)
-    // is the proven statement the actual goal or reduced to it trivially?
-    if inner.statement.underlying == underlyingGoal then 
-      // done
-      inner.judgement
-    else
-      // try weakening, else fail softly
-      inner.justification match
-        case Some(thm) =>
-          K.Weakening(using library.theory)(underlyingGoal, thm.kernel)
-            .fold(_ =>
-              // weakening failed
-              val error = SoftError(withParams("The proven statement is not the same as the goal and cannot be weakened to it.", "Proven" -> inner.statement, "Goal" -> underlyingGoal), file, line)
-              inner.judgement.withError(error),
-              // weakening succeeded
-              thm => inner.judgement.withJustification(Thm(statement, thm))
-            )
-        case None =>
+    inner match
+      case inner: FatalCarrier =>
+        // a theorem is a closed context, so a fatal error is recoverable
+        inner.recoverWith(statement)
+      case inner: SoftCarrier[_] =>
+        // is the proven statement the actual goal or reduced to it trivially?
+        if inner.statement.underlying == underlyingGoal then
+          // done
           inner.judgement
+        else
+          // try weakening, else fail softly
+          inner.justification match
+            case Some(thm) =>
+              K.Weakening(using library.theory)(underlyingGoal, thm.kernel)
+                .fold(_ =>
+                  // weakening failed
+                  val error = SoftError(withParams("The proven statement is not the same as the goal and cannot be weakened to it.", "Proven" -> inner.statement, "Goal" -> underlyingGoal), file, line)
+                  inner.judgement.withError(error),
+                  // weakening succeeded
+                  thm => inner.judgement.withJustification(Thm(statement, thm))
+                )
+            case None =>
+              inner.judgement
 
   val innerThm: Thm = judgement.destruct._1
   def thm: Thm = innerThm
