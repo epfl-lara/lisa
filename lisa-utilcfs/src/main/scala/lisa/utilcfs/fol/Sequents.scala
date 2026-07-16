@@ -201,6 +201,29 @@ trait Sequents extends Predef {
   }
 
   /**
+   * Front theorem: keeps the front sequent for syntax/error reporting while
+   * carrying the kernel theorem that certifies it.
+   */
+  final case class Thm(statement: Sequent, kernel: K.Thm):
+    def kernelStatement: K.Sequent = kernel.statement
+    def left: Set[Expr[Prop]] = statement.left
+    def right: Set[Expr[Prop]] = statement.right
+    def leftK: Set[K.Expression] = kernel.statement.left
+    def rightK: Set[K.Expression] = kernel.statement.right
+
+  object Thm:
+    def apply(kernel: K.Thm): Thm =
+      Thm(liftSequent(kernel.statement), kernel)
+
+    def liftSequent(statement: K.Sequent): Sequent =
+      Sequent(statement.left.map(liftFormula), statement.right.map(liftFormula))
+
+    def liftFormula(expression: K.Expression): Expr[Prop] =
+      liftExpression(expression).asInstanceOf[Expr[Prop]]
+
+    given asKernel: Conversion[Thm, K.Thm] = _.kernel
+
+  /**
    * A sequent with empty left and right sides. Logically false.
    */
   val emptySeq: Sequent = Sequent(Set.empty, Set.empty)
