@@ -62,12 +62,10 @@ package should not possibly break soundness.
 The kernel essentially contains two elements: formalisation of first-order
 logic, and formalisation of proofs through sequent calculus.
 
-### Utils
+### Utilcfs
 
-The `lisa-utils` package contains a set of utilities to interact with the
-kernel. Syntactic sugar, a parser and printer for proofs and formulas,
-unification algorithms, among others. The package also contains LISA's DSL to
-write proofs, tactics, and mathematical developments.
+The `lisa-utilcfs` package contains the front syntax, proof helpers, tactics,
+and mathematical-development DSL backed by the LCF-style kernel.
 
 Most user-developed tactics, syntax, and auxiliary utilities go here.
 
