@@ -139,7 +139,7 @@ object BasicStep:
     private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, premise: K.Thm)(err: K.Restate.ErrorType): ProofError =
       err match
         case _: K.Restate.NotImplying =>
-          SoftError(withParams("Restate premise is not OL-equivalent to the conclusion.", "Premise" -> premise, "Conclusion" -> conclusion), file, line)
+          SoftError(withParams("Restate premise is not OL-equivalent to the conclusion.", "Premise" -> Thm.liftSequent(premise.statement), "Conclusion" -> conclusion), file, line)
         case e: K.GeneralError => liftGeneralError(file, line)("Restate", e)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
