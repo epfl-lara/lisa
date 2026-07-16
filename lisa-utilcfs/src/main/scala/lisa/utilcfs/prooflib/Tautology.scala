@@ -39,7 +39,14 @@ object Tautology extends SequentTactic with PremiseSequentTactic:
     proveTautology(statement).swap.map(_ -> statement)
 
   private def solve(using library: Library)(conclusion: K.Sequent, premises: Seq[K.Thm]): Either[String, K.Thm] =
-    if premises.isEmpty then proveTautology(conclusion)
+    proveFromPremises(conclusion, premises)(proveTautology)
+
+  /** Adds theorem premises as formulas, invokes a solver, then cuts them away. */
+  private[prooflib] def proveFromPremises(using library: Library)(
+      conclusion: K.Sequent,
+      premises: Seq[K.Thm]
+  )(solver: K.Sequent => Either[String, K.Thm]): Either[String, K.Thm] =
+    if premises.isEmpty then solver(conclusion)
     else
       val premiseFormulas = Vector.newBuilder[(K.Expression, K.Thm)]
       val iterator = premises.iterator
@@ -57,17 +64,127 @@ object Tautology extends SequentTactic with PremiseSequentTactic:
           left += formula
           cuts += formula -> thm
 
-      proveTautology(K.Sequent(left, conclusion.right)).flatMap(cutPremises(conclusion, cuts.result()))
+      solver(K.Sequent(left, conclusion.right)).flatMap(cutPremises(conclusion, cuts.result()))
 
   private def proveTautology(using library: Library)(statement: K.Sequent): Either[String, K.Thm] =
-    val truth = K.Sequent(Set.empty[K.Expression], Set(K.top))
-    K.RestateTrue(using library.theory)(truth) match
-      case Left(error) => Left(s"Tautology could not introduce truth: $error")
-      case Right(truthTheorem) =>
-        K.Weakening(using library.theory)(statement, truthTheorem).left.map:
-          case _: K.Weakening.NotImplying =>
-            "The statement may be incorrect or not provable within propositional logic."
-          case error => s"Tautology weakening failed: $error"
+    val augmented = AugSequent((Nil, Nil), K.reducedForm(K.sequentToFormula(statement)))
+    val marker = K.Variable(K.freshId(augmented.formula.freeVariables.map(_.id), "MaRvIn"), K.Prop)
+    try
+      Right(checked("final restate")(K.Restate(using library.theory)(statement, solveAugSequent(using library, marker)(augmented))))
+    catch
+      case failure: NoProofFoundException =>
+        Left(
+          "The statement may be incorrect or not provable within propositional logic.\n" +
+            "The proof search failed because it needed the truth of the following sequent:\n" +
+            failure.unsolvable
+        )
+      case failure: ReconstructionFailure => Left(failure.getMessage)
+
+  private case class AugSequent(decisions: (List[K.Expression], List[K.Expression]), formula: K.Expression)
+
+  private class NoProofFoundException(val unsolvable: K.Sequent) extends Exception
+
+  private class ReconstructionFailure(step: String, error: Any)
+      extends Exception(s"Tautology proof reconstruction failed at $step: $error")
+
+  private def checked(step: String)(result: Either[?, K.Thm]): K.Thm =
+    result.fold(error => throw new ReconstructionFailure(step, error), identity)
+
+  /** Reduces a sequent to the AIG expression used by proof search. */
+  def reduceSequent(statement: K.Sequent): K.Expression =
+    K.reducedForm(K.sequentToFormula(statement))
+
+  /** Chooses the most frequent propositional atom in a reduced expression. */
+  def findBestAtom(expression: K.Expression): Option[K.Expression] =
+    val atoms = scala.collection.mutable.HashMap.empty[K.Expression, Int]
+    def collect(current: K.Expression): Unit =
+      current match
+        case K.and(left, right) =>
+          collect(left)
+          collect(right)
+        case K.neg(inner) => collect(inner)
+        case _ if current != K.top && current != K.bot => atoms.updateWith(current)(_.map(_ + 1).orElse(Some(1)))
+        case _ => ()
+    collect(expression)
+    atoms.maxByOption(_._2).map(_._1)
+
+  /** Replaces occurrences of `target` by `variable`, avoiding variable capture. */
+  def findSubformula(expression: K.Expression, variable: K.Variable, target: K.Expression): Option[K.Expression] =
+    def recurse(outer: K.Expression, forbidden: Set[K.Variable]): (K.Expression, Boolean) =
+      if K.isSame(outer, target) then variable -> true
+      else
+        outer match
+          case K.Application(function, argument) =>
+            val (newFunction, changedFunction) = recurse(function, forbidden)
+            val (newArgument, changedArgument) = recurse(argument, forbidden)
+            if changedFunction || changedArgument then K.Application(newFunction, newArgument) -> true
+            else outer -> false
+          case K.Lambda(bound, body) if !forbidden.contains(bound) =>
+            val (newBody, changed) = recurse(body, forbidden)
+            if changed then K.Lambda(bound, newBody) -> true else outer -> false
+          case K.Lambda(bound, body) =>
+            val fresh = K.Variable(K.freshId(outer.freeVariables.map(_.id) ++ forbidden.map(_.id), bound.id), bound.sort)
+            val renamed = K.substituteVariables(body, Map(bound -> fresh))
+            val (newBody, changed) = recurse(renamed, forbidden + fresh)
+            if changed then K.Lambda(fresh, newBody) -> true else outer -> false
+          case _ => outer -> false
+
+    recurse(expression, target.freeVariables) match
+      case (result, true) => Some(result)
+      case _ => None
+
+  private def solveAugSequent(using library: Library, marker: K.Variable)(sequent: AugSequent): K.Thm =
+    val reduced = K.reducedForm(sequent.formula)
+    val (positive, negative) = sequent.decisions
+    val assumptions = (positive ++ negative.map(formula => K.neg(formula))).toSet
+
+    if reduced == K.top then
+      checked("closed branch")(K.RestateTrue(using library.theory)(K.Sequent(assumptions, Set(sequent.formula))))
+    else
+      findBestAtom(reduced) match
+        case None =>
+          throw new NoProofFoundException(K.Sequent(positive.toSet, (reduced :: negative).toSet))
+        case Some(atom) =>
+          findSubformula(reduced, marker, atom) match
+            case None => solveAugSequent(AugSequent(sequent.decisions, reduced))
+            case Some(context) =>
+              val positiveBranch = AugSequent(
+                (atom :: positive, negative),
+                K.substituteVariables(context, Map(marker -> K.top))
+              )
+              val positiveProof = solveAugSequent(positiveBranch)
+              val positiveSubstitution = checked("positive atom substitution"):
+                K.RightSubstEq(
+                  using library.theory
+                )(
+                  K.Sequent(assumptions + atom, Set(reduced)),
+                  positiveProof,
+                  Seq(K.top -> atom),
+                  Seq(marker) -> context
+                )
+
+              val negatedAtom = K.neg(atom)
+              val negativeBranch = AugSequent(
+                (negatedAtom :: positive, negative),
+                K.substituteVariables(context, Map(marker -> K.bot))
+              )
+              val negativeProof = solveAugSequent(negativeBranch)
+              val negativeSubstitution = checked("negative atom substitution"):
+                K.RightSubstEq(
+                  using library.theory
+                )(
+                  K.Sequent(assumptions + negatedAtom, Set(reduced)),
+                  negativeProof,
+                  Seq(K.bot -> atom),
+                  Seq(marker) -> context
+                )
+
+              val atomOnRight = checked("negative branch restate"):
+                K.Restate(using library.theory)(K.Sequent(assumptions, Set(reduced, atom)), negativeSubstitution)
+              val cut = checked("atom cut"):
+                K.Cut(using library.theory)(K.Sequent(assumptions, Set(reduced)), atomOnRight, positiveSubstitution, atom)
+              checked("reduced formula restate"):
+                K.Restate(using library.theory)(K.Sequent(assumptions, Set(sequent.formula)), cut)
 
   private def formulaTheorem(using library: Library)(premise: K.Thm): Either[String, (K.Expression, K.Thm)] =
     val formula = K.sequentToFormula(premise.statement)
