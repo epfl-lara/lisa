@@ -10,12 +10,15 @@ class AutomationSuite extends AnyFunSuite:
   private val a = variable[Prop]
   private val b = variable[Prop]
   private val c = variable[Prop]
+  private val d = variable[Prop]
   private val x = variable[Ind]
   private val y = variable[Ind]
   private val z = variable[Ind]
   private val P = variable[Ind >>: Prop]
   private val Q = variable[Ind >>: Prop]
   private val F = variable[Ind >>: Ind]
+  private val G = variable[Ind >>: Ind]
+  private val H = variable[Ind >>: Ind >>: Ind]
   private val R = variable[Ind >>: Ind >>: Prop]
 
   private def axiom(using library: Library)(statement: Sequent): Thm =
@@ -69,6 +72,30 @@ class AutomationSuite extends AnyFunSuite:
     assertValid(Congruence((x === y, y === z) |- (F(x) === F(z))))
     assertValid(Congruence((x === y) |- (F(F(x)) === F(F(y)))))
 
+  test("Congruence combines projection equalities"):
+    given Library = TestLibrary()
+    val leftProjection = axiom(() |- (F(H(y)(z)) === y))
+    val rightProjection = axiom(() |- (G(H(y)(z)) === z))
+    val conclusion = (x === H(y)(z)) |- (x === H(F(x))(G(x)))
+    val egraph = EGraphExpr()
+    egraph.addAll(conclusion.left ++ conclusion.right + leftProjection.right.head + rightProjection.right.head)
+    egraph.merge(x, H(y)(z))
+    egraph.merge(F(H(y)(z)), y)
+    egraph.merge(G(H(y)(z)), z)
+    assert(egraph.idEq(F(x), y), "left projection did not close")
+    assert(egraph.idEq(G(x), z), "right projection did not close")
+    assert(egraph.idEq(x, H(F(x))(G(x))), "outer constructor did not close")
+    val allLeft = conclusion.left + leftProjection.right.head + rightProjection.right.head
+    val unordered = EGraphExpr()
+    unordered.addAll(allLeft ++ conclusion.right)
+    allLeft.foreach:
+      case equality(left, right) => unordered.merge(left, right)
+      case _ => ()
+    assert(unordered.idEq(x, H(F(x))(G(x))), s"unordered closure failed for ${allLeft.mkString(", ")}")
+    val reconstructed = unordered.proveExpr(x, H(F(x))(G(x)), Sequent(allLeft, conclusion.right))
+    assert(reconstructed.isRight, reconstructed.left.toOption.getOrElse(""))
+    assertValid(Congruence.from(leftProjection, rightProjection)(conclusion))
+
   test("Congruence rewrites formula arguments"):
     given Library = TestLibrary()
     assertValid(Congruence((a <=> b) |- ((a /\ c) <=> (b /\ c))))
@@ -84,6 +111,19 @@ class AutomationSuite extends AnyFunSuite:
     assertValid(Congruence.from(premise)(() |- (F(x) === F(y))))
     val conditionalPremise = axiom(P(x) |- (x === y))
     assertValid(Congruence.from(conditionalPremise)(P(x) |- (F(x) === F(y))))
+
+  test("Congruence chains conditional theorem premises"):
+    given Library = TestLibrary()
+    val result = axiom((b, c) |- d)
+    val first = axiom(a |- b)
+    val second = axiom(() |- c)
+    assertValid(Congruence.from(result, first, second)(a |- d))
+
+  test("Congruence keeps goal assumptions supplied as premises"):
+    given Library = TestLibrary()
+    val redundant = axiom(a |- a)
+    val equality = axiom(() |- (a <=> b))
+    assertValid(Congruence.from(redundant, equality)(a |- b))
 
   test("Congruence rejects unrelated equalities"):
     given Library = TestLibrary()

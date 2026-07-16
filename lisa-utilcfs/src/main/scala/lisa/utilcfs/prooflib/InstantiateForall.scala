@@ -56,7 +56,11 @@ object InstantiateForall extends SequentTactic, PremiseSequentTactic, DerivedFro
         else
           val p1 = BasicStep.LeftForall.withParameters(body, x, t)(p0.destruct._1.kernel)(bridge)
           if !p1.isValid then p1
-          else BasicStep.Cut.withParameters(formula)(premise.kernel, p1.destruct._1.kernel)(target)
+          else
+            val cutTarget = Sequent(premise.left, (premise.right - formula) + instance)
+            val p2 = BasicStep.Cut.withParameters(formula)(premise.kernel, p1.destruct._1.kernel)(cutTarget)
+            if !p2.isValid || cutTarget == target then p2
+            else BasicStep.Weakening(target, p2.destruct._1.kernel)
 
   private def forallFormulas(statement: Sequent): Set[Expr[Prop]] =
     statement.right.collect { case f @ forall(_, _) => f }

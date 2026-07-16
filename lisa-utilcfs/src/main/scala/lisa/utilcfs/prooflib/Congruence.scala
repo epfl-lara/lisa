@@ -16,24 +16,29 @@ object Congruence extends SequentTactic, PremiseSequentTactic, DerivedFromPremis
       case Left(message) => ProofCarrier(Set(SoftError(message, file, line)), conclusion, None, ())
 
   private def proveFromPremises(using library: Library)(conclusion: Sequent, premises: Seq[Thm]): Either[String, Thm] =
-    val temporary = premises.map(premise => betaReduce(orAllOrFalse(premise.right)))
+    val addedPremises = premises.iterator
+      .map(premise => premise -> betaReduce(orAllOrFalse(premise.right)))
+      .filterNot((_, formula) => conclusion.left.contains(formula))
+      .toSeq
+    val temporary = addedPremises.map(_._2)
     val augmented = Sequent(conclusion.left ++ temporary, conclusion.right)
     solve(augmented).flatMap: initial =>
-      premises.zip(temporary).foldLeft(Right(initial): Either[String, Thm]):
+      addedPremises.foldLeft(Right(initial): Either[String, Thm]):
         case (currentResult, (premise, assumption)) =>
           currentResult.flatMap: current =>
             current.left.find(isSame(_, assumption)) match
               case None => Right(current)
               case Some(actualAssumption) =>
                 val premiseAsFormula = Sequent(premise.left, Set(assumption))
+                val retained = current.left - actualAssumption
                 for
                   normalized <- K.Restate(using library.theory)(premiseAsFormula.underlying, premise.kernel).left.map(_.toString)
-                  cutStatement = Sequent((current.left - actualAssumption) ++ premise.left, current.right)
+                  cutStatement = Sequent(retained ++ premise.left, current.right)
                   cut <- K.Cut(using library.theory)(cutStatement.underlying, normalized, current.kernel, assumption.underlying).left.map(_.toString)
                   reduced <- premise.left.foldLeft(Right(Thm(cutStatement, cut)): Either[String, Thm]):
                     case (stepResult, premiseAssumption) =>
                       stepResult.flatMap: step =>
-                        if conclusion.left.containsEq(premiseAssumption) then Right(step)
+                        if retained.containsEq(premiseAssumption) then Right(step)
                         else
                           step.left.find(isSame(_, premiseAssumption)) match
                             case None => Right(step)
@@ -277,15 +282,20 @@ final class EGraphExpr:
           if parents(leftRoot).size < parents(rightRoot).size then left -> right else right -> left
         val smallRoot = find(small)
         val largeRoot = find(large)
+        val smallParents = parents(smallRoot).toVector
+        smallParents.foreach: parent =>
+          val oldSignature = signature(parent)
+          if signatures.get(oldSignature).contains(parent) then signatures.remove(oldSignature)
         codes(smallRoot) = codes(largeRoot)
         UF.union(left, right)
         val newRoot = find(left)
         val work = Vector.newBuilder[(Expr[?], Expr[?], Step)]
-        parents(smallRoot).foreach: parent =>
+        smallParents.foreach: parent =>
           val canonical = signature(parent)
           signatures.get(canonical) match
-            case Some(other) => work += ((parent, other, CongruenceStep(parent -> other)))
+            case Some(other) if find(parent) != find(other) => work += ((parent, other, CongruenceStep(parent -> other)))
             case None => signatures(canonical) = parent
+            case _ => ()
         parents(newRoot) = parents(largeRoot) ++ parents(smallRoot)
         work.result().foreach(mergeWithStep)
 
@@ -354,7 +364,7 @@ final class EGraphExpr:
           result <- childProofs.foldLeft(Right(substituted): Either[String, K.Thm]):
             case (current, (pivot, childProof)) =>
               current.flatMap: theorem =>
-                if base.left.containsEq(pivot) then Right(theorem)
+                if base.left.contains(pivot) then Right(theorem)
                 else
                   val statement = K.Sequent(theorem.statement.left - pivot.underlying, theorem.statement.right)
                   K.Cut(using library.theory)(statement, childProof, theorem, pivot.underlying).left.map(_.toString)
