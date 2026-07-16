@@ -2,8 +2,6 @@ package lisa.utilcfs.prooflib
 
 import lisa.utilcfs.fol.FOL.Sequent
 
-import scala.util.boundary.break
-
 import ProofHelpers.*
 
 /**
@@ -48,3 +46,12 @@ object TacticHelpers:
         // ideally: error.isValid == false, but we don't enforce that
         // just use `or` in that case
         bdr.breakWith(error)
+
+  /** Stops the nearest subproof with a fatal error at the call site. */
+  def failWith[T](using bdr: SubproofLabel[T], file: sourcecode.File, line: sourcecode.Line)(msg: String): Nothing =
+    val error = FatalError(msg, file, line)
+    bdr.breakWith(FatalCarrier(error, Set.empty))
+
+  /** Stops the nearest subproof with an existing carrier. */
+  def failWith[T](using bdr: SubproofLabel[T])(err: => ProofCarrier[T]): Nothing =
+    bdr.breakWith(err)
