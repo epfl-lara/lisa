@@ -22,7 +22,7 @@ abstract class Library:
   def Axiom(formula: Expr[Prop]): Thm =
     val statement = Sequent(Set.empty, Set(formula))
     K.Axiom(using theory)(statement.underlying) match
-      case Right(thm) => Thm(statement, thm)
+      case Right(thm) => Thm(statement, thm, isSchema = true)
 
   private def leadingVars(e: Expr[?]): Seq[Variable[?]] =
     e match
@@ -30,7 +30,7 @@ abstract class Library:
       case _ => Seq.empty
 
   protected def registerDefinition[S](constant: Constant[S], definition: K.Thm): Thm =
-    val thm = Thm(definition)
+    val thm = Thm(Thm.liftSequent(definition.statement), definition, isSchema = true)
     definitions.update(constant.underlying, thm)
     thm
 
@@ -69,7 +69,7 @@ abstract class Library:
      * Mutably update the named theorem registry
      */
     private[prooflib] def register(theorem: Theorem): Unit =
-      val fullName = theorem.fullName.toString
+      val fullName = theorem.fullName.value
       require(!theoremByFullName.contains(fullName), s"Theorem $fullName is already registered.")
       theoremByFullName.update(fullName, theorem)
       theoremByShortName.updateWith(theorem.shortName):

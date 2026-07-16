@@ -203,8 +203,12 @@ trait Sequents extends Predef {
   /**
    * Front theorem: keeps the front sequent for syntax/error reporting while
    * carrying the kernel theorem that certifies it.
+   *
+   * `isSchema` preserves whether front tactics may infer instantiations from
+   * this theorem. Explicitly instantiated and locally derived theorems are
+   * confined to their stated expressions.
    */
-  final case class Thm(statement: Sequent, kernel: K.Thm):
+  final case class Thm(statement: Sequent, kernel: K.Thm, isSchema: Boolean = false):
     def kernelStatement: K.Sequent = kernel.statement
     def left: Set[Expr[Prop]] = statement.left
     def right: Set[Expr[Prop]] = statement.right
