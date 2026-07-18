@@ -306,3 +306,82 @@ class DiscountTest extends AnyFunSuite:
     assert(on.saturate(cs).isInstanceOf[Discount.Result.Refutation])
     assert(off.saturate(cs).isInstanceOf[Discount.Result.Refutation])
   }
+
+  // --- indexed resolution (Phase 5, Step 2): A/B equivalence with the linear scan --------------
+
+  test("fingerprint-indexed resolution and the linear scan reach the same verdict (A/B equivalence)") {
+    // The literal indices are a candidate filter confirmed by real unification, so the indexed and linear
+    // resolution paths must generate the same inference set, hence the same refuted/saturated verdict (clause
+    // ids differ, the outcome does not). Equality is off throughout, so only the resolution path is exercised.
+    def cat(r: Discount.Result): String = r match
+      case _: Discount.Result.Refutation => "refuted"
+      case Discount.Result.Saturated     => "saturated"
+      case Discount.Result.Unknown       => "unknown"
+    def verdict(indexed: Boolean, build: Fix => Seq[Clause]): String =
+      val fx = new Fix
+      val cs = build(fx)
+      cat(new Discount(fx.bank, fx.trail, equality = false, fingerprintIndexing = indexed).saturate(cs, maxGiven = 5000))
+
+    val builders: Seq[(String, Fix => Seq[Clause])] = Seq(
+      "propositional P, ¬P" -> { fx => import fx.*; val p = prop("P"); Seq(clause(pos(p)), clause(neg(p))) },
+      "propositional chain ¬P∨Q, ¬Q∨R, P, ¬R" -> { fx => import fx.*
+        val p = prop("P"); val q = prop("Q"); val r = prop("R")
+        Seq(clause(neg(p), pos(q)), clause(neg(q), pos(r)), clause(pos(p)), clause(neg(r))) },
+      "first-order ¬P(x)∨Q(x), P(a), ¬Q(a)" -> { fx => import fx.*
+        val p = pred("P", 1); val q = pred("Q", 1); val a = const("a"); val x = v(0)
+        Seq(clause(neg(app(p, x)), pos(app(q, x))), clause(pos(app(p, a))), clause(neg(app(q, a)))) },
+      "multi-predicate mix ¬P(x)∨¬Q(x)∨R(x), P(a), Q(a), ¬R(a)" -> { fx => import fx.*
+        val p = pred("P", 1); val q = pred("Q", 1); val r = pred("R", 1); val a = const("a"); val x = v(0)
+        Seq(clause(neg(app(p, x)), neg(app(q, x)), pos(app(r, x))),
+            clause(pos(app(p, a))), clause(pos(app(q, a))), clause(neg(app(r, a)))) },
+      "needs factoring P(x)∨P(y), ¬P(a)∨¬P(b)" -> { fx => import fx.*
+        val p = pred("P", 1); val a = const("a"); val b = const("b"); val x = v(0); val y = v(1)
+        Seq(clause(pos(app(p, x)), pos(app(p, y))), clause(neg(app(p, a)), neg(app(p, b)))) },
+      "self-resolvable ¬P(x)∨P(f(x)), P(a), ¬P(f(f(a)))" -> { fx => import fx.*
+        val p = pred("P", 1); val f = fn("f", 1); val a = const("a"); val x = v(0)
+        Seq(clause(neg(app(p, x)), pos(app(p, app(f, x)))), clause(pos(app(p, a))), clause(neg(app(p, app(f, app(f, a)))))) },
+      "satisfiable P(a), Q(b)" -> { fx => import fx.*
+        val p = pred("P", 1); val q = pred("Q", 1); val a = const("a"); val b = const("b")
+        Seq(clause(pos(app(p, a))), clause(pos(app(q, b)))) }
+    )
+    for (name, b) <- builders do
+      assert(verdict(indexed = true, b) == verdict(indexed = false, b), s"index vs scan verdict differ on: $name")
+  }
+
+  // --- feature-vector subsumption index (Phase 5, Step 3): A/B equivalence with the linear scan ---
+
+  test("feature-vector subsumption and the linear scan reach the same verdict (A/B equivalence)") {
+    // The feature-vector index is a superset filter confirmed by the real `Subsumption.subsumes`, and its features
+    // are subsumption-monotone, so the indexed and scanned simplification paths must reach the same verdict.
+    def cat(r: Discount.Result): String = r match
+      case _: Discount.Result.Refutation => "refuted"
+      case Discount.Result.Saturated     => "saturated"
+      case Discount.Result.Unknown       => "unknown"
+    def verdict(indexed: Boolean, build: Fix => Seq[Clause]): String =
+      val fx = new Fix
+      val cs = build(fx)
+      cat(new Discount(fx.bank, fx.trail, equality = false, subsumptionIndexing = indexed).saturate(cs, maxGiven = 5000))
+
+    val builders: Seq[(String, Fix => Seq[Clause])] = Seq(
+      "unit subsumes a longer clause, then refute" -> { fx => import fx.*
+        val P = pred("P", 1); val Q = pred("Q", 1); val a = const("a"); val b = const("b"); val c = const("c"); val x = v(0)
+        Seq(clause(pos(app(P, x))), clause(pos(app(P, a)), pos(app(Q, b))), clause(neg(app(P, c)))) },
+      "satisfiable with redundant instances (forward subsumption)" -> { fx => import fx.*
+        val P = pred("P", 1); val Q = pred("Q", 1); val a = const("a"); val b = const("b"); val x = v(0)
+        Seq(clause(pos(app(P, x))), clause(pos(app(P, a))), clause(pos(app(Q, b)))) },
+      "first-order resolution refutation" -> { fx => import fx.*
+        val P = pred("P", 1); val Q = pred("Q", 1); val a = const("a"); val x = v(0)
+        Seq(clause(neg(app(P, x)), pos(app(Q, x))), clause(pos(app(P, a))), clause(neg(app(Q, a)))) },
+      "propositional chain" -> { fx => import fx.*
+        val p = prop("P"); val q = prop("Q"); val r = prop("R")
+        Seq(clause(neg(p), pos(q)), clause(neg(q), pos(r)), clause(pos(p)), clause(neg(r))) },
+      "backward subsumption (general activates after instance), then refute" -> { fx => import fx.*
+        val P = pred("P", 1); val Q = pred("Q", 1); val a = const("a"); val d = const("d"); val x = v(0)
+        Seq(clause(pos(app(P, a)), pos(app(Q, a))), clause(pos(app(P, x))), clause(neg(app(P, d)))) },
+      "unit deletion shrinks then closes" -> { fx => import fx.*
+        val P = pred("P", 1); val Q = pred("Q", 1); val a = const("a")
+        Seq(clause(pos(app(P, a))), clause(neg(app(P, a)), pos(app(Q, a))), clause(neg(app(Q, a)))) }
+    )
+    for (name, b) <- builders do
+      assert(verdict(indexed = true, b) == verdict(indexed = false, b), s"subsumption index vs scan verdict differ on: $name")
+  }

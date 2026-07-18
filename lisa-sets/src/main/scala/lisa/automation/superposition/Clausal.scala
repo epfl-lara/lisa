@@ -130,20 +130,11 @@ object Clausal:
    * `maxGiven`/`maxMillis` bound the underlying [[Bridge]] search.
    */
   def proveOutcome(problem: Clausification.Problem, maxGiven: Int = Int.MaxValue, maxMillis: Long = Long.MaxValue, equality: Boolean = true, fingerprintIndexing: Boolean = true, onStats: Discount.LoopStats => Unit = _ => ()): Either[Bridge.Outcome, K.SCProof] =
-    val abs = new Abstraction
-    val orig: IndexedSeq[K.Sequent] = problem.imports //               clausifier clauses (contract import list)
-    val absSeqs: IndexedSeq[K.Sequent] = orig.map(o => abstractSequent(abs, o))
-    val work: IndexedSeq[K.Sequent] = absSeqs.map(toWorkingSequent)
-    // Symbol variables the solver must treat as symbols rather than clause variables: the ε-abstraction
-    // functions `F` (explicit — includes bare-nullary ones), plus every non-`Ind`-sorted free variable in the
-    // clauses (Tseitin atoms `tsᵢ` and any Lisa predicate/function variable — clause variables are `Ind`).
-    val symbolVars: Set[K.Variable] =
-      abs.dischargeSubst.keySet ++
-        absSeqs.iterator.flatMap(s => (s.left ++ s.right).iterator.flatMap(_.freeVariables)).filter(_.sort != K.Ind).toSet
-    Bridge.solve(work, maxGiven, maxMillis, symbolVars = symbolVars, discharge = abs.dischargeSubst, equality = equality, fingerprintIndexing = fingerprintIndexing, onStats = onStats) match
+    val p = prepare(problem)
+    Bridge.solve(p.work, maxGiven, maxMillis, symbolVars = p.symbolVars, discharge = p.abs.dischargeSubst, equality = equality, fingerprintIndexing = fingerprintIndexing, onStats = onStats) match
       case s: Bridge.Outcome.Success =>
         val base: K.SCProof = s.reconstructKernelProof //              ε-bearing, imports = neg-moved ε-clauses, ∅ ⊢
-        val work0: IndexedSeq[K.Sequent] = orig.map(toWorkingSequent) // neg-moved ε-clauses; = base.imports
+        val work0: IndexedSeq[K.Sequent] = p.orig.map(toWorkingSequent) // neg-moved ε-clauses; = base.imports
         val steps = mutable.ArrayBuffer.empty[K.SCProofStep]
         val premises: Seq[Int] = base.imports.map { w => //             each used working import ← Restate of its original
           val i = work0.indexOf(w)
@@ -151,5 +142,31 @@ object Clausal:
           steps.length - 1
         }
         steps += K.SCSubproof(base, premises) //                       conclusion ∅ ⊢, over the working imports
-        Right(K.SCProof(steps.toIndexedSeq, orig)) //                  imports = original clausifier clauses
+        Right(K.SCProof(steps.toIndexedSeq, p.orig)) //                imports = original clausifier clauses
       case other => Left(other)
+
+  /** Pre-solve setup shared by [[proveOutcome]] and [[solveOutcome]]: ε-abstract the clausifier clauses to a
+   *  first-order working set, and collect the symbol-variables the solver must treat as symbols rather than
+   *  clause variables — the ε-abstraction functions `F` (explicit, incl. bare-nullary), plus every non-`Ind`-sorted
+   *  free variable (Tseitin atoms `tsᵢ` and any Lisa predicate/function variable; clause variables are `Ind`). */
+  private final case class Prepared(abs: Abstraction, orig: IndexedSeq[K.Sequent], work: IndexedSeq[K.Sequent], symbolVars: Set[K.Variable])
+  private def prepare(problem: Clausification.Problem): Prepared =
+    val abs = new Abstraction
+    val orig: IndexedSeq[K.Sequent] = problem.imports //               clausifier clauses (contract import list)
+    val absSeqs: IndexedSeq[K.Sequent] = orig.map(o => abstractSequent(abs, o))
+    val work: IndexedSeq[K.Sequent] = absSeqs.map(toWorkingSequent)
+    val symbolVars: Set[K.Variable] =
+      abs.dischargeSubst.keySet ++
+        absSeqs.iterator.flatMap(s => (s.left ++ s.right).iterator.flatMap(_.freeVariables)).filter(_.sort != K.Ind).toSet
+    Prepared(abs, orig, work, symbolVars)
+
+  /**
+   * Like [[proveOutcome]] but stops at the saturation verdict: returns the raw [[Bridge.Outcome]] **without**
+   * reconstructing a kernel proof (no `reconstructKernelProof`, no import composition, no kernel check). For
+   * benchmarking the prover's search in isolation from proof reconstruction. `onStats` still reports the loop
+   * instrumentation. An [[Bridge.Outcome.Success]] means `□` was derived (a refutation); the proof DAG is left
+   * unwalked.
+   */
+  def solveOutcome(problem: Clausification.Problem, maxGiven: Int = Int.MaxValue, maxMillis: Long = Long.MaxValue, equality: Boolean = true, fingerprintIndexing: Boolean = true, onStats: Discount.LoopStats => Unit = _ => ()): Bridge.Outcome =
+    val p = prepare(problem)
+    Bridge.solve(p.work, maxGiven, maxMillis, symbolVars = p.symbolVars, discharge = p.abs.dischargeSubst, equality = equality, fingerprintIndexing = fingerprintIndexing, onStats = onStats)

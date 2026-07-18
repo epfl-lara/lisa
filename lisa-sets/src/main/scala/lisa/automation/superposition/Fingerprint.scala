@@ -108,11 +108,17 @@ final class SampleTrie(positions: Array[Array[Int]]):
       s += 1
     r
 
-  /** Compute `t`'s fingerprint in one lock-step descent (see the class doc). */
+  /** Compute `t`'s fingerprint in one lock-step descent (see the class doc), into a freshly allocated array. */
   def fingerprint(bank: TermBank, t: Term): Array[Int] =
     val fp: Array[Int] = new Array[Int](length)
-    walk(root, bank, t, 0, fp)
+    fingerprintInto(bank, t, fp)
     fp
+
+  /** Compute `t`'s fingerprint into a caller-supplied buffer of length [[length]], so a hot path can reuse one
+   *  array across calls instead of allocating. Every slot is overwritten (the walk visits every sampled
+   *  position), so a dirty buffer is fine. */
+  def fingerprintInto(bank: TermBank, t: Term, out: Array[Int]): Unit =
+    walk(root, bank, t, 0, out)
 
   private def walk(node: SNode, bank: TermBank, state: Term, deg: Int, fp: Array[Int]): Unit =
     val real: Boolean = deg == 0
@@ -184,6 +190,13 @@ final class FingerprintIndex[E](bank: TermBank, trie: SampleTrie = Fingerprint.F
   private val root: Node = new Node
   private var _size: Int = 0
 
+  // One reusable fingerprint buffer shared by every term-keyed operation (insert/remove/retrieveUnifiable). Safe
+  // because these never nest on a single index: each fills the buffer and fully consumes it (the whole trie
+  // descent, plus any `visit` callback) before the next call, and no callback issues another operation on the
+  // *same* index -- so the buffer is never read while stale. This removes the per-call fingerprint-array
+  // allocation on the hot query path (and the amortized one on insert/remove).
+  private val fpBuf: Array[Int] = new Array[Int](depth)
+
   /** A trie node: `children` (feature → child) at intermediate levels, an entry `bucket` at leaves. Both lazy
    *  (`children == null` = no children; a `null` `bucket` = no entries — [[Buckets.Bucket]] treats it as empty). */
   private final class Node:
@@ -201,13 +214,13 @@ final class FingerprintIndex[E](bank: TermBank, trie: SampleTrie = Fingerprint.F
 
   /** Insert `entry` under `term`'s fingerprint. */
   def insert(term: Term, entry: E): Unit =
-    val fp: Array[Int] = trie.fingerprint(bank, term)
+    trie.fingerprintInto(bank, term, fpBuf)
     var node: Node = root
     var d = 0
     while d < depth do
       if node.children == null then node.children = new Int2ObjectOpenHashMap[Node]()
-      var c: Node = node.children.get(fp(d))
-      if c == null then { c = new Node; node.children.put(fp(d), c) }
+      var c: Node = node.children.get(fpBuf(d))
+      if c == null then { c = new Node; node.children.put(fpBuf(d), c) }
       node = c
       d += 1
     node.bucket = node.bucket.add(entry) // `add` starts a bucket from `null` and returns the upgraded one
@@ -216,8 +229,8 @@ final class FingerprintIndex[E](bank: TermBank, trie: SampleTrie = Fingerprint.F
   /** Remove one entry equal (`==`) to `entry` stored under `term`'s fingerprint; returns whether one was
    *  found. Emptied nodes are pruned up the path. */
   def remove(term: Term, entry: E): Boolean =
-    val fp: Array[Int] = trie.fingerprint(bank, term)
-    val removed: Boolean = removeRec(root, 0, fp, entry)
+    trie.fingerprintInto(bank, term, fpBuf)
+    val removed: Boolean = removeRec(root, 0, fpBuf, entry)
     if removed then _size -= 1
     removed
 
@@ -237,7 +250,8 @@ final class FingerprintIndex[E](bank: TermBank, trie: SampleTrie = Fingerprint.F
   /** Visit every stored entry whose term is **unification-compatible** with `query` (a candidate superset of
    *  the truly-unifiable ones). Allocation-free on the query path (no intermediate collection). */
   def retrieveUnifiable(query: Term)(visit: E => Unit): Unit =
-    descendUnif(root, 0, trie.fingerprint(bank, query), visit)
+    trie.fingerprintInto(bank, query, fpBuf)
+    descendUnif(root, 0, fpBuf, visit)
 
   private def descendUnif(node: Node, d: Int, qfp: Array[Int], visit: E => Unit): Unit =
     if d == depth then node.bucket.foreach(visit) // foreach handles a `null` (empty) bucket ⇒ no-op
@@ -286,3 +300,17 @@ final class FromEntry(val clause: Clause, val litIndex: Int, val side: Int):
     case _ => false
   override def hashCode: Int = (clause.id * 31 + litIndex) * 31 + side
   override def toString: String = s"FromEntry(c${clause.id}, lit=$litIndex, side=$side)"
+
+/**
+ * The resolution literal-index payload (Phase 5, Step 2): a selected non-equality literal `litIndex` of active
+ * `clause` — an ordinary-resolution partner. The index is keyed by the literal *atom*, and polarity is carried
+ * by *which* of the two per-polarity indices holds the entry (so a query fetches only complementary-polarity
+ * candidates); the payload therefore needs only `(clause, litIndex)`. Value equality (on `clause.id`, `litIndex`)
+ * so an entry removes by a re-derived equal value when the clause leaves the active set, as [[IntoEntry]]/[[FromEntry]].
+ */
+final class ResolutionEntry(val clause: Clause, val litIndex: Int):
+  override def equals(o: Any): Boolean = o match
+    case e: ResolutionEntry => clause.id == e.clause.id && litIndex == e.litIndex
+    case _ => false
+  override def hashCode: Int = clause.id * 31 + litIndex
+  override def toString: String = s"ResolutionEntry(c${clause.id}, lit=$litIndex)"

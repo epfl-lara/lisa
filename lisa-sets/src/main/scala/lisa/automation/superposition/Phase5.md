@@ -1,9 +1,9 @@
 # Phase 5 — Term Indexing (research + design)
 
-> Status: **research + plan for review.** No implementation yet. Per the project rule, coding begins only
-> when the previous phase is complete (Phase 4 is) and the user asks to start. This document is the design
-> deliverable — a self-contained explanation of term indexing and a concrete, performance-first plan for our
-> prover, grounded in how Vampire, E and Prover9 do it.
+> Status: **in progress.** Step 1 (fingerprint index for superposition) and Step 2 (fingerprint index for
+> resolution) are implemented, wired into `Discount` behind `fingerprintIndexing`, and A/B-verified against the
+> linear scan; Steps 3–5 remain. This document is both the design deliverable — a self-contained explanation of
+> term indexing, grounded in how Vampire, E and Prover9 do it — and the running plan (see the step list in §8).
 
 Phase 5 in [PLAN.md](PLAN.md) is *performance*: term indexing first, then selection / age-weight heuristics.
 This document covers **indexing only**; heuristics are a separate later step (§10).
@@ -337,24 +337,69 @@ Build `FingerprintIndex` over the active set's rewritable subterms and equation 
   equivalence test (same problem, both paths must derive the same clauses / reach □). Keep the linear-scan
   path behind a flag for the A/B check, then remove it.
 
-### Step 2 — Fingerprint literal index for resolution
+### Step 2 — Fingerprint literal index for resolution — **done**
 
-A `(predicate, polarity) → FingerprintIndex` over active literal atoms. Resolution partners for a given
-selected literal = complementary-polarity bucket `.findUnifiable(atom)` → verify with `Inference.resolve`.
-Replaces the resolution arm of the `activate` scan.
+Resolution partners for a given selected literal = complementary-polarity index `.retrieveUnifiable(atom)` →
+verify with `Inference.resolve`. Replaces the resolution arm of the `activate` scan; with `fingerprintIndexing`
+on, the linear active scan is now skipped entirely (both its arms — resolution and superposition — are indexed).
 
-### Step 3 — Perfect discrimination tree for forward demodulation
+**Design refinement vs the original sketch (`(predicate, polarity) → FingerprintIndex`).** We drop the
+per-predicate map and keep just **two indices, one per polarity** (`posLitIndex`/`negLitIndex`) over selected
+non-equality literal *atoms*. Reason: a fingerprint's top (ε) position already samples the atom's top symbol —
+the predicate — so the `FingerprintIndex` trie root discriminates by predicate *for free* (a query with a
+concrete predicate `P` descends only `P`'s branch; the `AnyVar`/`BelowVar` branches at ε are always empty, since
+an atom is never a bare variable). An outer predicate→index map would just re-implement that first split as a
+hashmap hop. What the fingerprint does **not** capture is the literal's sign (the atom is the same term either
+way), so polarity is the one thing separated structurally. This reuses `FingerprintIndex` unchanged; only a new
+2-field payload `ResolutionEntry(clause, litIndex)` is added (polarity is implicit in which index holds it).
+
+- **Lifecycle**: `indexedResolution = fingerprintIndexing` (resolution is not equality-gated). Entries are
+  inserted at `activate` (the given indexed *before* querying, so its own complementary literals resolve — the
+  self-resolutions the scan also does), removed on `backwardSimplify`/`removeFromActive`, cleared in `saturate`.
+  A **single** query pass over the given's selected non-equality literals produces each ordered partner pair
+  once (matching the scan), so no self-skip is needed (unlike superposition's two-pass form).
+- **Verify**: a new index-vs-scan A/B equivalence test on equality-free (resolution-heavy) problems in
+  `DiscountTest` (propositional, first-order-with-unification, factoring-needed, self-resolvable, satisfiable —
+  both paths reach the same verdict); the Step-1 superposition A/B test now also exercises resolution indexing.
+- **Allocation refinement (applies to Steps 1 and 2).** `FingerprintIndex` now holds one **reusable fingerprint
+  buffer** (`fpBuf`, length = scheme size) filled in place by `SampleTrie.fingerprintInto`, shared by
+  `insert`/`remove`/`retrieveUnifiable` — removing the per-call `new Array[Int]` that every index operation
+  previously allocated (the hot one being the per-query fingerprint on every selected literal / from-side /
+  subterm of every given). Safe because index operations never nest on one index: each fully consumes the
+  buffer (whole trie descent + any `visit` callback, which only reaches `addPassive` — never another index op)
+  before the next call, so it is never read while stale. Verified by the existing `FingerprintTest` differential
+  and no-false-negatives tests, which now run entirely through the reused buffer.
+- **Design cross-check against E's source** (`othersolvers/eprover`): E keeps a dedicated `pm_negp_index` over
+  *negative predicate atoms* (`ccl_global_indices.h`), the analog of our `negLitIndex`; it needs no positive
+  counterpart only because its `$true`-equation encoding folds positive atoms into `pm_from_index`. E also
+  indexes only **maximal** literals (`EqnIsMaximal`), the analog of our indexing only **selected** literals. So
+  the sign-segregated atom index is faithful to E; the extra `posLitIndex` is the cost of keeping a native
+  resolution rule instead of the `$true` encoding.
+
+### Step 3 — Feature-vector index for subsumption (next — the throughput target)
+
+**Why this is next (reordered ahead of demodulation).** After Steps 1–2 the generating inferences no longer
+scan the active set, so the two remaining `O(|active|)` per-given scans are **forward subsumption**
+(`forwardSimplify`) and **backward subsumption** (`backwardSimplify`) — each runs `Subsumption.subsumes` (a
+multiset matching search) against *every* active clause. Crucially these run on **all three datasets**
+regardless of equality, whereas demodulation is inert on the two equality-free sets. The new-machine baseline
+([BaselineVsE.md](BaselineVsE.md)) shows our per-given cost is ~10× E's on the clausal set — where demodulation
+is off — so subsumption is the dominant remaining structural cost and the clearest lever for the
+"at-least-double throughput" goal. Hence subsumption is promoted to Step 3.
+
+Generalize the existing `predBits`/`posCount`/`negCount`/`weight` pre-filter into a **feature-vector index**
+(E's `FVIndex` / Prover9's `di_tree`; see [Phase5SubsumptionResearch.md](Phase5SubsumptionResearch.md) for the
+two provers' designs). Each clause maps to an integer feature vector chosen so that *C subsumes D ⇒
+feature(C) ≤ feature(D)* componentwise; forward subsumption descends the `≤` (subset) branches, backward the
+`≥` (superset) branches; leaves run the unchanged `Subsumption.subsumes` as the verifier. Replaces the
+`forwardSimplify`/`backwardSimplify` scans. Verify against `SubsumptionTest` + an index-vs-scan A/B.
+
+### Step 4 — Perfect discrimination tree for forward demodulation
 
 A PDT over demodulator LHSs with per-node **size** (min weight) and **age** constraints (§2). `normalForm`'s
 inner "scan all rules per subterm" becomes "PDT `findGeneralizations(subterm)`". Backward demodulation reuses
-the Step-1 into-index (`findMatchable` for the new rule's LHS). Verify against `DemodulationTest`.
-
-### Step 4 — Feature-vector index for subsumption
-
-Generalize the existing `predBits`/`posCount`/`negCount`/`weight` pre-filter into a feature-vector trie
-(E-style; start with those four plus a few per-top-symbol counts). Forward subsumption descends `≤`, backward
-`≥`; leaves run the unchanged `Subsumption.subsumes`. Replaces the `forwardSimplify`/`backwardSimplify`
-scans. Verify against `SubsumptionTest`.
+the Step-1 into-index (`findMatchable` for the new rule's LHS). Verify against `DemodulationTest`. (Deferred
+behind Step 3 because it only helps the equality set; subsumption helps all three.)
 
 ### Step 5 — Measure and tune
 

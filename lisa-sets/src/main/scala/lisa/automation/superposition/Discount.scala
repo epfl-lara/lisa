@@ -10,8 +10,9 @@ import Core.*
  * The DISCOUNT (given-clause) saturation loop for Phase-1 ordered resolution + factoring.
  *
  * Two clause stores: a `passive` (unprocessed) set, kept in two lazy-deletion priority queues so the
- * next given clause can be picked by an age/weight ratio; and an `active` (processed) set scanned
- * linearly for inferences (term indexing is Phase 4). Each iteration selects a given clause, computes
+ * next given clause can be picked by an age/weight ratio; and an `active` (processed) set from which
+ * inference partners are found -- via fingerprint indices ([[fingerprintIndexing]], Phase 5) or, with
+ * indexing off, a linear scan. Each iteration selects a given clause, computes
  * its selected literals, moves it into active, generates all resolvents against the active set and all
  * factors of itself, and inserts the (canonicalised, non-tautological) survivors back into passive. It
  * stops at the empty clause `□` (refutation) or when the passive set empties (saturation); `maxGiven`
@@ -77,11 +78,17 @@ final class Discount(
     // selection; backward rewrites active clauses when the given is a new unit equality. Inert without them.
     forwardDemodulation: Boolean = true,
     backwardDemodulation: Boolean = true,
-    // Term indexing (Phase 5): find superposition partners via a fingerprint index over the active set instead
-    // of the linear scan. Same inferences (the index is a candidate filter, confirmed by real unification), so
-    // reconstruction is unchanged; only the order candidates are found in — hence clause ids and the search
-    // trajectory — differs. Kept as a flag so the indexed and linear paths can be A/B-compared.
-    fingerprintIndexing: Boolean = true):
+    // Term indexing (Phase 5): find generating-inference partners via fingerprint indices over the active set
+    // instead of the linear scan -- both superposition (Step 1) and ordinary resolution (Step 2). Same inferences
+    // (each index is a candidate filter, confirmed by real unification), so reconstruction is unchanged; only the
+    // order candidates are found in -- hence clause ids and the search trajectory -- differs. When on, the linear
+    // active scan is skipped entirely. Kept as a flag so the indexed and linear paths can be A/B-compared.
+    fingerprintIndexing: Boolean = true,
+    // Feature-vector index for subsumption (Phase 5 Step 3): find forward/backward subsumption partners via a
+    // feature-vector trie over the active set instead of scanning it. Same simplifications (the index is a
+    // candidate filter confirmed by the real `Subsumption.subsumes`), so verdicts are identical; only the search
+    // trajectory differs. Kept as a flag so the indexed and linear paths can be A/B-compared.
+    subsumptionIndexing: Boolean = true):
   import Discount.Result
 
   // Effective equality-inference switches: each is the master `equality` flag AND its own flag. When
@@ -91,6 +98,9 @@ final class Discount(
   private val backwardDemodulationOn: Boolean = equality && backwardDemodulation
   // Superposition via the fingerprint index (vs the linear active scan). Only meaningful when superposition runs.
   private val indexedSuperposition: Boolean = superpositionOn && fingerprintIndexing
+  // Ordinary resolution via the fingerprint index (Phase 5 Step 2). Resolution is not equality-gated, so this is
+  // just the master indexing switch: when on, resolution partners come from the literal indices, not the scan.
+  private val indexedResolution: Boolean = fingerprintIndexing
 
   // Fingerprint indices over the active set for superposition (Phase 5 Step 1): the *into* index holds every
   // non-variable subterm of active clauses' selected literals (rewrite targets); the *from* index holds the
@@ -98,6 +108,21 @@ final class Discount(
   // alongside `active`. Only populated/queried when `indexedSuperposition`.
   private val intoIndex: FingerprintIndex[IntoEntry] = new FingerprintIndex(bank)
   private val fromIndex: FingerprintIndex[FromEntry] = new FingerprintIndex(bank)
+
+  // Fingerprint indices over the active set for ordinary resolution (Phase 5 Step 2): the selected non-equality
+  // literal *atoms*, split by polarity so a query fetches only complementary-polarity partners. The predicate is
+  // discriminated for free by the fingerprint's top position, so no per-predicate bucketing is needed. Maintained
+  // incrementally alongside `active`. Only populated/queried when `indexedResolution`.
+  private val posLitIndex: FingerprintIndex[ResolutionEntry] = new FingerprintIndex(bank)
+  private val negLitIndex: FingerprintIndex[ResolutionEntry] = new FingerprintIndex(bank)
+
+  // Feature-vector index over the active set for subsumption (Phase 5 Step 3). Only meaningful when some
+  // subsumption runs. Built fresh per `saturate` (the permutation adapts to that problem's clauses).
+  private val indexedSubsumption: Boolean = subsumptionIndexing && (forwardSubsumption || backwardSubsumption)
+  private var subsumptionIndex: FeatureVectorIndex = null
+  // The active unit clauses, maintained as a small sublist so indexed `forwardSimplify` can run unit deletion
+  // without scanning all of `active` (units are few). Only populated when `indexedSubsumption`.
+  private val activeUnits: mutable.ArrayBuffer[Clause] = mutable.ArrayBuffer.empty
 
   // Simplification counters (observability / benchmarks); reset at the start of each `saturate`.
   var forwardSubsumed: Int = 0
@@ -132,7 +157,9 @@ final class Discount(
   private val livePassive: IntOpenHashSet = new IntOpenHashSet() // ids still in passive
   private var balance: Int = 0 // age/weight alternation, Vampire-style
 
-  // Active (processed) set, scanned linearly (indexing is Phase 4).
+  // Active (processed) set. The authoritative store of processed clauses; with `fingerprintIndexing` the
+  // generating inferences read from the fingerprint indices instead of scanning it (it is still scanned by
+  // simplification). Removal is swap-with-last (unordered).
   private val active: mutable.ArrayBuffer[Clause] = mutable.ArrayBuffer.empty
 
   // The active demodulators: rewrite rules from the positive unit equalities in `active`, maintained
@@ -152,7 +179,9 @@ final class Discount(
    */
   def saturate(initial: Seq[Clause], maxGiven: Int = Int.MaxValue, maxMillis: Long = Long.MaxValue): Result =
     byAge.clear(); byWeight.clear(); livePassive.clear(); active.clear(); activeDemodulators.clear(); balance = 0
-    intoIndex.clear(); fromIndex.clear()
+    intoIndex.clear(); fromIndex.clear(); posLitIndex.clear(); negLitIndex.clear()
+    activeUnits.clear()
+    if indexedSubsumption then subsumptionIndex = new FeatureVectorIndex(bank, Permutation.build(bank, initial))
     forwardSubsumed = 0; backwardSubsumed = 0; forwardUnitDeleted = 0; backwardUnitDeleted = 0
     forwardSubsumptionResolved = 0; backwardSubsumptionResolved = 0; condensed = 0
     givenProcessed = 0; peakActive = 0; peakPassive = 0; passiveEnqueued = 0
@@ -253,47 +282,56 @@ final class Discount(
     if active.length > peakActive then peakActive = active.length
     if forwardDemodulationOn && isPosUnitEq(gc) then activeDemodulators ++= Demodulation.rules(bank, bank.order, gc) // gc is a new demodulator
     if indexedSuperposition then addToIndices(gc) // index gc *before* querying, so the gc-into-gc self-pair fires
+    if indexedResolution then addResolutionEntries(gc) // likewise, so gc's own complementary literals resolve
+    if indexedSubsumption then { subsumptionIndex.insert(gc); if gc.size == 1 then activeUnits += gc }
     // Precompute once per activation (invariant across the active scan): which of gc's selected literals are
     // non-equality (for ordinary resolution) and gc's usable superposition from-sides.
     val gcSelNonEq: Array[Boolean] = new Array[Boolean](gSel.length)
     var gm = 0
     while gm < gSel.length do { gcSelNonEq(gm) = !isEquality(gc.literals(gSel(gm))); gm += 1 }
     val gcFromSides: List[(Int, Int, Term, Symbol)] = if superpositionOn then fromSides(gc, gSel) else Nil
-    // resolution + superposition against each active clause (gc now included, so self-inferences fire)
-    var ai = 0
-    while ai < active.length do
-      val a: Clause = active(ai)
-      val aSel: Array[Int] = a.select(bank)
-      var gi = 0
-      while gi < gSel.length do
-        if gcSelNonEq(gi) then // equalities go to superposition / equality resolution, not here
-          var aj = 0
-          while aj < aSel.length do
-            if !isEquality(a.literals(aSel(aj))) then
-              Inference.resolve(bank, trail, gc, gSel(gi), a, aSel(aj)) match
-                case Some(r) =>
-                  addPassive(r) match
-                    case Some(empty) => return Some(empty)
-                    case None => ()
-                case None => ()
-            aj += 1
-        gi += 1
-      // superposition: gc's equations into `a` (precomputed from-sides), and `a`'s equations into gc (both
-      // directions; the a == gc self-pair is done once). The caller locates + unifies; `superpose` is build-only.
-      if superpositionOn && !fingerprintIndexing then // linear-scan superposition; the indexed path runs after the loop
-        superposeUsing(gc, gcFromSides, a, aSel) match
-          case Some(empty) => return Some(empty)
-          case None => ()
-        if a.id != gc.id then
-          superposeFromInto(a, aSel, gc, gSel) match
+    // Generating inferences with gc against the active set (gc now included, so self-inferences fire). Both linear
+    // arms -- resolution (always) and superposition (equality on) -- run only when indexing is off, so with
+    // `fingerprintIndexing` the whole active scan is skipped in favour of the index queries below.
+    if !fingerprintIndexing then
+      var ai = 0
+      while ai < active.length do
+        val a: Clause = active(ai)
+        val aSel: Array[Int] = a.select(bank)
+        var gi = 0
+        while gi < gSel.length do
+          if gcSelNonEq(gi) then // equalities go to superposition / equality resolution, not here
+            var aj = 0
+            while aj < aSel.length do
+              if !isEquality(a.literals(aSel(aj))) then
+                Inference.resolve(bank, trail, gc, gSel(gi), a, aSel(aj)) match
+                  case Some(r) =>
+                    addPassive(r) match
+                      case Some(empty) => return Some(empty)
+                      case None => ()
+                  case None => ()
+              aj += 1
+          gi += 1
+        // superposition: gc's equations into `a` (precomputed from-sides), and `a`'s equations into gc (both
+        // directions; the a == gc self-pair is done once). The caller locates + unifies; `superpose` is build-only.
+        if superpositionOn then
+          superposeUsing(gc, gcFromSides, a, aSel) match
             case Some(empty) => return Some(empty)
             case None => ()
-      ai += 1
-    // indexed superposition (Phase 5): the same inferences via the fingerprint index rather than the active scan
-    if indexedSuperposition then
-      superposeIndexed(gc, gSel, gcFromSides) match
+          if a.id != gc.id then
+            superposeFromInto(a, aSel, gc, gSel) match
+              case Some(empty) => return Some(empty)
+              case None => ()
+        ai += 1
+    else
+      // Indexed generation (Phase 5): the same inferences via the fingerprint indices rather than the active scan.
+      resolveIndexed(gc, gSel, gcSelNonEq) match
         case Some(empty) => return Some(empty)
         case None => ()
+      if superpositionOn then
+        superposeIndexed(gc, gSel, gcFromSides) match
+          case Some(empty) => return Some(empty)
+          case None => ()
     // factoring: each unordered pair of distinct selected, positive, non-equality literals, once
     // (positive factoring only; equalities get equality-factoring in Phase 3). A literal that unifies
     // with a selected (maximal) one is itself maximal, hence also selected, so pairing within the
@@ -512,12 +550,103 @@ final class Discount(
       fromIndex.remove(l, new FromEntry(c, iFrom, fromSide))
       xs = xs.tail
 
+  // --- indexed resolution (Phase 5, Step 2) ------------------------------------------------------
+
+  /** Indexed ordinary resolution: for each of gc's selected non-equality literals, query the *opposite*-polarity
+   *  literal index with its atom and confirm each candidate with [[Inference.resolve]] (which re-checks
+   *  complementarity and does the real unification). gc is already indexed, so its own complementary literals are
+   *  returned -- the self-resolutions the linear scan also performs. A single pass over gc's literals produces
+   *  each ordered partner pair exactly once (as the scan does), so no self-skip is needed. `Some(□)` on refutation. */
+  private def resolveIndexed(gc: Clause, gSel: Array[Int], gcSelNonEq: Array[Boolean]): Option[Clause] =
+    var refut: Option[Clause] = None
+    var gi = 0
+    while gi < gSel.length && refut.isEmpty do
+      if gcSelNonEq(gi) then
+        val iLit: Int = gSel(gi)
+        val lit: Literal = gc.literals(iLit)
+        val opp: FingerprintIndex[ResolutionEntry] = if bank.isPositive(lit) then negLitIndex else posLitIndex
+        opp.retrieveUnifiable(bank.atomOf(lit)) { e =>
+          if refut.isEmpty then
+            Inference.resolve(bank, trail, gc, iLit, e.clause, e.litIndex) match
+              case Some(r) => refut = addPassive(r)
+              case None => ()
+        }
+      gi += 1
+    refut
+
+  /** Index `c`'s selected non-equality literal atoms for resolution: positive atoms into the positive index,
+   *  negative into the negative index (so a query fetches only complementary-polarity candidates). */
+  private def addResolutionEntries(c: Clause): Unit =
+    val sel: Array[Int] = c.selected
+    var k = 0
+    while k < sel.length do
+      val iLit: Int = sel(k)
+      val lit: Literal = c.literals(iLit)
+      if !isEquality(lit) then
+        val idx: FingerprintIndex[ResolutionEntry] = if bank.isPositive(lit) then posLitIndex else negLitIndex
+        idx.insert(bank.atomOf(lit), new ResolutionEntry(c, iLit))
+      k += 1
+
+  /** Remove `c`'s selected non-equality literal atoms from the resolution indices (re-derived, matched by value
+   *  equality) when `c` leaves the active set. Mirrors [[addResolutionEntries]]. */
+  private def removeResolutionEntries(c: Clause): Unit =
+    val sel: Array[Int] = c.selected
+    var k = 0
+    while k < sel.length do
+      val iLit: Int = sel(k)
+      val lit: Literal = c.literals(iLit)
+      if !isEquality(lit) then
+        val idx: FingerprintIndex[ResolutionEntry] = if bank.isPositive(lit) then posLitIndex else negLitIndex
+        idx.remove(bank.atomOf(lit), new ResolutionEntry(c, iLit))
+      k += 1
+
   /** Forward simplify `m` against the active set in one scan (active only -- DISCOUNT does not
    *  forward-check passive): if some active clause subsumes `m`, return `None` (discard it); otherwise apply
    *  subsumption resolution by active clauses (unit deletion for unit sides, general SR for longer ones),
    *  returning the (possibly shrunk) clause -- `Some(□)` if a resolution closed it. A single pass: after a
    *  shrink the scan continues with the shorter clause, residual redundancy caught when it is later selected. */
   private def forwardSimplify(m0: Clause): Option[Clause] =
+    if indexedSubsumption then forwardSimplifyIndexed(m0) else forwardSimplifyScan(m0)
+
+  /** Indexed forward simplification: forward subsumption via the feature-vector index (stop at the first verified
+   *  subsumer); unit deletion over the small `activeUnits` sublist; general (non-unit) subsumption resolution —
+   *  off by default — still scans the non-unit active clauses. Same verdict as [[forwardSimplifyScan]]: the index
+   *  is a candidate filter over the same `Subsumption.subsumes`, and the residual redundancy a different scan
+   *  order might catch is caught when the clause is later selected. */
+  private def forwardSimplifyIndexed(m0: Clause): Option[Clause] =
+    var m: Clause = m0
+    if forwardSubsumption then
+      var subsumed = false
+      subsumptionIndex.forwardCandidates(m) { c => if !subsumed && Subsumption.subsumes(bank, trail, c, m) then subsumed = true }
+      if subsumed then { forwardSubsumed += 1; return None }
+    if forwardUnitDeletion then
+      var k = 0
+      while k < activeUnits.length do
+        Subsumption.subsumptionResolutionResolvent(bank, trail, activeUnits(k), m) match
+          case Some(r) =>
+            forwardUnitDeleted += 1
+            if r.isEmpty then return Some(r)
+            m = r
+          case None => ()
+        k += 1
+    if forwardSubsumptionResolution then
+      var i = 0
+      while i < active.length do
+        val c: Clause = active(i)
+        if c.size > 1 then
+          Subsumption.subsumptionResolutionResolvent(bank, trail, c, m) match
+            case Some(r) =>
+              forwardSubsumptionResolved += 1
+              if r.isEmpty then return Some(r)
+              m = r
+            case None => ()
+        i += 1
+    Some(m)
+
+  /** Linear forward simplification (the pre-index scan; kept behind `subsumptionIndexing` for A/B). One pass over
+   *  `active`: subsumed ⇒ discard; else subsumption-resolution (unit deletion for unit sides, general SR for
+   *  longer ones) shrinks `m` and the scan continues with the shorter clause. */
+  private def forwardSimplifyScan(m0: Clause): Option[Clause] =
     var m: Clause = m0
     var i = 0
     while i < active.length do
@@ -544,6 +673,55 @@ final class Discount(
    *  index. Returns `Some(□)` if a resolution closes a clause. Deletion needs no reconstruction; a shrunk
    *  clause is an ordinary resolvent. */
   private def backwardSimplify(gc: Clause): Option[Clause] =
+    if indexedSubsumption then backwardSimplifyIndexed(gc) else backwardSimplifyScan(gc)
+
+  /** Indexed backward simplification: backward subsumption collects the victims via the feature-vector index
+   *  ([[FeatureVectorIndex.backwardCandidates]] verified by `subsumes`) then detaches + removes them; backward
+   *  subsumption resolution / unit deletion (a matching query, not a subset query) still scans `active` and is
+   *  deferred to Step 4's discrimination tree. Same verdict as [[backwardSimplifyScan]]. */
+  private def backwardSimplifyIndexed(gc: Clause): Option[Clause] =
+    if backwardSubsumption then
+      var victims: mutable.ArrayBuffer[Clause] = null // collect first (don't mutate `active`/index mid-descent)
+      subsumptionIndex.backwardCandidates(gc) { d =>
+        if Subsumption.subsumes(bank, trail, gc, d) then
+          if victims == null then victims = mutable.ArrayBuffer.empty
+          victims += d
+      }
+      if victims != null then
+        var k = 0
+        while k < victims.length do
+          backwardSubsumed += 1
+          detachAux(victims(k))
+          removeFromActiveBuffer(victims(k))
+          k += 1
+    val gcUnit: Boolean = gc.size == 1
+    val srOn: Boolean = if gcUnit then backwardUnitDeletion else backwardSubsumptionResolution
+    if srOn then
+      var shrunk: mutable.ArrayBuffer[Clause] = null
+      var i = 0
+      while i < active.length do
+        val m: Clause = active(i)
+        Subsumption.subsumptionResolutionResolvent(bank, trail, gc, m) match
+          case Some(r) =>
+            if gcUnit then backwardUnitDeleted += 1 else backwardSubsumptionResolved += 1
+            if shrunk == null then shrunk = mutable.ArrayBuffer.empty
+            shrunk += r
+            detachAux(m)
+            active(i) = active(active.length - 1) // swap-with-last; re-check the swapped-in element (don't advance)
+            active.remove(active.length - 1)
+          case None => i += 1
+      if shrunk != null then
+        var k = 0
+        while k < shrunk.length do
+          addPassive(shrunk(k)) match
+            case Some(empty) => return Some(empty)
+            case None => ()
+          k += 1
+    None
+
+  /** Linear backward simplification (the pre-index scan; kept behind `subsumptionIndexing` for A/B). One pass:
+   *  delete each active clause `gc` subsumes, shrink each it subsumption-resolves; shrunk clauses re-added after. */
+  private def backwardSimplifyScan(gc: Clause): Option[Clause] =
     val gcUnit: Boolean = gc.size == 1
     val srOn: Boolean = if gcUnit then backwardUnitDeletion else backwardSubsumptionResolution
     var shrunk: mutable.ArrayBuffer[Clause] = null // re-added after the scan (lazily allocated)
@@ -563,8 +741,7 @@ final class Discount(
             removed = true
           case None => ()
       if removed then
-        if isPosUnitEq(m) then removeDemodulatorsOf(m) // keep the demodulator set in sync
-        if indexedSuperposition then removeFromIndices(m) // keep the fingerprint indices in sync
+        detachAux(m)
         active(i) = active(active.length - 1)
         active.remove(active.length - 1)
       else i += 1
@@ -602,13 +779,34 @@ final class Discount(
   /** Remove the clause with `c`'s id from active (swap-with-last; active is unordered), keeping the
    *  demodulator set in sync. */
   private def removeFromActive(c: Clause): Unit =
-    if isPosUnitEq(c) then removeDemodulatorsOf(c)
-    if indexedSuperposition then removeFromIndices(c)
+    detachAux(c)
+    removeFromActiveBuffer(c)
+
+  /** Remove the clause with `c`'s id from the `active` buffer only (swap-with-last; unordered), no aux cleanup. */
+  private def removeFromActiveBuffer(c: Clause): Unit =
     var i = 0
     while i < active.length do
       if active(i).id == c.id then
         active(i) = active(active.length - 1)
         active.remove(active.length - 1)
+        return
+      i += 1
+
+  /** Drop `c` from every auxiliary structure that shadows the active set — demodulators, the superposition and
+   *  resolution fingerprint indices, and the subsumption index + unit sublist — when `c` leaves `active`. */
+  private def detachAux(c: Clause): Unit =
+    if isPosUnitEq(c) then removeDemodulatorsOf(c)
+    if indexedSuperposition then removeFromIndices(c)
+    if indexedResolution then removeResolutionEntries(c)
+    if indexedSubsumption then { subsumptionIndex.remove(c); removeActiveUnit(c) }
+
+  /** Remove `c` from the `activeUnits` sublist (no-op if absent, e.g. `c` is non-unit); swap-with-last. */
+  private def removeActiveUnit(c: Clause): Unit =
+    var i = 0
+    while i < activeUnits.length do
+      if activeUnits(i).id == c.id then
+        activeUnits(i) = activeUnits(activeUnits.length - 1)
+        activeUnits.remove(activeUnits.length - 1)
         return
       i += 1
 
