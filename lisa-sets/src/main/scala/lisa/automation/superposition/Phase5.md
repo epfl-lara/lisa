@@ -394,12 +394,20 @@ feature(C) ≤ feature(D)* componentwise; forward subsumption descends the `≤`
 `≥` (superset) branches; leaves run the unchanged `Subsumption.subsumes` as the verifier. Replaces the
 `forwardSimplify`/`backwardSimplify` scans. Verify against `SubsumptionTest` + an index-vs-scan A/B.
 
-### Step 4 — Perfect discrimination tree for forward demodulation
+### Step 4 — Perfect discrimination tree for forward demodulation (+ fingerprint subterm index for backward) — **done**
 
-A PDT over demodulator LHSs with per-node **size** (min weight) and **age** constraints (§2). `normalForm`'s
-inner "scan all rules per subterm" becomes "PDT `findGeneralizations(subterm)`". Backward demodulation reuses
-the Step-1 into-index (`findMatchable` for the new rule's LHS). Verify against `DemodulationTest`. (Deferred
-behind Step 3 because it only helps the equality set; subsumption helps all three.)
+The last full-active-scan in the loop. Full source survey of Vampire / E / Prover9 and the concrete plan in
+[Phase5DemodulationResearch.md](Phase5DemodulationResearch.md). In brief: all three provers use a
+**discrimination-tree-family matching index** of demodulator LHSs for **forward** (a generalization query — E and
+Prover9 a perfect discrimination tree, Vampire a compiled code tree) and a **filter-then-verify subterm index** for
+**backward** (an instance query — E a *fingerprint index*, Prover9 FPA, Vampire a substitution tree). For us:
+**forward** = a new perfect discrimination tree (PDT) over demodulator LHSs with per-node **size** (min-weight)
+pruning — `normalForm`'s inner "scan all rules per subterm" becomes `findGeneralizations(subterm)`; **backward** =
+reuse our `FingerprintIndex` over active subterms (`retrieveUnifiable(l)` is a sound superset filter for instances,
+verified by `matchTerm`), noting the into-index currently holds only *selected*-literal subterms so a full-literal
+demodulation subterm index is needed. Orientation stays the `Rule.oriented` + per-instance KBO check. Age/normal-form
+caching (E's shared-cell `nf_date`) is deferred (our term model doesn't share cells). Verify against
+`DemodulationTest` + an index-vs-scan A/B; measure on the eq set (demodulation-bound).
 
 ### Step 5 — Measure and tune
 

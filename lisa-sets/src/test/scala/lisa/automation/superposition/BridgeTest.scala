@@ -61,6 +61,29 @@ class BridgeTest extends AnyFunSuite:
     assert(Bridge.solve(cs, maxGiven = 10000).refuted)
   }
 
+  // --- equality auto-disable (equality inferences run only if the input contains `=`) ---------
+
+  private def eqp(s: K.Expression, t: K.Expression): K.Expression = // the kernel `=` interns onto EqualitySymbol
+    ap(K.Constant(K.Identifier("="), sortOf(2, K.Prop)), s, t)
+
+  test("auto-detect keeps equality ON: a pure-equality problem (needs superposition) still refutes with the default") {
+    val f = fn("f", 1); val a = cst("a")
+    // f(a) = a ; f(f(a)) ≠ a  — refutable ONLY by equality reasoning; if auto-detect wrongly disabled equality
+    // (leaving pure resolution + factoring), this would NOT refute — so it guards the detection.
+    val cs = List(sequent(Set(), Set(eqp(ap(f, a), a))), sequent(Set(eqp(ap(f, ap(f, a)), a)), Set()))
+    assert(Bridge.solve(cs, maxGiven = 10000).refuted, "equality problem must stay solvable (equality kept on)")
+  }
+
+  test("auto-disable on an equality-free problem: equality=true collapses to equality=false (same verdict)") {
+    val x = vr("X")
+    val px = ap(pred("P", 1), x); val qx = ap(pred("Q", 1), x)
+    val pa = ap(pred("P", 1), cst("a")); val qa = ap(pred("Q", 1), cst("a"))
+    val cs = List(sequent(Set(px), Set(qx)), sequent(Set(), Set(pa)), sequent(Set(qa), Set())) // no `=` anywhere
+    // with no equality symbol present, the master switch is irrelevant: on/off must give the same (refuted) verdict.
+    assert(Bridge.solve(cs, maxGiven = 10000, equality = true).refuted)
+    assert(Bridge.solve(cs, maxGiven = 10000, equality = false).refuted)
+  }
+
   // --- entry point 2: lisa.tptp.Problem -----------------------------------------------------
 
   private def parse(clause: String): AnnotatedStatement =

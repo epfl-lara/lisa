@@ -29,6 +29,12 @@ object Core:
   /** A reference to a term: the offset of its record in a [[TermBank]]'s arena. */
   opaque type Term = Int
 
+  /** Zero-cost views between `Array[Term]` and `Array[Int]` (a `Term` *is* an `Int`). Defined here, where the
+   *  opaque type is transparent, so external code can use the `Int`-array overloads (e.g. `java.util.Arrays.copyOf`)
+   *  that do not resolve on the opaque `Array[Term]`. Inline ⇒ they compile to the identity (the same array). */
+  inline def asArrayInt(array: Array[Term]): Array[Int] = array
+  inline def asArrayTerm(array: Array[Int]): Array[Term] = array
+
   /** A literal: an atom [[Term]] together with a polarity, packed as `(atom << 1) | sign`. */
   opaque type Literal = Long
 

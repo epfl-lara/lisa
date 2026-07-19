@@ -1,0 +1,150 @@
+package lisa.automation.superposition
+
+import org.scalatest.funsuite.AnyFunSuite
+
+import Core.*
+import Demodulation.Rule
+
+/** Phase 5 Step 4 (sub-step 1): standalone tests for the **perfect** [[DiscriminationTree]], the
+ *  forward-demodulation generalization index. No saturation-loop wiring yet. */
+class DiscriminationTreeTest extends AnyFunSuite:
+
+  class Fix:
+    val sig: Signature = new Signature
+    val bank: TermBank = new TermBank(sig)
+    val trail: Trail = new Trail(bank)
+
+    def fn(name: String, arity: Int): Symbol = sig.intern(name, arity, isPredicate = false)
+    def const(name: String): Term = bank.mkConst(fn(name, 0))
+    def app(f: Symbol, args: Term*): Term = bank.mkApp(f, args.toArray)
+    def v(n: Int): Term = bank.mkVar(Core.Variable(n))
+    def mkEq(s: Term, t: Term): Term = bank.mkApp(EqualitySymbol, Array(s, t))
+
+    /** A demodulator `lhs → rhs`; a fresh source clause gives it a distinct id (for removal by (source.id, side)). */
+    def rule(lhs: Term, rhs: Term): Rule =
+      val src = bank.mkClause(Array(bank.mkLiteral(mkEq(lhs, rhs), true)))
+      Rule(src, 0, lhs, rhs, oriented = true, lhsVars = Array.empty[Term])
+
+    /** Does `r.lhs` really match onto `u`? (the exact relation the perfect tree computes.) */
+    def matches(r: Rule, u: Term): Boolean =
+      val s = trail.save()
+      val ok = trail.matchTerm(r.lhs, 0, u, 1)
+      trail.restore(s)
+      ok
+
+    def tree: DiscriminationTree = new DiscriminationTree(bank, trail)
+
+  private def collect(f: (Rule => Boolean) => Boolean): Set[Int] =
+    val s = scala.collection.mutable.Set.empty[Int]
+    f(r => { s += r.source.id; false })
+    s.toSet
+
+  // ── the perfect tree returns EXACTLY the true generalizations ───────────────────────────────────
+
+  test("retrieveGeneralizations returns exactly the LHSs that match (perfect: no false negatives or positives)") {
+    val fx = new Fix; import fx.*
+    val f = fn("f", 1); val g = fn("g", 1); val h = fn("h", 2)
+    val a = const("a"); val b = const("b")
+    val x = v(0); val y = v(1)
+    val rules = Seq(
+      rule(app(f, x), a),           // f(X) → a
+      rule(app(f, a), b),           // f(a) → b
+      rule(app(f, app(g, x)), b),   // f(g(X)) → b
+      rule(app(g, x), a),           // g(X) → a
+      rule(app(h, x, x), a),        // h(X,X) → a  (nonlinear — matched only on equal args)
+      rule(app(h, x, y), b)         // h(X,Y) → b
+    )
+    val t = tree; rules.foreach(t.insert)
+    assert(t.size == rules.size)
+    val queries = Seq(
+      app(f, a), app(f, b), app(f, app(g, a)), app(g, b),
+      app(h, a, a), app(h, a, b), app(f, app(f, a)), a, app(f, x)
+    )
+    for u <- queries do
+      val expected = rules.filter(r => matches(r, u)).map(_.source.id).toSet
+      assert(collect(t.retrieveGeneralizations(u)) == expected, s"mismatch for query $u")
+  }
+
+  test("skeleton discrimination: symbol structure selects the right LHSs") {
+    val fx = new Fix; import fx.*
+    val f = fn("f", 1); val g = fn("g", 1); val a = const("a"); val x = v(0)
+    val rF = rule(app(f, x), a); val rFa = rule(app(f, a), a); val rFg = rule(app(f, app(g, x)), a); val rG = rule(app(g, x), a)
+    val t = tree; Seq(rF, rFa, rFg, rG).foreach(t.insert)
+    assert(collect(t.retrieveGeneralizations(app(f, a))) == Set(rF.source.id, rFa.source.id))
+    assert(collect(t.retrieveGeneralizations(app(f, app(g, a)))) == Set(rF.source.id, rFg.source.id))
+  }
+
+  test("nonlinear LHS matches only when the repeated variable's occurrences agree (checked during descent)") {
+    val fx = new Fix; import fx.*
+    val h = fn("h", 2); val a = const("a"); val b = const("b"); val x = v(0)
+    val rNL = rule(app(h, x, x), a) // h(X,X)
+    val t = tree; t.insert(rNL)
+    assert(collect(t.retrieveGeneralizations(app(h, a, a))) == Set(rNL.source.id)) // equal args: matches
+    assert(collect(t.retrieveGeneralizations(app(h, a, b))).isEmpty)               // distinct args: rejected
+  }
+
+  test("a matching leaf leaves σ live on the trail (rσ is buildable during visit)") {
+    val fx = new Fix; import fx.*
+    val f = fn("f", 1); val a = const("a"); val x = v(0)
+    val r = rule(app(f, x), x) // f(X) → X
+    val t = tree; t.insert(r)
+    var applied: Option[Term] = None
+    t.retrieveGeneralizations(app(f, a)) { rl =>
+      // σ = {X ↦ a} is on the trail here; applying it to the RHS (X) must give `a`
+      applied = Some(trail.applier().apply(rl.rhs, 0))
+      true // stop after the first
+    }
+    assert(applied.contains(a), s"expected rσ = a, got $applied")
+  }
+
+  test("ground fast path: a whole ground LHS matches only its identical query, and coexists with variable LHSs") {
+    val fx = new Fix; import fx.*
+    val g = fn("g", 1); val a = const("a"); val b = const("b"); val x = v(0)
+    val rGa = rule(app(g, app(g, a)), b) // g(g(a)) → b   (fully ground ⇒ one ground edge)
+    val rGx = rule(app(g, x), a)         // g(x) → a
+    val t = tree; t.insert(rGa); t.insert(rGx)
+    // g(g(a)) matches the ground LHS (exact) and g(x) [x = g(a)]
+    assert(collect(t.retrieveGeneralizations(app(g, app(g, a)))) == Set(rGa.source.id, rGx.source.id))
+    // g(g(b)) matches only g(x) — the ground LHS g(g(a)) is not identical to it
+    assert(collect(t.retrieveGeneralizations(app(g, app(g, b)))) == Set(rGx.source.id))
+    // removing the ground rule prunes its ground edge; g(g(a)) then matches only g(x)
+    assert(t.remove(rGa))
+    assert(collect(t.retrieveGeneralizations(app(g, app(g, a)))) == Set(rGx.source.id))
+  }
+
+  // ── size pruning does not drop valid matches ────────────────────────────────────────────────────
+
+  test("size pruning keeps every true match (heavy and light demodulators mixed)") {
+    val fx = new Fix; import fx.*
+    val f = fn("f", 1); val g = fn("g", 1); val a = const("a"); val x = v(0)
+    val light = rule(app(f, x), a)
+    val heavy = rule(app(f, app(g, app(g, x))), a)
+    val t = tree; t.insert(light); t.insert(heavy)
+    assert(collect(t.retrieveGeneralizations(app(f, a))) == Set(light.source.id))
+    assert(collect(t.retrieveGeneralizations(app(f, app(g, app(g, a))))) == Set(light.source.id, heavy.source.id))
+  }
+
+  // ── insert / remove / prune / size / clear ──────────────────────────────────────────────────────
+
+  test("remove drops a demodulator, prunes its path, and leaves the rest retrievable") {
+    val fx = new Fix; import fx.*
+    val f = fn("f", 1); val a = const("a"); val x = v(0)
+    val rF = rule(app(f, x), a); val rFa = rule(app(f, a), a)
+    val t = tree; t.insert(rF); t.insert(rFa)
+    assert(t.size == 2)
+    assert(t.remove(rFa))
+    assert(t.size == 1)
+    assert(collect(t.retrieveGeneralizations(app(f, a))) == Set(rF.source.id))
+    assert(!t.remove(rFa), "removing an absent rule returns false")
+    t.insert(rFa)
+    assert(collect(t.retrieveGeneralizations(app(f, a))) == Set(rF.source.id, rFa.source.id))
+  }
+
+  test("clear empties the tree") {
+    val fx = new Fix; import fx.*
+    val f = fn("f", 1); val a = const("a"); val x = v(0)
+    val t = tree; t.insert(rule(app(f, x), a))
+    t.clear()
+    assert(t.isEmpty && t.size == 0)
+    assert(collect(t.retrieveGeneralizations(app(f, a))).isEmpty)
+  }

@@ -129,9 +129,9 @@ object Clausal:
    * `Saturated`/`Timeout` [[Bridge.Outcome]] instead of throwing — so a benchmark can categorise the result.
    * `maxGiven`/`maxMillis` bound the underlying [[Bridge]] search.
    */
-  def proveOutcome(problem: Clausification.Problem, maxGiven: Int = Int.MaxValue, maxMillis: Long = Long.MaxValue, equality: Boolean = true, fingerprintIndexing: Boolean = true, onStats: Discount.LoopStats => Unit = _ => ()): Either[Bridge.Outcome, K.SCProof] =
+  def proveOutcome(problem: Clausification.Problem, maxGiven: Int = Int.MaxValue, maxMillis: Long = Long.MaxValue, equality: Boolean = true, fingerprintIndexing: Boolean = true, precedenceScheme: PrecedenceScheme = PrecedenceScheme.InvFrequency, onStats: Discount.LoopStats => Unit = _ => ()): Either[Bridge.Outcome, K.SCProof] =
     val p = prepare(problem)
-    Bridge.solve(p.work, maxGiven, maxMillis, symbolVars = p.symbolVars, discharge = p.abs.dischargeSubst, equality = equality, fingerprintIndexing = fingerprintIndexing, onStats = onStats) match
+    Bridge.solve(p.work, maxGiven, maxMillis, symbolVars = p.symbolVars, discharge = p.abs.dischargeSubst, equality = equality, fingerprintIndexing = fingerprintIndexing, precedenceScheme = precedenceScheme, onStats = onStats) match
       case s: Bridge.Outcome.Success =>
         val base: K.SCProof = s.reconstructKernelProof //              ε-bearing, imports = neg-moved ε-clauses, ∅ ⊢
         val work0: IndexedSeq[K.Sequent] = p.orig.map(toWorkingSequent) // neg-moved ε-clauses; = base.imports
@@ -167,6 +167,6 @@ object Clausal:
    * instrumentation. An [[Bridge.Outcome.Success]] means `□` was derived (a refutation); the proof DAG is left
    * unwalked.
    */
-  def solveOutcome(problem: Clausification.Problem, maxGiven: Int = Int.MaxValue, maxMillis: Long = Long.MaxValue, equality: Boolean = true, fingerprintIndexing: Boolean = true, onStats: Discount.LoopStats => Unit = _ => ()): Bridge.Outcome =
+  def solveOutcome(problem: Clausification.Problem, maxGiven: Int = Int.MaxValue, maxMillis: Long = Long.MaxValue, equality: Boolean = true, fingerprintIndexing: Boolean = true, precedenceScheme: PrecedenceScheme = PrecedenceScheme.InvFrequency, onStats: Discount.LoopStats => Unit = _ => ()): Bridge.Outcome =
     val p = prepare(problem)
-    Bridge.solve(p.work, maxGiven, maxMillis, symbolVars = p.symbolVars, discharge = p.abs.dischargeSubst, equality = equality, fingerprintIndexing = fingerprintIndexing, onStats = onStats)
+    Bridge.solve(p.work, maxGiven, maxMillis, symbolVars = p.symbolVars, discharge = p.abs.dischargeSubst, equality = equality, fingerprintIndexing = fingerprintIndexing, precedenceScheme = precedenceScheme, onStats = onStats)

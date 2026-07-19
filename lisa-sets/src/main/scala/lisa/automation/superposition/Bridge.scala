@@ -95,6 +95,10 @@ object Bridge:
       // Term indexing (Phase 5): find superposition partners via a fingerprint index over the active set rather
       // than the linear scan. Same inferences (so the proof is unchanged); kept as a flag for A/B benchmarking.
       fingerprintIndexing: Boolean = true,
+      // KBO symbol-precedence generation (Phase-5 heuristics): how the term-ordering precedence is assigned
+      // from the input signature. `InvFrequency` (frequent symbols small) is the default; `Occurrence` is the
+      // former interning-order baseline. See [[Precedence]].
+      precedenceScheme: PrecedenceScheme = PrecedenceScheme.InvFrequency,
       // Loop instrumentation sink: invoked with the loop's [[Discount.LoopStats]] (given-clause throughput + peak
       // active/passive sizes) after saturation, for any outcome. Default no-op.
       onStats: Discount.LoopStats => Unit = _ => (),
@@ -117,6 +121,19 @@ object Bridge:
       inputs(c.id) = (s, vars.iterator.map((kv, n) => n -> kv).toMap)
       c
     }.toSeq
+    // Generate the KBO symbol precedence from the (now fully interned) signature, before saturation reads it.
+    Precedence.assign(sig, bank, clauses, precedenceScheme)
+    // Equality inferences are *effectively* on only if the input actually contains the equality symbol: with no
+    // `=` literal in the input, none can ever be derived (superposition/resolution/factoring on non-equality
+    // literals never synthesise an `=` atom), so every equality inference is vacuous. Auto-disabling then skips
+    // building the demodulation/superposition indices at zero cost to completeness.
+    val hasEquality: Boolean = clauses.exists { c =>
+      c.literals.exists { l =>
+        val a = bank.atomOf(l)
+        !bank.isVar(a) && bank.headSymbol(a) == EqualitySymbol
+      }
+    }
+    val effectiveEquality: Boolean = equality && hasEquality
     val schematicNames: Set[String] = symbolVars.map(_.id.toString)
     val discount = new Discount(
       bank,
@@ -129,7 +146,7 @@ object Bridge:
       backwardSubsumptionResolution = backwardSubsumptionResolution,
       condensation = condensation,
       forwardSimplifyAtGeneration = forwardSimplifyAtGeneration,
-      equality = equality,
+      equality = effectiveEquality,
       fingerprintIndexing = fingerprintIndexing
     )
     val result = discount.saturate(clauses, maxGiven, maxMillis)

@@ -23,33 +23,11 @@ object UncertifiedClausification:
    * [[Clausification.certifyClausal]] feeds its prover, computed by the pure transforms alone.
    */
   def clausalForm(problem: Problem): Problem =
-    // Negated (certifyNegated): consume the conjecture by appending `¬conjecture` as the last hypothesis.
-    val hyps0: IndexedSeq[Sequent] = problem.conjecture match
-      case Some(c) => problem.hypotheses.toIndexedSeq :+ (() |- neg(singleRightFormula(c, "conjecture")))
-      case None    => problem.hypotheses.toIndexedSeq
-
-    // NNF → Skolem → Prenex, each phase with its own counter (matching the separate certifyAxiomwise calls).
-    val skolemCounter = Counter()
-    val prenexCounter = Counter()
-    val transformed: IndexedSeq[Expression] = hyps0.map { h =>
-      val phiNnf    = NnfPhase.toNNF(singleRightFormula(h, "hypothesis"), negated = false) // certifyNnf
-      val phiSkolem = skolemizeAll(phiNnf, skolemCounter)                                  // certifySkolem
-      if PrenexPhase.hasForall(phiSkolem) then                                             // certifyPrenex
-        PrenexPhase.extractUniversalMatrix(phiSkolem, prenexCounter)._1
-      else phiSkolem
-    }
-
-    // Tseitin (certifyTseitinFlat): iterate tseitinStep per axiom, emit new-clauses + the residual clause,
-    // every clause in the same literal-set form `Sequent(∅, {literals})`.
-    val tseitinCounter = Counter()
-    val finalAxioms: IndexedSeq[Sequent] = transformed.flatMap { phi =>
-      val ts            = tseitinAll(phi, tseitinCounter)
-      val newClauseSeqs = ts.flatMap(_.newClauses).map(lits => Sequent(Set.empty, lits.toSet))
-      val finalFormula  = if ts.isEmpty then phi else ts.last.tsRewrite
-      val finalSeq      = Sequent(Set.empty, TseitinPhase.clauseLiterals(finalFormula).toSet)
-      if ts.isEmpty then IndexedSeq(finalSeq) else newClauseSeqs :+ finalSeq
-    }
-    Problem(finalAxioms.toList, None)
+    // Single-pass, non-proof-producing pipeline (Vampire/E-style): selective definitional naming → NNF →
+    // one Skolemization pass (fresh Skolem functions) → distribution. See [[FastClausify]]. This supersedes the
+    // former quadratic NNF→Skolem→Prenex→Tseitin certification-mirroring pipeline (which is still what the
+    // *certified* [[Clausification]] path uses, phase by phase); the two need only agree up to equisatisfiability.
+    FastClausify.clausalForm(problem)
 
   /**
    * Compute the clausal form (uncertified) and hand it to `prover`, returning the prover's proof verbatim

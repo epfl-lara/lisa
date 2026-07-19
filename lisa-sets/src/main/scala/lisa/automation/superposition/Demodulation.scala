@@ -90,6 +90,19 @@ object Demodulation:
         step = rewriteOnce(bank, trail, order, cur, rules)
       cur
 
+  /** Forward demodulation against a [[DiscriminationTree]] index of demodulators (Phase 5 Step 4): the same
+   *  simplification as [[normalForm]] over the indexed rule set, but each subterm's matching demodulators are
+   *  found by one tree descent (with σ built on the trail) instead of scanning every rule. */
+  def normalFormIndexed(bank: TermBank, trail: Trail, order: Order, clause: Clause, tree: DiscriminationTree): Clause =
+    if tree.isEmpty then clause
+    else
+      var cur = clause
+      var step = rewriteOnceIndexed(bank, trail, order, cur, tree)
+      while step.isDefined do
+        cur = step.get
+        step = rewriteOnceIndexed(bank, trail, order, cur, tree)
+      cur
+
   /**
    * Backward demodulation: a new positive unit equality `newEq` arrives; rewrite each clause in `active`
    * whose subterms it can reduce. Returns the `(removed, replacement)` pairs (the loop removes the original
@@ -126,34 +139,61 @@ object Demodulation:
       iLit += 1
     result
 
+  /** The first applicable single rewrite of `c` via the discrimination-tree index, leftmost-outermost over
+   *  subterm positions. Same shape as [[rewriteOnce]], but each subterm's matching rules come from one tree
+   *  descent (`retrieveGeneralizations`, which leaves σ on the trail) rather than a scan; [[applyRuleAt]] then
+   *  applies the gates + build with σ already in place. */
+  private def rewriteOnceIndexed(bank: TermBank, trail: Trail, order: Order, c: Clause, tree: DiscriminationTree): Option[Clause] =
+    var result: Option[Clause] = None
+    var iLit = 0
+    while iLit < c.literals.length && result.isEmpty do
+      val li: Int = iLit
+      val atom: Term = bank.atomOf(c.literals(li))
+      Superposition.foreachSubterm(bank, atom) { (u, path) =>
+        tree.retrieveGeneralizations(u) { rule => // σ (rule.lhs onto u) is live on the trail inside this callback
+          result = applyRuleAt(bank, trail, order, c, li, path, rule)
+          result.isDefined // stop the tree descent once a rewrite fires
+        }
+        result.isDefined // stop the subterm walk once a rewrite fires
+      }
+      iLit += 1
+    result
+
   private def tryRewrite(bank: TermBank, trail: Trail, order: Order,
                          c: Clause, iLit: Int, path: IntArrayList, u: Term, rule: Rule): Option[Clause] =
     val saved = trail.save()
     val result: Option[Clause] =
       if !trail.matchTerm(rule.lhs, 0, u, 1) then None // match rule LHS (scope 0) onto the subterm (scope 1)
-      else
-        val ap: trail.Applier = trail.applier()
-        val lS: Term = ap.apply(rule.lhs, 0)
-        val rS: Term = ap.apply(rule.rhs, 0)
-        // orientation re-check on the instance (skip for an already-oriented rule)
-        if !rule.oriented && order.kbo.compare(lS, rS) != Cmp.Gt then None
-        else
-          val iLitLit: Literal = c.literals(iLit) // the rewritten literal + its atom, read once for the gate and the build
-          val iLitAtom: Term = bank.atomOf(iLitLit)
-          if !isPremiseRedundant(bank, order, ap, c, iLitLit, iLitAtom, path, rS, rule) then None
-          else
-            val pos: Array[Int] = path.toIntArray // materialise the position only now that the rewrite fires
-            val newLits = new Array[Literal](c.literals.length)
-            var k = 0
-            while k < c.literals.length do
-              newLits(k) =
-                if k == iLit then // the rewritten literal: instantiate its atom, then replace u by r at `pos`
-                  bank.mkLiteral(Superposition.replaceAt(bank, ap.apply(iLitAtom, 1), pos, rS), bank.isPositive(iLitLit))
-                else ap.applyLit(c.literals(k), 1)
-              k += 1
-            Some(bank.mkClause(newLits, Justification.Demodulation(c, iLit, pos, rule.source, rule.side)))
+      else applyRuleAt(bank, trail, order, c, iLit, path, rule)
     trail.restore(saved)
     result
+
+  /** Post-match rewrite: with the matcher σ (`rule.lhs` onto the subterm at `path`) **already on the trail**,
+   *  apply the orientation and redundancy gates and build the rewritten clause, or `None` if a gate rejects.
+   *  Shared by the scan ([[tryRewrite]]) and the indexed ([[rewriteOnceIndexed]]) paths — the latter gets σ from
+   *  the discrimination-tree descent instead of a separate `matchTerm`. Does not touch the trail. */
+  private def applyRuleAt(bank: TermBank, trail: Trail, order: Order,
+                          c: Clause, iLit: Int, path: IntArrayList, rule: Rule): Option[Clause] =
+    val ap: trail.Applier = trail.applier()
+    val lS: Term = ap.apply(rule.lhs, 0)
+    val rS: Term = ap.apply(rule.rhs, 0)
+    // orientation re-check on the instance (skip for an already-oriented rule)
+    if !rule.oriented && order.kbo.compare(lS, rS) != Cmp.Gt then None
+    else
+      val iLitLit: Literal = c.literals(iLit) // the rewritten literal + its atom, read once for the gate and the build
+      val iLitAtom: Term = bank.atomOf(iLitLit)
+      if !isPremiseRedundant(bank, order, ap, c, iLitLit, iLitAtom, path, rS, rule) then None
+      else
+        val pos: Array[Int] = path.toIntArray // materialise the position only now that the rewrite fires
+        val newLits = new Array[Literal](c.literals.length)
+        var k = 0
+        while k < c.literals.length do
+          newLits(k) =
+            if k == iLit then // the rewritten literal: instantiate its atom, then replace u by r at `pos`
+              bank.mkLiteral(Superposition.replaceAt(bank, ap.apply(iLitAtom, 1), pos, rS), bank.isPositive(iLitLit))
+            else ap.applyLit(c.literals(k), 1)
+          k += 1
+        Some(bank.mkClause(newLits, Justification.Demodulation(c, iLit, pos, rule.source, rule.side)))
 
   /**
    * Whether rewriting `c`'s literal `iLit` at position `path` (yielding instance `rS` on that side) keeps

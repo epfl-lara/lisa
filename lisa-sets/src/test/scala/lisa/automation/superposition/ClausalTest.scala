@@ -187,12 +187,15 @@ class ClausalTest extends AnyFunSuite:
       assert(proof.conclusion == K.Sequent(Set.empty, Set(hyp)))
   }
 
-  test("uncertified clausalForm computes the same clauses certifyClausal feeds its prover") {
+  test("uncertified (fast) clausalForm is equisatisfiable with the certified path: the prover refutes both") {
     val P = pred("P", 1); val Q = pred("Q", 2); val A = pred("A", 0); val B = pred("B", 0); val C = pred("C", 0)
     val x = vr("x"); val y = vr("y")
     val forallPx = K.Application(K.forall, K.Lambda(x, ap(P, x)))                                    // ∀x.P(x)
     val body = K.Application(K.Application(K.or, K.Application(K.Application(K.and, A), B)), C)       // (A∧B)∨C
     val forallExists = K.Application(K.forall, K.Lambda(x, K.Application(K.exists, K.Lambda(y, ap(Q, x, y))))) // ∀x.∃y.Q(x,y)
+    // The fast clausifier need only preserve (un)satisfiability — not the exact clauses — so for each problem we
+    // check the prover reaches the *same* refutation verdict on the fast clauses as on the certified path's clauses.
+    // (Problems 1–2 are valid ⇒ both refute; problem 3 is satisfiable ⇒ both saturate.)
     val problems = Seq(
       Clausification.Problem(Seq(K.Sequent(Set.empty, Set(forallPx))), Some(K.Sequent(Set.empty, Set(forallPx)))),
       Clausification.Problem(
@@ -201,18 +204,52 @@ class ClausalTest extends AnyFunSuite:
       Clausification.Problem(Seq(K.Sequent(Set.empty, Set(forallExists))), Some(K.Sequent(Set.empty, Set(forallPx))))
     )
     for problem <- problems do
-      var captured: Clausification.Problem = null
-      // record the clausal Problem certifyClausal hands its prover; return a Sorry so the pipeline completes
-      val recording: Clausification.Problem => K.SCProof = p =>
-        captured = p
-        K.SCProof(IndexedSeq(K.Sorry(K.Sequent(Set.empty, Set.empty))), p.imports)
-      Clausification.certifyClausal(problem, recording)
-      val uncertified = lisa.automation.clausification.UncertifiedClausification.clausalForm(problem)
-      assert(captured != null)
-      assert(
-        uncertified.hypotheses == captured.hypotheses,
-        s"clause-form mismatch:\n  certified   = ${captured.hypotheses}\n  uncertified = ${uncertified.hypotheses}"
-      )
+      var captured: Clausification.Problem = null // record what certifyClausal feeds its prover (the certified clauses)
+      Clausification.certifyClausal(problem, p => { captured = p; K.SCProof(IndexedSeq(K.Sorry(K.Sequent(Set.empty, Set.empty))), p.imports) })
+      val certifiedRefuted = Clausal.solveOutcome(Clausification.Problem(captured.imports.toSeq, None)).refuted
+      val fastRefuted = Clausal.solveOutcome(lisa.automation.clausification.UncertifiedClausification.clausalForm(problem)).refuted
+      assert(fastRefuted == certifiedRefuted, s"fast/certified refutation verdict disagree (fast=$fastRefuted, certified=$certifiedRefuted) on $problem")
+  }
+
+  test("fast clausifier: a nested equivalence chain stays linear (selective naming caps the CNF blow-up)") {
+    // p₁ ⇔ p₂ ⇔ … ⇔ pₙ. Naïve CNF is exponential; definitional naming keeps clauses O(n). We assert the count
+    // grows sub-quadratically with n (a loose bound that still fails hard for the exponential/unnamed expansion).
+    def eqv(l: K.Expression, r: K.Expression) = K.Application(K.Application(K.iff, l), r)
+    def clausesOf(n: Int): Int =
+      val ps = (1 to n).map(i => pred(s"p$i", 0): K.Expression)
+      val chain = ps.reduceLeft(eqv)
+      val problem = Clausification.Problem(Seq(K.Sequent(Set.empty, Set(chain))), None)
+      lisa.automation.clausification.UncertifiedClausification.clausalForm(problem).hypotheses.size
+    val c8 = clausesOf(8); val c16 = clausesOf(16)
+    assert(c16 <= 8 * c8, s"equivalence-chain CNF is blowing up: n=8 → $c8 clauses, n=16 → $c16 clauses")
+    // no clause literal may contain a residual connective/quantifier
+    val ps = (1 to 12).map(i => pred(s"p$i", 0): K.Expression)
+    val problem = Clausification.Problem(Seq(K.Sequent(Set.empty, Set(ps.reduceLeft(eqv)))), None)
+    val cls = lisa.automation.clausification.UncertifiedClausification.clausalForm(problem).hypotheses
+    assert(cls.forall(_.right.forall(lit => !containsForall(lit) && !containsBotTop(lit))))
+  }
+
+  test("fast clausifier: existential-under-universal Skolemizes soundly (drinker's paradox refutes)") {
+    // ∃x. (P(x) ⇒ ∀y. P(y)) is valid. Skolemizing its negation must produce a refutable clause set; a wrong
+    // Skolem arity (constant vs function of the enclosing universal) would make it satisfiable.
+    val P = pred("P", 1); val x = vr("x"); val y = vr("y")
+    val drinker = K.Application(K.exists, K.Lambda(x, K.Application(K.Application(K.implies, ap(P, x)), K.Application(K.forall, K.Lambda(y, ap(P, y))))))
+    val problem = Clausification.Problem(Seq.empty, Some(K.Sequent(Set.empty, Set(drinker))))
+    val uncertified = lisa.automation.clausification.UncertifiedClausification.clausalForm(problem)
+    assert(Clausal.solveOutcome(uncertified).refuted, "fast clausifier's Skolemization broke the drinker's paradox")
+  }
+
+  test("fast clausifier: a nullary Skolem constant is a function symbol, not a clause variable (no spurious refutation)") {
+    // Axiom P(a); conjecture ∀x. P(x) — INVALID (one witness ≠ all). The negated conjecture Skolemizes to ¬P(sk)
+    // for a fresh CONSTANT sk ≠ a, so {P(a), ¬P(sk)} is SATISFIABLE and must saturate. Regression guard: if the
+    // nullary Skolem were emitted as an Ind-sorted *variable*, the prover would read ¬P(sk) as ∀X. ¬P(X) and
+    // resolve it against P(a) to □ — an unsound refutation of a satisfiable set (found via MGT031+1).
+    val P = pred("P", 1); val a = fn("a", 0); val x = vr("x")
+    val problem = Clausification.Problem(
+      Seq(K.Sequent(Set.empty, Set(ap(P, a)))),
+      Some(K.Sequent(Set.empty, Set(K.Application(K.forall, K.Lambda(x, ap(P, x)))))))
+    val uncertified = lisa.automation.clausification.UncertifiedClausification.clausalForm(problem)
+    assert(!Clausal.solveOutcome(uncertified).refuted, "satisfiable set spuriously refuted — a nullary Skolem became a clause variable")
   }
 
   test("probe: Clausal.prove satisfies the certifyClausal prover contract (kernel-valid final proof)") {
@@ -223,6 +260,21 @@ class ClausalTest extends AnyFunSuite:
     val check = K.SCProofChecker.checkSCProof(proof)
     assert(check.isValid, s"kernel rejected the composed proof: $check")
     assert(proof.conclusion == K.Sequent(Set.empty, Set(P)))
+  }
+
+  test("CertifiedFastClausifier: end-to-end kernel-valid proof of an Iff-chain tautology (selective naming fires)") {
+    // conjecture X ⇒ X with X = (a⇔b⇔c⇔d⇔e): valid, and its negated form's big Iff triggers the certified
+    // fast clausifier's selective naming (a fresh predicate d ⇔ X, discharged by InstSchema). End-to-end the
+    // composed proof must be kernel-valid and conclude `⊢ (X ⇒ X)`.
+    val ps = "abcde".map(c => pred(c.toString, 0): K.Expression)
+    def eqv(l: K.Expression, r: K.Expression) = K.Application(K.Application(K.iff, l), r)
+    val chain = ps.reduceRight(eqv)
+    val conj = K.Application(K.Application(K.implies, chain), chain)
+    val problem = Clausification.Problem(Seq.empty, Some(K.Sequent(Set.empty, Set(conj))))
+    val proof = lisa.automation.clausification.CertifiedFastClausifier.certifyClausal(problem, Clausal.prove)
+    val check = K.SCProofChecker.checkSCProof(proof)
+    assert(check.isValid, s"kernel rejected the certified-fast composed proof: $check")
+    assert(proof.conclusion == K.Sequent(Set.empty, Set(conj)))
   }
 
   test("ε end-to-end: a conjecture whose clausification Skolemizes to an ε-term (kernel-valid)") {

@@ -88,7 +88,11 @@ final class Discount(
     // feature-vector trie over the active set instead of scanning it. Same simplifications (the index is a
     // candidate filter confirmed by the real `Subsumption.subsumes`), so verdicts are identical; only the search
     // trajectory differs. Kept as a flag so the indexed and linear paths can be A/B-compared.
-    subsumptionIndexing: Boolean = true):
+    subsumptionIndexing: Boolean = true,
+    // Perfect discrimination tree for forward demodulation (Phase 5 Step 4): find the demodulators whose LHS
+    // generalizes each subterm via one tree descent instead of scanning every active demodulator. Same rewrites
+    // (an exact matching index), so reconstruction is unchanged; only the trajectory differs. A/B flag.
+    demodulationIndexing: Boolean = true):
   import Discount.Result
 
   // Effective equality-inference switches: each is the master `equality` flag AND its own flag. When
@@ -166,6 +170,17 @@ final class Discount(
   // incrementally (added on activation, dropped on deletion) so forward demodulation needn't re-filter
   // `active` and re-extract `rules` on every given.
   private val activeDemodulators: mutable.ArrayBuffer[Demodulation.Rule] = mutable.ArrayBuffer.empty
+  // Forward demodulation via the perfect discrimination tree (Phase 5 Step 4) vs the linear `activeDemodulators`
+  // scan. When on, demodulators go into `demodTree` and forward demodulation queries it; when off, they go into
+  // `activeDemodulators` and it is scanned. Only one is populated per run (chosen by `indexedForwardDemod`).
+  private val indexedForwardDemod: Boolean = forwardDemodulationOn && demodulationIndexing
+  private val demodTree: DiscriminationTree = new DiscriminationTree(bank, trail)
+  // Backward demodulation via a fingerprint index over ALL rewritable subterms of ALL literals of active clauses
+  // (Phase 5 Step 4): a new demodulator's LHS is queried (`retrieveUnifiable` is a sound instance filter — every
+  // instance is a unifier — verified by matching inside `normalForm`) to find the clauses to rewrite, instead of
+  // scanning `active`. Separate from the superposition into-index, which holds only *selected*-literal subterms.
+  private val indexedBackwardDemod: Boolean = backwardDemodulationOn && demodulationIndexing
+  private val demodSubtermIndex: FingerprintIndex[IntoEntry] = new FingerprintIndex(bank)
 
   // Ordering used only for the (optional) post-unification σ-maximality check on factors.
   private def kbo: KBO = bank.order.kbo // the bank's shared KBO (post-unification σ-maximality check on factors)
@@ -178,8 +193,8 @@ final class Discount(
    * rather than relying on the caller to abandon a runaway thread.
    */
   def saturate(initial: Seq[Clause], maxGiven: Int = Int.MaxValue, maxMillis: Long = Long.MaxValue): Result =
-    byAge.clear(); byWeight.clear(); livePassive.clear(); active.clear(); activeDemodulators.clear(); balance = 0
-    intoIndex.clear(); fromIndex.clear(); posLitIndex.clear(); negLitIndex.clear()
+    byAge.clear(); byWeight.clear(); livePassive.clear(); active.clear(); activeDemodulators.clear(); demodTree.clear(); balance = 0
+    intoIndex.clear(); fromIndex.clear(); posLitIndex.clear(); negLitIndex.clear(); demodSubtermIndex.clear()
     activeUnits.clear()
     if indexedSubsumption then subsumptionIndex = new FeatureVectorIndex(bank, Permutation.build(bank, initial))
     forwardSubsumed = 0; backwardSubsumed = 0; forwardUnitDeleted = 0; backwardUnitDeleted = 0
@@ -280,10 +295,17 @@ final class Discount(
       case None => ()
     active += gc
     if active.length > peakActive then peakActive = active.length
-    if forwardDemodulationOn && isPosUnitEq(gc) then activeDemodulators ++= Demodulation.rules(bank, bank.order, gc) // gc is a new demodulator
+    if forwardDemodulationOn && isPosUnitEq(gc) then // gc is a new demodulator: index it (or list it, if the index is off)
+      val newRules = Demodulation.rules(bank, bank.order, gc)
+      if indexedForwardDemod then newRules.foreach(demodTree.insert) else activeDemodulators ++= newRules
     if indexedSuperposition then addToIndices(gc) // index gc *before* querying, so the gc-into-gc self-pair fires
     if indexedResolution then addResolutionEntries(gc) // likewise, so gc's own complementary literals resolve
-    if indexedSubsumption then { subsumptionIndex.insert(gc); if gc.size == 1 then activeUnits += gc }
+    // gc is already inserted into the subsumption index during `backwardSimplify` (fused with its backward query,
+    // so the vector is computed once) when backward subsumption ran; otherwise insert it here.
+    if indexedSubsumption then
+      if !backwardSubsumption then subsumptionIndex.insert(gc)
+      if gc.size == 1 then activeUnits += gc
+    if indexedBackwardDemod then addDemodSubterms(gc) // index gc's subterms so later demodulators can rewrite gc
     // Precompute once per activation (invariant across the active scan): which of gc's selected literals are
     // non-equality (for ordinary resolution) and gc's usable superposition from-sides.
     val gcSelNonEq: Array[Boolean] = new Array[Boolean](gSel.length)
@@ -682,7 +704,9 @@ final class Discount(
   private def backwardSimplifyIndexed(gc: Clause): Option[Clause] =
     if backwardSubsumption then
       var victims: mutable.ArrayBuffer[Clause] = null // collect first (don't mutate `active`/index mid-descent)
-      subsumptionIndex.backwardCandidates(gc) { d =>
+      // Fused query+insert: gc is queried for its subsumees, then inserted, computing its vector once (gc is
+      // queried before being placed, so it is not among the victims). Victims are removed *after* (below).
+      subsumptionIndex.backwardCandidatesThenInsert(gc) { d =>
         if Subsumption.subsumes(bank, trail, gc, d) then
           if victims == null then victims = mutable.ArrayBuffer.empty
           victims += d
@@ -758,13 +782,16 @@ final class Discount(
    *  when demodulation is off or nothing rewrites. At selection `active` does not yet contain the given, so
    *  the given never demodulates itself. */
   private def forwardDemodulate(m: Clause): Clause =
-    if !forwardDemodulationOn || activeDemodulators.isEmpty then m
+    if !forwardDemodulationOn then m
+    else if indexedForwardDemod then Demodulation.normalFormIndexed(bank, trail, bank.order, m, demodTree)
+    else if activeDemodulators.isEmpty then m
     else Demodulation.normalForm(bank, trail, bank.order, m, activeDemodulators.toArray)
 
   /** When `gc` is a new positive unit equality, rewrite the active clauses with it: each rewritten clause is
    *  removed from active and its replacement re-added via `addPassive`. Returns `Some(□)` on refutation. */
   private def backwardDemodulateStep(gc: Clause): Option[Clause] =
     if !backwardDemodulationOn || !isPosUnitEq(gc) then None
+    else if indexedBackwardDemod then backwardDemodulateIndexed(gc)
     else
       var pairs = Demodulation.backwardDemodulate(bank, trail, bank.order, gc, active)
       while pairs.nonEmpty do
@@ -775,6 +802,53 @@ final class Discount(
           case None => ()
         pairs = pairs.tail
       None
+
+  /** Indexed backward demodulation: query the demod-subterm index with each of `gc`'s rule LHSs to collect the
+   *  candidate active clauses (a superset — an instance subterm is among the unification candidates), then
+   *  normal-form each against `gc`'s rules (which verifies by matching) and replace the ones that change. Rewrites
+   *  the same set of clauses as the scan; only the order (hence ids) differs. `Some(□)` on refutation. */
+  private def backwardDemodulateIndexed(gc: Clause): Option[Clause] =
+    val rs: Array[Demodulation.Rule] = Demodulation.rules(bank, bank.order, gc).toArray
+    if rs.isEmpty then None
+    else
+      val seen: IntOpenHashSet = new IntOpenHashSet() // distinct candidate clause ids
+      val candidates: mutable.ArrayBuffer[Clause] = mutable.ArrayBuffer.empty
+      var ri = 0
+      while ri < rs.length do
+        demodSubtermIndex.retrieveUnifiable(rs(ri).lhs) { e => if seen.add(e.clause.id) then candidates += e.clause }
+        ri += 1
+      var k = 0
+      while k < candidates.length do
+        val c: Clause = candidates(k)
+        val r: Clause = Demodulation.normalForm(bank, trail, bank.order, c, rs)
+        if r.id != c.id then
+          removeFromActive(c)
+          addPassive(r) match
+            case Some(empty) => return Some(empty)
+            case None => ()
+        k += 1
+      None
+
+  /** Index every rewritable subterm of every literal of `c` (all literals — demodulation rewrites any of them)
+   *  into the backward-demodulation subterm index. */
+  private def addDemodSubterms(c: Clause): Unit =
+    var iLit = 0
+    while iLit < c.literals.length do
+      val li: Int = iLit
+      Superposition.foreachSubterm(bank, bank.atomOf(c.literals(li))) { (u, path) =>
+        demodSubtermIndex.insert(u, new IntoEntry(c, li, path.toIntArray)); false
+      }
+      iLit += 1
+
+  /** Remove `c`'s subterms from the backward-demodulation index (re-derived, matched by value). Mirrors [[addDemodSubterms]]. */
+  private def removeDemodSubterms(c: Clause): Unit =
+    var iLit = 0
+    while iLit < c.literals.length do
+      val li: Int = iLit
+      Superposition.foreachSubterm(bank, bank.atomOf(c.literals(li))) { (u, path) =>
+        demodSubtermIndex.remove(u, new IntoEntry(c, li, path.toIntArray)); false
+      }
+      iLit += 1
 
   /** Remove the clause with `c`'s id from active (swap-with-last; active is unordered), keeping the
    *  demodulator set in sync. */
@@ -799,6 +873,7 @@ final class Discount(
     if indexedSuperposition then removeFromIndices(c)
     if indexedResolution then removeResolutionEntries(c)
     if indexedSubsumption then { subsumptionIndex.remove(c); removeActiveUnit(c) }
+    if indexedBackwardDemod then removeDemodSubterms(c)
 
   /** Remove `c` from the `activeUnits` sublist (no-op if absent, e.g. `c` is non-unit); swap-with-last. */
   private def removeActiveUnit(c: Clause): Unit =
@@ -810,14 +885,19 @@ final class Discount(
         return
       i += 1
 
-  /** Drop from `activeDemodulators` the rules whose source is the (removed) clause `c`. */
+  /** Drop the demodulators whose source is the (removed) clause `c` from the active demodulator set — the
+   *  discrimination tree if indexing is on (rules re-derived to locate them), else the `activeDemodulators` list. */
   private def removeDemodulatorsOf(c: Clause): Unit =
-    var i = 0
-    while i < activeDemodulators.length do
-      if activeDemodulators(i).source.id == c.id then
-        activeDemodulators(i) = activeDemodulators(activeDemodulators.length - 1)
-        activeDemodulators.remove(activeDemodulators.length - 1)
-      else i += 1
+    if indexedForwardDemod then
+      var xs = Demodulation.rules(bank, bank.order, c)
+      while xs.nonEmpty do { demodTree.remove(xs.head); xs = xs.tail }
+    else
+      var i = 0
+      while i < activeDemodulators.length do
+        if activeDemodulators(i).source.id == c.id then
+          activeDemodulators(i) = activeDemodulators(activeDemodulators.length - 1)
+          activeDemodulators.remove(activeDemodulators.length - 1)
+        else i += 1
 
   /** Whether `c` is a positive unit equality (a demodulator candidate). */
   private def isPosUnitEq(c: Clause): Boolean =

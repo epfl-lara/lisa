@@ -133,3 +133,43 @@ class EqualitySaturationTest extends AnyFunSuite:
     for (name, b) <- builders do
       assert(verdict(indexed = true, b) == verdict(indexed = false, b), s"index vs scan verdict differ on: $name")
   }
+
+  test("discrimination-tree forward demodulation and the linear scan reach the same verdict (A/B equivalence)") {
+    // The perfect discrimination tree returns exactly the matching demodulators (σ on the trail), so the indexed
+    // and scanned forward-demodulation paths must reach the same verdict (clause ids/trajectory differ, not the outcome).
+    def cat(r: Discount.Result): String = r match
+      case _: Discount.Result.Refutation => "refuted"
+      case Discount.Result.Saturated     => "saturated"
+      case Discount.Result.Unknown       => "unknown"
+    def verdict(indexed: Boolean, build: Fix => Seq[Clause]): String =
+      val fx = new Fix
+      val cs = build(fx)
+      cat(new Discount(fx.bank, fx.trail, demodulationIndexing = indexed).saturate(cs, maxGiven = 5000))
+
+    val builders: Seq[(String, Fix => Seq[Clause])] = Seq(
+      "ueq f(a)=a ⊢ f(f(a))=a (nested rewrite)" -> { fx => import fx.*; val f = fn("f", 1); val a = const("a")
+        Seq(clause(pos(mkEq(app(f, a), a))), clause(neg(mkEq(app(f, app(f, a)), a)))) },
+      "chain b=a,c=b,d=c ⊢ d=a (demodulation chain)" -> { fx => import fx.*
+        val a = const("a"); val b = const("b"); val c = const("c"); val d = const("d")
+        Seq(clause(pos(mkEq(b, a))), clause(pos(mkEq(c, b))), clause(pos(mkEq(d, c))), clause(neg(mkEq(d, a)))) },
+      "rewrite with a variable rule f(x)=g(x), g(a)=b ⊢ f(a)=b" -> { fx => import fx.*
+        val f = fn("f", 1); val g = fn("g", 1); val a = const("a"); val b = const("b"); val x = v(0)
+        Seq(clause(pos(mkEq(app(f, x), app(g, x)))), clause(pos(mkEq(app(g, a), b))), clause(neg(mkEq(app(f, a), b)))) },
+      "demodulate into a predicate: f(a)=b, P(f(a)), ¬P(b)" -> { fx => import fx.*
+        val P = pred("P", 1); val f = fn("f", 1); val a = const("a"); val b = const("b")
+        Seq(clause(pos(mkEq(app(f, a), b))), clause(pos(app(P, app(f, a)))), clause(neg(app(P, b)))) },
+      "deep nesting g(g(a))=a ⊢ g(g(g(g(a))))=a" -> { fx => import fx.*
+        val g = fn("g", 1); val a = const("a")
+        def gg(t: Term, n: Int): Term = if n == 0 then t else gg(app(g, t), n - 1)
+        Seq(clause(pos(mkEq(gg(a, 2), a))), clause(neg(mkEq(gg(a, 4), a)))) },
+      "backward: P(f(a)), Q(f(a)) collapsed by a later f(a)=a, ¬P(a)" -> { fx => import fx.*
+        val P = pred("P", 1); val Q = pred("Q", 1); val f = fn("f", 1); val a = const("a")
+        Seq(clause(pos(app(P, app(f, a)))), clause(pos(app(Q, app(f, a)))),
+            clause(pos(mkEq(app(f, a), a))), clause(neg(app(P, a)))) },
+      "satisfiable a=b, P(a)" -> { fx => import fx.*
+        val a = const("a"); val b = const("b"); val P = pred("P", 1)
+        Seq(clause(pos(mkEq(a, b))), clause(pos(app(P, a)))) }
+    )
+    for (name, b) <- builders do
+      assert(verdict(indexed = true, b) == verdict(indexed = false, b), s"demod index vs scan verdict differ on: $name")
+  }
