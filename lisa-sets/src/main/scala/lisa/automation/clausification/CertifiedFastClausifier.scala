@@ -54,84 +54,166 @@ object CertifiedFastClausifier:
   ):
     def quantified: Expression = TseitinPhase.quantifyAll(subst <=> tsApp, freeVars)
 
-  def nameOne(f: Expression, counter: Counter, threshold: Int): Option[NamingStep] =
+  // Clause-count estimate, EXACTLY as FastClausify (capped, `Est(pos, neg)`).
+  private val Cap: Long = 1L << 20
+  private inline def capMul(a: Long, b: Long): Long = math.min(Cap, a * b)
+  private inline def capAdd(a: Long, b: Long): Long = math.min(Cap, a + b)
+  private final case class Est(pos: Long, neg: Long)
+
+  /** Pure positive/negative clause-count estimate, matching FastClausify.name's bottom-up `Est` combination. Any
+   *  atom — including a naming atom already substituted in a previous step — counts as `Est(1, 1)`. */
+  private def estimate(f: Expression): Est = f match
+    case And(g, h)     => val eg = estimate(g); val eh = estimate(h); Est(capAdd(eg.pos, eh.pos), capMul(eg.neg, eh.neg))
+    case Or(g, h)      => val eg = estimate(g); val eh = estimate(h); Est(capMul(eg.pos, eh.pos), capAdd(eg.neg, eh.neg))
+    case Neg(g)        => val e = estimate(g); Est(e.neg, e.pos)
+    case Implies(g, h) => val eg = estimate(g); val eh = estimate(h); Est(capMul(eg.neg, eh.pos), capAdd(eg.pos, eh.neg))
+    case Iff(g, h)     => val eg = estimate(g); val eh = estimate(h)
+                          Est(capAdd(capMul(eg.pos, eh.neg), capMul(eg.neg, eh.pos)), capAdd(capMul(eg.pos, eh.pos), capMul(eg.neg, eh.neg)))
+    case Forall(_, g)  => estimate(g)
+    case Exists(_, g)  => estimate(g)
+    case `top`         => Est(0, 1)
+    case `bot`         => Est(1, 0)
+    case _             => Est(1, 1)
+
+  /** Recursively rewrite `g ⇒ h` to `¬g ∨ h`, exactly as FastClausify.name does, so the named formula matches. */
+  def eliminateImplies(f: Expression): Expression = f match
+    case Implies(g, h) => or(neg(eliminateImplies(g)))(eliminateImplies(h))
+    case And(g, h)     => and(eliminateImplies(g))(eliminateImplies(h))
+    case Or(g, h)      => or(eliminateImplies(g))(eliminateImplies(h))
+    case Neg(g)        => neg(eliminateImplies(g))
+    case Iff(g, h)     => eliminateImplies(g) <=> eliminateImplies(h)
+    case Forall(x, g)  => forall(Lambda(x, eliminateImplies(g)))
+    case Exists(x, g)  => exists(Lambda(x, eliminateImplies(g)))
+    case _             => f
+
+  /** The subformula FastClausify.name names *next*, plus the `RightSubstIff` context to certify it. */
+  private final case class Site(subst: Expression, phiBody: Expression, p: Variable, pol: Int)
+
+  /** Find the subformula FastClausify.name names next on the (Implies-free) `f`: the larger child of the
+   *  deepest-leftmost multiplicative node whose estimate exceeds `threshold`, post-order (so inner sites are
+   *  named first, matching FastClausify's bottom-up pass). `rebuild(hole)` reconstructs `f` with `hole` in place. */
+  private def findSite(f: Expression, pol: Int, threshold: Int, markers: Counter): Option[Site] =
+    def mk(child: Expression, cpol: Int, rebuild: Expression => Expression): Site =
+      // Marker `p` over the Ind free variables x̄ of `child` (same set/order as freshTseitinAtom), applied at the hole.
+      val xs = child.freeVariables.toSeq.filter(_.sort == Ind).sortBy(_.id.toString)
+      val pSort = xs.foldRight(Prop: Sort)((v, acc) => v.sort >>: acc)
+      val p = Variable(Identifier(s"_np${markers.next()}", 0), pSort)
+      Site(child, rebuild(xs.foldLeft(p: Expression)(_(_))), p, cpol)
+    def go(f: Expression, pol: Int, rebuild: Expression => Expression): Option[Site] = f match
+      case And(g, h) => // pos additive, neg multiplicative
+        go(g, pol, hole => rebuild(and(hole)(h))).orElse(go(h, pol, hole => rebuild(and(g)(hole)))).orElse:
+          if pol <= 0 && capMul(estimate(g).neg, estimate(h).neg) > threshold && (estimate(g).neg > 1 || estimate(h).neg > 1) then
+            if estimate(g).neg >= estimate(h).neg && estimate(g).neg > 1 then Some(mk(g, pol, hole => rebuild(and(hole)(h))))
+            else Some(mk(h, pol, hole => rebuild(and(g)(hole))))
+          else None
+      case Or(g, h) => // pos multiplicative, neg additive
+        go(g, pol, hole => rebuild(or(hole)(h))).orElse(go(h, pol, hole => rebuild(or(g)(hole)))).orElse:
+          if pol >= 0 && capMul(estimate(g).pos, estimate(h).pos) > threshold && (estimate(g).pos > 1 || estimate(h).pos > 1) then
+            if estimate(g).pos >= estimate(h).pos && estimate(g).pos > 1 then Some(mk(g, pol, hole => rebuild(or(hole)(h))))
+            else Some(mk(h, pol, hole => rebuild(or(g)(hole))))
+          else None
+      case Neg(g) => go(g, -pol, hole => rebuild(neg(hole)))
+      case Iff(g, h) => // children at polarity 0
+        go(g, 0, hole => rebuild(hole <=> h)).orElse(go(h, 0, hole => rebuild(g <=> hole))).orElse:
+          val eg = estimate(g); val eh = estimate(h)
+          val ip = capAdd(capMul(eg.pos, eh.neg), capMul(eg.neg, eh.pos))
+          val in = capAdd(capMul(eg.pos, eh.pos), capMul(eg.neg, eh.neg))
+          def sz(e: Est) = capAdd(e.pos, e.neg)
+          val big = if pol > 0 then ip > threshold else if pol < 0 then in > threshold else ip > threshold || in > threshold
+          if big && (sz(eg) > 2 || sz(eh) > 2) then
+            if sz(eg) >= sz(eh) && sz(eg) > 2 then Some(mk(g, 0, hole => rebuild(hole <=> h)))
+            else Some(mk(h, 0, hole => rebuild(g <=> hole)))
+          else None
+      case Forall(x, g) => go(g, pol, hole => rebuild(forall(Lambda(x, hole))))
+      case Exists(x, g) => go(g, pol, hole => rebuild(exists(Lambda(x, hole))))
+      case _            => None
+    go(f, pol, identity)
+
+  /** One naming step matching FastClausify: name the `findSite` subformula with `freshTseitinAtom`, with the bridge
+   *  `f ⊢ named` (via HO `RightSubstIff`, import `() ⊢ ∀x̄. subst ⇔ d(x̄)`). `f` must be Implies-free. */
+  /** Like [[TseitinPhase.freshTseitinAtom]] but with a **distinct prefix** so the naming atoms cannot collide with
+   *  the downstream Tseitin phase's `Ts…` atoms (both counters start at 0). The atom names are compared only
+   *  up to renaming, so the prefix is immaterial to "same clauses". */
+  private def freshNameAtom(c: Expression, counter: Counter): (Variable, Seq[Variable], Expression) =
+    val freeVars = c.freeVariables.toSeq.filter(_.sort == Ind).sortBy(_.id.toString)
+    val tsi = Variable(Identifier(s"fcNm${counter.next()}", 0), freeVars.foldRight(Prop: Sort)((v, acc) => v.sort >>: acc))
+    (tsi, freeVars, freeVars.foldLeft(tsi: Expression)(_(_)))
+
+  def nameOne(f: Expression, counter: Counter, threshold: Int, markers: Counter): Option[NamingStep] =
     checkInterrupted()
-    // Marker `p` (higher-order), parameterised by the enclosing binders `b̄` so that capture-avoiding substitution
-    // cannot strand the surrounding quantifiers (identical to SkolemPhase's descent).
-    case class Hit(phiBody: Expression, subst: Expression, p: Variable, enclosing: Seq[Variable])
-
-    def descend(e: Expression, enclosing: Seq[Variable]): Option[Hit] =
-      def here(sub: Expression): Hit =
-        val pSort = enclosing.foldRight(Prop: Sort)((b, acc) => b.sort >>: acc)
-        val p = Variable(Identifier(s"_np${counter.next()}", 0), pSort)
-        Hit(enclosing.foldLeft(p: Expression)(_(_)), sub, p, enclosing)
-      def bin(g: Expression, h0: Expression, op: (Expression, Expression) => Expression): Option[Hit] =
-        descend(g, enclosing).map(h => h.copy(phiBody = op(h.phiBody, h0)))
-          .orElse(descend(h0, enclosing).map(h => h.copy(phiBody = op(g, h.phiBody))))
-      // Name this node if its estimated CNF blows up past the threshold; otherwise recurse.
-      if worthNaming(e, threshold) then Some(here(e))
-      else e match
-        case Forall(y, body) => descend(body, enclosing :+ y).map(h => h.copy(phiBody = forall(Lambda(y, h.phiBody))))
-        case Exists(y, body) => descend(body, enclosing :+ y).map(h => h.copy(phiBody = exists(Lambda(y, h.phiBody))))
-        case And(g, h0)      => bin(g, h0, and(_)(_))
-        case Or(g, h0)       => bin(g, h0, or(_)(_))
-        case Neg(g)          => descend(g, enclosing).map(h => h.copy(phiBody = neg(h.phiBody)))
-        case Implies(g, h0)  => bin(g, h0, implies(_)(_))
-        case Iff(g, h0)      => bin(g, h0, (a, b) => a <=> b)
-        case _               => None
-
-    descend(f, Seq.empty).map { h =>
-      val taken = scala.collection.mutable.Set.empty[Identifier] ++ f.freeVariables.map(_.id)
-      // Fresh witnesses u_i for the enclosing binders (as in SkolemPhase), so the marker/RightSubstIff and the
-      // definition are all abstracted over the *same* variables `ū`.
-      val us: Seq[Variable] = h.enclosing.map { b =>
-        val id = freshId(taken, Identifier("u", 0)); taken += id; Variable(id, b.sort)
-      }
-      val renaming: Map[Variable, Expression] = h.enclosing.zip(us).toMap
-      val substU = substituteVariablesOpti(h.subst, renaming) //   subst[b_i := u_i]
-
-      // Fresh predicate `d` over ALL enclosing binders ū (arity |ū|), matching the marker `p`. The name must be
-      // reparseable (it persists into the clauses handed to the prover), so avoid the `_`-prefixed marker style.
-      val dSort = us.foldRight(Prop: Sort)((u, acc) => u.sort >>: acc)
-      val tsi = Variable(Identifier(s"dNm${counter.next()}", 0), dSort)
-      val tsApp = us.foldLeft(tsi: Expression)(_(_)) //           d(u_1)…(u_k)   (= d when ū empty)
-      val substLambda = us.foldRight(substU: Expression)((u, e) => Lambda(u, e)) // λū. subst
-      val tsAppLambda = us.foldRight(tsApp: Expression)((u, e) => Lambda(u, e)) // λū. d(ū)
-      val quantified  = TseitinPhase.quantifyAll(substU <=> tsApp, us)          // ∀ū. subst ⇔ d(ū)   — the definition/iff
-
-      // The named formula: substitute the marker p by λū. d(ū), β-normalise, re-expand η.
-      val named = etaExpandQuantifiers(substituteVariablesOpti(h.phiBody, Map(h.p -> tsAppLambda)).betaNormalForm)
-
-      // Bridge: f, quantified ⊢ named via RightSubstIff (rewrite subst → tsApp), then Cut the imported iff.
+    findSite(f, 1, threshold, markers).map { site =>
+      val (tsi, freeVars, tsApp) = freshNameAtom(site.subst, counter) // freeVars = site's Ind free vars
+      val substLambda = TseitinPhase.lambdifyAll(site.subst, freeVars)
+      val tsAppLambda = TseitinPhase.lambdifyAll(tsApp, freeVars)
+      val quantified = TseitinPhase.quantifyAll(site.subst <=> tsApp, freeVars)
+      // `p` and `tsi` have the same sort (both over x̄) and both occur applied to x̄, so a *direct* p→tsi
+      // substitution gives `tsApp` at the marker while leaving the rest structurally untouched (no β/η, so bound
+      // variable names are preserved) — matching FastClausify's plain structural naming exactly.
+      val named = substituteVariablesOpti(site.phiBody, Map(site.p -> tsi))
       val steps = scala.collection.mutable.ArrayBuffer.empty[SCProofStep]
       steps += Hypothesis(f |- f, f)
-      steps += RightSubstIff(Sequent(Set(f, quantified), Set(named)), 0, Seq((substLambda, tsAppLambda)), (Seq(h.p), h.phiBody))
+      steps += RightSubstIff(Sequent(Set(f, quantified), Set(named)), 0, Seq((substLambda, tsAppLambda)), (Seq(site.p), site.phiBody))
       steps += Restate(() |- quantified, -1)
       steps += Cut(f |- named, 2, 1, quantified)
-      NamingStep(named, tsi, us, tsApp, substU, SCProof(steps.toIndexedSeq, IndexedSeq(() |- quantified)))
+      NamingStep(named, tsi, freeVars, tsApp, site.subst, SCProof(steps.toIndexedSeq, IndexedSeq(() |- quantified)))
     }
 
-  /** Whether `e`'s estimated CNF (in the positive polarity) blows up past `threshold` — the naming trigger.
-   *  A conservative first cut: name a subformula whose CNF-clause estimate exceeds the threshold. */
-  private def worthNaming(e: Expression, threshold: Int): Boolean =
-    e match
-      case Iff(_, _) => estimatePos(e, threshold) > threshold //  Iff is the primary blow-up source
-      case _         => false
+  /** The certified path's named formula (⇒ eliminated, then `nameOne` to a fixpoint) — should equal
+   *  [[FastClausify.namedFormula]] up to naming-atom renaming. Exposed for the equivalence test. */
+  def namedFormula(phi: Expression, threshold: Int): Expression =
+    val counter = Counter(); val markers = Counter()
+    var current = eliminateImplies(phi)
+    var continue = true
+    while continue do nameOne(current, counter, threshold, markers) match { case None => continue = false; case Some(s) => current = s.named }
+    current
 
-  /** Rough positive-polarity CNF clause-count estimate, capped at `cap+1`. */
-  private def estimatePos(e: Expression, cap: Int): Long =
-    def go(f: Expression, pol: Boolean): Long =
-      val c = cap.toLong + 1
-      f match
-        case Neg(g)        => go(g, !pol)
-        case And(g, h)     => if pol then math.min(c, go(g, true) + go(h, true)) else math.min(c, go(g, false) * go(h, false))
-        case Or(g, h)      => if pol then math.min(c, go(g, true) * go(h, true)) else math.min(c, go(g, false) + go(h, false))
-        case Implies(g, h) => if pol then math.min(c, go(g, false) * go(h, true)) else math.min(c, go(g, true) + go(h, false))
-        case Iff(g, h)     => math.min(c, go(g, true) * go(h, false) + go(g, false) * go(h, true))
-        case Forall(_, g)  => go(g, pol)
-        case Exists(_, g)  => go(g, pol)
-        case _             => 1L
-    go(e, true)
+  /** Rename every naming atom (`Ts…` from FastClausify, `fcNm…` from the certified path) to a canonical
+   *  `NM<k>` by first occurrence, so two formulas that name the same subformulas become syntactically equal. */
+  def canonicalizeNamingAtoms(f: Expression): Expression =
+    val seen = scala.collection.mutable.LinkedHashMap.empty[Variable, Variable]
+    def isAtom(v: Variable): Boolean = { val s = v.id.toString; s.startsWith("Ts") || s.startsWith("fcNm") }
+    def go(e: Expression): Expression = e match
+      case v: Variable if isAtom(v) => seen.getOrElseUpdate(v, Variable(Identifier(s"NM${seen.size}", 0), v.sort))
+      case Application(g, a)        => Application(go(g), go(a))
+      case Lambda(x, b)             => Lambda(x, go(b))
+      case _                        => e
+    go(f)
+
+  /** The certified Skolemization of an NNF formula: iterate [[SkolemPhase.skolemizeOne]] (ε-substitution), leaving
+   *  `∀` in place (the certified pipeline strips them in prenex). Exposed for the after-Skolem equivalence test. */
+  def skolemizeEps(nnf: Expression, counter: Counter): Expression =
+    var current = nnf; var continue = true
+    while continue do SkolemPhase.skolemizeOne(current, counter) match { case None => continue = false; case Some(s) => current = s.skoFormula }
+    current
+
+  /** Drop every `∀`, **α-renaming** its bound variable to a fresh clause variable, to align with FastClausify's
+   *  Skolemization (which renames when it strips) and the certified pipeline's prenex phase. Without the rename,
+   *  shadowed `∀X … ∀X` binders would collapse into one free `X`, spuriously diverging from FastClausify's
+   *  distinct `sV`s. After [[skolemizeEps]] no `∃` remain, so only `∀` is dropped. */
+  def stripForall(f: Expression): Expression =
+    val counter = Counter()
+    def rec(f: Expression): Expression = f match
+      case Forall(x, g) => rec(substituteVariablesOpti(g, Map(x -> Variable(Identifier(s"sw${counter.next()}", 0), x.sort))))
+      case And(g, h)    => and(rec(g))(rec(h))
+      case Or(g, h)     => or(rec(g))(rec(h))
+      case Neg(g)       => neg(rec(g))
+      case _            => f
+    rec(f)
+
+  /** The named formula through NNF and certified (ε-)Skolemization — the raw ε-form, `∀` still present. The
+   *  after-Skolem equivalence test ε-abstracts it (over the *original* names, so Skolem arguments line up with
+   *  FastClausify's) and only then [[stripForall]]s. */
+  def namedNnfSkolemEps(phi: Expression, threshold: Int = FastClausify.DefaultThreshold): Expression =
+    skolemizeEps(NnfPhase.toNNF(namedFormula(phi, threshold), negated = false), Counter())
+
+  /** FastClausify's "after Skolem" result for `phi` (∃ → Skolem functions, ∀ stripped) — routed here so the
+   *  package-private [[FastClausify]] is reachable from the equivalence test. */
+  def fastNamedNnfSkolem(phi: Expression, threshold: Int = FastClausify.DefaultThreshold): Expression =
+    FastClausify.namedNnfSkolem(phi, threshold)
+
+  /** `true` iff FastClausify and the certified path name the same subformulas (up to atom renaming). */
+  def sameNaming(phi: Expression, threshold: Int = FastClausify.DefaultThreshold): Boolean =
+    canonicalizeNamingAtoms(FastClausify.namedFormula(phi, threshold, Counter())) == canonicalizeNamingAtoms(namedFormula(phi, threshold))
 
   // ── the naming phase ───────────────────────────────────────────────────────────────────────────
 
@@ -145,18 +227,20 @@ object CertifiedFastClausifier:
     val L = libImports.size
     val outerImports: IndexedSeq[Sequent] = problem.hypotheses.toIndexedSeq ++ libImports
 
-    // Per-hypothesis: iterate nameOne to a fixpoint, collecting the naming steps and the final named formula.
-    final case class HypData(idx: Int, hyp: Sequent, steps: IndexedSeq[NamingStep], named: Expression)
+    // Fresh counter for internal proof markers only, so `counter` (naming atoms) advances exactly as FastClausify.
+    val markers = Counter()
+    // Per-hypothesis: eliminate `⇒`, then iterate nameOne to a fixpoint — mirroring FastClausify.name.
+    final case class HypData(idx: Int, hyp: Sequent, phiElim: Expression, steps: IndexedSeq[NamingStep], named: Expression)
     val allData: IndexedSeq[HypData] = problem.hypotheses.zipWithIndex.map { case (hyp, i) =>
-      val phi = singleRightFormula(hyp, "hypothesis")
+      val phiElim = eliminateImplies(singleRightFormula(hyp, "hypothesis"))
       val buf = scala.collection.mutable.ArrayBuffer.empty[NamingStep]
-      var current = phi
+      var current = phiElim
       var continue = true
       while continue do
-        nameOne(current, counter, threshold) match
+        nameOne(current, counter, threshold, markers) match
           case None    => continue = false
           case Some(s) => buf += s; current = s.named
-      HypData(i, hyp, buf.toIndexedSeq, current)
+      HypData(i, hyp, phiElim, buf.toIndexedSeq, current)
     }.toIndexedSeq
 
     val flatSteps: IndexedSeq[NamingStep] = allData.flatMap(_.steps)
@@ -179,12 +263,16 @@ object CertifiedFastClausifier:
     val namedRefs = scala.collection.mutable.ArrayBuffer.empty[Int] // ref proving `() ⊢ named_i` (per hyp)
     var jBase = 0
     for hd <- allData do
-      if hd.steps.isEmpty then namedRefs += innerHypRef(hd.idx)
+      // Start from `() ⊢ φ`; bridge to `() ⊢ eliminateImplies(φ)` by one Restate (propositional equivalence), then
+      // chain the per-step naming bridges (each `prev ⊢ next` via its definition, Cut in `() ⊢ prev`).
+      var prevRef = innerHypRef(hd.idx)
+      var prevFormula: Expression = singleRightFormula(hd.hyp, "hypothesis")
+      if hd.phiElim != prevFormula then
+        innerSteps += KernelStep(Restate(() |- hd.phiElim, prevRef))
+        prevRef = innerSteps.size - 1
+        prevFormula = hd.phiElim
+      if hd.steps.isEmpty then namedRefs += prevRef
       else
-        // Chain the per-step bridges: from `() ⊢ φ`, each step's bridge gives `() ⊢ named_after_step` using its
-        // definition import. (Bridge concludes `prev ⊢ next`; Cut `() ⊢ prev` into it → `() ⊢ next`.)
-        var prevRef = innerHypRef(hd.idx)
-        var prevFormula: Expression = singleRightFormula(hd.hyp, "hypothesis")
         for k <- hd.steps.indices do
           val st = hd.steps(k)
           innerSteps += KernelStep(SCSubproof(st.bridge, IndexedSeq(innerDefRef(jBase + k))))

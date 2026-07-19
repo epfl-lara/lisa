@@ -37,12 +37,27 @@ private[clausification] object FastClausify:
 
   // ── top level: one formula → clauses (each a set of literals) ──────────────────────────────────
 
+  /** The named formula (⇒ eliminated, blow-up subformulas replaced by fresh atoms) — the naming half of
+   *  [[clausify]], exposed for the certified-vs-uncertified naming-equivalence tests. */
+  def namedFormula(phi: Expression, threshold: Int, counter: Counter): Expression =
+    name(phi, 1, threshold, scala.collection.mutable.ListBuffer.empty[Expression], counter)._1
+
+  /** The uncertified Skolemization of an NNF formula (∃ → Skolem functions, ∀ stripped) — exposed for the
+   *  certified-vs-uncertified after-Skolem equivalence test. */
+  def skolemizeForTest(nnf: Expression, counter: Counter): Expression =
+    skolemize(nnf, Map.empty, nnf.freeVariables.iterator.filter(_.sort == Ind).map(v => (v, v)).toList, counter)
+
+  /** The named formula (naming step) put through NNF and Skolemization — the "after Skolem" result for `phi`. */
+  def namedNnfSkolem(phi: Expression, threshold: Int): Expression =
+    skolemizeForTest(NnfPhase.toNNF(namedFormula(phi, threshold, Counter()), negated = false), Counter())
+
   def clausify(phi: Expression, threshold: Int, counter: Counter): List[Set[Expression]] =
     val defs = scala.collection.mutable.ListBuffer.empty[Expression]
     val (named, _) = name(phi, 1, threshold, defs, counter)
     (named :: defs.toList).flatMap { g =>
       val nnf = NnfPhase.toNNF(g, negated = false)
-      val univs = nnf.freeVariables.iterator.filter(_.sort == Ind).toList
+      // Free Ind vars are the top-level universals; they aren't α-renamed, so orig = renamed.
+      val univs = nnf.freeVariables.iterator.filter(_.sort == Ind).map(v => (v, v)).toList
       toClauses(skolemize(nnf, Map.empty, univs, counter))
     }
 
@@ -113,20 +128,30 @@ private[clausification] object FastClausify:
 
   // ── single-pass Skolemization (fresh Skolem functions; strip ∀; α-rename) ───────────────────────
 
-  private def skolemize(f: Expression, subst: Map[Variable, Expression], univs: List[Variable], counter: Counter): Expression =
+  // `univs` pairs each in-scope universal's ORIGINAL bound variable with its α-renamed clause variable (used in the
+  // Skolem term). Each ∃ gets its **own** fresh Skolem symbol (the textbook rule — unconditionally sound); we do NOT
+  // dedup syntactically-identical existentials. The certified ε-path does merge them (identical ε-terms are one
+  // term), so fast is a strict *refinement* of certified — every fast Skolem symbol maps onto one certified symbol.
+  private def skolemize(f: Expression, subst: Map[Variable, Expression], univs: List[(Variable, Variable)], counter: Counter): Expression =
     f match
       case And(g, h) => and(skolemize(g, subst, univs, counter))(skolemize(h, subst, univs, counter))
       case Or(g, h)  => or(skolemize(g, subst, univs, counter))(skolemize(h, subst, univs, counter))
       case Forall(x, g) => // α-rename to a fresh var (avoid capture), strip the ∀, extend the universal context
         val v = Variable(Identifier(s"sV${counter.next()}", 0), x.sort)
-        skolemize(g, subst + (x -> v), if x.sort == Ind then univs :+ v else univs, counter)
-      case Exists(x, g) => // fresh Skolem function over the in-scope universals; strip the ∃
-        val skSort = univs.foldRight(x.sort)((u, acc) => u.sort -> acc)
-        // A **Constant** (function symbol), NOT a Variable: a *nullary* Skolem (no enclosing universals) has result
-        // sort `Ind`, so as a Variable it would be indistinguishable from a clause variable and the prover would
-        // treat the Skolem constant as universally quantified — unsound. As a Constant it is always a function symbol.
-        val sk = Constant(Identifier(s"sK${counter.next()}", 0), skSort)
-        val skTerm = univs.foldLeft(sk: Expression)((acc, u) => acc(u))
+        skolemize(g, subst + (x -> v), if x.sort == Ind then univs :+ (x, v) else univs, counter)
+      case Exists(x, g) => // fresh Skolem function over ONLY the universals the witness can depend on (⇒ smaller terms)
+        // Free variables of the SUBSTITUTED body: this reveals *transitive* dependencies on a universal `u` that
+        // reach the body only through an earlier ∃-variable's Skolem term `sK…(u)` — using `g.freeVariables`
+        // (original, unsubstituted) would miss them and unsoundly drop `u` from the Skolem's arguments.
+        val bodyFree = substituteVariablesOpti(f, subst).freeVariables // renamed (sV) names + Skolem-term vars (x bound)
+        // Sorted by original binder name — a canonical argument order that also matches Clausal.Abstraction's
+        // ordering of an ε-term's free variables, so the fast and certified Skolem terms line up.
+        val mentioned = univs.collect { case (orig, v) if bodyFree.contains(v) => (orig, v) }
+          .sortBy((orig, _) => (orig.id.name, orig.id.no)).map(_._2)
+        val skSort = mentioned.foldRight(x.sort)((u, acc) => u.sort -> acc)
+        // A **Constant** (function symbol), NOT a Variable: a *nullary* Skolem has result sort `Ind`, so as a
+        // Variable it would be mistaken for a clause variable (universally quantified) — unsound.
+        val skTerm = mentioned.foldLeft(Constant(Identifier(s"sK${counter.next()}", 0), skSort): Expression)((acc, u) => acc(u))
         skolemize(g, subst + (x -> skTerm), univs, counter)
       case lit => if subst.isEmpty then lit else substituteVariablesOpti(lit, subst)
 

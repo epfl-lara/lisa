@@ -262,6 +262,29 @@ class ClausalTest extends AnyFunSuite:
     assert(proof.conclusion == K.Sequent(Set.empty, Set(P)))
   }
 
+  test("CertifiedFastClausifier: naming matches FastClausify exactly (same subformulas named, up to atom renaming)") {
+    val a = (1 to 8).map(i => pred(s"a$i", 0): K.Expression)
+    val b = (1 to 6).map(i => pred(s"b$i", 0): K.Expression)
+    val R = pred("R", 1); val x = vr("x")
+    def eqv(l: K.Expression, r: K.Expression) = K.Application(K.Application(K.iff, l), r)
+    def orr(l: K.Expression, r: K.Expression) = K.Application(K.Application(K.or, l), r)
+    def andd(l: K.Expression, r: K.Expression) = K.Application(K.Application(K.and, l), r)
+    def impl(l: K.Expression, r: K.Expression) = K.Application(K.Application(K.implies, l), r)
+    val bigIff = a.reduceRight(eqv)                                   //  a1 ⇔ … ⇔ a8   (Iff blow-up)
+    val orOfAnds = orr(a.take(5).reduceRight(andd), b.take(5).reduceRight(andd)) // (∧)∨(∧)  (Or-pos multiplicative)
+    val formulas: Seq[K.Expression] = Seq(
+      bigIff,
+      orOfAnds,
+      impl(bigIff, b(0)),                                             //  ⇒ elimination then naming
+      K.Application(K.forall, K.Lambda(x, orr(bigIff, ap(R, x)))),    //  naming under ∀
+      eqv(orOfAnds, bigIff)                                           //  nested multiplicative + Iff
+    )
+    for phi <- formulas do
+      assert(
+        lisa.automation.clausification.CertifiedFastClausifier.sameNaming(phi),
+        s"certified naming diverged from FastClausify on: $phi")
+  }
+
   test("CertifiedFastClausifier: end-to-end kernel-valid proof of an Iff-chain tautology (selective naming fires)") {
     // conjecture X ⇒ X with X = (a⇔b⇔c⇔d⇔e): valid, and its negated form's big Iff triggers the certified
     // fast clausifier's selective naming (a fresh predicate d ⇔ X, discharged by InstSchema). End-to-end the
