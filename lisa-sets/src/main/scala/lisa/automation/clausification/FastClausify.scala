@@ -64,14 +64,19 @@ private[clausification] object FastClausify:
   /** Clausal form of `problem`, mirroring [[UncertifiedClausification.clausalForm]]'s conjecture handling
    *  (append `¬conjecture` as the last hypothesis) but with the single-pass pipeline. */
   def clausalForm(problem: Problem, threshold: Int = DefaultThreshold): Problem =
+    Problem(clausalFormWithOrigins(problem, threshold).map(_._1).toList, None)
+
+  /** Like [[clausalForm]] but pairs each clause with the **index of the source formula it was clausified from** —
+   *  an index into `hypotheses ++ [¬conjecture]` (so `hypotheses.size` denotes the negated conjecture). Lets a
+   *  proof-printing front-end attribute every clause to its single origin axiom. */
+  def clausalFormWithOrigins(problem: Problem, threshold: Int = DefaultThreshold): IndexedSeq[(Sequent, Int)] =
     val hyps0: IndexedSeq[Sequent] = problem.conjecture match
       case Some(c) => problem.hypotheses.toIndexedSeq :+ (() |- neg(singleRightFormula(c, "conjecture")))
       case None    => problem.hypotheses.toIndexedSeq
     val counter = Counter()
-    val clauses = hyps0.flatMap { h =>
-      clausify(singleRightFormula(h, "hypothesis"), threshold, counter).map(lits => Sequent(Set.empty, lits))
+    hyps0.zipWithIndex.flatMap { (h, origin) =>
+      clausify(singleRightFormula(h, "hypothesis"), threshold, counter).map(lits => (Sequent(Set.empty, lits), origin))
     }
-    Problem(clauses.toList, None)
 
   // ── selective naming (definitional CNF) ────────────────────────────────────────────────────────
 
@@ -144,10 +149,10 @@ private[clausification] object FastClausify:
         // reach the body only through an earlier ∃-variable's Skolem term `sK…(u)` — using `g.freeVariables`
         // (original, unsubstituted) would miss them and unsoundly drop `u` from the Skolem's arguments.
         val bodyFree = substituteVariablesOpti(f, subst).freeVariables // renamed (sV) names + Skolem-term vars (x bound)
-        // Sorted by original binder name — a canonical argument order that also matches Clausal.Abstraction's
-        // ordering of an ε-term's free variables, so the fast and certified Skolem terms line up.
-        val mentioned = univs.collect { case (orig, v) if bodyFree.contains(v) => (orig, v) }
-          .sortBy((orig, _) => (orig.id.name, orig.id.no)).map(_._2)
+        // In **binding order** (outermost enclosing universal first — `univs` is built outermost-first): a canonical
+        // argument order that needs no names, so it matches the certified path's `abstractEpsTerms` ordering of an
+        // ε-term's free variables (which the certified Skolemizer may have α-renamed, breaking a name-based sort).
+        val mentioned = univs.collect { case (_, v) if bodyFree.contains(v) => v }
         val skSort = mentioned.foldRight(x.sort)((u, acc) => u.sort -> acc)
         // A **Constant** (function symbol), NOT a Variable: a *nullary* Skolem has result sort `Ind`, so as a
         // Variable it would be mistaken for a clause variable (universally quantified) — unsound.

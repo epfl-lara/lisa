@@ -18,7 +18,7 @@ import Clausification.*
  *    justified by the definition `∀x̄. d(x̄) ⇔ subst`.
  *  - The definition is added as a fresh hypothesis (clausified by the downstream phases) and carried as a
  *    [[ClausificationSubproof]] *assumption*; at the very end every such assumption is discharged by
- *    `InstSchema(d := λx̄. subst)` + a reflexive-iff proof + `Cut` — exactly [[TseitinPhase.certifyTseitinFlat]]'s
+ *    `InstSchema(d := λx̄. subst)` + a reflexive-iff proof + `Cut` — exactly [[TseitinPhase.certifyTseitin]]'s
  *    discharge. Instantiating a schema predicate to a (possibly quantified) formula is sound by `InstSchema`.
  *
  * Because the whole thing is kernel-checked, it is a **sound oracle** for the fast clausification (it cannot
@@ -31,7 +31,7 @@ object CertifiedFastClausifier:
     val wrappedProver: ClausificationProver = p =>
       val downstream = ClausificationProof.fromSCProof(prover(p))
       ClausificationProof(downstream.steps, downstream.imports ++ libImports)
-    val tseitinProver: ClausificationProver = TseitinPhase.certifyTseitinFlat(_, wrappedProver)
+    val tseitinProver: ClausificationProver = TseitinPhase.certifyTseitin(_, wrappedProver)
     val prenexProver: ClausificationProver = PrenexPhase.certifyPrenex(_, tseitinProver)
     val skolemProver: ClausificationProver = SkolemPhase.certifySkolem(_, prenexProver)
     val nnfProver: ClausificationProver = NnfPhase.certifyNnf(_, skolemProver)
@@ -102,14 +102,16 @@ object CertifiedFastClausifier:
     def go(f: Expression, pol: Int, rebuild: Expression => Expression): Option[Site] = f match
       case And(g, h) => // pos additive, neg multiplicative
         go(g, pol, hole => rebuild(and(hole)(h))).orElse(go(h, pol, hole => rebuild(and(g)(hole)))).orElse:
-          if pol <= 0 && capMul(estimate(g).neg, estimate(h).neg) > threshold && (estimate(g).neg > 1 || estimate(h).neg > 1) then
-            if estimate(g).neg >= estimate(h).neg && estimate(g).neg > 1 then Some(mk(g, pol, hole => rebuild(and(hole)(h))))
+          val eg = estimate(g); val eh = estimate(h)
+          if pol <= 0 && capMul(eg.neg, eh.neg) > threshold && (eg.neg > 1 || eh.neg > 1) then
+            if eg.neg >= eh.neg && eg.neg > 1 then Some(mk(g, pol, hole => rebuild(and(hole)(h))))
             else Some(mk(h, pol, hole => rebuild(and(g)(hole))))
           else None
       case Or(g, h) => // pos multiplicative, neg additive
         go(g, pol, hole => rebuild(or(hole)(h))).orElse(go(h, pol, hole => rebuild(or(g)(hole)))).orElse:
-          if pol >= 0 && capMul(estimate(g).pos, estimate(h).pos) > threshold && (estimate(g).pos > 1 || estimate(h).pos > 1) then
-            if estimate(g).pos >= estimate(h).pos && estimate(g).pos > 1 then Some(mk(g, pol, hole => rebuild(or(hole)(h))))
+          val eg = estimate(g); val eh = estimate(h)
+          if pol >= 0 && capMul(eg.pos, eh.pos) > threshold && (eg.pos > 1 || eh.pos > 1) then
+            if eg.pos >= eh.pos && eg.pos > 1 then Some(mk(g, pol, hole => rebuild(or(hole)(h))))
             else Some(mk(h, pol, hole => rebuild(or(g)(hole))))
           else None
       case Neg(g) => go(g, -pol, hole => rebuild(neg(hole)))
@@ -179,7 +181,8 @@ object CertifiedFastClausifier:
       case _                        => e
     go(f)
 
-  /** The certified Skolemization of an NNF formula: iterate [[SkolemPhase.skolemizeOne]] (ε-substitution), leaving
+  /** The certified Skolemization of an NNF formula: iterate [[SkolemPhase.skolemizeOne]], which already abstracts
+   *  each witness to an opaque shared Skolem function `esk(x̄)` per pass (so ε-terms never nest or blow up), leaving
    *  `∀` in place (the certified pipeline strips them in prenex). Exposed for the after-Skolem equivalence test. */
   def skolemizeEps(nnf: Expression, counter: Counter): Expression =
     var current = nnf; var continue = true
@@ -218,7 +221,7 @@ object CertifiedFastClausifier:
   // ── the naming phase ───────────────────────────────────────────────────────────────────────────
 
   /** Selective definitional naming, before NNF, producing a [[ClausificationProof]]. Mirrors
-   *  [[TseitinPhase.certifyTseitinFlat]] but names arbitrary (possibly quantified) subformulas via [[nameOne]]
+   *  [[TseitinPhase.certifyTseitin]] but names arbitrary (possibly quantified) subformulas via [[nameOne]]
    *  and delegates definition clausification to the downstream phases. */
   def certifyFastNaming(problem: Problem, prover: ClausificationProver, threshold: Int): ClausificationProof =
     require(problem.conjecture.isEmpty, "certifyFastNaming expects a conjecture-free problem")

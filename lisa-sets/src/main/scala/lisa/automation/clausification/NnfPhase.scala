@@ -10,7 +10,7 @@ private[clausification] object NnfPhase:
       checkInterrupted()
       onSingleRight(h, "hypothesis")(toNNF(_, negated = false))
     }
-    val transformed = Problem(transformedHyps, None)
+    val transformed = Problem(transformedHyps, None, problem.frozen)
     val downstream = prover(transformed)
     require(sameImportList(downstream.imports, transformed.imports ++ libImports), "Downstream imports must match transformed problem imports")
 

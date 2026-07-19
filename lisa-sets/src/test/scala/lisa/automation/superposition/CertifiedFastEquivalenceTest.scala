@@ -52,9 +52,11 @@ class CertifiedFastEquivalenceTest extends AnyFunSuite:
   private def isoMismatch(x: K.Expression, y: K.Expression): Option[(K.Expression, K.Expression)] =
     val fwd = scala.collection.mutable.HashMap.empty[K.Expression, K.Expression]
     val bwd = scala.collection.mutable.HashMap.empty[K.Expression, K.Expression]
-    def isSkolem(e: K.Expression): Boolean = e match
-      case c: K.Constant => c.id.name.startsWith("sK") || c.id.name.startsWith("Feps")
-      case _             => false
+    // Skolem symbols: fast's `sK` (a Constant), the certified path's `esk` (a schematic Variable), and any legacy
+    // `Feps`. Matched by name prefix regardless of Constant/Variable so ε↔Skolem-function representations line up.
+    def isSkolem(e: K.Expression): Boolean =
+      val name = e match { case c: K.Constant => c.id.name; case v: K.Variable => v.id.name; case _ => "" }
+      name.startsWith("sK") || name.startsWith("Feps") || name.startsWith("esk")
     def renamable(e: K.Expression): Boolean = e.isInstanceOf[K.Variable] || isSkolem(e)
     def go(a: K.Expression, b: K.Expression): Option[(K.Expression, K.Expression)] = (a, b) match
       case (K.Application(f1, a1), K.Application(f2, a2)) => go(f1, f2).orElse(go(a1, a2))

@@ -11,7 +11,7 @@ private[clausification] object NegatedPhase:
       case Some(conjecture) =>
         val phi = singleRightFormula(conjecture, "conjecture")
         val negPhi = neg(phi)
-        val transformed = Problem(problem.hypotheses :+ (() |- negPhi), None)
+        val transformed = Problem(problem.hypotheses :+ (() |- negPhi), None, problem.frozen)
         val downstream = prover(transformed)
         require(sameImportList(downstream.imports, transformed.imports ++ libImports), "Downstream imports must match transformed problem imports")
 

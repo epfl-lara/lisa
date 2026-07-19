@@ -157,6 +157,8 @@ object Clausal:
     val work: IndexedSeq[K.Sequent] = absSeqs.map(toWorkingSequent)
     val symbolVars: Set[K.Variable] =
       abs.dischargeSubst.keySet ++
+        problem.frozen ++ //                                            Skolem-function symbols from SkolemPhase: a
+        //  NULLARY one is Ind-sorted so the `sort != Ind` filter below misses it; it must NOT be a clause variable.
         absSeqs.iterator.flatMap(s => (s.left ++ s.right).iterator.flatMap(_.freeVariables)).filter(_.sort != K.Ind).toSet
     Prepared(abs, orig, work, symbolVars)
 

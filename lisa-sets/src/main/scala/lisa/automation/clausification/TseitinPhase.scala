@@ -183,205 +183,13 @@ private[clausification] object TseitinPhase:
     SCProof(steps.toIndexedSeq, IndexedSeq.empty)
   }
 
-  def certifyTseitin(problem: Problem, prover: ClausificationProver): ClausificationProof =
-    certifyTseitinFlat(problem, prover)
-
-  /** Recursive (legacy) Tseitin certifier: one nested [[ClausificationSubproof]] per
-    * axiom.  Each level introduces K_i local assumptions for that axiom's Tseitin
-    * IFFs. Lowering each csub adds one [[Weakening]] per external import, giving
-    * a per-level cost of O(#axioms) and a total cost of O(#axioms²) in proof size.
-    *
-    * Superseded by [[certifyTseitinFlat]] which gathers ALL Tseitin assumptions
-    * across ALL axioms into a single outermost csub, reducing cross-axiom proof
-    * size to linear. Kept for reference and ease of reverting. */
-  @scala.annotation.unused
-  def certifyTseitinRecursive(problem: Problem, prover: ClausificationProver): ClausificationProof = {
-    require(problem.conjecture.isEmpty, "certifyTseitin expects a conjecture-free problem (consumed by certifyNegated)")
-    val counter = Counter()
-
-    def innerCertifyTseitin(notdone: List[Sequent], clausal: List[Sequent]): ClausificationProof = {
-      val outerImports = (notdone ++ clausal).toIndexedSeq ++ libImports
-      notdone match
-        case Nil =>
-          val newProblem = Problem(clausal, None)
-          val downstream = prover(newProblem)
-          require(sameImportList(downstream.imports, newProblem.imports ++ libImports), "Downstream imports must match transformed problem imports")
-          downstream
-        case ax :: next =>
-          val phi = singleRightFormula(ax, "axiom")
-          tseitinStep(phi, counter) match
-            case None =>
-              // Already a clause: move to `clausal`.
-              val rec = innerCertifyTseitin(next, clausal :+ ax)
-              val ctx = RecCtx(next.size, clausal.size)
-              passthroughProof(rec, ctx, outerImports)
-            case Some(firstTseitin) =>
-              // ── Collect ALL Tseitin sub-steps for this axiom ──────────────────────
-              // Iterate `tseitinStep` until the rewritten axiom is clausal; gather every
-              // intermediate `TseitinStep`. The chain `tseitins(i).tsRewrite` is the
-              // cumulative rewrite of `phi` after applying tseitins(0..i).
-              val tseitinsBuf = scala.collection.mutable.ArrayBuffer[TseitinStep](firstTseitin)
-              var current: Expression = firstTseitin.tsRewrite
-              var continue            = true
-              while (continue) {
-                tseitinStep(current, counter) match
-                  case None    => continue = false
-                  case Some(t) => tseitinsBuf += t; current = t.tsRewrite
-              }
-              val tseitins         = tseitinsBuf.toIndexedSeq
-              val K                = tseitins.size
-              val ctx              = RecCtx(next.size, clausal.size)
-              val nextSize         = ctx.restSize
-              val clausalSize      = ctx.doneSize
-              val libCount         = libImports.size
-
-              // Final clausal form of phi after all K Tseitin rewrites.
-              val tsRewriteFinalSeq: Sequent = () |- tseitins.last.tsRewrite
-              // All new definitional clauses produced across the K steps, in order.
-              val allNewClauseSeqs: IndexedSeq[Sequent] =
-                tseitins.flatMap(_.newClauses).map(lits => Sequent(Set.empty, lits.toSet)).toIndexedSeq
-              val totalClauseCount = allNewClauseSeqs.size
-
-              // Quantified-iff assumptions: one per Tseitin step.
-              //   quantifieds(i) = ∀fv_i. (tsApp_i ⇔ subst_i)
-              val quantifieds: IndexedSeq[Expression] =
-                tseitins.map(t => quantifyAll(t.tsApp <=> t.subst, t.freeVars))
-
-              // ── Inner ClausificationProof (under K local assumptions) ────────────
-              // Inner imports layout (indices in `innerImports`):
-              //   [0..R-1]               next axioms              (R = nextSize)
-              //   [R..R+D-1]             clausal_old              (D = clausalSize)
-              //   [R+D]                  original ax              (= () |- phi)
-              //   [R+D+1..R+D+L]         libImports               (L = libCount)
-              //   [R+D+L+1..R+D+L+K]     quantifieds (assumption imports)
-              val innerImports: IndexedSeq[Sequent] =
-                (next ++ clausal).toIndexedSeq ++
-                  IndexedSeq(ax) ++
-                  libImports ++
-                  quantifieds.map(q => () |- q)
-              val innerAxIdx        = nextSize + clausalSize
-              val innerLibStart     = innerAxIdx + 1
-              val innerQuantStart   = innerLibStart + libCount
-              val innerAxRef        = -(innerAxIdx + 1)
-              def innerQuantRef(i: Int): Int = -(innerQuantStart + i + 1)
-
-              val innerSteps    = scala.collection.mutable.ArrayBuffer.empty[ClausificationProofStep]
-              val clauseIndices = scala.collection.mutable.ArrayBuffer.empty[Int]
-
-              // (1) New-clause sub-proofs: for each Tseitin step i, derive each of its
-              // newClauses using ONLY the corresponding `quantifieds(i)` assumption.
-              for (i <- 0 until K) {
-                val ts = tseitins(i)
-                val sideExprs: IndexedSeq[Expression] =
-                  if ts.isAndCase then IndexedSeq(ts.leftSide, ts.rightSide)
-                  else IndexedSeq(ts.subst)
-                ts.newClauses.zip(sideExprs).foreach { case (lits, sideExpr) =>
-                  val sp = proveNewClauseFromQuantified(lits, ts, sideExpr)
-                  clauseIndices += innerSteps.size
-                  innerSteps += KernelStep(SCSubproof(sp, IndexedSeq(innerQuantRef(i))))
-                }
-              }
-
-              // (2) Chain of K rewrite sub-proofs producing the cumulative rewritten
-              // axiom. Each step takes the previous result as its `ax` import.
-              //   prove_0: () ⊢ phi               + () ⊢ quantified_0  →  () ⊢ tsRewrite_0
-              //   prove_1: () ⊢ tsRewrite_0       + () ⊢ quantified_1  →  () ⊢ tsRewrite_1
-              //   ...
-              //   prove_{K-1}: () ⊢ tsRewrite_{K-2} + () ⊢ quantified_{K-1} →  () ⊢ tsRewriteFinal
-              val rewriteIndices = new Array[Int](K)
-              var prevAxRef: Int = innerAxRef
-              var prevAxBot: Sequent = ax
-              for (i <- 0 until K) {
-                val ts = tseitins(i)
-                val sp = proveTsRewriteFromQuantified(prevAxBot, ts)
-                rewriteIndices(i) = innerSteps.size
-                innerSteps += KernelStep(SCSubproof(sp, IndexedSeq(prevAxRef, innerQuantRef(i))))
-                prevAxRef = rewriteIndices(i)
-                prevAxBot = () |- ts.tsRewrite
-              }
-
-              // (3) Cross-axiom recursion: process the remaining axioms with the new
-              // clauses + final rewritten axiom appended to `clausal` (all clausal).
-              val rec = innerCertifyTseitin(next, clausal ++ allNewClauseSeqs.toList ++ List(tsRewriteFinalSeq))
-              // rec.imports layout:
-              //   [0..R-1]                           next                ← inner [0..R-1]
-              //   [R..R+D-1]                         clausal_old         ← inner [R..R+D-1]
-              //   [R+D..R+D+C-1]                     allNewClauseSeqs    ← clauseIndices
-              //   [R+D+C]                            tsRewriteFinalSeq   ← rewriteIndices(K-1)
-              //   [R+D+C+1..R+D+C+L]                 libImports          ← inner [R+D+1..R+D+L]
-              val recPremises =
-                negRange(0, nextSize) ++
-                  negRange(nextSize, clausalSize) ++
-                  clauseIndices.toIndexedSeq ++
-                  IndexedSeq(rewriteIndices(K - 1)) ++
-                  negRange(innerLibStart, libCount)
-              innerSteps += ClausificationSubproof(rec, recPremises)
-              val innerProof = ClausificationProof(innerSteps.toIndexedSeq, innerImports)
-
-              // ── Outer ClausificationProof: one csub holding all K assumptions, then
-              //    K InstSchema/refl/Cut packages discharging them latest-first. ─────
-              // csub.bot = innerProof.conclusion +<< quantified_0 +<< ... +<< quantified_{K-1}
-              //          = {quantified_0, ..., quantified_{K-1}} ⊢ rec.conclusion.right
-              val csubPremises =
-                negRange(1, nextSize) ++ negRange(1 + nextSize, clausalSize) ++
-                  IndexedSeq(-1) ++
-                  libRefs(ctx.nonLibSize)
-              val assumptions = (0 until K).toIndexedSeq.map { i =>
-                Assumption(quantifieds(i), innerQuantStart + i)
-              }
-              val csub = ClausificationSubproof(innerProof, csubPremises, assumptions)
-
-              val outerSteps = scala.collection.mutable.ArrayBuffer.empty[ClausificationProofStep]
-              outerSteps += csub
-              val rhs: Set[Expression] = csub.bot.right
-              val mutableLhs = scala.collection.mutable.HashSet.from(csub.bot.left)
-              var prevBotRef: Int = 0
-              // Discharge K assumptions, latest-introduced first. At iteration i we
-              // substitute tsi_i (which only appears in quantifieds(i), since
-              // quantifieds(j<i) was defined before tsi_i existed and quantifieds(j>i)
-              // has already been discharged).
-              for (i <- (K - 1) to 0 by -1) {
-                checkInterrupted()
-                val ts            = tseitins(i)
-                val schemaSubst   = Map(ts.tsi -> lambdifyAll(ts.subst, ts.freeVars))
-                // `ts.tsi` is unique to step i so only `quantifieds(i)` is affected.
-                val quantReflFormula = substituteVariablesOpti(quantifieds(i), schemaSubst)
-                mutableLhs -= quantifieds(i)
-                mutableLhs += quantReflFormula
-                val instLhs       = mutableLhs.toSet
-                val instBot       = Sequent(instLhs, rhs)
-                outerSteps       += KernelStep(InstSchema(instBot, prevBotRef, schemaSubst))
-                val instRef       = outerSteps.size - 1
-                outerSteps       += KernelStep(SCSubproof(proveQuantifiedReflIff(ts.subst, ts.freeVars), IndexedSeq.empty))
-                val reflRef       = outerSteps.size - 1
-                mutableLhs -= quantReflFormula
-                val cutLhs        = mutableLhs.toSet
-                val cutBot        = Sequent(cutLhs, rhs)
-                outerSteps       += KernelStep(Cut(cutBot, reflRef, instRef, quantReflFormula))
-                prevBotRef        = outerSteps.size - 1
-              }
-
-              ClausificationProof(outerSteps.toIndexedSeq, outerImports)
-    }
-
-    innerCertifyTseitin(problem.hypotheses.toList, Nil)
-  }
-
-  /** Flat cross-axiom Tseitin certifier: pre-processes every axiom (running
-    * `tseitinStep` until clausal), gathers ALL `Q = ∑ K_i` quantified-iff
-    * assumptions into ONE outer [[ClausificationSubproof]], then discharges them
-    * in a single block of `Q` InstSchema/refl/Cut triples.
-    *
-    * This eliminates the n-fold per-import [[Weakening]] paid by the legacy
-    * recursive design at every nested csub level: instead of `O(n) imports ×
-    * O(n) levels = O(n²)` weakenings, the flat design pays `O(n) imports × 1
-    * level`, giving linear total proof size in the number of independent axioms.
-    *
-    * Each axiom's K_i Tseitin IFFs are still discharged latest-first, but across
-    * axioms the order is irrelevant because Tseitin variables introduced by one
-    * axiom never appear in another axiom's `subst` (each axiom is processed
-    * independently with a private starting position in [[tseitinStep]]). */
-  def certifyTseitinFlat(problem: Problem, prover: ClausificationProver): ClausificationProof = {
+  /** Flat cross-axiom Tseitin certifier: pre-processes every axiom (running `tseitinStep` until clausal), gathers
+    * ALL `Q = ∑ K_i` quantified-iff assumptions into ONE outer [[ClausificationSubproof]], then discharges them in a
+    * single block of `Q` InstSchema/refl/Cut triples. Gathering across axioms keeps proof size linear (one
+    * [[Weakening]] block per import instead of one per nested level): each axiom's `K_i` Tseitin IFFs are discharged
+    * latest-first, and cross-axiom order is irrelevant because a Tseitin variable from one axiom never appears in
+    * another axiom's `subst` (each axiom is processed with a private starting position in [[tseitinStep]]). */
+  def certifyTseitin(problem: Problem, prover: ClausificationProver): ClausificationProof = {
     require(problem.conjecture.isEmpty, "certifyTseitin expects a conjecture-free problem (consumed by certifyNegated)")
     val counter = Counter()
     val outerImports: IndexedSeq[Sequent] = problem.hypotheses.toIndexedSeq ++ libImports
@@ -405,7 +213,7 @@ private[clausification] object TseitinPhase:
       var continue = true
       while (continue) {
         checkInterrupted()
-        tseitinStep(current, counter) match
+        tseitinStep(current, counter, problem.frozen) match
           case None    => continue = false
           case Some(t) => buf += t; current = t.tsRewrite
       }
@@ -430,7 +238,7 @@ private[clausification] object TseitinPhase:
       if (ad.tseitins.isEmpty) IndexedSeq(ad.finalSeq)
       else ad.newClauseSeqs ++ IndexedSeq(ad.finalSeq)
     }
-    val newProblem = Problem(finalAxioms.toList, None)
+    val newProblem = Problem(finalAxioms.toList, None, problem.frozen)
 
     // Bridge the proof of a residual clause (proved in `curSeq` form) to its literal-set `litSeq` with a
     // single `Restate`, appended to `buf`; a no-op returning `ref` when they already coincide (unit clause).
@@ -598,7 +406,7 @@ private[clausification] object TseitinPhase:
     * needed to certify the step (see [[TseitinStep]]). Returns None if `f` is already
     * a clause.
     */
-  def tseitinStep(f: Expression, counter: Counter): Option[TseitinStep] = {
+  def tseitinStep(f: Expression, counter: Counter, frozen: Set[Variable] = Set.empty): Option[TseitinStep] = {
     checkInterrupted()
     case class Hit(
         contextBody: Expression,
@@ -614,7 +422,7 @@ private[clausification] object TseitinPhase:
 
     def hit(g: Expression, h: Expression, isAnd: Boolean): Hit = {
       val sub = if (isAnd) and(g)(h) else or(g)(h)
-      val (tsi, freeVars, tsApp) = freshTseitinAtom(sub, counter)
+      val (tsi, freeVars, tsApp) = freshTseitinAtom(sub, counter, frozen)
       val hole = Variable(Identifier(s"_th${counter.next()}", 0), Prop)
       Hit(hole, sub, tsi, freeVars, tsApp, hole, isAnd, g, h)
     }
@@ -646,59 +454,6 @@ private[clausification] object TseitinPhase:
     }
   }
 
-  /** Collect ALL Tseitin steps for a formula in a single bottom-up pass (O(K) instead
-    * of O(K²) from iterating [[tseitinStep]]).
-    *
-    * The bottom-up traversal rewrites each non-clause AND/OR node exactly once:
-    *   - When both children are clauses, emit a [[TseitinStep]] and return the fresh
-    *     Tseitin atom (a clause) as the rewritten node.
-    *   - Recurse into children first so the deepest eligible node is processed before
-    *     its parent (same selection order as the iterative [[tseitinStep]] loop).
-    *
-    * Returns the accumulated list of steps in emission order (same as the iterative
-    * loop in [[certifyTseitinFlat]]). If `f` is already a clause, returns Nil. */
-  def tseitinAllSteps(f: Expression, counter: Counter): List[TseitinStep] = {
-    val buf = scala.collection.mutable.ListBuffer.empty[TseitinStep]
-
-    // Returns the rewritten form of `g` (a clause or Tseitin atom) after emitting all
-    // necessary steps into `buf`. Pre-condition: `g` is in NNF (no Iff/Implies).
-    def rewrite(g: Expression): Expression = g match
-      case _ if isClause(g) => g
-      case And(g1, g2) =>
-        val r1 = rewrite(g1)
-        val r2 = rewrite(g2)
-        if (isClause(r1) && isClause(r2)) {
-          // Both sides are now clauses: emit a Tseitin step.
-          val sub = and(r1)(r2)
-          val (tsi, freeVars, tsApp) = freshTseitinAtom(sub, counter)
-          val hole = Variable(Identifier(s"_th${counter.next()}", 0), Prop)
-          val contextBody = hole  // context: λhole. hole (the whole formula is the subst target)
-          val tsRewrite = tsApp
-          val newClauses: Seq[Seq[Expression]] =
-            Seq(neg(tsApp) +: clauseLiterals(r1), neg(tsApp) +: clauseLiterals(r2))
-          buf += TseitinStep(tsRewrite, newClauses, tsi, freeVars, tsApp, sub, hole, contextBody, isAndCase = true, r1, r2)
-          tsApp
-        } else and(r1)(r2)
-      case Or(g1, g2) =>
-        val r1 = rewrite(g1)
-        val r2 = rewrite(g2)
-        if (isClause(r1) && isClause(r2)) {
-          val sub = or(r1)(r2)
-          val (tsi, freeVars, tsApp) = freshTseitinAtom(sub, counter)
-          val hole = Variable(Identifier(s"_th${counter.next()}", 0), Prop)
-          val contextBody = hole
-          val tsRewrite = tsApp
-          val newClauses: Seq[Seq[Expression]] =
-            Seq(neg(tsApp) +: (clauseLiterals(r1) ++ clauseLiterals(r2)))
-          buf += TseitinStep(tsRewrite, newClauses, tsi, freeVars, tsApp, sub, hole, contextBody, isAndCase = false, r1, r2)
-          tsApp
-        } else or(r1)(r2)
-      case _ => g  // literal or atom — already a clause
-
-    if (!isClause(f)) rewrite(f)
-    buf.toList
-  }
-
   def isLiteral(f: Expression): Boolean = f match
     case Neg(g) => isAtom(g)
     case _      => isAtom(f)
@@ -716,13 +471,6 @@ private[clausification] object TseitinPhase:
     case Or(g, h) => clauseLiterals(g) ++ clauseLiterals(h)
     case lit      => Seq(lit)
 
-  def conjuncts(f: Expression): Seq[Expression] = f match
-    case And(g, h) => conjuncts(g) ++ conjuncts(h)
-    case other     => Seq(other)
-
-  def disjoinAll(formulas: Seq[Expression]): Expression =
-    if formulas.size == 1 then formulas.head else multior(formulas)
-
   /** Build a fresh schematic Tseitin atom over `f`'s free variables.
     *
     * Returns `(tsi, freeVars, tsApp)` where:
@@ -733,14 +481,16 @@ private[clausification] object TseitinPhase:
     *   - `tsApp = tsi(v_1)...(v_n)` is the application that replaces `f` in the
     *     rewritten formula.
     */
-  def freshTseitinAtom(f: Expression, counter: Counter): (Variable, Seq[Variable], Expression) = {
+  def freshTseitinAtom(f: Expression, counter: Counter, frozen: Set[Variable] = Set.empty): (Variable, Seq[Variable], Expression) = {
     // Only the Ind-sorted free variables are abstracted into `tsi` — higher-sorted
     // free variables (e.g. predicate or function variables like `P : Ind → Prop`)
     // cannot be `forall`-quantified by the kernel, so they remain free in the
     // iff/quantified definitional context (acting as opaque parameters). They are
     // still substituted correctly by [[InstSchema]] since `tsi` is fresh and
     // substituting it cannot capture any other free variable.
-    val freeVars = f.freeVariables.toSeq.filter(_.sort == Ind).sortBy(_.id.toString)
+    // `frozen` variables (Skolem-function symbols from [[SkolemPhase]]) are excluded too: they are uninterpreted
+    // constants pinned by a defining equality, so a nullary one (Ind-sorted) must NOT be ∀-closed here either.
+    val freeVars = f.freeVariables.toSeq.filter(v => v.sort == Ind && !frozen.contains(v)).sortBy(_.id.toString)
     val tsId = Identifier(s"Ts${counter.next()}", 0)
     val tsSort = freeVars.foldRight(Prop: Sort)((v, acc) => v.sort -> acc)
     val tsi = Variable(tsId, tsSort)

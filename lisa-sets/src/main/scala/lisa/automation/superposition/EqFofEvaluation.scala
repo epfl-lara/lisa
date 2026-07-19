@@ -8,7 +8,7 @@ import lisa.utils.K
 import lisa.tptp.{AnnotatedFormula, AnnotatedSequent}
 import lisa.tptp.KernelParser.{axiomLikeRoles, problemToKernel, strictMapAtom, strictMapTerm, strictMapVariable}
 import lisa.automation.clausification.{Clausification, UncertifiedClausification}
-import lisa.automation.clausification.ClausificationStressTest.problemSize
+import lisa.automation.clausification.Clausification.problemSize
 
 /**
  * The third evaluation dataset + harness: non-clausal (FOF), first-order, **equality-bearing**,

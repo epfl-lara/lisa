@@ -57,7 +57,7 @@ object Clausification {
     * Only the hypotheses become kernel-proof imports — the conjecture is consumed by [[certifyNegated]] (which adds `¬φ`
     * as an extra hypothesis and recurses with `conjecture = None`). All pipeline
     * stages below [[certifyNegated]] therefore see `conjecture = None`. */
-  case class Problem(hypotheses: Seq[Sequent], conjecture: Option[Sequent]) {
+  case class Problem(hypotheses: Seq[Sequent], conjecture: Option[Sequent], frozen: Set[Variable] = Set.empty) {
     /** User-facing imports: just the hypotheses. Library imports are threaded
       * separately via [[Clausification.libImports]] and appear at the end of the
       * produced kernel proof's imports. */
@@ -65,6 +65,21 @@ object Clausification {
 
     def hypIndex(i: Int): Int = -(i + 1)
   }
+  // `frozen`: free variables introduced upstream (notably Skolem-function symbols from [[SkolemPhase]]) that must be
+  // treated as **uninterpreted constants**, NOT universally quantified — downstream phases must never `∀`-close or
+  // parameterize a definition over them (their meaning is pinned by a defining-equality assumption instead). Threaded
+  // forward through every phase's transformed problem.
+
+  /** Total node count of a kernel expression (variables/constants/applications/lambdas). */
+  def formulaSize(e: Expression): Int = e match
+    case Application(f, a) => 1 + formulaSize(f) + formulaSize(a)
+    case Lambda(_, body)   => 1 + formulaSize(body)
+    case _                 => 1
+
+  /** Sum of formula sizes across all sequents in a problem (LHS + RHS, hypotheses + conjecture). */
+  def problemSize(p: Problem): Int =
+    def seqSize(s: Sequent): Int = s.left.toSeq.map(formulaSize).sum + s.right.toSeq.map(formulaSize).sum
+    p.hypotheses.map(seqSize).sum + p.conjecture.fold(0)(seqSize)
 
   private[clausification] def singleRightFormula(sequent: Sequent, what: String): Expression = {
     require(sequent.left.isEmpty, s"$what must have empty left-hand side, got ${sequent.repr}")
@@ -144,42 +159,6 @@ object Clausification {
   private[clausification] case class RecCtx(restSize: Int, doneSize: Int) {
     /** Number of non-library outer imports (ax + rest + done). */
     def nonLibSize: Int = 1 + restSize + doneSize
-  }
-
-  /** Build a [[ClausificationProof]] for a passthrough recursive step:
-    *
-    *   outerImports = ax :: rest ++ done ++ libImports
-    *   rec.imports  = rest ++ done ++ Seq(ax) ++ libImports
-    *
-    * The single subproof maps outer imports into rec's import order. */
-  private[clausification] def passthroughProof(rec: ClausificationProof, ctx: RecCtx, outerImports: IndexedSeq[Sequent]): ClausificationProof = {
-    val premises =
-      negRange(1, ctx.restSize) ++
-        negRange(1 + ctx.restSize, ctx.doneSize) ++
-        IndexedSeq(-1) ++
-        libRefs(ctx.nonLibSize)
-    val csub = ClausificationSubproof(rec, premises)
-    ClausificationProof(IndexedSeq(csub), outerImports)
-  }
-
-  /** Build a [[ClausificationProof]] for a "produce one new axiom in place of `ax`" step:
-    *
-    *   outerImports = ax :: rest ++ done ++ libImports
-    *   rec.imports  = newAx :: rest ++ done ++ libImports
-    *
-    * `prelude` are the local steps that derive `newAx`; `producedIdx` is the index
-    * of the prelude step concluding `() ⊢ newAx`. */
-  private[clausification] def produceAxiomProof(
-      prelude: IndexedSeq[ClausificationProofStep],
-      producedIdx: Int,
-      rec: ClausificationProof,
-      ctx: RecCtx,
-      outerImports: IndexedSeq[Sequent]
-  ): ClausificationProof = {
-    val tailRefs = negRange(1, ctx.restSize + ctx.doneSize)
-    val premises = IndexedSeq(producedIdx) ++ tailRefs ++ libRefs(ctx.nonLibSize)
-    val csub = ClausificationSubproof(rec, premises)
-    ClausificationProof(prelude :+ csub, outerImports)
   }
 
   /** Per-axiom transformation step used by [[certifyAxiomwise]]:
@@ -265,7 +244,7 @@ object Clausification {
       finalAxiomRefs += currentAxRef
     }
 
-    val newProblem = Problem(finalAxioms.toList, None)
+    val newProblem = Problem(finalAxioms.toList, None, problem.frozen)
     val downstream = prover(newProblem)
     require(sameImportList(downstream.imports, newProblem.imports ++ libImports), "Downstream imports must match transformed problem imports")
     val csubPremises = finalAxiomRefs.toIndexedSeq ++ libRefs(n)
@@ -301,7 +280,7 @@ object Clausification {
     * ==Clause format the prover receives==
     * Every clause is a [[Sequent]] in uniform literal-set form: `Sequent(∅, {literals})` with the
     * literals on the RHS and negatives written `¬A` (no bare disjunctions, no quantifiers — universals
-    * are already free variables by the Tseitin stage, and `certifyTseitinFlat` restates each residual
+    * are already free variables by the Tseitin stage, and `certifyTseitin` restates each residual
     * axiom/rewrite into set form at the point it is declared clausal). A first-order prover that expects
     * a negative literal's atom on the LHS need only move each `¬A` from the RHS to the LHS as `A`, and
     * bridge each original clause to that working form with a single per-clause `Restate` (which also
@@ -320,71 +299,6 @@ object Clausification {
     val fullProver: ClausificationProver = NegatedPhase.certifyNegated(_, nnfProver)
     lowerClausificationProof(fullProver(problem))
   }
-
-  /** Like [[certifyClausal]] but streams each proof step to `pw` as it is
-    * produced rather than accumulating the full [[SCProof]] in memory.  This
-    * eliminates the peak memory cost of holding all steps simultaneously.
-    *
-    * File format (one line per record):
-    * {{{
-    *   # imports: <n>  problem: <name>
-    *   import|-1|<sequent.repr>
-    *   ...
-    *   <global-idx>|<ClassName>|<comma-premises>|<sequent.repr>
-    *   ...
-    *   # end  steps: <total>
-    * }}}
-    * Top-level imports are referenced by negative indices in premise lists.
-    * Every [[ClausificationSubproof]] is inlined (no SCSubproof wrappers in the
-    * file); all step indices are globally monotone.
-    *
-    * @return total number of flat steps written.
-    */
-  def certifyClausalFlat(problem: Problem, prover: Problem => SCProof, pw: java.io.PrintWriter): Int = {
-    val wrappedProver: ClausificationProver = p =>
-      val downstream = ClausificationProof.fromSCProof(prover(p))
-      ClausificationProof(downstream.steps, downstream.imports ++ libImports)
-    val tseitinProver: ClausificationProver = TseitinPhase.certifyTseitin(_, wrappedProver)
-    val prenexProver: ClausificationProver  = PrenexPhase.certifyPrenex(_, tseitinProver)
-    val skolemProver: ClausificationProver  = SkolemPhase.certifySkolem(_, prenexProver)
-    val nnfProver: ClausificationProver     = NnfPhase.certifyNnf(_, skolemProver)
-    val fullProver: ClausificationProver    = NegatedPhase.certifyNegated(_, nnfProver)
-    val fullProof = fullProver(problem)
-    pw.println(s"# imports: ${fullProof.imports.size}")
-    fullProof.imports.zipWithIndex.foreach { case (imp, i) =>
-      pw.println(s"import|-${i + 1}|${imp.repr}")
-    }
-    val sink = new StreamSink(pw)
-    val topImportGlobalRefs = IndexedSeq.tabulate(fullProof.imports.size)(i => -(i + 1))
-    lowerClausificationProofFlat(fullProof, IndexedSeq.empty, IndexedSeq.empty, topImportGlobalRefs, sink)
-    sink.count
-  }
-
-  /** Wrap a flat prover so that the pipeline can see the library axiom imports. */
-  private def wrapProver(prover: Problem => SCProof): ClausificationProver = p =>
-    val downstream = ClausificationProof.fromSCProof(prover(p))
-    ClausificationProof(downstream.steps, downstream.imports ++ libImports)
-
-  /** Run only the Tseitin phase (input must be quantifier-free). */
-  def certifyTseitinPhase(problem: Problem, prover: Problem => SCProof): SCProof =
-    lowerClausificationProof(TseitinPhase.certifyTseitin(problem, wrapProver(prover)))
-
-  /** Run only the prenex phase on a fully Skolemized problem (no existential quantifiers). */
-  def certifyPrenexPhase(problem: Problem, prover: Problem => SCProof): SCProof =
-    lowerClausificationProof(PrenexPhase.certifyPrenex(problem, wrapProver(prover)))
-
-  /** Like [[certifyPrenexPhase]] but forces the deconstruction strategy, bypassing the heuristic. */
-  def certifyPrenexDeconstructPhase(problem: Problem, prover: Problem => SCProof): SCProof =
-    lowerClausificationProof(PrenexPhase.certifyPrenex(problem, wrapProver(prover), forceDeconstruct = true))
-
-  /** Like [[certifyPrenexPhase]] but forces the rewrite strategy, bypassing the heuristic. */
-  def certifyPrenexRewritePhase(problem: Problem, prover: Problem => SCProof): SCProof =
-    lowerClausificationProof(PrenexPhase.certifyPrenex(problem, wrapProver(prover), forceRewrite = true))
-
-  /** Run only the Skolem phase on a problem in NNF (no implications or double negations). */
-  def certifySkolemPhase(problem: Problem, prover: Problem => SCProof): SCProof =
-    lowerClausificationProof(SkolemPhase.certifySkolem(problem, wrapProver(prover)))
-
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Pure (uncertified) formula transformations  (helpers for the pipeline)
