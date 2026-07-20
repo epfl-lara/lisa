@@ -401,6 +401,15 @@ trait Syntax {
     private var infix: Boolean = false
     var customPrinter: Option[Seq[Expr[?]] => String] = None
 
+    /** Complete identifier used by the front end. */
+    val fullName: String = id.toString
+
+    /** Unqualified identifier for printing. */
+    val shortName: String =
+      val separator = id.name.lastIndexOf('.')
+      val base = if separator < 0 then id.name else id.name.substring(separator + 1)
+      if id.no == 0 then base else base + K.Identifier.counterSeparator + id.no
+
     /**
      * Set the variable to be printed infix.
      *
@@ -433,7 +442,7 @@ trait Syntax {
      */
     def rename(newId: K.Identifier): Constant[S] = Constant(newId)
     // Special handling for inxfix constants
-    override def toString(): String = id.toString
+    override def toString(): String = shortName
     mkString = (args: Seq[Expr[?]]) =>
       if infix && args.size == 2 then s"${args(0)} $this ${args(1)}"
       else if infix & args.size > 2 then s"(${args(0)} $this ${args(1)})${args.drop(2).map(_.mkStringSeparated).mkString})"
@@ -493,12 +502,12 @@ trait Syntax {
       if args.size == 0 then toString
       else
         args(0) match {
-          case Abs(v, e) => s"$id($v, $e)${args.drop(1).map(_.mkStringSeparated).mkString}"
+          case Abs(v, e) => s"$shortName($v, $e)${args.drop(1).map(_.mkStringSeparated).mkString}"
           case _ => defaultMkString(args)
         }
     mkStringSeparated = (args: Seq[Expr[?]]) =>
       args match {
-        case Seq(Abs(v, e)) => s"($id($v, $e))"
+        case Seq(Abs(v, e)) => s"($shortName($v, $e))"
         case _ => defaultMkStringSeparated(args)
       }
   }
