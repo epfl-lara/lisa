@@ -169,6 +169,35 @@ object Clausal:
    * instrumentation. An [[Bridge.Outcome.Success]] means `□` was derived (a refutation); the proof DAG is left
    * unwalked.
    */
-  def solveOutcome(problem: Clausification.Problem, maxGiven: Int = Int.MaxValue, maxMillis: Long = Long.MaxValue, equality: Boolean = true, fingerprintIndexing: Boolean = true, precedenceScheme: PrecedenceScheme = PrecedenceScheme.InvFrequency, onStats: Discount.LoopStats => Unit = _ => ()): Bridge.Outcome =
+  def solveOutcome(problem: Clausification.Problem, maxGiven: Int = Int.MaxValue, maxMillis: Long = Long.MaxValue, equality: Boolean = true, fingerprintIndexing: Boolean = true, precedenceScheme: PrecedenceScheme = PrecedenceScheme.InvFrequency, onStats: Discount.LoopStats => Unit = _ => (), goal: Set[Int] = Set.empty,
+      // ── portfolio strategy knobs (see Strategies.scala) ──
+      ageRatio: Int = 1, weightRatio: Int = 1, nonGoalWeightCoefficient: Int = 10,
+      selection: LiteralSelection = LiteralSelection.Complete, weightScheme: Core.WeightScheme = Core.WeightScheme.Const,
+      forwardSubsumptionResolution: Boolean = false, backwardSubsumptionResolution: Boolean = false, condensation: Boolean = false): Bridge.Outcome =
     val p = prepare(problem)
-    Bridge.solve(p.work, maxGiven, maxMillis, symbolVars = p.symbolVars, discharge = p.abs.dischargeSubst, equality = equality, fingerprintIndexing = fingerprintIndexing, precedenceScheme = precedenceScheme, onStats = onStats)
+    Bridge.solve(p.work, maxGiven, maxMillis, symbolVars = p.symbolVars, discharge = p.abs.dischargeSubst, equality = equality, fingerprintIndexing = fingerprintIndexing, precedenceScheme = precedenceScheme, onStats = onStats, goal = goal,
+      ageRatio = ageRatio, weightRatio = weightRatio, nonGoalWeightCoefficient = nonGoalWeightCoefficient, selection = selection, weightScheme = weightScheme,
+      forwardSubsumptionResolution = forwardSubsumptionResolution, backwardSubsumptionResolution = backwardSubsumptionResolution, condensation = condensation)
+
+  /**
+   * The pairwise **distinctness axioms** for TPTP distinct objects: `$da ≠ $db` for every two different
+   * distinct-object constants (`$d`-prefixed, introduced by [[lisa.tptp.KernelParser]] Fix B) occurring in
+   * `clauses`. TPTP distinct objects are pairwise distinct *by definition*, so these are the intended-semantics
+   * axioms — sound to add, and they let the prover exploit object distinctness that the uninterpreted-constant
+   * encoding otherwise misses (without them the treatment is merely incomplete).
+   *
+   * Returned as clause sequents in the clausifier's right-only convention — `∅ ⊢ ¬($da = $db)` — so they feed
+   * the solver and print identically to ordinary clauses. Added on the **solve** path (after clausification,
+   * before solving); they carry no derivation, so a CASC caller prints them with `inference(distinct, …, [])`.
+   */
+  def distinctObjectAxioms(clauses: Seq[K.Sequent]): IndexedSeq[K.Sequent] =
+    val objs = mutable.LinkedHashSet.empty[K.Constant]
+    def scan(e: K.Expression): Unit = e match
+      case K.Application(f, a) => scan(f); scan(a)
+      case K.Lambda(_, b)      => scan(b)
+      case c: K.Constant       => if c.id.name.startsWith("$d") then objs += c
+      case _                   => ()
+    clauses.foreach(s => { s.left.foreach(scan); s.right.foreach(scan) })
+    val os = objs.toIndexedSeq
+    (for i <- os.indices; j <- (i + 1) until os.size
+     yield K.Sequent(Set.empty, Set(K.neg(K.equality(os(i))(os(j)))))).toIndexedSeq

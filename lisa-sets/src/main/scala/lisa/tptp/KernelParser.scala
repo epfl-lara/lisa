@@ -90,7 +90,9 @@ object KernelParser {
     term match {
       case CNF.AtomicTerm(f, args) => K.multiapply(mapTerm(f, args.size))(args map convertTermToKernel)
       case CNF.Variable(name) => mapVariable(name)
-      case CNF.DistinctObject(name) => ???
+      // Fix B: a distinct object "..." → a plain nullary constant, `$d`-prefixed to avoid colliding with ordinary
+      // functors (the surrounding quotes are stripped so the two occurrences of the same object share a symbol).
+      case CNF.DistinctObject(name) => mapTerm("$d" + name.stripPrefix("\"").stripSuffix("\""), 0)
     }
 
   /**
@@ -104,8 +106,10 @@ object KernelParser {
         if (f.head == '$' && args.size == 0 && defctx(f.tail).isDefined) then defctx(f.tail).get
         else K.multiapply(mapTerm(f, args.size))(args map convertTermToKernel)
       case FOF.Variable(name) => mapVariable(name)
-      case FOF.DistinctObject(name) => ???
-      case FOF.NumberTerm(value) => ???
+      // Fix B: distinct objects and numeric literals → plain nullary constants, prefixed `$d` / `$n` so they never
+      // collide with ordinary functors (or each other). No arithmetic/distinctness axioms — sound, just uninterpreted.
+      case FOF.DistinctObject(name) => mapTerm("$d" + name.stripPrefix("\"").stripSuffix("\""), 0)
+      case FOF.NumberTerm(value) => mapTerm("$n" + value.pretty, 0)
       case FOF.QuantifiedTerm(quantifier, Seq(x), body) => K.epsilon(mapVariable(x), convertToKernel(body))
       case FOF.QuantifiedTerm(_, _, _) => throw Exception("Only epsilon is supported as term quantifier")
     }
@@ -209,15 +213,11 @@ object KernelParser {
   }
 
   def sanitize(s: String) =
-    val pieces = s.split("_")
-    val lead = pieces.init
-    val last = pieces.last
-    (if last.nonEmpty && last.forall(_.isDigit) && last.head != '0' then lead.mkString("$u") + "_" + last
-     else
-       pieces
-         .mkString("$u")
-    )
-      .replace(" ", "$s")
+    // Fix A: fold the whole identifier — numeric suffix included — into the *name*; never keep a trailing
+    // `_<digits>`. The String→Identifier conversion parses such a suffix into `Identifier.no` (an `Int`), which
+    // overflows on big SUMO ids like `c_bcase_3235139646`. `unsanitize` reverses `$u`/`$s` and ignores `no`, so
+    // escaping every `_` as `$u` round-trips just as well while keeping the whole id in the (unbounded) name.
+    s.split("_").mkString("$u").replace(" ", "$s")
 
   def unsanitize(s: String, no: Int): String =
     val r1 = s.replace("$u", "_").replace("$s", " ")

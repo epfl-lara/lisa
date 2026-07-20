@@ -168,6 +168,14 @@ gaps are in fact **already done** — listed first so the roadmap is honest.
   `CompleteBestLiteralSelector` (BG-complete, selector-10). **Default is `BestLiteralSelector`**
   ([Core.scala:178](Core.scala#L178)).
 - **KBO** term ordering with live per-symbol weight/precedence ([KBO.scala](KBO.scala), [Core.scala:77](Core.scala#L77)).
+- **KBO symbol-precedence generation** by **inverse frequency** (rare symbols large — Vampire's default), not interning
+  order, via `Precedence.assign` threaded through `Bridge` (`precedenceScheme`, default `InvFrequency`,
+  [Precedence.scala](Precedence.scala)). Was the weak occurrence-order default; now matches Vampire. *(Was "could do #1".)*
+- **Goal-directed clause weight** (Vampire's `nongoal_weight_coefficient`, default **10**): a clause **not** derived
+  from the goal has its weight-queue key ×10, so conjecture-derived clauses activate far earlier. `Clause.isGoal`
+  ([Core.scala](Core.scala)) is set for negated-conjecture input clauses and **OR-propagated** through every inference
+  in `mkClause` (the boolean reduction of Vampire's max over the input-type lattice); `Discount.selectionWeight` uses
+  it on the weight queue only. Threaded `CascProver → Clausal.solveOutcome → Bridge.solve(goal=…)`. *(Was "could do #2".)*
 - **Discount** saturation loop (active-only simplification), the cheaper of the two loop variants.
 - **Indexed simplification/generation:** fingerprint indices for resolution + backward demodulation, a
   **perfect discrimination tree** for forward demodulation, a **feature-vector index** for subsumption

@@ -44,6 +44,10 @@ final class Discount(
     trail: Trail,
     ageRatio: Int = 1,
     weightRatio: Int = 1,
+    // Goal-directed selection (Vampire's `nongoal_weight_coefficient`, default 10): a clause NOT derived from the
+    // goal has its weight-queue key multiplied by this, so goal-derived clauses are activated far earlier. With no
+    // goal clauses (no conjecture) every clause is scaled equally ⇒ no effect. Only the weight queue is biased.
+    nonGoalWeightCoefficient: Int = 10,
     factorAfterCheck: Boolean = false,
     forwardSubsumption: Boolean = true,
     backwardSubsumption: Boolean = true,
@@ -154,8 +158,11 @@ final class Discount(
   // Reversed for a min-heap (PriorityQueue is a max-heap): the lighter clause -- ties broken by the
   // smaller id, i.e. the older -- has the highest priority. A direct Int comparison, so no Tuple2 is
   // allocated (and no Int boxing) per heap comparison.
+  /** The weight-queue key: the raw clause weight, penalised by [[nonGoalWeightCoefficient]] unless the clause is
+   *  derived from the goal (Vampire's `nongoal_weight_coefficient`). Weights are small, so the product never overflows. */
+  private def selectionWeight(c: Clause): Int = if c.isGoal then c.weight else c.weight * nonGoalWeightCoefficient
   private val byWeightOrder: Ordering[Clause] = (a, b) =>
-    val w = Integer.compare(b.weight, a.weight)
+    val w = Integer.compare(selectionWeight(b), selectionWeight(a))
     if w != 0 then w else Integer.compare(b.id, a.id)
   private val byWeight: mutable.PriorityQueue[Clause] = new mutable.PriorityQueue[Clause]()(using byWeightOrder)
   private val livePassive: IntOpenHashSet = new IntOpenHashSet() // ids still in passive

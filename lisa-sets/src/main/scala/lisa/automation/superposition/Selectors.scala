@@ -16,6 +16,19 @@ import Core.*
 trait LiteralSelector:
   def select(bank: TermBank, literals: Array[Literal]): Array[Int]
 
+/** Which [[LiteralSelector]] a strategy uses — a portfolio axis. [[Complete]] and [[FirstNegative]] keep the
+ *  calculus BG-complete; [[BestLiteral]] is the incomplete greedy variant (Vampire's 1010), faster on many
+ *  problems but not refutation-complete. */
+enum LiteralSelection:
+  case FirstNegative, BestLiteral, Complete
+
+object LiteralSelection:
+  /** Build the concrete selector for `bank` (only [[CompleteBestLiteralSelector]] needs the order). */
+  def selector(kind: LiteralSelection, bank: TermBank): LiteralSelector = kind match
+    case FirstNegative => FirstNegativeSelector
+    case BestLiteral   => BestLiteralSelector
+    case Complete      => new CompleteBestLiteralSelector(bank.order)
+
 /** Shared empty selection (no literals -- e.g. the empty clause `□`); avoids per-call allocation. */
 private[superposition] val EmptySelection: Array[Int] = Array.empty[Int]
 

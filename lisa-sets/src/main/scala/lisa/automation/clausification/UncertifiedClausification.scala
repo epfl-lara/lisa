@@ -12,15 +12,16 @@ import Clausification.*
  */
 object UncertifiedClausification:
 
-  /** The conjecture-free clause set for `problem` (literal-set sequents), computed by [[FastClausify]] alone. */
-  def clausalForm(problem: Problem): Problem =
-    FastClausify.clausalForm(problem)
+  /** The conjecture-free clause set for `problem` (literal-set sequents), computed by [[FastClausify]] alone.
+   *  `orthologic` orthologic-normalises each axiom/¬conjecture (one `reducedNNFForm` step) before clausification. */
+  def clausalForm(problem: Problem, orthologic: Boolean = false): Problem =
+    FastClausify.clausalForm(problem, orthologic = orthologic)
 
   /** Like [[clausalForm]] but pairs each clause with the index of the source formula it was clausified from —
    *  an index into `hypotheses ++ [¬conjecture]` (so `hypotheses.size` is the negated conjecture). For proof
    *  printers that attribute each clause to its single origin formula. */
-  def clausalFormWithOrigins(problem: Problem): IndexedSeq[(Sequent, Int)] =
-    FastClausify.clausalFormWithOrigins(problem)
+  def clausalFormWithOrigins(problem: Problem, orthologic: Boolean = false): IndexedSeq[(Sequent, Int)] =
+    FastClausify.clausalFormWithOrigins(problem, orthologic = orthologic)
 
   /**
    * Compute the clausal form (uncertified) and hand it to `prover`, returning the prover's proof verbatim

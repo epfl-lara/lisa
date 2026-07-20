@@ -67,6 +67,16 @@ object Core:
   /** Default Knuth-Bendix weight given to a freshly interned symbol. */
   val defaultSymbolWeight: Int = 1
 
+  /** KBO symbol-**weight** generation scheme (Phase-5 heuristics; the weight twin of [[PrecedenceScheme]]).
+   *  Applied at **intern time** — term weights are cached when terms are built, so the scheme must be fixed
+   *  on the [[Signature]] before any clause is constructed. */
+  enum WeightScheme:
+    /** All symbols weight [[defaultSymbolWeight]] (KBO `const` — Vampire's default and our historical one). */
+    case Const
+    /** `weight = arity + 1` (E's `arity` scheme): constants get `1 = VariableWeight` (admissible), so terms
+     *  built from higher-arity symbols weigh more. */
+    case Arity
+
   /**
    * The data for one interned symbol: immutable identity (`name`, `arity`, kind) and the
    * mutable ordering parameters used by KBO (`weight` and `precedence`). One instance is
@@ -91,7 +101,7 @@ object Core:
    * The default precedence is the interning order; both weight and precedence can be
    * reassigned afterwards (e.g. once the whole problem signature is known).
    */
-  final class Signature:
+  final class Signature(weightScheme: WeightScheme = WeightScheme.Const):
     private val infos: mutable.ArrayBuffer[SymbolInfo] = mutable.ArrayBuffer.empty[SymbolInfo]
     private val index: mutable.HashMap[(String, Int), Symbol] = mutable.HashMap.empty[(String, Int), Symbol]
 
@@ -103,6 +113,9 @@ object Core:
       index.getOrElseUpdate(
         (name, arity), {
           val info: SymbolInfo = new SymbolInfo(infos.length, name, arity, isPredicate)
+          info.weight = weightScheme match
+            case WeightScheme.Const => defaultSymbolWeight
+            case WeightScheme.Arity => arity + 1
           infos += info
           info.id
         }
@@ -303,7 +316,7 @@ object Core:
      * caches the clause weight (sum of literal weights) and assigns a fresh id. The empty
      * clause (`Array.empty`) denotes falsity.
      */
-    def mkClause(lits: Array[Literal], justification: Justification = Justification.Input): Clause =
+    def mkClause(lits: Array[Literal], justification: Justification = Justification.Input, goalInput: Boolean = false): Clause =
       var w = 0
       var pos = 0
       var predBits = 0L
@@ -325,7 +338,18 @@ object Core:
         case Justification.EqualityResolution(p, _) => p.age + 1
         case Justification.EqualityFactoring(p, _, _, _, _) => p.age + 1
         case Justification.Demodulation(t, _, _, ru, _) => math.max(t.age, ru.age) // simplification: same generation band
-      new Clause(lits, w, id, justification, age, pos, lits.length - pos, predBits)
+      // Goal-ness propagates as the OR over premises (an input clause's is set by the caller) — the boolean
+      // reduction of Vampire's `max` over the input-type lattice (see `derivedFromGoal`).
+      val goal: Boolean = justification match
+        case Justification.Input => goalInput
+        case Justification.Resolution(l, _, r, _) => l.isGoal || r.isGoal
+        case Justification.Factoring(p, _, _) => p.isGoal
+        case Justification.Canonicalization(p) => p.isGoal
+        case Justification.Superposition(f, _, _, in, _, _) => f.isGoal || in.isGoal
+        case Justification.EqualityResolution(p, _) => p.isGoal
+        case Justification.EqualityFactoring(p, _, _, _, _) => p.isGoal
+        case Justification.Demodulation(t, _, _, ru, _) => t.isGoal || ru.isGoal
+      new Clause(lits, w, id, justification, age, pos, lits.length - pos, predBits, goal)
 
     // --- internals ------------------------------------------------------------------------
 
@@ -364,9 +388,10 @@ object Core:
 
     /** Structural equality of two records by reading the arena (functor+arity, then children). */
     private def equalRecords(a: Term, b: Term): Boolean =
-      if mem(a) != mem(b) then false // packs functor + arity, so this compares both at once
+      val ha: Long = mem(a)
+      if ha != mem(b) then false // packs functor + arity, so this compares both at once
       else
-        val n: Int = (mem(a) >>> 32).toInt
+        val n: Int = (ha >>> 32).toInt
         var i = 0
         while i < n do
           if mem(a + HeaderWords + i) != mem(b + HeaderWords + i) then return false
@@ -487,7 +512,10 @@ object Core:
       val age: Int,
       val posCount: Int,
       val negCount: Int,
-      val predBits: Long):
+      val predBits: Long,
+      /** Derived from the goal (negated conjecture): true for a goal input clause and for any clause with a goal
+       *  parent. Used for goal-directed clause selection (Vampire's `nongoal_weight_coefficient`). */
+      val isGoal: Boolean):
     private var _selected: Array[Int] = null
 
     /**
@@ -578,8 +606,9 @@ object Core:
         val h: Int = bank.functor(ct) // single header read; < 0 means a variable
         if h < 0 then
           val v: Variable = decodeVar(h)
-          if v < boundTerm(cs).length && boundTerm(cs)(v) >= 0 then // v is bound
-            ct = boundTerm(cs)(v)
+          val bt: Array[Term] = boundTerm(cs) // stable within this deref (no bind happens here)
+          if v < bt.length && bt(v) >= 0 then // v is bound
+            ct = bt(v)
             cs = boundScope(cs)(v)
           else more = false
         else more = false
@@ -738,7 +767,8 @@ object Core:
         if bank.isVar(dt) then bank.mkVar(outVars.getOrElseUpdate((ds, bank.varNum(dt)), outVars.size))
         else if bank.isGround(dt) then dt
         else
-          val cached: Term = memo(ds).get(dt)
+          val m: Int2IntOpenHashMap = memo(ds)
+          val cached: Term = m.get(dt)
           if cached != -1 then cached
           else
             val n: Int = bank.arity(dt)
@@ -748,7 +778,7 @@ object Core:
               out(i) = apply(bank.arg(dt, i), ds)
               i += 1
             val res: Term = bank.mkApp(bank.headSymbol(dt), out)
-            memo(ds).put(dt, res)
+            m.put(dt, res)
             res
 
       /** Instantiate a whole literal in scope `s` under the current bindings, preserving its polarity. */

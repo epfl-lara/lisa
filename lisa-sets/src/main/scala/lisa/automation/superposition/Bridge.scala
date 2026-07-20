@@ -109,15 +109,24 @@ object Bridge:
       symbolVars: Set[K.Variable] = Set.empty,
       // Phase-3 discharge: each abstraction symbol `F` ↦ its closed value `λfv. e`; when non-empty,
       // reconstruction inlines `F` back to `e` so the produced proof contains the original (ε-)terms, not `F`.
-      discharge: Map[K.Variable, K.Expression] = Map.empty): Outcome =
-    val sig: Signature = new Signature
+      discharge: Map[K.Variable, K.Expression] = Map.empty,
+      // Indices (into `sequents`) of the goal input clauses (the negated conjecture), for goal-directed clause
+      // selection. Goal-ness propagates through inferences; empty ⇒ no goal bias (e.g. a conjecture-free problem).
+      goal: Set[Int] = Set.empty,
+      // ── portfolio strategy knobs (bundled by Strategies.scala) ──
+      ageRatio: Int = 1,
+      weightRatio: Int = 1,
+      nonGoalWeightCoefficient: Int = 10,
+      selection: LiteralSelection = LiteralSelection.Complete,
+      weightScheme: WeightScheme = WeightScheme.Const): Outcome =
+    val sig: Signature = new Signature(weightScheme)
     val bank: TermBank = new TermBank(sig)
     val trail: Trail = new Trail(bank)
-    bank.selector = new CompleteBestLiteralSelector(bank.order)
+    bank.selector = LiteralSelection.selector(selection, bank)
     val inputs = mutable.Map.empty[Int, Reconstruction.InputInfo]
-    val clauses: Seq[Clause] = sequents.iterator.map { s =>
+    val clauses: Seq[Clause] = sequents.iterator.zipWithIndex.map { (s, i) =>
       val vars = mutable.HashMap.empty[K.Variable, Int]
-      val c = clauseOfSequent(bank, s, vars, symbolVars)
+      val c = clauseOfSequent(bank, s, vars, symbolVars, goalInput = goal.contains(i))
       inputs(c.id) = (s, vars.iterator.map((kv, n) => n -> kv).toMap)
       c
     }.toSeq
@@ -138,6 +147,9 @@ object Bridge:
     val discount = new Discount(
       bank,
       trail,
+      ageRatio = ageRatio,
+      weightRatio = weightRatio,
+      nonGoalWeightCoefficient = nonGoalWeightCoefficient,
       forwardSubsumption = forwardSubsumption,
       backwardSubsumption = backwardSubsumption,
       forwardUnitDeletion = forwardUnitDeletion,
@@ -205,11 +217,11 @@ object Bridge:
 
   /** As above, but threads a caller-owned variable map (kernel variable → internal number) for reconstruction
    *  and the set of `symbolVars` (schematic variables treated as predicate/function symbols, not variables). */
-  private def clauseOfSequent(bank: TermBank, seq: K.Sequent, vars: mutable.HashMap[K.Variable, Int], symbolVars: Set[K.Variable]): Clause =
+  private def clauseOfSequent(bank: TermBank, seq: K.Sequent, vars: mutable.HashMap[K.Variable, Int], symbolVars: Set[K.Variable], goalInput: Boolean = false): Clause =
     val lits: List[Literal] =
       seq.left.toList.map(f => literal(bank, vars, f, positive = false, symbolVars)) :::
         seq.right.toList.map(f => literal(bank, vars, f, positive = true, symbolVars))
-    bank.mkClause(lits.toArray)
+    bank.mkClause(lits.toArray, goalInput = goalInput)
 
 
   /** A clause formula `∀…(l₁ ∨ … ∨ lₙ)` as a sequent: negative literals on the left, positive on the right. */

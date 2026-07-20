@@ -126,16 +126,18 @@ object Superposition:
         val pos: Array[Int] = uPos.toIntArray // materialise the position only now that the inference fires
         val newAtom: Term = replaceAt(bank, intoAtomS, pos, rS)
         if bank.isPositive(intoLit) && order.isEqualityAtom(newAtom) && bank.arg(newAtom, 0) == bank.arg(newAtom, 1) then None
-        else // committed: instantiate the remaining literals and fill a pre-sized array (size known upfront)
-          val intoLitsS: Array[Literal] = into.literals.map(ap.applyLit(_, 1))
-          val fromLitsS: Array[Literal] = from.literals.map(ap.applyLit(_, 0))
+        else // committed: instantiate the kept literals straight into a pre-sized array (size known upfront).
+          // The dropped literals (`iInto`, `iFrom`) are skipped: `iInto`'s variables were all registered via
+          // `intoAtomS` and `iFrom`'s (its atom is exactly `l = r`) via `lS`/`rS` above, so the output variable
+          // numbering is identical to applying them — this just avoids two throwaway arrays and instantiating
+          // the two literals we discard.
           val out: Array[Literal] = new Array[Literal](into.literals.length + from.literals.length - 1)
           out(0) = bank.mkLiteral(newAtom, bank.isPositive(intoLit))
           var n = 1
           var k = 0
-          while k < into.literals.length do { if k != iInto then { out(n) = intoLitsS(k); n += 1 }; k += 1 }
+          while k < into.literals.length do { if k != iInto then { out(n) = ap.applyLit(into.literals(k), 1); n += 1 }; k += 1 }
           k = 0
-          while k < from.literals.length do { if k != iFrom then { out(n) = fromLitsS(k); n += 1 }; k += 1 }
+          while k < from.literals.length do { if k != iFrom then { out(n) = ap.applyLit(from.literals(k), 0); n += 1 }; k += 1 }
           Some(bank.mkClause(out, Justification.Superposition(from, iFrom, fromSide, into, iInto, pos)))
 
   /**

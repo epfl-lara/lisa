@@ -63,19 +63,23 @@ private[clausification] object FastClausify:
 
   /** Clausal form of `problem`, mirroring [[UncertifiedClausification.clausalForm]]'s conjecture handling
    *  (append `¬conjecture` as the last hypothesis) but with the single-pass pipeline. */
-  def clausalForm(problem: Problem, threshold: Int = DefaultThreshold): Problem =
-    Problem(clausalFormWithOrigins(problem, threshold).map(_._1).toList, None)
+  def clausalForm(problem: Problem, threshold: Int = DefaultThreshold, orthologic: Boolean = false): Problem =
+    Problem(clausalFormWithOrigins(problem, threshold, orthologic).map(_._1).toList, None)
 
   /** Like [[clausalForm]] but pairs each clause with the **index of the source formula it was clausified from** —
    *  an index into `hypotheses ++ [¬conjecture]` (so `hypotheses.size` denotes the negated conjecture). Lets a
    *  proof-printing front-end attribute every clause to its single origin axiom. */
-  def clausalFormWithOrigins(problem: Problem, threshold: Int = DefaultThreshold): IndexedSeq[(Sequent, Int)] =
+  def clausalFormWithOrigins(problem: Problem, threshold: Int = DefaultThreshold, orthologic: Boolean = false): IndexedSeq[(Sequent, Int)] =
     val hyps0: IndexedSeq[Sequent] = problem.conjecture match
       case Some(c) => problem.hypotheses.toIndexedSeq :+ (() |- neg(singleRightFormula(c, "conjecture")))
       case None    => problem.hypotheses.toIndexedSeq
     val counter = Counter()
     hyps0.zipWithIndex.flatMap { (h, origin) =>
-      clausify(singleRightFormula(h, "hypothesis"), threshold, counter).map(lits => (Sequent(Set.empty, lits), origin))
+      // `orthologic`: after negating the conjecture (done in `hyps0`) but before naming + clausification, replace
+      // each axiom / negated conjecture by its orthologic normal form — exactly one `reducedNNFForm` step each.
+      val f0 = singleRightFormula(h, "hypothesis")
+      val f  = if orthologic then reducedNNFForm(f0) else f0
+      clausify(f, threshold, counter).map(lits => (Sequent(Set.empty, lits), origin))
     }
 
   // ── selective naming (definitional CNF) ────────────────────────────────────────────────────────
