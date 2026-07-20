@@ -1,13 +1,11 @@
 package lisa.automation.superposition
 
 import java.io.File
-import java.util.concurrent.atomic.AtomicReference
-import scala.util.{Try, Success, Failure}
+import scala.util.{Success, Failure}
 
-import lisa.utils.K
-import lisa.tptp.{AnnotatedFormula, AnnotatedSequent}
-import lisa.tptp.KernelParser.{axiomLikeRoles, problemToKernel, strictMapAtom, strictMapTerm, strictMapVariable}
+import lisa.tptp.KernelParser.{problemToKernel, strictMapAtom, strictMapTerm, strictMapVariable}
 import lisa.automation.clausification.{Clausification, UncertifiedClausification}
+import BenchUtil.{withTimeout, toClausificationProblem}
 
 /**
  * Strategy-comparison harness. Runs one or more named [[Strategy]] over the seeded FOF sample
@@ -60,7 +58,7 @@ object StrategyEvaluation:
        catch { case e: Throwable => Failure(e) }) match
         case Failure(_) => "PARSE_ERR"
         case Success(parsed) =>
-          val cprob = toProblem(parsed)
+          val cprob = toClausificationProblem(parsed)
           // Per-invocation SInE gate — exactly the CascProver logic (self-decided, nothing shared).
           val pruned = strat.sine match
             case Some(cfg) if SinePolicy.shouldFilter(cprob, SinePolicy.Params()) => Sine.select(cprob, cfg)
@@ -81,28 +79,9 @@ object StrategyEvaluation:
     println(f"$name%-22s $cat%-18s ${(System.nanoTime() - t0) / 1e6}%8.0f")
     cat
 
-  /** Pull hypotheses + conjecture from a parsed TPTP problem (axiom-like roles → hypotheses). */
-  private def toProblem(p: lisa.tptp.Problem): Clausification.Problem =
-    val hyps = p.formulas.collect {
-      case f: AnnotatedFormula if axiomLikeRoles.contains(f.role) => K.Sequent(Set.empty, Set(f.formula))
-      case s: AnnotatedSequent if axiomLikeRoles.contains(s.role) => s.sequent
-    }
-    val conj = p.formulas.collectFirst {
-      case f: AnnotatedFormula if f.role == "conjecture" => K.Sequent(Set.empty, Set(f.formula))
-      case s: AnnotatedSequent if s.role == "conjecture" => s.sequent
-    }
-    Clausification.Problem(hyps, conj)
-
   private def report(name: String, cats: Seq[String], total: Int): String =
     def c(p: String => Boolean): Int = cats.count(p)
     val s = f"[$name] refuted=${c(_ == "REFUTED")}%3d  saturated=${c(_ == "SATURATED")}%3d  timeout=${c(_ == "TIMEOUT")}%3d  " +
       f"hard_timeout=${c(_ == "HARD_TIMEOUT")}%2d  error=${c(_.startsWith("ERROR"))}%2d  parse_err=${c(_ == "PARSE_ERR")}%3d  missing=${c(_ == "MISSING")}%2d  of $total"
     println(s); s
 
-  /** Run `body` on a daemon thread; return its outcome, or `None` if it doesn't finish within `ms`. */
-  private def withTimeout[T](ms: Long)(body: => T): Option[Try[T]] =
-    val box = new AtomicReference[Option[Try[T]]](None)
-    val th = new Thread(() => box.set(Some(Try(body))))
-    th.setDaemon(true); th.start(); th.join(ms)
-    if th.isAlive then th.interrupt()
-    box.get()

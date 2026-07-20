@@ -1,7 +1,6 @@
 package lisa.automation.superposition
 
 import Core.*
-import scala.collection.mutable
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap
 
 /**

@@ -3,7 +3,7 @@ package lisa.automation.superposition
 import scala.collection.mutable
 
 import lisa.utils.K
-import lisa.tptp.{Problem, AnnotatedStatement, AnnotatedFormula, AnnotatedSequent}
+import lisa.tptp.{Problem, AnnotatedFormula, AnnotatedSequent}
 
 import Core.*
 
@@ -212,11 +212,9 @@ object Bridge:
   // variable numbering (0, 1, …), since clause variables are independent.
   // -----------------------------------------------------------------------------------------
 
-  private def clauseOfSequent(bank: TermBank, seq: K.Sequent): Clause =
-    clauseOfSequent(bank, seq, mutable.HashMap.empty[K.Variable, Int], Set.empty)
-
-  /** As above, but threads a caller-owned variable map (kernel variable → internal number) for reconstruction
-   *  and the set of `symbolVars` (schematic variables treated as predicate/function symbols, not variables). */
+  /** Convert a kernel sequent (`left ⊢ right` = the clause `¬left ∨ right`) to an internal clause, threading a
+   *  caller-owned variable map (kernel variable → internal number) for reconstruction and the set of `symbolVars`
+   *  (schematic variables treated as predicate/function symbols, not variables). */
   private def clauseOfSequent(bank: TermBank, seq: K.Sequent, vars: mutable.HashMap[K.Variable, Int], symbolVars: Set[K.Variable], goalInput: Boolean = false): Clause =
     val lits: List[Literal] =
       seq.left.toList.map(f => literal(bank, vars, f, positive = false, symbolVars)) :::

@@ -1,11 +1,12 @@
 package lisa.automation.superposition
 
 import java.io.File
-import scala.util.{Try, Success, Failure}
+import scala.util.{Success, Failure}
 
 import lisa.utils.K
 import lisa.tptp.KernelParser.{problemToKernel, problemToSequent, strictMapAtom, strictMapTerm, strictMapVariable}
 import lisa.automation.Tableau
+import BenchUtil.withTimeout
 
 /**
  * Baseline comparison harness (NOT a test -- it has a `main`): runs Lisa's existing `Tableau` tactic
@@ -84,12 +85,3 @@ object TableauComparison:
     )
     println(s"\nSOLVED: tableau=${c("SOLVED")} / $total")
 
-  /** Run `body` on a daemon thread, returning its outcome, or `None` if it does not finish within `ms`. */
-  private def withTimeout[T](ms: Long)(body: => T): Option[Try[T]] =
-    val box = new java.util.concurrent.atomic.AtomicReference[Option[Try[T]]](None)
-    val th = new Thread(() => box.set(Some(Try(body))))
-    th.setDaemon(true)
-    th.start()
-    th.join(ms)
-    if th.isAlive then th.interrupt()
-    box.get()

@@ -19,7 +19,7 @@ import Core.*
  * bounds the work otherwise.
  *
  * Phase-2 simplification adds θ-**subsumption** (via [[Subsumption.subsumes]]) and **unit deletion** (the
- * unit case of subsumption resolution, via [[Subsumption.unitDeletionResolvent]]), both against the active
+ * unit case of subsumption resolution — [[Subsumption.subsumptionResolutionResolvent]] on a unit side clause), both against the active
  * set only (passive-redundant clauses are caught lazily when selected). One combined scan per direction:
  * *forward* (in [[forwardSimplify]]) discards or shrinks a new/just-selected clause; *backward* (in
  * [[backwardSimplify]]) deletes or shrinks active clauses, run before the given joins active. Subsumption

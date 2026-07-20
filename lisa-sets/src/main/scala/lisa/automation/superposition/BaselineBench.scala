@@ -2,13 +2,13 @@ package lisa.automation.superposition
 
 import java.io.File
 import java.util.concurrent.atomic.AtomicReference
-import scala.util.{Try, Success, Failure, Using}
+import scala.util.{Success, Failure, Using}
 
 import lisa.utils.K
-import lisa.tptp.{AnnotatedFormula, AnnotatedSequent}
-import lisa.tptp.KernelParser.{axiomLikeRoles, problemToKernel, strictMapAtom, strictMapTerm, strictMapVariable}
+import lisa.tptp.KernelParser.{problemToKernel, strictMapAtom, strictMapTerm, strictMapVariable}
 import lisa.automation.clausification.{Clausification, UncertifiedClausification}
 import lisa.automation.clausification.Clausification.problemSize
+import BenchUtil.{withTimeout, toClausificationProblem}
 
 /**
  * A uniform, **reconstruction-free** throughput baseline across all three evaluation datasets (the clausal
@@ -202,24 +202,3 @@ object BaselineBench:
     val s = stats.get
     Row("", cat, clausifyMs, proverMs, s.givenProcessed, s.passiveEnqueued)
 
-  /** Pull hypotheses + conjecture from a parsed TPTP problem (axiom-like roles → LHS-free hypotheses). */
-  private def toClausificationProblem(p: lisa.tptp.Problem): Clausification.Problem =
-    val hyps = p.formulas.collect {
-      case f: AnnotatedFormula if axiomLikeRoles.contains(f.role) => K.Sequent(Set.empty, Set(f.formula))
-      case s: AnnotatedSequent if axiomLikeRoles.contains(s.role) => s.sequent
-    }
-    val conj = p.formulas.collectFirst {
-      case f: AnnotatedFormula if f.role == "conjecture" => K.Sequent(Set.empty, Set(f.formula))
-      case s: AnnotatedSequent if s.role == "conjecture" => s.sequent
-    }
-    Clausification.Problem(hyps, conj)
-
-  /** Run `body` on a daemon thread; return its outcome, or `None` if it doesn't finish within `ms`. */
-  private def withTimeout[T](ms: Long)(body: => T): Option[Try[T]] =
-    val box = new AtomicReference[Option[Try[T]]](None)
-    val th = new Thread(() => box.set(Some(Try(body))))
-    th.setDaemon(true)
-    th.start()
-    th.join(ms)
-    if th.isAlive then th.interrupt()
-    box.get()

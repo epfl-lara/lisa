@@ -4,8 +4,8 @@ import java.io.File
 import scala.util.{Try, Success, Failure, Using}
 
 import lisa.utils.K
-import lisa.tptp.Problem
 import lisa.tptp.KernelParser.{problemToKernel, strictMapAtom, strictMapTerm, strictMapVariable}
+import BenchUtil.withTimeout
 
 /**
  * Performance-evaluation harness for the Phase-1 resolution prover (NOT a test -- it has a `main`).
@@ -286,15 +286,6 @@ object Evaluation:
           listFileName
         ).map(new File(_))
     candidates.find(_.isFile)
-
-  /** Run `body` on a daemon thread, returning its outcome, or `None` if it does not finish within `ms`. */
-  private def withTimeout[T](ms: Long)(body: => T): Option[Try[T]] =
-    val box = new java.util.concurrent.atomic.AtomicReference[Option[Try[T]]](None)
-    val th = new Thread(() => box.set(Some(Try(body))))
-    th.setDaemon(true)
-    th.start()
-    th.join(ms)
-    box.get()
 
   /** First TPTP header value for `key` (e.g. `"SPC"`), read from the leading `% key : value` comments. */
   private def header(f: File, key: String): Option[String] =

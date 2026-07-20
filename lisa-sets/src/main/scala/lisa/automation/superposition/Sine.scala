@@ -2,7 +2,7 @@ package lisa.automation.superposition
 
 import scala.collection.mutable
 
-import lisa.utils.K.{_, given}
+import lisa.utils.K.*
 import lisa.automation.clausification.Clausification
 
 /**

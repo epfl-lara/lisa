@@ -1,14 +1,13 @@
 package lisa.automation.superposition
 
 import java.io.File
-import java.util.concurrent.atomic.AtomicReference
-import scala.util.{Try, Success, Failure, Using}
+import scala.util.{Success, Failure, Using}
 
 import lisa.utils.K
-import lisa.tptp.{AnnotatedFormula, AnnotatedSequent}
-import lisa.tptp.KernelParser.{axiomLikeRoles, problemToKernel, strictMapAtom, strictMapTerm, strictMapVariable}
+import lisa.tptp.KernelParser.{problemToKernel, strictMapAtom, strictMapTerm, strictMapVariable}
 import lisa.automation.clausification.{Clausification, UncertifiedClausification}
 import lisa.automation.clausification.Clausification.problemSize
+import BenchUtil.{withTimeout, toClausificationProblem, median}
 
 /**
  * The third evaluation dataset + harness: non-clausal (FOF), first-order, **equality-bearing**,
@@ -189,7 +188,7 @@ object EqFofEvaluation:
 
   /** Run the (un)certified pipeline once, timing each phase. The prover is timed from **inside** its closure
    *  (accumulated nanos), so clausification time = total − prover even though `certifyClausal` calls the prover
-   *  mid-descent (CPS). Runs on the worker thread inside [[withTimeout]]. */
+   *  mid-descent (CPS). Runs on the worker thread inside [[BenchUtil.withTimeout]]. */
   private def solveOne(cprob: Clausification.Problem, timeoutMs: Long, maxGiven: Int, certified: Boolean, equality: Boolean = true, fingerprintIndexing: Boolean = true): Timing =
     val proverNanos = new java.util.concurrent.atomic.AtomicLong(0L)
     val stats = new java.util.concurrent.atomic.AtomicReference[Discount.LoopStats](Discount.LoopStats(0, 0, 0, 0))
@@ -223,29 +222,6 @@ object EqFofEvaluation:
     val s = stats.get
     base.copy(givenProcessed = s.givenProcessed, peakActive = s.peakActive, peakPassive = s.peakPassive)
 
-  /** Pull hypotheses + conjecture from a parsed TPTP problem (axiom-like roles → LHS-free hypotheses). */
-  private def toClausificationProblem(p: lisa.tptp.Problem): Clausification.Problem =
-    val hyps = p.formulas.collect {
-      case f: AnnotatedFormula if axiomLikeRoles.contains(f.role) => K.Sequent(Set.empty, Set(f.formula))
-      case s: AnnotatedSequent if axiomLikeRoles.contains(s.role) => s.sequent
-    }
-    val conj = p.formulas.collectFirst {
-      case f: AnnotatedFormula if f.role == "conjecture" => K.Sequent(Set.empty, Set(f.formula))
-      case s: AnnotatedSequent if s.role == "conjecture" => s.sequent
-    }
-    Clausification.Problem(hyps, conj)
-
-  /** Run `body` on a daemon thread; return its outcome, or `None` if it doesn't finish within `ms` (the
-   *  worker is interrupted best-effort so the cooperatively-polling clausifier/solver can unwind). */
-  private def withTimeout[T](ms: Long)(body: => T): Option[Try[T]] =
-    val box = new AtomicReference[Option[Try[T]]](None)
-    val th = new Thread(() => box.set(Some(Try(body))))
-    th.setDaemon(true)
-    th.start()
-    th.join(ms)
-    if th.isAlive then th.interrupt()
-    box.get()
-
   /** Aggregate the per-problem categories + phase timings into the summary. */
   private def report(rows: Seq[Timing], total: Int): Unit =
     def count(pred: String => Boolean): Int = rows.count(r => pred(r.category))
@@ -266,7 +242,6 @@ object EqFofEvaluation:
           f"maxActive=${ran.map(_.peakActive).max}%d  maxPassive=${ran.map(_.peakPassive).max}%d  (over ${ran.size} runs that reached the prover)"
       )
 
-    def median(xs: Seq[Double]): Double = if xs.isEmpty then 0.0 else xs.sorted.apply(xs.size / 2)
     def phase(label: String, xs: Seq[Double]): Unit =
       if xs.nonEmpty then println(f"  $label%-9s total=${xs.sum}%8.0f  avg=${xs.sum / xs.size}%7.1f  median=${median(xs)}%7.1f  max=${xs.max}%8.1f ms")
 
