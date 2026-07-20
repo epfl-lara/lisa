@@ -77,6 +77,13 @@ lazy val sets = Project(
     libraryDependencies += "org.apache.commons" % "commons-math3" % "3.6.1",
     libraryDependencies += "it.unimi.dsi" % "fastutil-core" % "8.5.15"
   )
+  .settings(
+    // Executable fat-jar for CASC. `sbt lisa-sets/assembly` → lisa-sets/target/scala-3.7.2/casc-prover.jar,
+    // run as `java -jar casc-prover.jar [-t <seconds>] [--strategy <name>] <problem.p>` (the superposition
+    // CASC entry point). Merge strategy is set ThisBuild-wide above.
+    assembly / mainClass := Some("lisa.automation.superposition.CascProver"),
+    assembly / assemblyJarName := "casc-prover.jar"
+  )
   .dependsOn(kernel, withTests(utils))
 lazy val utils = Project(
   id = "lisa-utils",
