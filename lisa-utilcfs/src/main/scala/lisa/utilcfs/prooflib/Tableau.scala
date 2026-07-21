@@ -115,17 +115,16 @@ object Tableau extends SequentTactic, PremiseSequentTactic, DerivedFromPremises:
       .map(variable => variable -> K.Variable(K.Identifier(variable.id.name, variable.id.no + branch.maxIndex + 1), K.Ind))
       .toMap
     val inverse = renamed.map(_.swap)
-    val positives = branch.atoms._1.iterator.map(K.substituteVariables(_, renamed))
-    val candidates = List.newBuilder[(Substitution, Set[K.Expression])]
+    if branch.atoms._1.contains(K.bot) then return Some(Substitution.empty -> Set(K.bot))
 
-    while positives.hasNext do
-      val positive = positives.next()
-      if positive == K.bot then return Some(Substitution.empty -> Set(K.bot))
-      branch.atoms._2.foreach: negative =>
-        unifyPred(positive, negative, branch).foreach: substitution =>
-          candidates += substitution -> Set(positive, K.neg(negative))
+    val candidates = branch.atoms._1.reverseIterator
+      .map(K.substituteVariables(_, renamed))
+      .flatMap: positive =>
+        branch.atoms._2.reverseIterator.flatMap: negative =>
+          unifyPred(positive, negative, branch).iterator
+            .map(substitution => substitution -> Set(positive, K.neg(negative)))
 
-    val normalized = candidates.result().map: (substitution, formulas) =>
+    val normalized = candidates.map: (substitution, formulas) =>
       val cleaned = substitution.flatMap: (variable, term) =>
         if variable.id.no > branch.maxIndex then
           inverse.get(variable).flatMap: original =>
@@ -141,7 +140,7 @@ object Tableau extends SequentTactic, PremiseSequentTactic, DerivedFromPremises:
       branch
     )
 
-  def bestSubst(substitutions: List[(Substitution, Set[K.Expression])], branch: Branch): Option[(Substitution, Set[K.Expression])] =
+  def bestSubst(substitutions: Iterator[(Substitution, Set[K.Expression])], branch: Branch): Option[(Substitution, Set[K.Expression])] =
     substitutions.minByOption: (substitution, _) =>
       substitution.size -> substitutionScore(substitution, branch)
 
