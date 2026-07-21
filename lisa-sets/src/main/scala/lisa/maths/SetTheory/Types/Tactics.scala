@@ -1,7 +1,6 @@
 package lisa.maths.SetTheory.Types
 
 import lisa.SetTheoryLibrary
-import lisa.utils.K
 import lisa.maths.SetTheory.Base.Subset.doubleInclusion
 import lisa.maths.SetTheory.Base.Subset.reflexivity
 import lisa.maths.SetTheory.Base.Subset.transitivity
@@ -9,8 +8,9 @@ import lisa.maths.SetTheory.Cardinal.Predef.isUniverse
 import lisa.maths.SetTheory.Cardinal.Predef.universeOf
 import lisa.maths.SetTheory.Cardinal.Predef.universeOfIsUniverse
 import lisa.maths.SetTheory.Functions.Predef._
+import lisa.utils.K
 import lisa.utils.fol.{FOL => F}
-import lisa.utils.prooflib.Exports.*
+import lisa.utils.prooflib.Exports._
 import lisa.utils.prooflib.ProofJudgement
 import lisa.utils.prooflib.Subproof
 import lisa.utils.prooflib.TacticHelpers.failWith

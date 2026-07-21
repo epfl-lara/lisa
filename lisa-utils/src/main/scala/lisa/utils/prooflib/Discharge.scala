@@ -1,12 +1,11 @@
 package lisa.utils.prooflib
 
 import lisa.utils.K
-import lisa.utils.fol.FOL.*
+import lisa.utils.fol.FOL._
 
 object Discharge:
   private def dischargeOne(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(current: Thm, discharge: Thm): Either[ProofError, Thm] =
-    if discharge.statement.right.size != 1 then
-      Left(SoftError("Discharge premises must have exactly one right formula.", file, line))
+    if discharge.statement.right.size != 1 then Left(SoftError("Discharge premises must have exactly one right formula.", file, line))
     else
       val formula = discharge.statement.right.head
       current.statement.left.find(isSame(_, formula)) match

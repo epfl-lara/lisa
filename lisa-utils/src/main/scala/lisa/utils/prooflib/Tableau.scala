@@ -1,25 +1,31 @@
 package lisa.utils.prooflib
 
 import lisa.utils.K
-import lisa.utils.fol.FOL.*
-import lisa.utils.prooflib.ProofHelpers.{PremiseSequentTactic, SequentTactic}
+import lisa.utils.fol.FOL._
+import lisa.utils.prooflib.ProofHelpers.PremiseSequentTactic
+import lisa.utils.prooflib.ProofHelpers.SequentTactic
 
 import scala.collection.immutable.HashMap
 
-/** First-order semantic tableau with proof-producing branch reconstruction. */
+/**
+ * First-order semantic tableau with proof-producing branch reconstruction.
+ */
 object Tableau extends SequentTactic, PremiseSequentTactic, DerivedFromPremises:
   protected def prove(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premises: Seq[Thm]): ProofJudgement =
     Tautology.proveFromPremises(conclusion.underlying, premises.map(_.kernel)): statement =>
-      solve(statement).toRight("Could not prove the statement by tableau.")
-    match
+      solve(statement).toRight("Could not prove the statement by tableau.") match
       case Right(theorem) => ProofJudgement(Thm(conclusion, theorem))
       case Left(message) => ProofCarrier(Set(SoftError(message, file, line)), conclusion, None, ())
 
-  /** Searches for a theorem of a front sequent. */
+  /**
+   * Searches for a theorem of a front sequent.
+   */
   def solve(using library: Library)(sequent: Sequent): Option[Thm] =
     solve(sequent.underlying).map(Thm(sequent, _))
 
-  /** Searches for a theorem of a kernel sequent. */
+  /**
+   * Searches for a theorem of a kernel sequent.
+   */
   def solve(using library: Library)(sequent: K.Sequent): Option[K.Thm] =
     val formulas = sequent.left.iterator ++ sequent.right.iterator.map(formula => K.neg(formula))
     val combined = formulas.reduceOption((left, right) => K.and(left)(right)).getOrElse(K.top)
@@ -30,10 +36,13 @@ object Tableau extends SequentTactic, PremiseSequentTactic, DerivedFromPremises:
     val unused = K.Variable(K.Identifier("§", freshId), K.Ind)
 
     decide(Branch.empty(freshId + 1, unused).prepended(normalForm)).flatMap: proof =>
-      K.Weakening(using library.theory)(K.Sequent(Set(normalForm), Set.empty), proof).toOption
+      K.Weakening(using library.theory)(K.Sequent(Set(normalForm), Set.empty), proof)
+        .toOption
         .flatMap(K.Restate(using library.theory)(sequent, _).toOption)
 
-  /** Search state for a left-sided NNF tableau branch. */
+  /**
+   * Search state for a left-sided NNF tableau branch.
+   */
   final case class Branch(
       alpha: List[K.Expression],
       beta: List[K.Expression],
@@ -61,7 +70,9 @@ object Tableau extends SequentTactic, PremiseSequentTactic, DerivedFromPremises:
     def empty(nextId: Int, unused: K.Variable): Branch =
       Branch(Nil, Nil, Nil, Nil, Nil -> Nil, Map.empty, Map.empty, Set.empty, Map.empty, nextId, Map.empty, unused)
 
-  /** Alpha-renames repeated binders before metavariable generation. */
+  /**
+   * Alpha-renames repeated binders before metavariable generation.
+   */
   def makeVariableNamesUnique(formula: K.Expression, nextId: Int, initiallySeen: Set[K.Variable]): (K.Expression, Int) =
     var fresh = nextId
     var seen = initiallySeen
@@ -81,7 +92,9 @@ object Tableau extends SequentTactic, PremiseSequentTactic, DerivedFromPremises:
   type Substitution = Map[K.Variable, K.Expression]
   val Substitution = HashMap
 
-  /** First-order unification restricted to branch metavariables. */
+  /**
+   * First-order unification restricted to branch metavariables.
+   */
   def unify(t1: K.Expression, t2: K.Expression, current: Substitution, branch: Branch): Set[Substitution] =
     (t1, t2) match
       case (x: K.Variable, y: K.Variable) if isUnifiable(x, branch) && isUnifiable(y, branch) =>
@@ -107,7 +120,9 @@ object Tableau extends SequentTactic, PremiseSequentTactic, DerivedFromPremises:
   def unifyPred(positive: K.Expression, negative: K.Expression, branch: Branch): Set[Substitution] =
     unify(positive, negative, Substitution.empty, branch)
 
-  /** Finds the cheapest branch-closing unifier and atoms it closes. */
+  /**
+   * Finds the cheapest branch-closing unifier and atoms it closes.
+   */
   def close(branch: Branch): Option[(Substitution, Set[K.Expression])] =
     val renamed = branch.atoms._1.iterator
       .flatMap(_.freeVariables)
@@ -127,9 +142,11 @@ object Tableau extends SequentTactic, PremiseSequentTactic, DerivedFromPremises:
     val normalized = candidates.map: (substitution, formulas) =>
       val cleaned = substitution.flatMap: (variable, term) =>
         if variable.id.no > branch.maxIndex then
-          inverse.get(variable).flatMap: original =>
-            if term == original then None
-            else Some(original -> K.substituteVariables(term, inverse.view.mapValues(K.substituteVariables(_, substitution)).toMap))
+          inverse
+            .get(variable)
+            .flatMap: original =>
+              if term == original then None
+              else Some(original -> K.substituteVariables(term, inverse.view.mapValues(K.substituteVariables(_, substitution)).toMap))
         else if renamed.get(variable).contains(term) then None
         else Some(variable -> K.substituteVariables(term, inverse))
       cleaned -> formulas.map(K.substituteVariables(_, inverse))
@@ -159,10 +176,11 @@ object Tableau extends SequentTactic, PremiseSequentTactic, DerivedFromPremises:
         case _: K.Constant => 40
         case K.Application(function, argument) => 100 + termPenalty(function) + termPenalty(argument)
         case K.Lambda(_, body) => 100 + termPenalty(body)
-    substitution.iterator.map: (variable, term) =>
-      val (formula, penalty) = branch.unifiable(variable)
-      penalty + branch.numberInstantiated(variable) * 20 + termPenalty(term)
-    .sum
+    substitution.iterator
+      .map: (variable, term) =>
+        val (formula, penalty) = branch.unifiable(variable)
+        penalty + branch.numberInstantiated(variable) * 20 + termPenalty(term)
+      .sum
 
   def alpha(branch: Branch): Branch =
     branch.alpha.head match
@@ -217,11 +235,12 @@ object Tableau extends SequentTactic, PremiseSequentTactic, DerivedFromPremises:
             numberInstantiated = branch.numberInstantiated.updated(variable, branch.numberInstantiated(variable) + 1)
           ) -> instance
 
-  /** Main tableau search, returning the theorem for the used branch subset. */
+  /**
+   * Main tableau search, returning the theorem for the used branch subset.
+   */
   def decide(using library: Library)(branch: Branch): Option[K.Thm] =
     val closing = close(branch)
-    if closing.exists(_._1.isEmpty) then
-      K.RestateTrue(using library.theory)(K.Sequent(closing.get._2, Set.empty)).toOption
+    if closing.exists(_._1.isEmpty) then K.RestateTrue(using library.theory)(K.Sequent(closing.get._2, Set.empty)).toOption
     else if branch.alpha.nonEmpty then
       decide(alpha(branch)).flatMap: proof =>
         branch.alpha.head match

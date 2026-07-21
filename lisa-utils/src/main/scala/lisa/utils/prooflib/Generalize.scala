@@ -1,9 +1,9 @@
 package lisa.utils.prooflib
 
 import lisa.utils.K
-import lisa.utils.fol.FOL.*
-import lisa.utils.prooflib.Helpers.*
-import lisa.utils.prooflib.ProofHelpers.*
+import lisa.utils.fol.FOL._
+import lisa.utils.prooflib.Helpers._
+import lisa.utils.prooflib.ProofHelpers._
 
 /**
  * Quantify all variables in a formula on the right side of the premise sequent.
@@ -30,12 +30,10 @@ object Generalize extends SequentTactic, PremiseSequentTactic, DerivedFromPremis
       case Seq(premise, _*) =>
         val difference = premise.statement.right.filterNot(conclusion.right.containsEq)
         if difference.isEmpty then BasicStep.Restate(conclusion, premise.kernel)
-        else if difference.size > 1 then
-          invalid(conclusion, s"There must be only one formula to quantify over between the premise and the conclusion. Found: \n${difference.mkString("\n")}")
+        else if difference.size > 1 then invalid(conclusion, s"There must be only one formula to quantify over between the premise and the conclusion. Found: \n${difference.mkString("\n")}")
         else
           val rdifference = conclusion.right.filterNot(premise.statement.right.containsEq)
-          if rdifference.size != 1 then
-            invalid(conclusion, s"There must be only one formula to quantify over between the premise and the conclusion. Found: \n${rdifference.mkString("\n")}")
+          if rdifference.size != 1 then invalid(conclusion, s"There must be only one formula to quantify over between the premise and the conclusion. Found: \n${rdifference.mkString("\n")}")
           else
             val pivot = difference.head
             val target = rdifference.head
@@ -46,8 +44,7 @@ object Generalize extends SequentTactic, PremiseSequentTactic, DerivedFromPremis
               val vars = varsOption.get
               val conflicts = vars.toSet.intersect(premise.statement.left.flatMap(_.freeVars).collect { case v: Variable[Ind] @unchecked => v })
 
-              if conflicts.nonEmpty then
-                invalid(conclusion, s"Variable(s) ${conflicts.mkString(", ")} to be quantified appear in the LHS of the conclusion.")
+              if conflicts.nonEmpty then invalid(conclusion, s"Variable(s) ${conflicts.mkString(", ")} to be quantified appear in the LHS of the conclusion.")
               else
                 // safe, proceed
                 Subproof:

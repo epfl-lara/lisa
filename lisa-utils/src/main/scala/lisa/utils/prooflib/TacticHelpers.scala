@@ -2,11 +2,11 @@ package lisa.utils.prooflib
 
 import lisa.utils.fol.FOL.Sequent
 
-import ProofHelpers.*
+import ProofHelpers._
 
 /**
-  * Some variations of ProofHelpers for use in tactics.
-  */
+ * Some variations of ProofHelpers for use in tactics.
+ */
 object TacticHelpers:
 
   private inline def target(using proof: Proof)(statement: Sequent): Sequent =
@@ -26,16 +26,15 @@ object TacticHelpers:
         carrier
 
   /**
-    * Like [[have]], but a `maybe(...) by Tactic` generates a [[ProofJudgment]],
-    * absorbing it into the proof if it succeeds, and a no-op if it fails.
-    *
-    * Use [[or]] or [[orFailWith]] to chain maybes or fail the current subproof.
-    *
-    */
+   * Like [[have]], but a `maybe(...) by Tactic` generates a [[ProofJudgment]],
+   * absorbing it into the proof if it succeeds, and a no-op if it fails.
+   *
+   * Use [[or]] or [[orFailWith]] to chain maybes or fail the current subproof.
+   */
   def maybe(conclusion: Sequent): MaybeSequent =
     new MaybeSequent(conclusion)
 
-  extension [T] (carrier: ProofCarrier[T])
+  extension [T](carrier: ProofCarrier[T])
     def or(other: => ProofCarrier[T]): ProofCarrier[T] =
       if carrier.isValid then carrier else other
 
@@ -47,11 +46,15 @@ object TacticHelpers:
         // just use `or` in that case
         bdr.breakWith(error)
 
-  /** Stops the nearest subproof with a fatal error at the call site. */
+  /**
+   * Stops the nearest subproof with a fatal error at the call site.
+   */
   def failWith[T](using bdr: SubproofLabel[T], file: sourcecode.File, line: sourcecode.Line)(msg: String): Nothing =
     val error = FatalError(msg, file, line)
     bdr.breakWith(FatalCarrier(error, Set.empty))
 
-  /** Stops the nearest subproof with an existing carrier. */
+  /**
+   * Stops the nearest subproof with an existing carrier.
+   */
   def failWith[T](using bdr: SubproofLabel[T])(err: => ProofCarrier[T]): Nothing =
     bdr.breakWith(err)

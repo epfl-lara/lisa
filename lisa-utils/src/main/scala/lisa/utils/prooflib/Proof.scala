@@ -1,10 +1,10 @@
 package lisa.utils.prooflib
 
 import lisa.utils.K
-import lisa.utils.fol.FOL.*
+import lisa.utils.fol.FOL._
 
-import scala.collection.mutable
 import scala.collection.View
+import scala.collection.mutable
 
 final class Proof private (val lib: Library, val goal: Option[Sequent], inheritedAssumptions: Iterable[K.Expression] = Nil):
   given Library = lib
@@ -57,12 +57,11 @@ final class Proof private (val lib: Library, val goal: Option[Sequent], inherite
     report(merged.errors)
     merged
 
-
   def pure[T](result: T): ProofCarrier[T] =
-    val lastJudgement = 
+    val lastJudgement =
       last match
         case Some(j) => j
-        case None => 
+        case None =>
           K.Sorry(goal.map(_.underlying).getOrElse(K.Sequent(Set.empty, Set(K.top)))) match
             case Right(j) => Thm(j)
     ProofCarrier(

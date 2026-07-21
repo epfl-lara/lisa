@@ -2,10 +2,10 @@ package lisa.utils.prooflib
 
 import lisa.utils.K
 import lisa.utils.K.given
-import lisa.utils.fol.FOL.*
+import lisa.utils.fol.FOL._
 
-import scala.collection.mutable
 import scala.collection.View
+import scala.collection.mutable
 
 abstract class Library:
   val theory: K.Theory = K.Theory.empty
@@ -77,8 +77,8 @@ abstract class Library:
         case None => Some(Vector(theorem))
 
     /**
-      * A view over all named registered theorems.
-      */
+     * A view over all named registered theorems.
+     */
     def all: View[Theorem] =
       theoremByFullName.values.view
 
@@ -89,8 +89,8 @@ abstract class Library:
       getFull(name).orElse(getShort(name))
 
     /**
-      * Lookup a theorem by full name.
-      */
+     * Lookup a theorem by full name.
+     */
     def getFull(fullName: String): Option[Theorem] =
       theoremByFullName.get(fullName)
 
