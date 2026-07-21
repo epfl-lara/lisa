@@ -1,6 +1,6 @@
 package lisa
 
-import lisa.kernel.proof.RunningTheory
+import lisa.utils.K
 import lisa.utils.fol.FOL.{_, given}
 
 import scala.annotation.targetName
@@ -10,7 +10,9 @@ import scala.annotation.targetName
  */
 object SetTheoryLibrary extends lisa.utils.prooflib.Library {
 
-  val theory = new RunningTheory()
+  type Proof = lisa.utils.prooflib.Proof
+
+  given lisa.utils.prooflib.Library = this
 
   /**
    * A class is nothing more than a first-order formula with a free
@@ -277,7 +279,7 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
    *
    * `() |- x = y ⇔ ∀ z. z ∈ x ⇔ z ∈ y`
    */
-  final val extensionalityAxiom: this.AXIOM = Axiom(∀(z, z ∈ x <=> z ∈ y) <=> (x === y))
+  final val extensionalityAxiom: Thm = Axiom(∀(z, z ∈ x <=> z ∈ y) <=> (x === y))
 
   /**
    * Pairing Axiom --- For any sets `x` and `y`, there is a set that contains
@@ -289,7 +291,7 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
    * This axiom defines [[unorderedPair]] as the function symbol representing
    * this set.
    */
-  final val pairAxiom: AXIOM = Axiom(z ∈ unorderedPair(x, y) <=> (z === x) \/ (z === y))
+  final val pairAxiom: Thm = Axiom(z ∈ unorderedPair(x, y) <=> (z === x) \/ (z === y))
 
   /**
    * Comprehension/Separation Schema --- For a formula `ϕ(_, _)` and a set `y`,
@@ -302,7 +304,7 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
    * This schema represents an infinite collection of axioms, one for each
    * formula `ϕ(x, y)`.
    */
-  final val comprehensionSchema: AXIOM = Axiom(∃(z, ∀(x, x ∈ z <=> (x ∈ y) /\ φ(x))))
+  final val comprehensionSchema: Thm = Axiom(∃(z, ∀(x, x ∈ z <=> (x ∈ y) /\ φ(x))))
 
   /**
    * Empty Set Axiom --- From the Comprehension Schema follows the existence of
@@ -314,7 +316,7 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
    *
    * `() |- x ∉ ∅`
    */
-  final val emptySetAxiom: AXIOM = Axiom(x ∉ ∅)
+  final val emptySetAxiom: Thm = Axiom(x ∉ ∅)
 
   /**
    * Union Axiom --- For any set `x`, there exists a set `⋃x` which is the
@@ -325,7 +327,8 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
    *
    * This axiom defines [[union]] as the function symbol representing this set.
    */
-  final val unionAxiom: AXIOM = Axiom(z ∈ ⋃(x) <=> ∃(y, (y ∈ x) /\ (z ∈ y)))
+  final val unionAxiom: Thm = Axiom(z ∈ ⋃(x) <=> ∃(y, (y ∈ x) /\ (z ∈ y)))
+  private val unionDefinition: Thm = registerDefinition(⋃, unionAxiom.kernel)
 
   /**
    * Subset Axiom --- For sets `x` and `y`, `x` is a subset of `y` iff every
@@ -335,7 +338,8 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
    *
    * This axiom defines the [[subset]] symbol as this predicate.
    */
-  final val subsetAxiom: AXIOM = Axiom((x ⊆ y) <=> ∀(z, (z ∈ x) ==> (z ∈ y)))
+  final val subsetAxiom: Thm = Axiom((x ⊆ y) <=> ∀(z, (z ∈ x) ==> (z ∈ y)))
+  private val subsetDefinition: Thm = registerDefinition(⊆, subsetAxiom.kernel)
 
   /**
    * Power Set Axiom --- For a set `x`, there exists a power set of `x`, denoted
@@ -346,7 +350,8 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
    * This axiom defines [[𝒫]] as the function symbol representing this
    * set.
    */
-  final val powerSetAxiom: AXIOM = Axiom(x ∈ 𝒫(y) <=> x ⊆ y)
+  final val powerSetAxiom: Thm = Axiom(x ∈ 𝒫(y) <=> x ⊆ y)
+  private val powerSetDefinition: Thm = registerDefinition(𝒫, powerSetAxiom.kernel)
 
   /**
    * Infinity Axiom --- There exists an infinite set.
@@ -361,7 +366,7 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
    *
    * `() |- ∃ x. inductive(x)`
    */
-  final val infinityAxiom: AXIOM = Axiom(∃(x, ∅ ∈ x /\ ∀(y, (y ∈ x) ==> ⋃(unorderedPair(y, unorderedPair(y, y))) ∈ x)))
+  final val infinityAxiom: Thm = Axiom(∃(x, ∅ ∈ x /\ ∀(y, (y ∈ x) ==> ⋃(unorderedPair(y, unorderedPair(y, y))) ∈ x)))
 
   /**
    * Foundation/Regularity Axiom --- Every non-empty set `x` has an `∈`-minimal
@@ -370,7 +375,7 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
    *
    * `() |- x ≠ ∅ ==> ∃ y ∈ x. ∀ z. z ∈ x ⇒ z ∉ y`
    */
-  final val axiomOfFoundation: AXIOM = Axiom(x ≠ ∅ ==> ∃(y ∈ x, ∀(z, z ∈ x ==> z ∉ y)))
+  final val axiomOfFoundation: Thm = Axiom(x ≠ ∅ ==> ∃(y ∈ x, ∀(z, z ∈ x ==> z ∉ y)))
 
   // ZF
   /////////
@@ -383,7 +388,7 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
    */
   // TODO: Replace by the following that use class-functions instead:
   // ∃(B, ∀(y, y ∈ B <=> ∃(x ∈ A, y === F(x))))
-  final val replacementSchema: AXIOM = Axiom(
+  final val replacementSchema: Thm = Axiom(
     ∀(x ∈ A, ∀(y, ∀(z, P(x)(y) /\ P(x)(z) ==> (y === z)))) ==>
       ∃(B, ∀(y, y ∈ B <=> ∃(x ∈ A, P(x)(y))))
   )
@@ -401,7 +406,7 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
    * 5. U is closed under Power Set
    * 6. U is closed under Replacement
    */
-  final val tarskiAxiom: AXIOM = Axiom(
+  final val tarskiAxiom: Thm = Axiom(
     ∀(
       x,
       ∃(
@@ -457,7 +462,7 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
    *
    * @return
    */
-  def axioms: Set[(String, AXIOM)] = Set(
+  def axioms: Set[(String, Thm)] = Set(
     ("EmptySet", emptySetAxiom),
     ("extensionalityAxiom", extensionalityAxiom),
     ("pairAxiom", pairAxiom),

@@ -26,7 +26,7 @@ object HOLImport extends lisa.HOL {
   private val y = typedvar(A)
 
   import library._
-  
+
   val parser = holimp.JSONParser
   val steps = parser.getProofs
   val thms = parser.getTheorems
@@ -47,7 +47,7 @@ object HOLImport extends lisa.HOL {
     v match
       case v : TypedVar => v
       case _ => throw ExpectedVariableException
-    
+
 
   private def toLisaTerm__(term: HOLL.Term): Term =
     term match
@@ -60,7 +60,7 @@ object HOLImport extends lisa.HOL {
       case HOLL.Constant(name, typ) => Constants.get(name, toLisaType(typ))
       case HOLL.Combination(left, right) => toLisaTerm(left)*(toLisaTerm(right))
       case HOLL.Abstraction(vbl, tm) => λ(asVar(toLisaTerm(vbl)), toLisaTerm(tm))
-    
+
   val toLisaType: HOLL.Type => Type = memoized(toLisaType__)
   val toLisaTerm: HOLL.Term => Term = memoized(toLisaTerm__)
 
@@ -70,7 +70,7 @@ object HOLImport extends lisa.HOL {
     case class Functional[N <: Arity](f: TypedConstantFunctional[N], freeType: F.Term, params: Seq[F.Variable], innerDef: JUSTIFICATION) extends LabelStore
 
     case object MalformedTypeInstantiationException extends Exception
-    
+
     private val illegalChars = "}]`)[{(,;?_."
     private val subst = illegalChars.zipWithIndex.toMap.view.mapValues(c => (9312 + c).toChar)
 
@@ -104,13 +104,13 @@ object HOLImport extends lisa.HOL {
         case Functional(_, _, _, innerDef) =>
           // the definition, instantiated into a usable form at time of construction
           innerDef
-          
+
 
     // handling equality separately
     val equality = Functional(=:=, (A |=> (A |=> B)), Seq(A), eqCorrect)
     constants.update("HOL@=", equality)
-    
-    
+
+
   import Constants.{register, get, getDefinition, sanitizeName}
 
   private val theoremCache = collection.mutable.HashMap.empty[HOLL.ProofStep, library.THM]
@@ -175,7 +175,7 @@ object HOLImport extends lisa.HOL {
     val tr = library.have(transformed)
     tr
       }
-    
+
     val res = Rec.rec(proof)
     res
 
@@ -193,7 +193,7 @@ object HOLImport extends lisa.HOL {
 
   case class MalformedDefinitionException(id: Int, term: HOLL.Term) extends Exception(s"Malformed definition at id $id: ${term.pretty}")
   case class MalformedDefinitionFormat(id: Identifier) extends Exception(s"Definition of $id is not of the form forall(v, (v = $id) <=> (context => v = term))")
-    
+
   val lisaThms =
     for
       thm <- thms.sortBy(_.id).take(15)

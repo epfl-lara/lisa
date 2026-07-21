@@ -31,7 +31,7 @@ object ProofPrinter {
 % Refs     : https://github.com/epfl-lara/lisa
 %          : lisa.utils.tptp.ProofParser
 % Source   : [Lisa, $source]
-% Names    : 
+% Names    :
 
 % Status   : Unknown
 % Rating   : ?

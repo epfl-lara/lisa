@@ -1355,7 +1355,7 @@ object WellOrderedRecursion extends lisa.Main {
 
     // 3) Apply recursiveSequence at the top element A2 = A ∪ singleton(m) to obtain an approximation until m.
     val recSeqInst = recursiveSequence.of(A := A2, < := R2)
-    val recSeq = have(recSeqInst.result.right.head).by(Cut(`wellOrder(A2)(R2)`, recSeqInst))
+    val recSeq = have(recSeqInst.statement.right.head).by(Cut(`wellOrder(A2)(R2)`, recSeqInst))
     val Pm = (m ∈ A2) /\ functionOn(G)(initialSegment(m)(A2)(R2)) /\
       ∀(a ∈ initialSegment(m)(A2)(R2), G(a) === F(a)(G ↾ initialSegment(a)(A2)(R2)))
     val recAtM_sequent = have(m ∈ A2 |- Quantifiers.∃!(G, Pm)).by(InstantiateForall(m)(recSeq))

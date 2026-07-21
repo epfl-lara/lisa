@@ -1,29 +1,24 @@
 package lisa
 
 import lisa.SetTheoryLibrary
-import lisa.utils.prooflib.BasicMain
+import lisa.utils.prooflib.OutputManager
 
 /**
  * The parent trait of all theory files containing mathematical development
  */
-trait Main extends BasicMain {
+trait Main {
 
-  export lisa.utils.fol.FOL.{=== as _, ≠ as _, *, given}
-  export SetTheoryLibrary.{given, _}
-  export lisa.utils.prooflib.BasicStepTactic.*
-  export lisa.utils.prooflib.SimpleDeducedSteps.*
+  // SetTheoryLibrary defines more specific versions of === and ≠, so we hide
+  // the generic ones
+  export lisa.utils.fol.FOL.{≠ as _, === as _, *, given}
+  export SetTheoryLibrary.{section as _, given, _}
+  export lisa.utils.prooflib.Exports.*
 
-  export lisa.automation.Tautology
-  export lisa.automation.Substitution.{Apply as Substitute}
-  export lisa.automation.Tableau
-  export lisa.automation.Congruence
-  // export lisa.automation.Apply
-  // export lisa.automation.Exact
+  given OutputManager = OutputManager.stdout
 
-  knownDefs.update(∅, Some(emptySetAxiom))
-  knownDefs.update(unorderedPair, Some(pairAxiom))
-  knownDefs.update(⋃, Some(unionAxiom))
-  knownDefs.update(𝒫, Some(powerSetAxiom))
-  knownDefs.update(⊆, Some(subsetAxiom))
+  def section(name: String)(using sourcecode.File): Unit =
+    SetTheoryLibrary.section(name)
+
+  def main(args: Array[String]): Unit = ()
 
 }
