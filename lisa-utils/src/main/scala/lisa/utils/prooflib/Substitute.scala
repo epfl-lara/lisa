@@ -1,9 +1,10 @@
 package lisa.utils.prooflib
 
-import lisa.utils.fol.FOL.*
+import lisa.utils.fol.FOL._
 import lisa.utils.prooflib.Helpers.withParams
-import lisa.utils.prooflib.ProofHelpers.{SequentTactic, of}
-import lisa.utils.unification.UnificationUtils.*
+import lisa.utils.prooflib.ProofHelpers.SequentTactic
+import lisa.utils.prooflib.ProofHelpers.of
+import lisa.utils.unification.UnificationUtils._
 import sourcecode.File
 import sourcecode.Line
 
@@ -47,7 +48,12 @@ object Substitute extends SequentTactic, DerivedFromPremises:
    * creating a source map, mapping each rule to the theorem it was derived
    * from, for proof construction.
    */
-  private def partition(using file: File, line: Line)(using library: Library)(
+  private def partition(using
+      file: File,
+      line: Line
+  )(using
+      library: Library
+  )(
       theoremRules: Seq[Thm],
       formulaRules: Seq[Expr[Prop]]
   ): (Map[RewriteRule, Thm], RewriteContext) =
@@ -81,7 +87,12 @@ object Substitute extends SequentTactic, DerivedFromPremises:
     val seen = scala.collection.mutable.LinkedHashSet.empty[Expr[Prop]]
     rules.iterator.filter(rule => seen.add(rule.toFormula)).toVector
 
-  private def cutDischarges(using file: File, line: Line)(using library: Library)(
+  private def cutDischarges(using
+      file: File,
+      line: Line
+  )(using
+      library: Library
+  )(
       conclusion: Sequent,
       start: Thm,
       discharges: Vector[(InstantiatedRewriteRule, Thm)]
@@ -101,7 +112,12 @@ object Substitute extends SequentTactic, DerivedFromPremises:
       val restated = BasicStep.Restate(conclusion, current.kernel)
       if restated.isValid then restated else BasicStep.Weakening(conclusion, current.kernel)
 
-  private def rewriteWithRules(using file: File, line: Line)(using library: Library)(
+  private def rewriteWithRules(using
+      file: File,
+      line: Line
+  )(using
+      library: Library
+  )(
       conclusion: Sequent,
       premise: Thm,
       theoremRules: Seq[Thm],
@@ -110,12 +126,10 @@ object Substitute extends SequentTactic, DerivedFromPremises:
     // are all substitution rules actually valid?
     // if not, exit early
     val invalidTheorems = theoremRules.filter(!validSubstitutionRule(_))
-    if invalidTheorems.nonEmpty then
-      invalid(conclusion, "Substitute theorem rules must prove exactly one equality or equivalence.", "Rules" -> invalidTheorems.map(_.statement))
+    if invalidTheorems.nonEmpty then invalid(conclusion, "Substitute theorem rules must prove exactly one equality or equivalence.", "Rules" -> invalidTheorems.map(_.statement))
     else
       val invalidFormulas = formulaRules.filter(!validSubstitutionRule(_))
-      if invalidFormulas.nonEmpty then
-        invalid(conclusion, "Substitute formula rules must be equalities or equivalences.", "Rules" -> invalidFormulas)
+      if invalidFormulas.nonEmpty then invalid(conclusion, "Substitute formula rules must be equalities or equivalences.", "Rules" -> invalidFormulas)
       else
         // metadata:
         // maintain a list of where substitutions come from
@@ -133,14 +147,16 @@ object Substitute extends SequentTactic, DerivedFromPremises:
         // can be rewritten into.
         val leftRewrites = rewritingPairs(using rewriteCtx)(premise.left, conclusion.left)
         val rightRewrites = rewritingPairs(using rewriteCtx)(premise.right, conclusion.right)
-        if leftRewrites.isEmpty then
-          invalid(conclusion, "Could not rewrite LHS of premise into conclusion with given substitutions.", "Premise" -> premise.statement, "Conclusion" -> conclusion)
-        else if rightRewrites.isEmpty then
-          invalid(conclusion, "Could not rewrite RHS of premise into conclusion with given substitutions.", "Premise" -> premise.statement, "Conclusion" -> conclusion)
-        else
-          buildProof(conclusion, premise, leftRewrites.get, rightRewrites.get, sourceMap)
+        if leftRewrites.isEmpty then invalid(conclusion, "Could not rewrite LHS of premise into conclusion with given substitutions.", "Premise" -> premise.statement, "Conclusion" -> conclusion)
+        else if rightRewrites.isEmpty then invalid(conclusion, "Could not rewrite RHS of premise into conclusion with given substitutions.", "Premise" -> premise.statement, "Conclusion" -> conclusion)
+        else buildProof(conclusion, premise, leftRewrites.get, rightRewrites.get, sourceMap)
 
-  private def buildProof(using file: File, line: Line)(using library: Library)(
+  private def buildProof(using
+      file: File,
+      line: Line
+  )(using
+      library: Library
+  )(
       conclusion: Sequent,
       premise: Thm,
       leftRewrites: Seq[FormulaRewriteResult],

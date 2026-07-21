@@ -1,8 +1,9 @@
 package lisa.utils.prooflib
 
-import lisa.utils.fol.FOL.*
-import lisa.utils.prooflib.Helpers.*
-import lisa.utils.prooflib.ProofHelpers.{PremiseSequentTactic, SequentTactic}
+import lisa.utils.fol.FOL._
+import lisa.utils.prooflib.Helpers._
+import lisa.utils.prooflib.ProofHelpers.PremiseSequentTactic
+import lisa.utils.prooflib.ProofHelpers.SequentTactic
 
 /**
  * Instantiate universal quantifier.
@@ -28,7 +29,12 @@ object InstantiateForall extends SequentTactic, PremiseSequentTactic, DerivedFro
   private def invalid(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, message: String): ProofJudgement =
     ProofCarrier(Set(SoftError(message, file, line)), conclusion, None, ())
 
-  private def instantiateOnce(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(
+  private def instantiateOnce(using
+      file: sourcecode.File,
+      line: sourcecode.Line
+  )(using
+      library: Library
+  )(
       target: Sequent,
       premise: Thm,
       formula: Expr[Prop],
@@ -100,7 +106,12 @@ object InstantiateForall extends SequentTactic, PremiseSequentTactic, DerivedFro
     def apply(conclusion: Sequent, premise: Thm): ProofJudgement =
       instantiateTerms(conclusion, premise, None, terms)
 
-  private def instantiateTerms(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(
+  private def instantiateTerms(using
+      file: sourcecode.File,
+      line: sourcecode.Line
+  )(using
+      library: Library
+  )(
       conclusion: Sequent,
       premise: Thm,
       requestedFormula: Option[Expr[Prop]],

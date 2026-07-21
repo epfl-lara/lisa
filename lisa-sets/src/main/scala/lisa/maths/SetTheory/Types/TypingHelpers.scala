@@ -5,9 +5,9 @@ package lisa.maths.SetTheory.Types
 //import lisa.maths.SetTheory.Cardinal.Predef.{*}
 //import lisa.maths.Quantifiers.*
 import lisa.SetTheoryLibrary._
-import lisa.utils.K
 import lisa.maths.SetTheory.Base.Predef.∪
 import lisa.maths.SetTheory.Functions.Predef._
+import lisa.utils.K
 import lisa.utils.fol.FOL.{=== => _, ∀ => _, ≠ => _, _, given}
 import lisa.utils.prooflib.OutputManager
 

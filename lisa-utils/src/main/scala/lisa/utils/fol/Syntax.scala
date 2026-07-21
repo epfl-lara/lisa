@@ -2,8 +2,8 @@ package lisa.utils.fol
 
 import lisa.utils.K
 import lisa.utils.K.Identifier
-import lisa.utils.K.given_Conversion_String_Identifier
 import lisa.utils.K.freshId
+import lisa.utils.K.given_Conversion_String_Identifier
 
 import scala.annotation.showAsInfix
 import scala.annotation.targetName
@@ -277,7 +277,7 @@ trait Syntax {
   /**
    * Well-sorted application constructor. Used when sorts are known at compile time.
    */
-  extension [S : Sort, T : Sort](f: Expr[Arrow[S, T]]) def apply(arg: Expr[S]): Expr[T] = App(f, arg)
+  extension [S: Sort, T: Sort](f: Expr[Arrow[S, T]]) def apply(arg: Expr[S]): Expr[T] = App(f, arg)
 
   /**
    * match type computing the return sort of an arrow sort.
@@ -401,10 +401,14 @@ trait Syntax {
     private var infix: Boolean = false
     var customPrinter: Option[Seq[Expr[?]] => String] = None
 
-    /** Complete identifier used by the front end. */
+    /**
+     * Complete identifier used by the front end.
+     */
     val fullName: String = id.toString
 
-    /** Unqualified identifier for printing. */
+    /**
+     * Unqualified identifier for printing.
+     */
     val shortName: String =
       val separator = id.name.lastIndexOf('.')
       val base = if separator < 0 then id.name else id.name.substring(separator + 1)

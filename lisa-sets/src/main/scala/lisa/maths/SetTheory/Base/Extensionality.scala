@@ -3,7 +3,7 @@ package lisa.maths.SetTheory.Base
 import lisa.SetTheoryLibrary
 import lisa.SetTheoryLibrary.{_, given}
 import lisa.utils.fol.FOL.{_, given}
-import lisa.utils.prooflib.Exports.*
+import lisa.utils.prooflib.Exports._
 import lisa.utils.prooflib.Subproof
 
 /**
