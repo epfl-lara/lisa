@@ -175,15 +175,11 @@ private[fol] trait Syntax {
 
     private case class VariableKey(id: Identifier, sort: Sort)
     private case class ConstantKey(id: Identifier, sort: Sort)
-    private case class ApplicationKey(f: Long, arg: Long)
-    private case class LambdaKey(v: Long, body: Long)
 
-    private def cache[K, V]: mutable.Map[K, V] = mutable.Map.empty[K, V]
-
-    private val variables = cache[VariableKey, Variable]
-    private val constants = cache[ConstantKey, Constant]
-    private val applications = cache[ApplicationKey, Application]
-    private val lambdas = cache[LambdaKey, Lambda]
+    private val variables = mutable.Map.empty[VariableKey, Variable]
+    private val constants = mutable.Map.empty[ConstantKey, Constant]
+    private val applications = mutable.LongMap.empty[mutable.LongMap[Application]]
+    private val lambdas = mutable.LongMap.empty[mutable.LongMap[Lambda]]
 
     def variable(id: Identifier, sort: Sort): Variable =
       if (enabled) variables.getOrElseUpdate(VariableKey(id, sort), new Variable(id, sort))
@@ -194,12 +190,16 @@ private[fol] trait Syntax {
       else new Constant(id, sort)
 
     def application(f: Expression, arg: Expression): Application =
-      if (enabled) applications.getOrElseUpdate(ApplicationKey(f.uniqueNumber, arg.uniqueNumber), new Application(f, arg))
-      else new Application(f, arg)
+      if (!enabled) new Application(f, arg)
+      else
+        val byArgument = applications.getOrElseUpdate(f.uniqueNumber, mutable.LongMap.empty)
+        byArgument.getOrElseUpdate(arg.uniqueNumber, new Application(f, arg))
 
     def lambda(v: Variable, body: Expression): Lambda =
-      if (enabled) lambdas.getOrElseUpdate(LambdaKey(v.uniqueNumber, body.uniqueNumber), new Lambda(v, body))
-      else new Lambda(v, body)
+      if (!enabled) new Lambda(v, body)
+      else
+        val byBody = lambdas.getOrElseUpdate(v.uniqueNumber, mutable.LongMap.empty)
+        byBody.getOrElseUpdate(body.uniqueNumber, new Lambda(v, body))
   }
 
   /**
@@ -218,12 +218,12 @@ private[fol] trait Syntax {
     /**
      * Cached normal form of the expression by [[OLEquivalenceChecker]].
      */
-    private[fol] var polarExpr: Option[SimpleExpression] = None
+    private[fol] var polarExpr: SimpleExpression = null.asInstanceOf[SimpleExpression]
 
     /**
      * Cached normal form of the expression by [[OLEquivalenceChecker]].
      */
-    def getPolarExpr: Option[SimpleExpression] = polarExpr
+    def getPolarExpr: Option[SimpleExpression] = Option(polarExpr)
 
     /**
      * Sort of the expression.
@@ -304,9 +304,9 @@ private[fol] trait Syntax {
    */
   case class Variable private[fol] (id: Identifier, sort: Sort) extends Expression {
     val containsFormulas = sort == Prop
-    def freeVariables: Set[Variable] = Set(this)
-    def constants: Set[Constant] = Set()
-    def allVariables: Set[Variable] = Set(this)
+    val freeVariables: Set[Variable] = Set(this)
+    val constants: Set[Constant] = Set.empty
+    val allVariables: Set[Variable] = freeVariables
   }
 
   object Variable {
@@ -320,9 +320,9 @@ private[fol] trait Syntax {
    */
   case class Constant private[fol] (id: Identifier, sort: Sort) extends Expression {
     val containsFormulas = sort == Prop
-    def freeVariables: Set[Variable] = Set()
-    def constants: Set[Constant] = Set(this)
-    def allVariables: Set[Variable] = Set()
+    val freeVariables: Set[Variable] = Set.empty
+    val constants: Set[Constant] = Set(this)
+    val allVariables: Set[Variable] = Set.empty
   }
 
   object Constant {
@@ -334,13 +334,13 @@ private[fol] trait Syntax {
    * `f.sort` must be of the form `arg.sort -> _`.
    */
   case class Application private[fol] (f: Expression, arg: Expression) extends Expression {
-    private val legalapp = legalApplication(f.sort, arg.sort)
-    require(legalapp.isDefined, s"Application of $f to $arg is not legal")
-    val sort = legalapp.get
+    val sort = f.sort match
+      case Arrow(from, to) if from == arg.sort => to
+      case _ => throw new IllegalArgumentException(s"Application of $f to $arg is not legal")
     val containsFormulas = sort == Prop || f.containsFormulas || arg.containsFormulas
-    def freeVariables: Set[Variable] = f.freeVariables union arg.freeVariables
-    def constants: Set[Constant] = f.constants union arg.constants
-    def allVariables: Set[Variable] = f.allVariables union arg.allVariables
+    lazy val freeVariables: Set[Variable] = f.freeVariables union arg.freeVariables
+    lazy val constants: Set[Constant] = f.constants union arg.constants
+    lazy val allVariables: Set[Variable] = f.allVariables union arg.allVariables
   }
 
   object Application {
@@ -360,9 +360,9 @@ private[fol] trait Syntax {
     val containsFormulas = body.containsFormulas
     val sort = (v.sort -> body.sort)
 
-    def freeVariables: Set[Variable] = body.freeVariables - v
-    def constants: Set[Constant] = body.constants
-    def allVariables: Set[Variable] = body.allVariables
+    lazy val freeVariables: Set[Variable] = body.freeVariables - v
+    lazy val constants: Set[Constant] = body.constants
+    lazy val allVariables: Set[Variable] = body.allVariables
   }
 
   object Lambda {

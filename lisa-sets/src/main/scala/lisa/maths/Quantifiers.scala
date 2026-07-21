@@ -1,6 +1,6 @@
 package lisa.maths
 
-import lisa.automation.Substitution
+import lisa.utils.prooflib.Substitute
 
 /**
  * This file proves first-order logic theorems related to quantifiers. It includes:
@@ -58,7 +58,7 @@ object Quantifiers extends lisa.Main {
     have(P(x) /\ ∀(y, P(y) ==> (y === x)) |- P(x)) by Tautology
     thenHave(P(x) /\ ∀(y, P(y) ==> (y === x)) |- ∃(x, P(x))) by RightExists
     thenHave(∃(x, P(x) /\ ∀(y, P(y) ==> (y === x))) |- ∃(x, P(x))) by LeftExists
-    thenHave(thesis) by Substitution.Apply(∃!.definition)
+    thenHave(thesis) by Substitute.fromLastStep(∃!.definition)
   }
 
   /**
@@ -79,7 +79,7 @@ object Quantifiers extends lisa.Main {
     thenHave(P(x) /\ ∀(y, P(y) ==> (y === x)) |- P(a) /\ P(b) ==> (a === b)) by Restate
     thenHave(P(x) /\ ∀(y, P(y) ==> (y === x)) |- ∀(a, ∀(b, P(a) /\ P(b) ==> (a === b)))) by Generalize
     thenHave(∃(x, P(x) /\ ∀(y, P(y) ==> (y === x))) |- ∀(a, ∀(b, P(a) /\ P(b) ==> (a === b)))) by LeftExists
-    thenHave(thesis) by Substitution.Apply(∃!.definition)
+    thenHave(thesis) by Substitute.fromLastStep(∃!.definition)
   }
 
   /**
@@ -92,7 +92,7 @@ object Quantifiers extends lisa.Main {
     have(P(x) /\ ∀(y, P(y) ==> (y === x)) |- P(x)) by Tautology
     thenHave(P(x) /\ ∀(y, P(y) ==> (y === x)) |- P(ε(x, P(x)))) by RightEpsilon
     thenHave(∃(x, P(x) /\ ∀(y, P(y) ==> (y === x))) |- P(ε(x, P(x)))) by LeftExists
-    thenHave(thesis) by Substitution.Apply(∃!.definition)
+    thenHave(thesis) by Substitute.fromLastStep(∃!.definition)
   }
 
   /**
@@ -234,7 +234,7 @@ object Quantifiers extends lisa.Main {
     ∀(z, P(z) <=> Q(z)) |- (∃!(z, P(z)) <=> ∃!(z, Q(z)))
   ) {
     have(∀(z, P(z) <=> Q(z)) |- ∃(z, P(z) /\ ∀(y, P(y) ==> (y === z))) <=> ∃(z, Q(z) /\ ∀(y, Q(y) ==> (y === z)))) by Tableau
-    thenHave(thesis) by Substitution.Apply(∃!.definition, ∃!.definition of (P := Q))
+    thenHave(thesis) by Substitute.fromLastStep(∃!.definition, ∃!.definition of (P := Q))
   }
 
   /**

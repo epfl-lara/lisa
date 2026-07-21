@@ -5,6 +5,7 @@ package lisa.maths.SetTheory.Types
 //import lisa.maths.SetTheory.Cardinal.Predef.{*}
 //import lisa.maths.Quantifiers.*
 import lisa.SetTheoryLibrary._
+import lisa.utils.K
 import lisa.maths.SetTheory.Base.Predef.∪
 import lisa.maths.SetTheory.Functions.Predef._
 import lisa.utils.fol.FOL.{=== => _, ∀ => _, ≠ => _, _, given}
@@ -153,7 +154,7 @@ object TypingHelpers:
   // Typed Constants
   // ============================================================================
 
-  class TypedConstant(id: Identifier, val typ: Typ, val justif: JUSTIFICATION) extends Constant[Ind](id) {
+  class TypedConstant(id: Identifier, val typ: Typ, val justif: Thm) extends Constant[Ind](id) {
     val formula = TypeAssign[Constant[Ind]](this, typ)
     assert(justif.statement.left.isEmpty && (justif.statement.right.head == formula))
 
@@ -185,7 +186,7 @@ object TypingHelpers:
       typ: FunctionalClass
   ) extends App[Ind >>: Prop, Prop](forall, λ(typ.args.head, typ.formulaMinusOne(const))) {}
 
-  class TypedConstantFunctional[S: Sort](id: Identifier, val typ: FunctionalClass, val justif: JUSTIFICATION) extends Constant[S](id) {
+  class TypedConstantFunctional[S: Sort](id: Identifier, val typ: FunctionalClass, val justif: Thm) extends Constant[S](id) {
 
     assert(typ.inTyp.size == arity, s"TypedConstantFunctional arity mismatch: symbol $id  expected arity ${arity}, got ${typ.inTyp}.")
 
@@ -206,10 +207,12 @@ object TypingHelpers:
       val typ: Typ
   ) extends DirectDefinition[Ind](fullName, line, file)(expression, Seq[Variable[?]]()) {
     val typingName = "typing_" + fullName
-    val typingJudgement = THM(cst :: typ, typingName, line, file, InternalStatement)({
+    val typingJudgement =
+      val statement: Sequent = cst :: typ
+      val proof = lisa.utils.prooflib.Proof.withGoal(using lisa.SetTheoryLibrary)(statement)
       // have(expression :: typ) by TypeChecker.prove
       // thenHave(thesis) by lisa.automation.Substitution.ApplyRules(getShortDefinition(cst).get) //TODO
-    })
+      proof.pure(()).destruct._1
     val typedLabel: TypedConstant = TypedConstant(cst.id, typ, typingJudgement)
 
   }
@@ -218,7 +221,7 @@ object TypingHelpers:
     TypedSimpleConstantDefinition(name.value, line.value, file.value)(term, typ).typedLabel
 
   extension (c: Constant[Ind]) {
-    def typedWith(typ: Typ)(justif: JUSTIFICATION): TypedConstant =
+    def typedWith(typ: Typ)(justif: Thm): TypedConstant =
       if justif.statement.right.size != 1 || justif.statement.left.size != 0 || !K.isSame((c `is` typ).underlying, justif.statement.right.head.underlying) then
         throw new IllegalArgumentException(s"A proof of typing of $c must be of the form ${c :: typ}, but the given justification shows ${justif.statement}.")
       else TypedConstant(c.id, typ, justif)
