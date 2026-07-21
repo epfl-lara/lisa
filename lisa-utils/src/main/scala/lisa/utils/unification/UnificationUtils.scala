@@ -1,11 +1,13 @@
 package lisa.utils.unification
 
 import lisa.utils.K
-import lisa.utils.collection.Extensions.{*, given}
+import lisa.utils.collection.Extensions.{_, given}
 import lisa.utils.collection.{VecSet => Set}
 import lisa.utils.fol.FOL
 import lisa.utils.fol.FOL.{_, given}
-import lisa.utils.prooflib.{BasicStep, Library, Thm}
+import lisa.utils.prooflib.BasicStep
+import lisa.utils.prooflib.Library
+import lisa.utils.prooflib.Thm
 
 import scala.collection.mutable
 
@@ -394,7 +396,9 @@ object UnificationUtils:
                 RewriteResult(c, r, Abs(freshVar, e))
         case _ => None
 
-  /** Keeps the first occurrence of each instantiated rewrite rule. */
+  /**
+   * Keeps the first occurrence of each instantiated rewrite rule.
+   */
   def distinctRules(rules: Iterable[InstantiatedRewriteRule]): Vector[InstantiatedRewriteRule] =
     val seen = mutable.LinkedHashSet.empty[InstantiatedRewriteRule]
     val out = Vector.newBuilder[InstantiatedRewriteRule]
@@ -402,7 +406,9 @@ object UnificationUtils:
       if seen.add(rule) then out += rule
     out.result()
 
-  /** Matches every base formula to some target formula by rewriting. */
+  /**
+   * Matches every base formula to some target formula by rewriting.
+   */
   def rewritingPairs(using ctx: RewriteContext)(base: scala.collection.immutable.Set[Expr[Prop]], target: scala.collection.immutable.Set[Expr[Prop]]): Option[Seq[FormulaRewriteResult]] =
     base.iterator
       .map(formula => target.iterator.collectFirstDefined(target => rewrite(betaReduce(formula), betaReduce(target))))

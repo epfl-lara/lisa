@@ -1,14 +1,17 @@
 package lisa.utils.prooflib
 
 import lisa.utils.K
-import lisa.utils.collection.Extensions.*
-import lisa.utils.fol.FOL.*
+import lisa.utils.collection.Extensions._
+import lisa.utils.fol.FOL._
 import lisa.utils.prooflib.Helpers.containsEq
-import lisa.utils.prooflib.ProofHelpers.{PremiseSequentTactic, SequentTactic}
+import lisa.utils.prooflib.ProofHelpers.PremiseSequentTactic
+import lisa.utils.prooflib.ProofHelpers.SequentTactic
 
 import scala.collection.mutable
 
-/** Congruence closure over term equality and formula equivalence. */
+/**
+ * Congruence closure over term equality and formula equivalence.
+ */
 object Congruence extends SequentTactic, PremiseSequentTactic, DerivedFromPremises:
   protected def prove(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premises: Seq[Thm]): ProofJudgement =
     proveFromPremises(conclusion, premises) match
@@ -23,36 +26,38 @@ object Congruence extends SequentTactic, PremiseSequentTactic, DerivedFromPremis
     val temporary = addedPremises.map(_._2)
     val augmented = Sequent(conclusion.left ++ temporary, conclusion.right)
     solve(augmented).flatMap: initial =>
-      addedPremises.foldLeft(Right(initial): Either[String, Thm]):
-        case (currentResult, (premise, assumption)) =>
-          currentResult.flatMap: current =>
-            current.left.find(isSame(_, assumption)) match
-              case None => Right(current)
-              case Some(actualAssumption) =>
-                val premiseAsFormula = Sequent(premise.left, Set(assumption))
-                val retained = current.left - actualAssumption
-                for
-                  normalized <- K.Restate(using library.theory)(premiseAsFormula.underlying, premise.kernel).left.map(_.toString)
-                  cutStatement = Sequent(retained ++ premise.left, current.right)
-                  cut <- K.Cut(using library.theory)(cutStatement.underlying, normalized, current.kernel, assumption.underlying).left.map(_.toString)
-                  reduced <- premise.left.foldLeft(Right(Thm(cutStatement, cut)): Either[String, Thm]):
-                    case (stepResult, premiseAssumption) =>
-                      stepResult.flatMap: step =>
-                        if retained.containsEq(premiseAssumption) then Right(step)
-                        else
-                          step.left.find(isSame(_, premiseAssumption)) match
-                            case None => Right(step)
-                            case Some(actual) =>
-                              val proofStatement = Sequent(step.left - actual, Set(premiseAssumption))
-                              solve(proofStatement).flatMap: assumptionProof =>
-                                val result = Sequent(step.left - actual, step.right)
-                                K.Cut(using library.theory)(result.underlying, assumptionProof.kernel, step.kernel, premiseAssumption.underlying)
-                                  .left.map(_.toString).map(Thm(result, _))
-                yield reduced
-      .flatMap: theorem =>
-        K.Restate(using library.theory)(conclusion.underlying, theorem.kernel).left.map(_.toString).map(Thm(conclusion, _))
+      addedPremises
+        .foldLeft(Right(initial): Either[String, Thm]):
+          case (currentResult, (premise, assumption)) =>
+            currentResult.flatMap: current =>
+              current.left.find(isSame(_, assumption)) match
+                case None => Right(current)
+                case Some(actualAssumption) =>
+                  val premiseAsFormula = Sequent(premise.left, Set(assumption))
+                  val retained = current.left - actualAssumption
+                  for
+                    normalized <- K.Restate(using library.theory)(premiseAsFormula.underlying, premise.kernel).left.map(_.toString)
+                    cutStatement = Sequent(retained ++ premise.left, current.right)
+                    cut <- K.Cut(using library.theory)(cutStatement.underlying, normalized, current.kernel, assumption.underlying).left.map(_.toString)
+                    reduced <- premise.left.foldLeft(Right(Thm(cutStatement, cut)): Either[String, Thm]):
+                      case (stepResult, premiseAssumption) =>
+                        stepResult.flatMap: step =>
+                          if retained.containsEq(premiseAssumption) then Right(step)
+                          else
+                            step.left.find(isSame(_, premiseAssumption)) match
+                              case None => Right(step)
+                              case Some(actual) =>
+                                val proofStatement = Sequent(step.left - actual, Set(premiseAssumption))
+                                solve(proofStatement).flatMap: assumptionProof =>
+                                  val result = Sequent(step.left - actual, step.right)
+                                  K.Cut(using library.theory)(result.underlying, assumptionProof.kernel, step.kernel, premiseAssumption.underlying).left.map(_.toString).map(Thm(result, _))
+                  yield reduced
+        .flatMap: theorem =>
+          K.Restate(using library.theory)(conclusion.underlying, theorem.kernel).left.map(_.toString).map(Thm(conclusion, _))
 
-  /** Computes congruence closure and reconstructs a theorem when it closes the sequent. */
+  /**
+   * Computes congruence closure and reconstructs a theorem when it closes the sequent.
+   */
   def solve(using library: Library)(conclusion: Sequent): Either[String, Thm] =
     val egraph = EGraphExpr()
     egraph.addAll(conclusion.left)
@@ -63,7 +68,8 @@ object Congruence extends SequentTactic, PremiseSequentTactic, DerivedFromPremis
       case _ => ()
 
     val result =
-      K.RestateTrue(using library.theory)(conclusion.underlying).toOption
+      K.RestateTrue(using library.theory)(conclusion.underlying)
+        .toOption
         .orElse(closeLeftRight(egraph, conclusion))
         .orElse(closeLeftContradiction(egraph, conclusion))
         .orElse(closeRightContradiction(egraph, conclusion))
@@ -72,65 +78,78 @@ object Congruence extends SequentTactic, PremiseSequentTactic, DerivedFromPremis
     result.toRight(s"No congruence found to show sequent\n$conclusion").map(Thm(conclusion, _))
 
   private def closeLeftRight(using library: Library)(egraph: EGraphExpr, conclusion: Sequent): Option[K.Thm] =
-    conclusion.left.iterator.flatMap: left =>
-      conclusion.right.iterator.filter(egraph.idEq(left, _)).flatMap: right =>
-        val baseStatement = Sequent(conclusion.left, conclusion.right + left)
-        val equality = makeEq(left, right)
-        val variable = lisa.utils.fol.FOL.variable[Prop]
-        for
-          base <- K.Hypothesis(using library.theory)(baseStatement.underlying, left.underlying).toOption
-          equalityProof <- egraph.proveExpr(left, right, conclusion).toOption.map(_.kernel)
-          substituted <- K.RightSubstEq(using library.theory)(
-            Sequent(conclusion.left + equality, conclusion.right).underlying,
-            base,
-            Seq(left.underlying -> right.underlying),
-            Seq(variable.underlying) -> variable.underlying
-          ).toOption
-          result <- K.Cut(using library.theory)(conclusion.underlying, equalityProof, substituted, equality.underlying).toOption
-        yield result
-    .nextOption()
+    conclusion.left.iterator
+      .flatMap: left =>
+        conclusion.right.iterator
+          .filter(egraph.idEq(left, _))
+          .flatMap: right =>
+            val baseStatement = Sequent(conclusion.left, conclusion.right + left)
+            val equality = makeEq(left, right)
+            val variable = lisa.utils.fol.FOL.variable[Prop]
+            for
+              base <- K.Hypothesis(using library.theory)(baseStatement.underlying, left.underlying).toOption
+              equalityProof <- egraph.proveExpr(left, right, conclusion).toOption.map(_.kernel)
+              substituted <- K
+                .RightSubstEq(using library.theory)(
+                  Sequent(conclusion.left + equality, conclusion.right).underlying,
+                  base,
+                  Seq(left.underlying -> right.underlying),
+                  Seq(variable.underlying) -> variable.underlying
+                )
+                .toOption
+              result <- K.Cut(using library.theory)(conclusion.underlying, equalityProof, substituted, equality.underlying).toOption
+            yield result
+      .nextOption()
 
   private def closeLeftContradiction(using library: Library)(egraph: EGraphExpr, conclusion: Sequent): Option[K.Thm] =
-    conclusion.left.iterator.flatMap: positive =>
-      conclusion.left.iterator.collect:
-        case negated @ neg(negative) if egraph.idEq(positive, negative) => positive -> negative
-      .flatMap: (positive, negative) =>
-        val equality = makeEq(positive, negative)
-        val variable = lisa.utils.fol.FOL.variable[Prop]
-        val base = Sequent(conclusion.left + neg(positive), conclusion.right)
-        for
-          baseProof <- K.RestateTrue(using library.theory)(base.underlying).toOption
-          equalityProof <- egraph.proveExpr(positive, negative, conclusion).toOption.map(_.kernel)
-          substituted <- K.LeftSubstEq(using library.theory)(
-            Sequent(conclusion.left + equality, conclusion.right).underlying,
-            baseProof,
-            Seq(positive.underlying -> negative.underlying),
-            Seq(variable.underlying) -> neg(variable).underlying
-          ).toOption
-          result <- K.Cut(using library.theory)(conclusion.underlying, equalityProof, substituted, equality.underlying).toOption
-        yield result
-    .nextOption()
+    conclusion.left.iterator
+      .flatMap: positive =>
+        conclusion.left.iterator
+          .collect:
+            case negated @ neg(negative) if egraph.idEq(positive, negative) => positive -> negative
+          .flatMap: (positive, negative) =>
+            val equality = makeEq(positive, negative)
+            val variable = lisa.utils.fol.FOL.variable[Prop]
+            val base = Sequent(conclusion.left + neg(positive), conclusion.right)
+            for
+              baseProof <- K.RestateTrue(using library.theory)(base.underlying).toOption
+              equalityProof <- egraph.proveExpr(positive, negative, conclusion).toOption.map(_.kernel)
+              substituted <- K
+                .LeftSubstEq(using library.theory)(
+                  Sequent(conclusion.left + equality, conclusion.right).underlying,
+                  baseProof,
+                  Seq(positive.underlying -> negative.underlying),
+                  Seq(variable.underlying) -> neg(variable).underlying
+                )
+                .toOption
+              result <- K.Cut(using library.theory)(conclusion.underlying, equalityProof, substituted, equality.underlying).toOption
+            yield result
+      .nextOption()
 
   private def closeRightContradiction(using library: Library)(egraph: EGraphExpr, conclusion: Sequent): Option[K.Thm] =
-    conclusion.right.iterator.flatMap: positive =>
-      conclusion.right.iterator.collect:
-        case negated @ neg(negative) if egraph.idEq(negative, positive) => negative -> positive
-      .flatMap: (negative, positive) =>
-        val equality = makeEq(negative, positive)
-        val variable = lisa.utils.fol.FOL.variable[Prop]
-        val base = Sequent(conclusion.left, conclusion.right + neg(positive))
-        for
-          baseProof <- K.RestateTrue(using library.theory)(base.underlying).toOption
-          equalityProof <- egraph.proveExpr(negative, positive, conclusion).toOption.map(_.kernel)
-          substituted <- K.RightSubstEq(using library.theory)(
-            Sequent(conclusion.left + equality, conclusion.right).underlying,
-            baseProof,
-            Seq(positive.underlying -> negative.underlying),
-            Seq(variable.underlying) -> neg(variable).underlying
-          ).toOption
-          result <- K.Cut(using library.theory)(conclusion.underlying, equalityProof, substituted, equality.underlying).toOption
-        yield result
-    .nextOption()
+    conclusion.right.iterator
+      .flatMap: positive =>
+        conclusion.right.iterator
+          .collect:
+            case negated @ neg(negative) if egraph.idEq(negative, positive) => negative -> positive
+          .flatMap: (negative, positive) =>
+            val equality = makeEq(negative, positive)
+            val variable = lisa.utils.fol.FOL.variable[Prop]
+            val base = Sequent(conclusion.left, conclusion.right + neg(positive))
+            for
+              baseProof <- K.RestateTrue(using library.theory)(base.underlying).toOption
+              equalityProof <- egraph.proveExpr(negative, positive, conclusion).toOption.map(_.kernel)
+              substituted <- K
+                .RightSubstEq(using library.theory)(
+                  Sequent(conclusion.left + equality, conclusion.right).underlying,
+                  baseProof,
+                  Seq(positive.underlying -> negative.underlying),
+                  Seq(variable.underlying) -> neg(variable).underlying
+                )
+                .toOption
+              result <- K.Cut(using library.theory)(conclusion.underlying, equalityProof, substituted, equality.underlying).toOption
+            yield result
+      .nextOption()
 
   private def closeExplicitEquality(using library: Library)(egraph: EGraphExpr, conclusion: Sequent): Option[K.Thm] =
     val positive = conclusion.right.iterator.collectFirstDefined:
@@ -145,7 +164,9 @@ object Congruence extends SequentTactic, PremiseSequentTactic, DerivedFromPremis
           egraph.proveExpr(left, right, conclusion).toOption.flatMap(thm => K.Restate(using library.theory)(conclusion.underlying, thm.kernel).toOption)
         case _ => None
 
-/** Union-find retaining an uncompressed explanation forest. */
+/**
+ * Union-find retaining an uncompressed explanation forest.
+ */
 final class UnionFind[T]:
   val parent: mutable.Map[T, T] = mutable.HashMap.empty
   val realParent: mutable.Map[T, (T, ((T, T), Boolean, Int))] = mutable.HashMap.empty
@@ -188,7 +209,9 @@ final class UnionFind[T]:
     val rightPath = pathToRoot(right).toSet
     pathToRoot(left).find(rightPath)
 
-  /** Returns original union edges forming a path from `left` to `right`. */
+  /**
+   * Returns original union edges forming a path from `left` to `right`.
+   */
   def explain(left: T, right: T): Option[List[(T, T)]] =
     if left == right then Some(Nil)
     else
@@ -218,7 +241,9 @@ final class UnionFind[T]:
 
   def getClasses: Set[T] = parent.keysIterator.map(find).toSet
 
-/** E-graph with explanations for external and congruence merges. */
+/**
+ * E-graph with explanations for external and congruence merges.
+ */
 final class EGraphExpr:
   val UF = UnionFind[Expr[?]]()
   private val parents = mutable.HashMap.empty[Expr[?], mutable.Set[Expr[?]]]
@@ -238,16 +263,19 @@ final class EGraphExpr:
   def idEq(left: Expr[?], right: Expr[?]): Boolean = find(left) == find(right)
 
   def explain(left: Expr[?], right: Expr[?]): Option[List[Step]] =
-    UF.explain(left, right).map: edges =>
-      edges.foldLeft((left: Any) -> List.empty[Step]):
-        case ((previous, result), edge) =>
-          proofMap(edge) match
-            case step @ ExternalStep((from, to)) if from == previous => (to: Any) -> (step :: result)
-            case ExternalStep((from, to)) if to == previous => (from: Any) -> (ExternalStep(to -> from) :: result)
-            case step @ CongruenceStep((from, to)) if from == previous => (to: Any) -> (step :: result)
-            case CongruenceStep((from, to)) if to == previous => (from: Any) -> (CongruenceStep(to -> from) :: result)
-            case _ => throw new IllegalStateException("Invalid e-graph explanation chain.")
-      ._2.reverse
+    UF.explain(left, right)
+      .map: edges =>
+        edges
+          .foldLeft((left: Any) -> List.empty[Step]):
+            case ((previous, result), edge) =>
+              proofMap(edge) match
+                case step @ ExternalStep((from, to)) if from == previous => (to: Any) -> (step :: result)
+                case ExternalStep((from, to)) if to == previous => (from: Any) -> (ExternalStep(to -> from) :: result)
+                case step @ CongruenceStep((from, to)) if from == previous => (to: Any) -> (step :: result)
+                case CongruenceStep((from, to)) if to == previous => (from: Any) -> (CongruenceStep(to -> from) :: result)
+                case _ => throw new IllegalStateException("Invalid e-graph explanation chain.")
+          ._2
+          .reverse
 
   def add[S](expression: Expr[S]): Expr[S] =
     if !codes.contains(expression) then
@@ -299,25 +327,30 @@ final class EGraphExpr:
         parents(newRoot) = parents(largeRoot) ++ parents(smallRoot)
         work.result().foreach(mergeWithStep)
 
-  /** Reconstructs an equality/iff theorem from an e-graph explanation. */
+  /**
+   * Reconstructs an equality/iff theorem from an e-graph explanation.
+   */
   def proveExpr[S](using library: Library)(left: Expr[S], right: Expr[S], base: Sequent): Either[String, Thm] =
-    explain(left, right).toRight("Expressions are not congruent.").flatMap: steps =>
-      if steps.isEmpty then reflexive(left, right, base)
-      else
-        steps.foldLeft(Right(None): Either[String, Option[(Expr[?], K.Thm)]]):
-          case (acc, step) =>
-            for
-              previous <- acc
-              edge <- proveEdge(step, base)
-              next <- previous match
-                case None => Right(Some(step.between._2 -> edge))
-                case Some((current, proof)) =>
-                  compose(left, current, step.between._2, proof, edge, base).map(theorem => Some(step.between._2 -> theorem))
-            yield next
-        .flatMap(_.toRight("Empty congruence explanation."))
-        .flatMap: (_, theorem) =>
-          val goal = Sequent(base.left, base.right + makeEq(left, right))
-          K.Restate(using library.theory)(goal.underlying, theorem).left.map(_.toString).map(Thm(goal, _))
+    explain(left, right)
+      .toRight("Expressions are not congruent.")
+      .flatMap: steps =>
+        if steps.isEmpty then reflexive(left, right, base)
+        else
+          steps
+            .foldLeft(Right(None): Either[String, Option[(Expr[?], K.Thm)]]):
+              case (acc, step) =>
+                for
+                  previous <- acc
+                  edge <- proveEdge(step, base)
+                  next <- previous match
+                    case None => Right(Some(step.between._2 -> edge))
+                    case Some((current, proof)) =>
+                      compose(left, current, step.between._2, proof, edge, base).map(theorem => Some(step.between._2 -> theorem))
+                yield next
+            .flatMap(_.toRight("Empty congruence explanation."))
+            .flatMap: (_, theorem) =>
+              val goal = Sequent(base.left, base.right + makeEq(left, right))
+              K.Restate(using library.theory)(goal.underlying, theorem).left.map(_.toString).map(Thm(goal, _))
 
   private def reflexive(using library: Library)(left: Expr[?], right: Expr[?], base: Sequent): Either[String, Thm] =
     val goal = Sequent(base.left, base.right + makeEq(left, right))
@@ -341,8 +374,10 @@ final class EGraphExpr:
           variable(K.Identifier("n", freshStart + index), source.sort)
         }
         val replacements = variables.iterator
-        val children = leftArgs.zip(rightArgs).map: (source, target) =>
-          if source == target then source else replacements.next()
+        val children = leftArgs
+          .zip(rightArgs)
+          .map: (source, target) =>
+            if source == target then source else replacements.next()
         val context = makeEq(left, Multiapp.unsafe(rightLabel, children))
         val equalities = different.map((l, r) => makeEq(l, r))
         val reflexiveGoal = Sequent(base.left, base.right + makeEq(left, left))
@@ -355,12 +390,15 @@ final class EGraphExpr:
                 proof <- proveExpr(childLeft, childRight.asInstanceOf, base)
               yield accumulated :+ (makeEq(childLeft, childRight) -> proof.kernel)
           reflexive <- K.RestateTrue(using library.theory)(reflexiveGoal.underlying).left.map(_.toString)
-          substituted <- K.RightSubstEq(using library.theory)(
-            Sequent(base.left ++ equalities, base.right + makeEq(left, right)).underlying,
-            reflexive,
-            different.map((l, r) => l.underlying -> r.underlying),
-            variables.map(_.underlying) -> context.underlying
-          ).left.map(_.toString)
+          substituted <- K
+            .RightSubstEq(using library.theory)(
+              Sequent(base.left ++ equalities, base.right + makeEq(left, right)).underlying,
+              reflexive,
+              different.map((l, r) => l.underlying -> r.underlying),
+              variables.map(_.underlying) -> context.underlying
+            )
+            .left
+            .map(_.toString)
           result <- childProofs.foldLeft(Right(substituted): Either[String, K.Thm]):
             case (current, (pivot, childProof)) =>
               current.flatMap: theorem =>
@@ -371,7 +409,9 @@ final class EGraphExpr:
         yield result
       case _ => Left("Malformed congruence explanation edge.")
 
-  private def compose(using library: Library)(
+  private def compose(using
+      library: Library
+  )(
       start: Expr[?],
       middle: Expr[?],
       end: Expr[?],
@@ -383,13 +423,19 @@ final class EGraphExpr:
     val chainVariable = variable(K.Identifier("chain", (start.freeVars ++ end.freeVars).iterator.map(_.id.no).maxOption.getOrElse(-1) + 1), middle.sort)
     val context = makeEq(start, chainVariable)
     for
-      substituted <- K.RightSubstEq(using library.theory)(
-        Sequent(base.left + pivot, base.right + makeEq(start, end)).underlying,
-        prefix,
-        Seq(middle.underlying -> end.underlying),
-        Seq(chainVariable.underlying) -> context.underlying
-      ).left.map(_.toString)
-      result <- K.Cut(
-        using library.theory
-      )(Sequent(base.left, base.right + makeEq(start, end)).underlying, edge, substituted, pivot.underlying).left.map(_.toString)
+      substituted <- K
+        .RightSubstEq(using library.theory)(
+          Sequent(base.left + pivot, base.right + makeEq(start, end)).underlying,
+          prefix,
+          Seq(middle.underlying -> end.underlying),
+          Seq(chainVariable.underlying) -> context.underlying
+        )
+        .left
+        .map(_.toString)
+      result <- K
+        .Cut(using
+          library.theory
+        )(Sequent(base.left, base.right + makeEq(start, end)).underlying, edge, substituted, pivot.underlying)
+        .left
+        .map(_.toString)
     yield result

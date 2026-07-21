@@ -1,9 +1,9 @@
 package lisa.utils.prooflib
 
 import lisa.utils.K
-import lisa.utils.fol.FOL.*
+import lisa.utils.fol.FOL._
 import lisa.utils.prooflib.Helpers.withParams
-import lisa.utils.prooflib.ProofHelpers.*
+import lisa.utils.prooflib.ProofHelpers._
 
 object Tautology extends SequentTactic with PremiseSequentTactic:
   def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent): ProofJudgement =
@@ -24,25 +24,29 @@ object Tautology extends SequentTactic with PremiseSequentTactic:
         )
 
   /**
-    * Variant of [[from]] that also adds the local proof's previous theorem to
-    * the premises. The `Have` machinery supplies that theorem.
-    */
+   * Variant of [[from]] that also adds the local proof's previous theorem to
+   * the premises. The `Have` machinery supplies that theorem.
+   */
   def fromLastStep(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(premises: Thm*): (Sequent, Thm) => ProofJudgement =
     (conclusion, lastStep) => from(using file, line)(lastStep +: premises.toSeq*)(conclusion)
 
   /**
-    * Attempts to prove a kernel sequent propositionally, returning a theorem
-    * instead of a proof tree. This is intentionally just kernel steps: truth is
-    * introduced once, then weakened to the desired statement.
-    */
+   * Attempts to prove a kernel sequent propositionally, returning a theorem
+   * instead of a proof tree. This is intentionally just kernel steps: truth is
+   * introduced once, then weakened to the desired statement.
+   */
   def solveSequent(using library: Library)(statement: K.Sequent): Either[K.Thm, (String, K.Sequent)] =
     proveTautology(statement).swap.map(_ -> statement)
 
   private def solve(using library: Library)(conclusion: K.Sequent, premises: Seq[K.Thm]): Either[String, K.Thm] =
     proveFromPremises(conclusion, premises)(proveTautology)
 
-  /** Adds theorem premises as formulas, invokes a solver, then cuts them away. */
-  private[prooflib] def proveFromPremises(using library: Library)(
+  /**
+   * Adds theorem premises as formulas, invokes a solver, then cuts them away.
+   */
+  private[prooflib] def proveFromPremises(using
+      library: Library
+  )(
       conclusion: K.Sequent,
       premises: Seq[K.Thm]
   )(solver: K.Sequent => Either[String, K.Thm]): Either[String, K.Thm] =
@@ -69,8 +73,7 @@ object Tautology extends SequentTactic with PremiseSequentTactic:
   private def proveTautology(using library: Library)(statement: K.Sequent): Either[String, K.Thm] =
     val augmented = AugSequent((Nil, Nil), K.reducedForm(K.sequentToFormula(statement)))
     val marker = K.Variable(K.freshId(augmented.formula.freeVariables.map(_.id), "MaRvIn"), K.Prop)
-    try
-      Right(checked("final restate")(K.Restate(using library.theory)(statement, solveAugSequent(using library, marker)(augmented))))
+    try Right(checked("final restate")(K.Restate(using library.theory)(statement, solveAugSequent(using library, marker)(augmented))))
     catch
       case failure: NoProofFoundException =>
         Left(
@@ -84,17 +87,20 @@ object Tautology extends SequentTactic with PremiseSequentTactic:
 
   private class NoProofFoundException(val unsolvable: K.Sequent) extends Exception
 
-  private class ReconstructionFailure(step: String, error: Any)
-      extends Exception(s"Tautology proof reconstruction failed at $step: $error")
+  private class ReconstructionFailure(step: String, error: Any) extends Exception(s"Tautology proof reconstruction failed at $step: $error")
 
   private def checked(step: String)(result: Either[?, K.Thm]): K.Thm =
     result.fold(error => throw new ReconstructionFailure(step, error), identity)
 
-  /** Reduces a sequent to the AIG expression used by proof search. */
+  /**
+   * Reduces a sequent to the AIG expression used by proof search.
+   */
   def reduceSequent(statement: K.Sequent): K.Expression =
     K.reducedForm(K.sequentToFormula(statement))
 
-  /** Chooses the most frequent propositional atom in a reduced expression. */
+  /**
+   * Chooses the most frequent propositional atom in a reduced expression.
+   */
   def findBestAtom(expression: K.Expression): Option[K.Expression] =
     val atoms = scala.collection.mutable.HashMap.empty[K.Expression, Int]
     def collect(current: K.Expression): Unit =
@@ -108,7 +114,9 @@ object Tautology extends SequentTactic with PremiseSequentTactic:
     collect(expression)
     atoms.maxByOption(_._2).map(_._1)
 
-  /** Replaces occurrences of `target` by `variable`, avoiding variable capture. */
+  /**
+   * Replaces occurrences of `target` by `variable`, avoiding variable capture.
+   */
   def findSubformula(expression: K.Expression, variable: K.Variable, target: K.Expression): Option[K.Expression] =
     def recurse(outer: K.Expression, forbidden: Set[K.Variable]): (K.Expression, Boolean) =
       if K.isSame(outer, target) then variable -> true
@@ -138,8 +146,7 @@ object Tautology extends SequentTactic with PremiseSequentTactic:
     val (positive, negative) = sequent.decisions
     val assumptions = (positive ++ negative.map(formula => K.neg(formula))).toSet
 
-    if reduced == K.top then
-      checked("closed branch")(K.RestateTrue(using library.theory)(K.Sequent(assumptions, Set(sequent.formula))))
+    if reduced == K.top then checked("closed branch")(K.RestateTrue(using library.theory)(K.Sequent(assumptions, Set(sequent.formula))))
     else
       findBestAtom(reduced) match
         case None =>
@@ -154,8 +161,8 @@ object Tautology extends SequentTactic with PremiseSequentTactic:
               )
               val positiveProof = solveAugSequent(positiveBranch)
               val positiveSubstitution = checked("positive atom substitution"):
-                K.RightSubstEq(
-                  using library.theory
+                K.RightSubstEq(using
+                  library.theory
                 )(
                   K.Sequent(assumptions + atom, Set(reduced)),
                   positiveProof,
@@ -170,8 +177,8 @@ object Tautology extends SequentTactic with PremiseSequentTactic:
               )
               val negativeProof = solveAugSequent(negativeBranch)
               val negativeSubstitution = checked("negative atom substitution"):
-                K.RightSubstEq(
-                  using library.theory
+                K.RightSubstEq(using
+                  library.theory
                 )(
                   K.Sequent(assumptions + negatedAtom, Set(reduced)),
                   negativeProof,
@@ -190,7 +197,8 @@ object Tautology extends SequentTactic with PremiseSequentTactic:
     val formula = K.sequentToFormula(premise.statement)
     val statement = K.Sequent(Set.empty[K.Expression], Set(formula))
     K.Restate(using library.theory)(statement, premise)
-      .left.map(error => s"Tautology could not convert a premise to formula form: $error")
+      .left
+      .map(error => s"Tautology could not convert a premise to formula form: $error")
       .map(formula -> _)
 
   private def cutPremises(using library: Library)(conclusion: K.Sequent, cuts: Vector[(K.Expression, K.Thm)])(initial: K.Thm): Either[String, K.Thm] =

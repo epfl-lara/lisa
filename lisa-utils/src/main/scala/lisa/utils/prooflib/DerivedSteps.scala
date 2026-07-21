@@ -1,7 +1,7 @@
 package lisa.utils.prooflib
 
 import lisa.utils.K
-import lisa.utils.fol.FOL.*
+import lisa.utils.fol.FOL._
 
 trait DerivedFromPremises:
   protected def prove(using sourcecode.File, sourcecode.Line)(using Library)(conclusion: Sequent, premises: Seq[Thm]): ProofJudgement

@@ -32,12 +32,12 @@ object Extensions:
         if next.isDefined then res = res.map(_ += next.get) else res = None
       res.map(_.result())
 
-  extension [A, B] (prod: Either[A, B])
+  extension [A, B](prod: Either[A, B])
 
     /**
-      * Map the left value of an Either, if it exists. Otherwise, return the right
-      * value.
-      */
+     * Map the left value of an Either, if it exists. Otherwise, return the right
+     * value.
+     */
     def mapLeft[C](f: A => C): Either[C, B] = prod match
       case Left(a) => Left(f(a))
       case Right(b) => Right(b)
@@ -49,4 +49,3 @@ object Extensions:
     def mapRight[C](f: B => C): Either[A, C] = prod match
       case Left(a) => Left(a)
       case Right(b) => Right(f(b))
-      

@@ -1,7 +1,7 @@
 package lisa.utils.prooflib
 
 import lisa.utils.K
-import lisa.utils.fol.FOL.*
+import lisa.utils.fol.FOL._
 import lisa.utils.prooflib.Helpers.withParams
 
 object ProofHelpers:
@@ -31,7 +31,9 @@ object ProofHelpers:
   private def target(using proof: Proof)(statement: Sequent): Sequent =
     proof.withAssumptions(statement)
 
-  /** Builds a soft tactic failure against the current proof goal. */
+  /**
+   * Builds a soft tactic failure against the current proof goal.
+   */
   def invalidTactic(using file: sourcecode.File, line: sourcecode.Line)(using lib: Library, proof: Proof)(message: String): ProofJudgement =
     val statement = proof.goal.getOrElse(emptySeq)
     ProofCarrier(Set(SoftError(message, file, line)), statement, None, ())
@@ -85,7 +87,9 @@ object ProofHelpers:
 
     liftSubproofResult(file, line)(conclusion, proof.withSubcontext(Some(conclusion))(carrier))
 
-  /** Runs a tactic subproof with an empty local assumption context. */
+  /**
+   * Runs a tactic subproof with an empty local assumption context.
+   */
   def TacticSubproofWithoutAssumptions(using lib: Library, proof: Proof)(inner: Proof ?=> Any): ProofJudgement =
     def carrier(using subproof: Proof): ProofCarrier[?] =
       inner(using subproof) match
@@ -99,8 +103,7 @@ object ProofHelpers:
 
   class HaveSequent(val statement: Sequent):
     infix def by(using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: SequentTactic): Thm =
-      by(using lib, proof, file, line)
-        ((conclusion: Sequent) => tactic.apply(using file, line)(using lib)(conclusion))
+      by(using lib, proof, file, line)((conclusion: Sequent) => tactic.apply(using file, line)(using lib)(conclusion))
 
     infix def by(using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: Sequent => ProofJudgement): Thm =
       record(tactic(target(statement)))._1
@@ -113,8 +116,7 @@ object ProofHelpers:
       record(tactic(target(statement)))._1
 
     infix def by(using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: PremiseSequentTactic): Thm =
-      by(using lib, proof, file, line)
-        ((conclusion: Sequent, premise: Thm) => tactic.apply(using file, line)(using lib)(conclusion, premise.kernel))
+      by(using lib, proof, file, line)((conclusion: Sequent, premise: Thm) => tactic.apply(using file, line)(using lib)(conclusion, premise.kernel))
 
     infix def by(using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: (Sequent, Thm) => ProofJudgement): Thm =
       proof.last match
@@ -134,16 +136,14 @@ object ProofHelpers:
 
   class HaveMSequent(val statement: Sequent):
     infix def by[T](using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: SequentTacticM[T]): (Thm, T) =
-      by(using lib, proof, file, line)
-        ((conclusion: Sequent) => tactic.apply(using file, line)(using lib)(conclusion))
+      by(using lib, proof, file, line)((conclusion: Sequent) => tactic.apply(using file, line)(using lib)(conclusion))
 
     infix def by[T](using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: Sequent => ProofCarrier[T]): (Thm, T) =
       record(tactic(target(statement)))
 
   class ThenHaveMSequent(val statement: Sequent):
     infix def by[T](using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: PremiseSequentTacticM[T]): (Thm, T) =
-      by(using lib, proof, file, line)
-        ((conclusion: Sequent, premise: Thm) => tactic.apply(using file, line)(using lib)(conclusion, premise.kernel))
+      by(using lib, proof, file, line)((conclusion: Sequent, premise: Thm) => tactic.apply(using file, line)(using lib)(conclusion, premise.kernel))
 
     infix def by[T](using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: (Sequent, Thm) => ProofCarrier[T]): (Thm, T) =
       proof.last match
@@ -179,40 +179,58 @@ object ProofHelpers:
       throw new NoSuchElementException("lastStep called on empty proof.")
 
   object Theorems:
-    /** Returns a theorem by full name, or by short name when unambiguous. */
+    /**
+     * Returns a theorem by full name, or by short name when unambiguous.
+     */
     def get(using library: Library)(name: String): Option[Theorem] =
       library.theorems.get(name)
 
-    /** Returns a theorem by exact full name. */
+    /**
+     * Returns a theorem by exact full name.
+     */
     def full(using library: Library)(name: String): Option[Theorem] =
       library.theorems.getFull(name)
 
-    /** Returns a theorem by short name only when that short name is unambiguous. */
+    /**
+     * Returns a theorem by short name only when that short name is unambiguous.
+     */
     def short(using library: Library)(name: String): Option[Theorem] =
       library.theorems.getShort(name)
 
-    /** Returns all registered theorems in registration order. */
+    /**
+     * Returns all registered theorems in registration order.
+     */
     def all(using library: Library): collection.View[Theorem] =
       library.theorems.all
 
-  /** Converts a kernel formula to the front expression type. */
+  /**
+   * Converts a kernel formula to the front expression type.
+   */
   inline def asFrontFormula(expression: K.Expression): Expr[Prop] =
     Thm.liftFormula(expression)
 
-  /** Converts a kernel sequent to the front sequent type. */
+  /**
+   * Converts a kernel sequent to the front sequent type.
+   */
   def asFrontSequent(statement: K.Sequent): Sequent =
     Thm.liftSequent(statement)
 
-  /** The current local proof context. */
+  /**
+   * The current local proof context.
+   */
   inline def currentProof(using proof: Proof): Proof =
     proof
 
-  /** The goal of the current proof, if one was declared. */
+  /**
+   * The goal of the current proof, if one was declared.
+   */
   def thesis(using proof: Proof): Sequent =
     proof.goal.getOrElse:
       throw new NoSuchElementException("thesis called outside a proof with a declared goal.")
 
-  /** Alias for [[thesis]]. */
+  /**
+   * Alias for [[thesis]].
+   */
   inline def goal(using proof: Proof): Sequent =
     thesis
 
@@ -221,64 +239,90 @@ object ProofHelpers:
       case left /\ right => splitConjunctions(left) ++ splitConjunctions(right)
       case _ => Set(formula)
 
-  /** Adds formulas to the local assumption context and proves them by hypothesis. */
+  /**
+   * Adds formulas to the local assumption context and proves them by hypothesis.
+   */
   def assume(using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(formulas: Expr[Prop]*): Thm =
     proof.assume(formulas)
     if formulas.isEmpty then have(() |- ⊤) by BasicStep.RestateTrue
     else have(() |- formulas) by BasicStep.Hypothesis
 
-  /** Assumes every formula on the left of the current goal. */
+  /**
+   * Assumes every formula on the left of the current goal.
+   */
   def assumeAll(using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line): Thm =
     assume(thesis.left.toSeq*)
 
-  /** Assumes every formula on the left of the current goal, splitting conjunctions recursively. */
+  /**
+   * Assumes every formula on the left of the current goal, splitting conjunctions recursively.
+   */
   def assumeAllSplit(using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line): Thm =
     assume(thesis.left.flatMap(splitConjunctions).toSeq*)
 
-  /** Concludes the current goal with a sorry step and records it in the proof. */
+  /**
+   * Concludes the current goal with a sorry step and records it in the proof.
+   */
   inline def sorry(using library: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line): Thm =
     have(thesis) by BasicStep.Sorry
 
-  /** A tactic consuming only a previously proved theorem. */
+  /**
+   * A tactic consuming only a previously proved theorem.
+   */
   trait ThmTactic:
     def apply(using sourcecode.File, sourcecode.Line)(using Library)(premise: Thm): ProofJudgement
 
-  /** Helper for `andThen tactic`, where the tactic consumes the previous theorem. */
+  /**
+   * Helper for `andThen tactic`, where the tactic consumes the previous theorem.
+   */
   final class AndThen private[prooflib] (using library: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line):
     private def missingPreviousStep: Thm =
       val statement = proof.goal.getOrElse(emptySeq)
       proof.absorbDestruct(ProofCarrier(Set(SoftError("andThen requires a previous theorem in the local proof context.", file, line)), statement, None, ()))._1
 
-    /** Applies a function tactic to the previous theorem and records the result. */
+    /**
+     * Applies a function tactic to the previous theorem and records the result.
+     */
     infix def apply(tactic: Thm => ProofJudgement): Thm =
       proof.last match
         case Some(premise) => proof.absorbDestruct(tactic(premise))._1
         case None => missingPreviousStep
 
-    /** Applies an object tactic to the previous theorem and records the result. */
+    /**
+     * Applies an object tactic to the previous theorem and records the result.
+     */
     infix def apply(tactic: ThmTactic): Thm =
       apply((premise: Thm) => tactic.apply(using file, line)(using library)(premise))
 
-  /** Starts an `andThen` proof step from the previous theorem. */
+  /**
+   * Starts an `andThen` proof step from the previous theorem.
+   */
   def andThen(using library: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line): AndThen =
     AndThen()
 
   extension (thm: K.Thm)
-    /** The theorem statement as a front sequent. */
+    /**
+     * The theorem statement as a front sequent.
+     */
     def frontStatement: Sequent =
       asFrontSequent(thm.statement)
 
-    /** Instantiates a theorem schema and returns the resulting theorem. */
+    /**
+     * Instantiates a theorem schema and returns the resulting theorem.
+     */
     infix def of(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(insts: SubstPair*): Thm =
       val conclusion = thm.frontStatement.substitute(insts*)
       BasicStep.InstSchema(using file, line)(using library)(insts*)(thm)(conclusion).destruct._1
 
   extension (thm: Thm)
-    /** Instantiates a theorem schema and returns the resulting theorem. */
+    /**
+     * Instantiates a theorem schema and returns the resulting theorem.
+     */
     infix def of(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(insts: SubstPair*): Thm =
       thm.kernel.of(using file, line)(using library)(insts*)
 
   extension (theorem: Theorem)
-    /** Instantiates a theorem schema and returns the resulting theorem. */
+    /**
+     * Instantiates a theorem schema and returns the resulting theorem.
+     */
     infix def of(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(insts: SubstPair*): Thm =
       theorem.thm.of(using file, line)(using library)(insts*)
