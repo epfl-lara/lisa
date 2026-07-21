@@ -528,7 +528,7 @@ object Ordinal extends lisa.Main {
         }
         thenHave(minimal(δ)(D)(membershipRelation(α)) ==> (G ∈ α)) by Restate
         thenHave(∀(δ, minimal(δ)(D)(membershipRelation(α)) ==> (G ∈ α))) by RightForall
-        have(thesis) by Tautology.from(lastStep, minExists)
+        have(thesis) by Tableau.from(lastStep, minExists)
       }
 
       have(thesis) by Tautology.from(case1, case2)
@@ -691,7 +691,7 @@ object Ordinal extends lisa.Main {
         }
         thenHave(minimal(δ)(D2)(membershipRelation(β)) ==> (G ∈ β)) by Restate
         thenHave(∀(δ, minimal(δ)(D2)(membershipRelation(β)) ==> (G ∈ β))) by RightForall
-        have(thesis) by Tautology.from(lastStep, minExists2)
+        have(thesis) by Tableau.from(lastStep, minExists2)
       }
 
       have(thesis) by Tautology.from(case1b, case2b)

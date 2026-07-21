@@ -3,6 +3,7 @@ package WellOrders
 
 import lisa.maths.SetTheory.Base.Predef._
 import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.Relations.Predef._
 import lisa.maths.SetTheory.Order.Examples.EmptyOrder
 
 import Predef._
