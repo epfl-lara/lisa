@@ -20,35 +20,31 @@ import lisa.automation.clausification.Clausification
  * @param depth     BFS rounds outward from the goal; `0` = unlimited (full closure), `1` = most aggressive.
  * @param minAxioms below this many hypotheses there is nothing worth pruning — keep everything.
  */
-final case class SineConfig(tolerance: Double = 3.0, depth: Int = 0, minAxioms: Int = 32)
+final case class SineConfig(tolerance: Double = 3.0, depth: Int = 0, minAxioms: Int = 500)
 
 object Sine:
 
-  /** The kernel identifier of the equality predicate — excluded from SInE symbols (it is universal). */
-  private val EqualityName = "="
+  /** The kernel's logical constants: the connectives, the `∀`/`∃`/`ε` binders, `⊤`/`⊥`, and `=`. None is a user
+   *  function/predicate symbol, so SInE must never treat one as a trigger. */
+  private val LogicalConstants: Set[Expression] =
+    Set(and, or, neg, implies, iff, forall, exists, epsilon, top, bot, equality)
 
-  /** The user function/predicate symbols occurring in a formula: every [[Constant]] that is not a logical
-   *  connective, a quantifier binder, a variable, or `=`. (Connectives/binders are peeled by the extractors;
-   *  equality is excluded by name; variables carry no symbol.) Exposed to [[SinePolicy]] for the gate-1
-   *  "conjecture has a symbol to seed from" check. */
+  /** The user function/predicate symbols occurring in a formula: every [[Constant]] that is not one of the
+   *  [[LogicalConstants]]. A connective or quantifier is itself just an application of a logical constant, so the
+   *  `Application` case walks it like any other node and its head is filtered out at the `Constant` case;
+   *  variables carry no symbol. Exposed to [[SinePolicy]] for the gate-1 "conjecture has a symbol to seed from". */
   private[superposition] def symbolsOf(e: Expression): Set[Constant] =
     val acc = mutable.HashSet.empty[Constant]
-    def formula(e: Expression): Unit = e match
-      case And(g, h)     => formula(g); formula(h)
-      case Or(g, h)      => formula(g); formula(h)
-      case Neg(g)        => formula(g)
-      case Implies(g, h) => formula(g); formula(h)
-      case Iff(g, h)     => formula(g); formula(h)
-      case Forall(_, b)  => formula(b)
-      case Exists(_, b)  => formula(b)
-      case `top` | `bot` => ()
-      case _             => term(e) // a predicate atom or an equality
-    def term(t: Expression): Unit = t match
-      case Application(f, a) => term(f); term(a)
-      case Lambda(_, b)      => term(b)
-      case c: Constant       => if c.id.name != EqualityName then acc += c
-      case _                 => () // a variable
-    formula(e)
+    // A shared sub-DAG (e.g. the opaque `F(x̄)` witnesses that ε-abstraction/Skolemization reuse across many atoms)
+    // must be traversed once, not re-unfolded per occurrence — otherwise a heavily-shared expression blows up
+    // exponentially. Memoise by the kernel's `uniqueNumber` (reference identity: shared occurrences are the same node).
+    val seen = mutable.HashSet.empty[Long]
+    def walk(e: Expression): Unit = if seen.add(e.uniqueNumber) then e match
+      case Application(f, a) => walk(f); walk(a) // covers connectives/quantifiers too — they are applications
+      case Lambda(_, b)      => walk(b) //           a `∀`/`∃`/`ε` body; the bound variable carries no symbol
+      case c: Constant       => if !LogicalConstants(c) then acc += c
+      case _                 => () //                a variable
+    walk(e)
     acc.toSet
 
   /**
