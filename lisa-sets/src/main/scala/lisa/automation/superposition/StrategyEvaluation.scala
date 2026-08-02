@@ -4,7 +4,6 @@ import java.io.File
 import scala.util.{Success, Failure}
 
 import lisa.tptp.KernelParser.{problemToKernel, strictMapAtom, strictMapTerm, strictMapVariable}
-import lisa.automation.clausification.{Clausification, UncertifiedClausification}
 import BenchUtil.{withTimeout, toClausificationProblem}
 
 /**
@@ -63,11 +62,8 @@ object StrategyEvaluation:
           val pruned = strat.sine match
             case Some(cfg) if SinePolicy.shouldFilter(cprob, SinePolicy.Params()) => Sine.select(cprob, cfg)
             case _                                                                => cprob
-          val clauses = UncertifiedClausification.clausalFormWithOrigins(pruned, orthologic = strat.orthologic)
-          val goal    = clauses.iterator.zipWithIndex.collect { case ((_, o), i) if o == pruned.hypotheses.size => i }.toSet
-          // Same as CascProver: add the TPTP distinct-object distinctness axioms before solving.
-          val distinct = Clausal.distinctObjectAxioms(clauses.map(_._1))
-          val clausal  = Clausification.Problem((clauses.map(_._1) ++ distinct).toList, None)
+          // Uncertified clausify + distinct-object axioms + goal-clause indices, shared with CascProver.
+          val (_, clausal, goal) = Clausal.cascSetup(pruned, orthologic = strat.orthologic)
           strat.solveOutcome(clausal, maxMillis = timeoutMs, goal = goal) match
             case _: Bridge.Outcome.Success => "REFUTED"
             case Bridge.Outcome.Saturated  => "SATURATED"

@@ -37,9 +37,7 @@ enum Cmp:
  * The accumulator state is reused across calls and reset at the start of each [[compare]];
  * an instance is therefore **not** thread-safe (like E's `OCB` and Vampire's `State`).
  *
- * Comparison is on terms that already share one variable namespace; comparing under a
- * substitution without materialising it (E's `DerefType` / Vampire's `AppliedTerm`) is left for
- * a later phase, as is the unidirectional "is-greater" fast path.
+ * Comparison is on terms that already share one variable namespace.
  */
 final class KBO(val bank: TermBank):
   import Cmp.*
@@ -60,9 +58,6 @@ final class KBO(val bank: TermBank):
     else
       reset()
       kbocmp(s, t)
-
-  /** Whether `s` is strictly greater than `t`. */
-  def greater(s: Term, t: Term): Boolean = compare(s, t) == Gt
 
     /** Record an occurrence of variable `v` on the left, updating the balance and the pos/neg counts. */
   private def incVb(v: Int): Unit =

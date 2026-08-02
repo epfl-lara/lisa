@@ -385,3 +385,103 @@ class DiscountTest extends AnyFunSuite:
     for (name, b) <- builders do
       assert(verdict(indexed = true, b) == verdict(indexed = false, b), s"subsumption index vs scan verdict differ on: $name")
   }
+
+  // --- forward unit deletion: {¬K} index dispatch vs the activeUnits scan (Phase 5, Step 4) A/B ---
+
+  test("forward unit deletion: the {¬K} index dispatch and the activeUnits scan reach the same verdict (A/B)") {
+    // Both forward-unit-deletion paths delete the same literals (complete candidate sets verified by the same
+    // `subsumptionResolutionResolvent`), so forcing the index dispatch (threshold 0) vs the scan (threshold ∞)
+    // must reach the same verdict. Both run with `subsumptionIndexing = true` so only the unit-deletion sub-path
+    // differs.
+    def cat(r: Discount.Result): String = r match
+      case _: Discount.Result.Refutation => "refuted"
+      case Discount.Result.Saturated     => "saturated"
+      case Discount.Result.Unknown       => "unknown"
+    def verdict(threshold: Int, build: Fix => Seq[Clause]): String =
+      val fx = new Fix
+      val cs = build(fx)
+      cat(new Discount(fx.bank, fx.trail, equality = false, subsumptionIndexing = true,
+        forwardUnitDeletionIndexThreshold = threshold).saturate(cs, maxGiven = 5000))
+
+    val builders: Seq[(String, Fix => Seq[Clause])] = Seq(
+      "unit deletion shrinks then closes" -> { fx => import fx.*
+        val P = pred("P", 1); val Q = pred("Q", 1); val a = const("a")
+        Seq(clause(pos(app(P, a))), clause(neg(app(P, a)), pos(app(Q, a))), clause(neg(app(Q, a)))) },
+      "general unit deletes an instance literal, then closes" -> { fx => import fx.*
+        val P = pred("P", 1); val Q = pred("Q", 1); val a = const("a"); val x = v(0)
+        Seq(clause(pos(app(P, x))), clause(neg(app(P, a)), pos(app(Q, a))), clause(neg(app(Q, a)))) },
+      "no unit deletes anything (index branch is a no-op)" -> { fx => import fx.*
+        val P = pred("P", 1); val Q = pred("Q", 1); val a = const("a"); val x = v(0)
+        Seq(clause(neg(app(P, x)), pos(app(Q, x))), clause(pos(app(P, a))), clause(neg(app(Q, a)))) }
+    )
+    for (name, b) <- builders do
+      assert(verdict(threshold = 0, b) == verdict(threshold = Int.MaxValue, b), s"index dispatch vs scan verdict differ on: $name")
+  }
+
+  // --- backward general subsumption resolution: sign-flip index vs the active scan (Phase 5, Step 4) A/B ---
+
+  test("backward general subsumption resolution: the sign-flip index and the scan reach the same verdict (A/B)") {
+    // With backward SR on, the indexed path flips each literal of `gc` and queries the feature-vector index (its
+    // ≥-cone = candidate subsumees), while the scan iterates `active`. Both apply the same
+    // `subsumptionResolutionResolvent`, and the union of the flipped-clause ≥-cones is a complete superset of the
+    // SR victims, so the verdicts must match.
+    def cat(r: Discount.Result): String = r match
+      case _: Discount.Result.Refutation => "refuted"
+      case Discount.Result.Saturated     => "saturated"
+      case Discount.Result.Unknown       => "unknown"
+    def verdict(indexed: Boolean, build: Fix => Seq[Clause]): String =
+      val fx = new Fix
+      val cs = build(fx)
+      cat(new Discount(fx.bank, fx.trail, equality = false, subsumptionIndexing = indexed,
+        backwardSubsumptionResolution = true, forwardSubsumptionResolution = true).saturate(cs, maxGiven = 5000))
+
+    val builders: Seq[(String, Fix => Seq[Clause])] = Seq(
+      "2-literal clause SR-resolves a literal of an active clause, then refute" -> { fx => import fx.*
+        val P = pred("P", 1); val Q = pred("Q", 1); val R = pred("R", 1); val a = const("a"); val b = const("b"); val x = v(0)
+        // {¬P(x), Q(x)} SR-resolves {P(a), Q(a), R(b)} on P(a) (rest {Q(x)}→{Q(a)} ⊆ target), deleting P(a).
+        Seq(clause(pos(app(P, a)), pos(app(Q, a)), pos(app(R, b))),
+            clause(neg(app(P, x)), pos(app(Q, x))),
+            clause(neg(app(Q, a))), clause(neg(app(R, b)))) },
+      "propositional 2-literal SR chain" -> { fx => import fx.*
+        val p = prop("P"); val q = prop("Q"); val r = prop("R")
+        Seq(clause(pos(p), pos(q)), clause(neg(p), pos(r)), clause(neg(q)), clause(neg(r))) },
+      "no SR applies (both paths are no-ops)" -> { fx => import fx.*
+        val P = pred("P", 1); val Q = pred("Q", 1); val a = const("a"); val x = v(0)
+        Seq(clause(neg(app(P, x)), pos(app(Q, x))), clause(pos(app(P, a))), clause(neg(app(Q, a)))) }
+    )
+    for (name, b) <- builders do
+      assert(verdict(indexed = true, b) == verdict(indexed = false, b), s"backward SR index vs scan verdict differ on: $name")
+  }
+
+  // --- forward general subsumption resolution: char-2 index vs scan retrieval (Phase 5, Step 4) A/B ---
+
+  test("forward general subsumption resolution: the char-2 index and scan reach the same verdict (A/B)") {
+    // Both forward-SR paths use the same char-2 helper (flip a literal of the new clause, find subsumers of the
+    // flipped clause), differing only in retrieval — feature-vector index vs `active` scan — over the same
+    // candidate set applied in id order, so the verdicts must match.
+    def cat(r: Discount.Result): String = r match
+      case _: Discount.Result.Refutation => "refuted"
+      case Discount.Result.Saturated     => "saturated"
+      case Discount.Result.Unknown       => "unknown"
+    def verdict(indexed: Boolean, build: Fix => Seq[Clause]): String =
+      val fx = new Fix
+      val cs = build(fx)
+      cat(new Discount(fx.bank, fx.trail, equality = false, subsumptionIndexing = indexed,
+        forwardSubsumptionResolution = true, backwardSubsumptionResolution = true).saturate(cs, maxGiven = 5000))
+
+    val builders: Seq[(String, Fix => Seq[Clause])] = Seq(
+      "2-literal simplifier resolves the new clause, then refute" -> { fx => import fx.*
+        val P = pred("P", 1); val Q = pred("Q", 1); val R = pred("R", 1); val a = const("a"); val b = const("b"); val x = v(0)
+        Seq(clause(neg(app(P, x)), pos(app(Q, x))),
+            clause(pos(app(P, a)), pos(app(Q, a)), pos(app(R, b))),
+            clause(neg(app(Q, a))), clause(neg(app(R, b)))) },
+      "propositional 2-literal forward SR chain" -> { fx => import fx.*
+        val p = prop("P"); val q = prop("Q"); val r = prop("R")
+        Seq(clause(neg(p), pos(r)), clause(pos(p), pos(q)), clause(neg(q)), clause(neg(r))) },
+      "no forward SR applies (paths are no-ops)" -> { fx => import fx.*
+        val P = pred("P", 1); val Q = pred("Q", 1); val a = const("a"); val x = v(0)
+        Seq(clause(neg(app(P, x)), pos(app(Q, x))), clause(pos(app(P, a))), clause(neg(app(Q, a)))) }
+    )
+    for (name, b) <- builders do
+      assert(verdict(indexed = true, b) == verdict(indexed = false, b), s"forward SR index vs scan verdict differ on: $name")
+  }

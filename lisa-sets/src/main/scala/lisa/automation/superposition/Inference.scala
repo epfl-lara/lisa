@@ -34,19 +34,8 @@ object Inference:
         else
           val applier = trail.applier()
           val out: Array[Literal] = new Array[Literal](c1.literals.length - 1 + c2.literals.length - 1)
-          var n = 0
-          var i = 0
-          while i < c1.literals.length do
-            if i != i1 then
-              out(n) = applier.applyLit(c1.literals(i), 0)
-              n += 1
-            i += 1
-          i = 0
-          while i < c2.literals.length do
-            if i != i2 then
-              out(n) = applier.applyLit(c2.literals(i), 1)
-              n += 1
-            i += 1
+          val n1 = applier.copyLitsExcept(c1.literals, i1, 0, out, 0)
+          applier.copyLitsExcept(c2.literals, i2, 1, out, n1)
           Some(bank.mkClause(out, Justification.Resolution(c1, i1, c2, i2)))
       trail.restore(saved)
       result
@@ -123,13 +112,7 @@ object Inference:
         else
           val applier = trail.applier()
           val out: Array[Literal] = new Array[Literal](c.literals.length - 1)
-          var n = 0
-          var k = 0
-          while k < c.literals.length do
-            if k != j then
-              out(n) = applier.applyLit(c.literals(k), 0)
-              n += 1
-            k += 1
+          applier.copyLitsExcept(c.literals, j, 0, out, 0)
           Some(bank.mkClause(out, Justification.Factoring(c, i, j)))
       trail.restore(saved)
       result

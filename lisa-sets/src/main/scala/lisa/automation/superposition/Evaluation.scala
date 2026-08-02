@@ -8,21 +8,17 @@ import lisa.tptp.KernelParser.{problemToKernel, strictMapAtom, strictMapTerm, st
 import BenchUtil.withTimeout
 
 /**
- * Performance-evaluation harness for the Phase-1 resolution prover (NOT a test -- it has a `main`).
+ * Performance-evaluation harness for the superposition prover (NOT a test -- it has a `main`).
  *
- * Two modes:
- *   - [[benchmark]] (the default): take a seeded **random sample** of `n` problems from the generated
- *     list of clausal, first-order, equality-free, **unsatisfiable** TPTP problems
- *     (`tptp-clausal-fo-noeq-uns.txt`) and try to solve each within a wall-clock budget. Reproducible:
- *     the same seed picks the same sample. Since every problem is unsatisfiable, `REFUTED` vs `TIMEOUT`
- *     is the throughput axis, and a `SATURATED` (claiming satisfiable) would itself be a bug.
- *   - [[runCurated]]: the older hand-picked list in [[problems]] (a quick fixed set, no equality, varied
- *     across the EPR/RFO and Horn/non-Horn fragments).
+ * [[benchmark]] takes a seeded **random sample** of `n` problems from the generated list of clausal,
+ * first-order, equality-free, **unsatisfiable** TPTP problems (`tptp-clausal-fo-noeq-uns.txt`) and tries to
+ * solve each within a wall-clock budget. Reproducible: the same seed picks the same sample. Since every
+ * problem is unsatisfiable, `REFUTED` vs `TIMEOUT` is the throughput axis, and a `SATURATED` (claiming
+ * satisfiable) would itself be a bug.
  *
- * Both need the `TPTP` env var pointing at the TPTP root (the directory containing `Problems/`). Run:
+ * Needs the `TPTP` env var pointing at the TPTP root (the directory containing `Problems/`). Run:
  * {{{
  *   TPTP=/path/to/TPTP-v9.2.1 sbt "lisa-sets/runMain lisa.automation.superposition.Evaluation [seed] [n] [timeoutMs] [maxGiven] [subs] [gen] [unit] [sr] [cond] [equality]"
- *   TPTP=/path/to/TPTP-v9.2.1 sbt "lisa-sets/runMain lisa.automation.superposition.Evaluation curated [timeoutMs] [maxGiven]"
  * }}}
  * `subs`, `unit`, and `sr` each select a `both` / `fwd` / `bwd` / `none` configuration, for subsumption,
  * unit deletion, and general (multi-literal-side) subsumption resolution respectively; `cond` is `on`/`off`
@@ -39,65 +35,35 @@ object Evaluation:
   /** The generated full list (paths relative to the TPTP root, e.g. `Problems/SYN/SYN048-1.p`). */
   private val listFileName = "tptp-clausal-fo-noeq-uns.txt"
 
-  /** Hand-picked no-equality clausal problems (paths relative to `$TPTP/Problems`), for [[runCurated]]. */
-  val problems: List[String] = List(
-    // EPR, non-Horn (decidable, but harder than Horn)
-    "SYN/SYN051-1.p", "SYN/SYN054-1.p", "SYN/SYN009-1.p", "SYN/SYN009-3.p",
-    "SYN/SYN099-1.003.p", "SYN/SYN869-1.p", "SYN/SYN876-1.p", "SYN/SYN436-1.p",
-    // RFO (real first-order), Horn
-    "SYN/SYN035-1.p", "SYN/SYN050-1.p", "SYN/SYN065-1.p", "SYN/SYN312-1.p",
-    "SYN/SYN555-1.p", "SYN/SYN566-1.p", "SYN/SYN577-1.p", "SYN/SYN601-1.p",
-    "SYN/SYN651-1.p", "SYN/SYN688-1.p", "SYN/SYN711-1.p",
-    // RFO, non-Horn (the hardest no-equality fragment)
-    "SYN/SYN006-1.p", "SYN/SYN069-1.p", "SYN/SYN082-1.p", "SYN/SYN328-1.p",
-    "SYN/SYN567-1.p", "SYN/SYN585-1.p", "SYN/SYN604-1.p", "SYN/SYN656-1.p",
-    "SYN/SYN660-1.p", "SYN/SYN686-1.p", "SYN/SYN692-1.p"
-  )
-
   def main(args: Array[String]): Unit =
-    args.headOption match
-      case Some("curated") =>
-        runCurated(args.lift(1).map(_.toLong).getOrElse(10000L), args.lift(2).map(_.toInt).getOrElse(100000))
-      case Some("verify") =>
-        verifyProblem(args.lift(1).getOrElse(""), args.lift(2).map(_.toInt).getOrElse(100000), args.lift(3).map(_.toLong).getOrElse(10000L))
-      case _ =>
-        val (fwd, bwd) = subsumptionMode(args.lift(4))
-        val (fwdUD, bwdUD) = directionMode(args.lift(6), "unit-deletion")
-        val (fwdSR, bwdSR) = args.lift(7) match
-          case None => (false, false) // general subsumption resolution is off by default
-          case some => directionMode(some, "subsumption-resolution")
-        benchmark(
-          seed = args.lift(0).map(_.toLong).getOrElse(0L),
-          n = args.lift(1).map(_.toInt).getOrElse(100),
-          timeoutMs = args.lift(2).map(_.toLong).getOrElse(15000L),
-          maxGiven = args.lift(3).map(_.toInt).getOrElse(100000),
-          forwardSubsumption = fwd,
-          backwardSubsumption = bwd,
-          forwardUnitDeletion = fwdUD,
-          backwardUnitDeletion = bwdUD,
-          forwardSubsumptionResolution = fwdSR,
-          backwardSubsumptionResolution = bwdSR,
-          condensation = onOffMode(args.lift(8), "condensation"),
-          forwardSimplifyAtGeneration = generationMode(args.lift(5)),
-          equality = onOffModeDefaultOn(args.lift(9), "equality")
-        )
+    val (fwd, bwd) = directionMode(args.lift(4), "subsumption")
+    val (fwdUD, bwdUD) = directionMode(args.lift(6), "unit-deletion")
+    val (fwdSR, bwdSR) = args.lift(7) match
+      case None => (false, false) // general subsumption resolution is off by default
+      case some => directionMode(some, "subsumption-resolution")
+    benchmark(
+      seed = args.lift(0).map(_.toLong).getOrElse(0L),
+      n = args.lift(1).map(_.toInt).getOrElse(100),
+      timeoutMs = args.lift(2).map(_.toLong).getOrElse(15000L),
+      maxGiven = args.lift(3).map(_.toInt).getOrElse(100000),
+      forwardSubsumption = fwd,
+      backwardSubsumption = bwd,
+      forwardUnitDeletion = fwdUD,
+      backwardUnitDeletion = bwdUD,
+      forwardSubsumptionResolution = fwdSR,
+      backwardSubsumptionResolution = bwdSR,
+      condensation = onOffMode(args.lift(8), "condensation", default = false),
+      forwardSimplifyAtGeneration = generationMode(args.lift(5)),
+      equality = onOffMode(args.lift(9), "equality", default = true)
+    )
 
-  /** Parse an `on`/`off` token defaulting to **on** (for the equality axis, whose default is on). */
-  private def onOffModeDefaultOn(arg: Option[String], what: String): Boolean =
+  /** Parse an `on`/`off` token, falling back to `default` when the argument is absent. */
+  private def onOffMode(arg: Option[String], what: String, default: Boolean): Boolean =
     arg.map(_.toLowerCase) match
-      case None | Some("on") => true
-      case Some("off")       => false
-      case Some(other)       => sys.error(s"unknown $what mode '$other' (use on|off)")
-
-  /** Parse an `on`/`off` token (default off). Used for the orthogonal condensation axis. */
-  private def onOffMode(arg: Option[String], what: String): Boolean =
-    arg.map(_.toLowerCase) match
-      case None | Some("off") => false
-      case Some("on")         => true
-      case Some(other)        => sys.error(s"unknown $what mode '$other' (use on|off)")
-
-  /** Parse the optional subsumption-mode token into (forward, backward) flags. Default: both on. */
-  private def subsumptionMode(arg: Option[String]): (Boolean, Boolean) = directionMode(arg, "subsumption")
+      case None        => default
+      case Some("on")  => true
+      case Some("off") => false
+      case Some(other) => sys.error(s"unknown $what mode '$other' (use on|off)")
 
   /** Parse a `both|fwd|bwd|none` direction token into (forward, backward) flags. Default (absent): both on. */
   private def directionMode(arg: Option[String], what: String): (Boolean, Boolean) =
@@ -142,7 +108,7 @@ object Evaluation:
     if tptpRoot.isEmpty then
       println("Set the TPTP environment variable to the TPTP root (the directory containing Problems/).")
       return
-    locateListFile() match
+    BenchUtil.locateList(listFileName, Some("TPTP_CNF_LIST")) match
       case None =>
         println(s"Could not find $listFileName (looked via TPTP_CNF_LIST and relative to the working dir).")
       case Some(list) =>
@@ -164,42 +130,6 @@ object Evaluation:
           ),
           sample.size
         )
-
-  /** Run the fixed curated list ([[problems]], paths relative to `$TPTP/Problems`). */
-  def runCurated(timeoutMs: Long = 10000L, maxGiven: Int = 100000): Unit =
-    val problemsDir: Option[File] = sys.env.get("TPTP").map(t => new File(t, "Problems")).filter(_.isDirectory)
-    if problemsDir.isEmpty then
-      println("Set the TPTP environment variable to the TPTP root (the directory containing Problems/).")
-      return
-    println(s"curated set (${problems.size} problems), timeout=${timeoutMs}ms, maxGiven=$maxGiven")
-    printHeader()
-    report(problems.map(rel => solveRow(new File(problemsDir.get, rel), timeoutMs, maxGiven)), problems.size)
-
-  /**
-   * Solve one problem (path relative to the TPTP root, e.g. `Problems/GRP/GRP128-4.004.p`) within
-   * `maxGiven`/`maxMillis`, and -- only if it claims a refutation -- run the reconstructed proof through
-   * the kernel checker. A claimed refutation of a `Satisfiable` problem is a soundness bug; the kernel
-   * check then says whether the internal clause set is really contradictory (conversion bug) or the
-   * core derivation is bogus (its proof won't conclude the empty sequent).
-   */
-  def verifyProblem(rel: String, maxGiven: Int = 100000, maxMillis: Long = 10000L): Unit =
-    val tptpRoot: Option[File] = sys.env.get("TPTP").map(new File(_)).filter(_.isDirectory)
-    if tptpRoot.isEmpty then { println("Set the TPTP environment variable to the TPTP root."); return }
-    val f = new File(tptpRoot.get, rel)
-    if !f.exists then { println(s"not found: ${f.getPath}"); return }
-    val problem = problemToKernel(f)(using (strictMapAtom, strictMapTerm, strictMapVariable))
-    Bridge.solveTPTPProblem(problem, maxGiven, maxMillis) match
-      case Bridge.Outcome.Saturated =>
-        println(s"$rel: SATURATED -- no refutation exists (the clause set is satisfiable)")
-      case Bridge.Outcome.Timeout =>
-        println(s"$rel: TIMEOUT -- no refutation within budget (maxGiven=$maxGiven / ${maxMillis}ms)")
-      case s: Bridge.Outcome.Success =>
-        val p = s.reconstructKernelProof
-        val r = K.SCProofChecker.checkSCProof(p)
-        println(s"$rel: REFUTED -- imports=${p.imports.size}, steps=${p.steps.size}")
-        println(s"  conclusion   = ${p.conclusion}")
-        println(s"  kernel valid = ${r.isValid}, conclusion empty = ${p.conclusion == K.Sequent(Set.empty, Set.empty)}")
-        if !r.isValid then println(s"  checker says: $r")
 
   private def printHeader(): Unit =
     println(f"${"PROBLEM"}%-20s ${"SPC"}%-22s ${"CLS"}%4s  ${"RESULT"}%-12s ${"ms"}%8s")
@@ -276,16 +206,6 @@ object Evaluation:
     )
     if refuted > 0 then println(s"refute time: total=${refutedMs}ms  avg=${refutedMs / refuted}ms")
 
-  /** Locate the generated problem list: `TPTP_CNF_LIST`, else source-relative candidates / the cwd. */
-  private def locateListFile(): Option[File] =
-    val candidates: List[File] =
-      sys.env.get("TPTP_CNF_LIST").map(new File(_)).toList :::
-        List(
-          s"lisa-sets/src/main/scala/lisa/automation/superposition/$listFileName",
-          s"src/main/scala/lisa/automation/superposition/$listFileName",
-          listFileName
-        ).map(new File(_))
-    candidates.find(_.isFile)
 
   /** First TPTP header value for `key` (e.g. `"SPC"`), read from the leading `% key : value` comments. */
   private def header(f: File, key: String): Option[String] =

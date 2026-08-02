@@ -203,7 +203,7 @@ work into the loop, so this is more than "register alongside resolution/factorin
   path with `!isEquality`, exactly as the factoring path already does.
 
 * **Demodulation as forward/backward simplification.**
-  * *Forward* — `Demodulation.forwardDemodulate` (returns the normal form, or the same clause unchanged)
+  * *Forward* — `Demodulation.normalForm` (returns the normal form, or the same clause unchanged)
     joins the existing `forwardSimplify` scan for the given and the `forwardSimplifyAtGeneration` path in
     `addPassive` for each new clause.
   * *Backward* — when the given is a positive unit equality, `Demodulation.backwardDemodulate` returns

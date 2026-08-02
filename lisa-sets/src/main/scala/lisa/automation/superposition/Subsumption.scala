@@ -108,7 +108,7 @@ object Subsumption:
       val nd: Int = dl.length
       var j = 0
       while j < nd do
-        // weight skip (Check 1): skip targets too light to match `ci` before paying for `matchLiteral`
+        // Check 1 (see matchesSome): skip a target too light to match `ci`
         if !used(j) && bank.literalWeight(dl(j)) >= ciw then
           if trail.matchLiteral(ci, PatScope, dl(j), TgtScope) then
             used(j) = true
@@ -134,15 +134,11 @@ object Subsumption:
    * renumbered, reconstruction-faithful) -- subsumption resolution needs **no** dedicated justification or
    * reconstruction step; the loop simply deletes `main` (deletion is reconstruction-free, like subsumption).
    *
-   * **Why the [[subsumes]] gate.** Replacing `main` by the resolvent is a *redundancy* deletion; it preserves
-   * refutational **completeness** only if the kept clause entails `main` (subsumes it). For a *unit* side the
-   * resolvent is `main \ {K} ⊆ main`, which always does. For a *longer* side `resolve`'s mgu binds only `L`'s
-   * variables, so when `C'` has variables outside `L` the built clause is `C'σ₀ ∪ M'` (those variables left
-   * free) rather than `main \ {K}`, and need not entail `main`; we therefore keep the result **only when it
-   * `subsumes` `main`**. Deleting a non-entailed clause would not be *unsound* (the prover never derives a
-   * false `□`) but would break completeness -- it could discard a clause a refutation needs and wrongly
-   * saturate. The gate is conservative: it can miss SR steps whose `C'` carries extra variables (a complete
-   * version needs the full matcher σ and a dedicated reconstruction -- deferred, see PossibleOptimizations.md).
+   * **Why the [[subsumes]] gate.** A *longer* side can leave variables outside `L` free (`resolve`'s mgu binds
+   * only `L`), so the built clause `C'σ₀ ∪ M'` need not entail `main`; we keep it **only when it `subsumes`
+   * `main`**, else the deletion would break completeness (discard a clause a refutation needs). Conservative: it
+   * misses SR steps whose `C'` carries extra variables (a complete version needs the full matcher σ + a
+   * reconstruction — deferred, see PossibleOptimizations.md).
    */
   def subsumptionResolutionResolvent(bank: TermBank, trail: Trail, side: Clause, main: Clause): Option[Clause] =
     // O(1) pre-filter, sound for SR: every predicate of `side` occurs in `main` (`C'`'s in `M'`, `L`'s as
@@ -166,9 +162,10 @@ object Subsumption:
           if matched then
             Inference.resolve(bank, trail, side, iL, main, iK) match
               case Some(raw) =>
-                val rc: Clause = Inference.canonicalize(bank, raw).getOrElse(raw)
-                // keep `rc` and delete `main` only if `rc` entails `main` (completeness gate; see above)
-                if unit || subsumes(bank, trail, rc, main) then return Some(rc)
+                Inference.canonicalize(bank, raw) match
+                  // keep `rc` and delete `main` only if `rc` entails `main` (completeness gate; see above)
+                  case Some(rc) => if unit || subsumes(bank, trail, rc, main) then return Some(rc)
+                  case None     => () // canonicalisation dropped it as a tautology — skip (like `condense`), never use raw
               case None => ()
         iK += 1
       iL += 1

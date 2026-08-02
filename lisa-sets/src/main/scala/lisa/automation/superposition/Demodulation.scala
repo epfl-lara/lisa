@@ -66,19 +66,6 @@ object Demodulation:
             if !bank.isVar(s0) && v1.subsetOf(v0) then rs = mk(0, s0, s1, false) :: rs
             rs
 
-  /** All usable demodulator directions of a set of (candidate) unit equations, as a re-iterable array
-   *  (the rule set is scanned once per subterm per rewrite step, so it must be replayable — an array is
-   *  iterated by index in `rewriteOnce`, allocating no iterator). */
-  def rulesOf(bank: TermBank, order: Order, eqs: Iterable[Clause]): Array[Rule] =
-    eqs.iterator.flatMap(rules(bank, order, _)).toArray
-
-  /**
-   * Forward demodulation: rewrite `clause` to a normal form w.r.t. `activeUnitEqs`. Returns the same clause
-   * (by identity) if nothing applies, else the normalised clause whose justification chains the steps.
-   */
-  def forwardDemodulate(bank: TermBank, trail: Trail, order: Order, clause: Clause, activeUnitEqs: Iterable[Clause]): Clause =
-    normalForm(bank, trail, order, clause, rulesOf(bank, order, activeUnitEqs))
-
   /** Forward demodulation against a pre-extracted rule set (the loop caches these). */
   def normalForm(bank: TermBank, trail: Trail, order: Order, clause: Clause, rules: Array[Rule]): Clause =
     if rules.isEmpty then clause

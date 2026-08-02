@@ -4,9 +4,9 @@ import java.io.File
 import scala.util.{Try, Success, Failure}
 
 import lisa.utils.K
-import lisa.tptp.{AnnotatedFormula, AnnotatedStatement}
-import lisa.tptp.KernelParser.{axiomLikeRoles, problemToKernel, strictMapAtom, strictMapTerm, strictMapVariable}
-import lisa.automation.clausification.{Clausification, UncertifiedClausification}
+import lisa.tptp.{AnnotatedFormula, AnnotatedStatement, ProofPrinter}
+import lisa.tptp.KernelParser.{axiomLikeRoles, problemToKernel, strictMapAtom, strictMapTerm, strictMapVariable, unsanitize}
+import lisa.automation.clausification.Clausification
 
 /**
  * CASC-compatible command-line entry point (see the [[https://tptp.org/CASC/J13/Design.html CASC J13 design]]
@@ -24,13 +24,13 @@ import lisa.automation.clausification.{Clausification, UncertifiedClausification
  *   % SZS output start CNFRefutation for SYN075+1.p
  *   fof(ax1, axiom, ...).                                              % the input formulas (leaves)
  *   cnf(c0, plain, ..., inference(clausification, [status(esa)], [ax1])).   % one clause per source formula
- *   ...                                                               % (the refutation body is not emitted yet)
+ *   ...                                                               % then the derivation of $false
  *   % SZS output end CNFRefutation for SYN075+1.p
  * }}}
- * The clausification part is complete: each clause records the single input formula it was derived from
- * (`inference(clausification, [status(esa)], [<origin>])`). The refutation body (the derivation of `$false`
- * from the clauses) is still a placeholder — the plan is to print the prover's own derivation of the empty
- * clause directly from the [[Bridge.Outcome.Success]], without going through the Lisa kernel representation.
+ * Both parts are emitted: each clause records the single input formula it was derived from
+ * (`inference(clausification, [status(esa)], [<origin>])`), and the refutation body (the derivation of `$false`
+ * from the clauses) is printed directly from the [[Bridge.Outcome.Success]], without going through the Lisa
+ * kernel representation.
  *
  * Usage: `CascProver [-t <seconds>] <problem.p>`. The wall-clock budget defaults to 300 s; the prover is given
  * slightly less so the status line is printed before an external CASC wrapper's hard limit fires. Equality
@@ -106,15 +106,9 @@ object CascProver:
           conjecture.map(c => K.Sequent(Set.empty, Set(c.formula)))
         )
         Try {
-          val clauses0 = UncertifiedClausification.clausalFormWithOrigins(cprob, orthologic = cli.strategy.orthologic) // fast, non-certifying
-          // After clausification, before solving: append the TPTP distinct-object distinctness axioms (`$da ≠ $db`).
-          // They carry origin -1 (no source formula), printed later with `inference(distinct, …, [])`.
-          val distinct = Clausal.distinctObjectAxioms(clauses0.map(_._1))
-          val clauses = clauses0 ++ distinct.map(s => (s, -1))
-          val clausal = Clausification.Problem(clauses.map(_._1).toList, None)
-          // Goal-directed selection: clauses clausified from the negated conjecture (origin index == #axioms) are
-          // the goal; goal-ness then propagates through the derivation (see Bridge/Discount `nonGoalWeightCoefficient`).
-          val goal = clauses.iterator.zipWithIndex.collect { case ((_, origin), i) if origin == axiomLike.size => i }.toSet
+          // Uncertified clausify + distinct-object axioms + goal-clause indices (goal-ness then propagates through
+          // the derivation, see Bridge/Discount `nonGoalWeightCoefficient`). Shared with StrategyEvaluation.
+          val (clauses, clausal, goal) = Clausal.cascSetup(cprob, orthologic = cli.strategy.orthologic)
           (clauses, cli.strategy.solveOutcome(clausal, maxMillis = budgetMillis, goal = goal))
         } match
           case Failure(e) =>
@@ -126,6 +120,13 @@ object CascProver:
               case s: Bridge.Outcome.Success => printRefutation(name, axiomLike, conjecture, clauses, s, isCnf = parsed.spc.exists(_.contains("CNF")))
               case _                         => () // Saturated/Timeout: no CNFRefutation
     Console.out.flush()
+
+  /** A first-order input formula as a TPTP `fof` body, via the shared [[lisa.tptp.ProofPrinter]] (`strict` =
+   *  un-sanitized real names, ε/distinct-object/numeral aware). The dedicated flat-CNF renderer [[Tptp]] below is
+   *  kept for `cnf` clause bodies (dense `X<n>` variables and `!=` literals, which the FOF-formula printer is not
+   *  meant to produce). */
+  private def fofFormula(e: K.Expression): String =
+    ProofPrinter.formulaToFOFFormula(e, Set.empty, strict = true).pretty
 
   /** Emit the CNFRefutation: the input formulas as leaves, the negated conjecture as an intermediate step, one
    *  clause per source formula (`inference(clausification, [status(esa)], [<origin>])`), and finally the prover's
@@ -159,12 +160,12 @@ object CascProver:
     // problem (variables implicitly universal, so strip the closure), `fof` otherwise.
     for (f, i) <- axiomLike.zipWithIndex if usedOrigins.contains(i) do
       if isCnf then println(s"cnf(${f.name}, ${f.role}, ${Tptp.cnfClause(f.formula)}).")
-      else println(s"fof(${f.name}, ${f.role}, ${Tptp.formula(f.formula)}).")
+      else println(s"fof(${f.name}, ${f.role}, ${fofFormula(f.formula)}).")
     // The conjecture + its negation, printed only if the negated conjecture is actually used.
     val negatedConjectureName: Option[String] = conjecture.filter(_ => usedOrigins.contains(axiomLike.size)).map { c =>
-      println(s"fof(${c.name}, conjecture, ${Tptp.formula(c.formula)}).")
+      println(s"fof(${c.name}, conjecture, ${fofFormula(c.formula)}).")
       val nn = ("negated_conjecture" #:: LazyList.from(1).map("negated_conjecture" + _)).find(!taken(_)).get
-      println(s"fof($nn, negated_conjecture, ${Tptp.formula(K.neg(c.formula))}, inference(negate_conjecture, [status(cth)], [${c.name}])).")
+      println(s"fof($nn, negated_conjecture, ${fofFormula(K.neg(c.formula))}, inference(negate_conjecture, [status(cth)], [${c.name}])).")
       nn
     }
     def originName(i: Int): String =
@@ -182,10 +183,22 @@ object CascProver:
    *  double-quoted TPTP distinct object `"…"`, a `$n`-prefixed one as a bare numeral; the rest yield `None`.
    *  (`$u`/`$s` are un-`sanitize`d back to `_`/space first.) */
   private def unmangleSpecial(nm: String): Option[String] =
-    def unsan(s: String): String = s.replace("$u", "_").replace("$s", " ")
+    def unsan(s: String): String = unsanitize(s, 0) // shared `lisa.tptp` decode: $u→_, $s→space
     if nm.startsWith("$d") then Some("\"" + unsan(nm.drop(2)).replace("\\", "\\\\").replace("\"", "\\\"") + "\"")
     else if nm.startsWith("$n") then Some(unsan(nm.drop(2)))
     else None
+
+  /** An interned symbol name `nm` as a valid TPTP `atomic_word`: a `$d`/`$n` distinct-object/numeral un-mangled
+   *  to its source form ([[unmangleSpecial]]), a lower-word verbatim (our lowercase-prefixed fresh symbols such
+   *  as `sk`, `sk_1`, `nm` included), anything else single-quoted. Reverses `KernelParser.sanitize` ($u→_,
+   *  $s→space) so the output echoes the input's real names (e.g. `accept_team`, not `accept$uteam`) — the exact
+   *  inverse of the parser's encode. Shared by the flat-CNF renderer ([[Tptp]]) and the derivation printer. */
+  private def functor(nm: String): String =
+    unmangleSpecial(nm).getOrElse {
+      val u = unsanitize(nm, 0)
+      if u.nonEmpty && u.matches("[a-z][a-zA-Z0-9_]*") then u
+      else "'" + u.replace("\\", "\\\\").replace("'", "\\'") + "'"
+    }
 
   // ── proof-DAG navigation (shared by the cone computation and the derivation printer) ──
   // Sort/dedup canonicalization is a logical no-op on a set-of-literals clause — alias it to its parent so it does
@@ -237,12 +250,7 @@ object CascProver:
       case Justification.Demodulation(_, _, _, _, _)     => "demodulation"
       case Justification.Input | Justification.Canonicalization(_) => "clausification"
 
-    // ── prover-term → TPTP (variables are clause-local, densely numbered ⇒ `X<n>`) ──
-    def functor(nm: String): String =
-      unmangleSpecial(nm).getOrElse(
-        if nm.nonEmpty && nm.matches("[a-z][a-zA-Z0-9_]*") then nm
-        else "'" + nm.replace("\\", "\\\\").replace("'", "\\'") + "'"
-      )
+    // ── prover-term → TPTP (variables are clause-local, densely numbered ⇒ `X<n>`); `functor` is the shared helper ──
     def term(t: Term): String =
       if bank.isVar(t) then "X" + bank.varNum(t).num
       else
@@ -285,14 +293,6 @@ object CascProver:
   private object Tptp:
     import lisa.utils.K.*
 
-    /** A valid TPTP `atomic_word`: a `$d`/`$n` distinct-object/numeral un-mangled to its source form, a lower-word
-     *  verbatim, anything else single-quoted (fresh Skolem/naming symbols such as `sK0`, `Ts0`). */
-    private def functor(nm: String): String =
-      unmangleSpecial(nm).getOrElse(
-        if nm.nonEmpty && nm.matches("[a-z][a-zA-Z0-9_]*") then nm
-        else "'" + nm.replace("\\", "\\\\").replace("'", "\\'") + "'"
-      )
-
     /** Flatten a curried application `f(a)(b)…` into `(head, [a, b, …])`. */
     private def flatten(e: Expression): (Expression, List[Expression]) =
       def go(e: Expression, acc: List[Expression]): (Expression, List[Expression]) = e match
@@ -332,9 +332,6 @@ object CascProver:
         case Application(Application(eq, l), r) if eq == equality => s"${term(l)} = ${term(r)}"
         case _             => applied(e) // predicate atom
       go(e)
-
-    /** A full input formula. */
-    def formula(e: Expression): String = render(e, scala.collection.mutable.LinkedHashMap.empty)
 
     /** A (universally-closed) clause formula as a bare TPTP CNF disjunction — leading `∀`s stripped, since a
      *  `cnf` statement's variables are implicitly universally quantified. */

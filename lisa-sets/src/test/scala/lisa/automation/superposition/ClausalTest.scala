@@ -3,7 +3,7 @@ package lisa.automation.superposition
 import org.scalatest.funsuite.AnyFunSuite
 
 import lisa.utils.K
-import lisa.automation.clausification.Clausification
+import lisa.automation.clausification.{Clausification, CertifiedFastClausifier}
 
 /** Tests for the Phase-3 clausification wiring. */
 class ClausalTest extends AnyFunSuite:
@@ -145,7 +145,7 @@ class ClausalTest extends AnyFunSuite:
     // no clause literal may still contain a quantifier (the bug signature)
     val clauses = lisa.automation.clausification.UncertifiedClausification.clausalForm(problem).hypotheses
     assert(clauses.forall(_.right.forall(lit => !containsForall(lit))), s"a clause still has a stranded ∀: $clauses")
-    val proof = Clausification.certifyClausal(problem, Clausal.prove)
+    val proof = CertifiedFastClausifier.certifyClausal(problem, Clausal.prove)
     assert(K.SCProofChecker.checkSCProof(proof).isValid, s"kernel rejected the composed proof")
     assert(proof.conclusion == K.Sequent(Set.empty, Set(conjecture)))
   }
@@ -163,9 +163,31 @@ class ClausalTest extends AnyFunSuite:
     val problem = Clausification.Problem(Seq(K.Sequent(Set.empty, Set(refl))), Some(K.Sequent(Set.empty, Set(conj))))
     val clauses = lisa.automation.clausification.UncertifiedClausification.clausalForm(problem).hypotheses
     assert(clauses.forall(_.right.forall(lit => !containsBotTop(lit))), s"⊤/⊥ survived clausification: $clauses")
-    val proof = Clausification.certifyClausal(problem, Clausal.prove)
+    val proof = CertifiedFastClausifier.certifyClausal(problem, Clausal.prove)
     assert(K.SCProofChecker.checkSCProof(proof).isValid, "kernel rejected the composed proof")
     assert(proof.conclusion == K.Sequent(Set.empty, Set(conj)))
+  }
+
+  test("distribution: `a ∨ (b ∧ c)` is distributed to CNF (not named) and refutes end-to-end (kernel-valid)") {
+    val a = pred("a", 0); val b = pred("b", 0); val c = pred("c", 0)
+    def andd(l: K.Expression, rr: K.Expression) = K.Application(K.Application(K.and, l), rr)
+    def orr(l: K.Expression, rr: K.Expression)  = K.Application(K.Application(K.or, l), rr)
+    // `a ∨ (b ∧ c)` is below the naming threshold, so it is NOT named — it must be *distributed* into the two
+    // clauses `a∨b`, `a∨c`. With `¬b`, `¬c` as further hypotheses and conjecture `a` (negated to `¬a`), the
+    // refutation `a∨b, ¬a ⊢ b` then `¬b ⊢ ⊥` closes only if distribution actually happened.
+    val hyp1 = orr(a, andd(b, c))
+    val problem = Clausification.Problem(
+      Seq(K.Sequent(Set.empty, Set(hyp1)),
+          K.Sequent(Set.empty, Set(K.Application(K.neg, b))),
+          K.Sequent(Set.empty, Set(K.Application(K.neg, c)))),
+      Some(K.Sequent(Set.empty, Set(a)))
+    )
+    // Sanity: the uncertified clausifier really produces the two distributed binary clauses `a∨b`, `a∨c`.
+    val clauses = lisa.automation.clausification.UncertifiedClausification.clausalForm(problem).hypotheses
+    assert(clauses.count(_.right.size == 2) == 2, s"expected `a∨(b∧c)` to distribute into two binary clauses, got: $clauses")
+    val proof = CertifiedFastClausifier.certifyClausal(problem, Clausal.prove)
+    assert(K.SCProofChecker.checkSCProof(proof).isValid, "kernel rejected the composed proof")
+    assert(proof.conclusion == K.Sequent(Set.empty, Set(a)))
   }
 
   test("Skolem binder-name collision: a reused quantifier name (∃ shadowing ∀) certifies kernel-valid") {
@@ -182,9 +204,45 @@ class ClausalTest extends AnyFunSuite:
       all(Y, all(X, ex(Y, ap(r, X, Y))))     // ∀Y. ∀X. ∃Y. r(X, Y)   — ∃Y collides with the OUTER ∀Y (k=2)
     ) do
       val problem = Clausification.Problem(Seq(K.Sequent(Set.empty, Set(hyp))), Some(K.Sequent(Set.empty, Set(hyp))))
-      val proof = Clausification.certifyClausal(problem, Clausal.prove)
+      val proof = CertifiedFastClausifier.certifyClausal(problem, Clausal.prove)
       assert(K.SCProofChecker.checkSCProof(proof).isValid, s"kernel rejected the composed proof for $hyp")
       assert(proof.conclusion == K.Sequent(Set.empty, Set(hyp)))
+  }
+
+  test("free-variable conjecture is universally closed before negation and reinstantiated to the original goal") {
+    val p = pred("p", 1); val r = pred("r", 2)
+    val X = vr("X"); val Y = vr("Y"); val A = vr("A"); val B = vr("B")
+    def all(v: K.Variable, b: K.Expression) = K.Application(K.forall, K.Lambda(v, b))
+    // (1) one free var: ∀X.p(X) ⊢ p(Y). Y free ⇒ the goal is ∀Y.p(Y), which follows; the negated (closed)
+    // conjecture Skolemizes Y to a fresh constant, and the reconstruction must re-derive the ORIGINAL `⊢ p(Y)`.
+    val prob1 = Clausification.Problem(Seq(K.Sequent(Set.empty, Set(all(X, ap(p, X))))), Some(K.Sequent(Set.empty, Set(ap(p, Y)))))
+    val proof1 = CertifiedFastClausifier.certifyClausal(prob1, Clausal.prove)
+    assert(K.SCProofChecker.checkSCProof(proof1).isValid, s"(1) kernel rejected: ${K.SCProofChecker.checkSCProof(proof1)}")
+    assert(proof1.conclusion == K.Sequent(Set.empty, Set(ap(p, Y))), s"(1) conclusion ${proof1.conclusion} is not the original goal p(Y)")
+    // (2) two free vars — exercises the LeftForall reinstantiation loop: ∀A∀B.r(A,B) ⊢ r(X,Y).
+    val prob2 = Clausification.Problem(Seq(K.Sequent(Set.empty, Set(all(A, all(B, ap(r, A, B)))))), Some(K.Sequent(Set.empty, Set(ap(r, X, Y)))))
+    val proof2 = CertifiedFastClausifier.certifyClausal(prob2, Clausal.prove)
+    assert(K.SCProofChecker.checkSCProof(proof2).isValid, s"(2) kernel rejected: ${K.SCProofChecker.checkSCProof(proof2)}")
+    assert(proof2.conclusion == K.Sequent(Set.empty, Set(ap(r, X, Y))), s"(2) conclusion ${proof2.conclusion} is not the original goal r(X,Y)")
+  }
+
+  test("open-variable axiom whose variable name collides with a fresh-symbol prefix is renamed to `v_i` (kernel-valid)") {
+    val p = pred("p", 1); val q = pred("q", 1); val s = pred("s", 1); val a = fn("a", 0)
+    val w0 = vr("w0"); val nm0 = vr("nm0") // deliberately named like the clause variable `w<n>` / naming atom `nm<n>`
+    def impl(l: K.Expression, r: K.Expression) = K.Application(K.Application(K.implies, l), r)
+    // ∀w0.(p(w0) ⟹ q(w0)),  p(a),  and an irrelevant ∀nm0. s(nm0) — open `w0`/`nm0` collide with introduced-name
+    // prefixes; RenamePhase must canonicalise them to `v_i` so nothing the clausifier introduces later captures them.
+    val ax1 = impl(ap(p, w0), ap(q, w0))
+    val ax2 = ap(p, a)
+    val ax3 = ap(s, nm0)
+    val conj = ap(q, a)
+    val problem = Clausification.Problem(
+      Seq(K.Sequent(Set.empty, Set(ax1)), K.Sequent(Set.empty, Set(ax2)), K.Sequent(Set.empty, Set(ax3))),
+      Some(K.Sequent(Set.empty, Set(conj)))
+    )
+    val proof = CertifiedFastClausifier.certifyClausal(problem, Clausal.prove)
+    assert(K.SCProofChecker.checkSCProof(proof).isValid, s"kernel rejected: ${K.SCProofChecker.checkSCProof(proof)}")
+    assert(proof.conclusion == K.Sequent(Set.empty, Set(conj)))
   }
 
   test("uncertified (fast) clausalForm is equisatisfiable with the certified path: the prover refutes both") {
@@ -205,7 +263,7 @@ class ClausalTest extends AnyFunSuite:
     )
     for problem <- problems do
       var captured: Clausification.Problem = null // record what certifyClausal feeds its prover (the certified clauses)
-      Clausification.certifyClausal(problem, p => { captured = p; K.SCProof(IndexedSeq(K.Sorry(K.Sequent(Set.empty, Set.empty))), p.imports) })
+      CertifiedFastClausifier.certifyClausal(problem, p => { captured = p; K.SCProof(IndexedSeq(K.Sorry(K.Sequent(Set.empty, Set.empty))), p.imports) })
       val certifiedRefuted = Clausal.solveOutcome(Clausification.Problem(captured.imports.toSeq, None)).refuted
       val fastRefuted = Clausal.solveOutcome(lisa.automation.clausification.UncertifiedClausification.clausalForm(problem)).refuted
       assert(fastRefuted == certifiedRefuted, s"fast/certified refutation verdict disagree (fast=$fastRefuted, certified=$certifiedRefuted) on $problem")
@@ -256,13 +314,13 @@ class ClausalTest extends AnyFunSuite:
     val P = pred("P", 0)
     // hypothesis P, conjecture P -- clausifies (already-clausal) to {P, ¬P}; refutation uses both. `⊢ P`.
     val problem = Clausification.Problem(Seq(K.Sequent(Set.empty, Set(P))), Some(K.Sequent(Set.empty, Set(P))))
-    val proof = Clausification.certifyClausal(problem, Clausal.prove)
+    val proof = CertifiedFastClausifier.certifyClausal(problem, Clausal.prove)
     val check = K.SCProofChecker.checkSCProof(proof)
     assert(check.isValid, s"kernel rejected the composed proof: $check")
     assert(proof.conclusion == K.Sequent(Set.empty, Set(P)))
   }
 
-  test("CertifiedFastClausifier: naming matches FastClausify exactly (same subformulas named, up to atom renaming)") {
+  test("CertifiedFastClausifier: naming matches FastClausify exactly (same subformulas named, identical atoms)") {
     val a = (1 to 8).map(i => pred(s"a$i", 0): K.Expression)
     val b = (1 to 6).map(i => pred(s"b$i", 0): K.Expression)
     val R = pred("R", 1); val x = vr("x")
@@ -307,7 +365,7 @@ class ClausalTest extends AnyFunSuite:
     // a genuine ε-term. `Clausal.prove` abstracts it (F), refutes P(x) vs ¬P(F) by x:=F, and reconstructs with
     // F inlined back to the ε-term — a purely ε-bearing, kernel-valid proof of `⊢ ∀x.P(x)`.
     val problem = Clausification.Problem(Seq(K.Sequent(Set.empty, Set(forallPx))), Some(K.Sequent(Set.empty, Set(forallPx))))
-    val proof = Clausification.certifyClausal(problem, Clausal.prove)
+    val proof = CertifiedFastClausifier.certifyClausal(problem, Clausal.prove)
     val check = K.SCProofChecker.checkSCProof(proof)
     assert(check.isValid, s"kernel rejected the composed proof: $check")
     assert(proof.conclusion == K.Sequent(Set.empty, Set(forallPx)))
@@ -329,7 +387,7 @@ class ClausalTest extends AnyFunSuite:
       Seq(K.Sequent(Set.empty, Set(body)), K.Sequent(Set.empty, Set(K.Application(K.neg, C)))),
       Some(K.Sequent(Set.empty, Set(A)))
     )
-    val proof = Clausification.certifyClausal(problem, Clausal.prove)
+    val proof = CertifiedFastClausifier.certifyClausal(problem, Clausal.prove)
     val check = K.SCProofChecker.checkSCProof(proof)
     assert(check.isValid, s"kernel rejected the composed proof: $check")
     assert(proof.conclusion == K.Sequent(Set.empty, Set(A)))
@@ -341,7 +399,7 @@ class ClausalTest extends AnyFunSuite:
     // (A ∧ B) ∨ C needs Tseitin (Q>0); its residual rewrite `ts0 ∨ C` must now be emitted as `{ts0, C}` via
     // the new Restate. A Sorry refutation isolates that step for the kernel checker.
     val problem = Clausification.Problem(Seq(K.Sequent(Set.empty, Set(body))), Some(K.Sequent(Set.empty, Set(A))))
-    val proof = Clausification.certifyClausal(problem, sorryProver)
+    val proof = CertifiedFastClausifier.certifyClausal(problem, sorryProver)
     val check = K.SCProofChecker.checkSCProof(proof)
     assert(check.isValid, s"kernel rejected the composed proof: $check")
     assert(proof.conclusion == K.Sequent(Set.empty, Set(A)))
@@ -356,7 +414,7 @@ class ClausalTest extends AnyFunSuite:
       Seq(K.Sequent(Set.empty, Set(pOrQ)), K.Sequent(Set.empty, Set(K.Application(K.neg, P)))),
       Some(K.Sequent(Set.empty, Set(Q)))
     )
-    val proof = Clausification.certifyClausal(problem, Clausal.prove)
+    val proof = CertifiedFastClausifier.certifyClausal(problem, Clausal.prove)
     val check = K.SCProofChecker.checkSCProof(proof)
     assert(check.isValid, s"kernel rejected the composed proof: $check")
     assert(proof.conclusion == K.Sequent(Set.empty, Set(Q)))

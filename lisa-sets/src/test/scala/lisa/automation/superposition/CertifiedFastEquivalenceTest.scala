@@ -9,13 +9,15 @@ import lisa.utils.K
 import lisa.tptp.{AnnotatedFormula, AnnotatedSequent}
 import lisa.tptp.KernelParser.{axiomLikeRoles, problemToKernel, strictMapAtom, strictMapTerm, strictMapVariable}
 import lisa.automation.clausification.CertifiedFastClausifier
+import lisa.automation.clausification.Clausification.GeneratedNames
 
 /**
  * Equivalence check between the **uncertified** fast clausifier ([[lisa.automation.clausification.FastClausify]])
  * and the **certified** one ([[CertifiedFastClausifier]]) on the first 100 problems (seed 42) of each of the
  * equality-free FOF and equality-bearing FOF benchmarks — 200 problems. Establishes, on real inputs, that the two
- * make the *same naming decisions*: for every input formula the certified named formula equals the fast one up to
- * naming-atom renaming ([[CertifiedFastClausifier.sameNaming]]). This is the soundness lever — if the certified
+ * make the *same naming decisions*: for every input formula the certified named formula equals the fast one
+ * *identically* — both mint their `nm` atoms with the same generator ([[CertifiedFastClausifier.sameNaming]] is a
+ * plain `==`). This is the soundness lever — if the certified
  * (kernel-checked) path names identically, its clauses vouch for the uncertified path's.
  *
  * Needs the `TPTP` env var (the directory containing `Problems/`); skipped otherwise.
@@ -40,9 +42,9 @@ class CertifiedFastEquivalenceTest extends AnyFunSuite:
   /** Structural equality up to renaming of the **fresh** symbols, with the problem symbols (all other constants)
    *  matching exactly. Two classes of fresh symbol, treated differently:
    *
-   *   - **Ordinary variables** — clause variables `sV…`/`sw…`/originals, naming atoms `Ts…`/`fcNm…` — must match by a
+   *   - **Ordinary variables** — clause variables `w…`/originals, naming atoms `nm…` — must match by a
    *     consistent **bijection** (distinct on one side ⇒ distinct on the other).
-   *   - **Skolem symbols** — `sK…` (fast, a Skolem `Constant`) and `Feps…` (certified, the ε-abstraction function) —
+   *   - **Skolem symbols** — `sk…` (fast, a Skolem `Constant`) and `feps…` (certified, the ε-abstraction function) —
    *     match by a consistent **forward function** only (fast ⇒ certified), NOT a bijection. Fast mints a fresh
    *     Skolem per existential; the certified ε-path *merges* syntactically-identical existentials (identical ε-terms
    *     are one term). So fast is a strict refinement: every fast Skolem maps onto one certified symbol, but one
@@ -52,11 +54,12 @@ class CertifiedFastEquivalenceTest extends AnyFunSuite:
   private def isoMismatch(x: K.Expression, y: K.Expression): Option[(K.Expression, K.Expression)] =
     val fwd = scala.collection.mutable.HashMap.empty[K.Expression, K.Expression]
     val bwd = scala.collection.mutable.HashMap.empty[K.Expression, K.Expression]
-    // Skolem symbols: fast's `sK` (a Constant), the certified path's `esk` (a schematic Variable), and any legacy
-    // `Feps`. Matched by name prefix regardless of Constant/Variable so ε↔Skolem-function representations line up.
+    // Skolem symbols: fast's `sk` (a Constant), the certified path's `esk` (a schematic Variable), and the
+    // test's `feps` ε-abstraction. Matched by name regardless of Constant/Variable so ε↔Skolem-function
+    // representations line up. (Counter is in the identifier's `no` field, so the `name` is exactly the prefix.)
     def isSkolem(e: K.Expression): Boolean =
       val name = e match { case c: K.Constant => c.id.name; case v: K.Variable => v.id.name; case _ => "" }
-      name.startsWith("sK") || name.startsWith("Feps") || name.startsWith("esk")
+      name == GeneratedNames.fastSkolem || name == "feps" || name == GeneratedNames.skolemFun
     def renamable(e: K.Expression): Boolean = e.isInstanceOf[K.Variable] || isSkolem(e)
     def go(a: K.Expression, b: K.Expression): Option[(K.Expression, K.Expression)] = (a, b) match
       case (K.Application(f1, a1), K.Application(f2, a2)) => go(f1, f2).orElse(go(a1, a2))
@@ -84,10 +87,10 @@ class CertifiedFastEquivalenceTest extends AnyFunSuite:
     def go(e: K.Expression): K.Expression = e match
       case eps @ K.Application(f0, _) if f0 == K.epsilon => // an ε-term — opaque; do NOT descend into its body
         memo.getOrElseUpdate(eps, {
-          // A **Constant** (like FastClausify's Skolem `sK`), NOT a Variable: else a nullary `Feps` (result sort
+          // A **Constant** (like FastClausify's Skolem `sk`), NOT a Variable: else a nullary `feps` (result sort
           // Ind) would be an Ind-valued free variable and cascade in as an argument to outer Skolem functions.
           val fv = eps.freeVariables.toSeq.filter(_.sort == K.Ind).sortBy(v => (v.id.name, v.id.no))
-          val fSym = K.Constant(K.Identifier(s"Feps$n", 0), fv.foldRight(K.Ind: K.Sort)((v, acc) => v.sort -> acc))
+          val fSym = K.Constant(K.Identifier("feps", n), fv.foldRight(K.Ind: K.Sort)((v, acc) => v.sort -> acc))
           n += 1
           fv.foldLeft(fSym: K.Expression)((acc, v) => K.Application(acc, v))
         })
@@ -128,7 +131,7 @@ class CertifiedFastEquivalenceTest extends AnyFunSuite:
           problemsChecked += 1
           for phi <- inputFormulas(parsed) if size(phi) <= 8000 do // skip giant formulas (findSite is superlinear)
             val t0 = System.nanoTime()
-            // (1) after naming: the certified and fast named formulas agree (up to atom renaming).
+            // (1) after naming: the certified and fast named formulas agree *identically* (same `nm` generator).
             assert(CertifiedFastClausifier.sameNaming(phi), s"naming diverged (certified ≠ fast) on $rel:\n  $phi")
             // (2) after Skolem: fast (Skolem functions) equals certified (ε-terms, ∀-stripped, ε-abstracted). The
             // certified side can blow up on nested-∃ ε-terms, so run it under a 2s budget and skip on timeout.

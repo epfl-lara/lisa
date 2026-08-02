@@ -5,9 +5,9 @@ import Clausification.*
 
 private[clausification] object PrenexPhase:
 
-  /** For each axiom containing a `∀` anywhere in its tree, strip all universals and
-    * replace each bound variable with a fresh witness `V_i` (pre-order). Certifies
-    * the derivation of the quantifier-free matrix via [[provePrenex]]. */
+  /** For each axiom containing a `∀` anywhere in its tree, strip all universals — instantiating each at a fresh
+    * clause variable `w` (pre-order) via `LeftForall`. Certifies the derivation of the quantifier-free matrix
+    * via [[provePrenex]]. */
   def certifyPrenex(problem: Problem, prover: ClausificationProver,
       forceDeconstruct: Boolean = false, forceRewrite: Boolean = false): ClausificationProof = {
     certifyAxiomwise(problem, prover, (ax, counter, ctx) => {
@@ -15,7 +15,7 @@ private[clausification] object PrenexPhase:
       if !hasForall(phi) then None
       else
         // Outer step 0 derives matrixAx from ax via universal-quantifier stripping,
-        // using `witnesses` (the fresh `V_i` introduced by [[extractUniversalMatrix]]
+        // using `witnesses` (the fresh clause variables `w` introduced by [[extractUniversalMatrix]]
         // in pre-order) as instantiation terms.
         val (matrix, witnesses) = extractUniversalMatrix(phi, counter)
         val matrixAx   = () |- matrix
@@ -35,7 +35,7 @@ private[clausification] object PrenexPhase:
     * Build a subproof of `() ⊢ matrix` from the imported `() ⊢ phi`, where `phi`
     * may contain `∀`-quantifiers *anywhere* in the tree (not necessarily at the root).
     * `matrix` is `phi` with every `∀x._` stripped and `x` replaced by the
-    * corresponding witness `V_i` (pre-order, as computed by [[extractUniversalMatrix]]).
+    * corresponding fresh clause variable `w` (pre-order, as computed by [[extractUniversalMatrix]]).
     *
     * Two strategies, dispatched by [[preferRewriteStrategy]]:
     *   - [[provePrenexDeconstruct]]: walk `phi`'s tree, apply `LeftForall` at each
@@ -84,8 +84,7 @@ private[clausification] object PrenexPhase:
         val (s, q) = counts(body); (s + 1, q)
       case _ => (1, 0)
     val (size, nq) = counts(phi)
-    // Rewriting is asymptotically O(nq * depth); deconstruction is O(size).
-    // Pick rewrite when there are few quantifiers relative to formula size.
+    // rewrite cost ~nq·depth vs deconstruction ~size; cross over near size ≈ nq²
     nq > 0 && size > 4 * nq * nq
   }
 
@@ -158,14 +157,6 @@ private[clausification] object PrenexPhase:
     SCSubproof(SCProof(steps.toIndexedSeq, IndexedSeq(imported)), IndexedSeq(premise))
   }
 
-  /** Rewriting strategy: for each universal quantifier in `phi` (in pre-order),
-    * lift it to the top of the formula via `RightSubstIff` with the appropriate
-    * prenex equivalence (proven inline), then strip it with `LeftForall` at the
-    * matching witness from `witnesses`. After all quantifiers are stripped, we
-    * have `() ⊢ matrix`. The remaining body's structure is never destructured.
-    *
-    * Cost per quantifier: `O(nb_q*depth)` rewrites (one per enclosing connective on
-    * the path from root to the quantifier). */
   /** Description of a single one-layer step lifting `∀x.body` across the
     * surrounding connective when it sits inside `(…) ⊕ Q` or `Q ⊕ (…)`. */
   sealed trait LiftLayer
@@ -174,6 +165,11 @@ private[clausification] object PrenexPhase:
   case class LayerOrL (rhs: Expression) extends LiftLayer  // (∀x.body) ∨ rhs  →  ∀x.(body ∨ rhs)
   case class LayerOrR (lhs: Expression) extends LiftLayer  // lhs ∨ (∀x.body)  →  ∀x.(lhs ∨ body)
 
+  /** Rewriting strategy: for each universal quantifier in `phi` (in pre-order), lift it to the top of the
+    * formula via `RightSubstIff` with the appropriate prenex equivalence (proven inline), then strip it with
+    * `LeftForall` at the matching witness from `witnesses`. After all quantifiers are stripped we have
+    * `() ⊢ matrix`; the remaining body's structure is never destructured. Cost per quantifier: `O(nb_q*depth)`
+    * rewrites (one per enclosing connective on the path from root to the quantifier). */
   def provePrenexRewrite(
       imported: Sequent,
       premise: Int,
@@ -243,18 +239,21 @@ private[clausification] object PrenexPhase:
 
       val iffFormula = lhsIff <=> rhsIff
       // Instantiate the appropriate prenex library theorem to get `() ⊢ iffFormula`.
+      // `schemaP := λx.body` is the quantified side; `schemaR := <sibling>` is the closed (x-free)
+      // side, supplied unwrapped since `R` is nullary `Prop`. The substituted statement βη-equals
+      // `iffFormula` in every case, so `InstSchema` checks against the conclusion below.
       val (libRef, schemaSubst): (Int, Map[Variable, Expression]) = layer match
-        case LayerAndL(rhs) => (innerLibAndL, Map(schemaP -> Lambda(x, body), schemaQ -> Lambda(x, rhs)))
-        case LayerAndR(lhs) => (innerLibAndR, Map(schemaP -> Lambda(x, lhs),  schemaQ -> Lambda(x, body)))
-        case LayerOrL(rhs)  => (innerLibOrL,  Map(schemaP -> Lambda(x, body), schemaQ -> Lambda(x, rhs)))
-        case LayerOrR(lhs)  => (innerLibOrR,  Map(schemaP -> Lambda(x, lhs),  schemaQ -> Lambda(x, body)))
+        case LayerAndL(rhs) => (innerLibAndL, Map(schemaP -> Lambda(x, body), schemaR -> rhs))
+        case LayerAndR(lhs) => (innerLibAndR, Map(schemaP -> Lambda(x, body), schemaR -> lhs))
+        case LayerOrL(rhs)  => (innerLibOrL,  Map(schemaP -> Lambda(x, body), schemaR -> rhs))
+        case LayerOrR(lhs)  => (innerLibOrR,  Map(schemaP -> Lambda(x, body), schemaR -> lhs))
       val iffStep = emit(InstSchema(() |- iffFormula, libRef, schemaSubst))
 
       // Lifted formula: replace `lhsIff` at `pathToOuter` with `rhsIff`.
       val liftedFormula = rewriteAt(srcFormula, pathToOuter, _ => rhsIff)
 
       // Build the context lambda for RightSubstIff: λp. srcFormula[pathToOuter := p].
-      val pVar = Variable(Identifier("_p", freshCounter.next()), Prop)
+      val pVar = Variable(Identifier(GeneratedNames.hole, freshCounter.next()), Prop)
       val ctxBody = rewriteAt(srcFormula, pathToOuter, _ => pVar)
 
       val substStep = emit(RightSubstIff(
@@ -313,7 +312,7 @@ private[clausification] object PrenexPhase:
     def go(f: Expression, subst: Map[Variable, Expression]): (Expression, Seq[Variable]) =
       f match
         case Forall(x, inner) =>
-          val fresh = Variable(Identifier(s"V${counter.next()}", 0), Ind)
+          val fresh = Variable(Identifier(GeneratedNames.clauseVar, counter.next()), Ind)
           val (matrix, vars) = go(inner, subst + (x -> fresh))
           (matrix, fresh +: vars)
         case And(left, right) =>

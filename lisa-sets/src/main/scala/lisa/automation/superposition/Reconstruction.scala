@@ -3,6 +3,7 @@ package lisa.automation.superposition
 import scala.collection.mutable
 
 import lisa.utils.K
+import lisa.automation.clausification.Clausification.GeneratedNames
 
 import Core.*
 
@@ -12,15 +13,17 @@ import Core.*
  * empty sequent `⊢`. See `Reconstruction.md` for the design.
  *
  * Each clause becomes one proof reference (an import or a step), **memoised** by clause id so a clause
- * reused across the DAG is expanded once. Every clause's kernel sequent uses a per-clause canonical
- * variable naming (`reconV<id>`), so any two clauses are standardised apart. Inputs import the user's
- * exact sequent and a per-input `InstSchema` renames its variables to the canonical scheme.
+ * reused across the DAG is expanded once. Every clause's kernel sequent uses a canonical variable
+ * naming (`cv0, cv1, …`), reused across clauses since each clause is instantiated independently. Inputs
+ * import the user's exact sequent and a per-input `InstSchema` renames its variables to the canonical scheme.
  *
  * The mapping: `Input` → import (+ rename `InstSchema`); `Factoring` → `InstSchema` (the merged
  * literals collapse in the set-sequent); `Resolution` → `InstSchema` of each parent by the recomputed
  * mgu, then `Cut` on the resolved atom; `Canonicalization` → pass-through (sort/dedup are no-ops on
- * set-sequents). The mgu is recomputed by re-unifying the recorded literals; the conclusion's variable
- * numbering is recovered by replaying the inference's `Applier` over the surviving literals.
+ * set-sequents); the equality inferences (superposition, demodulation, equality resolution/factoring) are
+ * described by the block comment at their `build*` methods below. The mgu is recomputed by re-unifying the
+ * recorded literals; the conclusion's variable numbering is recovered by replaying the inference's `Applier`
+ * over the surviving literals.
  *
  * Symbols are interned by their full identifier string ([[Bridge]] uses `id.toString`, which encodes
  * the counter index `id.no`), so a rebuilt symbol's identifier is recovered exactly via [[identOf]]
@@ -62,14 +65,16 @@ object Reconstruction:
       refOf(empty)
       K.SCProof(steps.toIndexedSeq, imports.toIndexedSeq)
 
-    /** A reconstructed clause: proof reference, kernel sequent, and its internal-var → kernel-var map. */
-    private final case class Recon(ref: Int, seq: K.Sequent, vars: Int => K.Variable)
+    /** A reconstructed clause: its proof reference and kernel sequent (already in the canonical `cv…` naming). */
+    private final case class Recon(ref: Int, seq: K.Sequent)
 
     private def addStep(s: K.SCProofStep): Int = { steps += s; steps.length - 1 }
     private def addImport(s: K.Sequent): Int = { imports += s; -imports.length }
 
-    /** A globally-unique kernel variable for internal var `n` of clause `id` (standardises clauses apart). */
-    private def canonVar(id: Int, n: Int): K.Variable = K.Variable(K.Identifier(s"reconV$id", n), K.Ind)
+    /** The canonical kernel variable `cvN` for internal variable `n`. The naming is global — shared across all
+     *  clauses, which are instantiated independently — so it standardises the clauses apart. Every clause's
+     *  sequent, and every `kernelize`d term, uses it, so it needs no per-clause threading. */
+    private def canonVar(n: Int): K.Variable = K.Variable(K.Identifier(GeneratedNames.reconClauseVar, n), K.Ind)
 
     private def refOf(c: Clause): Recon = memo.get(c.id) match
       case Some(r) => r
@@ -81,12 +86,12 @@ object Reconstruction:
     private def build(c: Clause): Recon = c.justification match
       case Justification.Input => buildInput(c)
       case Justification.Canonicalization(p) => refOf(p) // sort/dedup are no-ops on a set-sequent
-      case Justification.Factoring(p, i, j) => buildFactoring(c, p, i, j)
-      case Justification.Resolution(l, i, r, j) => buildResolution(c, l, i, r, j)
-      case Justification.Superposition(from, fi, fs, into, ii, pos) => buildSuperposition(c, from, fi, fs, into, ii, pos)
-      case Justification.Demodulation(target, ti, pos, rule, rs) => buildDemodulation(c, target, ti, pos, rule, rs)
-      case Justification.EqualityResolution(p, i) => buildEqualityResolution(c, p, i)
-      case Justification.EqualityFactoring(p, d, ds, k, ks) => buildEqualityFactoring(c, p, d, ds, k, ks)
+      case Justification.Factoring(p, i, j) => buildFactoring(p, i, j)
+      case Justification.Resolution(l, i, r, j) => buildResolution(l, i, r, j)
+      case Justification.Superposition(from, fi, fs, into, ii, pos) => buildSuperposition(from, fi, fs, into, ii, pos)
+      case Justification.Demodulation(target, ti, pos, rule, rs) => buildDemodulation(target, ti, pos, rule, rs)
+      case Justification.EqualityResolution(p, i) => buildEqualityResolution(p, i)
+      case Justification.EqualityFactoring(p, d, ds, k, ks) => buildEqualityFactoring(p, d, ds, k, ks)
 
     /** Inline the Phase-3 discharge into a sequent: substitute every schematic `F` by its `λfv. e` value and
      *  β-normalise, turning `F`-bearing atoms into `e`-bearing ones. Identity when nothing was abstracted. */
@@ -97,40 +102,37 @@ object Reconstruction:
     private def buildInput(c: Clause): Recon =
       val (rawOrigSeq, vm) = inputs(c.id)
       val origSeq = dischargeSeq(rawOrigSeq) // present the import with `F` inlined back to its ε-term
-      val cv: Int => K.Variable = n => canonVar(c.id, n)
       val imp = addImport(origSeq)
-      if vm.isEmpty then Recon(imp, origSeq, cv)
+      if vm.isEmpty then Recon(imp, origSeq)
       else
-        val subst: Map[K.Variable, K.Expression] = vm.map((n, ov) => ov -> (cv(n): K.Expression)).toMap
+        val subst: Map[K.Variable, K.Expression] = vm.map((n, ov) => ov -> (canonVar(n): K.Expression)).toMap
         val canonSeq = substSeq(origSeq, subst)
-        Recon(addStep(K.InstSchema(canonSeq, imp, subst)), canonSeq, cv)
+        Recon(addStep(K.InstSchema(canonSeq, imp, subst)), canonSeq)
 
-    private def buildFactoring(c: Clause, parent: Clause, i: Int, j: Int): Recon =
+    private def buildFactoring(parent: Clause, i: Int, j: Int): Recon =
       val p = refOf(parent)
-      val cv: Int => K.Variable = n => canonVar(c.id, n)
       val saved = trail.save()
       trail.unify(bank.atomOf(parent.literals(i)), 0, bank.atomOf(parent.literals(j)), 0)
       val applier = trail.applier()
       replaySurvivors(applier, parent, skip = j, scope = 0) // fix the conclusion's variable numbering
-      val subst = substOf(parent, p.vars, applier, scope = 0, cv)
+      val subst = substOf(parent, applier, scope = 0)
       val bot = substSeq(p.seq, subst)
       trail.restore(saved)
-      if subst.isEmpty then Recon(p.ref, bot, cv)
-      else Recon(addStep(K.InstSchema(bot, p.ref, subst)), bot, cv)
+      if subst.isEmpty then Recon(p.ref, bot)
+      else Recon(addStep(K.InstSchema(bot, p.ref, subst)), bot)
 
-    private def buildResolution(c: Clause, left: Clause, i: Int, right: Clause, j: Int): Recon =
+    private def buildResolution(left: Clause, i: Int, right: Clause, j: Int): Recon =
       val pl = refOf(left); val pr = refOf(right)
-      val cv: Int => K.Variable = n => canonVar(c.id, n)
       val saved = trail.save()
       trail.unify(bank.atomOf(left.literals(i)), 0, bank.atomOf(right.literals(j)), 1)
       val applier = trail.applier()
       replaySurvivors(applier, left, skip = i, scope = 0)
       replaySurvivors(applier, right, skip = j, scope = 1)
-      val substL = substOf(left, pl.vars, applier, scope = 0, cv)
-      val substR = substOf(right, pr.vars, applier, scope = 1, cv)
+      val substL = substOf(left, applier, scope = 0)
+      val substR = substOf(right, applier, scope = 1)
       val botL = substSeq(pl.seq, substL)
       val botR = substSeq(pr.seq, substR)
-      val phi = K.substituteVariables(kernelize(bank.atomOf(left.literals(i)), pl.vars), substL)
+      val phi = K.substituteVariables(kernelize(bank.atomOf(left.literals(i))), substL)
       trail.restore(saved)
       val (refL, seqL) = instStep(pl, substL, botL)
       val (refR, seqR) = instStep(pr, substR, botR)
@@ -138,7 +140,7 @@ object Reconstruction:
       val (t1ref, t1seq, t2ref, t2seq) =
         if bank.isPositive(left.literals(i)) then (refL, seqL, refR, seqR) else (refR, seqR, refL, seqL)
       val resolvent = K.Sequent(t1seq.left ++ (t2seq.left - phi), (t1seq.right - phi) ++ t2seq.right)
-      Recon(addStep(K.Cut(resolvent, t1ref, t2ref, phi)), resolvent, cv)
+      Recon(addStep(K.Cut(resolvent, t1ref, t2ref, phi)), resolvent)
 
     // --- equality inferences (Phase 4 Step 5) ------------------------------------------------------
     //
@@ -148,11 +150,11 @@ object Reconstruction:
     // against it. Equality resolution collapses a unified disequality `s≉t` with `LeftRefl`; equality
     // factoring is a single `RightSubstEq` (plus a reorientation when the two equalities' sides disagree).
 
-    private def buildSuperposition(c: Clause, from: Clause, iFrom: Int, fromSide: Int, into: Clause, iInto: Int, pos: Array[Int]): Recon =
+    private def buildSuperposition(from: Clause, iFrom: Int, fromSide: Int, into: Clause, iInto: Int, pos: Array[Int]): Recon =
       val fromAtom = bank.atomOf(from.literals(iFrom))
       val l = bank.arg(fromAtom, fromSide)
       buildRewrite(
-        c, from, iFrom, fromSide, into, iInto, pos,
+        from, iFrom, fromSide, into, iInto, pos,
         establish = () => { trail.unify(l, 0, Superposition.subtermAt(bank, bank.atomOf(into.literals(iInto)), pos), 1); () },
         replay = ap =>
           // reproduce [[Superposition.superpose]]'s applier order so the conclusion's fresh var numbering matches `c`
@@ -163,11 +165,11 @@ object Reconstruction:
           while k < from.literals.length do { ap.apply(bank.atomOf(from.literals(k)), 0); k += 1 }
       )
 
-    private def buildDemodulation(c: Clause, target: Clause, iTarget: Int, pos: Array[Int], rule: Clause, ruleSide: Int): Recon =
+    private def buildDemodulation(target: Clause, iTarget: Int, pos: Array[Int], rule: Clause, ruleSide: Int): Recon =
       val ruleAtom = bank.atomOf(rule.literals(0)) // the demodulator is a positive unit equality
       val l = bank.arg(ruleAtom, ruleSide)
       buildRewrite(
-        c, rule, 0, ruleSide, target, iTarget, pos,
+        rule, 0, ruleSide, target, iTarget, pos,
         establish = () => { trail.matchTerm(l, 0, Superposition.subtermAt(bank, bank.atomOf(target.literals(iTarget)), pos), 1); () },
         replay = ap =>
           // reproduce [[Demodulation.tryRewrite]]'s applier order (rule sides first, then target literals in order)
@@ -184,10 +186,9 @@ object Reconstruction:
      * rewritten literal is positive, else Left) that adds `lσ=rσ` to the antecedent, then a `Cut` on `lσ=rσ`.
      */
     private def buildRewrite(
-        c: Clause, from: Clause, iFrom: Int, fromSide: Int, into: Clause, iInto: Int, pos: Array[Int],
+        from: Clause, iFrom: Int, fromSide: Int, into: Clause, iInto: Int, pos: Array[Int],
         establish: () => Unit, replay: trail.Applier => Unit): Recon =
       val pFrom = refOf(from); val pInto = refOf(into)
-      val cv: Int => K.Variable = n => canonVar(c.id, n)
       val fromAtom = bank.atomOf(from.literals(iFrom))
       val intoLit = into.literals(iInto)
       val intoAtom = bank.atomOf(intoLit)
@@ -195,17 +196,17 @@ object Reconstruction:
       establish()
       val applier = trail.applier()
       replay(applier)
-      val substFrom = substOf(from, pFrom.vars, applier, scope = 0, cv)
-      val substInto = substOf(into, pInto.vars, applier, scope = 1, cv)
+      val substFrom = substOf(from, applier, scope = 0)
+      val substInto = substOf(into, applier, scope = 1)
       val botFrom = substSeq(pFrom.seq, substFrom)
       val botInto = substSeq(pInto.seq, substInto)
       // the equation's two stored sides (a0=a1 on `from`'s right) and the rewrite's occurrence sK → replacement tK
-      val a0 = K.substituteVariables(kernelize(bank.arg(fromAtom, 0), pFrom.vars), substFrom)
-      val a1 = K.substituteVariables(kernelize(bank.arg(fromAtom, 1), pFrom.vars), substFrom)
-      val sK = K.substituteVariables(kernelize(Superposition.subtermAt(bank, intoAtom, pos), pInto.vars), substInto)
-      val tK = K.substituteVariables(kernelize(bank.arg(fromAtom, 1 - fromSide), pFrom.vars), substFrom)
+      val a0 = K.substituteVariables(kernelize(bank.arg(fromAtom, 0)), substFrom)
+      val a1 = K.substituteVariables(kernelize(bank.arg(fromAtom, 1)), substFrom)
+      val sK = K.substituteVariables(kernelize(Superposition.subtermAt(bank, intoAtom, pos)), substInto)
+      val tK = K.substituteVariables(kernelize(bank.arg(fromAtom, 1 - fromSide)), substFrom)
       val hole = freshHole()
-      val phiBody = K.substituteVariables(kernelizeHole(intoAtom, pInto.vars, pos, 0, hole), substInto)
+      val phiBody = K.substituteVariables(kernelizeHole(intoAtom, pos, 0, hole), substInto)
       val phiOfS = K.substituteVariables(phiBody, Map(hole -> sK)) // the into-literal's atom instance (φ(s))
       val phiOfT = K.substituteVariables(phiBody, Map(hole -> tK)) // the rewritten atom (φ(t))
       val eq = mkEqK(sK, tK) // lifted equation the SubstEq adds to the antecedent / the Cut resolves on
@@ -222,27 +223,25 @@ object Reconstruction:
           val bot = K.Sequent((seqInto.left - phiOfS) + eq + phiOfT, seqInto.right)
           (addStep(K.LeftSubstEq(bot, refInto, Seq((sK, tK)), (Seq(hole), phiBody))), bot)
       val concl = K.Sequent(seqFrom.left ++ (seqSubst.left - eq), (seqFrom.right - eq) ++ seqSubst.right)
-      Recon(addStep(K.Cut(concl, refFrom, refSubst, eq)), concl, cv)
+      Recon(addStep(K.Cut(concl, refFrom, refSubst, eq)), concl)
 
-    private def buildEqualityResolution(c: Clause, parent: Clause, i: Int): Recon =
+    private def buildEqualityResolution(parent: Clause, i: Int): Recon =
       val pC = refOf(parent)
-      val cv: Int => K.Variable = n => canonVar(c.id, n)
       val atom = bank.atomOf(parent.literals(i)) // the negative equality s ≉ t
       val saved = trail.save()
       trail.unify(bank.arg(atom, 0), 0, bank.arg(atom, 1), 0)
       val applier = trail.applier()
       replaySurvivors(applier, parent, skip = i, scope = 0)
-      val substC = substOf(parent, pC.vars, applier, scope = 0, cv)
+      val substC = substOf(parent, applier, scope = 0)
       val botC = substSeq(pC.seq, substC)
-      val refl = K.substituteVariables(kernelize(atom, pC.vars), substC) // sσ = sσ, reflexive after unification
+      val refl = K.substituteVariables(kernelize(atom), substC) // sσ = sσ, reflexive after unification
       trail.restore(saved)
       val (refC, seqC) = instStep(pC, substC, botC)
       val concl = K.Sequent(seqC.left - refl, seqC.right)
-      Recon(addStep(K.LeftRefl(concl, refC, refl)), concl, cv)
+      Recon(addStep(K.LeftRefl(concl, refC, refl)), concl)
 
-    private def buildEqualityFactoring(c: Clause, parent: Clause, i: Int, iSide: Int, j: Int, jSide: Int): Recon =
+    private def buildEqualityFactoring(parent: Clause, i: Int, iSide: Int, j: Int, jSide: Int): Recon =
       val pC = refOf(parent)
-      val cv: Int => K.Variable = n => canonVar(c.id, n)
       val atomI = bank.atomOf(parent.literals(i)) // dropped equality s ≈ t (factored side iSide = s)
       val s = bank.arg(atomI, iSide); val t = bank.arg(atomI, 1 - iSide)
       val tp = bank.arg(bank.atomOf(parent.literals(j)), 1 - jSide) // partner's other side t'
@@ -252,13 +251,13 @@ object Reconstruction:
       // reproduce [[Superposition.factorOne]]'s applier order (s, t, t', then the survivors, skipping i)
       applier.apply(s, 0); applier.apply(t, 0); applier.apply(tp, 0)
       replaySurvivors(applier, parent, skip = i, scope = 0)
-      val substC = substOf(parent, pC.vars, applier, scope = 0, cv)
+      val substC = substOf(parent, applier, scope = 0)
       val botC = substSeq(pC.seq, substC)
       val hole = freshHole()
-      val phiBody = K.substituteVariables(kernelizeHole(atomI, pC.vars, Array(1 - iSide), 0, hole), substC)
-      val tK = K.substituteVariables(kernelize(t, pC.vars), substC) // tσ
-      val tpK = K.substituteVariables(kernelize(tp, pC.vars), substC) // t'σ
-      val pK = K.substituteVariables(kernelize(s, pC.vars), substC) // sσ = s'σ (the shared maximal side)
+      val phiBody = K.substituteVariables(kernelizeHole(atomI, Array(1 - iSide), 0, hole), substC)
+      val tK = K.substituteVariables(kernelize(t), substC) // tσ
+      val tpK = K.substituteVariables(kernelize(tp), substC) // t'σ
+      val pK = K.substituteVariables(kernelize(s), substC) // sσ = s'σ (the shared maximal side)
       val phiOfS = K.substituteVariables(phiBody, Map(hole -> tK)) // literal i's atom instance (φ(s))
       val phiOfT = K.substituteVariables(phiBody, Map(hole -> tpK)) // the rewritten atom (φ(t)) in atom i's side order
       val eq = mkEqK(tK, tpK) // the introduced disequality's atom tσ = t'σ (added to the antecedent)
@@ -268,11 +267,11 @@ object Reconstruction:
       val bot1 = K.Sequent(seqC.left + eq, (seqC.right - phiOfS) + phiOfT)
       val step1 = addStep(K.RightSubstEq(bot1, refC, Seq((tK, tpK)), (Seq(hole), phiBody)))
       // φ(t) came out in literal i's side order; if the kept partner j stores the reverse order, reorient it to merge
-      if iSide == jSide then Recon(step1, bot1, cv)
+      if iSide == jSide then Recon(step1, bot1)
       else
         val (fa, fb) = if iSide == 0 then (pK, tpK) else (tpK, pK) // the two sides of φ(t), stored order
         val (step2, bot2) = flipEqRight(step1, bot1, fa, fb)
-        Recon(step2, bot2, cv)
+        Recon(step2, bot2)
 
     /** Emit an `InstSchema` for a non-empty substitution, else reuse the premise directly (identity-σ). */
     private def instStep(p: Recon, subst: Map[K.Variable, K.Expression], bot: K.Sequent): (Int, K.Sequent) =
@@ -286,21 +285,21 @@ object Reconstruction:
         if k != skip then applier.apply(bank.atomOf(c.literals(k)), scope)
         k += 1
 
-    /** The kernel substitution instantiating `parent`'s variables (named by `pVars`) under the trail,
-     *  with images renamed to clause `cv`'s canonical variables. */
-    private def substOf(parent: Clause, pVars: Int => K.Variable, applier: trail.Applier, scope: Scope, cv: Int => K.Variable): Map[K.Variable, K.Expression] =
-      varsOf(parent).iterator.map(v => pVars(v) -> kernelize(applier.apply(bank.mkVar(Core.Variable(v)), scope), cv)).toMap
+    /** The kernel substitution instantiating `parent`'s variables under the trail, both the domain and the
+     *  images named by the canonical [[canonVar]] scheme. */
+    private def substOf(parent: Clause, applier: trail.Applier, scope: Scope): Map[K.Variable, K.Expression] =
+      varsOf(parent).iterator.map(v => canonVar(v) -> kernelize(applier.apply(bank.mkVar(Core.Variable(v)), scope))).toMap
 
     private def substSeq(s: K.Sequent, subst: Map[K.Variable, K.Expression]): K.Sequent =
       if subst.isEmpty then s
       else K.Sequent(s.left.map(K.substituteVariables(_, subst)), s.right.map(K.substituteVariables(_, subst)))
 
-    /** Convert an internal term to a kernel expression, mapping internal variable numbers via `vars`. */
-    private def kernelize(t: Term, vars: Int => K.Variable): K.Expression =
-      if bank.isVar(t) then vars(bank.varNum(t).num)
+    /** Convert an internal term to a kernel expression, mapping internal variable numbers via [[canonVar]]. */
+    private def kernelize(t: Term): K.Expression =
+      if bank.isVar(t) then canonVar(bank.varNum(t).num)
       else
         val n = bank.arity(t)
-        val args: IndexedSeq[K.Expression] = (0 until n).map(k => kernelize(bank.arg(t, k), vars))
+        val args: IndexedSeq[K.Expression] = (0 until n).map(k => kernelize(bank.arg(t, k)))
         applySymbol(bank.headSymbol(t), args)
 
     /** Apply interned symbol `head` to already-kernelised `args`, honouring Phase-3 discharge (inline a
@@ -318,13 +317,13 @@ object Reconstruction:
 
     /** Kernelise `t` but emit `hole` in place of the subterm at position `pos` (a path of argument indices),
      *  yielding a context `φ(hole)`; everything off the path is kernelised normally via [[kernelize]]. */
-    private def kernelizeHole(t: Term, vars: Int => K.Variable, pos: Array[Int], depth: Int, hole: K.Variable): K.Expression =
+    private def kernelizeHole(t: Term, pos: Array[Int], depth: Int, hole: K.Variable): K.Expression =
       if depth == pos.length then hole
       else
         val n: Int = bank.arity(t)
         val k: Int = pos(depth)
         val args: IndexedSeq[K.Expression] =
-          (0 until n).map(i => if i == k then kernelizeHole(bank.arg(t, i), vars, pos, depth + 1, hole) else kernelize(bank.arg(t, i), vars))
+          (0 until n).map(i => if i == k then kernelizeHole(bank.arg(t, i), pos, depth + 1, hole) else kernelize(bank.arg(t, i)))
         applySymbol(bank.headSymbol(t), args)
 
     /** A kernel equality atom `a = b`, built with the exact constant [[kernelize]] produces for `=`. */
@@ -332,9 +331,9 @@ object Reconstruction:
 
     private var holeCounter: Int = 0
 
-    /** A fresh `Ind` context variable for a substitution lambda, distinct from every `canonVar` (`reconV…`). */
+    /** A fresh `Ind` context variable for a substitution lambda, distinct from every `canonVar` (`cv…`). */
     private def freshHole(): K.Variable =
-      val h = K.Variable(K.Identifier("reconHole", holeCounter), K.Ind)
+      val h = K.Variable(K.Identifier(GeneratedNames.hole, holeCounter), K.Ind)
       holeCounter += 1
       h
 

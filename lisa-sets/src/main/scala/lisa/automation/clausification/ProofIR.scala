@@ -61,12 +61,8 @@ private[clausification] final case class Assumption(formula: Expression, importI
   * already-substituted premise sequent — so the kernel will reject the step on a
   * left/right mismatch.
   *
-  * Concretely: do not [[InstSchema]] over schema variables free in any
-  * `assumptions(i).formula` from inside the inner proof; instead, perform such
-  * substitutions in the *parent* proof, after the [[ClausificationSubproof]] has
-  * been lowered (this is what `certifyTseitin` does: it runs `InstSchema(tsi := ...)`
-  * outside the wrapping subproof, after the assumption `quantified` containing `tsi`
-  * has been discharged).
+  * So: never [[InstSchema]] a schema var free in an assumption formula from inside the inner proof; do it in
+  * the parent after discharge (as `certifyFastNaming`/`certifySkolem` do).
   *
   * Invariants (checked at construction):
   *   - `assumptions.size + premises.size == proof.imports.size` (every inner import is
@@ -82,7 +78,7 @@ private[clausification] final case class ClausificationSubproof(
   require(assumptions.map(_.importIndex).distinct.size == assumptions.size, "Assumption import indices must be distinct")
 
   // Memoized: `bot` may be called repeatedly during lowering (once per outer step in
-  // the discharge loop, O(Q) times for the csub produced by certifyTseitin).
+  // the discharge loop, O(Q) times for the csub produced by certifyFastNaming/certifySkolem).
   // Using `lazy val` avoids the repeated `foldLeft` allocation.
   lazy val bot: Sequent = assumptions.foldLeft(proof.conclusion)((acc, a) => acc +<< a.formula)
 }
@@ -98,13 +94,9 @@ private[clausification] object ClausificationProof {
     ClausificationProof(proof.steps.map(KernelStep(_)), proof.imports)
 }
 
-/** Append every `assumption` to the LHS of `sequent` (idempotent on existing entries). */
-private[clausification] def addAssumptionsLeft(sequent: Sequent, assumptions: Seq[Expression]): Sequent =
-  if (assumptions.isEmpty) sequent
-  else addAssumptionsLeftSet(sequent, assumptions.toSet)
-
-/** Like [[addAssumptionsLeft]] but takes a precomputed set so callers can amortize the
-  * `Seq -> Set` build across many sequents that share the same assumption list. */
+/** Append every assumption in `assumptionSet` to the LHS of `sequent` (idempotent on existing entries).
+  * Takes a precomputed set so callers can amortize the `Seq -> Set` build across many sequents that share
+  * the same assumption list. */
 private[clausification] def addAssumptionsLeftSet(sequent: Sequent, assumptionSet: Set[Expression]): Sequent =
   if (assumptionSet.isEmpty) sequent
   else sequent.copy(left = sequent.left ++ assumptionSet)
@@ -213,9 +205,7 @@ private[clausification] def lowerClausificationProof(
   //   a single Weakening step and store its (positive) step index.
   // This is critical: emitting an unconditional Restate per import at every level
   // makes the lowered proof O(n^2) in the depth of nested ClausificationSubproofs.
-  // Use an Array indexed by import index for O(1) lookup instead of a HashMap.
-  // This avoids hashing overhead and reduces allocation for the typical case of
-  // few external imports.
+  // Array indexed by import index for O(1) lookup (no HashMap).
   val externalImportMapArr: Array[Int] = Array.fill(proof.imports.size)(Int.MinValue)
   externalImportIndices.zipWithIndex.foreach { case (oldIndex, newIndex) =>
     val externalView = externalImports(newIndex)

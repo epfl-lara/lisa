@@ -13,8 +13,7 @@ import Core.*
  * linear scan; the exact `Subsumption.subsumes` verifies the (few) survivors. See `Phase5SubsumptionResearch.md`
  * for the theory (Vampire/Prover9/E survey + the completeness argument) and the design.
  *
- * This file is standalone: [[Permutation]] chooses and orders the features; [[FeatureVectorIndex]] is the trie.
- * Neither touches the saturation loop — wiring into `Discount.forwardSimplify`/`backwardSimplify` is the next step.
+ * [[Permutation]] chooses and orders the features; [[FeatureVectorIndex]] is the trie.
  */
 object FeatureVector:
   /** Feature source sentinel: the slot holds the clause's positive-literal count. */

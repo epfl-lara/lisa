@@ -46,16 +46,9 @@ object BaselineBench:
   /** Equality inferences on iff the dataset is the equality-bearing one. */
   private def equalityFor(dataset: String): Boolean = dataset == "eq"
 
-  private def locate(listFileName: String): Option[File] =
-    List(
-      s"lisa-sets/src/main/scala/lisa/automation/superposition/$listFileName",
-      s"src/main/scala/lisa/automation/superposition/$listFileName",
-      listFileName
-    ).map(new File(_)).find(_.isFile)
-
   private def allProblems(dataset: String): Vector[String] =
     val fn = lists.getOrElse(dataset, throw new IllegalArgumentException(s"unknown dataset '$dataset' (use ${lists.keys.mkString("/")})"))
-    val f = locate(fn).getOrElse(throw new java.io.FileNotFoundException(s"could not find $fn"))
+    val f = BenchUtil.locateList(fn).getOrElse(throw new java.io.FileNotFoundException(s"could not find $fn"))
     Using(scala.io.Source.fromFile(f))(_.getLines().map(_.trim).filter(_.nonEmpty).toVector).get
 
   /** The same reproducible draw each harness uses (`Random(seed).shuffle(all).take(n)`). */
@@ -80,60 +73,11 @@ object BaselineBench:
         // Soundness probe: run each problem in a file of (absolute) paths and flag any REFUTED. On a set of
         // KNOWN-SATISFIABLE problems, a REFUTED verdict means our clausification/prover is UNSOUND.
         runList(args(1), args.lift(2).map(_.toLong).getOrElse(10000L))
-      case Some("diag") =>
-        // Localise an unsoundness: run the SAME prover on (a) the fast/uncertified clauses and (b) the certified
-        // clauses of one problem. fast=REFUTED & cert=SATURATED ⇒ FastClausify bug; both REFUTED ⇒ prover/loading.
-        diag(args(1), args.lift(2).map(_.toLong).getOrElse(10000L))
       case _ =>
         println("usage: BaselineBench sample <clausal|fof|eq> [n] [seed]")
         println("       BaselineBench run    <clausal|fof|eq> [n] [seed] [timeoutMs] [maxGiven] [maxSize] [precedence]")
         println("       BaselineBench runlist <pathListFile> [timeoutMs]   (soundness probe; flags any REFUTED)")
         println("       precedence ∈ {occurrence, invfrequency, arity, unaryfirst} (default invfrequency)")
-
-  private def diag(path: String, timeoutMs: Long): Unit =
-    val parsed = problemToKernel(new File(path))(using (strictMapAtom, strictMapTerm, strictMapVariable))
-    val cprob = toClausificationProblem(parsed)
-    def outcomeOf(p: Clausification.Problem, eq: Boolean): String =
-      withTimeout(timeoutMs + 5000L)(Clausal.solveOutcome(p, maxMillis = timeoutMs, equality = eq)) match
-        case Some(Success(o)) => o match { case _: Bridge.Outcome.Success => "REFUTED"; case Bridge.Outcome.Saturated => "SATURATED"; case _ => "TIMEOUT" }
-        case Some(Failure(e)) => s"ERROR(${e.getClass.getSimpleName})"
-        case None             => "HARD_TIMEOUT"
-    // (a) fast / uncertified clauses
-    val fast = UncertifiedClausification.clausalForm(cprob)
-    println(s"# fast clauses: ${fast.hypotheses.size}")
-    fast.hypotheses.zipWithIndex.foreach { case (s, i) => println(s"# FASTCL[$i] $s") }
-    println(s"FAST(eq=on)\t${outcomeOf(fast, true)}")
-    println(s"FAST(eq=off)\t${outcomeOf(fast, false)}")
-    // Reconstruct the fast-clause refutation and kernel-check it. VALID ⇒ clauses genuinely unsat (clausifier bug);
-    // INVALID ⇒ the prover took an unsound step (reconstruction exposes it).
-    withTimeout(timeoutMs + 5000L)(Clausal.proveOutcome(Clausification.Problem(fast.hypotheses, None), maxMillis = timeoutMs)) match
-      case Some(Success(Right(proof))) =>
-        val check = K.SCProofChecker.checkSCProof(proof)
-        println(s"# RECONSTRUCT: kernel valid=${check.isValid}  conclusion=${proof.conclusion}")
-        if !check.isValid then println(s"# KERNEL JUDGEMENT: $check")
-      case Some(Success(Left(o))) => println(s"# RECONSTRUCT: prover did not refute ($o)")
-      case Some(Failure(e))       => println(s"# RECONSTRUCT threw: ${e.getClass.getSimpleName}: ${e.getMessage}")
-      case None                   => println("# RECONSTRUCT: hard timeout")
-    // Minimal unsat core: greedily drop clauses while the remainder still refutes (eq on). The survivors reveal
-    // the offending (non-consequence) clause.
-    def refutes(cs: IndexedSeq[K.Sequent]): Boolean =
-      withTimeout(timeoutMs + 5000L)(Clausal.solveOutcome(Clausification.Problem(cs.toSeq, None), maxMillis = timeoutMs, equality = true)) match
-        case Some(Success(o)) => o.refuted
-        case _                => false
-    var core = fast.hypotheses.toIndexedSeq
-    var i = 0
-    while i < core.size do
-      val without = core.patch(i, Nil, 1)
-      if refutes(without) then core = without else i += 1
-    println(s"# MINIMAL UNSAT CORE: ${core.size} clauses")
-    core.zipWithIndex.foreach { case (s, k) => println(s"# CORE[$k] $s") }
-    // (b) certified clauses: capture what certifyClausal feeds its prover (return a Sorry so it completes)
-    var captured: Clausification.Problem = null
-    try Clausification.certifyClausal(cprob, p => { captured = p; K.SCProof(IndexedSeq(K.Sorry(K.Sequent(Set.empty, Set.empty))), p.imports) })
-    catch { case e: Throwable => println(s"# certifyClausal threw: ${e.getClass.getSimpleName}: ${e.getMessage}") }
-    if captured != null then
-      println(s"# certified clauses: ${captured.imports.size}")
-      println(s"CERT(eq=on)\t${outcomeOf(Clausification.Problem(captured.imports.toSeq, None), true)}")
 
   private def runList(listPath: String, timeoutMs: Long): Unit =
     val files = Using(scala.io.Source.fromFile(listPath))(_.getLines().map(_.trim).filter(_.nonEmpty).toList).get

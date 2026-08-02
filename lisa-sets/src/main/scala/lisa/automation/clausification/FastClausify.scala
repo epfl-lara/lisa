@@ -27,13 +27,7 @@ private[clausification] object FastClausify:
   /** Name a subformula once its CNF estimate exceeds this (clauses vs fresh-symbol trade-off; ~break-even at 4). */
   val DefaultThreshold: Int = 4
 
-  private val Cap: Long = 1L << 20 // clause-count estimates are saturated here (we only compare against `threshold`)
-  private inline def capMul(a: Long, b: Long): Long = math.min(Cap, a * b)
-  private inline def capAdd(a: Long, b: Long): Long = math.min(Cap, a + b)
-
-  /** Estimated number of CNF clauses of a formula, positive and negative polarity (both saturated at [[Cap]]). */
-  private final case class Est(pos: Long, neg: Long)
-  private val atomEst = Est(1, 1)
+  // `Est` / `atomEst` / `capMul` / `capAdd` are shared with the certified twin — see `Clausification`.
 
   // ── top level: one formula → clauses (each a set of literals) ──────────────────────────────────
 
@@ -86,7 +80,7 @@ private[clausification] object FastClausify:
 
   // Introduce a fresh atom for `c` (occurring at polarity `pol`) + its directional definition; returns the atom.
   private def define(c: Expression, pol: Int, defs: scala.collection.mutable.ListBuffer[Expression], counter: Counter): Expression =
-    val (_, _, atom) = TseitinPhase.freshTseitinAtom(c, counter)
+    val (_, _, atom) = NamingSupport.freshNamingAtom(c, counter)
     defs +=
       (if pol > 0 then or(neg(atom))(c) //            positive occurrence: d ⇒ c
        else if pol < 0 then or(atom)(neg(c)) //       negative occurrence: c ⇒ d
@@ -146,13 +140,13 @@ private[clausification] object FastClausify:
       case And(g, h) => and(skolemize(g, subst, univs, counter))(skolemize(h, subst, univs, counter))
       case Or(g, h)  => or(skolemize(g, subst, univs, counter))(skolemize(h, subst, univs, counter))
       case Forall(x, g) => // α-rename to a fresh var (avoid capture), strip the ∀, extend the universal context
-        val v = Variable(Identifier(s"sV${counter.next()}", 0), x.sort)
+        val v = Variable(Identifier(GeneratedNames.clauseVar, counter.next()), x.sort)
         skolemize(g, subst + (x -> v), if x.sort == Ind then univs :+ (x, v) else univs, counter)
       case Exists(x, g) => // fresh Skolem function over ONLY the universals the witness can depend on (⇒ smaller terms)
         // Free variables of the SUBSTITUTED body: this reveals *transitive* dependencies on a universal `u` that
-        // reach the body only through an earlier ∃-variable's Skolem term `sK…(u)` — using `g.freeVariables`
+        // reach the body only through an earlier ∃-variable's Skolem term `sk…(u)` — using `g.freeVariables`
         // (original, unsubstituted) would miss them and unsoundly drop `u` from the Skolem's arguments.
-        val bodyFree = substituteVariablesOpti(f, subst).freeVariables // renamed (sV) names + Skolem-term vars (x bound)
+        val bodyFree = substituteVariablesOpti(f, subst).freeVariables // renamed (w) clause-var names + Skolem-term vars (x bound)
         // In **binding order** (outermost enclosing universal first — `univs` is built outermost-first): a canonical
         // argument order that needs no names, so it matches the certified path's `abstractEpsTerms` ordering of an
         // ε-term's free variables (which the certified Skolemizer may have α-renamed, breaking a name-based sort).
@@ -160,7 +154,7 @@ private[clausification] object FastClausify:
         val skSort = mentioned.foldRight(x.sort)((u, acc) => u.sort -> acc)
         // A **Constant** (function symbol), NOT a Variable: a *nullary* Skolem has result sort `Ind`, so as a
         // Variable it would be mistaken for a clause variable (universally quantified) — unsound.
-        val skTerm = mentioned.foldLeft(Constant(Identifier(s"sK${counter.next()}", 0), skSort): Expression)((acc, u) => acc(u))
+        val skTerm = mentioned.foldLeft(Constant(Identifier(GeneratedNames.fastSkolem, counter.next()), skSort): Expression)((acc, u) => acc(u))
         skolemize(g, subst + (x -> skTerm), univs, counter)
       case lit => if subst.isEmpty then lit else substituteVariablesOpti(lit, subst)
 

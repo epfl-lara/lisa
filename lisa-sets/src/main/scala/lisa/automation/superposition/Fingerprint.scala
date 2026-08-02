@@ -24,9 +24,6 @@ import Core.*
  * confirmed by a real unification. Crucially it has **no false negatives**: if two terms genuinely unify,
  * their fingerprints are compatible everywhere — so [[FingerprintIndex.retrieveUnifiable]] never hides a real
  * partner, which is what makes it safe to replace the linear active-set scan.
- *
- * This file is standalone: it does not touch the saturation loop. Wiring [[FingerprintIndex]] into
- * `Discount.activate` (and the [[IntoEntry]]/[[FromEntry]] payloads it will hold) is the next step.
  */
 object Fingerprint:
 
@@ -144,9 +141,8 @@ final class SampleTrie(positions: Array[Array[Int]]):
  * bucket (the `>: Null` bound keeps it assignable); every operation handles it, and [[Bucket.add]] starts a
  * fresh set from `null` (returned, so callers write `b = b.add(e)`).
  *
- * Two other representations — an adaptive *array-for-small → set-when-large* form and an *array-only* form —
- * were benchmarked on the seed-42 equality set; all three were throughput-equivalent (given-clauses processed
- * within ~2%), so this simplest form is kept. See `PossibleOptimizations.md`. (E uses a per-node splay tree.)
+ * Two other representations (adaptive array→set, and array-only) benchmarked throughput-equivalent, so this
+ * simplest form is kept. See `PossibleOptimizations.md`.
  */
 object Buckets:
 
@@ -161,6 +157,9 @@ object Buckets:
 
       /** Remove one entry equal (`==`) to `e`; returns whether one was found. */
       def remove(e: E): Boolean = b != null && b.remove(e)
+
+      /** Whether an entry equal (`==`) to `e` is present (a `null` receiver is empty). */
+      def contains(e: E): Boolean = b != null && b.contains(e)
 
       def isEmpty: Boolean = b == null || b.isEmpty
 
@@ -190,12 +189,22 @@ final class FingerprintIndex[E](bank: TermBank, trie: SampleTrie = Fingerprint.F
   private val root: Node = new Node
   private var _size: Int = 0
 
-  // One reusable fingerprint buffer shared by every term-keyed operation (insert/remove/retrieveUnifiable). Safe
-  // because these never nest on a single index: each fills the buffer and fully consumes it (the whole trie
-  // descent, plus any `visit` callback) before the next call, and no callback issues another operation on the
-  // *same* index -- so the buffer is never read while stale. This removes the per-call fingerprint-array
-  // allocation on the hot query path (and the amortized one on insert/remove).
+  // One reusable fingerprint buffer shared by every term-keyed operation (insert/remove/retrieveUnifiable). This
+  // removes the per-call fingerprint-array allocation on the hot query path (and the amortized one on
+  // insert/remove). It is safe only because these operations never nest on a single index: `retrieveUnifiable`
+  // reads `fpBuf` throughout its descent (across every `visit` callback), so a callback that re-entered any
+  // term-keyed op on the *same* index would refill the buffer mid-descent and silently drop candidates (a false
+  // negative ⇒ incompleteness). `descending` (below) enforces this via `guardNotDescending`.
   private val fpBuf: Array[Int] = new Array[Int](depth)
+  private var descending: Boolean = false // true while a retrieveUnifiable descent is live (fpBuf is being read)
+
+  /** Fail loudly if a term-keyed op is entered during a live retrieval descent (see the `fpBuf` note). */
+  private def guardNotDescending(op: String): Unit =
+    if descending then
+      throw new IllegalStateException(
+        s"FingerprintIndex.$op during a live retrieveUnifiable descent: a retrieval `visit` callback must not " +
+          "query or mutate the same index (the shared fingerprint buffer would be corrupted, dropping candidates)."
+      )
 
   /** A trie node: `children` (feature → child) at intermediate levels, an entry `bucket` at leaves. Both lazy
    *  (`children == null` = no children; a `null` `bucket` = no entries — [[Buckets.Bucket]] treats it as empty). */
@@ -214,6 +223,7 @@ final class FingerprintIndex[E](bank: TermBank, trie: SampleTrie = Fingerprint.F
 
   /** Insert `entry` under `term`'s fingerprint. */
   def insert(term: Term, entry: E): Unit =
+    guardNotDescending("insert")
     trie.fingerprintInto(bank, term, fpBuf)
     var node: Node = root
     var d = 0
@@ -223,12 +233,14 @@ final class FingerprintIndex[E](bank: TermBank, trie: SampleTrie = Fingerprint.F
       if c == null then { c = new Node; node.children.put(fpBuf(d), c) }
       node = c
       d += 1
-    node.bucket = node.bucket.add(entry) // `add` starts a bucket from `null` and returns the upgraded one
-    _size += 1
+    val isNew: Boolean = !node.bucket.contains(entry) // `add` is a no-op on a value-equal duplicate,
+    node.bucket = node.bucket.add(entry) //              so count only genuinely new entries
+    if isNew then _size += 1
 
   /** Remove one entry equal (`==`) to `entry` stored under `term`'s fingerprint; returns whether one was
    *  found. Emptied nodes are pruned up the path. */
   def remove(term: Term, entry: E): Boolean =
+    guardNotDescending("remove")
     trie.fingerprintInto(bank, term, fpBuf)
     val removed: Boolean = removeRec(root, 0, fpBuf, entry)
     if removed then _size -= 1
@@ -250,8 +262,11 @@ final class FingerprintIndex[E](bank: TermBank, trie: SampleTrie = Fingerprint.F
   /** Visit every stored entry whose term is **unification-compatible** with `query` (a candidate superset of
    *  the truly-unifiable ones). Allocation-free on the query path (no intermediate collection). */
   def retrieveUnifiable(query: Term)(visit: E => Unit): Unit =
+    guardNotDescending("retrieveUnifiable")
     trie.fingerprintInto(bank, query, fpBuf)
-    descendUnif(root, 0, fpBuf, visit)
+    descending = true
+    try descendUnif(root, 0, fpBuf, visit)
+    finally descending = false
 
   private def descendUnif(node: Node, d: Int, qfp: Array[Int], visit: E => Unit): Unit =
     if d == depth then node.bucket.foreach(visit) // foreach handles a `null` (empty) bucket ⇒ no-op

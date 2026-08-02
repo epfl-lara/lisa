@@ -72,35 +72,21 @@ private[clausification] object SkolemPhase:
     innerSteps += ClausificationSubproof(downstream, recPremises)
     val innerProof = ClausificationProof(innerSteps.toIndexedSeq, innerImports)
 
-    // ── Outer: one csub carrying the Q defining equalities as assumptions, discharged latest-first. ──
-    // Latest-first is required: a later witness's ε-term may mention an earlier witness's `F`, so discharging the
-    // latest `F` first keeps every `F_j` confined to its own (still-present) defining equality when instantiated.
+    // ── Outer: one csub carrying the Q defining equalities as assumptions, discharged latest-first
+    //    (F := λx̄. ε(λx.φ) makes each `∀x̄. ε = (λx̄.ε)(x̄)` β-reduce to `ε=ε`; see dischargeAssumptionsLatestFirst). ──
     val csubPremises: IndexedSeq[Int] = negRange(0, n) ++ negRange(n, L)
     val assumptions: IndexedSeq[Assumption] = (0 until Q).toIndexedSeq.map(j => Assumption(defEqs(j), n + L + j))
     val csub = ClausificationSubproof(innerProof, csubPremises, assumptions)
 
-    val outerSteps = scala.collection.mutable.ArrayBuffer.empty[ClausificationProofStep]
-    outerSteps += csub
-    val rhs = csub.bot.right
-    val mutableLhs = scala.collection.mutable.HashSet.from(csub.bot.left)
-    var prevBotRef = 0
-    for j <- (Q - 1) to 0 by -1 do
+    dischargeAssumptionsLatestFirst(csub, Q, outerImports, { j =>
       val st = flatSteps(j)
-      val schemaSubst = Map(st.fVar -> TseitinPhase.lambdifyAll(st.epsWitness, st.freeVars)) // F := λx̄. ε(λx.φ)
-      val defReflexive = substituteVariablesOpti(defEqs(j), schemaSubst) // ∀x̄. ε = (λx̄.ε)(x̄)   (β-reduces to ε=ε)
-      mutableLhs -= defEqs(j); mutableLhs += defReflexive
-      outerSteps += KernelStep(InstSchema(Sequent(mutableLhs.toSet, rhs), prevBotRef, schemaSubst))
-      val instRef = outerSteps.size - 1
-      outerSteps += KernelStep(SCSubproof(proveQuantifiedReflEq(st.epsWitness, st.freeVars), IndexedSeq.empty))
-      val reflRef = outerSteps.size - 1
-      mutableLhs -= defReflexive
-      outerSteps += KernelStep(Cut(Sequent(mutableLhs.toSet, rhs), reflRef, instRef, defReflexive))
-      prevBotRef = outerSteps.size - 1
-
-    ClausificationProof(outerSteps.toIndexedSeq, outerImports)
+      (Map(st.fVar -> NamingSupport.lambdifyAll(st.epsWitness, st.freeVars)), // F := λx̄. ε(λx.φ)
+       defEqs(j),
+       proveQuantifiedReflEq(st.epsWitness, st.freeVars))
+    })
 
   /** Closed proof of `() ⊢ ∀x̄. (t = t)` — discharges a defining equality after [[InstSchema]] makes it reflexive.
-    * The equality twin of [[TseitinPhase.proveQuantifiedReflIff]] (`RightRefl` instead of `RightImplies`/`RightIff`). */
+    * The equality twin of [[NamingSupport.proveQuantifiedReflIff]] (`RightRefl` instead of `RightImplies`/`RightIff`). */
   def proveQuantifiedReflEq(t: Expression, freeVars: Seq[Variable]): SCProof =
     val n = freeVars.size
     val steps = new Array[SCProofStep](1 + n)
@@ -158,7 +144,7 @@ private[clausification] object SkolemPhase:
       e match
         case Exists(x, inner) =>
           val pSort = enclosing.foldRight(Prop: Sort)((b, acc) => b.sort >>: acc)
-          val p     = Variable(Identifier(s"_p${counter.next()}", 0), pSort)
+          val p     = Variable(Identifier(GeneratedNames.hole, counter.next()), pSort)
           val pApp  = enclosing.foldLeft(p: Expression)(_(_))
           Some(Hit(pApp, x, inner, p, enclosing))
         case Forall(y, body) =>
@@ -171,7 +157,7 @@ private[clausification] object SkolemPhase:
       // Fresh witnesses u_i (one per enclosing binder), distinct from every name in `f`.
       val taken = scala.collection.mutable.Set.empty[Identifier] ++ f.freeVariables.map(_.id)
       val us = h.enclosing.map { b =>
-        val id = freshId(taken, Identifier("u", 0)); taken += id; Variable(id, b.sort)
+        val id = freshId(taken, Identifier(GeneratedNames.skolemBound, 0)); taken += id; Variable(id, b.sort)
       }
       // `toMap` keeps the LAST binding, so a shadowed `∀X…∀X` maps X to its innermost (truly-binding) `u`.
       val renaming: Map[Variable, Expression] = h.enclosing.zip(us).toMap
@@ -189,7 +175,7 @@ private[clausification] object SkolemPhase:
       val innerU       = substituteVariablesOpti(innerX, renaming)
       val lambdaInnerU = Lambda(xVar, innerU)
       val targetU      = exists(lambdaInnerU)
-      val epsWitnessU  = epsilon(lambdaInnerU) //                        ε(λxVar.innerU)
+      val epsWitnessU  = epsilon(lambdaInnerU)
       val epsFormU     = substituteVariablesOpti(innerU, Map(xVar -> epsWitnessU))
       val localIff     = targetU <=> epsFormU
       val targetLambda = us.foldRight(targetU: Expression)((u, e) => Lambda(u, e))
@@ -200,9 +186,9 @@ private[clausification] object SkolemPhase:
       val mentionedU = us.filter(u => epsWitnessU.freeVariables.contains(u)) // binding order (us is outermost-first)
       val mentionedB = mentionedU.map(u => uToB(u).asInstanceOf[Variable])
       val fSort      = mentionedU.foldRight(Ind: Sort)((u, acc) => u.sort -> acc)
-      val fVar       = Variable(Identifier(s"esk${counter.next()}", 0), fSort) // schema var; discharged via InstSchema
+      val fVar       = Variable(Identifier(GeneratedNames.skolemFun, counter.next()), fSort) // schema var; discharged via InstSchema
       val fAppU      = mentionedU.foldLeft(fVar: Expression)((acc, u) => acc(u))
-      val qMarker    = Variable(Identifier(s"_q${counter.next()}", 0), fSort) // RightSubstEq context marker
+      val qMarker    = Variable(Identifier(GeneratedNames.hole, counter.next()), fSort) // RightSubstEq context marker
       val qAppU      = mentionedU.foldLeft(qMarker: Expression)((acc, u) => acc(u))
 
       // Fill the ∃-witness in `phi_body` with `w` (in terms of u), β-normalise + η-expand — used identically for the

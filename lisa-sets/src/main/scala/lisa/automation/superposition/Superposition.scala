@@ -89,8 +89,7 @@ object Superposition:
   /**
    * **Superposition** (build only). The trail must **already bear** `σ = mgu(l, u)`, where `l` is `from`'s
    * side `fromSide` and `u = subtermAt(atomOf(into.iInto), uPos)`: the **caller** (the saturation loop, or
-   * the term index in Phase 5) locates the overlap and unifies it — as Vampire's index feeds a substitution
-   * to `performSuperposition`. This only applies the post-σ gates and builds
+   * the term index in Phase 5) locates the overlap and unifies it. This only applies the post-σ gates and builds
    * `(into[u := r] ∨ into\{iInto} ∨ from\{iFrom}) σ`; it **does not touch the trail** (the caller owns
    * `save` / `unify` / `restore`). `from` uses scope 0, `into` scope 1. `uPos` is the caller's **live**
    * subterm stack ([[IntArrayList]], pushed/popped during the walk); it is copied to a durable array only
@@ -123,7 +122,7 @@ object Superposition:
         }
       if smallerSideReject then None
       else
-        val pos: Array[Int] = uPos.toIntArray // materialise the position only now that the inference fires
+        val pos: Array[Int] = uPos.toIntArray
         val newAtom: Term = replaceAt(bank, intoAtomS, pos, rS)
         if bank.isPositive(intoLit) && order.isEqualityAtom(newAtom) && bank.arg(newAtom, 0) == bank.arg(newAtom, 1) then None
         else // committed: instantiate the kept literals straight into a pre-sized array (size known upfront).
@@ -133,11 +132,8 @@ object Superposition:
           // the two literals we discard.
           val out: Array[Literal] = new Array[Literal](into.literals.length + from.literals.length - 1)
           out(0) = bank.mkLiteral(newAtom, bank.isPositive(intoLit))
-          var n = 1
-          var k = 0
-          while k < into.literals.length do { if k != iInto then { out(n) = ap.applyLit(into.literals(k), 1); n += 1 }; k += 1 }
-          k = 0
-          while k < from.literals.length do { if k != iFrom then { out(n) = ap.applyLit(from.literals(k), 0); n += 1 }; k += 1 }
+          val n1 = ap.copyLitsExcept(into.literals, iInto, 1, out, 1)
+          ap.copyLitsExcept(from.literals, iFrom, 0, out, n1)
           Some(bank.mkClause(out, Justification.Superposition(from, iFrom, fromSide, into, iInto, pos)))
 
   /**
@@ -161,9 +157,7 @@ object Superposition:
         else
           val ap: trail.Applier = trail.applier()
           val out: Array[Literal] = new Array[Literal](c.literals.length - 1)
-          var n = 0
-          var k = 0
-          while k < c.literals.length do { if k != i then { out(n) = ap.applyLit(c.literals(k), 0); n += 1 }; k += 1 }
+          ap.copyLitsExcept(c.literals, i, 0, out, 0)
           Some(bank.mkClause(out, Justification.EqualityResolution(c, i)))
       trail.restore(saved)
       result
@@ -220,9 +214,7 @@ object Superposition:
           else
             val out: Array[Literal] = new Array[Literal](c.literals.length) // drop `i`, add tσ ≠ t'σ
             out(0) = bank.mkLiteral(bank.mkApp(EqualitySymbol, Array(tS, tpS)), false) // tσ ≠ t'σ
-            var n = 1
-            var k = 0
-            while k < c.literals.length do { if k != i then { out(n) = ap.applyLit(c.literals(k), 0); n += 1 }; k += 1 }
+            ap.copyLitsExcept(c.literals, i, 0, out, 1)
             Some(bank.mkClause(out, Justification.EqualityFactoring(c, i, iSide, j, jSide)))
     trail.restore(saved)
     result

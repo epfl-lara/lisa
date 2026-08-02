@@ -9,9 +9,10 @@ import Core.WeightScheme
  * (one per core, first refutation wins). Only the *search* knobs live here; the per-call limits (`maxGiven`,
  * `maxMillis`), the goal-clause set, and equality auto-detection are supplied at solve time.
  *
- * `ageRatio ≥ 1` together with a BG-complete `selection` ([[LiteralSelection.Complete]] /
- * [[LiteralSelection.FirstNegative]]) keeps the strategy refutation-complete; [[LiteralSelection.BestLiteral]]
- * trades completeness for early speed.
+ * `ageRatio ≥ 1` together with the BG-complete `selection` [[LiteralSelection.Complete]] keeps the strategy
+ * refutation-complete. [[LiteralSelection.FirstNegative]] and [[LiteralSelection.BestLiteral]] are heuristic
+ * (not refutation-complete in general — see [[LiteralSelection]]); they trade completeness for early speed and
+ * are safe as portfolio slices only because a `Complete` slice runs alongside them.
  */
 case class Strategy(
     name: String,
@@ -44,8 +45,8 @@ object Strategy:
 
   // SInE is active in seven of the eight strategies, at *varied* tolerance/depth for portfolio diversity. Even
   // where active it fires only if [[SinePolicy]]'s gates pass on the actual problem (large + genuinely prunable);
-  // otherwise the strategy runs unfiltered. #1 `balanced` carries no filter — the unfiltered completeness /
-  // Satisfiable-verdict backstop. The tolerances below are the tunable "gate-3 aggression" knob, chosen from
+  // otherwise the strategy runs unfiltered (#1 `balanced` carries no filter at all). The tolerances below are
+  // the tunable "gate-3 aggression" knob, chosen from
   // Vampire's CASC band (tol ∈ {5,3,2,1.5} — the values that dominate its schedule; higher = keeps more =
   // safer; depth ∈ {0=∞,1,2,3}) and kept deliberately conservative given we can't fully calibrate.
 
@@ -101,7 +102,7 @@ object Strategy:
   /** The default portfolio — eight strategies, one per core, run independently (first refutation wins). Each of
    *  #2–#8 differs from #1 `balanced` in exactly two search knobs (SInE excluded) for even coverage of the
    *  configuration space; seven carry a SInE filter at varied tolerance (self-gated per invocation by
-   *  [[SinePolicy]]), while `balanced` runs unfiltered as the completeness / (Counter)Satisfiable-verdict backstop. */
+   *  [[SinePolicy]]); `balanced` runs unfiltered. */
   val portfolio: Seq[Strategy] =
     Seq(balanced, weightGreedy, ageFair, occurrence, equational, unaryRedundancy, subsumptionLight, firstNegative)
 

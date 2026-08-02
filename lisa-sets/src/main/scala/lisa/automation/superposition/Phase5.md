@@ -1,8 +1,24 @@
 # Phase 5 — Term Indexing (research + design)
 
-> Status: **in progress.** Step 1 (fingerprint index for superposition) and Step 2 (fingerprint index for
-> resolution) are implemented, wired into `Discount` behind `fingerprintIndexing`, and A/B-verified against the
-> linear scan; Steps 3–5 remain. This document is both the design deliverable — a self-contained explanation of
+> Status: **Steps 1–4 implemented.** Fingerprint indices for superposition (Step 1) and resolution (Step 2), a
+> feature-vector index for subsumption (Step 3), and demodulation indices — a perfect discrimination tree for
+> forward, a fingerprint subterm index for backward (Step 4) — are all wired into `Discount` (behind
+> `fingerprintIndexing` / `subsumptionIndexing` / `demodulationIndexing`, on by default) and A/B-verified against
+> the linear scans, which survive as the `*Scan` fallbacks. Step 5 (ongoing measurement/tuning) remains.
+> **Backward subsumption resolution** (and its unit-deletion special case) is now indexed E-style — `gc` SR-resolves
+> `d` on literal `Lᵢ` iff `gc` with `Lᵢ` flipped subsumes `d`, so we query the feature-vector index with each
+> one-literal-flipped `gc` and union the ≥-cones (unit deletion is the 1-literal case). **Forward** general SR is
+> also indexed, E-style: a stored clause SR-resolves the new clause `m` by removing literal `M` iff it *subsumes*
+> `m` with `M` flipped, so per literal we `forwardCandidates(m-flipped-at-M)`. This query-side flip is slightly
+> weaker than the complete rule (it can't see a simplifier whose other literal also matches `M`), matching E; both
+> the indexed and scan paths use it, so the A/B stays exact. All SR is now indexed; it's off by default.
+> **Forward unit deletion** dispatches on the number of active units (`forwardUnitDeletionIndexThreshold`):
+> the direct `activeUnits` scan when few units, else an indexed variant — for each literal `K` it queries the
+> feature-vector index with the singleton `{¬K}` (whose ≤-cone is the candidate unit deleters), a purely
+> performance choice (both delete the same literals). A separate, orthogonal cost is that
+> **removing an index-found subsumption victim from the `active` `ArrayBuffer` is an O(|active|) id-scan**
+> (`removeFromActiveBuffer`), giving O(|active|²) deletions; an id→index map (or a Vampire-style id-keyed active
+> container) would make it O(1). This document is both the design deliverable — a self-contained explanation of
 > term indexing, grounded in how Vampire, E and Prover9 do it — and the running plan (see the step list in §8).
 
 Phase 5 in [PLAN.md](PLAN.md) is *performance*: term indexing first, then selection / age-weight heuristics.
@@ -313,7 +329,7 @@ Build `FingerprintIndex` over the active set's rewritable subterms and equation 
   disjoint with no `+1` shift, and `feature >= 0` is the O(1) "is-a-concrete-symbol" test the compatibility
   tables use. A direct walk over `arg`/`arity`/`isVar`.
 - A trie keyed by feature; `findUnifiable(q)` descends the **unification** compatibility table (§4). (The
-  matching table / `findMatchable` arrives with Step 3 for backward demodulation.)
+  matching table / `findMatchable` arrives with Step 4 for backward demodulation.)
 - **Payload — a small `final class`, never a tuple** (a `Tuple` boxes the `Int`/opaque-`Int` fields; a
   `final class` stores them as unboxed primitive fields): `IntoEntry(clause: Clause, litIndex: Int, pos:
   Array[Int])` for the into-index, `FromEntry(clause: Clause, litIndex: Int, side: Int)` for the from-index.
@@ -376,9 +392,9 @@ way), so polarity is the one thing separated structurally. This reuses `Fingerpr
   the sign-segregated atom index is faithful to E; the extra `posLitIndex` is the cost of keeping a native
   resolution rule instead of the `$true` encoding.
 
-### Step 3 — Feature-vector index for subsumption (next — the throughput target)
+### Step 3 — Feature-vector index for subsumption — **done**
 
-**Why this is next (reordered ahead of demodulation).** After Steps 1–2 the generating inferences no longer
+**Why this was prioritized (reordered ahead of demodulation).** After Steps 1–2 the generating inferences no longer
 scan the active set, so the two remaining `O(|active|)` per-given scans are **forward subsumption**
 (`forwardSimplify`) and **backward subsumption** (`backwardSimplify`) — each runs `Subsumption.subsumes` (a
 multiset matching search) against *every* active clause. Crucially these run on **all three datasets**
@@ -391,8 +407,26 @@ Generalize the existing `predBits`/`posCount`/`negCount`/`weight` pre-filter int
 (E's `FVIndex` / Prover9's `di_tree`; see [Phase5SubsumptionResearch.md](Phase5SubsumptionResearch.md) for the
 two provers' designs). Each clause maps to an integer feature vector chosen so that *C subsumes D ⇒
 feature(C) ≤ feature(D)* componentwise; forward subsumption descends the `≤` (subset) branches, backward the
-`≥` (superset) branches; leaves run the unchanged `Subsumption.subsumes` as the verifier. Replaces the
-`forwardSimplify`/`backwardSimplify` scans. Verify against `SubsumptionTest` + an index-vs-scan A/B.
+`≥` (superset) branches; leaves run the unchanged `Subsumption.subsumes` as the verifier. **Done:**
+`subsumptionIndex: FeatureVectorIndex` (behind `subsumptionIndexing`, on by default), with
+`forwardSimplifyIndexed` / `backwardSimplifyIndexed` replacing the scans (the `*Scan` variants kept for A/B) —
+verified against `SubsumptionTest` + the index-vs-scan A/B. **Backward unit deletion** is also indexed via the
+same feature-vector index (E-style: `{L}` deletes a literal from `d` iff `{¬L}` subsumes `d`, so query with the
+sign-flipped unit — its ≥-cone is a complete superset, verified by `subsumptionResolutionResolvent`).
+**Forward unit deletion** is dual: a unit deletes literal `K` of the new clause `m` iff it *subsumes* the
+singleton `{¬K}`, so per literal we query `forwardCandidates({¬K})` (its ≤-cone) for candidate unit deleters,
+verify, and shrink. Since the clause size cancels in the cost model, the crossover between this and the direct
+`activeUnits` scan is a constant number of units, so we dispatch on `forwardUnitDeletionIndexThreshold`
+(scan when `activeUnits.length ≤ threshold`, index otherwise) — a pure performance knob, A/B-verified both ways
+(`DiscountTest`). **Backward general SR** generalizes the sign-flip: for each literal `Lᵢ` of `gc`, query
+`backwardCandidates(gc-flipped-at-Lᵢ)` and union the ≥-cones (unit deletion = the 1-literal case), verified by
+`subsumptionResolutionResolvent` — one indexed path for both, A/B-verified (`DiscountTest`). **Forward** general SR
+uses the dual query-side flip (E-style): a stored clause SR-resolves `m` by removing literal `M` iff it subsumes
+`m` with `M` flipped, so per literal we `forwardCandidates(m-flipped-at-M)`, collect the subsumers (deduped,
+id-ordered), and apply — both the index and scan retrievals share this char-2 helper, so the A/B is exact. It's
+slightly weaker than the complete rule (misses a simplifier whose other literal also matches `M`), matching E, and
+off by default. Caveat: deleting an index-found
+victim from the `active` `ArrayBuffer` is still an O(|active|) id-scan (`removeFromActiveBuffer`).
 
 ### Step 4 — Perfect discrimination tree for forward demodulation (+ fingerprint subterm index for backward) — **done**
 
@@ -419,9 +453,9 @@ unaffected). Tune the fingerprint scheme (FP7 → deeper if false-positive rate 
 
 ### Sequencing & scope
 
-Steps 1–4 are independent and individually testable; do them one at a time (Step 1 first — it targets the
-biggest bucket). Each step keeps the linear-scan path behind a flag initially so we can A/B and prove
-equivalence, then removes it. All code stays under `superposition/`; no kernel or clausifier change; no
+Steps 1–4 were independent and individually testable, done one at a time (Step 1 first — it targets the
+biggest bucket). Each step keeps the linear-scan path behind a flag so we can A/B and prove equivalence; the
+`*Scan` fallbacks are retained for that purpose rather than removed. All code stays under `superposition/`; no kernel or clausifier change; no
 change to `Justification`, `Reconstruction`, or the inference primitives — only *how candidates are found*.
 
 ---

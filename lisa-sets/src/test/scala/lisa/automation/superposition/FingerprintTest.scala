@@ -184,6 +184,31 @@ class FingerprintTest extends AnyFunSuite:
     assert(!idx.remove(app(f, b), app(f, b)) && idx.size == 1) // never inserted
   }
 
+  test("a duplicate (term, entry) insert does not double-count size (isEmpty stays correct after removal)") {
+    val fx = new Fix; import fx.*
+    val f = fn("f", 1); val a = const("a")
+    val idx = new FingerprintIndex[Term](bank)
+    val fa = app(f, a)
+    idx.insert(fa, fa); idx.insert(fa, fa) //   same (term, entry) twice: the second `add` is a no-op on the bucket
+    assert(idx.size == 1) //                     so it must NOT increment _size (regression: was 2)
+    assert(idx.remove(fa, fa)) //                a single remove empties the (single) entry
+    assert(idx.size == 0 && idx.isEmpty) //      _size back to 0, not stuck at 1
+  }
+
+  test("a re-entrant term-keyed op inside a retrieveUnifiable visit fails loudly (shared-buffer guard)") {
+    val fx = new Fix; import fx.*
+    val f = fn("f", 1); val a = const("a"); val b = const("b")
+    val idx = new FingerprintIndex[Term](bank)
+    val fa = app(f, a); val fb = app(f, b)
+    idx.insert(fa, fa)
+    // A callback that mutates or re-queries the SAME index mid-descent would corrupt the shared fpBuf.
+    assertThrows[IllegalStateException] { idx.retrieveUnifiable(fa) { _ => idx.insert(fb, fb) } }
+    assertThrows[IllegalStateException] { idx.retrieveUnifiable(fa) { _ => idx.remove(fa, fa) } }
+    assertThrows[IllegalStateException] { idx.retrieveUnifiable(fa) { _ => idx.retrieveUnifiable(fa)(_ => ()) } }
+    // The guard is released on exit, so sequential (non-nested) retrievals remain fine.
+    assert(unif(idx, fa).toSet == Set(fa) && unif(idx, fa).toSet == Set(fa))
+  }
+
   test("a large collision bucket stays correct (insert/retrieve/remove)") {
     val fx = new Fix; import fx.*
     val f = fn("f", 1); val a = const("a")

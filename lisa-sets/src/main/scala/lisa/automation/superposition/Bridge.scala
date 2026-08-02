@@ -260,13 +260,10 @@ object Bridge:
    *  predicate variable) — interned as an (uninterpreted) predicate symbol. */
   private def atomTerm(bank: TermBank, vars: mutable.HashMap[K.Variable, Int], f: K.Expression, symbolVars: Set[K.Variable]): Term =
     val (head, args) = headAndArgs(f)
+    def app(sym: Symbol): Term = bank.mkApp(sym, args.iterator.map(a => term(bank, vars, a, symbolVars)).toArray)
     head match
-      case c: K.Constant =>
-        val sym: Symbol = bank.signature.intern(c.id.toString, args.size, isPredicate = true)
-        bank.mkApp(sym, args.iterator.map(a => term(bank, vars, a, symbolVars)).toArray)
-      case v: K.Variable if symbolVars.contains(v) =>
-        val sym: Symbol = bank.signature.intern(v.id.toString, args.size, isPredicate = true)
-        bank.mkApp(sym, args.iterator.map(a => term(bank, vars, a, symbolVars)).toArray)
+      case c: K.Constant                           => app(bank.signature.intern(c.id.toString, args.size, isPredicate = true))
+      case v: K.Variable if symbolVars.contains(v) => app(bank.signature.intern(v.id.toString, args.size, isPredicate = true))
       case other =>
         throw IllegalArgumentException(s"not a pure clause: literal head is not a predicate constant or symbol variable: $other")
 

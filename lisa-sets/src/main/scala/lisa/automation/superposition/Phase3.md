@@ -213,8 +213,8 @@ clausal behaviour is unchanged.
     final `InstSchema`); `def isEmpty`.
   - Memoised by the subterm expression, so identical subterms share one `F` (a genuine function). Free
     variables sorted canonically by `(id.name, id.no)`.
-  - **Gotcha (resolved):** abstraction symbols are named `K.Identifier("skAbs", counter)` (counter in the
-    `no` field → `toString` is `skAbs`, `skAbs_1`, …). They must **not** contain two `_`: the kernel's
+  - **Gotcha (resolved):** abstraction symbols are named `K.Identifier("abs", counter)` (counter in the
+    `no` field → `toString` is `abs`, `abs_1`, …). They must **not** contain two `_`: the kernel's
     `String → Identifier` allows at most one underscore (the counter separator) or it throws
     `InvalidIdentifierException`.
 - **`Bridge.scala`** — `solve(...)` gained `symbolVars: Set[K.Variable] = Set.empty` (generalised from the

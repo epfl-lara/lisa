@@ -3,7 +3,7 @@ package lisa.automation.superposition
 import scala.collection.mutable
 
 import lisa.utils.K
-import lisa.automation.clausification.Clausification
+import lisa.automation.clausification.{Clausification, UncertifiedClausification}
 
 /**
  * Phase 3 — clausification wiring.
@@ -63,9 +63,9 @@ object Clausal:
         e, {
           val fv: Seq[K.Variable] = e.freeVariables.toSeq.sortBy(v => (v.id.name, v.id.no))
           val fSort: K.Sort = fv.foldRight(K.Ind: K.Sort)((_, acc) => K.Ind -> acc)
-          // counter goes in the identifier's `no` field, so `toString` is `skAbs`/`skAbs_1`/… — at most one
+          // counter goes in the identifier's `no` field, so `toString` is `abs`/`abs_1`/… — at most one
           // `_` separator, which the kernel's `String → Identifier` round-trip requires.
-          val f: K.Variable = K.Variable(K.Identifier("skAbs", counter), fSort)
+          val f: K.Variable = K.Variable(K.Identifier(Clausification.GeneratedNames.epsAbs, counter), fSort)
           counter += 1
           values(f) = fv.foldRight(e)((v, body) => K.Lambda(v, body)) // F := λfv. e
           fv.foldLeft(f: K.Expression)((acc, v) => K.Application(acc, v)) // F(fv…)
@@ -91,7 +91,7 @@ object Clausal:
     case K.Arrow(K.Ind, r) => firstOrderSort(r)
     case _                 => false
 
-  // ── The clausal-prover adapter for `Clausification.certifyClausal` ──────────────────────────────────────
+  // ── The clausal-prover adapter for `CertifiedFastClausifier.certifyClausal` ──────────────────────────────────────
 
   /** Reshape a clausifier clause `Γ ⊢ Δ` (uniform literal-set form: literals on the RHS, negatives written
    *  `¬A`) into the working sequent [[Bridge]] expects, where a negative literal's atom sits on the LHS: each
@@ -111,7 +111,7 @@ object Clausal:
     K.Sequent(s.left.map(abs(_)), s.right.map(abs(_)))
 
   /**
-   * The clausal prover to hand to [[lisa.automation.clausification.Clausification.certifyClausal]].
+   * The clausal prover to hand to [[lisa.automation.clausification.CertifiedFastClausifier.certifyClausal]].
    *
    * Abstracts every non-first-order subterm (ε-terms) to a fresh schematic function symbol `F(fv…)`, refutes
    * the resulting first-order clause set with [[Bridge]] (which reconstructs with each `F` inlined back to its
@@ -178,6 +178,22 @@ object Clausal:
     Bridge.solve(p.work, maxGiven, maxMillis, symbolVars = p.symbolVars, discharge = p.abs.dischargeSubst, equality = equality, fingerprintIndexing = fingerprintIndexing, precedenceScheme = precedenceScheme, onStats = onStats, goal = goal,
       ageRatio = ageRatio, weightRatio = weightRatio, nonGoalWeightCoefficient = nonGoalWeightCoefficient, selection = selection, weightScheme = weightScheme,
       forwardSubsumptionResolution = forwardSubsumptionResolution, backwardSubsumptionResolution = backwardSubsumptionResolution, condensation = condensation)
+
+  /**
+   * The uncertified CASC clausal setup shared by the prover ([[CascProver]]) and its strategy benchmark
+   * ([[StrategyEvaluation]]): clausify `problem` (already SInE-pruned by the caller) with origin tags, append
+   * the TPTP distinct-object distinctness axioms (origin `-1`), and derive the goal-clause index set — the
+   * clauses coming from the negated conjecture, whose origin equals the hypothesis count. Returns the
+   * origin-tagged clauses (which [[CascProver]] needs for proof printing), the flat clausal problem to solve,
+   * and the goal indices.
+   */
+  def cascSetup(problem: Clausification.Problem, orthologic: Boolean): (IndexedSeq[(K.Sequent, Int)], Clausification.Problem, Set[Int]) =
+    val clauses0 = UncertifiedClausification.clausalFormWithOrigins(problem, orthologic = orthologic)
+    val distinct = distinctObjectAxioms(clauses0.map(_._1))
+    val clauses  = clauses0 ++ distinct.map(s => (s, -1))
+    val clausal  = Clausification.Problem(clauses.map(_._1).toList, None)
+    val goal     = clauses.iterator.zipWithIndex.collect { case ((_, origin), i) if origin == problem.hypotheses.size => i }.toSet
+    (clauses, clausal, goal)
 
   /**
    * The pairwise **distinctness axioms** for TPTP distinct objects: `$da ≠ $db` for every two different

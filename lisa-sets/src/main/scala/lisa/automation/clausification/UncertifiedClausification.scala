@@ -8,7 +8,7 @@ import Clausification.*
  * kernel-checkable certificate isn't needed (e.g. measuring how much of the certified pipeline's cost is
  * proof-building). A thin wrapper over the single-pass [[FastClausify]] (Vampire/E-style: selective definitional
  * naming → NNF → one Skolemization pass with fresh Skolem functions → distribution). The certified
- * [[Clausification.certifyClausal]] need only agree with it up to equisatisfiability, not clause-for-clause.
+ * [[CertifiedFastClausifier.certifyClausal]] need only agree with it up to equisatisfiability, not clause-for-clause.
  */
 object UncertifiedClausification:
 
@@ -25,7 +25,7 @@ object UncertifiedClausification:
 
   /**
    * Compute the clausal form (uncertified) and hand it to `prover`, returning the prover's proof verbatim
-   * (imports = the clauses, conclusion `∅ ⊢`). Same signature as [[Clausification.certifyClausal]], but the
+   * (imports = the clauses, conclusion `∅ ⊢`). Same signature as [[CertifiedFastClausifier.certifyClausal]], but the
    * clausification is **not** certified — there is no proof linking the clauses back to the original conjecture.
    */
   def uncertifyClausal(problem: Problem, prover: Problem => SCProof): SCProof =

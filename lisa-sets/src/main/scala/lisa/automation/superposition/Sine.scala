@@ -29,10 +29,8 @@ object Sine:
   private val LogicalConstants: Set[Expression] =
     Set(and, or, neg, implies, iff, forall, exists, epsilon, top, bot, equality)
 
-  /** The user function/predicate symbols occurring in a formula: every [[Constant]] that is not one of the
-   *  [[LogicalConstants]]. A connective or quantifier is itself just an application of a logical constant, so the
-   *  `Application` case walks it like any other node and its head is filtered out at the `Constant` case;
-   *  variables carry no symbol. Exposed to [[SinePolicy]] for the gate-1 "conjecture has a symbol to seed from". */
+  /** The user function/predicate symbols in a formula: every [[Constant]] that is not a [[LogicalConstants]] one.
+   *  Exposed to [[SinePolicy]] for the gate-1 "conjecture has a symbol to seed from". */
   private[superposition] def symbolsOf(e: Expression): Set[Constant] =
     val acc = mutable.HashSet.empty[Constant]
     // A shared sub-DAG (e.g. the opaque `F(x̄)` witnesses that ε-abstraction/Skolemization reuse across many atoms)
@@ -46,6 +44,14 @@ object Sine:
       case _                 => () //                a variable
     walk(e)
     acc.toSet
+
+  /** Fold a hypothesis sequent's formulas (left ∪ right) into one expression for symbol extraction, so SInE sees
+   *  *every* literal of a multi-literal CNF hypothesis (`() ⊢ {l₁, l₂, …}`) or a two-sided sequent, not just
+   *  `right.head`. The connective is immaterial ([[symbolsOf]] ignores it and walks both sides); an empty sequent
+   *  yields `⊤` (no symbols). */
+  private[superposition] def sequentFormula(s: Sequent): Expression =
+    val fs: Array[Expression] = (s.left.iterator ++ s.right.iterator).toArray
+    if fs.isEmpty then top else fs.reduce((a, b) => and(a)(b))
 
   /**
    * The indices (into `hypotheses`) SInE keeps, seeded from `conjecture`. Always keeps symbol-less hypotheses.
@@ -93,6 +99,6 @@ object Sine:
     problem.conjecture match
       case Some(conj) =>
         val hyps = problem.hypotheses.toIndexedSeq
-        val keep = selectIndices(hyps.map(_.right.head), conj.right.head, cfg)
+        val keep = selectIndices(hyps.map(sequentFormula), sequentFormula(conj), cfg)
         Clausification.Problem(hyps.zipWithIndex.collect { case (h, i) if keep(i) => h }, problem.conjecture, problem.frozen)
       case None => problem

@@ -15,8 +15,8 @@ import lisa.automation.clausification.Clausification
  * prunes. Three gates, checked in order:
  *
  *   1. **Prerequisites** — there is a conjecture with at least one symbol to seed from, and the axiom count is at
- *      least [[Params.minAxioms]] (below that a good prover just chews through them; filtering only risks harm).
- *      The floor is set conservatively (400): SInE earns its keep on the thousand-plus-axiom SUMO/Mizar theories,
+ *      least [[SineConfig.minAxioms]] (below that a good prover just chews through them; filtering only risks harm).
+ *      The floor is set conservatively (500): SInE earns its keep on the thousand-plus-axiom SUMO/Mizar theories,
  *      not on medium problems where dropping a needed axiom costs more than the search it would save.
  *   2. **Prunability** — a conservative probe ([[Params.probe]]) keeps at most [[Params.keepRatioCutoff]] of the
  *      axioms, i.e. it drops a meaningful fraction. If it barely prunes, running filtered ≈ running unfiltered.
@@ -33,22 +33,23 @@ object SinePolicy:
   /** Gate thresholds. Placeholders — calibrate on large-theory TPTP (CSR/SUMO, MPTP) before CASC; E learned the
    *  equivalent table from a corpus.
    *
-   *  @param minAxioms       gate-1 floor: below this many axioms, never filter.
    *  @param keepRatioCutoff gate-2: filter only if the probe keeps ≤ this fraction (drops ≥ `1 - cutoff`).
    *  @param probe           the conservative filter used to *measure* prunability (independent of the strategy's
-   *                         own aggression, so all strategies make the same gate-1/2 call on a given problem).
+   *                         own aggression, so all strategies make the same gate call on a given problem). Its
+   *                         [[SineConfig.minAxioms]] (default 500) is the *single* size floor: gate 1 needs at
+   *                         least that many axioms, and below it [[Sine.selectIndices]] keeps everything anyway —
+   *                         so the gate and the selection agree (no 400–499 dead-zone).
    */
   final case class Params(
-      minAxioms: Int = 400,
       keepRatioCutoff: Double = 0.9,
-      probe: SineConfig = SineConfig(tolerance = 3.0, depth = 0, minAxioms = 0))
+      probe: SineConfig = SineConfig(tolerance = 3.0, depth = 0))
 
   /**
    * Gates 1–2: should this invocation actually run its SInE filter? `hypotheses`/`conjecture` are the
    * pre-clausification formulas (the same ones [[Sine.selectIndices]] consumes).
    */
   def shouldFilter(hypotheses: IndexedSeq[Expression], conjecture: Expression, p: Params = Params()): Boolean =
-    hypotheses.size >= p.minAxioms                                   // gate 1a: enough axioms to be worth it
+    hypotheses.size >= p.probe.minAxioms                             // gate 1a: enough axioms to be worth it (the single floor)
       && Sine.symbolsOf(conjecture).nonEmpty                        // gate 1b: a symbol to seed the BFS from
       && {                                                          // gate 2: does a conservative probe prune?
         val kept = Sine.selectIndices(hypotheses, conjecture, p.probe)
@@ -58,5 +59,5 @@ object SinePolicy:
   /** Convenience over a [[Clausification.Problem]]: true iff the gates pass for its hypotheses/conjecture. */
   def shouldFilter(problem: Clausification.Problem, p: Params): Boolean =
     problem.conjecture match
-      case Some(conj) => shouldFilter(problem.hypotheses.toIndexedSeq.map(_.right.head), conj.right.head, p)
+      case Some(conj) => shouldFilter(problem.hypotheses.toIndexedSeq.map(Sine.sequentFormula), Sine.sequentFormula(conj), p)
       case None       => false

@@ -202,9 +202,6 @@ object Core:
     /** Sort `lits` in place into canonical literal order (see [[compareLiterals]]); no boxing. */
     def sortLiterals(lits: Array[Literal]): Unit = LongArrays.quickSort(lits, literalOrder)
 
-    /** Number of distinct terms stored. */
-    def size: Int = intern.size
-
     // --- constructors ---------------------------------------------------------------------
 
     /** The shared term for variable number `v` (`v >= 0`). */
@@ -329,27 +326,22 @@ object Core:
         i += 1
       val id: Int = clauseCounter
       clauseCounter += 1
-      val age: Int = justification match
-        case Justification.Input => 0
-        case Justification.Resolution(l, _, r, _) => math.max(l.age, r.age) + 1
-        case Justification.Factoring(p, _, _) => p.age + 1
-        case Justification.Canonicalization(p) => p.age // a simplification of one clause: same generation
-        case Justification.Superposition(f, _, _, in, _, _) => math.max(f.age, in.age) + 1
-        case Justification.EqualityResolution(p, _) => p.age + 1
-        case Justification.EqualityFactoring(p, _, _, _, _) => p.age + 1
-        case Justification.Demodulation(t, _, _, ru, _) => math.max(t.age, ru.age) // simplification: same generation band
-      // Goal-ness propagates as the OR over premises (an input clause's is set by the caller) — the boolean
-      // reduction of Vampire's `max` over the input-type lattice (see `derivedFromGoal`).
-      val goal: Boolean = justification match
-        case Justification.Input => goalInput
-        case Justification.Resolution(l, _, r, _) => l.isGoal || r.isGoal
-        case Justification.Factoring(p, _, _) => p.isGoal
-        case Justification.Canonicalization(p) => p.isGoal
-        case Justification.Superposition(f, _, _, in, _, _) => f.isGoal || in.isGoal
-        case Justification.EqualityResolution(p, _) => p.isGoal
-        case Justification.EqualityFactoring(p, _, _, _, _) => p.isGoal
-        case Justification.Demodulation(t, _, _, ru, _) => t.isGoal || ru.isGoal
-      new Clause(lits, w, id, justification, age, pos, lits.length - pos, predBits, goal)
+      // One pass over the justification, packing `age` (high bits) and goal-ness (bit 0), so the two parallel
+      // 8-case matches don't drift. Age: every generating rule is one generation past its premises; a
+      // Canonicalization/Demodulation keeps the parent's age (same generation band). Goal-ness propagates as the
+      // OR over premises (an input's is set by the caller) — the boolean reduction of Vampire's `max` over the
+      // input-type lattice.
+      inline def pack(age: Int, goal: Boolean): Long = (age.toLong << 1) | (if goal then 1L else 0L)
+      val packed: Long = justification match
+        case Justification.Input                             => pack(0, goalInput)
+        case Justification.Resolution(l, _, r, _)           => pack(math.max(l.age, r.age) + 1, l.isGoal || r.isGoal)
+        case Justification.Factoring(p, _, _)               => pack(p.age + 1, p.isGoal)
+        case Justification.Canonicalization(p)              => pack(p.age, p.isGoal)
+        case Justification.Superposition(f, _, _, in, _, _) => pack(math.max(f.age, in.age) + 1, f.isGoal || in.isGoal)
+        case Justification.EqualityResolution(p, _)         => pack(p.age + 1, p.isGoal)
+        case Justification.EqualityFactoring(p, _, _, _, _) => pack(p.age + 1, p.isGoal)
+        case Justification.Demodulation(t, _, _, ru, _)     => pack(math.max(t.age, ru.age), t.isGoal || ru.isGoal)
+      new Clause(lits, w, id, justification, (packed >> 1).toInt, pos, lits.length - pos, predBits, (packed & 1L) != 0)
 
     // --- internals ------------------------------------------------------------------------
 
@@ -379,7 +371,7 @@ object Core:
       val n: Int = (header >>> 32).toInt
       var h: Int = MurmurHash3.productSeed
       h = MurmurHash3.mix(h, header.toInt) // functor (low 32 bits)
-      h = MurmurHash3.mix(h, n) // arity (high 32 bits)
+      h = MurmurHash3.mix(h, n)
       var i = 0
       while i < n do
         h = MurmurHash3.mix(h, mem(t + HeaderWords + i).toInt)
@@ -570,6 +562,10 @@ object Core:
     private var trailVar: Array[Variable] = new Array[Variable](64)
     private var trailTop: Int = 0
 
+    // Count of currently-live bindings per scope (== number of trail entries carrying that scope). Kept in
+    // sync by `bind`/`restore`, so `matchTerm` can assert its target scope is binding-free in O(1).
+    private val liveBindings: Array[Int] = Array.fill(NScopes)(0)
+
     // reused worklist for `unify`: two parallel primitive int stacks (no boxing, no tuple allocation)
     private val workTerm: IntArrayList = new IntArrayList()
     private val workScope: IntArrayList = new IntArrayList()
@@ -589,6 +585,7 @@ object Core:
     def restore(n: Int): Unit =
       while trailTop > n do
         trailTop -= 1
+        liveBindings(trailScope(trailTop)) -= 1
         boundTerm(trailScope(trailTop))(trailVar(trailTop)) = -1
 
     /**
@@ -607,7 +604,7 @@ object Core:
         if h < 0 then
           val v: Variable = decodeVar(h)
           val bt: Array[Term] = boundTerm(cs) // stable within this deref (no bind happens here)
-          if v < bt.length && bt(v) >= 0 then // v is bound
+          if v < bt.length && bt(v) >= 0 then
             ct = bt(v)
             cs = boundScope(cs)(v)
           else more = false
@@ -662,18 +659,18 @@ object Core:
      * the target as rigid. Returns `true` on success -- the trail then holds the matcher, an extension
      * of any incoming bindings -- and `false` on failure, leaving partial bindings on the trail; the
      * caller restores the trail either way, exactly the [[unify]] protocol. The two scopes must
-     * differ (`ps != ts`, the usual `0`/`1`).
+     * differ (`ps != ts`, the usual `0`/`1`), and the **target scope `ts` must carry no live bindings**:
+     * target terms are treated as rigid (a bound target variable is never dereferenced), so a live `ts`
+     * binding would be silently mis-matched — breaking subsumption soundness. Both preconditions are
+     * asserted at entry (the `ts`-clean check is O(1) via [[liveBindings]]).
      *
-     * This is matching, not unification, so it is markedly cheaper: target variables never bind, so
-     * there are no binding chains to follow on the target side and **no occurs check** is needed. A
-     * pattern variable can only ever bind to a target subterm, and target subterms are hash-consed
-     * within one bank, so a re-encountered bound pattern variable is checked against the current
-     * target by a single offset comparison (`bound != t`) -- structurally equal target terms share one
-     * offset, and every pattern binding lives in scope `ts`, so the scope need not be compared. The
-     * worklist's pattern slot only ever holds genuine subterms of `pat` (a variable is a leaf -- bind
-     * or compare -- never expanded), which is what keeps the scopes from getting tangled.
+     * Cheaper than unification: target variables never bind, so there are no chains to follow and **no occurs
+     * check**. A re-encountered bound pattern variable is re-checked by a single offset comparison (`bound != t`),
+     * since structurally equal targets are hash-consed to one offset and every binding lives in scope `ts`.
      */
     def matchTerm(pat: Term, ps: Scope, tgt: Term, ts: Scope): Boolean =
+      assert(ps != ts, "matchTerm: pattern and target scopes must differ")
+      assert(liveBindings(ts) == 0, "matchTerm: target scope must have no live bindings (target terms are treated as rigid)")
       matchPat.clear()
       matchTgt.clear()
       matchPat.push(pat); matchTgt.push(tgt)
@@ -733,6 +730,7 @@ object Core:
       trailScope(trailTop) = s
       trailVar(trailTop) = v
       trailTop += 1
+      liveBindings(s) += 1
 
     private def ensureVarCapacity(s: Scope, v: Variable): Unit =
       val cur: Array[Int] = boundTerm(s)
@@ -784,6 +782,15 @@ object Core:
       /** Instantiate a whole literal in scope `s` under the current bindings, preserving its polarity. */
       def applyLit(l: Literal, s: Scope): Literal =
         bank.mkLiteral(apply(bank.atomOf(l), s), bank.isPositive(l))
+
+      /** Copy every literal of `lits` except index `skip`, each instantiated in scope `s`, into `out` starting
+       *  at index `from`; returns the next free index. The shared surviving-literal copy used by the generating
+       *  builds ([[Inference.resolve]]/`factor`, [[Superposition.superpose]] and the equality inferences). */
+      def copyLitsExcept(lits: Array[Literal], skip: Int, s: Scope, out: Array[Literal], from: Int): Int =
+        var n = from
+        var k = 0
+        while k < lits.length do { if k != skip then { out(n) = applyLit(lits(k), s); n += 1 }; k += 1 }
+        n
 
   // -----------------------------------------------------------------------------------------
   // small helpers

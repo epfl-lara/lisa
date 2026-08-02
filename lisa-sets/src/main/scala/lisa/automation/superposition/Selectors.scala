@@ -16,9 +16,16 @@ import Core.*
 trait LiteralSelector:
   def select(bank: TermBank, literals: Array[Literal]): Array[Int]
 
-/** Which [[LiteralSelector]] a strategy uses — a portfolio axis. [[Complete]] and [[FirstNegative]] keep the
- *  calculus BG-complete; [[BestLiteral]] is the incomplete greedy variant (Vampire's 1010), faster on many
- *  problems but not refutation-complete. */
+/** Which [[LiteralSelector]] a strategy uses — a portfolio axis.
+ *  - [[Complete]] is BG-complete: it selects a negative literal, else **all** ordering-maximal literals (the
+ *    only BG-admissible choices). This is the default and the one to use when completeness matters.
+ *  - [[FirstNegative]] is BG-admissible *only* on clauses that have a negative literal (it selects one such
+ *    literal). On an all-positive clause it falls back to the first literal in stored (syntactic) order rather
+ *    than to all maximal literals, so it is a **heuristic, not refutation-complete in general**. (Every complete
+ *    selector in Vampire and E instead uses *all maximal* literals in the no-negative case.)
+ *  - [[BestLiteral]] is the incomplete greedy variant (Vampire's 1010): a single best literal, ignoring
+ *    maximality — faster on many problems but not refutation-complete.
+ *  `FirstNegative`/`BestLiteral` are safe as portfolio slices only because a `Complete` slice runs alongside. */
 enum LiteralSelection:
   case FirstNegative, BestLiteral, Complete
 
@@ -60,7 +67,9 @@ def isNegativeEquality(bank: TermBank, l: Literal): Boolean =
     val a: Term = bank.atomOf(l)
     !bank.isVar(a) && bank.headSymbol(a) == EqualitySymbol && bank.arity(a) == 2
 
-/** Selects the first negative literal if any, else the first literal (one literal); empty for `□`. */
+/** Selects the first negative literal, else the first literal; empty for `□`. Not BG-complete on all-positive
+ *  clauses (the else-branch is a heuristic) — see [[LiteralSelection]]; use [[CompleteBestLiteralSelector]] when
+ *  completeness is required. */
 object FirstNegativeSelector extends LiteralSelector:
   def select(bank: TermBank, literals: Array[Literal]): Array[Int] =
     if literals.isEmpty then EmptySelection
@@ -72,20 +81,13 @@ object FirstNegativeSelector extends LiteralSelector:
       Array(0)
 
 /**
- * Vampire's `BestLiteralSelector<Comparator10>` (its selector **1010**): select the single literal
- * that is greatest under Comparator10 and select just that one. Comparator10, stripped of its
- * `ColoredFirst` key (colours are not implemented here), is, in decreasing priority:
- *   1. NegativeEquality -- a negative equality `s ≠ t` is preferred (productive, removed by ER);
- *   2. MaximalSize      -- larger literal weight (more constraining ⇒ fewer, sharper inferences);
- *   3. Negative         -- negative over positive;
- *   4. LexComparator    -- a structural comparison of the atoms, purely a tie-break so it is total.
- * Equality is recognised via [[Core.EqualitySymbol]] (the arity-2 symbol with code 0).
+ * Vampire's `BestLiteralSelector<Comparator10>` (its selector **1010**): rank the literals by
+ * [[compareLiteralQuality]] (Comparator10 minus the colour key) and select the single greatest.
  *
- * This is **not** BG-complete (Vampire's `BestLiteralSelector::isBGComplete()` returns `false`):
- * when a positive literal outweighs every negative one it is selected even though negatives are
- * present, so some refutations are unreachable. For a complete strategy use
- * [[CompleteBestLiteralSelector]] (Vampire's default selector 10); for guaranteed negative selection
- * use [[FirstNegativeSelector]].
+ * This is **not** BG-complete: when a positive literal outweighs every negative one it is selected even though
+ * negatives are present, so some refutations are unreachable. For a complete strategy use
+ * [[CompleteBestLiteralSelector]] (Vampire's default selector 10); for guaranteed negative selection use
+ * [[FirstNegativeSelector]].
  */
 object BestLiteralSelector extends LiteralSelector:
   def select(bank: TermBank, literals: Array[Literal]): Array[Int] =
@@ -129,7 +131,7 @@ final class CompleteBestLiteralSelector(ordering: Order) extends LiteralSelector
     if n == 0 then Array.empty[Int]
     else if n == 1 then Array(0)
     else
-      val q: Array[Int] = Array.tabulate(n)(identity) // literal indices in quality order, best first
+      val q: Array[Int] = Array.tabulate(n)(identity) // identity permutation of literal indices; sorted best-first next
       sortByQualityDesc(bank, literals, q)
       val isMax: Array[Boolean] = ordering.maximalFlags(literals)
 

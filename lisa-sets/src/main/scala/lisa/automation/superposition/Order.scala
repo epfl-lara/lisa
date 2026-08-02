@@ -77,10 +77,10 @@ final class Order(val kbo: KBO):
    * Returns `Inc` on genuinely unordered non-ground literals. On equality-free literals this coincides
    * with the resolution literal order previously computed inside the selector.
    *
-   * The `{s,t}` / `{s,s,t,t}` encoding and the equivalent `{{s},{t}}` / `{{s,t}}` multiset-of-multisets
-   * used by E ([[Ordering_Equality.cpp]] in Vampire is a third, sign-blind variant) all coincide on
-   * ground literals — where completeness is defined — and differ only on rare non-ground positive/negative
-   * pairs. We use the doubled form for its directness and its "negative outranks positive" property.
+   * The `{s,t}` / `{s,s,t,t}` encoding and the equivalent `{{s},{t}}` / `{{s,t}}` multiset-of-multisets form
+   * used by E (Vampire's `Ordering_Equality.cpp` is a third, sign-blind variant) all coincide on ground
+   * literals — where completeness is defined — and differ only on rare non-ground positive/negative pairs.
+   * We use the doubled form for its directness and its "negative outranks positive" property.
    */
   def compareLit(l1: Literal, l2: Literal): Cmp =
     if l1 == l2 then Eq
@@ -110,8 +110,8 @@ final class Order(val kbo: KBO):
 
   /**
    * Compare two **same-polarity** equality literals by the 2-element side multisets `{s,t}` vs `{u,v}`.
-   * (Negative/negative reduces to this too: doubling both sides is order-preserving.) A specialisation of
-   * [[termMultisetCompare]] specialised to two elements: since each multiset has size 2, cancelling one
+   * (Negative/negative reduces to this too: doubling both sides is order-preserving.) A two-element
+   * specialisation of [[termMultisetCompare]]: since each multiset has size 2, cancelling one
    * common side (by hash-cons identity, i.e. a `kbo` `Eq`) leaves a **singleton-vs-singleton** comparison,
    * so a single `kbo.compare` of the survivors is the whole answer; only when nothing cancels do we run the
    * full 2×2 domination. Computes **at most four** `kbo.compare`s — fewer when a side cancels. `Eq` when the
@@ -130,10 +130,7 @@ final class Order(val kbo: KBO):
         else
           val ctv: Cmp = kbo.compare(t, v)
           if ctv == Eq then csu // cancel t,v ⇒ {s} vs {u} = csu
-          else // nothing cancels: full {s,t} vs {u,v} multiset domination
-            if (csu == Gt || ctu == Gt) && (csv == Gt || ctv == Gt) then Gt
-            else if (csu == Lt || csv == Lt) && (ctu == Lt || ctv == Lt) then Lt
-            else Inc
+          else dominate2(csu, csv, ctu, ctv) // nothing cancels: full {s,t} vs {u,v} multiset domination
 
   /**
    * Compare a **positive** equality literal `{s,t}` against a **negative** one, whose Bachmair-Ganzinger
@@ -152,16 +149,21 @@ final class Order(val kbo: KBO):
     val ctu: Cmp = kbo.compare(t, u); val ctv: Cmp = kbo.compare(t, v)
     if csu == Eq || csv == Eq then singleVsPair(ctu, ctv) //      s cancels a copy ⇒ {t} vs {u,v}
     else if ctu == Eq || ctv == Eq then singleVsPair(csu, csv) // t cancels a copy ⇒ {s} vs {u,v}
-    else // nothing cancels ⇒ {s,t} vs {u,v} domination
-      if (csu == Gt || ctu == Gt) && (csv == Gt || ctv == Gt) then Gt
-      else if (csu == Lt || csv == Lt) && (ctu == Lt || ctv == Lt) then Lt
-      else Inc
+    else dominate2(csu, csv, ctu, ctv) // nothing cancels ⇒ {s,t} vs {u,v} domination
 
   /** Compare a singleton `{x}` against a pair `{u,v}`, given `a = cmp(x,u)`, `b = cmp(x,v)`: `x` must beat
    *  **both** for `Gt`; it is `Lt` as soon as it ties or loses to **either** (`Lt`/`Eq`); otherwise `Inc`. */
   private inline def singleVsPair(a: Cmp, b: Cmp): Cmp =
     if a == Gt && b == Gt then Gt
     else if a == Lt || a == Eq || b == Lt || b == Eq then Lt
+    else Inc
+
+  /** Full `{s,t}` vs `{u,v}` multiset domination when nothing cancels, from the four cross-comparisons
+   *  (`csu = cmp(s,u)`, `csv = cmp(s,v)`, `ctu = cmp(t,u)`, `ctv = cmp(t,v)`): `Gt` iff each of `u`,`v` is
+   *  dominated by some `s`/`t`; symmetric for `Lt`; else `Inc`. */
+  private inline def dominate2(csu: Cmp, csv: Cmp, ctu: Cmp, ctv: Cmp): Cmp =
+    if (csu == Gt || ctu == Gt) && (csv == Gt || ctv == Gt) then Gt
+    else if (csu == Lt || csv == Lt) && (ctu == Lt || ctv == Lt) then Lt
     else Inc
 
   // --- maximality --------------------------------------------------------------------------------
@@ -184,20 +186,10 @@ final class Order(val kbo: KBO):
       j += 1
     true
 
-  /** `res(i)`: literal `i` is maximal (no other literal is `≻_L`-greater). One pass, for the selector. */
+  /** `res(i)`: literal `i` is maximal (no other literal is `≻_L`-greater), via [[isMaximal]] per index. For the
+   *  selector. `Array.tabulate[Boolean]` is specialised (no boxing), so the hot path is unaffected. */
   def maximalFlags(literals: Array[Literal]): Array[Boolean] =
-    val n: Int = literals.length
-    val res: Array[Boolean] = new Array[Boolean](n)
-    var i = 0
-    while i < n do
-      var maximal: Boolean = true
-      var j = 0
-      while j < n && maximal do
-        if j != i && compareLit(literals(j), literals(i)) == Gt then maximal = false
-        j += 1
-      res(i) = maximal
-      i += 1
-    res
+    Array.tabulate(literals.length)(isMaximal(literals, _))
 
   // --- clause order ≻_C --------------------------------------------------------------------------
 
@@ -212,28 +204,26 @@ final class Order(val kbo: KBO):
   // --- multiset extension helpers ----------------------------------------------------------------
 
   /**
-   * Multiset extension of the [[KBO]] on two term multisets. Cancels elements common to both by
-   * hash-cons identity (which is exactly KBO-`Eq`), then `m1 >_mul m2` iff every leftover of `m2` is
-   * `≺` some leftover of `m1`. Both domination tests can fail → `Inc` (correct for a partial order).
-   *
-   * This is the generic reference the specialised [[compareSamePolarity]] / [[compareDiffPolarity]] are
-   * tested against; those two are what `compareLit` actually calls (they avoid this loop's redundant
-   * comparisons on the duplicated negative sides). Package-visible so the property test can use it.
+   * Multiset extension of a strict order over two multisets `m1`, `m2`: cancel elements the two share
+   * (`cancels`, an equivalence — hash-cons identity for terms, `≻_L`-`Eq` for literals so a symmetric
+   * `s = t` / `t = s` pair cancels, not just syntactically-identical ones), then `m1 >_mul m2` iff every
+   * leftover of `m2` is `gt` some leftover of `m1`. Both domination tests can fail → `Inc` (correct for a
+   * partial order). Multisets are tiny (literal counts 1–3), so the `forall`/`exists` closures dominate cost.
    */
-  private[superposition] def termMultisetCompare(m1: Array[Term], m2: Array[Term]): Cmp =
+  private def multisetCompare[A](m1: Array[A], m2: Array[A])(cancels: (A, A) => Boolean)(gt: (A, A) => Boolean): Cmp =
     val used2: Array[Boolean] = new Array[Boolean](m2.length)
-    val rem1 = scala.collection.mutable.ArrayBuffer.empty[Term]
+    val rem1 = scala.collection.mutable.ArrayBuffer.empty[A]
     var i = 0
     while i < m1.length do
-      val x: Term = m1(i)
+      val x: A = m1(i)
       var matched = false
       var j = 0
       while j < m2.length && !matched do
-        if !used2(j) && m2(j) == x then { used2(j) = true; matched = true }
+        if !used2(j) && cancels(x, m2(j)) then { used2(j) = true; matched = true }
         j += 1
       if !matched then rem1 += x
       i += 1
-    val rem2 = scala.collection.mutable.ArrayBuffer.empty[Term]
+    val rem2 = scala.collection.mutable.ArrayBuffer.empty[A]
     var k = 0
     while k < m2.length do
       if !used2(k) then rem2 += m2(k)
@@ -241,36 +231,16 @@ final class Order(val kbo: KBO):
     if rem1.isEmpty && rem2.isEmpty then Eq
     else if rem1.isEmpty then Lt
     else if rem2.isEmpty then Gt
-    else if rem2.forall(y => rem1.exists(x => kbo.compare(x, y) == Gt)) then Gt
-    else if rem1.forall(x => rem2.exists(y => kbo.compare(y, x) == Gt)) then Lt
+    else if rem2.forall(y => rem1.exists(x => gt(x, y))) then Gt
+    else if rem1.forall(x => rem2.exists(y => gt(y, x))) then Lt
     else Inc
 
-  /**
-   * Multiset extension of `≻_L` on two literal multisets. Cancels literals that are `≻_L`-`Eq` (so a
-   * symmetric pair like `s = t` / `t = s` cancels, not just syntactically-identical literals), then the
-   * usual domination test. Both directions can fail → `Inc`. Specialized versions are used in practice.
-   */
+  /** Multiset extension of the [[KBO]] on two term multisets: the generic reference the specialised
+   *  [[compareSamePolarity]] / [[compareDiffPolarity]] are tested against (those avoid this loop's redundant
+   *  comparisons on the duplicated negative sides). Package-visible so the property test can use it. */
+  private[superposition] def termMultisetCompare(m1: Array[Term], m2: Array[Term]): Cmp =
+    multisetCompare(m1, m2)(_ == _)((x, y) => kbo.compare(x, y) == Gt)
+
+  /** Multiset extension of `≻_L` on two literal multisets — what [[compareClause]] uses. */
   private def literalMultisetCompare(m1: Array[Literal], m2: Array[Literal]): Cmp =
-    val used2: Array[Boolean] = new Array[Boolean](m2.length)
-    val rem1 = scala.collection.mutable.ArrayBuffer.empty[Literal]
-    var i = 0
-    while i < m1.length do
-      val x: Literal = m1(i)
-      var matched = false
-      var j = 0
-      while j < m2.length && !matched do
-        if !used2(j) && compareLit(x, m2(j)) == Eq then { used2(j) = true; matched = true }
-        j += 1
-      if !matched then rem1 += x
-      i += 1
-    val rem2 = scala.collection.mutable.ArrayBuffer.empty[Literal]
-    var k = 0
-    while k < m2.length do
-      if !used2(k) then rem2 += m2(k)
-      k += 1
-    if rem1.isEmpty && rem2.isEmpty then Eq
-    else if rem1.isEmpty then Lt
-    else if rem2.isEmpty then Gt
-    else if rem2.forall(y => rem1.exists(x => compareLit(x, y) == Gt)) then Gt
-    else if rem1.forall(x => rem2.exists(y => compareLit(y, x) == Gt)) then Lt
-    else Inc
+    multisetCompare(m1, m2)((x, y) => compareLit(x, y) == Eq)((x, y) => compareLit(x, y) == Gt)
