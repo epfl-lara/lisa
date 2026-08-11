@@ -175,6 +175,41 @@ Strictly monotonic: **+5, all TIMEOUT → REFUTED, none lost** (`SYN442/455/482/
 regression *on this sample* but the headroom isn't guaranteed elsewhere — hence the default stays off pending
 a multi-seed robustness check.
 
+### Re-ablation after Phase-5 indexing (2026-08-08, seed 42)
+
+The three defaults above were all set **before** term indexing. Phase 5 added the feature-vector subsumption
+index, which is what the "revisit once indexing makes it cheap" notes were waiting on, so all three were
+re-measured on the same sample (`Evaluation 42 100 15000 100000 …`, TPTP-v9.2.1). Each arm was run to
+completion and its REFUTED **set** diffed against the baseline, not just its count — a 2-problem difference is
+inside timing noise otherwise, since TIMEOUT is wall-clock-based.
+
+| Config | REFUTED | TIMEOUT | BAD_PROOF | refute total | vs baseline | decision |
+|---|---:|---:|---:|---:|---|---|
+| baseline (`both nogen`, SR off, cond off) | 74 | 26 | 0 | 20156 ms | — | |
+| `gen` — forward simplify at generation | 72 | 28 | 0 | 17423 ms | −2, none gained | **keep off** |
+| `sr both` — general subsumption resolution | **80** | 20 | 0 | 45147 ms | **+6, none lost** | **flipped ON** |
+| `cond on` — condensation | 71 | 29 | 0 | 31770 ms | −3, none gained | **keep off** |
+
+- **`forwardSimplifyAtGeneration` stays `false`.** Indexing did narrow the gap exactly as predicted (the
+  pre-indexing ablation lost 4 problems, this one loses 2) but did not tip it. Still strictly monotone the
+  other way: `nogen` refutes everything `gen` does plus `FLD060-4` and `GRP130-2.003`. Both arms were run
+  twice with identical counts, so the 2-problem gap is reproducible, not noise.
+- **General subsumption resolution flipped to `true`** in `Discount`, `Bridge.solve`,
+  `Bridge.solveTPTPProblem` and `Clausal.solveOutcome`. It now gains **6** (`SYN442/455/467/482/488/498-1`)
+  and loses none — one better than the pre-indexing +5, with `bad_proof=0` across all 80 reconstructed and
+  kernel-checked proofs. Refute time roughly doubles, but that is largely the 6 newly-solved problems being
+  the hard ones; the count is what a fixed per-problem budget rewards.
+- **Condensation stays `false`** — and is now actually *measured*, which the old "off by default pending its
+  seed-42 ablation" note admitted it never had been. It loses 3 (`FLD037-1`, `GRP124-8.004`, `GRP130-2.003`)
+  and gains none.
+
+**Caveats.** One seed, one sample of 100, one dataset (clausal, equality-free, unsatisfiable). The SR gains
+are entirely in the `SYN` domain, so the win may be narrower than the headline suggests; the monotonicity is
+what makes flipping low-risk, not the size of the gain. The `Strategy` portfolio was **not** touched: its
+per-strategy SR flags are a deliberate diversity axis (`unary-redundancy` and `subsumption-light` already set
+them), and every strategy is documented as differing from `balanced` in exactly two knobs. Re-deriving the
+portfolio against the new engine default is a separate exercise.
+
 > **Completeness lesson (the bug behind the gate).** A first cut deleted `main` whenever the guard matched,
 > *without* the `subsumes(rc, main)` check. On seed 42 that turned `SYN036-4` `REFUTED → SATURATED`: building
 > via `resolve` only yields `main \ {K}` when every side variable is in `L`; otherwise it leaves a variable

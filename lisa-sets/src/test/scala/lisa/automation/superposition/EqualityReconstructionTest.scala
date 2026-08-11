@@ -6,6 +6,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import it.unimi.dsi.fastutil.ints.IntArrayList
 
 import lisa.utils.K
+import lisa.kernel.KernelProof
 import Core.*
 
 /**
@@ -18,21 +19,7 @@ import Core.*
  */
 class EqualityReconstructionTest extends AnyFunSuite:
 
-  class Fix:
-    val sig: Signature = new Signature
-    val bank: TermBank = new TermBank(sig)
-    val trail: Trail = new Trail(bank)
-    val order: Order = bank.order
-
-    def pred(name: String, arity: Int): Symbol = sig.intern(name, arity, isPredicate = true)
-    def fn(name: String, arity: Int): Symbol = sig.intern(name, arity, isPredicate = false)
-    def const(name: String): Term = bank.mkConst(fn(name, 0))
-    def app(f: Symbol, args: Term*): Term = bank.mkApp(f, args.toArray)
-    def v(n: Int): Term = bank.mkVar(Core.Variable(n))
-    def mkEq(s: Term, t: Term): Term = bank.mkApp(EqualitySymbol, Array(s, t))
-    def pos(atom: Term): Literal = bank.mkLiteral(atom, true)
-    def neg(atom: Term): Literal = bank.mkLiteral(atom, false)
-    def clause(lits: Literal*): Clause = bank.mkClause(lits.toArray)
+  class Fix extends TermFixture:
 
     /** Locate + unify + [[Superposition.superpose]] + restore (mirrors SuperpositionTest's driver). */
     def superposeAt(from: Clause, iFrom: Int, fromSide: Int, into: Clause, iInto: Int, uPos: Array[Int]): Option[Clause] =
@@ -73,8 +60,7 @@ class EqualityReconstructionTest extends AnyFunSuite:
     def checkReconstructs(derived: Clause, parents: Clause*): Unit =
       val inputs = parents.iterator.map(p => p.id -> (seqOf(p), vmOf(p))).toMap
       val proof = Reconstruction.reconstruct(derived, bank, inputs)
-      val judgement = K.SCProofChecker.checkSCProof(proof)
-      assert(judgement.isValid, s"kernel rejected the proof: $judgement")
+      KernelProof.assertCorrectProofNoSorry(proof, "reconstruction")
       assert(proof.conclusion == seqOf(derived), s"conclusion ${proof.conclusion} != expected ${seqOf(derived)}")
       assert(proof.imports.toSet.subsetOf(parents.iterator.map(seqOf).toSet), "imports are not among the parents")
 

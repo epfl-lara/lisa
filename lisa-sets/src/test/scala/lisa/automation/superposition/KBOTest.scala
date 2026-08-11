@@ -15,15 +15,7 @@ import Core.*
 class KBOTest extends AnyFunSuite:
 
   /** A small fixture: a fresh signature/bank/comparator and helpers to build terms. */
-  class Fix:
-    val sig: Signature = new Signature
-    val bank: TermBank = new TermBank(sig)
-    val kbo: KBO = bank.order.kbo
-
-    def fn(name: String, arity: Int): Symbol = sig.intern(name, arity, isPredicate = false)
-    def const(name: String): Term = bank.mkConst(fn(name, 0))
-    def app(f: Symbol, args: Term*): Term = bank.mkApp(f, args.toArray)
-    def v(n: Int): Term = bank.mkVar(Core.Variable(n))
+  class Fix extends TermFixture
 
   import Cmp.*
 

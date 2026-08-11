@@ -7,19 +7,7 @@ import Core.*
 /** Tests for the generating inference rules ([[Inference.resolve]], [[Inference.factor]]). */
 class InferenceTest extends AnyFunSuite:
 
-  class Fix:
-    val sig: Signature = new Signature
-    val bank: TermBank = new TermBank(sig)
-    val trail: Trail = new Trail(bank)
-
-    def pred(name: String, arity: Int): Symbol = sig.intern(name, arity, isPredicate = true)
-    def fn(name: String, arity: Int): Symbol = sig.intern(name, arity, isPredicate = false)
-    def const(name: String): Term = bank.mkConst(fn(name, 0))
-    def app(f: Symbol, args: Term*): Term = bank.mkApp(f, args.toArray)
-    def v(n: Int): Term = bank.mkVar(Core.Variable(n))
-    def pos(atom: Term): Literal = bank.mkLiteral(atom, true)
-    def neg(atom: Term): Literal = bank.mkLiteral(atom, false)
-    def clause(lits: Literal*): Clause = bank.mkClause(lits.toArray)
+  class Fix extends TermFixture
 
   test("resolution unifies complementary literals and applies the mgu") {
     val fx = new Fix; import fx.*

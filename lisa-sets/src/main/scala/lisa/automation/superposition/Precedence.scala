@@ -3,17 +3,17 @@ package lisa.automation.superposition
 import Core.*
 
 /**
- * Symbol-**precedence** generation schemes for the KBO term ordering (Phase-5 heuristics; see
- * `ProverHeuristics.md`). KBO gives each symbol two independent parameters — a *weight* and a *precedence*
- * (a total order on symbols). The precedence is the tiebreak when the weight balance is zero and drives the
- * lexicographic argument descent, so it decides how equations orient (which side rewrites to which), which
- * literals come out maximal, and thus the whole shape of the search.
+ * Symbol-**precedence** generation schemes for the KBO term ordering (see `archive/ProverHeuristics.md` for
+ * the survey these were drawn from). KBO gives each symbol two independent parameters — a *weight* and a
+ * *precedence* (a total order on symbols). The precedence is the tiebreak when the weight balance is zero and
+ * drives the lexicographic argument descent, so it decides how equations orient (which side rewrites to
+ * which), which literals come out maximal, and thus the whole shape of the search.
  *
- * Our default precedence used to be the **interning (occurrence) order** — arbitrary and parse-order
- * dependent, the weak default E and Vampire both avoid. These schemes replace it with a generated order,
- * computed once from the input clauses' symbol-occurrence counts (both provers agree the right general
- * default is **frequent symbols small**, so terms rewrite *toward* the common vocabulary and rare symbols
- * are eliminated first).
+ * Each scheme computes the order once, from the input clauses' symbol-occurrence counts. The default is
+ * **frequent symbols small** ([[PrecedenceScheme.InvFrequency]]), which is what E and Vampire both settle on:
+ * terms then rewrite *toward* the common vocabulary and rare symbols are eliminated first. The alternative
+ * [[PrecedenceScheme.Occurrence]] is the interning order — arbitrary and parse-order dependent, kept only as
+ * an A/B baseline, and the weak default both provers avoid.
  *
  * Every scheme produces a **total** order (distinct precedences), which KBO needs to stay total on ground
  * terms — [[KBO]] returns `Inc` on "equal precedence but distinct symbols".
@@ -37,6 +37,10 @@ object Precedence:
    * then). Call once, after the whole signature is interned and **before** saturation (precedence is read
    * live by [[KBO]]; term weights are cached from symbol *weights*, not precedence, so this is sound after
    * clause construction). Idempotent for a fixed input.
+   *
+   * Each write bumps [[Core.Signature.orderingVersion]], so any cache over the term ordering — today
+   * [[Order]]'s orientation memo — drops entries computed under the previous precedence. Assigning late (or
+   * more than once) is therefore safe, not merely conventionally avoided.
    */
   def assign(sig: Signature, bank: TermBank, clauses: Iterable[Clause], scheme: PrecedenceScheme): Unit =
     val count = new Array[Long](sig.size)

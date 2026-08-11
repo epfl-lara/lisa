@@ -9,16 +9,7 @@ import Core.*
 /** Tests for the standalone fingerprint index ([[Fingerprint]] + [[FingerprintIndex]], Phase 5 Step 1). */
 class FingerprintTest extends AnyFunSuite:
 
-  class Fix:
-    val sig: Signature = new Signature
-    val bank: TermBank = new TermBank(sig)
-    val trail: Trail = new Trail(bank)
-
-    def fn(name: String, arity: Int): Symbol = sig.intern(name, arity, isPredicate = false)
-    def pred(name: String, arity: Int): Symbol = sig.intern(name, arity, isPredicate = true)
-    def const(name: String): Term = bank.mkConst(fn(name, 0))
-    def app(f: Symbol, args: Term*): Term = bank.mkApp(f, args.toArray)
-    def v(n: Int): Term = bank.mkVar(Core.Variable(n))
+  class Fix extends TermFixture:
 
     /** Collect the unifiable candidates of `q` from `idx` into a set. */
     def unif[E](idx: FingerprintIndex[E], q: Term): mutable.LinkedHashSet[E] =

@@ -12,19 +12,7 @@ import Core.*
  */
 class OrderTest extends AnyFunSuite:
 
-  class Fix:
-    val sig: Signature = new Signature
-    val bank: TermBank = new TermBank(sig)
-    val ord: Order = bank.order
-    val kbo: KBO = ord.kbo
-
-    def fn(name: String, arity: Int): Symbol = sig.intern(name, arity, isPredicate = false)
-    def pred(name: String, arity: Int): Symbol = sig.intern(name, arity, isPredicate = true)
-    def const(name: String): Term = bank.mkConst(fn(name, 0))
-    def app(f: Symbol, args: Term*): Term = bank.mkApp(f, args.toArray)
-    def v(n: Int): Term = bank.mkVar(Core.Variable(n))
-    def mkEq(s: Term, t: Term): Term = bank.mkApp(EqualitySymbol, Array(s, t)) // the equality atom s = t
-    def lit(atom: Term, positive: Boolean): Literal = bank.mkLiteral(atom, positive)
+  class Fix extends TermFixture
 
   import Cmp.*
 
@@ -33,12 +21,47 @@ class OrderTest extends AnyFunSuite:
   test("orientation: the heavier side is greater; equal/incomparable sides are unoriented") {
     val fx = new Fix; import fx.*
     val a = const("a"); val f = fn("f", 1)
-    assert(ord.orient(mkEq(app(f, a), a)) == Gt) // f(a) ≻ a
-    assert(ord.orient(mkEq(a, app(f, a))) == Lt)
-    assert(ord.orient(mkEq(a, a)) == Eq)
-    assert(ord.orient(mkEq(v(0), v(1))) == Inc) // x = y : incomparable
-    assert(ord.maximalSide(mkEq(app(f, a), a)).contains(app(f, a)))
-    assert(ord.maximalSide(mkEq(v(0), v(1))).isEmpty)
+    assert(order.orient(mkEq(app(f, a), a)) == Gt) // f(a) ≻ a
+    assert(order.orient(mkEq(a, app(f, a))) == Lt)
+    assert(order.orient(mkEq(a, a)) == Eq)
+    assert(order.orient(mkEq(v(0), v(1))) == Inc) // x = y : incomparable
+    assert(order.maximalSide(mkEq(app(f, a), a)).contains(app(f, a)))
+    assert(order.maximalSide(mkEq(v(0), v(1))).isEmpty)
+  }
+
+  /**
+   * The orientation memo must not outlive the KBO parameters it was computed under. Precedence is read
+   * *live* by the KBO and is rewritten by [[Precedence.assign]] **after** the clauses are built, so a verdict
+   * cached beforehand would silently survive into the saturation under a different ordering. `Order` stamps
+   * its cache with [[Core.Signature.orderingVersion]] and drops it when that moves.
+   *
+   * Here `a`/`b` are equal-weight constants, so their orientation is decided by precedence alone: `a ≺ b`
+   * from the interning order, flipped by raising `a`. Before the version stamp this test read `Lt` twice.
+   */
+  test("the orientation memo is dropped when the signature's ordering parameters change") {
+    val fx = new Fix; import fx.*
+    val a = const("a"); val b = const("b") // interned in order ⇒ precedence a < b
+    val eq = mkEq(a, b)
+    assert(order.orient(eq) == Lt) // a ≺ b — and now memoised
+    sig.info(fn("a", 0)).precedence = 1000 // raise `a` above `b`: the cached verdict is now wrong
+    assert(order.orient(eq) == Gt, "orient returned a verdict cached under the previous precedence")
+    sig.info(fn("a", 0)).precedence = 0 // and back again
+    assert(order.orient(eq) == Lt)
+  }
+
+  /**
+   * A symbol *weight* change invalidates the memo too. Demonstrated on **non-ground** sides, because that is
+   * where a late weight change is observable at all: `KBO.accumulateBalance` reads `info.weight` live for a
+   * non-ground compound, whereas a ground term's weight is folded into its arena record at construction and
+   * never re-read — so raising a constant's weight after the term exists changes nothing (cf. `KBOTest`).
+   */
+  test("a weight change also invalidates the orientation memo") {
+    val fx = new Fix; import fx.*
+    val f = fn("f", 1); val g = fn("g", 1); val x = v(0)
+    val eq = mkEq(app(f, x), app(g, x)) // equal weights, one variable each side ⇒ precedence decides: f ≺ g
+    assert(order.orient(eq) == Lt) //         memoised under the default weights
+    sig.info(f).weight = 5 //               f(x) now outweighs g(x), so the weight balance decides first
+    assert(order.orient(eq) == Gt, "orient returned a verdict cached under the previous weights")
   }
 
   // --- equality literal order (multiset extension) ------------------------------------------------
@@ -48,12 +71,12 @@ class OrderTest extends AnyFunSuite:
     val a = const("a"); val b = const("b"); val c = const("c") // a ≺ b ≺ c
     val s = c; val t = b; val u = a // s ≻ t ≻ u
     // {c,b} vs {c,a} : cancel c, then b ≻ a  ⇒  (s = t) ≻ (s = u)
-    assert(ord.compareLit(lit(mkEq(s, t), true), lit(mkEq(s, u), true)) == Gt)
+    assert(order.compareLit(lit(mkEq(s, t), true), lit(mkEq(s, u), true)) == Gt)
     // negative ≻ positive on the SAME terms: {c,c,b,b} vs {c,b} ⇒ Gt
-    assert(ord.compareLit(lit(mkEq(s, t), false), lit(mkEq(s, t), true)) == Gt)
+    assert(order.compareLit(lit(mkEq(s, t), false), lit(mkEq(s, t), true)) == Gt)
     // the duplicated sides let a negative outrank a positive with a smaller atom:
     // (s ≠ u) : {c,c,a,a} vs (s = t) : {c,b} ⇒ cancel one c, leftover {c,a,a} dominates {b} (c ≻ b) ⇒ Gt
-    assert(ord.compareLit(lit(mkEq(s, u), false), lit(mkEq(s, t), true)) == Gt)
+    assert(order.compareLit(lit(mkEq(s, u), false), lit(mkEq(s, t), true)) == Gt)
   }
 
   test("specialized equality comparison agrees with the generic multiset oracle (randomized)") {
@@ -75,8 +98,8 @@ class OrderTest extends AnyFunSuite:
       val s = pool(rng.nextInt(pool.length)); val t = pool(rng.nextInt(pool.length))
       val u = pool(rng.nextInt(pool.length)); val vv = pool(rng.nextInt(pool.length))
       val p1 = rng.nextBoolean(); val p2 = rng.nextBoolean()
-      val expected = ord.termMultisetCompare(sides(s, t, p1), sides(u, vv, p2)) // generic oracle
-      val got = ord.compareLit(lit(mkEq(s, t), p1), lit(mkEq(u, vv), p2)) //        specialized path
+      val expected = order.termMultisetCompare(sides(s, t, p1), sides(u, vv, p2)) // generic oracle
+      val got = order.compareLit(lit(mkEq(s, t), p1), lit(mkEq(u, vv), p2)) //        specialized path
       assert(got == expected, s"mismatch on (${s},${t})$p1 vs (${u},${vv})$p2: specialized=$got oracle=$expected")
       iters += 1
   }
@@ -84,9 +107,9 @@ class OrderTest extends AnyFunSuite:
   test("symmetric equalities are order-equal; distinct-variable sides are incomparable") {
     val fx = new Fix; import fx.*
     val a = const("a"); val b = const("b"); val f = fn("f", 1)
-    assert(ord.compareLit(lit(mkEq(a, b), true), lit(mkEq(b, a), true)) == Eq) // {a,b} == {b,a}
+    assert(order.compareLit(lit(mkEq(a, b), true), lit(mkEq(b, a), true)) == Eq) // {a,b} == {b,a}
     // {f(x),a} vs {f(y),a} : cancel a, then f(x) vs f(y) incomparable ⇒ Inc
-    assert(ord.compareLit(lit(mkEq(app(f, v(0)), a), true), lit(mkEq(app(f, v(1)), a), true)) == Inc)
+    assert(order.compareLit(lit(mkEq(app(f, v(0)), a), true), lit(mkEq(app(f, v(1)), a), true)) == Inc)
   }
 
   // --- level rule + non-equality (resolution) behaviour -------------------------------------------
@@ -94,9 +117,9 @@ class OrderTest extends AnyFunSuite:
   test("equality literals rank below non-equality literals") {
     val fx = new Fix; import fx.*
     val a = const("a"); val b = const("b"); val P = pred("P", 1)
-    assert(ord.compareLit(lit(app(P, a), true), lit(mkEq(a, b), true)) == Gt) // P(a) ≻ (a=b)
-    assert(ord.compareLit(lit(mkEq(a, b), true), lit(app(P, a), true)) == Lt)
-    assert(ord.compareLit(lit(mkEq(a, b), false), lit(app(P, a), true)) == Lt) // even a NEG equality is below a POS non-eq
+    assert(order.compareLit(lit(app(P, a), true), lit(mkEq(a, b), true)) == Gt) // P(a) ≻ (a=b)
+    assert(order.compareLit(lit(mkEq(a, b), true), lit(app(P, a), true)) == Lt)
+    assert(order.compareLit(lit(mkEq(a, b), false), lit(app(P, a), true)) == Lt) // even a NEG equality is below a POS non-eq
   }
 
   test("non-equality literals keep the resolution order (heavier atom; negative on a tie; precedence)") {
@@ -104,9 +127,9 @@ class OrderTest extends AnyFunSuite:
     val a = const("a"); val b = const("b")
     val P = pred("P", 1); val Q = pred("Q", 1) // prec(P) < prec(Q)
     val f = fn("f", 1)
-    assert(ord.compareLit(lit(app(P, app(f, a)), true), lit(app(P, a), true)) == Gt) // P(f(a)) ≻ P(a)
-    assert(ord.compareLit(lit(app(P, a), false), lit(app(P, a), true)) == Gt) //          ¬P(a) ≻ P(a)
-    assert(ord.compareLit(lit(app(P, a), true), lit(app(Q, a), true)) == Lt) //           P(a) ≺ Q(a) by precedence
+    assert(order.compareLit(lit(app(P, app(f, a)), true), lit(app(P, a), true)) == Gt) // P(f(a)) ≻ P(a)
+    assert(order.compareLit(lit(app(P, a), false), lit(app(P, a), true)) == Gt) //          ¬P(a) ≻ P(a)
+    assert(order.compareLit(lit(app(P, a), true), lit(app(Q, a), true)) == Lt) //           P(a) ≺ Q(a) by precedence
     val _ = b
   }
 
@@ -116,20 +139,20 @@ class OrderTest extends AnyFunSuite:
     val fx = new Fix; import fx.*
     val a = const("a"); val b = const("b")
     val lits = Array(lit(mkEq(a, b), true), lit(mkEq(b, a), true)) // two ≻_L-equal (symmetric) literals
-    assert(ord.isMaximal(lits, 0) && ord.isMaximal(lits, 1))
-    assert(!ord.isStrictlyMaximal(lits, 0) && !ord.isStrictlyMaximal(lits, 1)) // Eq to each other ⇒ not strict
+    assert(order.isMaximal(lits, 0) && order.isMaximal(lits, 1))
+    assert(!order.isStrictlyMaximal(lits, 0) && !order.isStrictlyMaximal(lits, 1)) // Eq to each other ⇒ not strict
   }
 
   test("an incomparable pair is jointly maximal; a dominated literal is neither maximal nor strict") {
     val fx = new Fix; import fx.*
     val a = const("a"); val f = fn("f", 1)
     val incPair = Array(lit(mkEq(app(f, v(0)), a), true), lit(mkEq(app(f, v(1)), a), true)) // Inc to each other
-    assert(ord.isMaximal(incPair, 0) && ord.isMaximal(incPair, 1)) // Inc never demotes
+    assert(order.isMaximal(incPair, 0) && order.isMaximal(incPair, 1)) // Inc never demotes
     val P = pred("P", 1)
     val clause = Array(lit(app(P, app(f, a)), true), lit(app(P, a), true)) // P(f(a)) ≻ P(a)
-    assert(ord.isMaximal(clause, 0) && ord.isStrictlyMaximal(clause, 0)) // the heavy literal is strictly maximal
-    assert(!ord.isMaximal(clause, 1)) //                                    the light one is dominated
-    assert(ord.maximalFlags(clause).sameElements(Array(true, false)))
+    assert(order.isMaximal(clause, 0) && order.isStrictlyMaximal(clause, 0)) // the heavy literal is strictly maximal
+    assert(!order.isMaximal(clause, 1)) //                                    the light one is dominated
+    assert(order.maximalFlags(clause).sameElements(Array(true, false)))
   }
 
   // --- clause order -------------------------------------------------------------------------------
@@ -140,13 +163,13 @@ class OrderTest extends AnyFunSuite:
     val P = pred("P", 1); val Q = pred("Q", 1); val f = fn("f", 1)
     val pq = bank.mkClause(Array(lit(app(P, a), true), lit(app(Q, a), true)))
     val p = bank.mkClause(Array(lit(app(P, a), true)))
-    assert(ord.compareClause(pq, p) == Gt) // {P(a),Q(a)} ≻ {P(a)}
-    assert(ord.compareClause(p, pq) == Lt)
+    assert(order.compareClause(pq, p) == Gt) // {P(a),Q(a)} ≻ {P(a)}
+    assert(order.compareClause(p, pq) == Lt)
     val heavy = bank.mkClause(Array(lit(app(P, app(f, a)), true)))
-    assert(ord.compareClause(heavy, p) == Gt) // {P(f(a))} ≻ {P(a)}
+    assert(order.compareClause(heavy, p) == Gt) // {P(f(a))} ≻ {P(a)}
     val e1 = bank.mkClause(Array(lit(mkEq(a, b), true)))
     val e2 = bank.mkClause(Array(lit(mkEq(b, a), true)))
-    assert(ord.compareClause(e1, e2) == Eq) // {a=b} == {b=a}
+    assert(order.compareClause(e1, e2) == Eq) // {a=b} == {b=a}
   }
 
   // --- selector regression (equality-free behaviour unchanged) ------------------------------------
@@ -155,7 +178,7 @@ class OrderTest extends AnyFunSuite:
     val fx = new Fix; import fx.*
     val a = const("a"); val b = const("b")
     val P = pred("P", 1); val Q = pred("Q", 1)
-    val sel = new CompleteBestLiteralSelector(ord)
+    val sel = new CompleteBestLiteralSelector(order)
     val lits = Array(lit(app(P, a), false), lit(app(Q, b), true)) // ¬P(a) ∨ Q(b)
     assert(sel.select(bank, lits).sameElements(Array(0))) // selects the negative ¬P(a)
   }

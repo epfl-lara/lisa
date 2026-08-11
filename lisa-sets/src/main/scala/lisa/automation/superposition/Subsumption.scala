@@ -4,7 +4,7 @@ import Core.*
 
 /**
  * θ-subsumption between clauses: the redundancy test that drives forward and backward
- * subsumption in Phase 2.
+ * subsumption in the saturation loop.
  *
  * A clause `c` **subsumes** `d` iff there is a substitution `σ` such that `cσ ⊆ d` as a
  * multiset of literals -- i.e. each literal of `c` can be matched (same predicate, same
@@ -138,11 +138,12 @@ object Subsumption:
    * only `L`), so the built clause `C'σ₀ ∪ M'` need not entail `main`; we keep it **only when it `subsumes`
    * `main`**, else the deletion would break completeness (discard a clause a refutation needs). Conservative: it
    * misses SR steps whose `C'` carries extra variables (a complete version needs the full matcher σ + a
-   * reconstruction — deferred, see PossibleOptimizations.md).
+   * reconstruction — deferred; see `archive/PossibleOptimizations.md`).
    */
   def subsumptionResolutionResolvent(bank: TermBank, trail: Trail, side: Clause, main: Clause): Option[Clause] =
-    // O(1) pre-filter, sound for SR: every predicate of `side` occurs in `main` (`C'`'s in `M'`, `L`'s as
-    // `¬K`), and `side` is no longer / no heavier (σ only grows terms, and `C'σ ⊆ M'`, `Lσ = ¬K`).
+    // The size/weight/predicate conditions of [[sigSubsumes]] hold here too, and for the same reasons: `C'σ ⊆ M'`
+    // and `Lσ = ¬K` put all of `side` into `main` up to polarity. Not `sigSubsumes` itself, since the polarity
+    // counts do *not* carry over — `L` matches a literal of the opposite sign.
     if side.size > main.size || side.weight > main.weight then return None
     if (side.predBits & main.predBits) != side.predBits then return None
     val sl: Array[Literal] = side.literals

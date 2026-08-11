@@ -14,6 +14,7 @@ object Quantifiers extends lisa.Main {
   private val x, y, z = variable[Ind]
   private val a, b = variable[Ind]
   private val p = variable[Prop]
+  private val R = variable[Prop] // closed (x-free) operand of the prenex laws; same schema the clausifier uses
   private val P, Q = variable[Ind >>: Prop]
 
   ///////////////////////////////////////////////////////////////////////////
@@ -297,38 +298,38 @@ object Quantifiers extends lisa.Main {
   // ── Prenex-lifting equivalences ──────────────────────────────────────────
   // Each states that a universal quantifier commutes with ∧/∨ when the
   // quantified variable is not free in the *closed* operand. That side-condition
-  // is enforced structurally by making the closed operand the nullary `p : Prop`
+  // is enforced structurally by making the closed operand the nullary `R : Prop`
   // (which cannot contain `x`); the quantified operand is `P` of sort Ind→Prop.
   // A `Q(x)` closed side would instead capture `x` under the ∀ on the right and
   // make these non-theorems (cf. `existentialConjunctionWithClosedFormula`).
-  // These match the schematic import statements used by the certified clausifier
-  // (`lisa.automation.clausification.Clausification.forall*Statement`, with `R`
-  // there playing the role of `p`).
+  // These match, symbol-for-symbol, the schematic import statements the certified
+  // clausifier discharges against them
+  // (`lisa.automation.clausification.Clausification.forall*Statement`, same `P`/`x`/`R`).
 
-  /** `(∀x. P(x)) ∧ p  ⟺  ∀x. (P(x) ∧ p)`  (`p` is closed in x). */
+  /** `(∀x. P(x)) ∧ R  ⟺  ∀x. (P(x) ∧ R)`  (`R` is closed in x). */
   val forallAndLeft = Theorem(
-    ∀(x, P(x)) /\ p <=> ∀(x, P(x) /\ p)
+    ∀(x, P(x)) /\ R <=> ∀(x, P(x) /\ R)
   ) {
     have(thesis) by Tableau
   }
 
-  /** `p ∧ (∀x. P(x))  ⟺  ∀x. (p ∧ P(x))`  (`p` is closed in x). */
+  /** `R ∧ (∀x. P(x))  ⟺  ∀x. (R ∧ P(x))`  (`R` is closed in x). */
   val forallAndRight = Theorem(
-    p /\ ∀(x, P(x)) <=> ∀(x, p /\ P(x))
+    R /\ ∀(x, P(x)) <=> ∀(x, R /\ P(x))
   ) {
     have(thesis) by Tableau
   }
 
-  /** `(∀x. P(x)) ∨ p  ⟺  ∀x. (P(x) ∨ p)`  (`p` is closed in x). */
+  /** `(∀x. P(x)) ∨ R  ⟺  ∀x. (P(x) ∨ R)`  (`R` is closed in x). */
   val forallOrLeft = Theorem(
-    ∀(x, P(x)) \/ p <=> ∀(x, P(x) \/ p)
+    ∀(x, P(x)) \/ R <=> ∀(x, P(x) \/ R)
   ) {
     have(thesis) by Tableau
   }
 
-  /** `p ∨ (∀x. P(x))  ⟺  ∀x. (p ∨ P(x))`  (`p` is closed in x). */
+  /** `R ∨ (∀x. P(x))  ⟺  ∀x. (R ∨ P(x))`  (`R` is closed in x). */
   val forallOrRight = Theorem(
-    p \/ ∀(x, P(x)) <=> ∀(x, p \/ P(x))
+    R \/ ∀(x, P(x)) <=> ∀(x, R \/ P(x))
   ) {
     have(thesis) by Tableau
   }

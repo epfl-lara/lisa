@@ -3,6 +3,7 @@ package lisa.automation.superposition
 import org.scalatest.funsuite.AnyFunSuite
 
 import lisa.utils.K
+import lisa.kernel.KernelProof
 import lisa.tptp.Problem
 import lisa.tptp.KernelParser.{problemToKernel, strictMapAtom, strictMapTerm, strictMapVariable}
 
@@ -21,20 +22,21 @@ class ReconstructionTest extends AnyFunSuite:
   private val emptySequent: K.Sequent = K.Sequent(Set.empty, Set.empty)
 
   /** Reconstruct, then assert the proof is kernel-valid, concludes `⊢`, and imports inputs once each.
-   *  `subsumptionResolution` / `condensation` enable those (default-off) simplifications. */
+   *  `subsumptionResolution` / `condensation` force those simplifications on for the reconstruction check. */
   private def check(name: String, clauses: List[K.Sequent], subsumptionResolution: Boolean = false, condensation: Boolean = false): Unit =
     val proof: Option[K.SCProof] = Bridge.solve(
       clauses,
       maxGiven = 10000,
-      forwardSubsumptionResolution = subsumptionResolution,
-      backwardSubsumptionResolution = subsumptionResolution,
-      condensation = condensation
+      opts = SearchOptions(
+        forwardSubsumptionResolution = subsumptionResolution,
+        backwardSubsumptionResolution = subsumptionResolution,
+        condensation = condensation)
     ) match
       case s: Bridge.Outcome.Success => Some(s.reconstructKernelProof)
       case _ => None
     assert(proof.isDefined, s"$name: expected a refutation")
     val p = proof.get
-    assert(K.SCProofChecker.checkSCProof(p).isValid, s"$name: proof rejected by the kernel: ${K.SCProofChecker.checkSCProof(p)}")
+    KernelProof.assertCorrectProofNoSorry(p, name)
     assert(p.conclusion == emptySequent, s"$name: conclusion is not the empty sequent: ${p.conclusion}")
     assert(p.imports.toSet.subsetOf(clauses.toSet), s"$name: imports are not among the input clauses")
     // memoisation: a clause reused across the DAG is imported/expanded once, never duplicated
@@ -237,8 +239,8 @@ class ReconstructionTest extends AnyFunSuite:
   // Located via the TPTP env var (the TPTP root); cancelled (not failed) when it is unset.
   // -----------------------------------------------------------------------------------------
 
-  private val synDir: Option[java.io.File] =
-    sys.env.get("TPTP").map(t => new java.io.File(t, "Problems/SYN")).filter(_.isDirectory)
+  // Resolved per test through [[TptpCorpus]], which warns loudly the first time the corpus is missing rather
+  // than letting ~40 cancellations pass under an "All tests passed" headline.
 
   private val synProblems: List[String] = List(
     "SYN048-1.p", "SYN064-1.p", "SYN073-1.p", "SYN339-1.p", "SYN340-1.p",
@@ -249,8 +251,7 @@ class ReconstructionTest extends AnyFunSuite:
 
   synProblems.foreach { name =>
     test(s"SYN reconstruction: $name is refuted and the proof is kernel-valid") {
-      assume(synDir.isDefined, "set the TPTP env var (TPTP root) to run the SYN reconstruction suite")
-      val f = new java.io.File(synDir.get, name)
+      val f = new java.io.File(TptpCorpus.subdirOrCancel("Problems/SYN", "the SYN reconstruction suite"), name)
       assume(f.exists, s"$f not found")
       val problem: Problem = problemToKernel(f)(using (strictMapAtom, strictMapTerm, strictMapVariable))
       val proof: Option[K.SCProof] = Bridge.solveTPTPProblem(problem, maxGiven = 50000) match
@@ -258,7 +259,7 @@ class ReconstructionTest extends AnyFunSuite:
         case _ => None
       assert(proof.isDefined, s"$name: expected a refutation")
       val p = proof.get
-      assert(K.SCProofChecker.checkSCProof(p).isValid, s"$name: kernel rejected the proof: ${K.SCProofChecker.checkSCProof(p)}")
+      KernelProof.assertCorrectProofNoSorry(p, name)
       assert(p.conclusion == emptySequent, s"$name: conclusion is not the empty sequent: ${p.conclusion}")
       assert(p.imports.distinct.length == p.imports.length, s"$name: an input clause was imported more than once")
     }

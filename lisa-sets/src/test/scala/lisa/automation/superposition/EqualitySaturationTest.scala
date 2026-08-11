@@ -8,21 +8,9 @@ import Core.*
  *  equality factoring) and the `s = s` tautology drop wired in. */
 class EqualitySaturationTest extends AnyFunSuite:
 
-  class Fix:
-    val sig: Signature = new Signature
-    val bank: TermBank = new TermBank(sig)
-    val trail: Trail = new Trail(bank)
-    bank.selector = new CompleteBestLiteralSelector(bank.order)
+  class Fix extends TermFixture:
 
-    def pred(name: String, arity: Int): Symbol = sig.intern(name, arity, isPredicate = true)
-    def fn(name: String, arity: Int): Symbol = sig.intern(name, arity, isPredicate = false)
-    def const(name: String): Term = bank.mkConst(fn(name, 0))
-    def app(f: Symbol, args: Term*): Term = bank.mkApp(f, args.toArray)
-    def v(n: Int): Term = bank.mkVar(Core.Variable(n))
-    def mkEq(s: Term, t: Term): Term = bank.mkApp(EqualitySymbol, Array(s, t))
-    def pos(atom: Term): Literal = bank.mkLiteral(atom, true)
-    def neg(atom: Term): Literal = bank.mkLiteral(atom, false)
-    def clause(lits: Literal*): Clause = bank.mkClause(lits.toArray)
+    bank.selector = new CompleteBestLiteralSelector(bank.order)
 
   test("UEQ refutation: f(a)=a, ¬(f(f(a))=a) reduces to □ via superposition + equality resolution") {
     val fx = new Fix; import fx.*
@@ -72,7 +60,7 @@ class EqualitySaturationTest extends AnyFunSuite:
     val axiom = clause(pos(mkEq(app(f, a), a)))
     val goal = clause(neg(mkEq(app(f, app(f, a)), a)))
     // both superposition and demodulation bridge f(f(a)) and a; with both off, nothing does ⇒ Saturated
-    val d = new Discount(bank, trail, superposition = false, forwardDemodulation = false, backwardDemodulation = false)
+    val d = new Discount(bank, trail, SearchOptions(superposition = false, forwardDemodulation = false, backwardDemodulation = false))
     assert(d.saturate(Seq(axiom, goal), maxGiven = 1000) == Discount.Result.Saturated)
   }
 
@@ -82,7 +70,7 @@ class EqualitySaturationTest extends AnyFunSuite:
     val axiom = clause(pos(mkEq(app(f, a), a)))
     val goal = clause(neg(mkEq(app(f, app(f, a)), a)))
     // superposition, equality resolution, equality factoring AND demodulation are all off ⇒ nothing derivable
-    val d = new Discount(bank, trail, equality = false)
+    val d = new Discount(bank, trail, SearchOptions(equality = false))
     assert(d.saturate(Seq(axiom, goal), maxGiven = 1000) == Discount.Result.Saturated)
   }
 
@@ -90,14 +78,14 @@ class EqualitySaturationTest extends AnyFunSuite:
     val fx = new Fix; import fx.*
     val a = const("a")
     // contrast with "equality resolution alone refutes a ≠ a": that inference is gated by the master flag
-    assert(new Discount(bank, trail, equality = false).saturate(Seq(clause(neg(mkEq(a, a))))) == Discount.Result.Saturated)
+    assert(new Discount(bank, trail, SearchOptions(equality = false)).saturate(Seq(clause(neg(mkEq(a, a))))) == Discount.Result.Saturated)
   }
 
   test("equality=false leaves ordinary resolution intact (a purely propositional refutation still closes)") {
     val fx = new Fix; import fx.*
     val P = pred("P", 0)
     val cs = Seq(clause(pos(app(P))), clause(neg(app(P)))) // {P}, {¬P}
-    new Discount(bank, trail, equality = false).saturate(cs) match
+    new Discount(bank, trail, SearchOptions(equality = false)).saturate(cs) match
       case Discount.Result.Refutation(empty) => assert(empty.isEmpty)
       case other => fail(s"expected Refutation, got $other")
   }
@@ -112,7 +100,7 @@ class EqualitySaturationTest extends AnyFunSuite:
     def verdict(indexed: Boolean, build: Fix => Seq[Clause]): String =
       val fx = new Fix
       val cs = build(fx)
-      cat(new Discount(fx.bank, fx.trail, fingerprintIndexing = indexed).saturate(cs, maxGiven = 5000))
+      cat(new Discount(fx.bank, fx.trail, SearchOptions(fingerprintIndexing = indexed)).saturate(cs, maxGiven = 5000))
 
     val builders: Seq[(String, Fix => Seq[Clause])] = Seq(
       "ueq f(a)=a ⊢ f(f(a))=a" -> { fx => import fx.*; val f = fn("f", 1); val a = const("a")
@@ -144,7 +132,7 @@ class EqualitySaturationTest extends AnyFunSuite:
     def verdict(indexed: Boolean, build: Fix => Seq[Clause]): String =
       val fx = new Fix
       val cs = build(fx)
-      cat(new Discount(fx.bank, fx.trail, demodulationIndexing = indexed).saturate(cs, maxGiven = 5000))
+      cat(new Discount(fx.bank, fx.trail, SearchOptions(demodulationIndexing = indexed)).saturate(cs, maxGiven = 5000))
 
     val builders: Seq[(String, Fix => Seq[Clause])] = Seq(
       "ueq f(a)=a ⊢ f(f(a))=a (nested rewrite)" -> { fx => import fx.*; val f = fn("f", 1); val a = const("a")

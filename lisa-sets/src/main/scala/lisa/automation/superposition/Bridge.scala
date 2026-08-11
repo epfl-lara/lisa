@@ -4,6 +4,7 @@ import scala.collection.mutable
 
 import lisa.utils.K
 import lisa.tptp.{Problem, AnnotatedFormula, AnnotatedSequent}
+import lisa.automation.clausification.Clausification
 
 import Core.*
 
@@ -23,9 +24,11 @@ import Core.*
  * [[lisa.tptp.Problem]] (it converts then solves), and
  * `success.reconstructKernelProof` turns a `Success` into a kernel proof. With an
  * unbounded budget the search is a semi-decision procedure: it may not terminate on a satisfiable
- * first-order set. The loop uses [[CompleteBestLiteralSelector]] (Vampire's complete default selector)
- * so resolution is refutation-complete (equality is treated as an ordinary predicate for now — no
- * paramodulation until Phase 3).
+ * first-order set. The loop uses [[CompleteBestLiteralSelector]] (Vampire's complete default selector) by
+ * default, so the calculus is refutation-complete. Equality is handled by the superposition inferences
+ * (superposition, equality resolution/factoring, demodulation); they are gated by the `equality` parameter
+ * and, independently, auto-disabled when the input clause set contains no `=` at all, where they could
+ * never fire.
  */
 object Bridge:
 
@@ -50,16 +53,16 @@ object Bridge:
         empty: Clause,
         bank: TermBank,
         inputs: collection.Map[Int, Reconstruction.InputInfo],
-        schematicNames: Set[String] = Set.empty,
+        schematicIds: Set[K.Identifier] = Set.empty,
         discharge: Map[K.Variable, K.Expression] = Map.empty) extends Outcome:
       /**
        * Reconstruct a kernel [[lisa.utils.K.SCProof]] from this refutation: its imports are the input
        * clause-sequents and its conclusion is the empty sequent `⊢`. Uses the bank and per-input data
-       * carried here — no re-solving. `schematicNames` (Phase-3 abstraction symbols) are rebuilt as kernel
+       * carried here — no re-solving. `schematicNames` (the ε-abstraction symbols from [[Clausal]]) are rebuilt as kernel
        * variables; when `discharge` maps them to their `λfv. e` values, they are instead inlined back to the
        * original (ε-)terms so the proof is free of the abstraction symbols. See [[Reconstruction]].
        */
-      def reconstructKernelProof: K.SCProof = Reconstruction.reconstruct(empty, bank, inputs, schematicNames, discharge)
+      def reconstructKernelProof: K.SCProof = Reconstruction.reconstruct(empty, bank, inputs, schematicIds, discharge)
 
     /** The passive set was exhausted without deriving `□`: the clause set is satisfiable (a decision). */
     case object Saturated extends Outcome
@@ -81,48 +84,26 @@ object Bridge:
       sequents: Iterable[K.Sequent],
       maxGiven: Int = Int.MaxValue,
       maxMillis: Long = Long.MaxValue,
-      forwardSubsumption: Boolean = true,
-      backwardSubsumption: Boolean = true,
-      forwardUnitDeletion: Boolean = true,
-      backwardUnitDeletion: Boolean = true,
-      forwardSubsumptionResolution: Boolean = false,
-      backwardSubsumptionResolution: Boolean = false,
-      condensation: Boolean = false,
-      forwardSimplifyAtGeneration: Boolean = false,
-      // Master equality switch: when off, all equality inferences (superposition, equality resolution/factoring,
-      // demodulation) are skipped, leaving pure ordered resolution + factoring. Use for equality-free problems.
-      equality: Boolean = true,
-      // Term indexing (Phase 5): find superposition partners via a fingerprint index over the active set rather
-      // than the linear scan. Same inferences (so the proof is unchanged); kept as a flag for A/B benchmarking.
-      fingerprintIndexing: Boolean = true,
-      // KBO symbol-precedence generation (Phase-5 heuristics): how the term-ordering precedence is assigned
-      // from the input signature. `InvFrequency` (frequent symbols small) is the default; `Occurrence` is the
-      // former interning-order baseline. See [[Precedence]].
-      precedenceScheme: PrecedenceScheme = PrecedenceScheme.InvFrequency,
-      // Loop instrumentation sink: invoked with the loop's [[Discount.LoopStats]] (given-clause throughput + peak
-      // active/passive sizes) after saturation, for any outcome. Default no-op.
-      onStats: Discount.LoopStats => Unit = _ => (),
+      // Every search knob, in one value — see [[SearchOptions]].
+      opts: SearchOptions = SearchOptions(),
       // Schematic symbol variables: kernel `Variable`s that are to be treated as **symbols** by the prover
       // (not clause variables) and rebuilt as variables in reconstruction. Dispatched by position: a symbol
       // variable in a literal-head position is a **predicate** symbol, in a term position a **function**
-      // symbol (Phase-3 ε-abstractions `F`, and clausifier Tseitin atoms `tsᵢ`). Empty for ordinary input.
+      // symbol (ε-abstractions `F` from [[Clausal]], and the clausifier's naming atoms `nm…`). Empty for
+      // ordinary clausal input.
       symbolVars: Set[K.Variable] = Set.empty,
-      // Phase-3 discharge: each abstraction symbol `F` ↦ its closed value `λfv. e`; when non-empty,
-      // reconstruction inlines `F` back to `e` so the produced proof contains the original (ε-)terms, not `F`.
+      // Abstraction discharge: each symbol `F` ↦ its closed value `λfv. e`; when non-empty, reconstruction
+      // inlines `F` back to `e` so the produced proof contains the original (ε-)terms, not `F`.
       discharge: Map[K.Variable, K.Expression] = Map.empty,
       // Indices (into `sequents`) of the goal input clauses (the negated conjecture), for goal-directed clause
       // selection. Goal-ness propagates through inferences; empty ⇒ no goal bias (e.g. a conjecture-free problem).
       goal: Set[Int] = Set.empty,
-      // ── portfolio strategy knobs (bundled by Strategies.scala) ──
-      ageRatio: Int = 1,
-      weightRatio: Int = 1,
-      nonGoalWeightCoefficient: Int = 10,
-      selection: LiteralSelection = LiteralSelection.Complete,
-      weightScheme: WeightScheme = WeightScheme.Const): Outcome =
-    val sig: Signature = new Signature(weightScheme)
+      // Loop instrumentation sink: invoked with the loop's [[Discount.LoopStats]] (given-clause throughput + peak
+      // active/passive sizes) after saturation, for any outcome. Default no-op.
+      onStats: Discount.LoopStats => Unit = _ => ()): Outcome =
+    val sig: Signature = new Signature(opts.weightScheme)
     val bank: TermBank = new TermBank(sig)
     val trail: Trail = new Trail(bank)
-    bank.selector = LiteralSelection.selector(selection, bank)
     val inputs = mutable.Map.empty[Int, Reconstruction.InputInfo]
     val clauses: Seq[Clause] = sequents.iterator.zipWithIndex.map { (s, i) =>
       val vars = mutable.HashMap.empty[K.Variable, Int]
@@ -130,8 +111,11 @@ object Bridge:
       inputs(c.id) = (s, vars.iterator.map((kv, n) => n -> kv).toMap)
       c
     }.toSeq
-    // Generate the KBO symbol precedence from the (now fully interned) signature, before saturation reads it.
-    Precedence.assign(sig, bank, clauses, precedenceScheme)
+    // Generate the KBO symbol precedence from the (now fully interned) signature, before anything reads the
+    // ordering — clause construction never does, and the selector below is the first thing that can.
+    // (`Order` also self-invalidates on a precedence change, so this is for clarity, not correctness.)
+    Precedence.assign(sig, bank, clauses, opts.precedenceScheme)
+    bank.selector = LiteralSelection.selector(opts.selection, bank)
     // Equality inferences are *effectively* on only if the input actually contains the equality symbol: with no
     // `=` literal in the input, none can ever be derived (superposition/resolution/factoring on non-equality
     // literals never synthesise an `=` atom), so every equality inference is vacuous. Auto-disabling then skips
@@ -142,55 +126,27 @@ object Bridge:
         !bank.isVar(a) && bank.headSymbol(a) == EqualitySymbol
       }
     }
-    val effectiveEquality: Boolean = equality && hasEquality
-    val schematicNames: Set[String] = symbolVars.map(_.id.toString)
-    val discount = new Discount(
-      bank,
-      trail,
-      ageRatio = ageRatio,
-      weightRatio = weightRatio,
-      nonGoalWeightCoefficient = nonGoalWeightCoefficient,
-      forwardSubsumption = forwardSubsumption,
-      backwardSubsumption = backwardSubsumption,
-      forwardUnitDeletion = forwardUnitDeletion,
-      backwardUnitDeletion = backwardUnitDeletion,
-      forwardSubsumptionResolution = forwardSubsumptionResolution,
-      backwardSubsumptionResolution = backwardSubsumptionResolution,
-      condensation = condensation,
-      forwardSimplifyAtGeneration = forwardSimplifyAtGeneration,
-      equality = effectiveEquality,
-      fingerprintIndexing = fingerprintIndexing
-    )
+    val schematicIds: Set[K.Identifier] = symbolVars.map(_.id)
+    // The only place the caller's options are altered: equality is additionally gated on the input actually
+    // containing `=`. Everything else is threaded through untouched, so no knob can be silently dropped.
+    val discount = new Discount(bank, trail, opts.copy(equality = opts.equality && hasEquality))
     val result = discount.saturate(clauses, maxGiven, maxMillis)
     onStats(discount.loopStats)
     result match
-      case Discount.Result.Refutation(empty) => Outcome.Success(empty, bank, inputs, schematicNames, discharge)
+      case Discount.Result.Refutation(empty) => Outcome.Success(empty, bank, inputs, schematicIds, discharge)
       case Discount.Result.Saturated => Outcome.Saturated
       case Discount.Result.Unknown => Outcome.Timeout
 
   /** [[solve]] on a [[lisa.tptp.Problem]] whose formulas are each a pure clause (e.g. a TPTP `cnf`
-   *  problem): converts it to clause-sequents and hands them to [[solve]]. */
+   *  problem): converts it to clause-sequents and hands them to [[solve]]. `opts` is forwarded whole, never
+   *  unpacked — see [[SearchOptions]]. */
   def solveTPTPProblem(
       problem: Problem,
       maxGiven: Int = Int.MaxValue,
       maxMillis: Long = Long.MaxValue,
-      forwardSubsumption: Boolean = true,
-      backwardSubsumption: Boolean = true,
-      forwardUnitDeletion: Boolean = true,
-      backwardUnitDeletion: Boolean = true,
-      forwardSubsumptionResolution: Boolean = false,
-      backwardSubsumptionResolution: Boolean = false,
-      condensation: Boolean = false,
-      forwardSimplifyAtGeneration: Boolean = false,
-      equality: Boolean = true,
-      fingerprintIndexing: Boolean = true,
+      opts: SearchOptions = SearchOptions(),
       onStats: Discount.LoopStats => Unit = _ => ()): Outcome =
-    solve(
-      problemSequents(problem), maxGiven, maxMillis, forwardSubsumption, backwardSubsumption,
-      forwardUnitDeletion, backwardUnitDeletion, forwardSubsumptionResolution, backwardSubsumptionResolution,
-      condensation, forwardSimplifyAtGeneration, equality = equality, fingerprintIndexing = fingerprintIndexing,
-      onStats = onStats
-    )
+    solve(problemSequents(problem), maxGiven, maxMillis, opts, onStats = onStats)
 
   /** Convert a [[lisa.tptp.Problem]] of pure clauses (e.g. a TPTP `cnf` problem) to clause-sequents. */
   private def problemSequents(problem: Problem): Seq[K.Sequent] =
@@ -222,9 +178,16 @@ object Bridge:
     bank.mkClause(lits.toArray, goalInput = goalInput)
 
 
-  /** A clause formula `∀…(l₁ ∨ … ∨ lₙ)` as a sequent: negative literals on the left, positive on the right. */
+  /** A clause formula `∀…(l₁ ∨ … ∨ lₙ)` as a sequent: negative literals on the left, positive on the right.
+    *
+    * η-expanded first, because [[stripForall]] matches an explicit `Lambda`: an η-reduced `∀(p)` would not be
+    * stripped, and would reach [[atomTerm]] as an opaque atom headed by `∀`, interned as an ordinary unary
+    * predicate. This is the third of the three entry points that establish that invariant — see
+    * [[lisa.automation.clausification.Clausification.etaExpandQuantifiers]]. Expected to be a no-op here (TPTP
+    * input is parsed to explicit binders, and a `cnf` clause has none at all), which is exactly why it is applied
+    * rather than assumed: it is idempotent and costs one traversal of an already-clausal formula. */
   private def formulaToSequent(formula: K.Expression): K.Sequent =
-    val body: K.Expression = stripForall(formula)
+    val body: K.Expression = stripForall(Clausification.etaExpandQuantifiers(formula))
     val polarised: List[(K.Expression, Boolean)] =
       if body == K.bot then Nil // ⊥ is the empty clause
       else disjuncts(body).map(polarity)
@@ -256,37 +219,38 @@ object Bridge:
       case _ => bank.mkLiteral(atomTerm(bank, vars, f, symbolVars), positive)
 
   /** Build the internal atom term for a predicate application: the head must be a predicate constant, or a
-   *  schematic **predicate** variable listed in `symbolVars` (a clausifier Tseitin atom `tsᵢ`, or a Lisa
+   *  schematic **predicate** variable listed in `symbolVars` (a clausifier naming atom `nm…`, or a Lisa
    *  predicate variable) — interned as an (uninterpreted) predicate symbol. */
   private def atomTerm(bank: TermBank, vars: mutable.HashMap[K.Variable, Int], f: K.Expression, symbolVars: Set[K.Variable]): Term =
     val (head, args) = headAndArgs(f)
     def app(sym: Symbol): Term = bank.mkApp(sym, args.iterator.map(a => term(bank, vars, a, symbolVars)).toArray)
     head match
-      case c: K.Constant                           => app(bank.signature.intern(c.id.toString, args.size, isPredicate = true))
-      case v: K.Variable if symbolVars.contains(v) => app(bank.signature.intern(v.id.toString, args.size, isPredicate = true))
+      case c: K.Constant                           => app(bank.signature.intern(c.id.name, c.id.no, args.size, isPredicate = true))
+      case v: K.Variable if symbolVars.contains(v) => app(bank.signature.intern(v.id.name, v.id.no, args.size, isPredicate = true))
       case other =>
         throw IllegalArgumentException(s"not a pure clause: literal head is not a predicate constant or symbol variable: $other")
 
   /** Build an internal term: a clause variable (renumbered per clause), a function/constant application, or a
-   *  schematic **function** variable in `symbolVars` (a Phase-3 ε-abstraction `F`, or a Lisa function
+   *  schematic **function** variable in `symbolVars` (a [[Clausal]] ε-abstraction `F`, or a Lisa function
    *  variable), interned as a function symbol (applied or bare-nullary) rather than treated as a clause variable. */
   private def term(bank: TermBank, vars: mutable.HashMap[K.Variable, Int], t: K.Expression, symbolVars: Set[K.Variable]): Term =
     t match
       case v: K.Variable if symbolVars.contains(v) => // bare nullary function symbol
-        bank.mkConst(bank.signature.intern(v.id.toString, 0, isPredicate = false))
+        bank.mkConst(bank.signature.intern(v.id.name, v.id.no, 0, isPredicate = false))
       case v: K.Variable => bank.mkVar(Core.Variable(vars.getOrElseUpdate(v, vars.size)))
       case _ =>
         val (head, args) = headAndArgs(t)
         val sym: Symbol = head match
-          case c: K.Constant => bank.signature.intern(c.id.toString, args.size, isPredicate = false)
+          case c: K.Constant => bank.signature.intern(c.id.name, c.id.no, args.size, isPredicate = false)
           case v: K.Variable if symbolVars.contains(v) => // applied function symbol `F(fv…)`
-            bank.signature.intern(v.id.toString, args.size, isPredicate = false)
+            bank.signature.intern(v.id.name, v.id.no, args.size, isPredicate = false)
           case other =>
             throw IllegalArgumentException(s"not first-order: term head is not a constant (applied variable?): $other")
         bank.mkApp(sym, args.iterator.map(a => term(bank, vars, a, symbolVars)).toArray)
 
-  /** Decompose a curried application `f(a₁)…(aₙ)` into its head `f` and argument list `[a₁, …, aₙ]`. */
-  private def headAndArgs(e: K.Expression): (K.Expression, List[K.Expression]) = e match
+  /** Decompose a curried kernel application `f(a₁)…(aₙ)` into its head `f` and argument list `[a₁, …, aₙ]`.
+    * Shared with [[Clausal]] and [[CascProver]], which each carried an identical private copy. */
+  private[superposition] def headAndArgs(e: K.Expression): (K.Expression, List[K.Expression]) = e match
     case K.Application(f, arg) =>
       val (h, as) = headAndArgs(f)
       (h, as :+ arg)

@@ -3,21 +3,25 @@ We are constructing a prover for problems in clausal form using ordered resoluti
 Phase 0 [done]: Core datastructures and utilities (terms, clauses, unification, KBO).
 Phase 1 [done]: Ordered resolution via the DISCOUNT loop, factoring, and proof reconstruction into Lisa.
 Phase 2 [done]: Redundancy elimination — forward/backward subsumption, unit deletion, subsumption resolution, condensation. (Demodulation is deferred to Phase 4, where it lands with equality.)
-Phase 3: Clausification wiring. Connect Lisa's existing certified clausification
-  (`lisa.automation.clausification`, entry point `Clausification.certifyClausal(problem, prover)`) to our
-  clausal prover (`Bridge.solve`), so that a general — non-clausal — first-order Lisa sequent can be proved
-  end to end: clausify (negate conjecture, NNF, Skolemize, prenex, Tseitin) → refute the clauses with
+Phase 3 [done]: Clausification wiring. Connects Lisa's certified clausification
+  (`lisa.automation.clausification`, entry point `CertifiedFastClausifier.certifyClausal(problem, prover)`) to
+  the clausal prover (`Bridge.solve`), so a general — non-clausal — first-order Lisa sequent is proved end to
+  end: clausify (screen → name → NNF → Skolemize → prenex → distribute) → refute the clauses with
   superposition → compose the clausification proof and the refutation into a single kernel `SCProof` of the
-  original goal, exposed as a `ProofTactic`. Targets the no-equality fragment first (equality is Phase 4);
-  the same wiring then extends once the prover handles equality. See the detailed plan below.
-Phase 4: Equality handling — superposition/paramodulation, demodulation (forward + backward), equality
-  literal ordering and the equality redundancy criteria.
-Phase 5: Performance — term indexing (discrimination / fingerprint / substitution trees), selection and
-  age/weight heuristics, and other low-level optimizations.
+  original goal. Delivered as `Clausal` (the ε-abstraction + prover adapter) and the `Superpose` proof tactic.
+Phase 4 [done]: Equality handling — superposition, demodulation (forward + backward), equality
+  resolution/factoring, the equality-aware literal ordering (`Order`) and the redundancy criteria.
+Phase 5 [done]: Performance — term indexing (fingerprint indices for superposition and resolution, a
+  feature-vector index for subsumption, a perfect discrimination tree for demodulation), KBO precedence/weight
+  generation, literal selection, and the portfolio strategies.
 
 Phases are done one at a time and only after the previous one is complete, tested, and the user asks to
-start the next. The detailed per-phase design lives in `Phase<n>.md` (see `Phase2.md`), written when the
-phase begins.
+start the next. The detailed per-phase design lives in `Phase<n>.md`, written when the phase begins; those
+documents are **historical** — they record the design as planned, not necessarily as it now stands. The code
+and its Scaladoc are authoritative.
+
+Current work sits past Phase 5: hardening the `Superpose` tactic and the clausification pipeline. `CodeReview.md`
+holds a full review of both packages with a prioritised action list.
 
 ---
 

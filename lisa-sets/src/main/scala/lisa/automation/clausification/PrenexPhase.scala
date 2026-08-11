@@ -3,13 +3,36 @@ package lisa.automation.clausification
 import lisa.utils.K.{_, given}
 import Clausification.*
 
+/**
+ * Universal-quantifier stripping. After [[SkolemPhase]] the only quantifier left is `∀`, and a clause carries no
+ * quantifiers at all — its variables are implicitly universal. So this phase replaces each `∀x. …` by its body
+ * with `x` instantiated at a fresh clause variable `w`, leaving [[DistributePhase]] a quantifier-free matrix.
+ *
+ * The quantifiers are *not* necessarily at the root: NNF leaves them wherever they sat in the input, so `∀` can
+ * appear under `∧`/`∨`/`¬` anywhere in the tree. Two strategies handle that, both producing `() ⊢ matrix` from
+ * the imported `() ⊢ φ`, and [[preferRewriteStrategy]] picks between them per formula:
+ *
+ *   - [[provePrenexDeconstruct]] walks `φ`'s tree and applies `LeftForall` at each `∀` node where it stands.
+ *     Proof size linear in `|φ|`, so it wins whenever the formula is small relative to its quantifier count.
+ *   - [[provePrenexRewrite]] first lifts each `∀` to the root one connective at a time, using the four
+ *     `forall{And,Or}{Left,Right}` library laws ([[Clausification.libImports]]), then strips at the root.
+ *     Size ~`nq × depth`, so it wins on a large formula with few quantifiers.
+ *
+ * '''Both must agree on the witnesses.''' [[extractUniversalMatrix]] computes the matrix and mints the `w`s in
+ * pre-order, and each strategy has to reproduce *that* matrix exactly; `provePrenex` asserts it. This is why the
+ * rewrite path α-renames a binder before lifting it over a sibling — the kernel's `InstSchema` substitutes
+ * capture-avoidingly, so a hand-built formula that captured would silently disagree with the one the kernel
+ * derives, and the mismatch would only surface at the closing `require`.
+ *
+ * A formula with no `∀` anywhere is passed through untouched ([[hasForall]] is the gate). Note that `hasForall`
+ * cannot see an η-reduced `∀(p)`, which is why [[ScreenPhase]] η-expands every quantifier before this runs.
+ */
 private[clausification] object PrenexPhase:
 
   /** For each axiom containing a `∀` anywhere in its tree, strip all universals — instantiating each at a fresh
     * clause variable `w` (pre-order) via `LeftForall`. Certifies the derivation of the quantifier-free matrix
     * via [[provePrenex]]. */
-  def certifyPrenex(problem: Problem, prover: ClausificationProver,
-      forceDeconstruct: Boolean = false, forceRewrite: Boolean = false): ClausificationProof = {
+  def certifyPrenex(problem: Problem, prover: ClausificationProver): ClausificationProof = {
     certifyAxiomwise(problem, prover, (ax, counter, ctx) => {
       val phi = singleRightFormula(ax, "axiom")
       if !hasForall(phi) then None
@@ -26,7 +49,7 @@ private[clausification] object PrenexPhase:
           libRef(ctx.nonLibSize, libForallOrLeftIdx),
           libRef(ctx.nonLibSize, libForallOrRightIdx)
         )
-        val prenexStep = KernelStep(provePrenex(ax, -1, matrixAx, witnesses, prenexLibRefs, forceDeconstruct, forceRewrite))
+        val prenexStep = KernelStep(provePrenex(ax, -1, matrixAx, witnesses, prenexLibRefs))
         Some((matrixAx, IndexedSeq(prenexStep), 0))
     })
   }
@@ -41,18 +64,23 @@ private[clausification] object PrenexPhase:
     *   - [[provePrenexDeconstruct]]: walk `phi`'s tree, apply `LeftForall` at each
     *     `∀` node in-place. O(|phi|).
     *   - [[provePrenexRewrite]]: lift each `∀` to the root one connective at a time
-    *     via prenex-equivalence rewrites, then strip with `LeftForall`. O(nq × depth). */
+    *     via prenex-equivalence rewrites, then strip with `LeftForall`. O(nq × depth).
+    *
+    * @param forceRewrite take the rewrite branch whatever the heuristic says. Only `PrenexRewriteTest` passes
+    *                     it: the heuristic picks `deconstruct` for most shapes, so the rewrite path would go
+    *                     largely unexercised otherwise. There is deliberately no matching `forceDeconstruct`
+    *                     — it existed, nothing ever set it, and a knob no caller uses is a knob that is not
+    *                     known to work. */
   def provePrenex(
       imported: Sequent,
       premise: Int,
       conclusion: Sequent,
       witnesses: Seq[Variable],
       libPrenexRefs: (Int, Int, Int, Int),
-      forceDeconstruct: Boolean = false,
       forceRewrite: Boolean = false
   ): SCSubproof = {
     val phi = singleRightFormula(imported, "imported (prenex source)")
-    if (!forceDeconstruct && (forceRewrite || preferRewriteStrategy(phi)))
+    if (forceRewrite || preferRewriteStrategy(phi))
       provePrenexRewrite(imported, premise, conclusion, witnesses, libPrenexRefs)
     else provePrenexDeconstruct(imported, premise, conclusion, witnesses)
   }
@@ -94,7 +122,7 @@ private[clausification] object PrenexPhase:
     * (pre-order). Then `Cut` against `imported` to obtain `() ⊢ matrix`.
     *
     * Proof size is linear in `|phi|`. */
-  def provePrenexDeconstruct(
+  private def provePrenexDeconstruct(
       imported: Sequent,
       premise: Int,
       conclusion: Sequent,
@@ -170,7 +198,7 @@ private[clausification] object PrenexPhase:
     * `LeftForall` at the matching witness from `witnesses`. After all quantifiers are stripped we have
     * `() ⊢ matrix`; the remaining body's structure is never destructured. Cost per quantifier: `O(nb_q*depth)`
     * rewrites (one per enclosing connective on the path from root to the quantifier). */
-  def provePrenexRewrite(
+  private def provePrenexRewrite(
       imported: Sequent,
       premise: Int,
       conclusion: Sequent,
@@ -231,22 +259,42 @@ private[clausification] object PrenexPhase:
         body: Expression
     ): (Int, Expression) = {
       val innerForall = forall(Lambda(x, body))
+      // The `⊕`-node's other operand, and the library law for this layer.
+      val (sibling, libRef): (Expression, Int) = layer match
+        case LayerAndL(rhs) => (rhs, innerLibAndL)
+        case LayerAndR(lhs) => (lhs, innerLibAndR)
+        case LayerOrL(rhs)  => (rhs, innerLibOrL)
+        case LayerOrR(lhs)  => (lhs, innerLibOrR)
+
+      // α-rename the binder away from the sibling before lifting over it: `(∀x. body) ⊕ s` lifts to
+      // `∀x'. (body[x:=x'] ⊕ s)` with `x'` fresh for `s`. Reusing `x` would *capture* a free `x` in `s`, and the
+      // result would not be an instance of the law — which holds only because `R` is a nullary `Prop` schema and
+      // so cannot contain the bound variable at all.
+      //
+      // The rename must be done by hand here and cannot be left to the kernel: `InstSchema` substitutes
+      // `schemaR := s` capture-*avoidingly*, so it produces the renamed formula regardless, and a hand-built
+      // `rhsIff` that captured would disagree with it. The strip at the end would then yield a matrix
+      // `extractUniversalMatrix` never predicted, failing `provePrenex`'s closing `require`.
+      val (xL, bodyL): (Variable, Expression) =
+        if !sibling.freeVariables.contains(x) then (x, body)
+        else
+          val xf = Variable(freshId(sibling.freeVariables.view.map(_.id) ++ body.freeVariables.view.map(_.id), x.id), x.sort)
+          (xf, substituteVariables(body, Map(x -> xf)))
+
+      // `lhsIff` must match the node as it stands in `srcFormula`, so it keeps the original binder; only the
+      // lifted side uses the renamed one.
       val (lhsIff, rhsIff): (Expression, Expression) = layer match
-        case LayerAndL(rhs) => (and(innerForall)(rhs), forall(Lambda(x, and(body)(rhs))))
-        case LayerAndR(lhs) => (and(lhs)(innerForall), forall(Lambda(x, and(lhs)(body))))
-        case LayerOrL(rhs)  => (or(innerForall)(rhs),  forall(Lambda(x, or(body)(rhs))))
-        case LayerOrR(lhs)  => (or(lhs)(innerForall),  forall(Lambda(x, or(lhs)(body))))
+        case LayerAndL(_) => (and(innerForall)(sibling), forall(Lambda(xL, and(bodyL)(sibling))))
+        case LayerAndR(_) => (and(sibling)(innerForall), forall(Lambda(xL, and(sibling)(bodyL))))
+        case LayerOrL(_)  => (or(innerForall)(sibling),  forall(Lambda(xL, or(bodyL)(sibling))))
+        case LayerOrR(_)  => (or(sibling)(innerForall),  forall(Lambda(xL, or(sibling)(bodyL))))
 
       val iffFormula = lhsIff <=> rhsIff
-      // Instantiate the appropriate prenex library theorem to get `() ⊢ iffFormula`.
-      // `schemaP := λx.body` is the quantified side; `schemaR := <sibling>` is the closed (x-free)
-      // side, supplied unwrapped since `R` is nullary `Prop`. The substituted statement βη-equals
-      // `iffFormula` in every case, so `InstSchema` checks against the conclusion below.
-      val (libRef, schemaSubst): (Int, Map[Variable, Expression]) = layer match
-        case LayerAndL(rhs) => (innerLibAndL, Map(schemaP -> Lambda(x, body), schemaR -> rhs))
-        case LayerAndR(lhs) => (innerLibAndR, Map(schemaP -> Lambda(x, body), schemaR -> lhs))
-        case LayerOrL(rhs)  => (innerLibOrL,  Map(schemaP -> Lambda(x, body), schemaR -> rhs))
-        case LayerOrR(lhs)  => (innerLibOrR,  Map(schemaP -> Lambda(x, body), schemaR -> lhs))
+      // Instantiate the prenex library theorem to get `() ⊢ iffFormula`. `schemaP := λx'.body'` is the quantified
+      // side; `schemaR := sibling` is the closed side, supplied unwrapped since `R` is nullary `Prop`. Both sides
+      // of the substituted statement are α-equivalent to `iffFormula`'s (the statement's own binder may be
+      // renamed by the same capture-avoidance, which `InstSchema` compares up to), so the step checks.
+      val schemaSubst: Map[Variable, Expression] = Map(schemaP -> Lambda(xL, bodyL), schemaR -> sibling)
       val iffStep = emit(InstSchema(() |- iffFormula, libRef, schemaSubst))
 
       // Lifted formula: replace `lhsIff` at `pathToOuter` with `rhsIff`.

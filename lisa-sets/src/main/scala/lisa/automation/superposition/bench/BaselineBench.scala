@@ -1,4 +1,5 @@
 package lisa.automation.superposition
+package bench
 
 import java.io.File
 import java.util.concurrent.atomic.AtomicReference
@@ -6,7 +7,7 @@ import scala.util.{Success, Failure, Using}
 
 import lisa.utils.K
 import lisa.tptp.KernelParser.{problemToKernel, strictMapAtom, strictMapTerm, strictMapVariable}
-import lisa.automation.clausification.{Clausification, UncertifiedClausification}
+import lisa.automation.clausification.{Clausification, UncertifiedClausifier}
 import lisa.automation.clausification.Clausification.problemSize
 import BenchUtil.{withTimeout, toClausificationProblem}
 
@@ -16,7 +17,7 @@ import BenchUtil.{withTimeout, toClausificationProblem}
  * set), drawn with the same seeded shuffle each of those harnesses uses so the sample is identical.
  *
  * Each problem is parsed, clausified with the **non-proof-producing** clausifier
- * ([[UncertifiedClausification.clausalForm]] — the pure clause computation, no clausification proof), and then
+ * ([[UncertifiedClausifier.clausalForm]] — the pure clause computation, no clausification proof), and then
  * refuted with [[Clausal.solveOutcome]], which runs the DISCOUNT loop to a verdict and **does not reconstruct a
  * kernel proof**. So the two timed phases are exactly clausification and prover search, with no proof machinery
  * on either side. Per problem it reports: the phase times (ms), the total, the number of **given** clauses the
@@ -28,8 +29,8 @@ import BenchUtil.{withTimeout, toClausificationProblem}
  *
  * Needs the `TPTP` env var pointing at the TPTP root (the directory containing `Problems/`). Run:
  * {{{
- *   TPTP=/path/to/TPTP-v9.2.1 sbt "lisa-sets/runMain lisa.automation.superposition.BaselineBench run <clausal|fof|eq> [n] [seed] [timeoutMs] [maxGiven] [maxSize]"
- *   TPTP=/path/to/TPTP-v9.2.1 sbt "lisa-sets/runMain lisa.automation.superposition.BaselineBench sample <clausal|fof|eq> [n] [seed]"
+ *   TPTP=/path/to/TPTP-v9.2.1 sbt "lisa-sets/runMain lisa.automation.superposition.bench.BaselineBench run <clausal|fof|eq> [n] [seed] [timeoutMs] [maxGiven] [maxSize]"
+ *   TPTP=/path/to/TPTP-v9.2.1 sbt "lisa-sets/runMain lisa.automation.superposition.bench.BaselineBench sample <clausal|fof|eq> [n] [seed]"
  * }}}
  * `sample` prints the seeded draw's TPTP-root-relative paths (one per line) so an external prover (E) can be run
  * on the exact same set.
@@ -46,14 +47,13 @@ object BaselineBench:
   /** Equality inferences on iff the dataset is the equality-bearing one. */
   private def equalityFor(dataset: String): Boolean = dataset == "eq"
 
-  private def allProblems(dataset: String): Vector[String] =
+  private def problemsOf(dataset: String): ProblemList =
     val fn = lists.getOrElse(dataset, throw new IllegalArgumentException(s"unknown dataset '$dataset' (use ${lists.keys.mkString("/")})"))
-    val f = BenchUtil.locateList(fn).getOrElse(throw new java.io.FileNotFoundException(s"could not find $fn"))
-    Using(scala.io.Source.fromFile(f))(_.getLines().map(_.trim).filter(_.nonEmpty).toVector).get
+    new ProblemList(fn)
 
-  /** The same reproducible draw each harness uses (`Random(seed).shuffle(all).take(n)`). */
-  def sample(dataset: String, n: Int, seed: Long): Vector[String] =
-    new scala.util.Random(seed).shuffle(allProblems(dataset)).take(n)
+  /** The same reproducible draw every harness uses — see [[ProblemList.sample]], so a seed names the same
+    * problems here as in `Evaluation` / `FofEvaluation`. */
+  def sample(dataset: String, n: Int, seed: Long): Vector[String] = problemsOf(dataset).sample(n, seed)
 
   def main(args: Array[String]): Unit =
     args.headOption match
@@ -83,6 +83,7 @@ object BaselineBench:
     val files = Using(scala.io.Source.fromFile(listPath))(_.getLines().map(_.trim).filter(_.nonEmpty).toList).get
     println(s"# runlist n=${files.size} timeout=${timeoutMs}ms equality=true precedence=InvFrequency (soundness probe)")
     println("# ROW\tproblem\tresult\tclausify_ms\tprover_ms\ttotal_ms\tgiven\tderived")
+    BenchUtil.resetAbandoned()
     var refuted = 0
     files.foreach { path =>
       val r = solveRow(new File(path), timeoutMs, 100000, 50000, equality = true, PrecedenceScheme.InvFrequency)
@@ -90,6 +91,7 @@ object BaselineBench:
       println(f"ROW\t${r.name}\t${r.category}\t${r.clausifyMs}%.1f\t${r.proverMs}%.1f\t${r.clausifyMs + r.proverMs}%.1f\t${r.processed}\t${r.derived}")
     }
     println(s"# REFUTED_COUNT=$refuted  (on known-satisfiable inputs, ANY refutation indicates UNSOUNDNESS)")
+    reportContamination()
 
   private def parsePrecedence(s: String): PrecedenceScheme = s.toLowerCase match
     case "occurrence"   => PrecedenceScheme.Occurrence
@@ -102,16 +104,26 @@ object BaselineBench:
   private final case class Row(name: String, category: String, clausifyMs: Double, proverMs: Double, processed: Int, derived: Int)
 
   private def run(dataset: String, n: Int, seed: Long, timeoutMs: Long, maxGiven: Int, maxSize: Int, precedence: PrecedenceScheme): Unit =
-    val tptpRoot: Option[File] = sys.env.get("TPTP").map(new File(_)).filter(_.isDirectory)
-    if tptpRoot.isEmpty then { println("Set the TPTP environment variable to the TPTP root (the directory containing Problems/)."); return }
+    val tptpRoot: Option[File] = BenchUtil.tptpRootOrExplain()
+    if tptpRoot.isEmpty then return
     val eq = equalityFor(dataset)
     val picked = sample(dataset, n, seed)
     println(s"# dataset=$dataset list=${lists(dataset)} seed=$seed n=${picked.size} timeout=${timeoutMs}ms maxGiven=$maxGiven maxSize=$maxSize equality=$eq precedence=$precedence index=true (uncertified clausification, NO reconstruction)")
     println("# ROW\tproblem\tresult\tclausify_ms\tprover_ms\ttotal_ms\tgiven\tderived")
+    BenchUtil.resetAbandoned()
     picked.foreach { rel =>
       val r = solveRow(new File(tptpRoot.get, rel), timeoutMs, maxGiven, maxSize, eq, precedence)
       println(f"ROW\t${r.name}\t${r.category}\t${r.clausifyMs}%.1f\t${r.proverMs}%.1f\t${r.clausifyMs + r.proverMs}%.1f\t${r.processed}\t${r.derived}")
     }
+    reportContamination()
+
+  /** Emit the contamination warning as a `#` comment, so it survives the TSV being piped into a spreadsheet
+    * or a plotting script rather than being lost with the rest of the console output. */
+  private def reportContamination(): Unit =
+    val warning = BenchUtil.contaminationWarning
+    if warning.nonEmpty then
+      println(s"# CONTAMINATED=${BenchUtil.abandonedWorkers}")
+      warning.linesIterator.foreach(l => println(s"# $l"))
 
   private def solveRow(f: File, timeoutMs: Long, maxGiven: Int, maxSize: Int, equality: Boolean, precedence: PrecedenceScheme): Row =
     val name = f.getName
@@ -131,12 +143,12 @@ object BaselineBench:
   /** Time the two phases: uncertified clausal-form computation, then reconstruction-free saturation. */
   private def measure(cprob: Clausification.Problem, timeoutMs: Long, maxGiven: Int, equality: Boolean, precedence: PrecedenceScheme): Row =
     val c0 = System.nanoTime()
-    val clausal = UncertifiedClausification.clausalForm(cprob)
+    val clausal = UncertifiedClausifier.clausalForm(cprob)
     val clausifyMs = (System.nanoTime() - c0) / 1e6
     val stats = new AtomicReference[Discount.LoopStats](Discount.LoopStats(0, 0, 0, 0))
     val p0 = System.nanoTime()
     val outcome: Bridge.Outcome =
-      try Clausal.solveOutcome(clausal, maxGiven, timeoutMs, equality = equality, precedenceScheme = precedence, onStats = stats.set)
+      try Clausal.solveOutcome(clausal, maxGiven, timeoutMs, SearchOptions(equality = equality, precedenceScheme = precedence), onStats = stats.set)
       catch case _: InterruptedException => Bridge.Outcome.Timeout
     val proverMs = (System.nanoTime() - p0) / 1e6
     val cat = outcome match

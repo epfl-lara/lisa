@@ -10,7 +10,8 @@ import Core.*
 /**
  * Reconstruction of a refutation (the empty clause and its [[Justification]] DAG) into a Lisa kernel
  * [[lisa.utils.K.SCProof]] whose imports are the input clause-sequents and whose conclusion is the
- * empty sequent `⊢`. See `Reconstruction.md` for the design.
+ * empty sequent `⊢`. This file is the design; `archive/Reconstruction.md` predates it and describes a
+ * different one (it is still marked "design, not implemented").
  *
  * Each clause becomes one proof reference (an import or a step), **memoised** by clause id so a clause
  * reused across the DAG is expanded once. Every clause's kernel sequent uses a canonical variable
@@ -25,9 +26,9 @@ import Core.*
  * recorded literals; the conclusion's variable numbering is recovered by replaying the inference's `Applier`
  * over the surviving literals.
  *
- * Symbols are interned by their full identifier string ([[Bridge]] uses `id.toString`, which encodes
- * the counter index `id.no`), so a rebuilt symbol's identifier is recovered exactly via [[identOf]]
- * (e.g. `e_1` round-trips as `Identifier("e", 1)`, not the wrong `Identifier("e_1", 0)`).
+ * The signature stores an identifier's name and counter index separately, so a rebuilt symbol's identifier is
+ * reassembled rather than parsed back out of a `name_no` string — `Identifier("e", 1)`, never the wrong
+ * `Identifier("e_1", 0)`.
  */
 object Reconstruction:
 
@@ -37,7 +38,7 @@ object Reconstruction:
   /**
    * Reconstruct the refutation rooted at `empty` into a kernel proof. `inputs` maps each input clause's
    * id to its original sequent and variable map (supplied by [[Bridge]]). `schematicNames` are the interned
-   * symbol names that came from **schematic function variables** (Phase-3 abstraction of non-first-order
+   * symbol names that came from **schematic function variables** ([[Clausal]]'s abstraction of non-first-order
    * subterms); they are rebuilt as kernel `Variable`s rather than `Constant`s so a later `InstSchema` can
    * instantiate them back.
    */
@@ -45,21 +46,21 @@ object Reconstruction:
       empty: Clause,
       bank: TermBank,
       inputs: collection.Map[Int, InputInfo],
-      schematicNames: Set[String] = Set.empty,
+      schematicIds: Set[K.Identifier] = Set.empty,
       discharge: Map[K.Variable, K.Expression] = Map.empty
   ): K.SCProof =
-    new Builder(bank, inputs, schematicNames, discharge).reconstructProof(empty)
+    new Builder(bank, inputs, schematicIds, discharge).reconstructProof(empty)
 
-  private final class Builder(bank: TermBank, inputs: collection.Map[Int, InputInfo], schematicNames: Set[String], discharge: Map[K.Variable, K.Expression]):
+  private final class Builder(bank: TermBank, inputs: collection.Map[Int, InputInfo], schematicIds: Set[K.Identifier], discharge: Map[K.Variable, K.Expression]):
     private val sig: Signature = bank.signature
     private val steps: mutable.ArrayBuffer[K.SCProofStep] = mutable.ArrayBuffer.empty
     private val imports: mutable.ArrayBuffer[K.Sequent] = mutable.ArrayBuffer.empty
     private val memo: mutable.Map[Int, Recon] = mutable.Map.empty
     private val trail: Trail = new Trail(bank)
-    // Phase-3 abstraction discharge, keyed by interned symbol name for [[kernelize]]: each schematic function
+    // ε-abstraction discharge ([[Clausal]]), keyed by interned symbol name for [[kernelize]]: each schematic function
     // symbol `F` maps to its closed value `λfv. e` (the original non-first-order subterm), inlined so the
     // rebuilt proof is purely `e`-bearing (no `F`, no trailing `InstSchema`). Empty for ordinary clausal input.
-    private val dischargeByName: Map[String, K.Expression] = discharge.map((v, e) => v.id.toString -> e).toMap
+    private val dischargeById: Map[K.Identifier, K.Expression] = discharge.map((v, e) => v.id -> e).toMap
 
     def reconstructProof(empty: Clause): K.SCProof =
       refOf(empty)
@@ -93,7 +94,7 @@ object Reconstruction:
       case Justification.EqualityResolution(p, i) => buildEqualityResolution(p, i)
       case Justification.EqualityFactoring(p, d, ds, k, ks) => buildEqualityFactoring(p, d, ds, k, ks)
 
-    /** Inline the Phase-3 discharge into a sequent: substitute every schematic `F` by its `λfv. e` value and
+    /** Inline the ε-abstraction discharge into a sequent: substitute every schematic `F` by its `λfv. e` value and
      *  β-normalise, turning `F`-bearing atoms into `e`-bearing ones. Identity when nothing was abstracted. */
     private def dischargeSeq(s: K.Sequent): K.Sequent =
       if discharge.isEmpty then s
@@ -142,7 +143,7 @@ object Reconstruction:
       val resolvent = K.Sequent(t1seq.left ++ (t2seq.left - phi), (t1seq.right - phi) ++ t2seq.right)
       Recon(addStep(K.Cut(resolvent, t1ref, t2ref, phi)), resolvent)
 
-    // --- equality inferences (Phase 4 Step 5) ------------------------------------------------------
+    // --- equality inferences ------------------------------------------------------------------------
     //
     // Superposition and demodulation share one shape ([[buildRewrite]]): instantiate both parents by the
     // recomputed unifier/matcher, `SubstEq` the rewritten literal in the *into/target* instance (adding the
@@ -302,17 +303,19 @@ object Reconstruction:
         val args: IndexedSeq[K.Expression] = (0 until n).map(k => kernelize(bank.arg(t, k)))
         applySymbol(bank.headSymbol(t), args)
 
-    /** Apply interned symbol `head` to already-kernelised `args`, honouring Phase-3 discharge (inline a
+    /** Apply interned symbol `head` to already-kernelised `args`, honouring the ε-abstraction discharge (inline a
      *  schematic `F` to its `λfv. e` value, β-reduced) and the schematic-symbol convention (an undischarged
      *  schematic symbol round-trips as a `Variable`, so a later `InstSchema` can target it). */
     private def applySymbol(head: Symbol, args: IndexedSeq[K.Expression]): K.Expression =
       val info: SymbolInfo = sig.info(head)
-      dischargeByName.get(info.name) match
+      // The signature carries the identifier's two parts, so it is rebuilt rather than parsed back out of a
+      // `name_no` string — `Identifier("e", 1)`, never the wrong `Identifier("e_1", 0)`.
+      val id: K.Identifier = K.Identifier(info.name, info.no)
+      dischargeById.get(id) match
         case Some(lam) => args.foldLeft(lam)((acc, a) => K.Application(acc, a)).betaNormalForm
         case None =>
-          val id: K.Identifier = identOf(info.name)
           val sort: K.Sort = sortFor(info.arity, info.isPredicate)
-          val hd: K.Expression = if schematicNames.contains(info.name) then K.Variable(id, sort) else K.Constant(id, sort)
+          val hd: K.Expression = if schematicIds.contains(id) then K.Variable(id, sort) else K.Constant(id, sort)
           args.foldLeft(hd)((acc, a) => K.Application(acc, a))
 
     /** Kernelise `t` but emit `hole` in place of the subterm at position `pos` (a path of argument indices),
@@ -353,12 +356,6 @@ object Reconstruction:
       val outSeq = K.Sequent(seq.left, (seq.right - ab) + ba)
       (addStep(K.Cut(outSeq, ref, r2, ab)), outSeq)
 
-    /** Parse an interned symbol name (a kernel `Identifier.toString`) back to the exact identifier,
-     *  recovering a trailing counter index (`"e_1"` → `Identifier("e", 1)`). Inverse of the [[Bridge]]
-     *  intern key, using the kernel's own `String`→`Identifier` conversion. Well-defined because every legal
-     *  Lisa identifier is either `_`-free or a valid `name_counter` (the TPTP parser's `sanitize` guarantees
-     *  this by escaping `_` to `$u`), so the `toString`/parse round-trip is lossless. */
-    private def identOf(name: String): K.Identifier = K.given_Conversion_String_Identifier(name)
 
     /** The kernel sort of a symbol: `Ind → … → Ind → (Prop|Ind)` with `arity` argument places. */
     private def sortFor(arity: Int, isPredicate: Boolean): K.Sort =

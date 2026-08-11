@@ -6,19 +6,19 @@ import Core.*
 import Cmp.*
 
 /**
- * The generating equality inferences of the superposition calculus (Phase 4): **superposition**,
+ * The generating equality inferences of the superposition calculus: **superposition**,
  * **equality resolution**, and **equality factoring**. Equality resolution/factoring mirror the
  * [[Inference.resolve]] / `factor` idiom: save the trail, unify (one scope), apply the post-σ ordering
  * gates against the shared [[Order]]'s KBO, build the conclusion via a [[Trail.Applier]], restore the
  * trail. **Superposition splits this**: because the overlap is *located and unified by the caller* (the
- * saturation loop, or the term index in Phase 5 — as Vampire's index feeds a substitution to
+ * saturation loop, or the fingerprint index — as Vampire's index feeds a substitution to
  * `performSuperposition`), [[superpose]] receives a trail **already bearing** `mgu(l, u)` and only gates
  * and builds; the caller owns the surrounding `save` / `unify` / `restore`.
  *
  * **Eligibility (literal selection / maximality) is the loop's concern, not these functions'.** With a
  * Bachmair-Ganzinger selection function a *selected* negative literal is eligible even when it is not
  * maximal, so an `isMaximal` gate inside the inference would wrongly block it and lose completeness. The
- * loop (Step 4) therefore passes only the literal positions taken from each clause's `selected` set, and
+ * loop therefore passes only the literal positions taken from each clause's `selected` set, and
  * these functions enforce only the **term-orientation** conditions, which are required for completeness
  * and independent of selection. (The post-σ maximality *aftercheck* -- a redundancy pruning -- is a
  * deferred optimisation; omitting it over-approximates, which is sound and complete.)
@@ -89,7 +89,7 @@ object Superposition:
   /**
    * **Superposition** (build only). The trail must **already bear** `σ = mgu(l, u)`, where `l` is `from`'s
    * side `fromSide` and `u = subtermAt(atomOf(into.iInto), uPos)`: the **caller** (the saturation loop, or
-   * the term index in Phase 5) locates the overlap and unifies it. This only applies the post-σ gates and builds
+   * the fingerprint index) locates the overlap and unifies it. This only applies the post-σ gates and builds
    * `(into[u := r] ∨ into\{iInto} ∨ from\{iFrom}) σ`; it **does not touch the trail** (the caller owns
    * `save` / `unify` / `restore`). `from` uses scope 0, `into` scope 1. `uPos` is the caller's **live**
    * subterm stack ([[IntArrayList]], pushed/popped during the walk); it is copied to a durable array only
@@ -163,13 +163,18 @@ object Superposition:
       result
 
   /**
-   * **Equality factoring** — all factors of `c` on its **eligible** positive equalities. For each ordered
-   * pair of distinct eligible positive equalities `i` (`s ≈ t`, factored side `iSide` = `s`) and `j`
+   * **Equality factoring.** For a factored-out literal `i` (`s ≈ t`, side `iSide` = `s`) and a partner `j`
    * (`s' ≈ t'`, side `jSide` = `s'`) with `σ = mgu(s, s')` and gates `sσ ⋠ tσ` **and** `sσ ⋠ t'σ`, yields
-   * `(c\{i} ∨ tσ ≠ t'σ)σ` — **drop the maximal literal `i`, keep the partner `j`**, adding the disequality of
-   * their other sides (matching Vampire and E). The callee enumerates the pairs and sides: `iSide` ranges
-   * over `i`'s `Gt` side (both if incomparable); `jSide` over both sides of `j` (the gates filter). Which
-   * literal is truly maximal — hence which pairs are eligible — is the loop's concern, via `eligible`.
+   * `(c\{i} ∨ tσ ≠ t'σ)σ` — **drop the factored literal `i`, keep the partner `j`**, adding the disequality of
+   * their other sides (matching Vampire and E). The callee enumerates the sides: `iSide` ranges over `i`'s
+   * `Gt` side (both if incomparable); `jSide` over both sides of `j` (the gates filter).
+   *
+   * '''Only `i` need be eligible.''' Bachmair–Ganzinger requires selection/maximality of the literal being
+   * factored out; the partner is any *other* positive equality of `c`. Drawing `j` from `eligible` too — as
+   * this loop used to — silently loses inferences: in `f(x) ≈ a ∨ f(x) ≈ d` with `d ≻ a` the second literal
+   * is strictly maximal, so `eligible = {1}` and literal 0 is never offered as a partner, though the factor
+   * `d ≉ a ∨ f(x) ≈ a` is legitimate and Vampire derives it (`EqualityFactoring::generateClauses` takes
+   * `getSelectedLiteralIterator` for the factored literal and `iterLits` — all literals — for the partner).
    */
   def equalityFactoring(bank: TermBank, trail: Trail, order: Order, c: Clause, eligible: Array[Int]): List[Clause] =
     val out = List.newBuilder[Clause]
@@ -180,9 +185,8 @@ object Superposition:
       val atomI: Term = bank.atomOf(litI)
       if bank.isPositive(litI) && order.isEqualityAtom(atomI) then
         val sides: List[Int] = usableSides(order, atomI)
-        var b = 0
-        while b < eligible.length do
-          val j = eligible(b)
+        var j = 0
+        while j < c.literals.length do
           if j != i then
             val litJ: Literal = c.literals(j)
             val atomJ: Term = bank.atomOf(litJ)
@@ -193,7 +197,7 @@ object Superposition:
                 factorOne(bank, trail, order, c, i, atomI, iSide, j, atomJ, 0).foreach(out += _)
                 factorOne(bank, trail, order, c, i, atomI, iSide, j, atomJ, 1).foreach(out += _)
                 ss = ss.tail
-          b += 1
+          j += 1
       a += 1
     out.result()
 
@@ -218,6 +222,46 @@ object Superposition:
             Some(bank.mkClause(out, Justification.EqualityFactoring(c, i, iSide, j, jSide)))
     trail.restore(saved)
     result
+
+  /**
+   * `c`'s usable superposition **from-sides**: `(iFrom, fromSide, l, lHead)` for each of `c`'s **selected**
+   * literals that is a positive equality, and each side usable as a rewriting LHS — the `≻`-greater side, both
+   * when the sides are incomparable, neither when they are `Eq`; never a variable side (superposition never
+   * rewrites from a variable). `lHead` is `l`'s head symbol, carried along for the cheap pre-check the linear
+   * scan makes before attempting unification.
+   *
+   * '''The selection is read from the clause, never passed in.''' The *from*-index must present exactly the same
+   * entries on insertion and removal or it leaks, and the loop's active scan needs the same notion of
+   * eligibility as the index — so which literals are eligible is not the caller's choice to make. Taking it from
+   * `c.select` makes every caller agree by construction.
+   *
+   * Prefer [[Core.Clause.fromSides]], which memoises this on the clause: both consumers want the same list many
+   * times over (the loop once per given, the index once per add and once per remove), and it is invariant for
+   * the clause's lifetime.
+   */
+  def fromSides(bank: TermBank, order: Order, c: Clause): List[(Int, Int, Term, Symbol)] =
+    val sel: Array[Int] = c.select(bank)
+    val out = List.newBuilder[(Int, Int, Term, Symbol)]
+    var i = 0
+    while i < sel.length do
+      val iFrom: Int = sel(i)
+      val lit: Literal = c.literals(iFrom)
+      val atom: Term = bank.atomOf(lit)
+      if bank.isPositive(lit) && bank.headSymbol(atom) == EqualitySymbol then
+        val ori: Cmp = order.orient(atom)
+        var side = 0
+        while side < 2 do
+          val use: Boolean = ori match
+            case Gt  => side == 0
+            case Lt  => side == 1
+            case Inc => true
+            case Eq  => false
+          if use then
+            val l: Term = bank.arg(atom, side)
+            if !bank.isVar(l) then out += ((iFrom, side, l, bank.headSymbol(l)))
+          side += 1
+      i += 1
+    out.result()
 
   /** Factored-side choices for equality atom: its `Gt` side, both if incomparable, none if trivially `Eq`. */
   private def usableSides(order: Order, atom: Term): List[Int] =

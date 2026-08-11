@@ -11,8 +11,9 @@ import lisa.utils.K.{_, given}
 // declare a subset of its imports as *local LHS assumptions* (rather than
 // premises supplied by the parent). [[lowerClausificationProof]] converts a
 // [[ClausificationProof]] into a kernel [[SCProof]] by:
-//   - threading each [[Assumption]] formula onto the LHS of every step bot of
-//     the inner proof, and
+//   - threading each [[Assumption]] formula onto the LHS of the step bots of
+//     the inner proof that need it — those whose premise cone reaches an
+//     import, which is the only way an assumption can enter a step — and
 //   - introducing a `Hypothesis(φ ⊢ φ)` step at the start of the lowered
 //     subproof to discharge the assumption import locally.
 //
@@ -42,16 +43,32 @@ private[clausification] final case class Assumption(formula: Expression, importI
   * The inner proof's imports are partitioned into:
   *   - **assumption imports** — those at positions [[assumptions]]`.map(_.importIndex)`.
   *     Each such `() ⊢ φ` is materialised inside the lowered subproof by a fresh
-  *     `Hypothesis(φ ⊢ φ)` step and the formula `φ` is added to the LHS of every
-  *     other step's conclusion. From the *outside*, this subproof's bot therefore is
-  *     `proof.conclusion +<< φ1 +<< φ2 +<< ...` (see [[bot]]).
+  *     `Hypothesis(φ ⊢ φ)` step, and `φ` is added to the LHS of the conclusions that
+  *     depend on it (steps whose premise cone reaches an import — see
+  *     [[lowerClausificationProof]]; the conclusion always does). From the *outside*,
+  *     this subproof's bot therefore is `proof.conclusion +<< φ1 +<< φ2 +<< ...` (see [[bot]]).
   *   - **external imports** — all other positions, in their original order. They are
   *     discharged by [[premises]]`(j)`, a kernel reference into the *parent* proof for
   *     the `j`-th external position. The same indexing convention as kernel
   *     [[SCSubproof]] applies (non-negative for parent steps, negative for parent imports).
   *
-  * '''Soundness restriction on the inner proof.''' During lowering, every step bot of
-  * the inner proof is rewritten to `step.bot +<< φ1 +<< ... +<< φk` (the assumption
+  * '''Restriction on positive premises: cite only assumption-bearing steps.''' When this subproof is lowered
+  * inside a region that carries assumptions — its own, or any inherited from an enclosing
+  * [[ClausificationSubproof]] — every external import of the lowered child is given those assumptions on its
+  * left, while the kernel matches a subproof's imports against its premises *exactly*. So a premise that is a
+  * **step index** must name a step that carries the assumptions too, i.e. one whose own premise cone reaches an
+  * import (the `needs` relation computed in [[lowerClausificationProof]]).
+  *
+  * Citing a locally-derived *closed* lemma — one proved outright, with no import anywhere in its cone — hands
+  * the kernel `Γ ⊢ Δ` where it expects `φ1, …, φk, Γ ⊢ Δ`, and the step is rejected. That is a live temptation
+  * rather than a hypothetical: [[DistributePhase]] derives every clause of a matrix from closed steps
+  * (`Hypothesis`/`LeftAnd`/`LeftOr` over `φ`'s subformulas, citing only each other) and keeps to the rule by
+  * citing only the `Cut` against the axiom import, never the closed derivation behind it. Negative premises are
+  * always safe: the lowering routes them through the external-import view or a `Weakening`, both of which carry
+  * the assumptions. Asserted during lowering, where the `needs` relation is available.
+  *
+  * '''Soundness restriction on the inner proof.''' During lowering, an assumption-dependent
+  * step bot of the inner proof is rewritten to `step.bot +<< φ1 +<< ... +<< φk` (the assumption
   * formulas added on the LHS), but the existing premise/conclusion shapes — including
   * those of any [[InstSchema]] step inside the inner proof — are kept as written.
   * If the inner proof contains an `InstSchema` (or any other step) that instantiates
@@ -62,7 +79,9 @@ private[clausification] final case class Assumption(formula: Expression, importI
   * left/right mismatch.
   *
   * So: never [[InstSchema]] a schema var free in an assumption formula from inside the inner proof; do it in
-  * the parent after discharge (as `certifyFastNaming`/`certifySkolem` do).
+  * the parent after discharge (as `certifyNaming`/`certifySkolem` do). The pipeline keeps to this on both
+  * sides: it only ever instantiates its *own* schemas (the library placeholders `P`/`R`, the fresh `esk`/`nm`),
+  * and [[ScreenPhase]] guarantees no *input* variable is named like one of them.
   *
   * Invariants (checked at construction):
   *   - `assumptions.size + premises.size == proof.imports.size` (every inner import is
@@ -78,7 +97,7 @@ private[clausification] final case class ClausificationSubproof(
   require(assumptions.map(_.importIndex).distinct.size == assumptions.size, "Assumption import indices must be distinct")
 
   // Memoized: `bot` may be called repeatedly during lowering (once per outer step in
-  // the discharge loop, O(Q) times for the csub produced by certifyFastNaming/certifySkolem).
+  // the discharge loop, O(Q) times for the csub produced by certifyNaming/certifySkolem).
   // Using `lazy val` avoids the repeated `foldLeft` allocation.
   lazy val bot: Sequent = assumptions.foldLeft(proof.conclusion)((acc, a) => acc +<< a.formula)
 }
@@ -144,9 +163,19 @@ private[clausification] def rewriteStepBot(step: SCProofStep, newBot: Sequent): 
   * `Weakening` step to the inner proof to produce the correct conclusion with the
   * extra assumptions.  This makes the cost O(1) per `SCSubproof` rather than O(inner_steps × Q).
   *
-  * Note: The resulting proof is NOT kernel-valid (the SCSubproof's inner steps won't
-  * have the assumptions on their bots).  This is intentional: the clausification
-  * pipeline only uses kernel proofs for proof-size accounting, not for verification.
+  * '''Restriction: a nested `SCSubproof`'s inner proof must be closed''' (no imports) — required below.
+  * The shallow rewrite touches only the nested proof's *conclusion*; its **imports** keep their original
+  * left-hand sides. Its inner *steps* not carrying the assumptions is harmless — that is exactly what the
+  * appended `Weakening` legitimises — but an inner *import* is matched by the kernel against the parent
+  * premise discharging it (`isSameSequent(ref(premise), sp.imports(i))`, in `SCProofChecker`'s `SCSubproof`
+  * case), and that premise *has* just been given the assumptions. `φ, Γ ⊢ Δ` would then be matched against
+  * `Γ ⊢ Δ` and the step rejected. With no imports there is nothing to mismatch.
+  *
+  * The restriction holds throughout the pipeline, and the `require` below enforces it rather than trusting
+  * it. The import-bearing subproofs — the ε-bridge in [[SkolemPhase]], the naming bridge in
+  * [[CertifiedClausifier.certifyNaming]], [[PrenexPhase]]'s lifting subproof, the prover's own
+  * reconstruction — are all *top-level* steps of the proof handed to this function, whose imports it rewrites
+  * itself (`loweredImports`); they are never nested one level deeper.
   */
 private[clausification] def lowerKernelProofWithAssumptions(proof: SCProof, assumptions: Seq[Expression]): SCProof = {
   // Fast path: with no assumptions, lowering is the identity. Avoids walking every
@@ -160,7 +189,13 @@ private[clausification] def lowerKernelProofWithAssumptions(proof: SCProof, assu
     val loweredSteps = proof.steps.map {
       case SCSubproof(sp, premises) =>
         // Shallow: add a Weakening step to produce the correct conclusion without
-        // recursively adding assumptions to every inner step.
+        // recursively adding assumptions to every inner step. Sound only for a closed inner proof —
+        // its imports would otherwise keep their un-weakened LHS while the premises discharging them
+        // gain the assumptions, and the kernel's premise/import match fails (see the method doc).
+        require(sp.imports.isEmpty,
+          s"lowerKernelProofWithAssumptions: a nested SCSubproof must be closed, but this one has " +
+            s"${sp.imports.size} import(s); the shallow rewrite would leave them un-weakened and the kernel " +
+            "would reject the step. Lower it as a ClausificationSubproof, or hoist it to a top-level step.")
         val targetBot = addAssumptionsLeftSet(sp.conclusion, assumptionSet)
         val shallowSp =
           if (targetBot.left.size == sp.conclusion.left.size && isSameSequent(targetBot, sp.conclusion)) sp
@@ -249,28 +284,89 @@ private[clausification] def lowerClausificationProof(
       else localAssumptionMap(oldImportIndex)
     }
 
-  proof.steps.foreach {
-    case KernelStep(step) =>
-      if (Thread.interrupted()) throw new InterruptedException("Clausification cancelled (lowering)")
-      val rewritten = step match
-        case SCSubproof(sp, premises) =>
-          val loweredSubproof = lowerKernelProofWithAssumptions(sp, assumptions)
-          SCSubproof(loweredSubproof, premises.map(mapReference))
-        case _ =>
-          val rebased = mapStepPremises(step, mapReference)
-          // Skip the bot-rewrite allocation when there are no assumptions to add.
-          if (assumptionSet.isEmpty) rebased
-          else rewriteStepBot(rebased, addAssumptionsLeftSet(rebased.bot, assumptionSet))
-      loweredSteps += rewritten
+  // Which steps actually need the assumptions pasted onto their LHS.
+  //
+  // An assumption can only enter a step through an *import*: the external imports were given the inherited
+  // assumptions above, and each local assumption is materialised as a `Hypothesis(φ ⊢ φ)` prefix step
+  // discharging its import. So a step whose premise cone never reaches an import proves its bot outright,
+  // and adding the assumptions to it is pure cost — a fresh `Sequent` per step, and per enclosing level.
+  //
+  // This is what makes a flat derivation as cheap to lower as a nested one. [[DistributePhase]] emits its
+  // whole clause derivation flat (`Hypothesis`/`LeftAnd`/`LeftOr` over `φ`'s subformulas, citing only each
+  // other) precisely so each step is checked once; none of it touches an import, so none of it is rewritten
+  // here. The assumptions enter exactly where they should — at the `Cut` against the hypothesis import,
+  // which turns an assumption-free `φ ⊢ Cᵢ` into `Ψ ⊢ Cᵢ`.
+  //
+  // Soundness: a *needing* step may have a *non-needing* premise, so the two must compose. They do, because
+  // `needs` is inherited from the premises: a step is needing iff some premise is, so a single-premise step
+  // always agrees with its premise, and a step can only be needing while one premise is not if another
+  // premise reaches an import — a multi-premise rule, and those relate their premises' left sides by union or
+  // by a `subset`/`allContainedExcept` test, both of which tolerate the extra formulas on one side. `Cut`
+  // against a hypothesis import is exactly that case.
+  val needsAssumptions: Array[Boolean] =
+    if (assumptionSet.isEmpty) null // nothing to add anywhere; the per-step checks below short-circuit
+    else {
+      val needs = new Array[Boolean](proof.steps.size)
+      var i = 0
+      while (i < proof.steps.size) {
+        // Steps are in topological order (a premise index is always < i), so this single pass is a fixpoint.
+        needs(i) = proof.steps(i) match
+          case KernelStep(step) => step.premises.exists(r => r < 0 || needs(r))
+          // A ClausificationSubproof is lowered with the assumptions threaded through it, so it carries them.
+          case _: ClausificationSubproof => true
+        i += 1
+      }
+      needs
+    }
 
-    case ClausificationSubproof(subproof, premises, subAssumptions) =>
-      if (Thread.interrupted()) throw new InterruptedException("Clausification cancelled (lowering)")
-      val loweredSubproof = lowerClausificationProof(
-        subproof,
-        subAssumptions,
-        assumptions
-      )
-      loweredSteps += SCSubproof(loweredSubproof, premises.map(mapReference))
+  inline def assumptionsFor(idx: Int): Set[Expression] =
+    if (needsAssumptions == null || !needsAssumptions(idx)) Set.empty else assumptionSet
+
+  proof.steps.zipWithIndex.foreach { (s, idx) =>
+    s match {
+      case KernelStep(step) =>
+        if (Thread.interrupted()) throw new InterruptedException("Clausification cancelled (lowering)")
+        val stepAssumptions = assumptionsFor(idx)
+        val rewritten = step match
+          case SCSubproof(sp, premises) =>
+            val loweredSubproof = lowerKernelProofWithAssumptions(sp, if (stepAssumptions.isEmpty) Seq.empty else assumptions)
+            SCSubproof(loweredSubproof, premises.map(mapReference))
+          case _ =>
+            val rebased = mapStepPremises(step, mapReference)
+            // Skip the bot-rewrite allocation when this step needs no assumptions added.
+            if (stepAssumptions.isEmpty) rebased
+            else rewriteStepBot(rebased, addAssumptionsLeftSet(rebased.bot, stepAssumptions))
+        loweredSteps += rewritten
+
+      case ClausificationSubproof(subproof, premises, subAssumptions) =>
+        if (Thread.interrupted()) throw new InterruptedException("Clausification cancelled (lowering)")
+        // The child's external imports are about to be given `assumptionSet` on the left, and the kernel matches
+        // them against these premises exactly — so a premise naming a *step* must be one the pass below also
+        // gives the assumptions to. See the restriction on [[ClausificationSubproof.premises]]. Nothing to check
+        // when there are no assumptions in scope (`needsAssumptions == null`): then nothing is rewritten at all.
+        if (needsAssumptions != null)
+          premises.foreach { r =>
+            require(r < 0 || needsAssumptions(r),
+              s"ClausificationSubproof premise $r names a step whose premise cone never reaches an import, so " +
+                s"lowering leaves its bot without the ${assumptionSet.size} assumption(s) that the child's " +
+                "imports carry, and the kernel would reject the subproof on an import/premise mismatch. Cite a " +
+                "step derived from an import (e.g. the Cut against the axiom), not a locally-derived closed lemma.")
+          }
+        val loweredSubproof = lowerClausificationProof(
+          subproof,
+          subAssumptions,
+          assumptions
+        )
+        loweredSteps += SCSubproof(loweredSubproof, premises.map(mapReference))
+    }
+  }
+
+  // The lowered conclusion is what the parent matches against [[ClausificationSubproof.bot]], which is
+  // `proof.conclusion` plus the assumptions — so the last step must carry them however its cone looks. It
+  // normally does, descending from the imports; this covers the degenerate proof that concludes without them.
+  if (needsAssumptions != null && !needsAssumptions(proof.steps.size - 1)) {
+    val last = loweredSteps.size - 1
+    loweredSteps += Weakening(addAssumptionsLeftSet(loweredSteps(last).bot, assumptionSet), last)
   }
 
   SCProof(loweredSteps.toIndexedSeq, externalImports.toIndexedSeq)

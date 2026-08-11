@@ -3,9 +3,36 @@ package lisa.automation.clausification
 import lisa.utils.K.{_, given}
 import Clausification.*
 
+/**
+ * Skolemization: remove every `∃` by replacing its witness with a term over the universals it depends on, so
+ * the matrix handed to [[PrenexPhase]] is purely universal.
+ *
+ * '''Why via Hilbert `ε` and not a fresh function symbol.''' A certified phase cannot simply invent a Skolem
+ * function — that changes the signature, and no kernel rule licenses it. What the kernel *does* have is
+ * [[lisa.maths.Quantifiers.existsEpsilonIff]], `(∃x. P(x)) ⇔ P(ε(λx. P(x)))`, which makes `ε(λx.φ)` a
+ * *provably adequate* witness with no new symbol at all. [[skolemizeOne]] instantiates it at `P := λx.φ` and
+ * lifts the equivalence under the enclosing binders with `RightSubstIff`. The uncertified [[UncertifiedClausifier]],
+ * needing only equisatisfiability, mints ordinary fresh Skolem functions instead.
+ *
+ * '''Why each ε is then hidden behind a fresh `F(x̄)`.''' The ε-term contains the whole subformula, so a second
+ * Skolemization step over it would nest one ε inside the next and square the term size — exponential over a
+ * chain of existentials. Each step therefore abstracts its witness to a fresh Skolem-function schema variable
+ * `F(x̄)`, carries the *defining equality* `∀x̄. ε(λx.φ) = F(x̄)` as an assumption, and threads the abstracted
+ * form onward, so ε-terms neither nest nor grow. The assumptions are discharged latest-first at the end by
+ * instantiating `F := λx̄. ε(λx.φ)` — which makes each equality reflexive — plus [[proveQuantifiedReflEq]] and a
+ * `Cut`. Latest-first because a later `F`'s value may mention an earlier one.
+ *
+ * Every `F` is added to the problem's `frozen` set: downstream must treat it as an uninterpreted constant. A
+ * nullary `F` is an `Ind`-sorted free variable and [[PrenexPhase]] would otherwise ∀-close it as a clause
+ * variable, which is exactly what a Skolem constant must not be.
+ *
+ * The ε-terms survive into the clause set, where they are not first-order; the prover never sees one, because
+ * [[lisa.automation.superposition.Clausal]] abstracts them again on the way in and instantiates them back at
+ * the end.
+ */
 private[clausification] object SkolemPhase:
 
-  /** Certified Skolemization, mirroring [[CertifiedFastClausifier.certifyFastNaming]]'s structure: iterate
+  /** Certified Skolemization, mirroring [[CertifiedClausifier.certifyNaming]]'s structure: iterate
     * [[skolemizeOne]] over each hypothesis to a fixpoint, threading the **ε-abstracted** form (each witness
     * `ε(λx.φ)` replaced by a fresh Skolem-function schema variable `F(x̄)`), so ε-terms never nest and never blow
     * up. Each step's fresh `F` carries a *defining equality* `∀x̄. ε(λx.φ) = F(x̄)` as an assumption; these are

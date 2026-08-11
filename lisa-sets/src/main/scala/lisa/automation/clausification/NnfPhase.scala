@@ -3,6 +3,20 @@ package lisa.automation.clausification
 import lisa.utils.K.{_, given}
 import Clausification.*
 
+/**
+ * Negation normal form: push every negation down to the atoms, eliminating `⇒` and `⇔` on the way, so that
+ * below this phase `Neg` wraps only atoms. Every phase after it relies on that — [[SkolemPhase]]'s descent stops
+ * at `Neg` for exactly this reason, and [[DistributePhase]]'s notion of a literal leaf is defined by it.
+ *
+ * '''The cheapest phase to certify.''' NNF is a propositional equivalence, and the kernel's `Restate` decides
+ * propositional equivalence, so each hypothesis is bridged to its NNF by one `Restate` step — no fresh symbols,
+ * no library lemmas. The conversion is therefore free to simplify as it goes, which [[toNNF]] does for the
+ * boolean constants (see its doc); anything `Restate` still accepts costs nothing extra.
+ *
+ * By this point the blow-up-prone `⇔`s have bounded children, since
+ * [[CertifiedClausifier.certifyNaming]] has already named anything larger — which is what keeps `⇔`
+ * elimination here from duplicating subformulas without limit.
+ */
 private[clausification] object NnfPhase:
 
   def certifyNnf(problem: Problem, prover: ClausificationProver): ClausificationProof = {

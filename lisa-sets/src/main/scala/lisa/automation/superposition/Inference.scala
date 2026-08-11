@@ -4,7 +4,7 @@ import Core.*
 
 /**
  * Generating inference rules for the DISCOUNT loop: binary resolution and factoring, both with
- * unification. Each rule reuses the Phase-0 [[Trail]] (two scopes for resolution, one for factoring)
+ * unification. Each rule reuses the shared [[Trail]] (two scopes for resolution, one for factoring)
  * and a fresh [[Trail.Applier]] to instantiate and densely renumber the conclusion's variables, and
  * records a [[Justification]] on the resulting clause for later proof reconstruction.
  *
@@ -48,8 +48,10 @@ object Inference:
    * whose parent is `c`. That parent is retained only for reconstruction and is **not** itself
    * inserted into the clause sets.
    *
-   * Equality trivials (`s = s`, `s ≠ s`) and variable normalisation are intentionally not handled
-   * yet (Phase 3 and Phase 2 respectively).
+   * A positive trivial equality `s = s` makes the clause a tautology and is dropped (below); a negative
+   * `s ≠ s` is deliberately left in place, for equality resolution to close with a proper
+   * [[Justification]]. Clauses are *not* normalised up to variable renaming, so two variants of the same
+   * clause are kept as distinct clauses.
    */
   def canonicalize(bank: TermBank, c: Clause): Option[Clause] =
     // Discard a clause containing a positive trivial equality `s = s` (a tautology). A negative `s ≠ s` is

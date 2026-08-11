@@ -6,12 +6,12 @@ import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
 import Core.*
 
 /**
- * Feature-vector indexing for clause **subsumption** (Phase 5, Step 3). A clause maps to a fixed-length integer
+ * Feature-vector indexing for clause **subsumption**. A clause maps to a fixed-length integer
  * **feature vector** of monotone features — features `f` with `c subsumes d ⇒ f(c) ≤ f(d)` — so a subsumer's
  * vector is `≤` its subsumee's componentwise. Storing the active set in a trie keyed by these vectors turns
  * "which active clauses could subsume/​be-subsumed-by the query" into a bounded `≤`/`≥`-cone descent instead of a
- * linear scan; the exact `Subsumption.subsumes` verifies the (few) survivors. See `Phase5SubsumptionResearch.md`
- * for the theory (Vampire/Prover9/E survey + the completeness argument) and the design.
+ * linear scan; the exact `Subsumption.subsumes` verifies the (few) survivors.
+ * `archive/Phase5SubsumptionResearch.md` has the theory: a Vampire/Prover9/E survey and the completeness argument.
  *
  * [[Permutation]] chooses and orders the features; [[FeatureVectorIndex]] is the trie.
  */
@@ -37,6 +37,10 @@ object FeatureVector:
  * *discriminating* features sit at the shallow trie levels (E's permutation vectors), which is where the cone
  * descent prunes the most. Adapted to the problem's signature once, then frozen (superposition invents no
  * symbols, so the featured set is stable for the run).
+ *
+ * '''Precondition:''' monotonicity rests on θ-subsumption mapping literals **injectively** (a multiset, as
+ * `Subsumption.matchRec` implements it) — a set-based relaxation would let one literal of `c` cover two of `d`,
+ * and `c`'s symbol counts could then exceed its subsumee's.
  */
 final class Permutation(val sources: Array[Int], sigSize: Int):
   /** Number of features (vector length / trie depth). */
@@ -150,8 +154,29 @@ object Permutation:
  */
 final class FeatureVectorIndex(bank: TermBank, perm: Permutation):
   private val depth: Int = perm.length
-  private val buf: Array[Int] = new Array[Int](depth) // reused vector buffer (index ops never nest; cf. FingerprintIndex.fpBuf)
+  // One reusable feature-vector buffer shared by every clause-keyed operation. Safe only because those
+  // operations never nest on a single index: a retrieval reads `buf` throughout its descent (across every
+  // `visit` callback), so a callback that re-entered any clause-keyed op on the *same* index would refill the
+  // buffer mid-descent and silently drop candidates — a false negative, i.e. a missed simplification that
+  // nothing would report. `descending` turns that into a loud failure (the same device
+  // [[FingerprintIndex]] uses for its `fpBuf`).
+  private val buf: Array[Int] = new Array[Int](depth)
+  private var descending: Boolean = false // true while a retrieval descent is live (buf is being read)
   private var _size: Int = 0
+
+  /** Fail loudly if a clause-keyed op is entered during a live retrieval descent (see the `buf` note). */
+  private def guardNotDescending(op: String): Unit =
+    if descending then
+      throw new IllegalStateException(
+        s"FeatureVectorIndex.$op during a live retrieval descent: a retrieval callback must not query or " +
+          "mutate the same index (the shared feature-vector buffer would be corrupted, dropping candidates). " +
+          "Collect inside the callback and mutate after it returns."
+      )
+
+  /** Run `descend` with the guard armed, so a re-entrant clause-keyed op inside a callback throws. */
+  private inline def guarded[A](inline descend: => A): A =
+    descending = true
+    try descend finally descending = false
 
   private final class Node:
     var keys: Array[Int] = null // internal: sorted child feature-values, used [0, nkids)
@@ -165,16 +190,12 @@ final class FeatureVectorIndex(bank: TermBank, perm: Permutation):
   def isEmpty: Boolean = _size == 0
 
   /** Drop all entries (reset to empty), so one index can be reused across saturations. */
-  def clear(): Unit = { root.keys = null; root.kids = null; root.nkids = 0; root.bucket = null; _size = 0 }
+  def clear(): Unit = { guardNotDescending("clear"); root.keys = null; root.kids = null; root.nkids = 0; root.bucket = null; _size = 0 }
 
   /** Insert `c` under its feature vector. */
   def insert(c: Clause): Unit =
+    guardNotDescending("insert")
     perm.fillVector(bank, c, buf)
-    insertUsingBuf(c)
-
-  /** The descend-and-add half of [[insert]], using the vector already in `buf` (the caller just filled it).
-   *  Shared with [[backwardCandidatesThenInsert]] so the two compute the feature vector only once. */
-  private def insertUsingBuf(c: Clause): Unit =
     var node: Node = root
     var d = 0
     while d < depth do { node = childForInsert(node, buf(d)); d += 1 }
@@ -183,6 +204,7 @@ final class FeatureVectorIndex(bank: TermBank, perm: Permutation):
 
   /** Remove `c` (matched by identity/`equals`); returns whether it was present. Prunes emptied nodes. */
   def remove(c: Clause): Boolean =
+    guardNotDescending("remove")
     perm.fillVector(bank, c, buf)
     val removed = removeRec(root, 0, c)
     if removed then _size -= 1
@@ -190,23 +212,29 @@ final class FeatureVectorIndex(bank: TermBank, perm: Permutation):
 
   /** Visit every stored clause whose vector is `≤` the query's componentwise — the candidate subsumers of `q`. */
   def forwardCandidates(q: Clause)(visit: Clause => Unit): Unit =
+    guardNotDescending("forwardCandidates")
     perm.fillVector(bank, q, buf)
-    descendLe(root, 0, visit)
+    guarded(descendLe(root, 0, visit))
+
+  /**
+   * Whether **some** candidate subsumer of `q` (a stored clause with a `≤` vector) satisfies `pred` — the
+   * short-circuiting counterpart of [[forwardCandidates]]. Forward subsumption asks an *existence* question
+   * ("is `q` subsumed by anything stored?"), so the `≤`-cone descent stops at the first clause `pred` accepts
+   * instead of walking the rest of the cone. Same candidate set, same verdict, less work.
+   *
+   * `pred` must not query or mutate this index (it would refill the shared `buf` mid-descent) — the same
+   * constraint the visiting retrievals carry. Verifying with `Subsumption.subsumes`, the only use, is fine.
+   */
+  def existsForwardCandidate(q: Clause)(pred: Clause => Boolean): Boolean =
+    guardNotDescending("existsForwardCandidate")
+    perm.fillVector(bank, q, buf)
+    guarded(existsLe(root, 0, pred))
 
   /** Visit every stored clause whose vector is `≥` the query's componentwise — the candidate subsumees of `q`. */
   def backwardCandidates(q: Clause)(visit: Clause => Unit): Unit =
+    guardNotDescending("backwardCandidates")
     perm.fillVector(bank, q, buf)
-    descendGe(root, 0, visit)
-
-  /** Fused backward query + insert, computing `q`'s feature vector **once**: run the `≥`-cone descent (the
-   *  candidate subsumees of `q`), then insert `q`. `q` is queried *before* it is placed, so it is never among its
-   *  own candidates (no self-subsumption), and nothing between the two steps touches `buf`. The caller must only
-   *  *collect* inside `visit` and defer any index mutation (e.g. removing the subsumed victims) until after this
-   *  returns — a mutation would recompute a vector into the shared `buf`. */
-  def backwardCandidatesThenInsert(q: Clause)(visit: Clause => Unit): Unit =
-    perm.fillVector(bank, q, buf)
-    descendGe(root, 0, visit)
-    insertUsingBuf(q)
+    guarded(descendGe(root, 0, visit))
 
   // --- descents -------------------------------------------------------------------------------------
 
@@ -223,10 +251,28 @@ final class FeatureVectorIndex(bank: TermBank, perm: Permutation):
       var i = lowerBound(node, buf(d)) // first index with key >= buf(d); the suffix from there is compatible
       while i < node.nkids do { descendGe(node.kids(i), d + 1, visit); i += 1 }
 
+  /** [[descendLe]] with early exit: `true` as soon as some clause in the `≤`-cone satisfies `pred`. */
+  private def existsLe(node: Node, d: Int, pred: Clause => Boolean): Boolean =
+    if d == depth then leafExists(node, pred)
+    else
+      var i = 0
+      while i < node.nkids && node.keys(i) <= buf(d) do
+        if existsLe(node.kids(i), d + 1, pred) then return true
+        i += 1
+      false
+
   private def leafForeach(node: Node, visit: Clause => Unit): Unit =
     if node.bucket != null then
       val it = node.bucket.iterator()
       while it.hasNext do visit(it.next())
+
+  private def leafExists(node: Node, pred: Clause => Boolean): Boolean =
+    if node.bucket == null then false
+    else
+      val it = node.bucket.iterator()
+      while it.hasNext do
+        if pred(it.next()) then return true
+      false
 
   // --- node child management (sorted parallel arrays) -----------------------------------------------
 

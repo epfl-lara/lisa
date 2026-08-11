@@ -1,7 +1,22 @@
 # Clausification Implementation & Optimization Journal
 
+> **Status: historical.** A record of the 2026-04-30/05-01 sessions, kept for the design rationale (the
+> `ClausificationSubproof` IR, library theorems as imports, the ε-Skolemization scheme). It is **not** a
+> description of the current code. Since it was written:
+>
+> - `certifyTseitin` (full Tseitin transformation) was replaced by `CertifiedFastClausifier.certifyFastNaming`
+>   — threshold-gated *selective* definitional naming, mirroring the uncertified `FastClausify`. The atoms are
+>   `nm…` (`GeneratedNames.namingAtom`), not `tsᵢ`.
+> - `ScreenPhase` was added at the top of the pipeline (it subsumes the former `RenamePhase`), and
+>   `DistributePhase` at the bottom.
+> - The two files named below, `ClausificationTPTPBench.scala` and `ClausificationStressTest.scala`, no longer
+>   exist; the benchmark harnesses now live in `superposition/` (`FofHarness` and friends).
+>
+> The current pipeline is `certifyScreen → certifyNegated → certifyFastNaming → certifyNnf → certifySkolem →
+> certifyPrenex → certifyDistribute → prover`; see `CertifiedFastClausifier.scala`.
+
 **Session date:** 2026-04-30 → 2026-05-01  
-**Files:** `Clausification.scala`, `ProofIR.scala`, `ClausificationTPTPBench.scala`, `ClausificationStressTest.scala`  
+**Files (as of writing):** `Clausification.scala`, `ProofIR.scala`, `ClausificationTPTPBench.scala`, `ClausificationStressTest.scala`  
 **Benchmark runs:** v1 (25 OK) → v2 (35 OK) → v3 (38 OK) → v4 (37 OK) → v5 (39 OK, 0 stuck, 2× faster, 5× less memory)
 
 ---

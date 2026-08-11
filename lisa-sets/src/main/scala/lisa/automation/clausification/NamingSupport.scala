@@ -6,8 +6,8 @@ import Clausification.*
 /**
  * Shared support for **definitional naming**: minting a fresh naming predicate over a subformula's free
  * variables, and the small kernel proofs that discharge a naming definition `∀x̄. d(x̄) ⇔ subst`. Used by
- * [[SkolemPhase]] (ε-discharge), [[CertifiedFastClausifier.certifyFastNaming]] (certified selective naming),
- * and the uncertified [[FastClausify]].
+ * [[SkolemPhase]] (ε-discharge), [[CertifiedClausifier.certifyNaming]] (certified selective naming),
+ * and the uncertified [[UncertifiedClausifier]].
  */
 private[clausification] object NamingSupport:
 
@@ -43,22 +43,38 @@ private[clausification] object NamingSupport:
     SCProof(steps.toIndexedSeq, IndexedSeq.empty)
   }
 
-  /** Build a fresh schematic naming atom over `f`'s free variables.
+  /**
+    * The variables a naming atom over `f` abstracts: `f`'s free `Ind`-sorted variables, minus `frozen`, ordered by
+    * identifier.
+    *
+    * Higher-sorted free variables (a predicate variable `P : Ind → Prop`, say) are excluded because the kernel
+    * cannot `forall`-quantify them; they stay free in the definition as opaque parameters, and [[InstSchema]] still
+    * substitutes them correctly since `nm` is fresh and cannot capture. `frozen` variables are excluded because
+    * they are uninterpreted constants pinned by a defining equality. A *nullary* one is the only kind that needs
+    * saying so: it is `Ind`-sorted, so the sort filter alone would abstract it, giving the atom an extra argument
+    * that is the same constant at every occurrence and a definition that quantifies over a symbol not meant to vary.
+    *
+    * '''This is the single definition of that list.''' [[freshNamingAtom]] builds the atom's sort and application
+    * from it, and `CertifiedClausifier.findSite` sizes its rewrite marker `p` from it. `nameOne` then
+    * substitutes `p -> nm` directly, which is well-sorted only if the two lists agree exactly. They were two copies
+    * of one filter expression; sharing this function is what makes the agreement structural rather than a comment.
+    */
+  def namingVars(f: Expression, frozen: Set[Variable]): Seq[Variable] =
+    f.freeVariables.toSeq.filter(v => v.sort == Ind && !frozen.contains(v)).sortBy(_.id.toString)
+
+  /** Build a fresh schematic naming atom over [[namingVars]]`(f, frozen)`.
     *
     * Returns `(nm, freeVars, nmApp)` where:
     *   - `nm` is a fresh [[Variable]] (NOT a [[Constant]]) of sort `s_1 -> ... -> s_n -> Prop` so that
     *     [[InstSchema]] can later substitute it with a Lambda body.
-    *   - `freeVars = [v_1, ..., v_n]` are the free variables of `f` in a fixed order.
+    *   - `freeVars = [v_1, ..., v_n]` is [[namingVars]]`(f, frozen)`.
     *   - `nmApp = nm(v_1)...(v_n)` is the application that replaces `f` in the rewritten formula.
+    *
+    * `frozen` has no default: every call site states what it is naming under, so the parameter cannot go quietly
+    * unused again.
     */
-  def freshNamingAtom(f: Expression, counter: Counter, frozen: Set[Variable] = Set.empty): (Variable, Seq[Variable], Expression) = {
-    // Only the Ind-sorted free variables are abstracted into `nm` — higher-sorted free variables (e.g. predicate
-    // or function variables like `P : Ind → Prop`) cannot be `forall`-quantified by the kernel, so they remain
-    // free in the iff/quantified definitional context (acting as opaque parameters). They are still substituted
-    // correctly by [[InstSchema]] since `nm` is fresh and substituting it cannot capture any other free variable.
-    // `frozen` variables (Skolem-function symbols from [[SkolemPhase]]) are excluded too: they are uninterpreted
-    // constants pinned by a defining equality, so a nullary one (Ind-sorted) must NOT be ∀-closed here either.
-    val freeVars = f.freeVariables.toSeq.filter(v => v.sort == Ind && !frozen.contains(v)).sortBy(_.id.toString)
+  def freshNamingAtom(f: Expression, counter: Counter, frozen: Set[Variable]): (Variable, Seq[Variable], Expression) = {
+    val freeVars = namingVars(f, frozen)
     val nmId = Identifier(GeneratedNames.namingAtom, counter.next())
     val nmSort = freeVars.foldRight(Prop: Sort)((v, acc) => v.sort -> acc)
     val nm = Variable(nmId, nmSort)

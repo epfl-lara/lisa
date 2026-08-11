@@ -6,7 +6,7 @@ import it.unimi.dsi.fastutil.ints.IntArrayList
 import Core.*
 
 /**
- * Demodulation (Phase 4 Step 3): simplification by rewriting with **positive unit equalities**. Forward
+ * Demodulation: simplification by rewriting with **positive unit equalities**. Forward
  * demodulation normal-forms a clause against the active unit equations; backward demodulation rewrites
  * active clauses with a newly arrived unit equality. Each rewrite step replaces a subterm by a strictly
  * smaller instance (the reduction ordering guarantees termination), so a clause is normalised by repeated
@@ -28,6 +28,12 @@ object Demodulation:
   /** A usable rewrite direction extracted from a positive unit equality clause: `lhs → rhs`. `lhsVars` are
    *  the distinct variables of `lhs`, precomputed once (they're invariant) for the renaming redundancy check. */
   final case class Rule(source: Clause, side: Int, lhs: Term, rhs: Term, oriented: Boolean, lhsVars: Array[Term])
+
+  /** Whether `c` is a positive unit equality — the shape a demodulator must have. A cheap pre-check before
+    * [[rules]], which would return `Nil` for anything else. */
+  def isPositiveUnitEquality(bank: TermBank, c: Clause): Boolean =
+    c.literals.length == 1 && bank.isPositive(c.literals(0)) &&
+      bank.headSymbol(bank.atomOf(c.literals(0))) == EqualitySymbol
 
   /** Distinct variable terms occurring in `t`, in first-occurrence order. */
   private def varsOf(bank: TermBank, t: Term): List[Term] =
@@ -77,7 +83,7 @@ object Demodulation:
         step = rewriteOnce(bank, trail, order, cur, rules)
       cur
 
-  /** Forward demodulation against a [[DiscriminationTree]] index of demodulators (Phase 5 Step 4): the same
+  /** Forward demodulation against a [[DiscriminationTree]] index of demodulators: the same
    *  simplification as [[normalForm]] over the indexed rule set, but each subterm's matching demodulators are
    *  found by one tree descent (with σ built on the trail) instead of scanning every rule. */
   def normalFormIndexed(bank: TermBank, trail: Trail, order: Order, clause: Clause, tree: DiscriminationTree): Clause =
@@ -199,7 +205,28 @@ object Demodulation:
       order.kbo.compare(rS, otherS) == Cmp.Lt || !matcherIsRenaming(bank, ap, rule.lhsVars)
 
   /** Whether the matcher σ, restricted to the rule's LHS variables (precomputed on the [[Rule]]), is a
-   *  variable renaming (injective onto variables). */
+   *  variable renaming (injective onto variables).
+   *
+   *  On the redundancy gate, so written as an explicit search rather than as
+   *  `lhsVars.map(ap.apply(_, 0)).distinct`: that spelling allocates a mapped array, a closure, and the set
+   *  and array behind `distinct` — which boxes every element, `Term` being an opaque `Int` — and computes all
+   *  the images before looking at any of them. Here each image is computed once into one array and compared
+   *  against its predecessors, and both loops exit at the first witness. Injectivity over 1–2 variables is
+   *  the common case, and `n == 1` needs no array at all. */
   private def matcherIsRenaming(bank: TermBank, ap: Trail#Applier, lhsVars: Array[Term]): Boolean =
-    val images = lhsVars.map(v => ap.apply(v, 0))
-    images.forall(bank.isVar) && images.distinct.length == images.length
+    val n = lhsVars.length
+    if n == 0 then true
+    else if n == 1 then bank.isVar(ap.apply(lhsVars(0), 0)) // the common case: no array at all
+    else
+      val images = new Array[Term](n)
+      var i = 0
+      while i < n do
+        val image: Term = ap.apply(lhsVars(i), 0)
+        if !bank.isVar(image) then return false
+        var j = 0
+        while j < i do
+          if images(j) == image then return false // two LHS variables share an image: not injective
+          j += 1
+        images(i) = image
+        i += 1
+      true

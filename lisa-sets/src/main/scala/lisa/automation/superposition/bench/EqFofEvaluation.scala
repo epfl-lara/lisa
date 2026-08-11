@@ -1,4 +1,5 @@
 package lisa.automation.superposition
+package bench
 
 /**
  * The third evaluation dataset: non-clausal (FOF), first-order, **equality-bearing**, arithmetic-free TPTP
@@ -9,13 +10,15 @@ package lisa.automation.superposition
  * `.p` problem files are kept (not TPTP's withdrawn `.rm` variants), leaving 5589 clean equality-bearing FO
  * theorems.
  *
- * This is the set that actually exercises the Phase-4 equality inferences (superposition, equality
+ * This is the set that actually exercises the equality inferences (superposition, equality
  * resolution/factoring, demodulation) end-to-end, so the `equality` ablation is meaningful here (many refutations
  * need equality reasoning). Everything else — the pipeline, CLI, and output — is the shared [[FofHarness]]; see it
  * for the run modes and column meanings.
  */
 object EqFofEvaluation:
-  private val harness = new FofHarness("tptp-fof-fo-eq-thm.txt", "TPTP_FOF_EQ_LIST")
+  // The third argument names *this* object, so a forked child re-enters here and reads the same problem list.
+  private val harness = new FofHarness("tptp-fof-fo-eq-thm.txt", "TPTP_FOF_EQ_LIST",
+    "lisa.automation.superposition.bench.EqFofEvaluation")
 
   // `allProblems`/`sample` are the only members referenced outside the harness (tests, other harnesses); see
   // [[FofHarness]] for their contract.

@@ -6,20 +6,33 @@ import Clausification.*
 /**
  * Final clausification phase: **distributivity**. Runs last (after prenexing), turning each quantifier-free
  * NNF hypothesis matrix `φ` (a tree of `∧`/`∨` over literals) into its CNF clauses by distributing `∨` over
- * `∧`, and feeding the resulting literal-set clauses to the prover. This mirrors the uncertified
- * [[FastClausify]] (naming → NNF → Skolem → distribute); the earlier threshold-gated naming
- * ([[CertifiedFastClausifier.certifyFastNaming]]) is what keeps the `∨`-product — and hence this phase —
+ * `∧`, and feeding the resulting clauses to the prover. This mirrors the uncertified
+ * [[UncertifiedClausifier]] (naming → NNF → Skolem → distribute); the earlier threshold-gated naming
+ * ([[CertifiedClausifier.certifyNaming]]) is what keeps the `∨`-product — and hence this phase —
  * polynomial.
  *
  * '''Why it certifies cheaply.''' The forward direction `φ ⊢ CNF(φ)` (equivalently
  * `a∨(b∧c) ⊢ (a∨b)∧(a∨c)`) is the lattice inequality that holds in *every* ortholattice — only the reverse
- * `CNF(φ) ⊢ φ` needs true distributivity and fails orthologic. So each output clause `φ ⊢ Cᵢ` is derivable
- * with primitive kernel rules alone — no fresh symbols, no library lemmas, no schema instantiation:
- *   - a literal `L` : `Hypothesis(L ⊢ L)`
- *   - `a ∧ b`       : one `LeftAnd` lifts a child clause proof `a ⊢ c` (or `b ⊢ c`) to `a∧b ⊢ c`
- *   - `a ∨ b`       : one `LeftOr` joins `a ⊢ cₐ` and `b ⊢ c_b` to `a∨b ⊢ cₐ∪c_b` (the checker's `subset`
- *                     test absorbs the weakening of each side to the joined clause)
- * Each hypothesis `() ⊢ φ` then yields the clause sequent `() ⊢ Cᵢ` by `Cut(φ)` against the axiom import.
+ * `CNF(φ) ⊢ φ` needs true distributivity and fails orthologic. So each output clause is derivable with
+ * primitive kernel rules alone — no fresh symbols, no library lemmas, no schema instantiation. A clause is
+ * emitted as `N ⊢ P`, its negative literals as their atoms on the left and its positive literals on the right
+ * (see [[Clausification.clauseSequent]]), and the derivation of `φ, N ⊢ P` is built from:
+ *   - a positive literal `L` : `Hypothesis(L ⊢ L)`
+ *   - a negative literal `¬a`: `Hypothesis(a ⊢ a)` followed by one `LeftNot`, giving `¬a, a ⊢`
+ *   - `a ∧ b`       : one `LeftAnd` lifts a child derivation `a, N ⊢ P` (or `b, N ⊢ P`) to `a∧b, N ⊢ P`
+ *   - `a ∨ b`       : one `LeftOr` joins `a, N₁ ⊢ P₁` and `b, N₂ ⊢ P₂` to `a∨b, N₁∪N₂ ⊢ P₁∪P₂` (the checker's
+ *                     `subset` test absorbs the weakening of each premise to the joined clause)
+ * Each hypothesis `() ⊢ φ` then yields the clause sequent `N ⊢ P` by `Cut(φ)` against the axiom import, the
+ * cut removing `φ` from the left and leaving the clause.
+ *
+ * '''Why the derivation is emitted flat.''' A subformula's clause proof is used once per clause of its
+ * *sibling*: under `a ∨ b`, the derivation of `a ⊢ cₐ` is a premise of every one of the `|CNF(b)|` joins.
+ * Written as a tree of nested `SCSubproof`s it would appear as that many distinct occurrences — the objects
+ * are shared, so nothing is duplicated in memory, but `SCProofChecker` walks each occurrence, and the
+ * re-checking multiplies up the `∧`/`∨` tree. So [[distributeClauses]] emits one flat step list in which
+ * each derivation exists exactly once and later steps cite it by index. The step count is then linear in
+ * the number of clauses of each subformula, and every step is checked once. Flatness costs nothing at
+ * lowering time either — see the `needsAssumptions` comment in [[ProofIR]] for why.
  */
 private[clausification] object DistributePhase:
 
@@ -29,9 +42,9 @@ private[clausification] object DistributePhase:
     val n = hypotheses.size
     val outerImports = hypotheses ++ libImports
 
-    // Flat layout: for each hypothesis `() ⊢ φ` (import ref -(i+1)), emit one `SCSubproof(φ ⊢ Cᵢ)` + `Cut`
-    // per CNF clause, producing the clause sequent `() ⊢ Cᵢ`. Those become the prover's imports; one final
-    // `ClausificationSubproof` wraps the prover call, mapping each clause slot to its `Cut` step.
+    // Layout: for each hypothesis `() ⊢ φ` (import ref -(i+1)), splice in the derivation of every CNF clause,
+    // then one `Cut` per clause turning `φ, N ⊢ P` into the clause sequent `N ⊢ P`. Those become the prover's
+    // imports; one final `ClausificationSubproof` wraps the prover call, mapping each clause slot to its `Cut`.
     val steps      = scala.collection.mutable.ArrayBuffer.empty[ClausificationProofStep]
     val clauseSeqs = scala.collection.mutable.ArrayBuffer.empty[Sequent]
     val clauseRefs = scala.collection.mutable.ArrayBuffer.empty[Int]
@@ -39,11 +52,9 @@ private[clausification] object DistributePhase:
     for (i <- 0 until n) {
       checkInterrupted()
       val phi = singleRightFormula(hypotheses(i), "distribute")
-      for ((litSet, clauseProof) <- distributeClauses(phi)) {
-        val clauseSeq = Sequent(Set.empty, litSet)
-        steps += KernelStep(SCSubproof(clauseProof, IndexedSeq.empty)) //          φ ⊢ Cᵢ
-        val spRef = steps.size - 1
-        steps += KernelStep(Cut(clauseSeq, -(i + 1), spRef, phi)) //               () ⊢ Cᵢ
+      for ((negative, positive, clauseRef) <- distributeClauses(phi, steps)) {
+        val clauseSeq = Sequent(negative, positive)
+        steps += KernelStep(Cut(clauseSeq, -(i + 1), clauseRef, phi)) //            a₁, …, aₘ ⊢ b₁, …, bₙ
         clauseRefs += steps.size - 1
         clauseSeqs += clauseSeq
       }
@@ -55,43 +66,70 @@ private[clausification] object DistributePhase:
     steps += ClausificationSubproof(downstream, clauseRefs.toIndexedSeq ++ libRefs(n))
     ClausificationProof(steps.toIndexedSeq, outerImports)
 
-  /** Clauses of a quantifier-free NNF matrix `φ`, each as `(clauseLiterals, SCProof of φ ⊢ clause)`.
-   *  Proofs are self-contained (no imports). The number of clauses is bounded by the earlier naming pass. */
-  def distributeClauses(phi: Expression): Seq[(Set[Expression], SCProof)] = {
+  /** Append to `steps` the derivation of every clause of the quantifier-free NNF matrix `φ`, returning each
+   *  clause as its pair of literal sides (negative atoms, positive literals) together with the index in `steps`
+   *  of the step concluding `φ, negative ⊢ positive`.
+   *
+   *  The two sides are separated at the leaves rather than at the end, so that every intermediate sequent is
+   *  already in the emitted clause shape ([[Clausification.clauseSequent]]) and the closing `Cut` against the
+   *  hypothesis import removes `φ` and leaves the clause. The alternative, deriving `φ ⊢ literals` and moving
+   *  the negations afterwards, would need one extra `Restate` per clause.
+   *
+   *  Appends to the *caller's* buffer rather than returning its own, so the indices it hands back are already
+   *  absolute; collecting them separately would mean rebuilding every step to re-base its premises. See the
+   *  class doc for why the derivation is flat. */
+  def distributeClauses(phi: Expression, steps: scala.collection.mutable.ArrayBuffer[ClausificationProofStep]): Seq[(Set[Expression], Set[Expression], Int)] = {
     checkInterrupted()
+    def emit(step: SCProofStep): Int = { steps += KernelStep(step); steps.size - 1 }
     phi match
       case And(a, b) =>
-        // CNF(a ∧ b) = CNF(a) ∪ CNF(b); lift each child clause `child ⊢ c` to `a∧b ⊢ c`.
-        distributeClauses(a).map { case (c, p) => (c, liftAnd(p, a, b, c)) } ++
-          distributeClauses(b).map { case (c, p) => (c, liftAnd(p, a, b, c)) }
+        // CNF(a ∧ b) = CNF(a) ∪ CNF(b); lift each child clause `child, N ⊢ P` to `a∧b, N ⊢ P` with one `LeftAnd`.
+        val conjunction = and(a)(b)
+        def lift(clause: (Set[Expression], Set[Expression], Int)): (Set[Expression], Set[Expression], Int) =
+          val (negative, positive, ref) = clause
+          (negative, positive, emit(LeftAnd(Sequent(negative + conjunction, positive), ref, a, b)))
+        val la = distributeClauses(a, steps).map(lift)
+        la ++ distributeClauses(b, steps).map(lift)
       case Or(a, b) =>
-        // CNF(a ∨ b) = { cₐ ∪ c_b | cₐ ∈ CNF(a), c_b ∈ CNF(b) }; join with LeftOr.
-        val la = distributeClauses(a)
-        val lb = distributeClauses(b)
-        for ((cA, pA) <- la; (cB, pB) <- lb) yield (cA ++ cB, joinOr(pA, a, pB, b, cA ++ cB))
+        // CNF(a ∨ b) = { cₐ ∪ c_b | cₐ ∈ CNF(a), c_b ∈ CNF(b) }; join with `LeftOr`, taking the union side by side.
+        val disjunction = or(a)(b)
+        val la = distributeClauses(a, steps)
+        val lb = distributeClauses(b, steps)
+        for ((negA, posA, rA) <- la; (negB, posB, rB) <- lb) yield
+          val negative = negA ++ negB
+          val positive = posA ++ posB
+          (negative, positive, emit(LeftOr(Sequent(negative + disjunction, positive), Seq(rA, rB), Seq(a, b))))
       case lit =>
-        require(isLeaf(lit), s"distributeClauses: non-literal leaf in the NNF matrix (expected atom/¬atom/⊤/⊥): $lit")
-        Seq((Set(lit), SCProof(IndexedSeq(Hypothesis(lit |- lit, lit)), IndexedSeq.empty)))
+        require(isLeaf(lit), s"distributeClauses: non-literal leaf in the NNF matrix (expected atom/¬atom/⊤/⊥). " +
+          s"An η-reduced `∀(p)`/`∃(p)` reaching here means prenexing did not strip it — β-normalisation " +
+          s"η-reduced the body and `Clausification.etaExpandQuantifiers` was not applied. Got: $lit")
+        lit match
+          // A negative literal is placed on the left as its atom: `Hypothesis(a ⊢ a)` then one `LeftNot`,
+          // which turns `a ⊢ a` into `¬a, a ⊢`. The subformula `¬a` stays on the left, where the `LeftAnd`
+          // and `LeftOr` above expect it, and the clause's own literal is the `a` beside it.
+          case Neg(atom) =>
+            val hyp = emit(Hypothesis(atom |- atom, atom))
+            Seq((Set(atom), Set.empty[Expression], emit(LeftNot(Sequent(Set(lit, atom), Set.empty), hyp, atom))))
+          case _ =>
+            Seq((Set.empty[Expression], Set(lit), emit(Hypothesis(lit |- lit, lit))))
   }
 
-  /** From a child proof `child ⊢ c` (child = `a` or `b`) build `a∧b ⊢ c` with one `LeftAnd`. */
-  private def liftAnd(child: SCProof, a: Expression, b: Expression, c: Set[Expression]): SCProof =
-    SCProof(IndexedSeq(
-      SCSubproof(child, IndexedSeq.empty),
-      LeftAnd(Sequent(Set(and(a)(b)), c), 0, a, b)
-    ), IndexedSeq.empty)
-
-  /** From `a ⊢ cA` and `b ⊢ cB` build `a∨b ⊢ c` (with `cA ⊆ c` and `cB ⊆ c`) with one `LeftOr`. */
-  private def joinOr(pA: SCProof, a: Expression, pB: SCProof, b: Expression, c: Set[Expression]): SCProof =
-    SCProof(IndexedSeq(
-      SCSubproof(pA, IndexedSeq.empty),
-      SCSubproof(pB, IndexedSeq.empty),
-      LeftOr(Sequent(Set(or(a)(b)), c), Seq(0, 1), Seq(a, b))
-    ), IndexedSeq.empty)
-
-  /** A literal leaf of an NNF matrix: an atom, a negated atom, or `⊤`/`⊥` — never a connective/quantifier. */
+  /** A literal leaf of an NNF matrix: an atom, a negated atom, or `⊤`/`⊥` — never a connective/quantifier.
+    *
+    * '''The η-reduced quantifier is matched head-on, not left to the sort test.''' [[Forall]]/[[Exists]] destructure
+    * only an explicit `Lambda` argument, so `∀(p)` / `∃(p)` — the very shape
+    * [[Clausification.etaExpandQuantifiers]] exists to repair, and the one form of quantifier that survives
+    * [[PrenexPhase]] (whose `hasForall` misses it for the same reason) — does not match them. It is `Prop`-sorted,
+    * so it would reach the catch-all and be accepted as an *atom*: the clause would carry an opaque quantified
+    * literal, whose head [[lisa.automation.superposition.Bridge]] then interns as an ordinary unary predicate
+    * `forall/1` over a clause variable. Nothing detects that; the problem merely looks unprovable. Rejecting it
+    * here turns a silently mis-clausified problem into the `require` failure in [[distributeClauses]].
+    *
+    * Partial applications of the *connectives* need no such case — `∧(a)` is `Prop → Prop`, not `Prop`, so the
+    * sort test already excludes it. Only the quantifiers take a single argument and land back at `Prop`. */
   private def isLeaf(f: Expression): Boolean = f match
-    case `top` | `bot`                                                                 => true
+    case `top` | `bot`                                                                  => true
     case Neg(g)                                                                         => isLeaf(g)
     case And(_, _) | Or(_, _) | Implies(_, _) | Iff(_, _) | Forall(_, _) | Exists(_, _) => false
+    case Application(`forall`, _) | Application(`exists`, _)                            => false // η-reduced `∀(p)`
     case _                                                                              => f.sort == Prop

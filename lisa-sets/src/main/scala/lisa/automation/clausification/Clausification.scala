@@ -22,24 +22,35 @@ object Clausification {
    * `Reconstruction.identOf` recovers `Identifier(name, no)` from `name_no`. Because the prefixes are lowercase
    * alphabetic, generated symbols also print as bare TPTP lower-words.
    *
-   * (The fixed schema vars `P`, `R`, `x` in the library statements below are template placeholders, not
-   * generated per instance, and so are not configured here.)
+   * '''Reserved namespace.''' Together with the fixed schema placeholders of the library statements
+   * ([[schemaP]] `P`, [[schemaR]] `R`, `x` — instantiated by the Skolem/prenex bridges), these prefixes form the
+   * namespace the pipeline instantiates from the inside. No input variable may live in it: an inner `InstSchema`
+   * on a variable that is also free in an enclosing [[ClausificationSubproof]] assumption is rejected by the
+   * kernel (see the soundness restriction on [[ClausificationSubproof]]). [[ScreenPhase]] enforces this once, at
+   * the top of the pipeline, by renaming *every* free input variable into [[inputVar]] / [[inputPred]] /
+   * [[inputFun]], the prefixes reserved for screened input. Those are disjoint from every prefix below, and
+   * disjoint from `P`/`R`/`x` because a screened name always carries a counter of at least 1: `P_1` is a
+   * screened predicate, whereas the bare `P` is [[schemaP]] and is never produced by screening.
    */
   private[automation] object GeneratedNames:
     // Certified clausification pipeline (kernel schema vars, naming atoms, substitution-context holes):
     val skolemFun      = "esk"  // SkolemPhase             — Skolem ε-function schema var (discharged via InstSchema)
-    val namingAtom     = "nm"   // FastClausify + certified — the definitional-naming atom (both paths, via NamingSupport.freshNamingAtom)
-    val clauseVar      = "w"    // FastClausify, PrenexPhase (+ test stripForall) — the fresh variable each stripped ∀
+    val namingAtom     = "nm"   // UncertifiedClausifier + certified — the definitional-naming atom (both paths, via NamingSupport.freshNamingAtom)
+    val clauseVar      = "w"    // UncertifiedClausifier, PrenexPhase (+ test stripForall) — the fresh variable each stripped ∀
                                 //   is instantiated at (via LeftForall), becoming a clause variable; SAME name in both paths
     val epsAbs         = "epsi" // Clausal                 — ε-abstraction function schema var lifting ε-terms
     val hole           = "HOLE" // for specifying rewrite positions in proofs.
 
     val etaVar         = "etaZ" // Clausification          — fresh var for η-expansion (avoids capture) e.g. `∀ P` becoming `∀(λz. P(z))`
     val skolemBound    = "u"    // SkolemPhase             — fresh bound-var base (freshId) inside a Skolem-term λ
-    // Uncertified fast path (symbols interned into the term bank by `id.toString`):
-    val fastSkolem     = "sk"   // FastClausify            — Skolem function Constant (≠ the certified ε-schema `esk`)
-    // Input screening — the reserved namespace every OPEN input variable is renamed into ([[RenamePhase]]):
-    val inputVar       = "v"
+    // Uncertified path (symbols interned into the term bank by `id.toString`):
+    val uncertifiedSkolem     = "sk"   // UncertifiedClausifier            — Skolem function Constant (≠ the certified ε-schema `esk`)
+    // Input screening ([[ScreenPhase]]) — the three namespaces every free input variable is renamed into,
+    // by the sort a symbol ultimately returns. Screening counters start at 1, so a screened name is never the
+    // bare prefix and can therefore never be `P` ([[schemaP]]), `R` ([[schemaR]]) or `x`.
+    val inputVar       = "v"    // Ind                    — the clause variables of the input
+    val inputPred      = "P"    // Ind → … → Ind → Prop   — the input's uninterpreted predicate symbols
+    val inputFun       = "F"    // Ind → … → Ind → Ind    — the input's uninterpreted function symbols
     // Proof reconstruction (superposition DAG → kernel, [[lisa.automation.superposition.Reconstruction]]):
     val reconClauseVar = "cv"   // per-clause canonical clause variable (reused across clauses; instantiated independently)
 
@@ -52,8 +63,8 @@ object Clausification {
   // so that bridge subproofs can reference them by stable negative indices.
   // ─────────────────────────────────────────────────────────────────────────────
 
-  // ── Clause-count estimation (shared by the uncertified [[FastClausify]] and its certified twin
-  //    [[CertifiedFastClausifier]], whose naming decisions must agree bit-for-bit) ──────────────────
+  // ── Clause-count estimation (shared by the uncertified [[UncertifiedClausifier]] and its certified twin
+  //    [[CertifiedClausifier]], whose naming decisions must agree bit-for-bit) ──────────────────
   //
   /** Positive/negative CNF clause-count estimate of a subformula, each saturated at [[clauseCountCap]] — we
    *  only ever compare it against a naming `threshold`, so the exact count past the cap is irrelevant. */
@@ -118,6 +129,25 @@ object Clausification {
   // parameterize a definition over them (their meaning is pinned by a defining-equality assumption instead). Threaded
   // forward through every phase's transformed problem.
 
+  /**
+    * The sequent shape a clause takes on the way out of either conversion: the clause
+    * `¬a₁ ∨ … ∨ ¬aₘ ∨ b₁ ∨ … ∨ bₙ` becomes `a₁, …, aₘ ⊢ b₁, …, bₙ`, so a negative literal is carried as its
+    * atom on the **left** and a positive literal on the right. The empty sequent is the empty clause.
+    *
+    * This is the form [[lisa.automation.superposition.Bridge]] reads clauses in, and hence the form the
+    * imports of a reconstructed refutation take. Emitting it directly keeps the clause set, the prover's
+    * working form and the proof's imports in one representation. [[DistributePhase]] builds the same shape
+    * structurally, since it has to name the two sides while the derivation is still being assembled.
+    */
+  private[automation] def clauseSequent(literals: Iterable[Expression]): Sequent =
+    val negative = Set.newBuilder[Expression]
+    val positive = Set.newBuilder[Expression]
+    literals.foreach {
+      case Neg(atom) => negative += atom
+      case literal   => positive += literal
+    }
+    Sequent(negative.result(), positive.result())
+
   /** Total node count of a kernel expression (variables/constants/applications/lambdas). */
   def formulaSize(e: Expression): Int = e match
     case Application(f, a) => 1 + formulaSize(f) + formulaSize(a)
@@ -161,8 +191,29 @@ object Clausification {
    * '''ε-terms are left untouched''' (not expanded, not descended into): they are Skolem *terms*, abstracted
    * wholesale by the downstream prover and never quantifier-stripped, so expanding their interior would only
    * desync them from the β-normalised (η-reduced) form the prover reconstructs — breaking import matching.
+   *
+   * '''Where it is called, and the invariant it maintains.''' Everything downstream of an entry point holds
+   * "every `∀`/`∃` is an explicit `Application(binder, Lambda(x, b))`". Each of the three ways a formula can enter
+   * the prover establishes it once, at its own boundary:
+   *
+   *   - [[ScreenPhase]] — the certified pipeline, on hypotheses and conjecture alike;
+   *   - [[UncertifiedClausifier.clausalFormWithOrigins]] — the uncertified path (CASC, the benchmarks), after the optional
+   *     orthologic step, which can itself reintroduce the shape;
+   *   - [[lisa.automation.superposition.Bridge.formulaToSequent]] — already-clausal TPTP input, whose `∀`-strip
+   *     needs the explicit binder.
+   *
+   * Downstream, [[SkolemPhase.skolemizeOne]] is the one step that demonstrably *reintroduces* the shape (it
+   * `betaNormalForm`s, which is where η-reduction lives) and re-applies this immediately. The orthologic
+   * `reducedNNFForm` is ordered before the expansion in [[UncertifiedClausifier]] for the same reason, defensively: it
+   * rebuilds the formula through the kernel's locally-nameless normal form, so anything normalised beforehand can
+   * come back reshaped. The rule for new code is therefore: **re-apply this after any `betaNormalForm` or kernel
+   * normal-form round-trip.** [[DistributePhase.isLeaf]] rejects a surviving η-reduced quantifier as the certified
+   * pipeline's end-of-pipeline check that the invariant actually held.
+   *
+   * `private[automation]` rather than `private[clausification]` because [[lisa.automation.superposition.Bridge]]
+   * is one of the three entry points.
    */
-  private[clausification] def etaExpandQuantifiers(e: Expression): Expression =
+  private[automation] def etaExpandQuantifiers(e: Expression): Expression =
     def freshEtaVar(free: Set[Variable]): Variable =
       var n = 0
       var z = Variable(Identifier(GeneratedNames.etaVar, n), Ind)
@@ -188,7 +239,7 @@ object Clausification {
 
   /**
    * The outer **discharge** loop shared by [[SkolemPhase.certifySkolem]] and
-   * [[CertifiedFastClausifier.certifyFastNaming]]. `csub` carries `count` fresh-symbol definitions as
+   * [[CertifiedClausifier.certifyNaming]]. `csub` carries `count` fresh-symbol definitions as
    * assumptions on its antecedent; this discharges them **latest-first** — for each `j = count-1 … 0`,
    * `InstSchema` the fresh symbol to its value (which turns assumption `j` into a reflexive formula), prove that
    * reflexive formula, and `Cut` it away. `perStep(j)` supplies the three things that differ between the two
@@ -198,6 +249,10 @@ object Clausification {
    * Latest-first is required: a later definition's value may mention an earlier fresh symbol, so discharging the
    * latest first keeps every symbol confined to its own (still-present) assumption when instantiated. Returns the
    * finished proof over `outerImports`.
+   *
+   * '''Precondition:''' every `perStep` substitution must leave `csub.bot.right` pointwise unchanged, since that
+   * succedent is carried across the whole `InstSchema`/`Cut` chain as written — vacuous for both callers, whose
+   * subproof concludes `⊢`.
    */
   private[clausification] def dischargeAssumptionsLatestFirst(
       csub: ClausificationSubproof,
@@ -244,16 +299,37 @@ object Clausification {
   private[clausification] type AxiomTransform =
     (Sequent, Counter, RecCtx) => Option[(Sequent, IndexedSeq[ClausificationProofStep], Int)]
 
+  /** Heap ceiling for the safety valve below: 90% of max. `maxMemory` is fixed for the life of the JVM, so
+    * it is read once rather than on every poll. */
+  private val heapCeiling: Long = (Runtime.getRuntime.maxMemory / 10) * 9
+
+  /** Counts calls to [[checkInterrupted]] so the heap is polled only every [[heapPollInterval]]th one. Not
+    * synchronised: it is a heuristic trigger, and a lost increment under concurrent use only shifts *when*
+    * the poll happens, never whether the valve is correct. */
+  private var interruptPolls: Int = 0
+  private inline val heapPollInterval = 256
+
   /** Cooperative cancellation hook: throw `InterruptedException` if the
     * current thread has been interrupted, OR if the JVM is dangerously close
     * to OOM (used heap > 90% of max).  The latter is a safety valve so a
     * runaway problem (e.g. an exponential blow-up that allocates faster than
-    * `Thread.interrupted()` can be polled) cannot crash the whole bench. */
+    * `Thread.interrupted()` can be polled) cannot crash the whole bench.
+    *
+    * The interrupt flag is checked every call — it is a plain field read. The heap is not: `totalMemory` and
+    * `freeMemory` are native calls, and this runs per axiom, per naming step and per distribute step, of
+    * which there are thousands. Polling every 256th call keeps the valve responsive (a step allocates a
+    * bounded amount, so the heap cannot run far between polls) at 1/256th of the cost. */
   private[clausification] inline def checkInterrupted(): Unit = {
     if (Thread.interrupted()) throw new InterruptedException("Clausification cancelled")
+    interruptPolls += 1
+    if ((interruptPolls & (heapPollInterval - 1)) == 0) checkHeadroom()
+  }
+
+  /** The out-of-line half of [[checkInterrupted]]: the part worth paying for only occasionally. */
+  private def checkHeadroom(): Unit = {
     val rt = Runtime.getRuntime
     val used = rt.totalMemory() - rt.freeMemory()
-    if (used > (rt.maxMemory() / 10) * 9)
+    if (used > heapCeiling)
       throw new InterruptedException(s"Memory pressure: heap ${used / (1024*1024)}MB / max ${rt.maxMemory() / (1024*1024)}MB")
   }
 
@@ -324,7 +400,7 @@ object Clausification {
     ClausificationProof(flatSteps.toIndexedSeq, outerImports)
   }
 
-  // The top-level certified clausification pipeline lives in [[CertifiedFastClausifier.certifyClausal]] (it adds a
+  // The top-level certified clausification pipeline lives in [[CertifiedClausifier.certifyClausal]] (it adds a
   // threshold-gated naming pass before NNF to cap CNF blow-up). The per-phase certifiers and the shared helpers
   // (libImports, lowerClausificationProof, ClausificationProof) below are what it composes.
 

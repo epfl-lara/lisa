@@ -7,7 +7,7 @@ import scala.collection.mutable
 import scala.util.hashing.MurmurHash3
 
 /**
- * Phase 0 core datastructures for the superposition prover: the symbol signature, a
+ * The core datastructures every other file in the package is built on: the symbol signature, a
  * hash-consed term bank backed by a single flat arena, packed literals, and clauses.
  *
  * The whole engine is built around opaque integer references:
@@ -67,7 +67,7 @@ object Core:
   /** Default Knuth-Bendix weight given to a freshly interned symbol. */
   val defaultSymbolWeight: Int = 1
 
-  /** KBO symbol-**weight** generation scheme (Phase-5 heuristics; the weight twin of [[PrecedenceScheme]]).
+  /** KBO symbol-**weight** generation scheme (the weight twin of [[PrecedenceScheme]]).
    *  Applied at **intern time** — term weights are cached when terms are built, so the scheme must be fixed
    *  on the [[Signature]] before any clause is constructed. */
   enum WeightScheme:
@@ -82,10 +82,27 @@ object Core:
    * mutable ordering parameters used by KBO (`weight` and `precedence`). One instance is
    * allocated per distinct symbol. Terms refer to a symbol by its integer [[Symbol]] code
    * (`id`), so the hot paths index an array of these rather than dereferencing the object.
+   *
+   * `weight`/`precedence` are `def`-backed rather than plain `var`s so that **every** write bumps the
+   * owning signature's [[Signature.orderingVersion]] — the stamp any cache over the term ordering (today
+   * [[Order]]'s orientation memo) checks to invalidate itself. Assignment syntax is unchanged.
    */
-  final class SymbolInfo private[Core] (val id: Symbol, val name: String, val arity: Int, val isPredicate: Boolean):
-    var weight: Int = defaultSymbolWeight
-    var precedence: Int = id
+  /** @param name the identifier's bare name, and @param no its counter index — kept apart rather than as one
+    *             `name_no` string so a consumer rebuilding a kernel identifier does not have to split the
+    *             string back up (and get `Identifier("e_1", 0)` wrong where `Identifier("e", 1)` was meant). */
+  final class SymbolInfo private[Core] (val id: Symbol, val name: String, val no: Int, val arity: Int, val isPredicate: Boolean, private val owner: Signature):
+    private var _weight: Int = defaultSymbolWeight
+    private var _precedence: Int = id
+
+    /** Knuth-Bendix weight of this symbol. Read live by [[KBO]]; also folded into each term's cached weight
+      * at construction, so a change after terms are built leaves those cached weights stale. */
+    def weight: Int = _weight
+    def weight_=(w: Int): Unit = { _weight = w; owner.bumpOrderingVersion() }
+
+    /** Precedence rank of this symbol, read **live** by [[KBO]] (never cached into terms). */
+    def precedence: Int = _precedence
+    def precedence_=(p: Int): Unit = { _precedence = p; owner.bumpOrderingVersion() }
+
     override def toString: String = s"$name/$arity"
 
   // -----------------------------------------------------------------------------------------
@@ -103,16 +120,49 @@ object Core:
    */
   final class Signature(weightScheme: WeightScheme = WeightScheme.Const):
     private val infos: mutable.ArrayBuffer[SymbolInfo] = mutable.ArrayBuffer.empty[SymbolInfo]
-    private val index: mutable.HashMap[(String, Int), Symbol] = mutable.HashMap.empty[(String, Int), Symbol]
+    // Keyed by the full symbol identity — see [[intern]]. Only touched during ingestion, never on a search
+    // path, so a four-field key costs nothing that matters.
+    private val index: mutable.HashMap[(String, Int, Int, Boolean), Symbol] = mutable.HashMap.empty
+    private var _orderingVersion: Int = 0
+
+    /**
+     * A counter bumped by every write to any symbol's [[SymbolInfo.weight]] or [[SymbolInfo.precedence]] —
+     * i.e. by every change to the term ordering this signature induces (notably [[Precedence.assign]], which
+     * runs *after* the clauses are built). Caches over the ordering compare it against the version they were
+     * populated under and drop themselves when it moves, so no cache can outlive the parameters it was
+     * computed from. See [[Order.orient]], the only such cache today.
+     */
+    def orderingVersion: Int = _orderingVersion
+    private[Core] def bumpOrderingVersion(): Unit = _orderingVersion += 1
 
     // Reserve code 0 for the equality predicate (see [[EqualitySymbol]]); user symbols start at 1.
     intern("=", 2, isPredicate = true)
 
-    /** Intern `(name, arity)`, returning its (stable) symbol code. */
-    def intern(name: String, arity: Int, isPredicate: Boolean): Symbol =
+    /**
+     * Intern a symbol, returning its (stable) code. The key is the whole quadruple — name, counter index,
+     * arity and predicate-ness — because each of the four genuinely distinguishes source symbols:
+     *
+     *   - `no`, or `e` and `e_1` become one symbol;
+     *   - `arity`, since a symbol's meaning depends on it;
+     *   - `isPredicate`, which the key used to *accept and discard*. A name used at the same arity as both a
+     *     predicate and a function then collapsed into a single symbol, with whichever occurrence interned
+     *     first deciding the kind for both. TPTP input cannot express that (the positions are distinct), but
+     *     a Lisa goal can: `Constant("p", Ind→Prop)` and `Constant("p", Ind→Ind)` are two legal kernel
+     *     symbols. The prover could then resolve across them, which the kernel check catches on the tactic
+     *     path and nothing catches on the CASC path.
+     *
+     * What it deliberately does *not* distinguish is a `Constant` from a `Variable` treated as a symbol (an
+     * ε-abstraction symbol, say). Adding that alone would not close the class, since `Reconstruction` decides
+     * which to rebuild by name membership in its schematic set; the generated namespaces keep them apart.
+     *
+     * Interning *after* [[Precedence.assign]] is sound but unprincipled: the new symbol keeps its default
+     * precedence (its own code), which lands above every rank the scheme assigned, so it silently sits outside
+     * the chosen [[PrecedenceScheme]] — the order stays total, so no completeness is lost.
+     */
+    def intern(name: String, no: Int, arity: Int, isPredicate: Boolean): Symbol =
       index.getOrElseUpdate(
-        (name, arity), {
-          val info: SymbolInfo = new SymbolInfo(infos.length, name, arity, isPredicate)
+        (name, no, arity, isPredicate), {
+          val info: SymbolInfo = new SymbolInfo(infos.length, name, no, arity, isPredicate, this)
           info.weight = weightScheme match
             case WeightScheme.Const => defaultSymbolWeight
             case WeightScheme.Arity => arity + 1
@@ -120,6 +170,10 @@ object Core:
           info.id
         }
       )
+
+    /** Intern a symbol whose identifier carries no counter (`no = 0`) — the built-in equality, and the
+      * hand-built signatures in the tests. Kernel input goes through the four-argument form. */
+    def intern(name: String, arity: Int, isPredicate: Boolean): Symbol = intern(name, 0, arity, isPredicate)
 
     /** Number of distinct symbols interned so far. */
     def size: Int = infos.length
@@ -314,6 +368,26 @@ object Core:
      * clause (`Array.empty`) denotes falsity.
      */
     def mkClause(lits: Array[Literal], justification: Justification = Justification.Input, goalInput: Boolean = false): Clause =
+      val id: Int = clauseCounter
+      clauseCounter += 1
+      buildClause(lits, justification, goalInput, id)
+
+    /**
+     * Build a clause that exists only to be handed to an index as a retrieval key -- forward/backward
+     * subsumption ask "which stored clause is `≤`/`≥` this one?", and the trie and `Subsumption.subsumes`
+     * both want a [[Clause]], not a bare literal array.
+     *
+     * It differs from [[mkClause]] in exactly one way: it does not draw an id from `clauseCounter`. Minting
+     * one per literal per simplification call inflates the id space that real clauses live in, and ids are
+     * used as identities and as hash keys (`ActiveSet.slot`, the lazy-deletion sets, the fingerprint entries),
+     * so the spread is not free. Every query clause instead carries [[QueryClauseId]], which is negative and
+     * shared: it can never collide with a real id, and it is deliberately useless as an identity, since a
+     * query clause must never be stored (see [[Clause.isQuery]] and the guards in `ActiveSet`/`PassiveSet`).
+     */
+    def mkQueryClause(lits: Array[Literal]): Clause =
+      buildClause(lits, Justification.Input, false, QueryClauseId)
+
+    private def buildClause(lits: Array[Literal], justification: Justification, goalInput: Boolean, id: Int): Clause =
       var w = 0
       var pos = 0
       var predBits = 0L
@@ -324,8 +398,6 @@ object Core:
         if isPositive(l) then pos += 1
         predBits |= 1L << (headSymbol(atomOf(l)) & 63) // head-symbol fingerprint (mod 64)
         i += 1
-      val id: Int = clauseCounter
-      clauseCounter += 1
       // One pass over the justification, packing `age` (high bits) and goal-ness (bit 0), so the two parallel
       // 8-case matches don't drift. Age: every generating rule is one generation past its premises; a
       // Canonicalization/Demodulation keeps the parent's age (same generation band). Goal-ness propagates as the
@@ -443,7 +515,7 @@ object Core:
    * parent clauses with the literal positions involved; the unifier is **not** stored -- it is
    * recomputed by re-unifying the recorded literals during reconstruction (as in E, Vampire and
    * Prover9). Parents are held by reference, so a clause transitively retains its whole derivation
-   * DAG (see PossibleOptimizations.md for the memory note).
+   * DAG (see `archive/PossibleOptimizations.md` for the memory note).
    */
   enum Justification:
     /** A clause from the input problem (no parents). */
@@ -481,6 +553,31 @@ object Core:
      */
     case Demodulation(target: Clause, targetLit: Int, pos: Array[Int], rule: Clause, ruleSide: Int)
 
+    /**
+     * The clauses this inference was derived from, ignoring the literal positions and sides — i.e. the edges
+     * out of this node of the derivation DAG. `Nil` for [[Input]].
+     *
+     * The one place the eight cases are enumerated for DAG *walking*, shared by every consumer that needs
+     * only the edges (the proof cone, the derivation printer, tests counting input leaves), so a ninth rule is
+     * one edit rather than a hunt. Deliberately **not** used by [[TermBank.mkClause]], which runs on every
+     * clause ever built and would pay a `List` allocation for it; its own match also needs more than the
+     * premises (whether the rule advances the age generation).
+     */
+    def premises: List[Clause] = this match
+      case Input                                => Nil
+      case Resolution(l, _, r, _)               => List(l, r)
+      case Factoring(p, _, _)                   => List(p)
+      case Canonicalization(p)                  => List(p)
+      case Superposition(f, _, _, i, _, _)      => List(f, i)
+      case EqualityResolution(p, _)             => List(p)
+      case EqualityFactoring(p, _, _, _, _)     => List(p)
+      case Demodulation(t, _, _, r, _)          => List(t, r)
+
+  /** The [[Clause.id]] borne by every clause built with [[TermBank.mkQueryClause]]. Negative, so it cannot
+    * collide with an id drawn from the clause counter, and shared by all query clauses, so any code that
+    * treats it as an identity is wrong by construction rather than subtly. */
+  final val QueryClauseId: Int = -1
+
   /**
    * A clause is an array of [[Literal]]s (a disjunction); no canonical ordering or
    * deduplication is imposed at construction (see [[TermBank.mkClause]]). It caches its
@@ -492,9 +589,9 @@ object Core:
    *
    * It also caches a cheap **subsumption signature** -- `posCount`/`negCount` (literal polarity
    * counts) and `predBits` (a 64-bit fingerprint OR-ing one bit per literal's head-symbol code mod
-   * 64). These give the O(1) necessary-condition pre-filter for θ-subsumption: a clause `c` can
-   * subsume `d` only if `c.size <= d.size`, `c.posCount <= d.posCount`, `c.negCount <= d.negCount`,
-   * `c.weight <= d.weight`, and `(c.predBits & d.predBits) == c.predBits` (see `Subsumption`).
+   * 64). Together with `size` and `weight` these are what `Subsumption.sigSubsumes` compares for its
+   * O(1) necessary-condition pre-filter on θ-subsumption; that method states the conditions and why
+   * each one holds.
    */
   final class Clause private[Core] (
       val literals: Array[Literal],
@@ -525,9 +622,42 @@ object Core:
       if _selected == null then _selected = bank.selector.select(bank, literals)
       _selected
 
+    private var _fromSides: List[(Int, Int, Term, Symbol)] = null
+    private var _fromSidesVersion: Int = -1
+
+    /**
+     * This clause's usable superposition from-sides ([[Superposition.fromSides]] over its [[selected]]
+     * literals), computed once and cached — the from-side analogue of [[select]], and activated clauses only,
+     * since only they are ever asked.
+     *
+     * '''Why it is worth caching.''' The linear (non-indexed) generation scan asks every *active* clause for its
+     * from-sides on every given, so the same list was rebuilt `|active| × |given|` times per saturation, one
+     * tuple per usable side each time. Cached, it is built once per activated clause. The from-index maintenance
+     * in [[ActiveSet]] reads it too, which makes its removal take out exactly the entries its insertion put in
+     * rather than re-deriving equal ones.
+     *
+     * '''Why it is stamped.''' The sides depend on `Order.orient`, hence on the KBO's weights and precedence. A
+     * verdict is only valid for the parameters it was computed under, so the cache carries the
+     * [[Signature.orderingVersion]] it was built at and rebuilds when that moves — the same device
+     * `Order`'s own orientation memo uses. Within one saturation the ordering is fixed and this never fires;
+     * it is what keeps the cache honest if a clause outlives a re-assignment (a bank reused across two
+     * saturations under different [[PrecedenceScheme]]s, as the A/B tests do).
+     */
+    def fromSides(bank: TermBank): List[(Int, Int, Term, Symbol)] =
+      val version: Int = bank.signature.orderingVersion
+      if _fromSides == null || _fromSidesVersion != version then
+        _fromSides = Superposition.fromSides(bank, bank.order, this)
+        _fromSidesVersion = version
+      _fromSides
+
     inline def size: Int = literals.length
     inline def isEmpty: Boolean = literals.length == 0
-    override def toString: String = if isEmpty then "□" else literals.mkString("[", ", ", "]")
+
+    /** True for a clause built by [[TermBank.mkQueryClause]] as a throwaway index key. Its [[id]] is a shared
+      * sentinel, so it must never be stored anywhere keyed by id -- the active and passive sets reject it. */
+    inline def isQuery: Boolean = id == QueryClauseId
+
+    override def toString: String = (if isQuery then "?" else "") + (if isEmpty then "□" else literals.mkString("[", ", ", "]"))
 
   // -----------------------------------------------------------------------------------------
   // Unification (Trail)

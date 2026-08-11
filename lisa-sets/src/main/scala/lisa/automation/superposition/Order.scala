@@ -5,7 +5,7 @@ import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap
 
 /**
  * The semantic ordering the superposition calculus runs on, layered on the term-level [[KBO]]. It
- * provides, in one place shared by the literal selector and the (Phase-4) equality inferences:
+ * provides, in one place shared by the literal selector and the equality inferences:
  *
  *   - equality-atom recognition and **orientation** (`orient`/`maximalSide`) -- which side of an
  *     equation is `≻`-greater, hence which side superposition may rewrite from/into;
@@ -37,17 +37,31 @@ final class Order(val kbo: KBO):
   /**
    * Orientation memo, keyed on the equality atom's arena [[Core.offset]] (a stable, unique `Int` for a
    * hash-consed term), storing the [[Cmp]] ordinal; `-1` is the "not yet computed" sentinel. Same
-   * primitive-int-map shape as the bank's own tables — no boxing. Safe to cache because the KBO
-   * weights/precedence are fixed once the problem signature is set.
-   * See `PossibleOptimizations.md` for caching orientation on the atom record itself (E/Vampire style).
+   * primitive-int-map shape as the bank's own tables — no boxing.
+   * See `archive/PossibleOptimizations.md` for caching orientation on the atom record itself (E/Vampire style).
+   *
+   * '''Why it is safe to cache.''' A verdict is only valid for the KBO parameters it was computed under, and
+   * precedence is read *live* by [[KBO]] — [[Precedence.assign]] rewrites it after the clauses are built, and
+   * a strategy may pick any [[PrecedenceScheme]]/[[Core.WeightScheme]]. So the cache stamps itself with the
+   * signature's [[Core.Signature.orderingVersion]] (bumped by every weight/precedence write) and drops itself
+   * the moment that moves. This replaces an unwritten "never call `orient` before `Precedence.assign`"
+   * ordering constraint on the callers with an invariant the cache enforces itself.
    */
   private val orientCache: Int2IntOpenHashMap =
     val m = new Int2IntOpenHashMap()
     m.defaultReturnValue(-1)
     m
 
-  /** Orient an equality atom: the [[Cmp]] of its two sides under the [[KBO]] (`Gt` = lhs greater). Memoised. */
+  /** The [[Core.Signature.orderingVersion]] `orientCache`'s entries were computed under. */
+  private var cachedOrderingVersion: Int = bank.signature.orderingVersion
+
+  /** Orient an equality atom: the [[Cmp]] of its two sides under the [[KBO]] (`Gt` = lhs greater). Memoised,
+    * with the memo discarded whenever the signature's ordering parameters change (see [[orientCache]]). */
   def orient(atom: Term): Cmp =
+    val version: Int = bank.signature.orderingVersion
+    if version != cachedOrderingVersion then
+      orientCache.clear() // the weights/precedence the entries were computed under are gone
+      cachedOrderingVersion = version
     val cached: Int = orientCache.get(atom.offset)
     if cached >= 0 then Cmp.fromOrdinal(cached)
     else
@@ -55,8 +69,14 @@ final class Order(val kbo: KBO):
       orientCache.put(atom.offset, c.ordinal)
       c
 
-  /** The strictly-`≻`-greater side of an equality atom, or `None` when the sides are `Eq`/`Inc`. */
-  def maximalSide(atom: Term): Option[Term] =
+  /** The strictly-`≻`-greater side of an equality atom, or `None` when the sides are `Eq`/`Inc`.
+    *
+    * '''Test oracle, not engine API.''' No production path calls this — the inference rules read [[orient]]
+    * directly and branch on the `Cmp`, rather than allocating an `Option` per query. It is kept because it
+    * states the definition in the form the tests check against; `private[automation]` so a reader of this
+    * class can tell the engine's surface from the oracles. Same for [[isStrictlyMaximal]] and
+    * [[compareClause]]. */
+  private[automation] def maximalSide(atom: Term): Option[Term] =
     orient(atom) match
       case Gt => Some(bank.arg(atom, 0))
       case Lt => Some(bank.arg(atom, 1))
@@ -176,8 +196,9 @@ final class Order(val kbo: KBO):
       j += 1
     true
 
-  /** Whether literal `i` is **strictly maximal**: no other literal is `≻_L`-greater-or-equal (`Gt` or `Eq`). */
-  def isStrictlyMaximal(literals: Array[Literal], i: Int): Boolean =
+  /** Whether literal `i` is **strictly maximal**: no other literal is `≻_L`-greater-or-equal (`Gt` or `Eq`).
+    * Test oracle — see [[maximalSide]]; selection uses [[isMaximal]], which *is* on the engine's path. */
+  private[automation] def isStrictlyMaximal(literals: Array[Literal], i: Int): Boolean =
     var j = 0
     while j < literals.length do
       if j != i then
@@ -187,7 +208,8 @@ final class Order(val kbo: KBO):
     true
 
   /** `res(i)`: literal `i` is maximal (no other literal is `≻_L`-greater), via [[isMaximal]] per index. For the
-   *  selector. `Array.tabulate[Boolean]` is specialised (no boxing), so the hot path is unaffected. */
+   *  selector, which needs every literal's verdict and would otherwise call [[isMaximal]] in its own loop.
+   *  Quadratic in the literal count, which is 1–3 in practice. */
   def maximalFlags(literals: Array[Literal]): Array[Boolean] =
     Array.tabulate(literals.length)(isMaximal(literals, _))
 
@@ -196,9 +218,14 @@ final class Order(val kbo: KBO):
   /**
    * The clause order: multiset extension of `≻_L` over the two clauses' literal multisets. `Gt` if
    * `c1 ≻_C c2`, `Lt` if `c2 ≻_C c1`, `Eq` if the literal multisets are `≻_L`-equal, `Inc` otherwise.
-   * Consumed by superposition's premise-comparison gate and demodulation's redundancy check.
+   *
+   * '''Not currently used by the loop.''' The gates that could want it compare *terms* directly instead:
+   * [[Superposition.superpose]]'s orientation checks and [[Demodulation.isPremiseRedundant]] both call
+   * `kbo.compare`. Kept as the reference implementation of `≻_C` for the redundancy criteria that will need
+   * a clause-level comparison, and exercised by `OrderTest` — hence `private[automation]`, like the other
+   * oracles here (see [[maximalSide]]).
    */
-  def compareClause(c1: Clause, c2: Clause): Cmp =
+  private[automation] def compareClause(c1: Clause, c2: Clause): Cmp =
     literalMultisetCompare(c1.literals, c2.literals)
 
   // --- multiset extension helpers ----------------------------------------------------------------

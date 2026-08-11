@@ -1,11 +1,12 @@
 package lisa.automation.superposition
+package bench
 
 import java.io.File
-import scala.util.{Success, Failure, Using}
+import scala.util.{Try, Success, Failure, Using}
 
 import lisa.utils.K
 import lisa.tptp.KernelParser.{problemToKernel, strictMapAtom, strictMapTerm, strictMapVariable}
-import lisa.automation.clausification.{Clausification, CertifiedFastClausifier, UncertifiedClausification}
+import lisa.automation.clausification.{Clausification, CertifiedClausifier, UncertifiedClausifier}
 import lisa.automation.clausification.Clausification.problemSize
 import BenchUtil.{withTimeout, toClausificationProblem, median}
 
@@ -16,7 +17,7 @@ import BenchUtil.{withTimeout, toClausificationProblem, median}
  * documentation.
  *
  * Each sampled problem is parsed, run through the (un)certified clausifier
- * ([[CertifiedFastClausifier.certifyClausal]] vs [[UncertifiedClausification.uncertifyClausal]] — the same
+ * ([[CertifiedClausifier.certifyClausal]] vs [[UncertifiedClausifier.uncertifyClausal]] — the same
  * clauses either way, so the delta measures the proof-building cost) with [[Clausal.proveOutcome]] as the
  * back-end, and — on a refutation — the composed proof is kernel-checked. The library-lemma statements remain
  * trusted imports until a tactic discharges them, so a `bad_proof` flags a composition/reconstruction bug.
@@ -33,22 +34,25 @@ import BenchUtil.{withTimeout, toClausificationProblem, median}
  * The `uncert` token skips certification; `off` skips all equality inferences (superposition, equality
  * resolution/factoring, demodulation); `noindex` runs superposition by linear scan instead of the fingerprint index.
  */
-final class FofHarness(listFileName: String, listEnvVar: String):
+/** @param childMainClass the object whose `main` a forked child re-enters — the owning harness object, so it
+  *                       reads the same problem list. See [[solveForked]]. */
+final class FofHarness(listFileName: String, listEnvVar: String, childMainClass: String):
+
+  private val problems: ProblemList = new ProblemList(listFileName, Some(listEnvVar))
 
   /** The full list of problem paths (relative to the TPTP root), in file order. Read once. */
-  lazy val allProblems: Vector[String] =
-    val list = BenchUtil.locateList(listFileName, Some(listEnvVar)).getOrElse(
-      throw new java.io.FileNotFoundException(s"Could not find $listFileName (set $listEnvVar or run from the repo root)."))
-    Using(scala.io.Source.fromFile(list))(_.getLines().map(_.trim).filter(_.nonEmpty).toVector).get
+  def allProblems: Vector[String] = problems.all
 
-  /** A reproducible random sample of `n` problems drawn with `seed` (`Random(seed).shuffle(all).take(n)`); the
-   *  same seed always picks the same sample, and an `n` past the list returns the whole shuffled list. */
-  def sample(n: Int = 100, seed: Long = 42): Vector[String] =
-    new scala.util.Random(seed).shuffle(allProblems).take(n)
+  /** A reproducible random sample of `n` problems drawn with `seed`; the same seed always picks the same
+   *  sample, and an `n` past the list returns the whole shuffled list. */
+  def sample(n: Int = 100, seed: Long = 42): Vector[String] = problems.sample(n, seed)
 
   // ── CLI ───────────────────────────────────────────────────────────────────────────────────────────────────
 
   def main(args: Array[String]): Unit =
+    // The child half of the forked path: solve exactly one problem, print one `RESULT` line, exit. Never
+    // invoked by hand — [[solveRow]] spawns it. Kept in this same main so the child needs no extra class.
+    if args.headOption.contains("solve1") then { solveChild(args.drop(1)); return }
     if args.headOption.contains("verify") then { args.drop(1).foreach(verifyOne); return }
     if args.headOption.contains("sample") then
       sample(args.lift(1).map(_.toInt).getOrElse(100), args.lift(2).map(_.toLong).getOrElse(42L)).foreach(println)
@@ -71,13 +75,11 @@ final class FofHarness(listFileName: String, listEnvVar: String):
    * blow up clausification memory/time). Prints a per-problem row and a category summary.
    */
   def benchmark(seed: Long = 42, n: Int = 100, timeoutMs: Long = 15000L, maxGiven: Int = 100000, maxSize: Int = 50000, certified: Boolean = true, equality: Boolean = true, fingerprintIndexing: Boolean = true): Unit =
-    val tptpRoot: Option[File] = sys.env.get("TPTP").map(new File(_)).filter(_.isDirectory)
-    if tptpRoot.isEmpty then
-      println("Set the TPTP environment variable to the TPTP root (the directory containing Problems/).")
-      return
+    val tptpRoot: Option[File] = BenchUtil.tptpRootOrExplain()
+    if tptpRoot.isEmpty then return
     val picked = sample(n, seed)
     val mode = if certified then "certified" else "uncertified"
-    println(s"list=$listFileName (${allProblems.size} problems), seed=$seed, n=${picked.size}, timeout=${timeoutMs}ms, maxGiven=$maxGiven, maxSize=$maxSize, mode=$mode, equality=$equality, index=$fingerprintIndexing")
+    println(s"list=${problems.describe} (${allProblems.size} problems), seed=$seed, n=${picked.size}, timeout=${timeoutMs}ms, maxGiven=$maxGiven, maxSize=$maxSize, mode=$mode, equality=$equality, index=$fingerprintIndexing, ${isolationBanner}")
     printHeader()
     val rows = picked.map(rel => solveRow(new File(tptpRoot.get, rel), timeoutMs, maxGiven, maxSize, certified, equality, fingerprintIndexing))
     report(rows, picked.size)
@@ -86,8 +88,8 @@ final class FofHarness(listFileName: String, listEnvVar: String):
    *  pipeline as [[benchmark]], with no sampling. Args: `<listfile> [timeoutMs=15000] [maxGiven=100000]
    *  [cert|uncert=cert] [maxSize=∞]`; `maxSize` defaults to unbounded so the size guard is off. */
   private def runFiles(a: Array[String]): Unit =
-    val tptpRoot: Option[File] = sys.env.get("TPTP").map(new File(_)).filter(_.isDirectory)
-    if tptpRoot.isEmpty then { println("Set the TPTP environment variable to the TPTP root."); return }
+    val tptpRoot: Option[File] = BenchUtil.tptpRootOrExplain()
+    if tptpRoot.isEmpty then return
     if a.isEmpty then { println("usage: files <listfile> [timeoutMs] [maxGiven] [cert|uncert] [maxSize]"); return }
     val paths = Using(scala.io.Source.fromFile(a(0)))(_.getLines().map(_.trim).filter(_.nonEmpty).toVector).get
     val timeoutMs = a.lift(1).map(_.toLong).getOrElse(15000L)
@@ -95,29 +97,41 @@ final class FofHarness(listFileName: String, listEnvVar: String):
     val certified = a.lift(3).forall(_.toLowerCase != "uncert")
     val maxSize = a.lift(4).map(_.toInt).getOrElse(Int.MaxValue)
     val mode = if certified then "certified" else "uncertified"
-    println(s"files=${a(0)} (${paths.size} problems), timeout=${timeoutMs}ms, maxGiven=$maxGiven, maxSize=$maxSize, mode=$mode")
+    println(s"files=${a(0)} (${paths.size} problems), timeout=${timeoutMs}ms, maxGiven=$maxGiven, maxSize=$maxSize, mode=$mode, ${isolationBanner}")
     printHeader()
     val rows = paths.map(rel => solveRow(new File(tptpRoot.get, rel), timeoutMs, maxGiven, maxSize, certified))
     report(rows, paths.size)
 
+  /** Which isolation the run used — it changes what the timings mean, so it belongs in the banner above them.
+    * `fork` costs a JVM start-up per problem, so per-problem times on fast problems are dominated by it. */
+  private def isolationBanner: String =
+    if BenchUtil.forkEnabled then "isolation=fork (one JVM per problem; set LISA_FORK=0 for in-process)"
+    else "isolation=thread (LISA_FORK=0; a runaway problem can poison later ones)"
+
   private def printHeader(): Unit =
-    println(f"${"PROBLEM"}%-20s ${"HYP"}%4s ${"CJ"}%3s  ${"RESULT"}%-12s ${"clausify"}%10s ${"prover"}%10s ${"check"}%9s ${"given"}%9s")
+    BenchUtil.resetAbandoned() // this run's contamination count starts here
+    println(f" ${"PROBLEM"}%-19s ${"HYP"}%4s ${"CJ"}%3s  ${"RESULT"}%-12s ${"clausify"}%10s ${"prover"}%10s ${"check"}%9s ${"given"}%9s")
 
   /** Per-problem outcome plus a breakdown of where the wall-clock went: `clausifyMs` (everything in
    *  `certifyClausal`/`uncertifyClausal` outside the prover call), `proverMs` (Bridge search + reconstruction),
-   *  `checkMs` (the final kernel check), and the loop-scale counters. */
+   *  `checkMs` (the final kernel check), and the loop-scale counters.
+   *
+   *  `contaminated` marks a row that ran while an earlier worker was still alive after being abandoned (see
+   *  [[BenchUtil.abandonedWorkers]]) — its timings, and often its verdict, say more about that thread than
+   *  about this problem. */
   private final case class Timing(category: String, clausifyMs: Double = 0.0, proverMs: Double = 0.0, checkMs: Double = 0.0,
-                                  givenProcessed: Int = 0, peakActive: Int = 0, peakPassive: Int = 0)
+                                  givenProcessed: Int = 0, peakActive: Int = 0, peakPassive: Int = 0,
+                                  contaminated: Boolean = false, detail: String = "")
 
   /** Deep-check one problem (path relative to the TPTP root): clausify both ways, solve, and report the
    *  kernel-checker verdict in detail — for diagnosing `BAD_PROOF`. */
   def verifyOne(rel: String): Unit =
-    val tptpRoot = sys.env.get("TPTP").map(new File(_)).getOrElse { println("set TPTP"); return }
+    val tptpRoot = BenchUtil.tptpRootOrExplain().getOrElse(return)
     val f = new File(tptpRoot, rel)
     val cprob = toClausificationProblem(problemToKernel(f)(using (strictMapAtom, strictMapTerm, strictMapVariable)))
     for (label, mk) <- Seq[(String, () => K.SCProof)](
-      "uncertified" -> (() => UncertifiedClausification.uncertifyClausal(cprob, p => Clausal.prove(p))),
-      "certified"   -> (() => CertifiedFastClausifier.certifyClausal(cprob, p => Clausal.prove(p)))
+      "uncertified" -> (() => UncertifiedClausifier.uncertifyClausal(cprob, p => Clausal.prove(p))),
+      "certified"   -> (() => CertifiedClausifier.certifyClausal(cprob, p => Clausal.prove(p)))
     ) do
       print(f"$rel%-18s $label%-12s ")
       try
@@ -129,32 +143,86 @@ final class FofHarness(listFileName: String, listEnvVar: String):
           case _ => ()
       catch case e: Throwable => println(s"threw ${e.getClass.getSimpleName}: ${e.getMessage}")
 
-  /** Parse + clausify + solve one problem, kernel-check any refutation, print a per-phase row. */
+  /** Solve one problem and print its row — in its own JVM when [[BenchUtil.forkEnabled]], else in-process. */
   private def solveRow(f: File, timeoutMs: Long, maxGiven: Int, maxSize: Int, certified: Boolean, equality: Boolean = true, fingerprintIndexing: Boolean = true): Timing =
     val name = f.getName
-    if !f.exists then { println(f"$name%-20s ${"-- file not found --"}"); Timing("MISSING") }
-    else
-      // Catch `Throwable`, not just `NonFatal`: the recursive TPTP parser can `StackOverflowError` on very
-      // deeply-nested formulas (e.g. the parameterised LCL problems), which would otherwise kill the whole run.
-      (try Success(problemToKernel(f)(using (strictMapAtom, strictMapTerm, strictMapVariable)))
-       catch { case e: Throwable => Failure(e) }) match
-        case Failure(e) =>
-          println(f"$name%-20s ${"?"}%4s ${"?"}%3s  ${"PARSE_ERR"}%-12s          (${e.getClass.getSimpleName})")
-          Timing("PARSE_ERR")
-        case Success(parsed) =>
-          val cprob = toClausificationProblem(parsed)
-          val hyps = cprob.hypotheses.size
-          val cj = if cprob.conjecture.isDefined then "y" else "-"
-          val fsize = problemSize(cprob)
-          if fsize > maxSize then
-            println(f"$name%-20s $hyps%4d $cj%3s  ${"SKIPPED"}%-12s  (|F|=$fsize > $maxSize)")
-            return Timing("SKIPPED")
-          val res = withTimeout(timeoutMs + 5000L)(solveOne(cprob, timeoutMs, maxGiven, certified, equality, fingerprintIndexing)) match
+    if !f.exists then { println(f" $name%-19s ${"-- file not found --"}"); return Timing("MISSING") }
+    // Sampled *before* the run: a worker this problem abandons contaminates its successors, not itself. In
+    // fork mode nothing is ever abandoned — the child is killed — so this stays false throughout.
+    val dirty = BenchUtil.abandonedWorkers > 0
+    val (hyps, cj, res0) =
+      if BenchUtil.forkEnabled then solveForked(f, timeoutMs, maxGiven, maxSize, certified, equality, fingerprintIndexing)
+      else solveLocal(f, timeoutMs, maxGiven, maxSize, certified, equality, fingerprintIndexing, outerTimeout = true)
+    val res = res0.copy(contaminated = dirty)
+    printRow(name, hyps, cj, res, dirty)
+    res
+
+  private def printRow(name: String, hyps: Int, cj: String, t: Timing, dirty: Boolean): Unit =
+    val mark = if dirty then "!" else " "
+    val h = if hyps < 0 then "?" else hyps.toString
+    val detail = if t.detail.isEmpty then "" else s"  (${t.detail})"
+    println(f"$mark$name%-19s $h%4s $cj%3s  ${t.category}%-12s ${t.clausifyMs}%10.1f ${t.proverMs}%10.1f ${t.checkMs}%9.1f ${t.givenProcessed}%9d$detail")
+
+  // ── forked execution ──────────────────────────────────────────────────────────────────────────────────────
+  // The parent spawns one JVM per problem and reads back a single `RESULT` line. A child that never prints
+  // one was killed on timeout or died on a fatal error, and the two are distinguishable — which is more than
+  // the in-process path could manage, where both surfaced as `BAD_PROOF` (see the code review, §4.5).
+
+  /** Run this problem in a fresh JVM. The child gets `timeoutMs + 5000` wall-clock before it is killed, the
+    * same outer budget the in-process path allowed — but here the kill is real. */
+  private def solveForked(f: File, timeoutMs: Long, maxGiven: Int, maxSize: Int, certified: Boolean, equality: Boolean, indexing: Boolean): (Int, String, Timing) =
+    val argv = Seq("solve1", f.getPath, timeoutMs.toString, maxGiven.toString, maxSize.toString,
+      if certified then "cert" else "uncert", if equality then "on" else "off", if indexing then "index" else "noindex")
+    val outcome = BenchUtil.runForked(childMainClass, argv, timeoutMs + 5000L)
+    outcome.resultLine.flatMap(decodeRow) match
+      case Some(row) => row
+      case None      => (-1, "?", Timing(if outcome.timedOut then "HARD_TIMEOUT" else "PROVER_CRASH", detail = outcome.crashDetail))
+
+  /** Child entry: solve one problem, print one machine-readable line, exit. No outer timeout — the parent's
+    * `destroyForcibly` is the hard cap, and `solveOne` still honours `timeoutMs` cooperatively. */
+  private def solveChild(a: Array[String]): Unit =
+    val (hyps, cj, t) = solveLocal(new File(a(0)), a(1).toLong, a(2).toInt, a(3).toInt,
+      certified = a(4) != "uncert", equality = a(5) != "off", indexing = a(6) != "noindex", outerTimeout = false)
+    println(encodeRow(hyps, cj, t))
+
+  // Plain `toString`/`toDouble`, not the `f` interpolator: `%f` formats in the default locale, which writes
+  // `0,3` where the parser expects `0.3` — a bug that would only appear on a machine configured differently
+  // from the one this was written on.
+  private def encodeRow(hyps: Int, cj: String, t: Timing): String =
+    Seq(t.category, hyps.toString, cj, t.clausifyMs.toString, t.proverMs.toString, t.checkMs.toString,
+      t.givenProcessed.toString, t.peakActive.toString, t.peakPassive.toString, t.detail).mkString(BenchUtil.ResultPrefix, "\t", "")
+
+  private def decodeRow(line: String): Option[(Int, String, Timing)] =
+    val p = line.stripPrefix(BenchUtil.ResultPrefix).split('\t')
+    if p.length < 9 then None
+    else Try((p(1).toInt, p(2), Timing(p(0), p(3).toDouble, p(4).toDouble, p(5).toDouble,
+      p(6).toInt, p(7).toInt, p(8).toInt, detail = p.lift(9).getOrElse("")))).toOption
+
+  /** Parse + clausify + solve one problem in this JVM. `outerTimeout` adds the thread-based wall-clock guard —
+    * wanted when this *is* the run (`LISA_FORK=0`), redundant in a child whose parent will kill it. */
+  private def solveLocal(f: File, timeoutMs: Long, maxGiven: Int, maxSize: Int, certified: Boolean,
+                         equality: Boolean, indexing: Boolean, outerTimeout: Boolean): (Int, String, Timing) =
+    if !f.exists then return (-1, "?", Timing("MISSING"))
+    // Catch `Throwable`, not just `NonFatal`: the recursive TPTP parser can `StackOverflowError` on very
+    // deeply-nested formulas (e.g. the parameterised LCL problems), which would otherwise kill the whole run.
+    (try Success(problemToKernel(f)(using (strictMapAtom, strictMapTerm, strictMapVariable)))
+     catch { case e: Throwable => Failure(e) }) match
+      case Failure(e) => (-1, "?", Timing("PARSE_ERR", detail = e.getClass.getSimpleName))
+      case Success(parsed) =>
+        val cprob = toClausificationProblem(parsed)
+        val hyps = cprob.hypotheses.size
+        val cj = if cprob.conjecture.isDefined then "y" else "-"
+        val fsize = problemSize(cprob)
+        if fsize > maxSize then (hyps, cj, Timing("SKIPPED", detail = s"|F|=$fsize > $maxSize"))
+        else if !outerTimeout then
+          (hyps, cj, try solveOne(cprob, timeoutMs, maxGiven, certified, equality, indexing)
+                     catch { case e: Throwable => Timing(s"ERROR(${e.getClass.getSimpleName})") })
+        else
+          val t = withTimeout(timeoutMs + 5000L)(solveOne(cprob, timeoutMs, maxGiven, certified, equality, indexing)) match
             case Some(Success(t)) => t
             case Some(Failure(e)) => Timing(s"ERROR(${e.getClass.getSimpleName})")
             case None             => Timing("HARD_TIMEOUT")
-          println(f"$name%-20s $hyps%4d $cj%3s  ${res.category}%-12s ${res.clausifyMs}%10.1f ${res.proverMs}%10.1f ${res.checkMs}%9.1f ${res.givenProcessed}%9d")
-          res
+          (hyps, cj, t)
 
   /** A non-refutation ([[Bridge.Outcome]] `Saturated`/`Timeout`) thrown by the back-end to abort clausification. */
   private final class NonRefutation(val outcome: Bridge.Outcome) extends RuntimeException
@@ -170,7 +238,7 @@ final class FofHarness(listFileName: String, listEnvVar: String):
     val prover: Clausification.Problem => K.SCProof = p =>
       val ps = System.nanoTime()
       try
-        Clausal.proveOutcome(p, maxGiven, timeoutMs, equality, fingerprintIndexing, onStats = stats.set) match
+        Clausal.proveOutcome(p, maxGiven, timeoutMs, SearchOptions(equality = equality, fingerprintIndexing = fingerprintIndexing), onStats = stats.set) match
           case Right(proof) => proof
           case Left(other)  => throw new NonRefutation(other)
       catch
@@ -183,8 +251,8 @@ final class FofHarness(listFileName: String, listEnvVar: String):
     val base: Timing =
       try
         val proof =
-          if certified then CertifiedFastClausifier.certifyClausal(cprob, prover)
-          else UncertifiedClausification.uncertifyClausal(cprob, prover)
+          if certified then CertifiedClausifier.certifyClausal(cprob, prover)
+          else UncertifiedClausifier.uncertifyClausal(cprob, prover)
         val clausifyMs = clausifyMsSoFar
         val cs = System.nanoTime()
         val valid = K.SCProofChecker.checkSCProof(proof).isValid
@@ -212,6 +280,12 @@ final class FofHarness(listFileName: String, listEnvVar: String):
         s"clausify_err=${count(_.startsWith("CLAUSIFY_ERR"))}  error=${count(_.startsWith("ERROR"))}  " +
         s"parse_err=${count(_ == "PARSE_ERR")}  skipped=${count(_ == "SKIPPED")}  of $total"
     )
+    // Printed before the numbers, not after: they are the thing being called into question.
+    val warning = BenchUtil.contaminationWarning
+    if warning.nonEmpty then
+      println(warning)
+      println(s"   ${rows.count(_.contaminated)} of $total row${if total == 1 then "" else "s"} ran after that " +
+        "point and are marked `!` above.")
 
     // Throughput / scale over problems that reached the prover: total given clauses processed (the throughput
     // measure) and the peak active/passive sizes reached, summed and maxed across the sample.

@@ -4,7 +4,6 @@
 
 A superposition-based theorem prover for clausal-form problems, built for Lisa in Scala.
 Goals: highly efficient, low-level, with **full proof reconstruction** into the Lisa kernel.
-Roadmap and phases: [PLAN.md](lisa-sets/src/main/scala/lisa/automation/superposition/PLAN.md).
 Phases are done one at a time: never start a phase until the previous one is fully complete and tested, and until the user explicitly asks to start the next phase.
 
 ## Scope of work — STRICT

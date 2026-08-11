@@ -15,8 +15,7 @@ import lisa.tptp.KernelParser.{problemToKernel, strictMapAtom, strictMapTerm, st
  */
 class SynBaselineTest extends AnyFunSuite:
 
-  private val synDir: Option[java.io.File] =
-    sys.env.get("TPTP").map(t => new java.io.File(t, "Problems/SYN")).filter(_.isDirectory)
+  // Resolved per test through [[TptpCorpus]], which warns loudly the first time the corpus is missing.
 
   // 20 small self-contained no-equality unsatisfiable SYN clausal problems (2-5 clauses each),
   // all refutable by ordered resolution + factoring (no paramodulation needed).
@@ -29,8 +28,7 @@ class SynBaselineTest extends AnyFunSuite:
 
   problems.foreach { name =>
     test(s"SYN baseline: $name is refuted") {
-      assume(synDir.isDefined, "set the TPTP env var (TPTP root) to run the SYN baseline")
-      val f = new java.io.File(synDir.get, name)
+      val f = new java.io.File(TptpCorpus.subdirOrCancel("Problems/SYN", "the SYN baseline"), name)
       assume(f.exists, s"$f not found")
       val problem: Problem = problemToKernel(f)(using (strictMapAtom, strictMapTerm, strictMapVariable))
       assert(Bridge.solveTPTPProblem(problem, maxGiven = 50000).refuted)

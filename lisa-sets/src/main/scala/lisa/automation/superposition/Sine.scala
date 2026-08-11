@@ -8,7 +8,7 @@ import lisa.automation.clausification.Clausification
 /**
  * SInE (Sumo INference Engine) axiom selection: a **preprocessing** relevance filter for large axiom sets, run
  * *before* clausification. Seeded from the conjecture, it keeps only the hypotheses transitively reachable through
- * the trigger ("D") relation, and deletes the rest. See [[PortfolioStrategy.md]] §implications and E's `ccl_sine.c`
+ * the trigger ("D") relation, and deletes the rest. See `archive/PortfolioStrategy.md` §implications and E's `ccl_sine.c`
  * / Vampire's `SineUtils.cpp`.
  *
  * It is an **incomplete** transformation (it can drop a needed axiom), but **sound** — removing hypotheses can

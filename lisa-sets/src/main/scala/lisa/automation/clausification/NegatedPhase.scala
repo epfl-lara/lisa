@@ -3,6 +3,25 @@ package lisa.automation.clausification
 import lisa.utils.K.{_, given}
 import Clausification.*
 
+/**
+ * Conjecture negation — the phase that turns a *proof* obligation into a *refutation* one. It moves the
+ * conjecture `φ` to the hypothesis list as `¬∀x̄.φ` and hands a conjecture-free problem downstream; every phase
+ * below therefore `require`s `problem.conjecture.isEmpty`, and a `None` conjecture makes this phase a
+ * pass-through.
+ *
+ * Two things here are load-bearing for the rest of the pipeline.
+ *
+ * '''The free variables are ∀-closed before negating.''' A Lisa goal `φ(x̄)` asserts `∀x̄. φ(x̄)`, so what must be
+ * refuted is `∃x̄. ¬φ` — which Skolemizes to fresh *constants*. Negating `φ(x̄)` as it stands would leave x̄ as
+ * universal clause variables, i.e. refute only `∃x̄. φ`, a strictly weaker claim that does not reconstruct into
+ * `⊢ φ(x̄)`. Non-`Ind` free variables (predicate and function schemas) are left free: they are uninterpreted
+ * symbols, not object variables. [[UncertifiedClausifier.clausalFormWithOrigins]] repeats this for the uncertified path.
+ *
+ * '''This is where the clausal-prover contract's empty-sequent requirement comes from.''' The bridge below cuts
+ * the downstream subproof against `RightNot(⊢ φ, ¬φ)` on the pivot `¬φ`, so for the cut to yield `⊢ φ` the
+ * downstream [[ClausificationSubproof]] must conclude exactly `¬φ ⊢` — meaning the prover proper must conclude
+ * the *empty* sequent, not merely something falsity-shaped.
+ */
 private[clausification] object NegatedPhase:
 
   def certifyNegated(problem: Problem, prover: ClausificationProver): ClausificationProof =

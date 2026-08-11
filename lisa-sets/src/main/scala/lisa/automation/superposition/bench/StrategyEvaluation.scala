@@ -1,4 +1,5 @@
 package lisa.automation.superposition
+package bench
 
 import java.io.File
 import scala.util.{Success, Failure}
@@ -15,12 +16,13 @@ import BenchUtil.{withTimeout, toClausificationProblem}
  *
  * Unlike [[FofEvaluation]]/[[EqFofEvaluation]] it does **not** skip large problems (no `maxSize`): the point is
  * to see how each strategy — and its SInE filter, on the SUMO/CSR theories included via `TPTP_FOF_LIST` — copes
- * with the big problems we used to drop. Each problem runs on its own daemon thread under a hard wall-clock cap,
- * so a single blow-up (parser overflow, clausification explosion) is contained, not fatal to the run.
+ * with exactly the problems the other harnesses drop, since that is where axiom selection is supposed to earn
+ * its keep. Each problem runs on its own daemon thread under a hard wall-clock cap, so a single blow-up
+ * (parser overflow, clausification explosion) is contained, not fatal to the run.
  *
  * {{{
  *   TPTP=/path TPTP_FOF_LIST=/path/list.txt \
- *     sbt -J-Xmx8g "lisa-sets/runMain lisa.automation.superposition.StrategyEvaluation [seed] [n] [timeoutMs] [strat1,strat2,...]"
+ *     sbt -J-Xmx8g "lisa-sets/runMain lisa.automation.superposition.bench.StrategyEvaluation [seed] [n] [timeoutMs] [strat1,strat2,...]"
  * }}}
  */
 object StrategyEvaluation:
@@ -30,8 +32,8 @@ object StrategyEvaluation:
     val n         = args.lift(1).map(_.toInt).getOrElse(100)
     val timeoutMs = args.lift(2).map(_.toLong).getOrElse(10000L)
     val names     = args.lift(3).map(_.split(",").toList.map(_.trim)).getOrElse(List("balanced", "weight-greedy", "age-fair", "unary-redundancy"))
-    val tptpRoot  = sys.env.get("TPTP").map(new File(_)).filter(_.isDirectory)
-    if tptpRoot.isEmpty then { println("Set TPTP to the TPTP root (the directory containing Problems/)."); return }
+    val tptpRoot  = BenchUtil.tptpRootOrExplain()
+    if tptpRoot.isEmpty then return
     val strategies = names.flatMap(Strategy.byName)
     if strategies.size != names.size then
       println(s"unknown strategy in [${names.mkString(",")}]; available: ${Strategy.portfolio.map(_.name).mkString(", ")}")
@@ -39,11 +41,17 @@ object StrategyEvaluation:
     val picked = FofEvaluation.sample(n, seed)
     val nCsr = picked.count(_.contains("/CSR/"))
     println(s"seed=$seed n=${picked.size} timeout=${timeoutMs}ms strategies=${names.mkString(",")} (NO size filter; $nCsr CSR/SUMO problems in the sample)")
+    // Reset per strategy: a worker abandoned under one strategy hurts the strategies that follow, which is
+    // exactly the comparison this harness exists to make, so each block reports its own contamination.
     val summaries = strategies.map { strat =>
       println(s"\n===== ${strat.name} =====")
       println(f"${"PROBLEM"}%-22s ${"RESULT"}%-18s ${"ms"}%8s")
+      BenchUtil.resetAbandoned()
       val cats = picked.map(rel => runOne(new File(tptpRoot.get, rel), strat, timeoutMs))
-      report(strat.name, cats, picked.size)
+      val line = report(strat.name, cats, picked.size)
+      val warning = BenchUtil.contaminationWarning
+      if warning.nonEmpty then println(warning)
+      if warning.isEmpty then line else s"$line  [CONTAMINATED: ${BenchUtil.abandonedWorkers} abandoned worker(s)]"
     }
     println("\n=== summary ===")
     summaries.foreach(println)

@@ -7,8 +7,9 @@ import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
 import Core.*
 
 /**
- * Fingerprint indexing (Phase 5, Step 1) — the fast, imperfect *candidate filter* for the unification-based
- * inferences (superposition). See `Phase5.md` for the design and `PossibleOptimizations.md` for the SoA note.
+ * Fingerprint indexing — the fast, imperfect *candidate filter* for the unification-based inferences
+ * (superposition and ordinary resolution). `archive/Phase5.md` has the design notes and
+ * `archive/PossibleOptimizations.md` the struct-of-arrays alternative.
  *
  * A term's **fingerprint** is a fixed-length `Int` vector obtained by sampling a fixed set of positions (a
  * position is a path of argument indices; the empty path is the top). At each position we record one feature:
@@ -78,6 +79,10 @@ object Fingerprint:
  * subterm; `deg == BelowVar`/`NotInTerm` means we have gone below a variable / off the end of a concrete
  * symbol, and `deg` is exactly the feature to emit for this position and every position beneath it. This keeps
  * the walk allocation-free (no `Option`/ADT, no boxing) while respecting the opaque `Term` boundary.
+ *
+ * '''Precondition:''' the sampled `positions` are pairwise distinct — a repeat gives two output slots one trie
+ * node, whose `slot` field keeps only the last, leaving the other slot unwritten and (since [[fingerprintInto]]
+ * reuses the caller's buffer) carrying the previous term's feature.
  */
 final class SampleTrie(positions: Array[Array[Int]]):
 
@@ -142,7 +147,7 @@ final class SampleTrie(positions: Array[Array[Int]]):
  * fresh set from `null` (returned, so callers write `b = b.add(e)`).
  *
  * Two other representations (adaptive array→set, and array-only) benchmarked throughput-equivalent, so this
- * simplest form is kept. See `PossibleOptimizations.md`.
+ * simplest form is kept. See `archive/PossibleOptimizations.md`.
  */
 object Buckets:
 
@@ -219,7 +224,7 @@ final class FingerprintIndex[E](bank: TermBank, trie: SampleTrie = Fingerprint.F
   def isEmpty: Boolean = _size == 0
 
   /** Drop all entries (reset to empty), so one index can be reused across saturations. */
-  def clear(): Unit = { root.children = null; root.bucket = null; _size = 0 }
+  def clear(): Unit = { guardNotDescending("clear"); root.children = null; root.bucket = null; _size = 0 }
 
   /** Insert `entry` under `term`'s fingerprint. */
   def insert(term: Term, entry: E): Unit =
@@ -317,7 +322,7 @@ final class FromEntry(val clause: Clause, val litIndex: Int, val side: Int):
   override def toString: String = s"FromEntry(c${clause.id}, lit=$litIndex, side=$side)"
 
 /**
- * The resolution literal-index payload (Phase 5, Step 2): a selected non-equality literal `litIndex` of active
+ * The resolution literal-index payload: a selected non-equality literal `litIndex` of active
  * `clause` — an ordinary-resolution partner. The index is keyed by the literal *atom*, and polarity is carried
  * by *which* of the two per-polarity indices holds the entry (so a query fetches only complementary-polarity
  * candidates); the payload therefore needs only `(clause, litIndex)`. Value equality (on `clause.id`, `litIndex`)

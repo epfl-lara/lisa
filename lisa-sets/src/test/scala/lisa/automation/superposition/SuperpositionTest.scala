@@ -8,21 +8,7 @@ import Core.*
 /** Tests for the Phase-4 generating equality inferences ([[Superposition]]). */
 class SuperpositionTest extends AnyFunSuite:
 
-  class Fix:
-    val sig: Signature = new Signature
-    val bank: TermBank = new TermBank(sig)
-    val trail: Trail = new Trail(bank)
-    val order: Order = bank.order
-
-    def pred(name: String, arity: Int): Symbol = sig.intern(name, arity, isPredicate = true)
-    def fn(name: String, arity: Int): Symbol = sig.intern(name, arity, isPredicate = false)
-    def const(name: String): Term = bank.mkConst(fn(name, 0))
-    def app(f: Symbol, args: Term*): Term = bank.mkApp(f, args.toArray)
-    def v(n: Int): Term = bank.mkVar(Core.Variable(n))
-    def mkEq(s: Term, t: Term): Term = bank.mkApp(EqualitySymbol, Array(s, t))
-    def pos(atom: Term): Literal = bank.mkLiteral(atom, true)
-    def neg(atom: Term): Literal = bank.mkLiteral(atom, false)
-    def clause(lits: Literal*): Clause = bank.mkClause(lits.toArray)
+  class Fix extends TermFixture:
 
     /** Locate + unify + [[Superposition.superpose]] + restore — what the loop / term index will do around
      *  the build-only `superpose`. Tests drive superposition through this. */
@@ -118,6 +104,28 @@ class SuperpositionTest extends AnyFunSuite:
     assert(expected.isDefined) // among those enumerated over the ordered pairs / sides
     expected.get.justification match
       case Justification.EqualityFactoring(p, d, ds, k, ks) => assert(p == cl && d == 0 && ds == 0 && k == 1 && ks == 0)
+      case other => fail(s"expected EqualityFactoring, got $other")
+  }
+
+  test("equality factoring: the partner literal need not be eligible") {
+    val fx = new Fix; import fx.*
+    // `a` is interned first, so `d` outranks it in precedence.
+    val a = const("a"); val d = const("d"); val f = fn("f", 1); val x = v(0)
+    val cl = clause(pos(mkEq(app(f, x), a)), pos(mkEq(app(f, x), d)))
+    // Literal comparison cancels the shared `f(x)` and compares `a` against `d`, so literal 1 is *strictly*
+    // maximal: selection offers only it, and literal 0 is never eligible.
+    val flags = order.maximalFlags(cl.literals)
+    assert(!flags(0) && flags(1), s"expected literal 1 to be the only maximal literal, got ${flags.mkString(",")}")
+    // Bachmair–Ganzinger requires eligibility of the *factored* literal only; the partner is any other
+    // positive equality. Drawing the partner from the eligible set too lost this inference entirely — and no
+    // other test could see it, since they all pass every literal as eligible.
+    val factors = Superposition.equalityFactoring(bank, trail, order, cl, Array(1))
+    val expected = factors.find(_.literals.toSet == Set(neg(mkEq(d, a)), pos(mkEq(app(f, x), a))))
+    assert(expected.isDefined,
+      s"lost the factor `d ≉ a ∨ f(x) ≈ a`; got ${factors.map(_.literals.mkString("[", ", ", "]")).mkString("{", "; ", "}")}")
+    expected.get.justification match
+      case Justification.EqualityFactoring(p, dropped, _, partner, _) =>
+        assert(p == cl && dropped == 1 && partner == 0, s"factored $dropped against $partner, expected 1 against 0")
       case other => fail(s"expected EqualityFactoring, got $other")
   }
 

@@ -9,16 +9,7 @@ import Demodulation.Rule
  *  forward-demodulation generalization index. No saturation-loop wiring yet. */
 class DiscriminationTreeTest extends AnyFunSuite:
 
-  class Fix:
-    val sig: Signature = new Signature
-    val bank: TermBank = new TermBank(sig)
-    val trail: Trail = new Trail(bank)
-
-    def fn(name: String, arity: Int): Symbol = sig.intern(name, arity, isPredicate = false)
-    def const(name: String): Term = bank.mkConst(fn(name, 0))
-    def app(f: Symbol, args: Term*): Term = bank.mkApp(f, args.toArray)
-    def v(n: Int): Term = bank.mkVar(Core.Variable(n))
-    def mkEq(s: Term, t: Term): Term = bank.mkApp(EqualitySymbol, Array(s, t))
+  class Fix extends TermFixture:
 
     /** A demodulator `lhs → rhs`; a fresh source clause gives it a distinct id (for removal by (source.id, side)). */
     def rule(lhs: Term, rhs: Term): Rule =
@@ -147,4 +138,49 @@ class DiscriminationTreeTest extends AnyFunSuite:
     t.clear()
     assert(t.isEmpty && t.size == 0)
     assert(collect(t.retrieveGeneralizations(app(f, a))).isEmpty)
+  }
+
+  /**
+   * The `visit` contract. Unlike the two clause indices, where a corrupted shared buffer costs a *dropped*
+   * candidate, corrupting this one is unsound: `qLen` would be reset to the inner query's length, the outer
+   * descent would reach `i == qLen` having consumed only a prefix of its own query, and `visit` would be
+   * handed rules whose LHS does not generalize it — with a partial σ live on the trail. So it throws.
+   */
+  test("re-entering the tree from inside a retrieval callback fails loudly") {
+    val fx = new Fix; import fx.*
+    val f = fn("f", 1); val a = const("a"); val b = const("b"); val x = v(0)
+    val t = tree
+    val r = rule(app(f, x), a)
+    t.insert(r)
+    for (label, reenter) <- Seq[(String, Rule => Unit)](
+      "retrieveGeneralizations" -> (_ => t.retrieveGeneralizations(app(f, b))(_ => false)),
+      "insert" -> (_ => t.insert(rule(app(f, x), b))),
+      "remove" -> (rr => { t.remove(rr); () }),
+      "clear" -> (_ => t.clear())
+    ) do
+      val e = intercept[IllegalStateException](t.retrieveGeneralizations(app(f, a)) { rr => reenter(rr); false })
+      assert(e.getMessage.contains(label), s"expected the $label re-entry to be named, got: ${e.getMessage}")
+    // The guard must disarm afterwards, or every later retrieval would throw too.
+    assert(collect(t.retrieveGeneralizations(app(f, a))) == Set(r.source.id), "the guard did not disarm")
+  }
+
+  test("a callback that binds cannot leak those bindings into the next rule at the same leaf") {
+    val fx = new Fix; import fx.*
+    // Two demodulators sharing one LHS, so they sit at the *same* leaf and are visited under the same σ.
+    val f = fn("f", 1); val a = const("a"); val b = const("b"); val c = const("c"); val x = v(0)
+    val t = tree
+    t.insert(rule(app(f, x), a))
+    t.insert(rule(app(f, x), b))
+    // The trail checkpoint at the start of each visit must be identical: σ (x ↦ c) is established by the
+    // descent before the leaf, and nothing a previous callback did may still be on the trail.
+    var checkpoints = List.empty[Int]
+    var first = true
+    t.retrieveGeneralizations(app(f, c)) { _ =>
+      checkpoints ::= trail.save()
+      if first then { trail.matchTerm(v(1), 0, a, 1); first = false } // a stray binding, deliberately unrestored
+      false
+    }
+    assert(checkpoints.length == 2, s"expected both rules at the leaf to be visited, got ${checkpoints.length}")
+    assert(checkpoints.distinct.length == 1,
+      s"a binding leaked between rules at one leaf: trail checkpoints ${checkpoints.reverse.mkString(", ")}")
   }

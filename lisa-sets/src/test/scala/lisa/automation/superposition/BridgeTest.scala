@@ -80,8 +80,8 @@ class BridgeTest extends AnyFunSuite:
     val pa = ap(pred("P", 1), cst("a")); val qa = ap(pred("Q", 1), cst("a"))
     val cs = List(sequent(Set(px), Set(qx)), sequent(Set(), Set(pa)), sequent(Set(qa), Set())) // no `=` anywhere
     // with no equality symbol present, the master switch is irrelevant: on/off must give the same (refuted) verdict.
-    assert(Bridge.solve(cs, maxGiven = 10000, equality = true).refuted)
-    assert(Bridge.solve(cs, maxGiven = 10000, equality = false).refuted)
+    assert(Bridge.solve(cs, maxGiven = 10000, opts = SearchOptions(equality = true)).refuted)
+    assert(Bridge.solve(cs, maxGiven = 10000, opts = SearchOptions(equality = false)).refuted)
   }
 
   // --- entry point 2: lisa.tptp.Problem -----------------------------------------------------

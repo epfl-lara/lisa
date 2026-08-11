@@ -8,19 +8,7 @@ import Core.*
  *  [[FeatureVectorIndex]] (the subsumption feature-vector trie). No saturation-loop wiring yet. */
 class FeatureVectorTest extends AnyFunSuite:
 
-  class Fix:
-    val sig: Signature = new Signature
-    val bank: TermBank = new TermBank(sig)
-    val trail: Trail = new Trail(bank)
-
-    def pred(name: String, arity: Int): Symbol = sig.intern(name, arity, isPredicate = true)
-    def fn(name: String, arity: Int): Symbol = sig.intern(name, arity, isPredicate = false)
-    def const(name: String): Term = bank.mkConst(fn(name, 0))
-    def app(f: Symbol, args: Term*): Term = bank.mkApp(f, args.toArray)
-    def v(n: Int): Term = bank.mkVar(Core.Variable(n))
-    def pos(atom: Term): Literal = bank.mkLiteral(atom, true)
-    def neg(atom: Term): Literal = bank.mkLiteral(atom, false)
-    def clause(lits: Literal*): Clause = bank.mkClause(lits.toArray)
+  class Fix extends TermFixture
 
   // componentwise ≤ on equal-length vectors
   private def le(a: Array[Int], b: Array[Int]): Boolean = a.length == b.length && a.indices.forall(i => a(i) <= b(i))
@@ -167,6 +155,49 @@ class FeatureVectorTest extends AnyFunSuite:
       assert(collect(idx.forwardCandidates(q)) == oracle, s"forward mismatch for q=${q.id}")
   }
 
+  test("existsForwardCandidate agrees with forwardCandidates, and stops at the first accepted clause") {
+    val fx = new Fix
+    val cs = sampleClauses(fx)
+    val perm = Permutation.build(fx.bank, cs, maxLen = 8)
+    val idx = new FeatureVectorIndex(fx.bank, perm)
+    cs.foreach(idx.insert)
+    val vec = cs.map(c => c -> perm.vectorOf(fx.bank, c)).toMap
+
+    for q <- cs do
+      val cone = cs.filter(c => le(vec(c), vec(q))).map(_.id).toSet
+      // (a) same verdict as visiting the whole cone, for an arbitrary predicate over it
+      for target <- cone + -1 do // `-1` ⇒ a predicate no clause satisfies
+        assert(idx.existsForwardCandidate(q)(_.id == target) == cone.contains(target),
+          s"existence verdict differs from the ≤-cone for q=${q.id}, target=$target")
+      // (b) it really short-circuits: an always-true predicate sees exactly one clause when the cone is
+      //     non-empty (the whole point — `forwardCandidates` would have visited all of them)
+      var seen = 0
+      val found = idx.existsForwardCandidate(q) { _ => seen += 1; true }
+      assert(found == cone.nonEmpty)
+      assert(seen == (if cone.isEmpty then 0 else 1), s"visited $seen clauses instead of short-circuiting (q=${q.id})")
+  }
+
+  /**
+   * The index shares one feature-vector buffer across every clause-keyed operation, which is only safe because
+   * they never nest: a retrieval reads that buffer across all of its `visit` callbacks, so a callback that
+   * queried or mutated the same index would refill it mid-descent and silently drop candidates — a missed
+   * simplification nothing would report. The guard converts that into an immediate failure; this pins that it
+   * is armed (and that the ordinary collect-then-mutate usage is unaffected, covered by every other test).
+   */
+  test("re-entering the index from inside a retrieval callback fails loudly") {
+    val fx = new Fix
+    val cs = sampleClauses(fx)
+    val idx = new FeatureVectorIndex(fx.bank, Permutation.build(fx.bank, cs, maxLen = 8))
+    cs.foreach(idx.insert)
+    for (label, reenter) <- Seq[(String, Clause => Unit)](
+      "query"  -> (c => idx.forwardCandidates(c)(_ => ())),
+      "insert" -> (c => idx.insert(c)),
+      "remove" -> (c => idx.remove(c))
+    ) do
+      val e = intercept[IllegalStateException](idx.forwardCandidates(cs.head)(c => reenter(c)))
+      assert(e.getMessage.contains("live retrieval descent"), s"$label: unexpected message ${e.getMessage}")
+  }
+
   test("backwardCandidates returns exactly the ≥-cone (matches a brute-force oracle)") {
     val fx = new Fix
     val cs = sampleClauses(fx)
@@ -177,22 +208,6 @@ class FeatureVectorTest extends AnyFunSuite:
     for q <- cs do
       val oracle = cs.filter(c => ge(vec(c), vec(q))).map(_.id).toSet
       assert(collect(idx.backwardCandidates(q)) == oracle, s"backward mismatch for q=${q.id}")
-  }
-
-  test("backwardCandidatesThenInsert queries the ≥-cone of the pre-insert set (excluding q), then inserts q") {
-    val fx = new Fix
-    val cs = sampleClauses(fx)
-    val perm = Permutation.build(fx.bank, cs, maxLen = 8)
-    val idx = new FeatureVectorIndex(fx.bank, perm)
-    val q = cs.head
-    val stored = cs.tail
-    stored.foreach(idx.insert)
-    val vec = cs.map(c => c -> perm.vectorOf(fx.bank, c)).toMap
-    // fused op: backward query runs over the stored set (q not yet present), then q is inserted (side effect)
-    val visited = collect(idx.backwardCandidatesThenInsert(q))
-    assert(visited == stored.filter(c => ge(vec(c), vec(q))).map(_.id).toSet, "must see exactly the ≥-cone, without q")
-    assert(idx.size == cs.size, "q must have been inserted")
-    assert(collect(idx.forwardCandidates(q)).contains(q.id), "q is now retrievable")
   }
 
   // ── insert / remove / prune / size ─────────────────────────────────────────────────────────────

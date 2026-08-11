@@ -3,10 +3,11 @@ package lisa.automation.superposition
 import scala.collection.mutable
 
 import lisa.utils.K
-import lisa.automation.clausification.{Clausification, UncertifiedClausification}
+import lisa.automation.clausification.{Clausification, UncertifiedClausifier}
 
 /**
- * Phase 3 — clausification wiring.
+ * The clausifier ↔ prover adapter: ε-abstraction, the `certifyClausal` prover contract, and the CASC
+ * clausal setup.
  *
  * Lisa's certified clausifier (`lisa.automation.clausification`) Skolemizes with Hilbert ε-terms
  * `ε(λx.φ)`, which carry an embedded lambda and so are **not** first-order; our prover is first-order over a
@@ -16,10 +17,11 @@ import lisa.automation.clausification.{Clausification, UncertifiedClausification
  * prover and reconstruction work entirely in this abstracted world; a single `InstSchema` at the very end of
  * the proof instantiates every `F` back to its original expression (no per-step rewriting). Schematic
  * *variables* (not constants) are used precisely so the kernel's `InstSchema` can discharge them — the same
- * device the clausifier uses for its Tseitin atoms.
+ * device the clausifier uses for its definitional naming atoms (`nm`).
  *
- * See `Phase3.md` for the full plan. This file holds the abstraction layer (§3.3); the prover/tactic wiring
- * builds on it.
+ * Besides the abstraction this file holds the prover adapter ([[prove]] / [[proveOutcome]] /
+ * [[solveOutcome]]) and the CASC clausal setup ([[cascSetup]], [[distinctObjectAxioms]]).
+ * `archive/Phase3.md` records the abstraction's original design, before either of those existed.
  */
 object Clausal:
 
@@ -45,6 +47,10 @@ object Clausal:
      * Abstract `e`: replace every **maximal** non-first-order `Ind`-subterm by a fresh schematic function
      * variable applied to its free variables. First-order skeleton (predicates, connectives, first-order
      * function applications) is descended into; the result is `e` with all such subterms replaced.
+     *
+     * '''Precondition:''' every free variable of an abstracted subterm is `Ind`-sorted, since that is what
+     * [[abstractWhole]] builds the fresh symbol's `Ind → … → Ind` sort from; a higher-sorted one would be given
+     * the wrong sort.
      */
     def apply(e: K.Expression): K.Expression =
       if e.sort == K.Ind then
@@ -72,10 +78,8 @@ object Clausal:
         }
       )
 
-  /** Decompose a curried application `f(a₁)…(aₙ)` into its head `f` and argument list `[a₁,…,aₙ]`. */
-  private def headAndArgs(e: K.Expression): (K.Expression, List[K.Expression]) = e match
-    case K.Application(f, arg) => val (h, as) = headAndArgs(f); (h, as :+ arg)
-    case _                     => (e, Nil)
+  /** Decompose a curried application into head + arguments — see [[Bridge.headAndArgs]]. */
+  private def headAndArgs(e: K.Expression): (K.Expression, List[K.Expression]) = Bridge.headAndArgs(e)
 
   private def rebuild(head: K.Expression, args: List[K.Expression]): K.Expression =
     args.foldLeft(head)((acc, a) => K.Application(acc, a))
@@ -91,11 +95,13 @@ object Clausal:
     case K.Arrow(K.Ind, r) => firstOrderSort(r)
     case _                 => false
 
-  // ── The clausal-prover adapter for `CertifiedFastClausifier.certifyClausal` ──────────────────────────────────────
+  // ── The clausal-prover adapter for `CertifiedClausifier.certifyClausal` ──────────────────────────────────────
 
-  /** Reshape a clausifier clause `Γ ⊢ Δ` (uniform literal-set form: literals on the RHS, negatives written
-   *  `¬A`) into the working sequent [[Bridge]] expects, where a negative literal's atom sits on the LHS: each
-   *  `¬A ∈ Δ` moves to the left as `A`. Propositionally equivalent, so a single `Restate` bridges the two. */
+  /** Move any negative literal still written `¬A` on the right of a clause to the left as `A`, the form
+   *  [[Bridge]] works in. The clausifier already emits that form
+   *  ([[lisa.automation.clausification.Clausification.clauseSequent]]), so this is the identity on its output;
+   *  it is kept for clauses reaching the prover from elsewhere, and because the two forms are only
+   *  propositionally equal, which costs a `Restate` to bridge rather than nothing at all. */
   def toWorkingSequent(s: K.Sequent): K.Sequent =
     val left = mutable.Set.from(s.left)
     val right = mutable.Set.empty[K.Expression]
@@ -111,7 +117,7 @@ object Clausal:
     K.Sequent(s.left.map(abs(_)), s.right.map(abs(_)))
 
   /**
-   * The clausal prover to hand to [[lisa.automation.clausification.CertifiedFastClausifier.certifyClausal]].
+   * The clausal prover to hand to [[lisa.automation.clausification.CertifiedClausifier.certifyClausal]].
    *
    * Abstracts every non-first-order subterm (ε-terms) to a fresh schematic function symbol `F(fv…)`, refutes
    * the resulting first-order clause set with [[Bridge]] (which reconstructs with each `F` inlined back to its
@@ -129,15 +135,29 @@ object Clausal:
    * `Saturated`/`Timeout` [[Bridge.Outcome]] instead of throwing — so a benchmark can categorise the result.
    * `maxGiven`/`maxMillis` bound the underlying [[Bridge]] search.
    */
-  def proveOutcome(problem: Clausification.Problem, maxGiven: Int = Int.MaxValue, maxMillis: Long = Long.MaxValue, equality: Boolean = true, fingerprintIndexing: Boolean = true, precedenceScheme: PrecedenceScheme = PrecedenceScheme.InvFrequency, onStats: Discount.LoopStats => Unit = _ => ()): Either[Bridge.Outcome, K.SCProof] =
+  def proveOutcome(problem: Clausification.Problem, maxGiven: Int = Int.MaxValue, maxMillis: Long = Long.MaxValue,
+                   opts: SearchOptions = SearchOptions(), goal: Set[Int] = Set.empty,
+                   onStats: Discount.LoopStats => Unit = _ => ()): Either[Bridge.Outcome, K.SCProof] =
     val p = prepare(problem)
-    Bridge.solve(p.work, maxGiven, maxMillis, symbolVars = p.symbolVars, discharge = p.abs.dischargeSubst, equality = equality, fingerprintIndexing = fingerprintIndexing, precedenceScheme = precedenceScheme, onStats = onStats) match
+    Bridge.solve(p.work, maxGiven, maxMillis, opts, symbolVars = p.symbolVars, discharge = p.abs.dischargeSubst, goal = goal, onStats = onStats) match
       case s: Bridge.Outcome.Success =>
         val base: K.SCProof = s.reconstructKernelProof //              ε-bearing, imports = neg-moved ε-clauses, ∅ ⊢
-        val work0: IndexedSeq[K.Sequent] = p.orig.map(toWorkingSequent) // neg-moved ε-clauses; = base.imports
+        val work0: IndexedSeq[K.Sequent] = p.orig.map(toWorkingSequent) // every clause in neg-moved form;
+        //                                                                `base.imports` is the sub-list actually used
+        // Slot of each working clause, first occurrence winning (as the `indexOf` this replaces did — duplicate
+        // input clauses are equal sequents, so either slot would do). Built once so composing the proof is linear
+        // in the clause count; the per-import scan it replaces was O(|clauses| × |used imports|) with a full
+        // `Sequent` structural comparison as its inner step, which bites on CASC-sized inputs.
+        val slotOf = mutable.HashMap.empty[K.Sequent, Int]
+        var k = 0
+        while k < work0.length do { slotOf.getOrElseUpdate(work0(k), k); k += 1 }
         val steps = mutable.ArrayBuffer.empty[K.SCProofStep]
         val premises: Seq[Int] = base.imports.map { w => //             each used working import ← Restate of its original
-          val i = work0.indexOf(w)
+          // A miss means reconstruction imported a clause the clausifier never produced — impossible unless the
+          // ε-discharge round-trip stops being exact. Fail loudly: `indexOf` returned -1 here, which silently
+          // became a reference to step 0.
+          val i = slotOf.getOrElse(w, throw new IllegalStateException(
+            s"reconstructed proof imports a clause absent from the clausifier's clause set: $w"))
           steps += K.Restate(w, -(i + 1))
           steps.length - 1
         }
@@ -148,7 +168,8 @@ object Clausal:
   /** Pre-solve setup shared by [[proveOutcome]] and [[solveOutcome]]: ε-abstract the clausifier clauses to a
    *  first-order working set, and collect the symbol-variables the solver must treat as symbols rather than
    *  clause variables — the ε-abstraction functions `F` (explicit, incl. bare-nullary), plus every non-`Ind`-sorted
-   *  free variable (Tseitin atoms `tsᵢ` and any Lisa predicate/function variable; clause variables are `Ind`). */
+   *  free variable (definitional naming atoms `nm…` and any Lisa predicate/function variable; clause
+   *  variables are `Ind`). */
   private final case class Prepared(abs: Abstraction, orig: IndexedSeq[K.Sequent], work: IndexedSeq[K.Sequent], symbolVars: Set[K.Variable])
   private def prepare(problem: Clausification.Problem): Prepared =
     val abs = new Abstraction
@@ -169,26 +190,22 @@ object Clausal:
    * instrumentation. An [[Bridge.Outcome.Success]] means `□` was derived (a refutation); the proof DAG is left
    * unwalked.
    */
-  def solveOutcome(problem: Clausification.Problem, maxGiven: Int = Int.MaxValue, maxMillis: Long = Long.MaxValue, equality: Boolean = true, fingerprintIndexing: Boolean = true, precedenceScheme: PrecedenceScheme = PrecedenceScheme.InvFrequency, onStats: Discount.LoopStats => Unit = _ => (), goal: Set[Int] = Set.empty,
-      // ── portfolio strategy knobs (see Strategies.scala) ──
-      ageRatio: Int = 1, weightRatio: Int = 1, nonGoalWeightCoefficient: Int = 10,
-      selection: LiteralSelection = LiteralSelection.Complete, weightScheme: Core.WeightScheme = Core.WeightScheme.Const,
-      forwardSubsumptionResolution: Boolean = false, backwardSubsumptionResolution: Boolean = false, condensation: Boolean = false): Bridge.Outcome =
+  def solveOutcome(problem: Clausification.Problem, maxGiven: Int = Int.MaxValue, maxMillis: Long = Long.MaxValue,
+                   opts: SearchOptions = SearchOptions(), goal: Set[Int] = Set.empty,
+                   onStats: Discount.LoopStats => Unit = _ => ()): Bridge.Outcome =
     val p = prepare(problem)
-    Bridge.solve(p.work, maxGiven, maxMillis, symbolVars = p.symbolVars, discharge = p.abs.dischargeSubst, equality = equality, fingerprintIndexing = fingerprintIndexing, precedenceScheme = precedenceScheme, onStats = onStats, goal = goal,
-      ageRatio = ageRatio, weightRatio = weightRatio, nonGoalWeightCoefficient = nonGoalWeightCoefficient, selection = selection, weightScheme = weightScheme,
-      forwardSubsumptionResolution = forwardSubsumptionResolution, backwardSubsumptionResolution = backwardSubsumptionResolution, condensation = condensation)
+    Bridge.solve(p.work, maxGiven, maxMillis, opts, symbolVars = p.symbolVars, discharge = p.abs.dischargeSubst, goal = goal, onStats = onStats)
 
   /**
    * The uncertified CASC clausal setup shared by the prover ([[CascProver]]) and its strategy benchmark
-   * ([[StrategyEvaluation]]): clausify `problem` (already SInE-pruned by the caller) with origin tags, append
+   * ([[bench.StrategyEvaluation]]): clausify `problem` (already SInE-pruned by the caller) with origin tags, append
    * the TPTP distinct-object distinctness axioms (origin `-1`), and derive the goal-clause index set — the
    * clauses coming from the negated conjecture, whose origin equals the hypothesis count. Returns the
    * origin-tagged clauses (which [[CascProver]] needs for proof printing), the flat clausal problem to solve,
    * and the goal indices.
    */
   def cascSetup(problem: Clausification.Problem, orthologic: Boolean): (IndexedSeq[(K.Sequent, Int)], Clausification.Problem, Set[Int]) =
-    val clauses0 = UncertifiedClausification.clausalFormWithOrigins(problem, orthologic = orthologic)
+    val clauses0 = UncertifiedClausifier.clausalFormWithOrigins(problem, orthologic = orthologic)
     val distinct = distinctObjectAxioms(clauses0.map(_._1))
     val clauses  = clauses0 ++ distinct.map(s => (s, -1))
     val clausal  = Clausification.Problem(clauses.map(_._1).toList, None)
@@ -202,9 +219,10 @@ object Clausal:
    * axioms — sound to add, and they let the prover exploit object distinctness that the uninterpreted-constant
    * encoding otherwise misses (without them the treatment is merely incomplete).
    *
-   * Returned as clause sequents in the clausifier's right-only convention — `∅ ⊢ ¬($da = $db)` — so they feed
-   * the solver and print identically to ordinary clauses. Added on the **solve** path (after clausification,
-   * before solving); they carry no derivation, so a CASC caller prints them with `inference(distinct, …, [])`.
+   * Returned in the same clause shape as everything else — a negative literal is its atom on the left, so
+   * `$da = $db ⊢` — hence they feed the solver and print identically to ordinary clauses. Added on the
+   * **solve** path (after clausification, before solving); they carry no derivation, so a CASC caller prints
+   * them with `inference(distinct, …, [])`.
    */
   def distinctObjectAxioms(clauses: Seq[K.Sequent]): IndexedSeq[K.Sequent] =
     val objs = mutable.LinkedHashSet.empty[K.Constant]
@@ -216,4 +234,4 @@ object Clausal:
     clauses.foreach(s => { s.left.foreach(scan); s.right.foreach(scan) })
     val os = objs.toIndexedSeq
     (for i <- os.indices; j <- (i + 1) until os.size
-     yield K.Sequent(Set.empty, Set(K.neg(K.equality(os(i))(os(j)))))).toIndexedSeq
+     yield K.Sequent(Set(K.equality(os(i))(os(j))), Set.empty)).toIndexedSeq

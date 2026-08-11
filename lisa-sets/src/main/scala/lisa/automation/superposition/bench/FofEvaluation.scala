@@ -1,4 +1,5 @@
 package lisa.automation.superposition
+package bench
 
 /**
  * The second evaluation dataset: non-clausal (FOF), first-order, equality-free, arithmetic-free TPTP
@@ -13,7 +14,9 @@ package lisa.automation.superposition
  * [[FofHarness]]; see it for the run modes and column meanings.
  */
 object FofEvaluation:
-  private val harness = new FofHarness("tptp-fof-fo-noeq-thm.txt", "TPTP_FOF_LIST")
+  // The third argument names *this* object, so a forked child re-enters here and reads the same problem list.
+  private val harness = new FofHarness("tptp-fof-fo-noeq-thm.txt", "TPTP_FOF_LIST",
+    "lisa.automation.superposition.bench.FofEvaluation")
 
   // `allProblems`/`sample` are the only members referenced outside the harness (tests, other harnesses); see
   // [[FofHarness]] for their contract.

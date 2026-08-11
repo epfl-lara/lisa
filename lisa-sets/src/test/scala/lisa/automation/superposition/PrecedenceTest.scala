@@ -9,21 +9,9 @@ import Core.*
  *  importantly — do not change the prover's verdict (an A/B against the former occurrence-order baseline). */
 class PrecedenceTest extends AnyFunSuite:
 
-  class Fix:
-    val sig: Signature = new Signature
-    val bank: TermBank = new TermBank(sig)
-    val trail: Trail = new Trail(bank)
-    bank.selector = new CompleteBestLiteralSelector(bank.order)
+  class Fix extends TermFixture:
 
-    def fn(name: String, arity: Int): Symbol = sig.intern(name, arity, isPredicate = false)
-    def pred(name: String, arity: Int): Symbol = sig.intern(name, arity, isPredicate = true)
-    def const(name: String): Term = bank.mkConst(fn(name, 0))
-    def app(f: Symbol, args: Term*): Term = bank.mkApp(f, args.toArray)
-    def v(n: Int): Term = bank.mkVar(Core.Variable(n))
-    def mkEq(s: Term, t: Term): Term = bank.mkApp(EqualitySymbol, Array(s, t))
-    def pos(atom: Term): Literal = bank.mkLiteral(atom, true)
-    def neg(atom: Term): Literal = bank.mkLiteral(atom, false)
-    def clause(lits: Literal*): Clause = bank.mkClause(lits.toArray)
+    bank.selector = new CompleteBestLiteralSelector(bank.order)
 
     def precOf(f: Symbol): Int = sig.info(f).precedence
     def allPrecedences: Seq[Int] = sig.symbols.map(_.precedence).toSeq

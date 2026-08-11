@@ -12,8 +12,8 @@ import lisa.automation.clausification.Clausification
  * CASC-compatible command-line entry point (see the [[https://tptp.org/CASC/J13/Design.html CASC J13 design]]
  * and the [[https://tptp.org/UserDocs/SZSOntology/ SZS ontology]]).
  *
- * Given a single TPTP problem file it parses the problem, clausifies it with the **fast, non-certifying**
- * clausifier ([[UncertifiedClausification]]/`FastClausify`), runs the superposition prover
+ * Given a single TPTP problem file it parses the problem, clausifies it with the **non-certifying**
+ * clausifier ([[UncertifiedClausifier]]/`UncertifiedClausifier`), runs the superposition prover
  * ([[Clausal.solveOutcome]] — the raw [[Bridge.Outcome]] path, so it never builds a Lisa/kernel proof), and
  * writes an SZS status line to stdout:
  * {{{
@@ -130,7 +130,11 @@ object CascProver:
 
   /** Emit the CNFRefutation: the input formulas as leaves, the negated conjecture as an intermediate step, one
    *  clause per source formula (`inference(clausification, [status(esa)], [<origin>])`), and finally the prover's
-   *  own derivation of `$false` from those clauses. */
+   *  own derivation of `$false` from those clauses.
+   *
+   *  '''Precondition:''' the input clauses hold the *first* bank ids, in `clauses` order — which is how
+   *  [[Bridge.solve]] builds them, and what both the `<cPrefix><idx>` naming and the cone test index on; a
+   *  clause built before them would shift the correspondence. */
   private def printRefutation(
       name: String,
       axiomLike: IndexedSeq[AnnotatedFormula],
@@ -208,18 +212,7 @@ object CascProver:
     c.justification match
       case Justification.Canonicalization(p) => deref(p)
       case _                                 => c
-  private def parents(c: Core.Clause): List[Core.Clause] =
-    import Core.Justification
-    (c.justification match
-      case Justification.Input                            => Nil
-      case Justification.Resolution(l, _, r, _)           => List(l, r)
-      case Justification.Factoring(p, _, _)               => List(p)
-      case Justification.Canonicalization(p)              => List(p)
-      case Justification.Superposition(f, _, _, i, _, _)  => List(f, i)
-      case Justification.EqualityResolution(p, _)         => List(p)
-      case Justification.EqualityFactoring(p, _, _, _, _) => List(p)
-      case Justification.Demodulation(t, _, _, r, _)      => List(t, r)
-    ).map(deref)
+  private def parents(c: Core.Clause): List[Core.Clause] = c.justification.premises.map(deref)
 
   /** The clause ids in the **cone** of `□` — everything reachable via [[parents]]. That is the proof (the clauses
    *  actually used), as opposed to the whole saturation; input clauses / source formulas outside it are not printed. */
@@ -254,7 +247,10 @@ object CascProver:
     def term(t: Term): String =
       if bank.isVar(t) then "X" + bank.varNum(t).num
       else
-        val nm = functor(sig.info(bank.headSymbol(t)).name)
+        // The signature stores the identifier in two parts, so reassemble it — `info.name` alone is the bare
+        // name and would print `sk` for every `sk_i`, the very collapse `Tptp.render`'s `functorOf` avoids.
+        val info = sig.info(bank.headSymbol(t))
+        val nm = functor(K.Identifier(info.name, info.no).toString)
         val n  = bank.arity(t)
         if n == 0 then nm else s"$nm(${(0 until n).map(i => term(bank.arg(t, i))).mkString(",")})"
     def literal(l: Literal): String =
@@ -293,27 +289,34 @@ object CascProver:
   private object Tptp:
     import lisa.utils.K.*
 
-    /** Flatten a curried application `f(a)(b)…` into `(head, [a, b, …])`. */
-    private def flatten(e: Expression): (Expression, List[Expression]) =
-      def go(e: Expression, acc: List[Expression]): (Expression, List[Expression]) = e match
-        case Application(f, a) => go(f, a :: acc)
-        case head              => (head, acc)
-      go(e, Nil)
+    /** Flatten a curried application `f(a)(b)…` into `(head, [a, b, …])` — see [[Bridge.headAndArgs]]. */
+    private def flatten(e: Expression): (Expression, List[Expression]) = Bridge.headAndArgs(e)
 
     /** Render `e`, drawing TPTP variable names (uppercase) from the shared `vnames` map so that a clause's
      *  literals — and a formula's binders and their occurrences — agree on names. */
     private def render(e: Expression, vnames: scala.collection.mutable.LinkedHashMap[Variable, String]): String =
       def vname(v: Variable): String = vnames.getOrElseUpdate(v, "X" + vnames.size)
+      // `id.toString`, never `id.name`: the counter is part of the identity. `UncertifiedClausifier` mints Skolem
+      // constants as `sk`, `sk_1`, `sk_2`, … all sharing the name `sk`, so dropping the counter collapses
+      // distinct symbols into one — and `printDerivation` keys on `sig.info(...).name`, which *is* the full
+      // `id.toString`, so the two halves of the emitted proof would disagree about which symbols exist.
+      def functorOf(id: Identifier): String = functor(id.toString)
+      // Only an `Ind`-sorted variable is a TPTP variable. A `Variable` at any other sort is a *symbol* here:
+      // `NamingSupport.freshNamingAtom` returns the definitional naming atoms as `Variable`s (so `InstSchema`
+      // can discharge them), and `ScreenPhase` renames user predicate variables to `usr…`. Printing those with
+      // `vname` emits a variable in functor position — invalid TPTP when applied (`X0(X1)`), and a silently
+      // *weaker* clause when nullary (`a1 | X0` instead of `a1 | nm_1`).
       def symbol(head: Expression): String = head match
-        case v: Variable => vname(v) // only reached for a genuine Ind variable; predicate/function heads are constants
-        case c: Constant => functor(c.id.name)
-        case _           => functor(head.toString)
+        case v: Variable if v.sort == Ind => vname(v)
+        case v: Variable                  => functorOf(v.id)
+        case c: Constant                  => functorOf(c.id)
+        case _                            => functor(head.toString)
       def applied(e: Expression): String =
         val (head, args) = flatten(e)
-        val h = head match { case c: Constant => functor(c.id.name); case _ => symbol(head) }
+        val h = symbol(head)
         if args.isEmpty then h else s"$h(${args.map(term).mkString(",")})"
       def term(t: Expression): String = t match
-        case v: Variable => vname(v)
+        case v: Variable => symbol(v) // via `symbol`, so the sort rule above applies in term position too
         case _           => applied(t)
       def atomic(e: Expression): String = e match // wrap binary connectives in parens where needed
         case And(_, _) | Or(_, _) | Implies(_, _) | Iff(_, _) => s"(${go(e)})"
@@ -334,13 +337,19 @@ object CascProver:
       go(e)
 
     /** A (universally-closed) clause formula as a bare TPTP CNF disjunction — leading `∀`s stripped, since a
-     *  `cnf` statement's variables are implicitly universally quantified. */
+     *  `cnf` statement's variables are implicitly universally quantified.
+     *
+     *  η-expanded first for the same reason as [[Bridge.formulaToSequent]]: `strip` needs the explicit `Lambda`,
+     *  and an unstripped quantifier would print as the functor `'∀'(p)` — well-formed TPTP, but a quantifier is
+     *  not legal in a `cnf` body, so the emitted proof would be rejected. */
     def cnfClause(e: Expression): String =
       def strip(e: Expression): Expression = e match { case Forall(_, b) => strip(b); case _ => e }
-      render(strip(e), scala.collection.mutable.LinkedHashMap.empty)
+      render(strip(lisa.automation.clausification.Clausification.etaExpandQuantifiers(e)), scala.collection.mutable.LinkedHashMap.empty)
 
-    /** A clause `Sequent(∅, {literals})` as a TPTP CNF disjunction (variables shared across its literals). */
+    /** A clause sequent as a TPTP CNF disjunction (variables shared across its literals). Both sides are read:
+      * a clause is `a₁, …, aₘ ⊢ b₁, …, bₙ` for `¬a₁ ∨ … ∨ ¬aₘ ∨ b₁ ∨ … ∨ bₙ`, so each left formula prints
+      * negated. Reading only the right side would silently drop every negative literal. */
     def clause(seq: Sequent): String =
       val vnames = scala.collection.mutable.LinkedHashMap.empty[Variable, String]
-      val lits = seq.right.toSeq
+      val lits = seq.left.toSeq.map(neg(_)) ++ seq.right.toSeq
       if lits.isEmpty then "$false" else lits.map(l => render(l, vnames)).mkString(" | ")

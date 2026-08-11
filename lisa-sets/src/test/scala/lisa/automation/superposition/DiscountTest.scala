@@ -7,21 +7,16 @@ import Core.*
 /** Tests for the DISCOUNT saturation loop ([[Discount]]). */
 class DiscountTest extends AnyFunSuite:
 
-  class Fix:
-    val sig: Signature = new Signature
-    val bank: TermBank = new TermBank(sig)
-    val trail: Trail = new Trail(bank)
+  class Fix extends TermFixture:
 
-    def pred(name: String, arity: Int): Symbol = sig.intern(name, arity, isPredicate = true)
-    def fn(name: String, arity: Int): Symbol = sig.intern(name, arity, isPredicate = false)
-    def const(name: String): Term = bank.mkConst(fn(name, 0))
-    def prop(name: String): Term = bank.mkConst(pred(name, 0)) // a 0-ary (propositional) atom
-    def app(f: Symbol, args: Term*): Term = bank.mkApp(f, args.toArray)
-    def v(n: Int): Term = bank.mkVar(Core.Variable(n))
-    def pos(atom: Term): Literal = bank.mkLiteral(atom, true)
-    def neg(atom: Term): Literal = bank.mkLiteral(atom, false)
-    def clause(lits: Literal*): Clause = bank.mkClause(lits.toArray)
     def discount: Discount = new Discount(bank, trail)
+
+  /** The saturation verdict as a comparable string — what the indexed-vs-scan A/B tests below compare (the
+    * clause ids and search trajectory differ between the two paths; only the verdict must agree). */
+  private def cat(r: Discount.Result): String = r match
+    case _: Discount.Result.Refutation => "refuted"
+    case Discount.Result.Saturated     => "saturated"
+    case Discount.Result.Unknown       => "unknown"
 
   test("propositional P and ¬P refute") {
     val fx = new Fix; import fx.*
@@ -99,7 +94,7 @@ class DiscountTest extends AnyFunSuite:
     bank.selector = new CompleteBestLiteralSelector(bank.order)
     val p = pred("P", 1); val a = const("a"); val b = const("b"); val x = v(0); val y = v(1)
     val cs = Seq(clause(pos(app(p, x)), pos(app(p, y))), clause(neg(app(p, a)), neg(app(p, b))))
-    val d = new Discount(bank, trail, factorAfterCheck = true)
+    val d = new Discount(bank, trail, SearchOptions(factorAfterCheck = true))
     assert(d.saturate(cs).isInstanceOf[Discount.Result.Refutation])
   }
 
@@ -113,15 +108,8 @@ class DiscountTest extends AnyFunSuite:
     )
     discount.saturate(cs) match
       case Discount.Result.Refutation(empty) =>
-        def inputLeaves(c: Clause): Int = c.justification match
-          case Justification.Input => 1
-          case Justification.Resolution(l, _, r, _) => inputLeaves(l) + inputLeaves(r)
-          case Justification.Factoring(par, _, _) => inputLeaves(par)
-          case Justification.Canonicalization(par) => inputLeaves(par)
-          case Justification.Superposition(from, _, _, into, _, _) => inputLeaves(from) + inputLeaves(into)
-          case Justification.EqualityResolution(par, _) => inputLeaves(par)
-          case Justification.EqualityFactoring(par, _, _, _, _) => inputLeaves(par)
-          case Justification.Demodulation(t, _, _, ru, _) => inputLeaves(t) + inputLeaves(ru)
+        def inputLeaves(c: Clause): Int =
+          if c.justification == Justification.Input then 1 else c.justification.premises.map(inputLeaves).sum
         assert(empty.isEmpty)
         assert(inputLeaves(empty) >= 2) // derived from at least two input clauses
       case other => fail(s"expected Refutation, got $other")
@@ -159,7 +147,7 @@ class DiscountTest extends AnyFunSuite:
     val a = prop("a"); val b = prop("b"); val c = prop("c")
     // {b,c} is activated first; resolving {¬a,b} and {a,c} regenerates {b,c}, which the active {b,c} subsumes.
     // Force forward simplify at generation on (it is off by default) so this exercises the addPassive path.
-    val d = new Discount(bank, trail, forwardSimplifyAtGeneration = true)
+    val d = new Discount(bank, trail, SearchOptions(forwardSimplifyAtGeneration = true))
     val r = d.saturate(Seq(clause(pos(b), pos(c)), clause(neg(a), pos(b)), clause(pos(a), pos(c))))
     assert(r == Discount.Result.Saturated)
     assert(d.forwardSubsumed >= 1) // the resolvent {b,c} is subsumed by the active {b,c} at addPassive
@@ -170,7 +158,7 @@ class DiscountTest extends AnyFunSuite:
     val fx = new Fix; import fx.*
     val p = pred("P", 1); val a = const("a"); val x = v(0)
     // same inputs as the backward-subsumption test, but no simplification: same verdict, no deletions.
-    val d = new Discount(bank, trail, forwardSubsumption = false, backwardSubsumption = false)
+    val d = new Discount(bank, trail, SearchOptions(forwardSubsumption = false, backwardSubsumption = false))
     val r = d.saturate(Seq(clause(pos(app(p, a))), clause(pos(app(p, x)))))
     assert(r == Discount.Result.Saturated)
     assert(d.forwardSubsumed == 0 && d.backwardSubsumed == 0)
@@ -184,8 +172,8 @@ class DiscountTest extends AnyFunSuite:
       clause(pos(app(p, a))), //                 P(a)
       clause(neg(app(q, a))) //                  ¬Q(a)
     )
-    val on = new Discount(bank, trail, forwardSubsumption = true, backwardSubsumption = true)
-    val off = new Discount(bank, trail, forwardSubsumption = false, backwardSubsumption = false)
+    val on = new Discount(bank, trail, SearchOptions(forwardSubsumption = true, backwardSubsumption = true))
+    val off = new Discount(bank, trail, SearchOptions(forwardSubsumption = false, backwardSubsumption = false))
     assert(on.saturate(cs).isInstanceOf[Discount.Result.Refutation])
     assert(off.saturate(cs).isInstanceOf[Discount.Result.Refutation])
   }
@@ -208,7 +196,7 @@ class DiscountTest extends AnyFunSuite:
     val p = pred("P", 1); val q = pred("Q", 1); val a = const("a"); val b = const("b"); val x = v(0)
     // Force age (FIFO) selection so {P(a), Q(b)} activates before the lighter unit {¬P(x)}; the unit then
     // backward-unit-deletes P(a) out of the active clause.
-    val d = new Discount(bank, trail, ageRatio = 1, weightRatio = 0)
+    val d = new Discount(bank, trail, SearchOptions(ageRatio = 1, weightRatio = 0))
     val r = d.saturate(Seq(clause(pos(app(p, a)), pos(app(q, b))), clause(neg(app(p, x)))))
     assert(r == Discount.Result.Saturated)
     assert(d.backwardUnitDeleted == 1)
@@ -227,7 +215,7 @@ class DiscountTest extends AnyFunSuite:
     val fx = new Fix; import fx.*
     val p = pred("P", 1); val q = pred("Q", 1); val a = const("a"); val b = const("b"); val x = v(0)
     val cs = Seq(clause(pos(app(p, a)), pos(app(q, b))), clause(neg(app(p, x))))
-    val d = new Discount(bank, trail, forwardUnitDeletion = false, backwardUnitDeletion = false)
+    val d = new Discount(bank, trail, SearchOptions(forwardUnitDeletion = false, backwardUnitDeletion = false))
     assert(d.saturate(cs) == Discount.Result.Saturated)
     assert(d.forwardUnitDeleted == 0 && d.backwardUnitDeleted == 0)
   }
@@ -236,8 +224,8 @@ class DiscountTest extends AnyFunSuite:
     val fx = new Fix; import fx.*
     val p = pred("P", 1); val q = pred("Q", 1); val a = const("a"); val b = const("b"); val x = v(0)
     val cs = Seq(clause(pos(app(p, a)), pos(app(q, b))), clause(neg(app(p, x))), clause(neg(app(q, b))))
-    val on = new Discount(bank, trail, forwardUnitDeletion = true, backwardUnitDeletion = true)
-    val off = new Discount(bank, trail, forwardUnitDeletion = false, backwardUnitDeletion = false)
+    val on = new Discount(bank, trail, SearchOptions(forwardUnitDeletion = true, backwardUnitDeletion = true))
+    val off = new Discount(bank, trail, SearchOptions(forwardUnitDeletion = false, backwardUnitDeletion = false))
     assert(on.saturate(cs).isInstanceOf[Discount.Result.Refutation])
     assert(off.saturate(cs).isInstanceOf[Discount.Result.Refutation])
   }
@@ -249,7 +237,7 @@ class DiscountTest extends AnyFunSuite:
     val p = pred("P", 1); val q = pred("Q", 1); val r = pred("R", 1)
     val a = const("a"); val b = const("b"); val x = v(0)
     // {¬P(x), Q(x)} (lighter) activates first; selecting {P(a), Q(a), R(b)} then SR-resolves P(a) → {Q(a), R(b)}.
-    val d = new Discount(bank, trail, forwardSubsumptionResolution = true)
+    val d = new Discount(bank, trail, SearchOptions(forwardSubsumptionResolution = true))
     val cs = Seq(clause(pos(app(p, a)), pos(app(q, a)), pos(app(r, b))), clause(neg(app(p, x)), pos(app(q, x))))
     assert(d.saturate(cs) == Discount.Result.Saturated)
     assert(d.forwardSubsumptionResolved == 1)
@@ -261,21 +249,26 @@ class DiscountTest extends AnyFunSuite:
     val p = pred("P", 1); val q = pred("Q", 1); val r = pred("R", 1)
     val a = const("a"); val b = const("b"); val x = v(0)
     // Force age order so {P(a), Q(a), R(b)} activates before the (multi-literal) side {¬P(x), Q(x)}.
-    val d = new Discount(bank, trail, ageRatio = 1, weightRatio = 0, backwardSubsumptionResolution = true)
+    val d = new Discount(bank, trail, SearchOptions(ageRatio = 1, weightRatio = 0, backwardSubsumptionResolution = true))
     val cs = Seq(clause(pos(app(p, a)), pos(app(q, a)), pos(app(r, b))), clause(neg(app(p, x)), pos(app(q, x))))
     assert(d.saturate(cs) == Discount.Result.Saturated)
     assert(d.backwardSubsumptionResolved == 1)
     assert(d.forwardSubsumptionResolved == 0)
   }
 
-  test("general subsumption resolution is off by default and inert when disabled") {
+  // General SR is ON by default; [[SearchOptions.forwardSubsumptionResolution]] records the ablation it was
+  // chosen from. This test pins the default itself, so it fails if that flips without the doc following.
+  test("general subsumption resolution is on by default, and inert when explicitly disabled") {
     val fx = new Fix; import fx.*
     val p = pred("P", 1); val q = pred("Q", 1); val r = pred("R", 1)
     val a = const("a"); val b = const("b"); val x = v(0)
     val cs = Seq(clause(pos(app(p, a)), pos(app(q, a)), pos(app(r, b))), clause(neg(app(p, x)), pos(app(q, x))))
-    val d = new Discount(bank, trail) // SR flags default false
-    assert(d.saturate(cs) == Discount.Result.Saturated)
-    assert(d.forwardSubsumptionResolved == 0 && d.backwardSubsumptionResolved == 0)
+    val on = new Discount(bank, trail) // SR flags now default true
+    assert(on.saturate(cs) == Discount.Result.Saturated)
+    assert(on.forwardSubsumptionResolved + on.backwardSubsumptionResolved > 0, "SR should fire by default")
+    val off = new Discount(bank, trail, SearchOptions(forwardSubsumptionResolution = false, backwardSubsumptionResolution = false))
+    assert(off.saturate(cs) == Discount.Result.Saturated)
+    assert(off.forwardSubsumptionResolved == 0 && off.backwardSubsumptionResolved == 0)
   }
 
   // --- condensation (off by default; enabled explicitly here) -----------------------------------
@@ -284,7 +277,7 @@ class DiscountTest extends AnyFunSuite:
     val fx = new Fix; import fx.*
     val p = pred("P", 1); val a = const("a"); val x = v(0)
     // {P(x), P(a)} condenses to {P(a)} when it enters passive
-    val d = new Discount(bank, trail, condensation = true)
+    val d = new Discount(bank, trail, SearchOptions(condensation = true))
     assert(d.saturate(Seq(clause(pos(app(p, x)), pos(app(p, a))))) == Discount.Result.Saturated)
     assert(d.condensed == 1)
   }
@@ -301,8 +294,8 @@ class DiscountTest extends AnyFunSuite:
     val fx = new Fix; import fx.*
     val p = pred("P", 1); val a = const("a"); val x = v(0)
     val cs = Seq(clause(pos(app(p, x)), pos(app(p, a))), clause(neg(app(p, a))))
-    val on = new Discount(bank, trail, condensation = true)
-    val off = new Discount(bank, trail, condensation = false)
+    val on = new Discount(bank, trail, SearchOptions(condensation = true))
+    val off = new Discount(bank, trail, SearchOptions(condensation = false))
     assert(on.saturate(cs).isInstanceOf[Discount.Result.Refutation])
     assert(off.saturate(cs).isInstanceOf[Discount.Result.Refutation])
   }
@@ -313,14 +306,10 @@ class DiscountTest extends AnyFunSuite:
     // The literal indices are a candidate filter confirmed by real unification, so the indexed and linear
     // resolution paths must generate the same inference set, hence the same refuted/saturated verdict (clause
     // ids differ, the outcome does not). Equality is off throughout, so only the resolution path is exercised.
-    def cat(r: Discount.Result): String = r match
-      case _: Discount.Result.Refutation => "refuted"
-      case Discount.Result.Saturated     => "saturated"
-      case Discount.Result.Unknown       => "unknown"
     def verdict(indexed: Boolean, build: Fix => Seq[Clause]): String =
       val fx = new Fix
       val cs = build(fx)
-      cat(new Discount(fx.bank, fx.trail, equality = false, fingerprintIndexing = indexed).saturate(cs, maxGiven = 5000))
+      cat(new Discount(fx.bank, fx.trail, SearchOptions(equality = false, fingerprintIndexing = indexed)).saturate(cs, maxGiven = 5000))
 
     val builders: Seq[(String, Fix => Seq[Clause])] = Seq(
       "propositional P, ¬P" -> { fx => import fx.*; val p = prop("P"); Seq(clause(pos(p)), clause(neg(p))) },
@@ -353,14 +342,10 @@ class DiscountTest extends AnyFunSuite:
   test("feature-vector subsumption and the linear scan reach the same verdict (A/B equivalence)") {
     // The feature-vector index is a superset filter confirmed by the real `Subsumption.subsumes`, and its features
     // are subsumption-monotone, so the indexed and scanned simplification paths must reach the same verdict.
-    def cat(r: Discount.Result): String = r match
-      case _: Discount.Result.Refutation => "refuted"
-      case Discount.Result.Saturated     => "saturated"
-      case Discount.Result.Unknown       => "unknown"
     def verdict(indexed: Boolean, build: Fix => Seq[Clause]): String =
       val fx = new Fix
       val cs = build(fx)
-      cat(new Discount(fx.bank, fx.trail, equality = false, subsumptionIndexing = indexed).saturate(cs, maxGiven = 5000))
+      cat(new Discount(fx.bank, fx.trail, SearchOptions(equality = false, subsumptionIndexing = indexed)).saturate(cs, maxGiven = 5000))
 
     val builders: Seq[(String, Fix => Seq[Clause])] = Seq(
       "unit subsumes a longer clause, then refute" -> { fx => import fx.*
@@ -393,15 +378,11 @@ class DiscountTest extends AnyFunSuite:
     // `subsumptionResolutionResolvent`), so forcing the index dispatch (threshold 0) vs the scan (threshold ∞)
     // must reach the same verdict. Both run with `subsumptionIndexing = true` so only the unit-deletion sub-path
     // differs.
-    def cat(r: Discount.Result): String = r match
-      case _: Discount.Result.Refutation => "refuted"
-      case Discount.Result.Saturated     => "saturated"
-      case Discount.Result.Unknown       => "unknown"
     def verdict(threshold: Int, build: Fix => Seq[Clause]): String =
       val fx = new Fix
       val cs = build(fx)
-      cat(new Discount(fx.bank, fx.trail, equality = false, subsumptionIndexing = true,
-        forwardUnitDeletionIndexThreshold = threshold).saturate(cs, maxGiven = 5000))
+      cat(new Discount(fx.bank, fx.trail, SearchOptions(equality = false, subsumptionIndexing = true,
+        forwardUnitDeletionIndexThreshold = threshold)).saturate(cs, maxGiven = 5000))
 
     val builders: Seq[(String, Fix => Seq[Clause])] = Seq(
       "unit deletion shrinks then closes" -> { fx => import fx.*
@@ -425,15 +406,11 @@ class DiscountTest extends AnyFunSuite:
     // ≥-cone = candidate subsumees), while the scan iterates `active`. Both apply the same
     // `subsumptionResolutionResolvent`, and the union of the flipped-clause ≥-cones is a complete superset of the
     // SR victims, so the verdicts must match.
-    def cat(r: Discount.Result): String = r match
-      case _: Discount.Result.Refutation => "refuted"
-      case Discount.Result.Saturated     => "saturated"
-      case Discount.Result.Unknown       => "unknown"
     def verdict(indexed: Boolean, build: Fix => Seq[Clause]): String =
       val fx = new Fix
       val cs = build(fx)
-      cat(new Discount(fx.bank, fx.trail, equality = false, subsumptionIndexing = indexed,
-        backwardSubsumptionResolution = true, forwardSubsumptionResolution = true).saturate(cs, maxGiven = 5000))
+      cat(new Discount(fx.bank, fx.trail, SearchOptions(equality = false, subsumptionIndexing = indexed,
+        backwardSubsumptionResolution = true, forwardSubsumptionResolution = true)).saturate(cs, maxGiven = 5000))
 
     val builders: Seq[(String, Fix => Seq[Clause])] = Seq(
       "2-literal clause SR-resolves a literal of an active clause, then refute" -> { fx => import fx.*
@@ -459,15 +436,11 @@ class DiscountTest extends AnyFunSuite:
     // Both forward-SR paths use the same char-2 helper (flip a literal of the new clause, find subsumers of the
     // flipped clause), differing only in retrieval — feature-vector index vs `active` scan — over the same
     // candidate set applied in id order, so the verdicts must match.
-    def cat(r: Discount.Result): String = r match
-      case _: Discount.Result.Refutation => "refuted"
-      case Discount.Result.Saturated     => "saturated"
-      case Discount.Result.Unknown       => "unknown"
     def verdict(indexed: Boolean, build: Fix => Seq[Clause]): String =
       val fx = new Fix
       val cs = build(fx)
-      cat(new Discount(fx.bank, fx.trail, equality = false, subsumptionIndexing = indexed,
-        forwardSubsumptionResolution = true, backwardSubsumptionResolution = true).saturate(cs, maxGiven = 5000))
+      cat(new Discount(fx.bank, fx.trail, SearchOptions(equality = false, subsumptionIndexing = indexed,
+        forwardSubsumptionResolution = true, backwardSubsumptionResolution = true)).saturate(cs, maxGiven = 5000))
 
     val builders: Seq[(String, Fix => Seq[Clause])] = Seq(
       "2-literal simplifier resolves the new clause, then refute" -> { fx => import fx.*
