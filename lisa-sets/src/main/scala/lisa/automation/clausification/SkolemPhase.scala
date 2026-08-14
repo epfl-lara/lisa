@@ -84,7 +84,7 @@ private[clausification] object SkolemPhase:
 
     // ── Outer: one csub carrying the Q defining equalities as assumptions, discharged latest-first
     //    (F := λx̄. ε(λx.φ) makes each `∀x̄. ε = (λx̄.ε)(x̄)` β-reduce to `ε=ε`; see dischargeAssumptionsLatestFirst). ──
-    val csubPremises: IndexedSeq[Int] = negRange(0, n) ++ negRange(n, L)
+    val csubPremises: IndexedSeq[Int] = negRange(0, n + L)
     val assumptions: IndexedSeq[Int] = (0 until Q).toIndexedSeq.map(j => n + L + j)
     val csub = ClausificationSubproof(innerProof, csubPremises, assumptions)
 

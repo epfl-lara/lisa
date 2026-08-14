@@ -38,7 +38,7 @@ This is the representation the prover works in, and it is also the representatio
 reconstructed, since the imports of the reconstructed proof are the clause sequents themselves. Emitting it
 directly means the clause set, the prover's working form and the proof's imports are one representation rather
 than three. Both clausifiers build it at the leaves of their distribution step, `UncertifiedClausifier.toClauses`
-and `DistributePhase.distributeClauses`.
+and `DistributePhase.clausesOf`.
 
 Clauses contain no quantifiers. Their free individual variables are read as universally quantified. Producing
 that shape from an arbitrary formula is the work of the pipeline.
@@ -178,7 +178,7 @@ calls its continuation on the transformed problem, and wraps the result in the s
 |---|---|---|---|
 | 1 | screening | [ScreenPhase.scala](ScreenPhase.scala) | rename every free input variable; expand every quantifier to explicit lambda form |
 | 2 | negation | [NegatedPhase.scala](NegatedPhase.scala) | move the conjecture `φ` to the hypotheses as `¬φ`, freezing its free individual variables |
-| 3 | naming | `certifyNaming` in [CertifiedClausifier.scala](CertifiedClausifier.scala) | replace subformulas above the threshold by `nm(x̄)`, adding their definitions |
+| 3 | naming | [NamingPhase.scala](NamingPhase.scala) | replace subformulas above the threshold by `nm(x̄)`, adding their definitions |
 | 4 | negation normal form | [NnfPhase.scala](NnfPhase.scala) | eliminate `⇒` and `⇔`, push negation to the atoms |
 | 5 | Skolemization | [SkolemPhase.scala](SkolemPhase.scala) | remove `∃` using epsilon terms, then abbreviate each as `esk(x̄)` |
 | 6 | quantifier stripping | [PrenexPhase.scala](PrenexPhase.scala) | remove every `∀`, instantiating at a fresh variable `w` |
@@ -216,8 +216,7 @@ own, so the two follow the same rule at every depth.
 One restriction applies to both and is checked rather than assumed. The imports of a converted subproof receive
 the assumptions handed to it, and the kernel matches each of those imports against the parent step that
 discharges it, so such a step must be one that also received them, that is, one whose premises reach an import.
-The phases respect this: `DistributePhase`, for instance, derives each clause from steps that reach no import
-and cites only the closing `Cut` against the axiom import.
+The phases respect this: every step `DistributePhase` cites, for instance, is a `Weakening` of an axiom import.
 
 ### 2.4 Names
 
@@ -304,11 +303,12 @@ Where the dependencies leave a choice, the order follows the pipeline of Section
 | 4 | [NamingSupport.scala](NamingSupport.scala) | how a naming predicate is created and how its definition is discharged, used by the naming phase and by Skolemization |
 | 5 | [ScreenPhase.scala](ScreenPhase.scala) | the first phase, and the one that establishes the name and shape invariants the rest assume |
 | 6 | [NegatedPhase.scala](NegatedPhase.scala) | where the conjecture goes, and where the prover contract comes from |
-| 7 | [NnfPhase.scala](NnfPhase.scala) | the smallest phase, and the one whose certification is a single step |
-| 8 | [SkolemPhase.scala](SkolemPhase.scala) | the first phase that introduces a symbol and must discharge it |
-| 9 | [PrenexPhase.scala](PrenexPhase.scala) | one derivation per axiom, mirroring the formula's own tree |
-| 10 | [DistributePhase.scala](DistributePhase.scala) | the last phase, where the clauses are finally built |
-| 11 | [CertifiedClausifier.scala](CertifiedClausifier.scala) | the composition root, read last because it is the only file that mentions all the others |
+| 7 | [NamingPhase.scala](NamingPhase.scala) | the phase that introduces a symbol and must discharge it, and the one whose decisions the two conversions must agree on |
+| 8 | [NnfPhase.scala](NnfPhase.scala) | the smallest phase, and the one whose certification is a single step |
+| 9 | [SkolemPhase.scala](SkolemPhase.scala) | the same discharge machinery as naming, over ε-terms |
+| 10 | [PrenexPhase.scala](PrenexPhase.scala) | one derivation per axiom, mirroring the formula's own tree |
+| 11 | [DistributePhase.scala](DistributePhase.scala) | the last phase, where the clauses are finally built |
+| 12 | [CertifiedClausifier.scala](CertifiedClausifier.scala) | the composition root, read last because it is the only file that mentions all the others |
 
 Three points are worth knowing before starting.
 
@@ -317,16 +317,14 @@ Position 3 is the exception to the dependency order. `UncertifiedClausifier` reu
 the cost, because it shows the whole conversion at a size that fits in one sitting, and everything after it is
 then a matter of how each step is justified rather than what it does.
 
-Phases 5 to 10 do not depend on each other at all. Each depends on `Clausification` and `ProofIR`, and
-`SkolemPhase` on `NamingSupport` as well, but none of them names another. They are connected at run time by the
-continuation each is passed, not by any reference between them. Their order in the table is therefore the
-pipeline order rather than a constraint, and any one of them can be read on its own.
+Phases 5 to 11 do not depend on each other at all. Each depends on `Clausification` and `ProofIR`, and
+`NamingPhase` and `SkolemPhase` on `NamingSupport` as well, but none of them names another. They are connected
+at run time by the continuation each is passed, not by any reference between them. Their order in the table is
+therefore the pipeline order rather than a constraint, and any one of them can be read on its own.
 
-`CertifiedClausifier.scala` holds two different things, which is why it appears once here but twice in the
-pipeline. It defines `certifyClausal`, the composition, and also `certifyNaming`, the naming phase, which in
-pipeline order runs third, between `NegatedPhase` and `NnfPhase`. Read the file's `certifyNaming` half with the
-phases and its `certifyClausal` half at the end. Its dependency on `UncertifiedClausifier` is narrow: the
-default naming threshold, and the two oracles that let `ClausifierEquivalenceTest` compare the conversions.
+`CertifiedClausifier.scala` is read last because it is the composition and nothing else. Its dependency on
+`UncertifiedClausifier` is narrow: the default naming threshold, and the oracles that let
+`ClausifierEquivalenceTest` compare the two conversions stage by stage.
 
 ### 2.9 Tests
 

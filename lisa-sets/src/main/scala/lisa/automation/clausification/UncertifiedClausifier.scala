@@ -125,7 +125,12 @@ object UncertifiedClausifier:
       case Neg(g) =>
         val (g2, eg) = name(g, -pol, threshold, frozen, defs, counter)
         (neg(g2), Est.neg(eg))
-      case Implies(g, h) => name(or(neg(g))(h), pol, threshold, frozen, defs, counter) // eliminate → to ¬g ∨ h
+      case Implies(g, h) => // named as `¬g ∨ h`, but kept as `⇒` when that turned out to name nothing, which is
+        // what [[NamingPhase]]'s own search does, so the two paths carry the same formula. NNF eliminates the
+        // survivors anyway, so the clauses are the same either way.
+        val expanded = or(neg(g))(h)
+        val (rewritten, est) = name(expanded, pol, threshold, frozen, defs, counter)
+        (if rewritten == expanded then f else rewritten, est)
       case Iff(g, h) => // children live at both polarities; both pos and neg are multiplicative
         var (g2, eg) = name(g, 0, threshold, frozen, defs, counter)
         var (h2, eh) = name(h, 0, threshold, frozen, defs, counter)
@@ -169,7 +174,7 @@ object UncertifiedClausifier:
   // ── distribution to clauses ─────────────────────────────────────────────────────────────────────
 
   /** The clauses of a quantifier-free NNF matrix, each as `a₁, …, aₘ ⊢ b₁, …, bₙ` (README §1.4). The two sides
-   *  are separated at the leaves, as [[DistributePhase.distributeClauses]] does on the certified side. */
+   *  are separated at the leaves, as [[DistributePhase.clausesOf]] does on the certified side. */
   private def toClauses(f: Expression): List[Sequent] =
     f match
       case And(g, h) => toClauses(g) ++ toClauses(h)

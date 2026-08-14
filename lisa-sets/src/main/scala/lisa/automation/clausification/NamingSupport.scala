@@ -6,7 +6,7 @@ import Clausification.*
 /**
  * Shared support for **definitional naming**: creating a fresh naming predicate over a subformula's free
  * variables, and the small kernel proofs that discharge a naming definition `∀x̄. d(x̄) ⇔ subst`. Used by
- * [[SkolemPhase]] (ε-discharge), [[CertifiedClausifier.certifyNaming]] (certified selective naming),
+ * [[SkolemPhase]] (ε-discharge), [[NamingPhase]] (certified selective naming),
  * and the uncertified [[UncertifiedClausifier]].
  */
 private[clausification] object NamingSupport:

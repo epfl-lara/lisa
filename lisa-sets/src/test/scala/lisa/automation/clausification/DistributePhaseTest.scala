@@ -28,9 +28,7 @@ class DistributePhaseTest extends AnyFunSuite:
 
   /** The clauses of `phi` in the shape the phase emits them: negative literals as their atoms on the left,
     * positive literals on the right. */
-  private def clausesOf(phi: Expression): Seq[Sequent] =
-    DistributePhase.distributeClauses(phi, scala.collection.mutable.ArrayBuffer.empty)
-      .map((negative, positive, _) => Sequent(negative, positive))
+  private def clausesOf(phi: Expression): Seq[Sequent] = DistributePhase.clausesOf(phi)
 
   test("an ordinary NNF matrix distributes to its CNF clauses, negative literals on the left") {
     // a ∨ (b ∧ ¬a)  ⇒  the clauses {a, b} and {a, ¬a}, i.e. the sequents `⊢ a, b` and `a ⊢ a`.

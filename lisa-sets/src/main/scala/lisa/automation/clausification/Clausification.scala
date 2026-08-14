@@ -170,7 +170,7 @@ object Clausification {
 
   /**
    * The outer **discharge** loop shared by [[SkolemPhase.certifySkolem]] and
-   * [[CertifiedClausifier.certifyNaming]]. `csub` carries `count` fresh-symbol definitions as
+   * [[NamingPhase.certifyNaming]]. `csub` carries `count` fresh-symbol definitions as
    * assumptions on its antecedent; this discharges them **latest-first**: for each `j = count-1 … 0`,
    * instantiate the fresh symbol to its value (which turns assumption `j` into a reflexive formula), prove that
    * reflexive formula, and `Cut` it away. `perStep(j)` supplies the three things that differ between the two

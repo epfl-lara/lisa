@@ -36,8 +36,8 @@ class NamingSupportTest extends AnyFunSuite:
     * are exactly `{sk, y}`. */
   private val big: Expression = or(or(and(q(sk))(q(y)))(and(q(a))(q(b))))(and(q(c))(q(d)))
 
-  private def nameOnce(f: Expression, frozen: Set[Variable]): CertifiedClausifier.NamingStep =
-    CertifiedClausifier.nameOne(f, Counter(), UncertifiedClausifier.DefaultThreshold, Counter(), frozen)
+  private def nameOnce(f: Expression, frozen: Set[Variable]): NamingPhase.NamingStep =
+    NamingPhase.nameOne(f, Counter(), UncertifiedClausifier.DefaultThreshold, Counter(), frozen)
       .getOrElse(fail(s"nothing was named in $f: the test formula no longer trips the threshold"))
 
   test("namingVars keeps free Ind variables, drops higher-sorted ones and drops frozen ones") {
