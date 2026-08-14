@@ -6,7 +6,7 @@ import lisa.automation.clausification.{Clausification, CertifiedClausifier}
 
 /**
  * End-to-end tests of the [[Superpose]] tactic: each theorem is proved by `have(thesis) by Superpose`, so the
- * whole path runs — clausify → superposition refute → reconstruct → discharge the five library lemmas
+ * whole path runs: clausify → superposition refute → reconstruct → discharge the five library lemmas
  * ([[lisa.maths.Quantifiers.existsEpsilonIff]] + the prenex laws) at theorem completion. A failing proof throws
  * at construction, so reaching a `test` body means the theorem was accepted by the kernel and the library.
  */
@@ -32,7 +32,7 @@ class SuperposeTacticTest extends AnyFunSuite with lisa.TestMain {
   // Regression for the NegatedPhase bug: a conjecture with a free predicate VARIABLE must clausify to a
   // kernel-valid proof WITHOUT the caller pre-freezing anything (frozen defaults to ∅). NegatedPhase pins the
   // conjecture's free non-Ind symbols itself; before the fix this was invalid at step 2.6 (the old RenamePhase
-  // renaming `S`, which is free in the negated-conjecture assumption — the rename now happens in ScreenPhase,
+  // renaming `S`, which is free in the negated-conjecture assumption. The rename now happens in ScreenPhase,
   // above the assumption, where it is legal at every sort).
   test("certifyClausal is kernel-valid on a first-order goal with a free predicate variable (frozen=∅)") {
     import lisa.utils.K
@@ -53,7 +53,7 @@ class SuperposeTacticTest extends AnyFunSuite with lisa.TestMain {
   test("first-order: drinker's paradox ∃z. (S(z) ⟹ ∀w. S(w))") { succeed }
 
   // End-to-end counterpart of `ScreenPhaseTest`: the goal is written with the names the clausifier reserves for
-  // its own schemas — `P : Ind → Prop` (instantiated by the Skolem bridge), `R : Prop` (the closed operand of the
+  // its own schemas: `P : Ind → Prop` (instantiated by the Skolem bridge), `R : Prop` (the closed operand of the
   // prenex laws), `x` (their bound variable). ScreenPhase renames them on the way in and restores them on the way
   // out; without it the kernel rejected the clausification, so the tactic could not have produced this theorem.
   val P = variable[Ind >>: Prop] // == Clausification.schemaP
@@ -83,7 +83,7 @@ class SuperposeTacticTest extends AnyFunSuite with lisa.TestMain {
 
   // Degenerate/unprovable shapes must come back as a judgement, not an exception: the tactic is called here for
   // its return value and never `have`n, so "did not throw and is not valid" is the pass condition. The message
-  // is checked too — `runProver`'s catch-all would otherwise turn an internal crash into an indistinguishable
+  // is checked too, since `runProver`'s catch-all would otherwise turn an internal crash into an indistinguishable
   // failure, and only the "could not refute" wording means the prover really saturated.
   val cleanFailures = Theorem(A |- A) {
     val nonTheorem = Superpose(A |- B)

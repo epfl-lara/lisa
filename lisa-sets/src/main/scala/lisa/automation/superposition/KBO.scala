@@ -246,9 +246,9 @@ final class KBO(val bank: TermBank):
    * violation found: the variable weight must be positive, every constant must weigh at least the
    * variable weight, and a weight-zero unary symbol (if any) must be precedence-maximal.
    *
-   * '''A test oracle, and an acknowledged gap.''' Only `KBOTest` calls this, so it is `private[automation]`.
-   * Being a test-only check is a weaker position than it looks: [[WeightScheme]] and [[PrecedenceScheme]] are
-   * user-selectable through [[Strategy]], so admissibility — and with it *termination* of rewriting — is a
+   * '''A test oracle, and an acknowledged gap.''' Only `KBOTest` calls this. Being a test-only check is a
+   * weaker position than it looks: [[WeightScheme]] and [[PrecedenceScheme]] are
+   * user-selectable through [[Strategy]], so admissibility, and with it *termination* of rewriting, is a
    * property of a runtime configuration that nothing validates at runtime. A scheme added later that violates
    * it would not fail here; it would loop, or silently lose completeness, somewhere in demodulation. Calling
    * this once from `Bridge.solve` behind a debug flag would close that; it has not been done.

@@ -138,12 +138,12 @@ object Subsumption:
    * only `L`), so the built clause `C'σ₀ ∪ M'` need not entail `main`; we keep it **only when it `subsumes`
    * `main`**, else the deletion would break completeness (discard a clause a refutation needs). Conservative: it
    * misses SR steps whose `C'` carries extra variables (a complete version needs the full matcher σ + a
-   * reconstruction — deferred; see `archive/PossibleOptimizations.md`).
+   * reconstruction, deferred; see `archive/PossibleOptimizations.md`).
    */
   def subsumptionResolutionResolvent(bank: TermBank, trail: Trail, side: Clause, main: Clause): Option[Clause] =
     // The size/weight/predicate conditions of [[sigSubsumes]] hold here too, and for the same reasons: `C'σ ⊆ M'`
     // and `Lσ = ¬K` put all of `side` into `main` up to polarity. Not `sigSubsumes` itself, since the polarity
-    // counts do *not* carry over — `L` matches a literal of the opposite sign.
+    // counts do *not* carry over, since `L` matches a literal of the opposite sign.
     if side.size > main.size || side.weight > main.weight then return None
     if (side.predBits & main.predBits) != side.predBits then return None
     val sl: Array[Literal] = side.literals
@@ -166,7 +166,7 @@ object Subsumption:
                 Inference.canonicalize(bank, raw) match
                   // keep `rc` and delete `main` only if `rc` entails `main` (completeness gate; see above)
                   case Some(rc) => if unit || subsumes(bank, trail, rc, main) then return Some(rc)
-                  case None     => () // canonicalisation dropped it as a tautology — skip (like `condense`), never use raw
+                  case None     => () // canonicalisation dropped it as a tautology: skip it (as `condense` does), never use raw
               case None => ()
         iK += 1
       iL += 1

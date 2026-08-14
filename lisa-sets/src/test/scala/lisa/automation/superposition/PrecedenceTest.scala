@@ -5,8 +5,8 @@ import org.scalatest.funsuite.AnyFunSuite
 import Core.*
 
 /** Phase-5 heuristics: KBO symbol-**precedence** generation ([[Precedence]] / [[PrecedenceScheme]]). Checks the
- *  schemes produce a *total* order (KBO needs it), are deterministic, order symbols as advertised, and — most
- *  importantly — do not change the prover's verdict (an A/B against the former occurrence-order baseline). */
+ *  schemes produce a *total* order (KBO needs it), are deterministic, order symbols as advertised, and, most
+ *  importantly, do not change the prover's verdict (an A/B against the former occurrence-order baseline). */
 class PrecedenceTest extends AnyFunSuite:
 
   class Fix extends TermFixture:

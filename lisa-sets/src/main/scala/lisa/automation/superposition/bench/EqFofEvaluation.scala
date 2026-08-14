@@ -3,7 +3,7 @@ package bench
 
 /**
  * The third evaluation dataset: non-clausal (FOF), first-order, **equality-bearing**, arithmetic-free TPTP
- * **theorems** (`tptp-fof-fo-eq-thm.txt`) — the exact analog of the equality-free [[FofEvaluation]] set, selected
+ * **theorems** (`tptp-fof-fo-eq-thm.txt`), the exact analog of the equality-free [[FofEvaluation]] set, selected
  * the very same way (by the TPTP `SPC` header) but with the equality classes `FOF_THM_{RFO,EPR}_{SEQ,PEQ}`
  * (**S**ome or **P**ure **EQ**uality) in place of `…_NEQ`. The `CSR` (SUMO commonsense) domain is excluded for
  * the same reason as there (giant numeric ontologies the parser mishandles / that blow the size budget), and only
@@ -12,7 +12,7 @@ package bench
  *
  * This is the set that actually exercises the equality inferences (superposition, equality
  * resolution/factoring, demodulation) end-to-end, so the `equality` ablation is meaningful here (many refutations
- * need equality reasoning). Everything else — the pipeline, CLI, and output — is the shared [[FofHarness]]; see it
+ * need equality reasoning). Everything else, the pipeline, CLI and output, is the shared [[FofHarness]]; see it
  * for the run modes and column meanings.
  */
 object EqFofEvaluation:

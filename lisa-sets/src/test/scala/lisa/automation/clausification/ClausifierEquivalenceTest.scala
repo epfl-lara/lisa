@@ -15,10 +15,10 @@ import Clausification.GeneratedNames
 /**
  * Equivalence check between the **uncertified** uncertified clausifier ([[lisa.automation.clausification.UncertifiedClausifier]])
  * and the **certified** one ([[CertifiedClausifier]]) on the first 100 problems (seed 42) of each of the
- * equality-free FOF and equality-bearing FOF benchmarks — 200 problems. Establishes, on real inputs, that the two
+ * equality-free FOF and equality-bearing FOF benchmarks, 200 problems in all. It establishes, on real inputs, that the two
  * make the *same naming decisions*: for every input formula the certified named formula equals the uncertified one
- * *identically* — both mint their `nm` atoms with the same generator ([[CertifiedClausifier.sameNaming]] is a
- * plain `==`). This is the soundness lever — if the certified
+ * *identically*, both minting their `nm` atoms with the same generator ([[CertifiedClausifier.sameNaming]] is a
+ * plain `==`). This is the soundness lever: if the certified
  * (kernel-checked) path names identically, its clauses vouch for the uncertified path's.
  *
  * Needs the `TPTP` env var (the directory containing `Problems/`); skipped otherwise.
@@ -43,12 +43,13 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
   /** Structural equality up to renaming of the **fresh** symbols, with the problem symbols (all other constants)
    *  matching exactly. Two classes of fresh symbol, treated differently:
    *
-   *   - **Ordinary variables** — clause variables `w…`/originals, naming atoms `nm…` — must match by a
+   *   - **Ordinary variables** (clause variables `w…` or originals, and naming atoms `nm…`) must match by a
    *     consistent **bijection** (distinct on one side ⇒ distinct on the other).
-   *   - **Skolem symbols** — `sk…` (uncertified, a Skolem `Constant`) and `feps…` (certified, the ε-abstraction function) —
+   *   - **Skolem symbols**, `sk…` (uncertified, a Skolem `Constant`) and `feps…` (certified, the ε-abstraction function),
    *     match by a consistent **forward function** only (uncertified ⇒ certified), NOT a bijection. Uncertified mints a fresh
-   *     Skolem per existential; the certified ε-path *merges* syntactically-identical existentials (identical ε-terms
-   *     are one term). So uncertified is a strict refinement: every uncertified Skolem maps onto one certified symbol, but one
+   *     Skolem per existential; on the side compared here identical ε-terms abstract to the same `feps` symbol, so
+   *     syntactically-identical existentials *merge* (the certified clausifier itself does not: it mints a fresh `esk`
+   *     per occurrence). So uncertified is a strict refinement: every uncertified Skolem maps onto one certified symbol, but one
    *     certified symbol may cover several uncertified ones. Requiring only the forward map captures exactly this (and more
    *     distinct Skolem functions is unconditionally sound, so the relaxation loses no soundness assurance). */
   // Returns None if isomorphic (in the above sense), else the first structurally-mismatching subexpression pair.
@@ -79,14 +80,14 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
    *
    *  ε-terms are treated as **fully opaque** uninterpreted function symbols: we never look inside one (so nested
    *  ε-terms are absorbed into their enclosing symbol, exactly as UncertifiedClausifier's opaque Skolem functions absorb
-   *  the witnesses they range over), and its identity is the *raw* ε-term — only its free variables are observable.
+   *  the witnesses they range over), and its identity is the *raw* ε-term, of which only the free variables are observable.
    *  Keying on the raw term (rather than recursively pre-abstracting the body) makes dedup structural: two identical
    *  ε-terms get one symbol regardless of the numbering order of any inner ε-terms. */
   private def absEps(e: K.Expression): K.Expression =
     var n = 0
     val memo = scala.collection.mutable.HashMap.empty[K.Expression, K.Expression] // same raw ε-term ⇒ same symbol
     def go(e: K.Expression): K.Expression = e match
-      case eps @ K.Application(f0, _) if f0 == K.epsilon => // an ε-term — opaque; do NOT descend into its body
+      case eps @ K.Application(f0, _) if f0 == K.epsilon => // an ε-term is opaque, so do NOT descend into its body
         memo.getOrElseUpdate(eps, {
           // A **Constant** (like UncertifiedClausifier's Skolem `sk`), NOT a Variable: else a nullary `feps` (result sort
           // Ind) would be an Ind-valued free variable and cascade in as an argument to outer Skolem functions.
@@ -134,7 +135,7 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
             assert(CertifiedClausifier.sameNaming(phi), s"naming diverged (certified ≠ uncertified) on $rel:\n  $phi")
             // (2) after Skolem: uncertified (Skolem functions) equals certified (ε-terms, ∀-stripped, ε-abstracted). The
             // certified side can blow up on nested-∃ ε-terms, so run it under a 2s budget and skip on timeout.
-            val uncertifiedSk = CertifiedClausifier.uncertifiedNamedNnfSkolem(phi) // linear (Skolem functions) — always cheap
+            val uncertifiedSk = CertifiedClausifier.uncertifiedNamedNnfSkolem(phi) // linear (Skolem functions), always cheap
             runWithTimeout(2000) { CertifiedClausifier.stripForall(absEps(CertifiedClausifier.namedNnfSkolemEps(phi))) } match
               case None => skolemTimeouts += 1; println(f"[timer] TIMEOUT  size=${size(phi)}%6d  $rel")
               case Some(certSk) =>
@@ -146,7 +147,7 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
         }
     println(s"[summary] checked $formulasChecked formulas across $problemsChecked problems ($skolemTimeouts skipped as >2s)")
     println(s"[summary] SKOLEM DIVERGENCES: ${skolemFails.map(_._1).distinct.size} problems, ${skolemFails.size} formulas")
-    skolemFails.foreach((p, m) => println(s"[summary]   skolem-diverge: $p — $m"))
+    skolemFails.foreach((p, m) => println(s"[summary]   skolem-diverge: $p: $m"))
     info(s"checked $formulasChecked formulas across $problemsChecked problems ($skolemTimeouts skipped >2s); ${skolemFails.size} skolem divergences")
     assert(problemsChecked >= 30, s"expected to load most problems, only $problemsChecked")
     assert(formulasChecked > 0)

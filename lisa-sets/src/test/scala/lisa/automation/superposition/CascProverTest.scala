@@ -10,13 +10,13 @@ import lisa.tptp.KernelParser.{problemToKernel, strictMapAtom, strictMapTerm, st
 /**
  * Tests for [[CascProver]], the CASC entry point.
  *
- * Everything in it is `private`, and rightly so — its contract is not a Scala API but the **text it prints**,
+ * Everything in it is `private`, and rightly so, since its contract is not a Scala API but the **text it prints**,
  * which a competition harness parses. So these tests are black-box: write a problem, run `main`, capture
  * stdout, and check the output against the SZS conventions. The sharpest assertion is that every annotated
  * formula it emits **re-parses** with the same parser that read the input; a derivation that a harness cannot
  * read is worthless however correct the search was.
  *
- * The problems are written here rather than taken from the corpus, so this suite runs unconditionally — it
+ * The problems are written here rather than taken from the corpus, so this suite runs unconditionally, and it
  * does not join the ~40 tests that vanish when `TPTP` is unset (see [[TptpCorpus]]).
  *
  * Not covered, deliberately: the two argument-error paths (no problem file, unknown `--strategy`) call
@@ -34,7 +34,7 @@ class CascProverTest extends AnyFunSuite:
     f
 
   /** Run `CascProver.main` with stdout captured. Its diagnostics (SInE decisions, parse/solve errors) go to
-    * stderr and are deliberately not captured — only the machine-readable half is under test. */
+    * stderr and are deliberately not captured, since only the machine-readable half is under test. */
   private def run(args: String*): String =
     val out = new ByteArrayOutputStream()
     Console.withOut(out)(CascProver.main(args.toArray))
@@ -48,7 +48,7 @@ class CascProverTest extends AnyFunSuite:
       .filter(l => l.startsWith("cnf(") || l.startsWith("fof("))
       .toVector
 
-  /** Feed the emitted derivation back through the parser that read the input, as a problem file — which is
+  /** Feed the emitted derivation back through the parser that read the input, as a problem file, which is
     * what a competition harness does with it. Parsed whole rather than statement by statement: the clauses
     * are emitted as `cnf(...)` with `inference(...)` records, and only the problem-level entry point accepts
     * both (`annotatedStatementToKernel` is fof-only). */
@@ -131,7 +131,7 @@ class CascProverTest extends AnyFunSuite:
 
   test("an equality problem's derivation re-parses too (`!=` literals and equality rules)") {
     // Disequality prints as `a != b`, and the rule names (`superposition`, `equality_resolution`, …) sit in
-    // the inference record — a different print path from the pure-resolution case above.
+    // the inference record, a different print path from the pure-resolution case above.
     val f = problemFile("eq.p",
       """|cnf(a1, axiom, f(a) = b).
          |cnf(a2, axiom, f(a) != b).
@@ -178,7 +178,7 @@ class CascProverTest extends AnyFunSuite:
        |fof(a3, axiom, ! [Z,W] : ( ~p(Z) | ~q(W) )).
        |"""
 
-  /** Above the naming threshold, with a free variable under the named subformula — so the naming atom is
+  /** Above the naming threshold, with a free variable under the named subformula, so the naming atom is
     * *applied*, `nm_1(X)`. Printed as a variable this is `X0(X1)`, which is not valid TPTP at all. */
   private val appliedNamingAtom =
     """|fof(b1, axiom, ! [X] : ( (a1(X) & c1(X)) | (a2(X) & c2(X)) | (a3(X) & c3(X)) | (a4(X) & c4(X)) | (a5(X) & c5(X)) )).
@@ -190,7 +190,7 @@ class CascProverTest extends AnyFunSuite:
        |"""
 
   test("distinct Skolem constants print distinctly (the counter is part of the identity)") {
-    // `UncertifiedClausifier` mints them as `sk`, `sk_1`, … — all sharing `id.name`. Rendering by name alone collapses
+    // `UncertifiedClausifier` mints them as `sk`, `sk_1`, …, all sharing `id.name`. Rendering by name alone collapses
     // them, and then `q(sk)` does not follow from `? [Y] : q(Y)` at all, since `sk` is already a1's witness.
     // tptp4X cannot see this: the collapsed output is perfectly well-formed TPTP.
     val out = run("-t", "20", problemFile("twoskolem.p", twoSkolems).getPath)
@@ -208,7 +208,7 @@ class CascProverTest extends AnyFunSuite:
     assert(nms.nonEmpty, s"expected the naming threshold to fire, but no `nm` atom was emitted:\n$out")
     emittedFormulas(out).foreach { line =>
       assert(!raw"\bX\d+\s*\(".r.findFirstIn(line).isDefined,
-        s"a variable is being applied — not valid TPTP: $line")
+        s"a variable is being applied, which is not valid TPTP: $line")
     }
   }
 

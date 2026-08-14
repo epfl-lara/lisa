@@ -17,7 +17,7 @@ import Core.*
  * `¬a₁ ∨ … ∨ ¬aₘ ∨ b₁ ∨ … ∨ bₙ`. So formulas on the **left** become **negative** literals and those
  * on the **right** become **positive** literals; the empty sequent `⊢` is the empty clause `□`.
  *
- * The entry point is [[solve]]: it runs the saturation **once** and returns an [[Outcome]] — a
+ * The entry point is [[solve]]: it runs the saturation **once** and returns an [[Outcome]]: a
  * [[Outcome.Success]] carrying the empty clause `□` and everything needed to reconstruct a proof (the
  * [[TermBank]] and the per-input variable maps), [[Outcome.Saturated]] (no `□`: the set is satisfiable),
  * or [[Outcome.Timeout]] (a budget was hit before deciding). [[solveTPTPProblem]] is the same for a
@@ -35,8 +35,8 @@ object Bridge:
   /**
    * The result of a [[solve]] run: a [[Outcome.Success]] (the empty clause `□` was derived) carrying
    * everything needed to reconstruct a kernel proof, [[Outcome.Saturated]] (the passive set was
-   * exhausted without `□` — the clause set is satisfiable, a genuine decision), or [[Outcome.Timeout]]
-   * (a budget was hit before deciding — the set's status is unknown).
+   * exhausted without `□`, so the clause set is satisfiable, a genuine decision), or [[Outcome.Timeout]]
+   * (a budget was hit before deciding, so the set's status is unknown).
    */
   sealed trait Outcome:
     /** Whether the set was refuted (`□` derived). */
@@ -47,7 +47,7 @@ object Bridge:
   object Outcome:
     /**
      * A refutation. Holds the empty clause `empty` and the run's [[TermBank]] plus the per-input-clause
-     * variable maps (`inputs`) — the context [[reconstructKernelProof]] needs to rebuild the proof.
+     * variable maps (`inputs`), the context [[reconstructKernelProof]] needs to rebuild the proof.
      */
     final case class Success(
         empty: Clause,
@@ -58,7 +58,7 @@ object Bridge:
       /**
        * Reconstruct a kernel [[lisa.utils.K.SCProof]] from this refutation: its imports are the input
        * clause-sequents and its conclusion is the empty sequent `⊢`. Uses the bank and per-input data
-       * carried here — no re-solving. `schematicNames` (the ε-abstraction symbols from [[Clausal]]) are rebuilt as kernel
+       * carried here, with no re-solving. `schematicNames` (the ε-abstraction symbols from [[Clausal]]) are rebuilt as kernel
        * variables; when `discharge` maps them to their `λfv. e` values, they are instead inlined back to the
        * original (ε-)terms so the proof is free of the abstraction symbols. See [[Reconstruction]].
        */
@@ -67,7 +67,7 @@ object Bridge:
     /** The passive set was exhausted without deriving `□`: the clause set is satisfiable (a decision). */
     case object Saturated extends Outcome
 
-    /** A budget — the `maxGiven` given-clause count or the `maxMillis` wall-clock limit — was hit before
+    /** A budget, either the `maxGiven` given-clause count or the `maxMillis` wall-clock limit, was hit before
      *  the search could decide. Not a decision: the set's status is unknown. */
     case object Timeout extends Outcome
 
@@ -84,7 +84,7 @@ object Bridge:
       sequents: Iterable[K.Sequent],
       maxGiven: Int = Int.MaxValue,
       maxMillis: Long = Long.MaxValue,
-      // Every search knob, in one value — see [[SearchOptions]].
+      // Every search knob, in one value; see [[SearchOptions]].
       opts: SearchOptions = SearchOptions(),
       // Schematic symbol variables: kernel `Variable`s that are to be treated as **symbols** by the prover
       // (not clause variables) and rebuilt as variables in reconstruction. Dispatched by position: a symbol
@@ -112,7 +112,7 @@ object Bridge:
       c
     }.toSeq
     // Generate the KBO symbol precedence from the (now fully interned) signature, before anything reads the
-    // ordering — clause construction never does, and the selector below is the first thing that can.
+    // ordering, which clause construction never does, and the selector below is the first thing that can.
     // (`Order` also self-invalidates on a precedence change, so this is for clarity, not correctness.)
     Precedence.assign(sig, bank, clauses, opts.precedenceScheme)
     bank.selector = LiteralSelection.selector(opts.selection, bank)
@@ -139,7 +139,7 @@ object Bridge:
 
   /** [[solve]] on a [[lisa.tptp.Problem]] whose formulas are each a pure clause (e.g. a TPTP `cnf`
    *  problem): converts it to clause-sequents and hands them to [[solve]]. `opts` is forwarded whole, never
-   *  unpacked — see [[SearchOptions]]. */
+   *  unpacked; see [[SearchOptions]]. */
   def solveTPTPProblem(
       problem: Problem,
       maxGiven: Int = Int.MaxValue,
@@ -182,7 +182,7 @@ object Bridge:
     *
     * η-expanded first, because [[stripForall]] matches an explicit `Lambda`: an η-reduced `∀(p)` would not be
     * stripped, and would reach [[atomTerm]] as an opaque atom headed by `∀`, interned as an ordinary unary
-    * predicate. This is the third of the three entry points that establish that invariant — see
+    * predicate. This is the third of the three entry points that establish that invariant; see
     * [[lisa.automation.clausification.Clausification.etaExpandQuantifiers]]. Expected to be a no-op here (TPTP
     * input is parsed to explicit binders, and a `cnf` clause has none at all), which is exactly why it is applied
     * rather than assumed: it is idempotent and costs one traversal of an already-clausal formula. */
@@ -220,7 +220,7 @@ object Bridge:
 
   /** Build the internal atom term for a predicate application: the head must be a predicate constant, or a
    *  schematic **predicate** variable listed in `symbolVars` (a clausifier naming atom `nm…`, or a Lisa
-   *  predicate variable) — interned as an (uninterpreted) predicate symbol. */
+   *  predicate variable), interned as an (uninterpreted) predicate symbol. */
   private def atomTerm(bank: TermBank, vars: mutable.HashMap[K.Variable, Int], f: K.Expression, symbolVars: Set[K.Variable]): Term =
     val (head, args) = headAndArgs(f)
     def app(sym: Symbol): Term = bank.mkApp(sym, args.iterator.map(a => term(bank, vars, a, symbolVars)).toArray)

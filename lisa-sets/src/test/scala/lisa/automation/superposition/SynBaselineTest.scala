@@ -9,7 +9,7 @@ import lisa.tptp.KernelParser.{problemToKernel, strictMapAtom, strictMapTerm, st
  * Baseline test: the prover ([[Bridge.solve]]) on a sample of easy TPTP `SYN` problems.
  *
  * These are small, self-contained, no-equality, unsatisfiable clausal problems (SPC
- * `CNF_UNS_EPR_NEQ_HRN`) — exactly the fragment Phase-1 ordered resolution handles. They are located
+ * `CNF_UNS_EPR_NEQ_HRN`), exactly the fragment ordered resolution handles. They are located
  * via the `TPTP` environment variable (pointing at the TPTP root, e.g. `.../TPTP-v9.2.1`); if it is
  * unset the tests are **cancelled**, not failed, so the suite stays portable.
  */

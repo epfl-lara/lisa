@@ -14,15 +14,15 @@ import lisa.maths.Quantifiers
  *
  * It clausifies the goal (negate → NNF → Skolemize → prenex → distribute) with
  * [[CertifiedClausifier.certifyClausal]], refutes the clause set with the DISCOUNT superposition loop
- * ([[Clausal.proveOutcome]]), and reconstructs a kernel proof of the goal. The reconstruction leans on five
- * library lemmas — [[lisa.maths.Quantifiers.existsEpsilonIff]] and the four `forall{And,Or}{Left,Right}`
- * prenex laws — whose schematic statements are exactly the clausifier's [[Clausification.libImports]]; the
- * tactic supplies them as the sub-proof's imports, so they are discharged against the real theorems.
+ * ([[Clausal.proveOutcome]]), and reconstructs a kernel proof of the goal. The reconstruction leans on one
+ * library lemma, [[lisa.maths.Quantifiers.existsEpsilonIff]], whose schematic statement is exactly the
+ * clausifier's [[Clausification.libImports]]; the tactic supplies it as the sub-proof's import, so it is
+ * discharged against the real theorem.
  *
  * ==Scope==
  * Any sequent shape, `Γ ⊢ Δ`, both sides possibly empty. The clausifier takes a single conjecture *formula*,
  * so the goal is passed through [[sequentToFormula]] (`⋀Γ ⟹ ⋁Δ`, and just `⋁Δ` when `Γ` is empty) and the
- * proof of `⊢ ⋀Γ ⟹ ⋁Δ` is turned back into `Γ ⊢ Δ` by one closing `Restate` — trivially valid, since the
+ * proof of `⊢ ⋀Γ ⟹ ⋁Δ` is turned back into `Γ ⊢ Δ` by one closing `Restate`, trivially valid since the
  * kernel's `isSameSequent` compares exactly these two sequents' `sequentToFormula` images, which are the
  * same expression. Cited facts (`Superpose.from(f₁, …, fₙ)`) are folded the same way, so a hypothesis of any
  * shape becomes one axiom of the clause set. Free variables are implicitly universally quantified, as
@@ -36,12 +36,9 @@ object Superpose extends ProofTactic with ProofSequentTactic with ProofFactSeque
   /** Given-clause cap for the search. */
   val maxGiven: Int = 100000
 
-  /** The five library lemmas whose statements are exactly [[Clausification.libImports]], in that order.
-   *  Cast to `proof.Fact` at each use — they are genuine `SetTheoryLibrary` justifications at runtime. */
-  private def libraryLemmas = Seq(
-    Quantifiers.existsEpsilonIff,
-    Quantifiers.forallAndLeft, Quantifiers.forallAndRight,
-    Quantifiers.forallOrLeft, Quantifiers.forallOrRight)
+  /** The library lemmas whose statements are exactly [[Clausification.libImports]], in that order.
+   *  Cast to `proof.Fact` at each use; they are genuine `SetTheoryLibrary` justifications at runtime. */
+  private def libraryLemmas = Seq(Quantifiers.existsEpsilonIff)
 
   /** Signals a non-refutation (saturation/timeout) from the clausal prover, so `certifyClausal` unwinds. */
   private class NotRefuted(val reason: String) extends RuntimeException(reason)
@@ -49,7 +46,7 @@ object Superpose extends ProofTactic with ProofSequentTactic with ProofFactSeque
   /**
    * Build the certified kernel proof of `⊢ sequentToFormula(goal)` from the hypothesis formulas `hypForms`
    * (each fed as an axiom `⊢ hyp`), or a failure message. The returned proof's imports are
-   * `[⊢ hyp₁, …, ⊢ hypₙ] ++ Clausification.libImports` (the five schematic library statements).
+   * `[⊢ hyp₁, …, ⊢ hypₙ] ++ Clausification.libImports` (the schematic library statement).
    */
   private def runProver(hypForms: Seq[Expression], goal: Sequent): Either[String, SCProof] =
     val conjectureFormula: Expression = sequentToFormula(goal) // `⋀Γ ⟹ ⋁Δ`, or just `⋁Δ` when `Γ` is empty
@@ -85,8 +82,8 @@ object Superpose extends ProofTactic with ProofSequentTactic with ProofFactSeque
         val lemmas: Seq[proof.Fact] = libraryLemmas.asInstanceOf[Seq[proof.Fact]]
         val allImports: Seq[proof.Fact] = premises ++ lemmas
         // pk.imports = [⊢ hyp₁, …, ⊢ hypₙ] ++ libImports. Restate each cited fact (import -(i+1)) to its formula
-        // `⊢ hypᵢ` (steps 0..n-1) to fill the hypothesis slots — this is where a `Γᵢ ⊢ Δᵢ` fact is folded into one
-        // axiom; the library slots come from imports -(n+1)..-(n+5). The closing `Restate` unfolds the proved
+        // `⊢ hypᵢ` (steps 0..n-1) to fill the hypothesis slots. This is where a `Γᵢ ⊢ Δᵢ` fact is folded into one
+        // axiom; the library slot comes from import -(n+1). The closing `Restate` unfolds the proved
         // `⊢ ⋀Γ ⟹ ⋁Δ` back into the goal `Γ ⊢ Δ`: both sides have the same `sequentToFormula`, so it is trivial.
         val restates: Seq[SCProofStep] = hypForms.zipWithIndex.map((f, i) => Restate(Sequent(Set.empty, Set(f)), -(i + 1)))
         val subPremises: Seq[Int] = (0 until n) ++ lemmas.indices.map(j => -(n + j + 1))

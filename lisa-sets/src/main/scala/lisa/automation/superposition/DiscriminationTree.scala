@@ -9,7 +9,7 @@ import Demodulation.Rule
 /**
  * A **perfect discrimination tree** over demodulator LHSs, for the *forward demodulation* retrieval query:
  * given a concrete subterm `u` of the clause being normal-formed, find the active demodulators
- * whose LHS **generalizes** `u` (`∃σ. lσ = u` — one-sided matching, not unification). It replaces `normalForm`'s
+ * whose LHS **generalizes** `u` (`∃σ. lσ = u`, i.e. one-sided matching rather than unification). It replaces `normalForm`'s
  * inner "try every rule against this subterm" scan with a single tree descent.
  * `archive/Phase5DemodulationResearch.md` surveys how E and Vampire index this query and why a *perfect* tree
  * was chosen over a non-perfect one.
@@ -17,9 +17,9 @@ import Demodulation.Rule
  * The LHSs are stored in **flattened left-to-right preorder** (fixed arities ⇒ the symbol string reparses
  * unambiguously, no end-markers), with three kinds of edge:
  *   - a **function symbol** edge (keyed by `f_code`);
- *   - a **variable** edge, kept distinct by variable number — the *perfect* part: during retrieval it **binds** its
+ *   - a **variable** edge, kept distinct by variable number, which is the *perfect* part:: during retrieval it **binds** its
  *     stored variable to the current query subterm on the [[Trail]] (scope 0, where the rewrite reads σ), checking
- *     non-linear consistency via `matchTerm`, so a reached leaf is an exact match with σ in place — **no verify**;
+ *     non-linear consistency via `matchTerm`, so a reached leaf is an exact match with σ in place and needs **no verify**;
  *   - a **ground-term** edge (the fast path): a *whole ground subterm* of an LHS collapses to one edge keyed by its
  *     (hash-consed) `Term` id. Since a ground `l`-subterm matches `u` iff `u` *is* it, this is an O(1) id-equality
  *     check that skips walking the subterm symbol-by-symbol (E's `CHECK_GROUND_TERM`; cheap here because the
@@ -28,7 +28,7 @@ import Demodulation.Rule
  * **Size pruning.** Each node caches `minWeight`, the minimum LHS weight at/below it. Matching only grows a term
  * (`weight(l) ≤ weight(lσ) = weight(u)`), so a subtree whose lightest LHS is heavier than the query is skipped with
  * one integer comparison. Kept as a sound lower bound (not recomputed on removal, so it may become stale-low, which
- * only ever prunes *less* — never a false negative). Its `weight(l) ≤ weight(lσ)` step assumes no symbol weighs
+ * only ever prunes *less*, never a false negative). Its `weight(l) ≤ weight(lσ)` step assumes no symbol weighs
  * less than [[Core.VariableWeight]] (true of both [[Core.WeightScheme]]s, where constants weigh at least 1); a
  * zero-weight constant scheme would make the prune drop real matches.
  */
@@ -59,7 +59,7 @@ final class DiscriminationTree(bank: TermBank, trail: Trail):
   // Unlike the other two indices, where that costs a dropped candidate, here it is **unsound**: `qLen` would
   // be reset to the inner query's length, the outer descent would hit `i == qLen` at a node reached by
   // consuming only a prefix of its own query, and `visit` would be handed rules whose LHS does not generalize
-  // that query — with a partial σ live on the trail. `descending` turns that into a loud failure, as in
+  // that query, with a partial σ live on the trail. `descending` turns that into a loud failure, as in
   // [[FingerprintIndex]] and [[FeatureVectorIndex]].
   private var qTerm: Array[Term] = new Array[Term](16) // the subterm at each preorder position
   private var qHead: Array[Int] = new Array[Int](16) //  its head: function symbol code, or VarMarker
@@ -146,18 +146,18 @@ final class DiscriminationTree(bank: TermBank, trail: Trail):
   // --- retrieval (generalizations) ------------------------------------------------------------------
 
   /** Visit each active demodulator whose LHS generalizes `query`, with the matcher σ **live on the trail**
-   *  (scope 0 = rule vars, scope 1 = query). Exact — no false positives. `visit` returns `true` to stop the
+   *  (scope 0 = rule vars, scope 1 = query). Exact, with no false positives. `visit` returns `true` to stop the
    *  descent early (e.g. once a rewrite has fired); [[retrieveGeneralizations]] then returns `true`. The trail is
    *  restored to its entry state on return.
    *
    *  ==Contract on `visit`==
-   *  It may *read* the trail (that is the point — σ is live), but it must not
+   *  It may *read* the trail (that is the point, since σ is live), but it must not
    *   - re-enter this tree (`insert`/`remove`/`clear`/`retrieveGeneralizations`): the flatten buffers are
-   *     shared across the whole descent. Enforced — it throws.
+   *     shared across the whole descent. Enforced by a throw.
    *   - leave bindings behind: each call is bracketed by `save`/`restore`, so a stray binding cannot leak
    *     into the *next* rule at the same leaf, but relying on that is not the intent.
    *
-   *  The caller must also hold no live scope-1 bindings on entry — `matchTerm` asserts it. */
+   *  The caller must also hold no live scope-1 bindings on entry, which `matchTerm` asserts. */
   def retrieveGeneralizations(query: Term)(visit: Rule => Boolean): Boolean =
     guardNotDescending("retrieveGeneralizations")
     qLen = 0
@@ -187,8 +187,8 @@ final class DiscriminationTree(bank: TermBank, trail: Trail):
       if rs != null then
         var k = 0
         // One bracket per rule: a leaf can hold several (two unit equalities sharing an LHS, say), and they
-        // are visited under the *same* σ. Without this, a `visit` that binds — a nested `matchTerm` or
-        // `unify` — would leave those bindings in place for the next rule, which would then be matched under
+        // are visited under the *same* σ. Without this, a `visit` that binds, via a nested `matchTerm` or
+        // `unify`, would leave those bindings in place for the next rule, which would then be matched under
         // a substitution it never agreed to. `save` is a counter read and `restore` a no-op when nothing was
         // bound, which is the common case.
         while k < rs.length do

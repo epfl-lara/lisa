@@ -6,7 +6,7 @@ import scala.collection.mutable
 
 import Core.*
 
-/** How much each simplification fired during a saturation — observability, and what the ablations read. */
+/** How much each simplification fired during a saturation: observability, and what the ablations read. */
 final class SimplificationStats:
   var forwardSubsumed: Int = 0
   var backwardSubsumed: Int = 0
@@ -25,12 +25,12 @@ final class SimplificationStats:
  * and scanning variants. Generating inferences live elsewhere; what is here only ever *deletes* clauses or
  * replaces them by something shorter that entails them.
  *
- *   - **forward** ([[forward]]) — discard or shrink the clause being added or selected, using the active set:
- *     subsumption, unit deletion, and general subsumption resolution (on by default — see
+ *   - **forward** ([[forward]]) discards or shrinks the clause being added or selected, using the active set:
+ *     subsumption, unit deletion, and general subsumption resolution (on by default; see
  *     [[SearchOptions.forwardSubsumptionResolution]] for the ablation each default came from).
- *   - **backward** ([[backwardSubsume]], [[backwardDemodulate]]) — delete or shrink *active* clauses using the
+ *   - **backward** ([[backwardSubsume]], [[backwardDemodulate]]) deletes or shrinks *active* clauses using the
  *     given, run before the given itself joins the active set so it never simplifies itself.
- *   - **clause-local** ([[condense]]) — replace a clause by an equivalent shorter factor of itself.
+ *   - **clause-local** ([[condense]]) replaces a clause by an equivalent shorter factor of itself.
  *
  * Each direction has an indexed path and a linear-scan path, kept side by side deliberately: they are the A/B
  * apparatus that makes the index-correctness claims testable (each index is a candidate *filter* confirmed by
@@ -39,7 +39,7 @@ final class SimplificationStats:
  *
  * '''Why the backward methods take an `emit` callback rather than returning their replacements.''' A shrunk
  * clause has to reach the passive set, which this class does not own. Returning a list would work for
- * subsumption resolution, whose replacements are already collected and added in a batch — but *not* for
+ * subsumption resolution, whose replacements are already collected and added in a batch, but *not* for
  * backward demodulation, which interleaves rewrite, removal and re-add per clause. Deferring those re-adds
  * would move the `canonicalize` calls inside them, shifting clause ids and hence the whole search trajectory.
  * The callback keeps the interleaving exactly as it was. It returns `Some(□)` when the clause it was handed is
@@ -58,14 +58,14 @@ final class Simplifier(bank: TermBank, trail: Trail, active: ActiveSet, opts: Se
   private val indexedBackwardDemod: Boolean = backwardDemodulationOn && demodulationIndexing
 
   /**
-   * Whether [[forward]] can do anything at all — the early-out for a configuration with every forward
+   * Whether [[forward]] can do anything at all: the early-out for a configuration with every forward
    * simplification off, where `forwardScan` would otherwise walk the whole active set per given doing nothing.
    *
    * '''Why the decision lives here.''' The loop used to make it, gating its `forward` call on
    * `forwardSubsumption || forwardUnitDeletion` while this class runs subsumption resolution on its own flag
    * inside. Those two conditions are not the same, so a configuration asking for subsumption resolution *alone*
    * (`SearchOptions(forwardSubsumption = false, forwardUnitDeletion = false, forwardSubsumptionResolution =
-   * true)`) got none of it, silently — three knobs documented as independent axes, one of them reachable-dead.
+   * true)`) got none of it, silently: three knobs documented as independent axes, one of which could never fire.
    * A gate can only stay in step with the flags it guards if it lives beside them, so the loop now calls
    * [[forward]] unconditionally and this owns the question.
    */
@@ -89,10 +89,10 @@ final class Simplifier(bank: TermBank, trail: Trail, active: ActiveSet, opts: Se
 
   // --- forward --------------------------------------------------------------------------------------
 
-  /** Forward simplify `m` against the active set (active only — DISCOUNT does not forward-check passive): if
+  /** Forward simplify `m` against the active set (active only, since DISCOUNT does not forward-check passive): if
     * some active clause subsumes `m`, return `None` (discard it); otherwise apply subsumption resolution by
     * active clauses (unit deletion for unit sides, general SR for longer ones), returning the possibly-shrunk
-    * clause — `Some(□)` if a resolution closed it. */
+    * clause, or `Some(□)` if a resolution closed it. */
   def forward(m0: Clause): Option[Clause] =
     if !forwardEnabled then Some(m0)
     else if active.indexedSubsumption then forwardIndexed(m0) else forwardScan(m0)
@@ -106,7 +106,7 @@ final class Simplifier(bank: TermBank, trail: Trail, active: ActiveSet, opts: Se
   private def forwardIndexed(m0: Clause): Option[Clause] =
     var m: Clause = m0
     if forwardSubsumption then
-      // An existence question, so the ≤-cone descent short-circuits at the first verified subsumer — matching
+      // An existence question, so the ≤-cone descent short-circuits at the first verified subsumer, matching
       // `forwardScan`, which returns as soon as it finds one.
       if active.existsSubsumer(m)(c => Subsumption.subsumes(bank, trail, c, m)) then
         stats.forwardSubsumed += 1
@@ -120,7 +120,7 @@ final class Simplifier(bank: TermBank, trail: Trail, active: ActiveSet, opts: Se
         // Many units: gather the candidate units via the index. A unit deletes a literal `K` of `m` iff it subsumes
         // the singleton `{¬K}`, so for each literal we query the ≤-cone of `{¬K}` (tiny for a singleton, hence
         // cheap and selective), verify with `subsumes`, and collect the units (deduped by id). Then one pass of
-        // `subsumptionResolutionResolvent` over the candidates — exactly the unit scan restricted to units that
+        // `subsumptionResolutionResolvent` over the candidates, exactly the unit scan restricted to units that
         // can actually match (the rest give `None`), so the verdict is unchanged.
         val seen = new IntOpenHashSet()
         var cands: mutable.ArrayBuffer[Clause] = null
@@ -181,11 +181,11 @@ final class Simplifier(bank: TermBank, trail: Trail, active: ActiveSet, opts: Se
 
   /** Forward subsumption resolution, E-style ("char-2"): a stored clause SR-resolves `m` by removing a literal `M`
    *  iff it *subsumes* `m` with `M` flipped. So for each literal we flip it and find the active clauses subsuming
-   *  the flipped `m` — via the feature-vector index when `useIndex`, else a linear active scan — keep the
+   *  the flipped `m`, via the feature-vector index when `useIndex` and a linear active scan otherwise, keep the
    *  non-unit ones (deduped by id), then apply `subsumptionResolutionResolvent` in **id order** (retrieval-
    *  independent, so the indexed and scanned paths shrink identically), returning `□` if a resolvent closes `m`.
-   *  This is slightly weaker than the complete rule — a simplifier whose *other* literal also matches the resolved
-   *  literal is missed (the query-side flip can't see it) — matching E's forward contextual simplify-reflect; both
+   *  This is slightly weaker than the complete rule: a simplifier whose *other* literal also matches the resolved
+   *  literal is missed (the query-side flip cannot see it), matching E's forward contextual simplify-reflect; both
    *  paths do it, so the indexed-vs-scan A/B stays exact. */
   private def forwardSubsumptionResolveChar2(m0: Clause, useIndex: Boolean): Clause =
     var m: Clause = m0
@@ -230,7 +230,7 @@ final class Simplifier(bank: TermBank, trail: Trail, active: ActiveSet, opts: Se
   private def backwardIndexed(gc: Clause)(emit: Clause => Option[Clause]): Option[Clause] =
     if backwardSubsumption then
       var victims: mutable.ArrayBuffer[Clause] = null // collect first (don't mutate `active`/index mid-descent)
-      // `gc` is not yet in the active set — it joins after this and after backward demodulation — so it cannot
+      // `gc` is not yet in the active set, joining only after this and after backward demodulation, so it cannot
       // be among its own victims. Victims are removed *after* the descent, which is what the index requires of
       // a retrieval callback.
       active.subsumeeCandidates(gc) { d =>
@@ -330,7 +330,7 @@ final class Simplifier(bank: TermBank, trail: Trail, active: ActiveSet, opts: Se
       None
 
   /** Indexed backward demodulation: query the demod-subterm index with each of `gc`'s rule LHSs to collect the
-   *  candidate active clauses (a superset — an instance subterm is among the unification candidates), then
+   *  candidate active clauses (a superset, since an instance subterm is among the unification candidates), then
    *  normal-form each against `gc`'s rules (which verifies by matching) and replace the ones that change.
    *  Rewrites the same set of clauses as the scan; only the order (hence ids) differs. `Some(□)` on refutation. */
   private def backwardDemodulateIndexed(gc: Clause)(emit: Clause => Option[Clause]): Option[Clause] =

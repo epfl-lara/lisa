@@ -37,7 +37,7 @@ class SinePolicyTest extends AnyFunSuite:
   }
 
   test("gate 2: large but fully connected (goal reaches everything) ⇒ do not filter") {
-    // A path goal—s0—s1—…—s499: the BFS from `goal` reaches every axiom, so the probe keeps them all.
+    // A path goal-s0-s1-…-s499: the BFS from `goal` reaches every axiom, so the probe keeps them all.
     val syms = p("goal") +: (0 until 500).map(i => p(s"s$i"))
     val h = (0 until 500).map(i => or(syms(i))(syms(i + 1)))
     assert(!SinePolicy.shouldFilter(h, p("goal")))

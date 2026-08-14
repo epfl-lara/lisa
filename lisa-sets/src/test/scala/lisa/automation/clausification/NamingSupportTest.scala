@@ -8,7 +8,7 @@ import lisa.kernel.KernelProof
 import Clausification.Counter
 
 /**
- * Tests for [[NamingSupport.namingVars]] — the single definition of the variables a naming atom abstracts — and
+ * Tests for [[NamingSupport.namingVars]], the single definition of the variables a naming atom abstracts, and
  * for the `frozen` exclusion being threaded to it.
  *
  * `frozen` holds symbols that are uninterpreted constants pinned elsewhere (Skolem functions from
@@ -31,14 +31,14 @@ class NamingSupportTest extends AnyFunSuite:
   private val c = Constant(Identifier("c"), Ind)
   private val d = Constant(Identifier("d"), Ind)
 
-  /** `((q(sk) ∧ q(y)) ∨ (q(a) ∧ q(b))) ∨ (q(c) ∧ q(d))` — positive `∨` is multiplicative, so the estimate is
+  /** `((q(sk) ∧ q(y)) ∨ (q(a) ∧ q(b))) ∨ (q(c) ∧ q(d))` where the positive `∨` is multiplicative, so the estimate is
     * 2·2·2 = 8, past the default threshold of 4, and `findSite` names the larger child. Its free `Ind` variables
     * are exactly `{sk, y}`. */
   private val big: Expression = or(or(and(q(sk))(q(y)))(and(q(a))(q(b))))(and(q(c))(q(d)))
 
   private def nameOnce(f: Expression, frozen: Set[Variable]): CertifiedClausifier.NamingStep =
     CertifiedClausifier.nameOne(f, Counter(), UncertifiedClausifier.DefaultThreshold, Counter(), frozen)
-      .getOrElse(fail(s"nothing was named in $f — the test formula no longer trips the threshold"))
+      .getOrElse(fail(s"nothing was named in $f: the test formula no longer trips the threshold"))
 
   test("namingVars keeps free Ind variables, drops higher-sorted ones and drops frozen ones") {
     val f = and(q(sk))(and(q(y))(P(a)))
@@ -50,7 +50,7 @@ class NamingSupportTest extends AnyFunSuite:
   test("a frozen nullary symbol is not abstracted, so the naming atom loses exactly one argument") {
     val loose = nameOnce(big, Set.empty)
     val frozen = nameOnce(big, Set(sk))
-    assert(loose.freeVars.contains(sk), "premise: without `frozen`, `sk` is abstracted — it is Ind-sorted")
+    assert(loose.freeVars.contains(sk), "premise: without `frozen`, `sk` is abstracted, being Ind-sorted")
     assert(!frozen.freeVars.contains(sk), "`sk` was abstracted despite being frozen")
     assert(frozen.freeVars.size == loose.freeVars.size - 1, "arity did not drop by exactly one")
     // and the atom's sort follows the list, so the use site really is one argument shorter
@@ -64,7 +64,7 @@ class NamingSupportTest extends AnyFunSuite:
     assert(!nameOnce(big, Set.empty).quantified.freeVariables.contains(sk), "premise: unfrozen, it is bound instead")
   }
 
-  test("the naming bridge is kernel-valid either way — the marker and the atom cannot drift apart") {
+  test("the naming bridge is kernel-valid either way, so the marker and the atom cannot drift apart") {
     // `findSite` sizes its rewrite marker `p` from `namingVars`, and `freshNamingAtom` sizes `nm` from the same
     // call. `nameOne` substitutes `p -> nm` directly, so if the two lists disagreed the `RightSubstIff` in the
     // bridge would be ill-sorted and the kernel would reject it. Sharing one function is what rules that out;

@@ -14,7 +14,7 @@ import lisa.automation.clausification.Clausification
  *
  * Given a single TPTP problem file it parses the problem, clausifies it with the **non-certifying**
  * clausifier ([[UncertifiedClausifier]]/`UncertifiedClausifier`), runs the superposition prover
- * ([[Clausal.solveOutcome]] — the raw [[Bridge.Outcome]] path, so it never builds a Lisa/kernel proof), and
+ * ([[Clausal.solveOutcome]], the raw [[Bridge.Outcome]] path, so it never builds a Lisa/kernel proof), and
  * writes an SZS status line to stdout:
  * {{{
  *   % SZS status Theorem for SYN075+1.p
@@ -58,7 +58,7 @@ object CascProver:
 
   /** The SZS status for an outcome. Deliberately conservative: a refutation (empty clause) is `Theorem` with a
    *  conjecture and `Unsatisfiable` without; a saturation is `GaveUp` (we never claim (Counter)Satisfiable, so an
-   *  incomplete run — e.g. after SInE pruning — can never yield a wrong verdict); a timeout is `Timeout`.
+   *  incomplete run, e.g. after SInE pruning, can never yield a wrong verdict); a timeout is `Timeout`.
    *  A parse/solve failure is reported as `Error` at the call sites. */
   private def szsStatus(hasConjecture: Boolean, outcome: Bridge.Outcome): String = outcome match
     case _: Bridge.Outcome.Success => if hasConjecture then "Theorem" else "Unsatisfiable"
@@ -90,7 +90,7 @@ object CascProver:
         // SInE axiom selection (this strategy's config, if any): prune the annotated axioms *before* clausification,
         // keeping names aligned so the derivation's `c<idx>` leaves still refer to the surviving axioms. The filter
         // fires only if `SinePolicy`'s gates pass on this actual problem (large + genuinely prunable); otherwise the
-        // strategy runs unfiltered. Decided independently, here, in this single invocation — nothing is shared.
+        // strategy runs unfiltered. Decided independently, here, in this single invocation; nothing is shared.
         val axiomLike: IndexedSeq[AnnotatedFormula] = (cli.strategy.sine, conjecture) match
           case (Some(cfg), Some(c)) if SinePolicy.shouldFilter(axiomLike0.map(_.formula), c.formula) =>
             val keep = Sine.selectIndices(axiomLike0.map(_.formula), c.formula, cfg)
@@ -98,7 +98,7 @@ object CascProver:
             Console.err.println(s"% SInE: kept ${kept.size} of ${axiomLike0.size} axioms (tolerance ${cfg.tolerance}, depth ${cfg.depth})")
             kept
           case (Some(_), _) =>
-            Console.err.println("% SInE: gates not met — running unfiltered")
+            Console.err.println("% SInE: gates not met, running unfiltered")
             axiomLike0
           case _ => axiomLike0
         val cprob = Clausification.Problem(
@@ -132,7 +132,7 @@ object CascProver:
    *  clause per source formula (`inference(clausification, [status(esa)], [<origin>])`), and finally the prover's
    *  own derivation of `$false` from those clauses.
    *
-   *  '''Precondition:''' the input clauses hold the *first* bank ids, in `clauses` order — which is how
+   *  '''Precondition:''' the input clauses hold the *first* bank ids, in `clauses` order, which is how
    *  [[Bridge.solve]] builds them, and what both the `<cPrefix><idx>` naming and the cone test index on; a
    *  clause built before them would shift the correspondence. */
   private def printRefutation(
@@ -144,7 +144,7 @@ object CascProver:
       isCnf: Boolean // input is CNF ⇒ leaves are `cnf` (never introduce the more expressive `fof`; TPTP rule)
   ): Unit =
     println(s"% SZS output start CNFRefutation for $name")
-    // Print only the **cone of □** — the input clauses (and the source formulas they came from) actually used in
+    // Print only the **cone of □**: the input clauses (and the source formulas they came from) actually used in
     // the refutation, not the whole clausification. `inCone(idx)` tests the idx-th input clause (its bank id is the
     // idx-th, since clauses are fed in order); `usedOrigins` are the source-formula indices they draw from
     // (`axiomLike.size` = the negated conjecture).
@@ -153,14 +153,14 @@ object CascProver:
     def inCone(idx: Int): Boolean = inputIds.lift(idx).exists(cone.contains)
     val usedOrigins: Set[Int] = clauses.iterator.zipWithIndex.collect { case ((_, o), idx) if inCone(idx) => o }.toSet
     // Every generated step name (`negated_conjecture`, input clauses `<cPrefix><idx>`, derived `<dPrefix><k>`) must
-    // avoid the input formula names — two statements sharing a name is illegal TPTP. A fresh prefix is one no input
+    // avoid the input formula names, since two statements sharing a name is illegal TPTP. A fresh prefix is one no input
     // name uses as `<prefix><digits>`, so `<prefix><n>` can never collide.
     val taken: Set[String] = axiomLike.map(_.name).toSet ++ conjecture.map(_.name)
     def freshPrefix(base: String): String =
       Iterator.iterate(base)(_ + "_").find(p => !taken.exists(n => n.length > p.length && n.startsWith(p) && n.substring(p.length).forall(_.isDigit))).get
     val cPrefix = freshPrefix("c")
     val dPrefix = freshPrefix("d")
-    // Leaves: only the source formulas whose clauses reach □. Match the problem's language — `cnf` for a CNF
+    // Leaves: only the source formulas whose clauses reach □. Match the problem's language: `cnf` for a CNF
     // problem (variables implicitly universal, so strip the closure), `fof` otherwise.
     for (f, i) <- axiomLike.zipWithIndex if usedOrigins.contains(i) do
       if isCnf then println(s"cnf(${f.name}, ${f.role}, ${Tptp.cnfClause(f.formula)}).")
@@ -195,7 +195,7 @@ object CascProver:
   /** An interned symbol name `nm` as a valid TPTP `atomic_word`: a `$d`/`$n` distinct-object/numeral un-mangled
    *  to its source form ([[unmangleSpecial]]), a lower-word verbatim (our lowercase-prefixed fresh symbols such
    *  as `sk`, `sk_1`, `nm` included), anything else single-quoted. Reverses `KernelParser.sanitize` ($u→_,
-   *  $s→space) so the output echoes the input's real names (e.g. `accept_team`, not `accept$uteam`) — the exact
+   *  $s→space) so the output echoes the input's real names (e.g. `accept_team`, not `accept$uteam`), the exact
    *  inverse of the parser's encode. Shared by the flat-CNF renderer ([[Tptp]]) and the derivation printer. */
   private def functor(nm: String): String =
     unmangleSpecial(nm).getOrElse {
@@ -205,7 +205,7 @@ object CascProver:
     }
 
   // ── proof-DAG navigation (shared by the cone computation and the derivation printer) ──
-  // Sort/dedup canonicalization is a logical no-op on a set-of-literals clause — alias it to its parent so it does
+  // Sort/dedup canonicalization is a logical no-op on a set-of-literals clause, so alias it to its parent so that it does
   // not appear as a step (matching the kernel reconstruction, which treats it as a pass-through).
   private def deref(c: Core.Clause): Core.Clause =
     import Core.Justification
@@ -214,7 +214,7 @@ object CascProver:
       case _                                 => c
   private def parents(c: Core.Clause): List[Core.Clause] = c.justification.premises.map(deref)
 
-  /** The clause ids in the **cone** of `□` — everything reachable via [[parents]]. That is the proof (the clauses
+  /** The clause ids in the **cone** of `□`, everything reachable via [[parents]]. That is the proof (the clauses
    *  actually used), as opposed to the whole saturation; input clauses / source formulas outside it are not printed. */
   private def coneIds(empty: Core.Clause): Set[Int] =
     val cone  = scala.collection.mutable.HashSet.empty[Int]
@@ -225,8 +225,8 @@ object CascProver:
     cone.toSet
 
   /** Emit the prover's derivation of `$false`, printed directly from the [[Bridge.Outcome.Success]] (no kernel
-   *  proof). Only the clauses reachable from `□` through the [[Core.Justification]] DAG — the proof, not the search
-   *  space — are visited, in topological order (parents before children, `□` last) via an **iterative** post-order
+   *  proof). Only the clauses reachable from `□` through the [[Core.Justification]] DAG, i.e. the proof rather than the search
+   *  space, are visited in topological order (parents before children, `□` last) via an **iterative** post-order
    *  so a deep derivation cannot overflow the stack. Input clauses reuse the `<cPrefix><idx>` names printed above;
    *  each derived clause gets a fresh `<dPrefix><k>` (both prefixes chosen collision-free by [[printRefutation]]). */
   private def printDerivation(s: Bridge.Outcome.Success, cPrefix: String, dPrefix: String): Unit =
@@ -247,7 +247,7 @@ object CascProver:
     def term(t: Term): String =
       if bank.isVar(t) then "X" + bank.varNum(t).num
       else
-        // The signature stores the identifier in two parts, so reassemble it — `info.name` alone is the bare
+        // The signature stores the identifier in two parts, so reassemble it: `info.name` alone is the bare
         // name and would print `sk` for every `sk_i`, the very collapse `Tptp.render`'s `functorOf` avoids.
         val info = sig.info(bank.headSymbol(t))
         val nm = functor(K.Identifier(info.name, info.no).toString)
@@ -289,22 +289,22 @@ object CascProver:
   private object Tptp:
     import lisa.utils.K.*
 
-    /** Flatten a curried application `f(a)(b)…` into `(head, [a, b, …])` — see [[Bridge.headAndArgs]]. */
+    /** Flatten a curried application `f(a)(b)…` into `(head, [a, b, …])`; see [[Bridge.headAndArgs]]. */
     private def flatten(e: Expression): (Expression, List[Expression]) = Bridge.headAndArgs(e)
 
     /** Render `e`, drawing TPTP variable names (uppercase) from the shared `vnames` map so that a clause's
-     *  literals — and a formula's binders and their occurrences — agree on names. */
+     *  literals, and a formula's binders and their occurrences, agree on names. */
     private def render(e: Expression, vnames: scala.collection.mutable.LinkedHashMap[Variable, String]): String =
       def vname(v: Variable): String = vnames.getOrElseUpdate(v, "X" + vnames.size)
       // `id.toString`, never `id.name`: the counter is part of the identity. `UncertifiedClausifier` mints Skolem
       // constants as `sk`, `sk_1`, `sk_2`, … all sharing the name `sk`, so dropping the counter collapses
-      // distinct symbols into one — and `printDerivation` keys on `sig.info(...).name`, which *is* the full
+      // distinct symbols into one, and `printDerivation` keys on `sig.info(...).name`, which *is* the full
       // `id.toString`, so the two halves of the emitted proof would disagree about which symbols exist.
       def functorOf(id: Identifier): String = functor(id.toString)
       // Only an `Ind`-sorted variable is a TPTP variable. A `Variable` at any other sort is a *symbol* here:
       // `NamingSupport.freshNamingAtom` returns the definitional naming atoms as `Variable`s (so `InstSchema`
       // can discharge them), and `ScreenPhase` renames user predicate variables to `usr…`. Printing those with
-      // `vname` emits a variable in functor position — invalid TPTP when applied (`X0(X1)`), and a silently
+      // `vname` emits a variable in functor position, which is invalid TPTP when applied (`X0(X1)`), and a silently
       // *weaker* clause when nullary (`a1 | X0` instead of `a1 | nm_1`).
       def symbol(head: Expression): String = head match
         case v: Variable if v.sort == Ind => vname(v)
@@ -336,11 +336,11 @@ object CascProver:
         case _             => applied(e) // predicate atom
       go(e)
 
-    /** A (universally-closed) clause formula as a bare TPTP CNF disjunction — leading `∀`s stripped, since a
+    /** A (universally-closed) clause formula as a bare TPTP CNF disjunction, with leading `∀`s stripped, since a
      *  `cnf` statement's variables are implicitly universally quantified.
      *
      *  η-expanded first for the same reason as [[Bridge.formulaToSequent]]: `strip` needs the explicit `Lambda`,
-     *  and an unstripped quantifier would print as the functor `'∀'(p)` — well-formed TPTP, but a quantifier is
+     *  and an unstripped quantifier would print as the functor `'∀'(p)`: well-formed TPTP, but a quantifier is
      *  not legal in a `cnf` body, so the emitted proof would be rejected. */
     def cnfClause(e: Expression): String =
       def strip(e: Expression): Expression = e match { case Forall(_, b) => strip(b); case _ => e }

@@ -8,8 +8,8 @@ import Core.*
  * The DISCOUNT (given-clause) saturation loop for superposition-based clausal proving: ordered
  * resolution/factoring, the equality inferences, and simplification.
  *
- * Two clause stores, each owning its own bookkeeping: [[PassiveSet]] (unprocessed — two lazy-deletion
- * queues and the age/weight policy that picks the next given) and [[ActiveSet]] (processed — the buffer
+ * Two clause stores, each owning its own bookkeeping: [[PassiveSet]] (unprocessed: two lazy-deletion
+ * queues and the age/weight policy that picks the next given) and [[ActiveSet]] (processed: the buffer
  * plus every term and clause index that shadows it, kept in step by its own `add`/`remove`). What is left
  * here is the loop itself: each iteration selects a given clause, normal-forms and forward-simplifies it,
  * moves it into active, generates all resolvents and superpositions against the active set plus all factors
@@ -17,8 +17,8 @@ import Core.*
  * empty clause `□` (refutation) or when the passive set empties (saturation); `maxGiven` bounds the work
  * otherwise.
  *
- * Redundancy elimination — subsumption, unit deletion, subsumption resolution, condensation and demodulation,
- * forward and backward — lives in [[Simplifier]]. It runs against the active set only; passive-redundant
+ * Redundancy elimination, covering subsumption, unit deletion, subsumption resolution, condensation and
+ * demodulation in both directions, lives in [[Simplifier]]. It runs against the active set only; passive-redundant
  * clauses are caught lazily when they are selected. None of it needs a proof obligation: a deleted clause
  * never enters `□`'s [[Justification]] DAG, and every shrunk clause is an ordinary resolvent or factor. On a
  * refutation the loop returns the empty clause, whose DAG later feeds reconstruction.
@@ -29,14 +29,14 @@ object Discount:
     case Saturated
     case Unknown
 
-  /** Loop instrumentation captured per `saturate`: `givenProcessed` (given clauses activated — the throughput
+  /** Loop instrumentation captured per `saturate`: `givenProcessed` (given clauses activated, the throughput
    *  measure), the peak sizes of the `active` and live-`passive` sets, and `passiveEnqueued` (total clauses ever
    *  put on passive). */
   final case class LoopStats(givenProcessed: Int, peakActive: Int, peakPassive: Int, passiveEnqueued: Int)
 
 /**
  * The DISCOUNT saturation loop. Every search knob lives in [[SearchOptions]] and is imported into scope
- * below, so the loop body reads them unqualified exactly as it did when they were constructor parameters —
+ * below, so the loop body reads them unqualified exactly as it did when they were constructor parameters;
  * see that class for what each one means and how the defaults were chosen.
  */
 final class Discount(bank: TermBank, trail: Trail, opts: SearchOptions = SearchOptions()):
@@ -65,15 +65,15 @@ final class Discount(bank: TermBank, trail: Trail, opts: SearchOptions = SearchO
   /** Snapshot of the loop instrumentation (valid after `saturate` returns). */
   def loopStats: Discount.LoopStats = Discount.LoopStats(givenProcessed, peakActive, peakPassive, passiveEnqueued)
 
-  // The passive (unprocessed) set and its age/weight selection policy — see [[PassiveSet]].
+  // The passive (unprocessed) set and its age/weight selection policy; see [[PassiveSet]].
   private val passive: PassiveSet = new PassiveSet(opts)
 
-  // The active (processed) set, together with every index that shadows it — see [[ActiveSet]]. All the
+  // The active (processed) set, together with every index that shadows it; see [[ActiveSet]]. All the
   // add/remove synchronisation of the demodulators and the five term/clause indices lives there, so the loop
   // below only ever says `active.add` / `active.remove`.
   private val active: ActiveSet = new ActiveSet(bank, trail, opts)
 
-  // Every redundancy step — subsumption, unit deletion, subsumption resolution, condensation, demodulation —
+  // Every redundancy step (subsumption, unit deletion, subsumption resolution, condensation, demodulation)
   // in both directions and both the indexed and scanning variants. See [[Simplifier]].
   private val simplifier: Simplifier = new Simplifier(bank, trail, active, opts)
 

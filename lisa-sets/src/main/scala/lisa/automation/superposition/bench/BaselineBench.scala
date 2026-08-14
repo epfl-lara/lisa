@@ -17,7 +17,7 @@ import BenchUtil.{withTimeout, toClausificationProblem}
  * set), drawn with the same seeded shuffle each of those harnesses uses so the sample is identical.
  *
  * Each problem is parsed, clausified with the **non-proof-producing** clausifier
- * ([[UncertifiedClausifier.clausalForm]] — the pure clause computation, no clausification proof), and then
+ * ([[UncertifiedClausifier.clausalForm]], the pure clause computation with no clausification proof), and then
  * refuted with [[Clausal.solveOutcome]], which runs the DISCOUNT loop to a verdict and **does not reconstruct a
  * kernel proof**. So the two timed phases are exactly clausification and prover search, with no proof machinery
  * on either side. Per problem it reports: the phase times (ms), the total, the number of **given** clauses the
@@ -25,7 +25,7 @@ import BenchUtil.{withTimeout, toClausificationProblem}
  * tab-separated for easy post-processing, next to E on the same sample.
  *
  * Equality inferences are configured per dataset: **off** for the two equality-free sets (`clausal`, `fof`) and
- * **on** for the equality set (`eq`) — the fair configuration for each problem class. Fingerprint indexing is on.
+ * **on** for the equality set (`eq`), the fair configuration for each problem class. Fingerprint indexing is on.
  *
  * Needs the `TPTP` env var pointing at the TPTP root (the directory containing `Problems/`). Run:
  * {{{
@@ -51,7 +51,7 @@ object BaselineBench:
     val fn = lists.getOrElse(dataset, throw new IllegalArgumentException(s"unknown dataset '$dataset' (use ${lists.keys.mkString("/")})"))
     new ProblemList(fn)
 
-  /** The same reproducible draw every harness uses — see [[ProblemList.sample]], so a seed names the same
+  /** The same reproducible draw every harness uses; see [[ProblemList.sample]], so a seed names the same
     * problems here as in `Evaluation` / `FofEvaluation`. */
   def sample(dataset: String, n: Int, seed: Long): Vector[String] = problemsOf(dataset).sample(n, seed)
 

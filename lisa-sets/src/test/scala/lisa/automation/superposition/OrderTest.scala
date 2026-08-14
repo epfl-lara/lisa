@@ -42,7 +42,7 @@ class OrderTest extends AnyFunSuite:
     val fx = new Fix; import fx.*
     val a = const("a"); val b = const("b") // interned in order ⇒ precedence a < b
     val eq = mkEq(a, b)
-    assert(order.orient(eq) == Lt) // a ≺ b — and now memoised
+    assert(order.orient(eq) == Lt) // a ≺ b, and now memoised
     sig.info(fn("a", 0)).precedence = 1000 // raise `a` above `b`: the cached verdict is now wrong
     assert(order.orient(eq) == Gt, "orient returned a verdict cached under the previous precedence")
     sig.info(fn("a", 0)).precedence = 0 // and back again
@@ -53,7 +53,7 @@ class OrderTest extends AnyFunSuite:
    * A symbol *weight* change invalidates the memo too. Demonstrated on **non-ground** sides, because that is
    * where a late weight change is observable at all: `KBO.accumulateBalance` reads `info.weight` live for a
    * non-ground compound, whereas a ground term's weight is folded into its arena record at construction and
-   * never re-read — so raising a constant's weight after the term exists changes nothing (cf. `KBOTest`).
+   * never re-read, so raising a constant's weight after the term exists changes nothing (cf. `KBOTest`).
    */
   test("a weight change also invalidates the orientation memo") {
     val fx = new Fix; import fx.*

@@ -12,33 +12,33 @@ import Core.*
  * `clauses` is the single source of truth. Around it sit up to seven derived views, each holding a slice of
  * the same clauses under a different key so that one query is fast:
  *
- *   - `activeDemodulators` / `demodTree` — the positive unit equalities as rewrite rules, keyed by LHS;
- *   - `intoIndex` — every non-variable subterm of *selected* literals (superposition targets);
- *   - `fromIndex` — the usable maximal sides of selected positive equalities (superposition sources);
- *   - `posLitIndex` / `negLitIndex` — selected non-equality atoms, split by polarity (resolution partners);
- *   - `subsumptionIndex` — whole clauses, keyed by feature vector (subsumption cones);
- *   - `activeUnits` — the unit clauses (unit deletion);
- *   - `demodSubtermIndex` — every rewritable subterm of *all* literals (backward demodulation).
+ *   - `activeDemodulators` / `demodTree`: the positive unit equalities as rewrite rules, keyed by LHS;
+ *   - `intoIndex`: every non-variable subterm of *selected* literals (superposition targets);
+ *   - `fromIndex`: the usable maximal sides of selected positive equalities (superposition sources);
+ *   - `posLitIndex` / `negLitIndex`: selected non-equality atoms, split by polarity (resolution partners);
+ *   - `subsumptionIndex`: whole clauses, keyed by feature vector (subsumption cones);
+ *   - `activeUnits`: the unit clauses (unit deletion);
+ *   - `demodSubtermIndex`: every rewritable subterm of *all* literals (backward demodulation).
  *
  * None is authoritative and all must be kept in step: a clause that leaves `clauses` but lingers in a shadow
- * is not *unsound* — it is still a validly derived consequence with an intact `Justification` — but it
+ * is not *unsound*, being still a validly derived consequence with an intact `Justification`, but it
  * defeats the deletion that removed it, keeps being offered as an inference partner, and can never be
  * collected. Nothing fails; the search just quietly degrades.
  *
  * That obligation used to be a comment honoured at four separate call sites in the loop. Here it is a class
  * boundary: [[add]] and [[remove]] are the only doors in and out, and each one touches every structure.
  *
- * '''Removal re-derives its entries.''' There are no back-pointers from a clause to its (many) index entries —
+ * '''Removal re-derives its entries.''' There are no back-pointers from a clause to its (many) index entries:
  * a clause with three selected literals of five subterms each owns fifteen `intoIndex` entries. Removal walks
  * the clause again and deletes by value equality, so it needs every such derivation to answer the same way it
  * did on insertion. Each one is arranged so that it does, without appeal to when it runs:
  *
  *   - the subterm walks (`intoIndex`, `demodSubtermIndex`) and the literal reads (`posLitIndex`/`negLitIndex`)
- *     depend only on the literals and on `Clause.selected`, which is computed once and cached — [[detach]]
+ *     depend only on the literals and on `Clause.selected`, which is computed once and cached, as [[detach]]
  *     asserts it is present;
  *   - the from-sides depend on the term ordering, so they are not re-derived at all: both sides read the
  *     clause's cached [[Core.Clause.fromSides]];
- *   - the demodulator rules likewise — [[add]] records what it inserted (see [[treeRulesOf]]) and [[remove]]
+ *   - the demodulator rules likewise: [[add]] records what it inserted (see [[treeRulesOf]]) and [[remove]]
  *     takes out exactly those;
  *   - the subsumption index recomputes a feature vector, over a [[Permutation]] frozen at [[reset]].
  *
@@ -84,8 +84,8 @@ final class ActiveSet(bank: TermBank, trail: Trail, opts: SearchOptions):
     * those instead of re-deriving them (an `orient` and a `varsOf` per removal).
     *
     * It also stops the removal from depending on an unstated invariant. `Demodulation.rules` calls
-    * `order.orient`, so re-derivation only reproduces the inserted rules while the ordering is unchanged —
-    * true today, since the precedence and weights are fixed before each saturation and `reset` clears this
+    * `order.orient`, so re-derivation only reproduces the inserted rules while the ordering is unchanged. That
+    * holds today, since the precedence and weights are fixed before each saturation and `reset` clears this
     * map, but nothing in the removal path said so or would fail loudly if it stopped holding: a re-derived
     * rule with a different `lhs` descends a different tree path, finds nothing, and leaves the real entry
     * behind. Recording what was inserted removes the question.
@@ -151,7 +151,7 @@ final class ActiveSet(bank: TermBank, trail: Trail, opts: SearchOptions):
     if i >= 0 then removeAtInBuffer(i)
 
   /** Remove the clause at buffer position `i` (and its shadows). For the scanning backward pass, which
-    * iterates by index and must not advance after a removal — the swapped-in element takes slot `i`. */
+    * iterates by index and must not advance after a removal, since the swapped-in element takes slot `i`. */
   def removeAt(i: Int): Unit =
     detach(buffer(i))
     removeAtInBuffer(i)
@@ -173,7 +173,7 @@ final class ActiveSet(bank: TermBank, trail: Trail, opts: SearchOptions):
     * matching inside `normalForm`). */
   def demodulationTargets(lhs: Term)(visit: IntoEntry => Unit): Unit = demodSubtermIndex.retrieveUnifiable(lhs)(visit)
 
-  /** Whether some stored clause satisfying `pred` subsumes-cone-dominates `q` — short-circuits at the first. */
+  /** Whether some stored clause satisfying `pred` subsumes-cone-dominates `q`, short-circuiting at the first. */
   def existsSubsumer(q: Clause)(pred: Clause => Boolean): Boolean = subsumptionIndex.existsForwardCandidate(q)(pred)
 
   /** Candidate subsumers of `q` (its `≤`-cone). The callback must only *collect*: mutating the index during
@@ -204,7 +204,7 @@ final class ActiveSet(bank: TermBank, trail: Trail, opts: SearchOptions):
       slot.put(moved.id, i)
     buffer.remove(last)
 
-  /** Drop `c` from every shadow. The exact inverse of the shadow half of [[add]] — every line below is guarded
+  /** Drop `c` from every shadow. The exact inverse of the shadow half of [[add]]: every line below is guarded
     * by the identical flag as its counterpart there, so the inverse relation holds by inspection rather than by
     * an argument about which collections happen to be empty. */
   private def detach(c: Clause): Unit =
@@ -252,7 +252,7 @@ final class ActiveSet(bank: TermBank, trail: Trail, opts: SearchOptions):
         if add then idx.insert(bank.atomOf(lit), e) else idx.remove(bank.atomOf(lit), e)
       k += 1
 
-  /** Index (`add`) or de-index (`!add`) every rewritable subterm of *every* literal of `c` — demodulation
+  /** Index (`add`) or de-index (`!add`) every rewritable subterm of *every* literal of `c`, since demodulation
     * rewrites any of them, not only the selected ones. */
   private def updateDemodSubterms(c: Clause, add: Boolean): Unit =
     var iLit = 0
@@ -274,8 +274,8 @@ final class ActiveSet(bank: TermBank, trail: Trail, opts: SearchOptions):
         return
       i += 1
 
-  /** Drop the demodulators whose source is the (removed) clause `c` — from the discrimination tree if
-    * indexing is on (the rules recorded by [[add]], not re-derived — see [[treeRulesOf]]), else from the
+  /** Drop the demodulators whose source is the (removed) clause `c`, from the discrimination tree if
+    * indexing is on (the rules recorded by [[add]], not re-derived; see [[treeRulesOf]]), else from the
     * `activeDemodulators` list. */
   private def removeDemodulatorsOf(c: Clause): Unit =
     if indexedForwardDemod then

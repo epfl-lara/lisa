@@ -9,13 +9,13 @@ import BenchUtil.{withTimeout, toClausificationProblem}
 
 /**
  * Strategy-comparison harness. Runs one or more named [[Strategy]] over the seeded FOF sample
- * ([[FofEvaluation.sample]], which honours the `TPTP_FOF_LIST` override) through the **CASC path** — uncertified
- * clausification + per-invocation SInE gate ([[SinePolicy]]) + [[Strategy.solveOutcome]] — and reports the
+ * ([[FofEvaluation.sample]], which honours the `TPTP_FOF_LIST` override) through the **CASC path** (uncertified
+ * clausification + per-invocation SInE gate ([[SinePolicy]]) and [[Strategy.solveOutcome]]) and reports the
  * outcome breakdown (refuted / saturated / timeout / error) per strategy. No proof is built or kernel-checked;
  * we only want the search verdict, exactly what a CASC worker would produce.
  *
  * Unlike [[FofEvaluation]]/[[EqFofEvaluation]] it does **not** skip large problems (no `maxSize`): the point is
- * to see how each strategy — and its SInE filter, on the SUMO/CSR theories included via `TPTP_FOF_LIST` — copes
+ * to see how each strategy, and its SInE filter on the SUMO/CSR theories included via `TPTP_FOF_LIST`, copes
  * with exactly the problems the other harnesses drop, since that is where axiom selection is supposed to earn
  * its keep. Each problem runs on its own daemon thread under a hard wall-clock cap, so a single blow-up
  * (parser overflow, clausification explosion) is contained, not fatal to the run.
@@ -66,7 +66,7 @@ object StrategyEvaluation:
         case Failure(_) => "PARSE_ERR"
         case Success(parsed) =>
           val cprob = toClausificationProblem(parsed)
-          // Per-invocation SInE gate — exactly the CascProver logic (self-decided, nothing shared).
+          // Per-invocation SInE gate, exactly the CascProver logic (self-decided, nothing shared).
           val pruned = strat.sine match
             case Some(cfg) if SinePolicy.shouldFilter(cprob, SinePolicy.Params()) => Sine.select(cprob, cfg)
             case _                                                                => cprob

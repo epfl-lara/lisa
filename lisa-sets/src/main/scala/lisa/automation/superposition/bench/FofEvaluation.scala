@@ -3,14 +3,14 @@ package bench
 
 /**
  * The second evaluation dataset: non-clausal (FOF), first-order, equality-free, arithmetic-free TPTP
- * **theorems** (`tptp-fof-fo-noeq-thm.txt`) — the analog of the clausal [[Evaluation]] set, selected the very
+ * **theorems** (`tptp-fof-fo-noeq-thm.txt`), the analog of the clausal [[Evaluation]] set, selected the very
  * same way (by the TPTP `SPC` header: `FOF_THM_{RFO,EPR}_NEQ`) but **without** the already-clausal restriction.
- * The `CSR` (SUMO commonsense) domain is excluded: all 359 such problems include a giant (30k–40k-line) numeric
+ * The `CSR` (SUMO commonsense) domain is excluded: all 359 such problems include a giant numeric
  * ontology whose long numeric-suffixed identifiers (`c_bcase_3235139646`) the TPTP parser mishandles and which
- * exceed any sane clausification size budget — leaving 944 clean FO theorems.
+ * exceed any sane clausification size budget, leaving 944 clean FO theorems.
  *
  * Being equality-free, the `equality` ablation here only measures the equality machinery's inert cost (unlike
- * the equality-bearing [[EqFofEvaluation]]). Everything else — the pipeline, CLI, and output — is the shared
+ * the equality-bearing [[EqFofEvaluation]]). Everything else, the pipeline, CLI and output, is the shared
  * [[FofHarness]]; see it for the run modes and column meanings.
  */
 object FofEvaluation:

@@ -42,7 +42,7 @@ class DiscriminationTreeTest extends AnyFunSuite:
       rule(app(f, a), b),           // f(a) → b
       rule(app(f, app(g, x)), b),   // f(g(X)) → b
       rule(app(g, x), a),           // g(X) → a
-      rule(app(h, x, x), a),        // h(X,X) → a  (nonlinear — matched only on equal args)
+      rule(app(h, x, x), a),        // h(X,X) → a  (nonlinear: matched only on equal args)
       rule(app(h, x, y), b)         // h(X,Y) → b
     )
     val t = tree; rules.foreach(t.insert)
@@ -96,7 +96,7 @@ class DiscriminationTreeTest extends AnyFunSuite:
     val t = tree; t.insert(rGa); t.insert(rGx)
     // g(g(a)) matches the ground LHS (exact) and g(x) [x = g(a)]
     assert(collect(t.retrieveGeneralizations(app(g, app(g, a)))) == Set(rGa.source.id, rGx.source.id))
-    // g(g(b)) matches only g(x) — the ground LHS g(g(a)) is not identical to it
+    // g(g(b)) matches only g(x); the ground LHS g(g(a)) is not identical to it
     assert(collect(t.retrieveGeneralizations(app(g, app(g, b)))) == Set(rGx.source.id))
     // removing the ground rule prunes its ground edge; g(g(a)) then matches only g(x)
     assert(t.remove(rGa))
@@ -144,7 +144,7 @@ class DiscriminationTreeTest extends AnyFunSuite:
    * The `visit` contract. Unlike the two clause indices, where a corrupted shared buffer costs a *dropped*
    * candidate, corrupting this one is unsound: `qLen` would be reset to the inner query's length, the outer
    * descent would reach `i == qLen` having consumed only a prefix of its own query, and `visit` would be
-   * handed rules whose LHS does not generalize it — with a partial σ live on the trail. So it throws.
+   * handed rules whose LHS does not generalize it, with a partial σ live on the trail. So it throws.
    */
   test("re-entering the tree from inside a retrieval callback fails loudly") {
     val fx = new Fix; import fx.*

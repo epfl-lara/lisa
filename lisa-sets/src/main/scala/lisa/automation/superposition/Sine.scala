@@ -11,14 +11,14 @@ import lisa.automation.clausification.Clausification
  * the trigger ("D") relation, and deletes the rest. See `archive/PortfolioStrategy.md` §implications and E's `ccl_sine.c`
  * / Vampire's `SineUtils.cpp`.
  *
- * It is an **incomplete** transformation (it can drop a needed axiom), but **sound** — removing hypotheses can
+ * It is an **incomplete** transformation (it can drop a needed axiom), but **sound**, since removing hypotheses can
  * only turn an unsatisfiable set satisfiable (⇒ we fail to refute), never produce a spurious refutation. Hence it
  * is used only in dedicated portfolio slices, alongside complete strategies.
  *
  * @param tolerance a symbol whose generality ≤ `tolerance × (least generality in the formula)` also triggers it
  *                  (E's "benevolence"). `1.0` = strict/aggressive (rarest only); higher keeps more (safer).
  * @param depth     BFS rounds outward from the goal; `0` = unlimited (full closure), `1` = most aggressive.
- * @param minAxioms below this many hypotheses there is nothing worth pruning — keep everything.
+ * @param minAxioms below this many hypotheses there is nothing worth pruning, so keep everything.
  */
 final case class SineConfig(tolerance: Double = 3.0, depth: Int = 0, minAxioms: Int = 500)
 
@@ -34,11 +34,11 @@ object Sine:
   private[superposition] def symbolsOf(e: Expression): Set[Constant] =
     val acc = mutable.HashSet.empty[Constant]
     // A shared sub-DAG (e.g. the opaque `F(x̄)` witnesses that ε-abstraction/Skolemization reuse across many atoms)
-    // must be traversed once, not re-unfolded per occurrence — otherwise a heavily-shared expression blows up
+    // must be traversed once, not re-unfolded per occurrence, or a heavily-shared expression blows up
     // exponentially. Memoise by the kernel's `uniqueNumber` (reference identity: shared occurrences are the same node).
     val seen = mutable.HashSet.empty[Long]
     def walk(e: Expression): Unit = if seen.add(e.uniqueNumber) then e match
-      case Application(f, a) => walk(f); walk(a) // covers connectives/quantifiers too — they are applications
+      case Application(f, a) => walk(f); walk(a) // covers connectives/quantifiers too, which are applications
       case Lambda(_, b)      => walk(b) //           a `∀`/`∃`/`ε` body; the bound variable carries no symbol
       case c: Constant       => if !LogicalConstants(c) then acc += c
       case _                 => () //                a variable

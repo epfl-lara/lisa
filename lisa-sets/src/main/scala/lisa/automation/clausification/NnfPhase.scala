@@ -4,33 +4,23 @@ import lisa.utils.K.{_, given}
 import Clausification.*
 
 /**
- * Negation normal form: push every negation down to the atoms, eliminating `⇒` and `⇔` on the way, so that
- * below this phase `Neg` wraps only atoms. Every phase after it relies on that — [[SkolemPhase]]'s descent stops
- * at `Neg` for exactly this reason, and [[DistributePhase]]'s notion of a literal leaf is defined by it.
- *
- * '''The cheapest phase to certify.''' NNF is a propositional equivalence, and the kernel's `Restate` decides
- * propositional equivalence, so each hypothesis is bridged to its NNF by one `Restate` step — no fresh symbols,
- * no library lemmas. The conversion is therefore free to simplify as it goes, which [[toNNF]] does for the
- * boolean constants (see its doc); anything `Restate` still accepts costs nothing extra.
- *
- * By this point the blow-up-prone `⇔`s have bounded children, since
- * [[CertifiedClausifier.certifyNaming]] has already named anything larger — which is what keeps `⇔`
- * elimination here from duplicating subformulas without limit.
+ * Negation normal form: push negations down to the atoms and eliminate `⇒` and `⇔`, so that below here `Neg`
+ * wraps only atoms. One `Restate` bridges each hypothesis to its NNF.
  */
 private[clausification] object NnfPhase:
 
   def certifyNnf(problem: Problem, prover: ClausificationProver): ClausificationProof = {
-    val transformedHyps = problem.hypotheses.map { h =>
-      checkInterrupted()
-      onSingleRight(h, "hypothesis")(toNNF(_, negated = false))
-    }
+    require(problem.hypotheses.forall(h => h.left.isEmpty && h.right.size == 1),
+      s"certifyNnf expects each hypothesis to have an empty left-hand side and a single formula on the " +
+        s"right-hand side, got ${problem.hypotheses.map(_.repr).mkString("; ")}")
+    val transformedHyps = problem.hypotheses.map(h => () |- toNNF(h.right.head, negated = false))
     val transformed = Problem(transformedHyps, None, problem.frozen)
     val downstream = prover(transformed)
     require(sameImportList(downstream.imports, transformed.imports ++ libImports), "Downstream imports must match transformed problem imports")
 
     val restateSteps: IndexedSeq[ClausificationProofStep] =
       transformedHyps.zipWithIndex.map { case (nnfHyp, i) =>
-        KernelStep(Restate(nnfHyp, problem.hypIndex(i)))
+        Restate(nnfHyp, problem.hypIndex(i))
       }.toIndexedSeq
     val subproof = ClausificationSubproof(
       downstream,
@@ -58,7 +48,7 @@ private[clausification] object NnfPhase:
    * absorption laws (`mkAnd`/`mkOr`). This keeps `$true`/`$false` (which TPTP problems use as padding, e.g.
    * the modal encodings in `LCL`) out of the clauses, where they would otherwise survive as uninterpreted
    * 0-ary atoms and block resolution. Every simplification is a propositional equivalence, so the `Restate`
-   * bridging the original hypothesis to its NNF in [[certifyNnf]] still discharges it — no proof change.
+   * bridging the original hypothesis to its NNF in [[certifyNnf]] still discharges it, at no cost in proof steps.
    */
   def toNNF(f: Expression, negated: Boolean): Expression = f match
     case `top`          => if negated then bot else top

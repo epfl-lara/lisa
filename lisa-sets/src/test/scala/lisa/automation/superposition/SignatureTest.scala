@@ -8,14 +8,14 @@ import Core.*
  * What the signature's intern key must and must not distinguish.
  *
  * Interning is the boundary where kernel symbols become the prover's integer codes, so anything the key drops
- * is a distinction the prover can no longer make — two source symbols become one, and the engine may resolve
+ * is a distinction the prover can no longer make: two source symbols become one, and the engine may resolve
  * across them. It is also the one place cheap enough not to care: it runs once per symbol occurrence during
  * ingestion, never on a search path.
  */
 class SignatureTest extends AnyFunSuite:
 
   test("a name used as both a predicate and a function at the same arity yields two symbols") {
-    // The key used to be `(name, arity)`, accepting `isPredicate` and discarding it — so these collapsed into
+    // The key used to be `(name, arity)`, accepting `isPredicate` and discarding it, so these collapsed into
     // one symbol, and whichever was interned first decided the kind for both. TPTP cannot express this (the
     // positions are distinct there), but `Constant("p", Ind→Prop)` and `Constant("p", Ind→Ind)` are two legal
     // kernel symbols in a Lisa goal.

@@ -8,7 +8,7 @@ import lisa.automation.clausification.{Clausification, CertifiedClausifier}
 import lisa.automation.superposition.bench.{FofEvaluation, EqFofEvaluation}
 
 /**
- * Tests for [[Clausal]] — the superposition prover's side of the clausification boundary:
+ * Tests for [[Clausal]], the superposition prover's side of the clausification boundary:
  *
  *   - **ε-abstraction**: the kernel's ε-terms are not first-order, so ingestion replaces each by a schematic
  *     function of its free variables, sharing one symbol per distinct term and leaving first-order atoms
@@ -19,7 +19,7 @@ import lisa.automation.superposition.bench.{FofEvaluation, EqFofEvaluation}
  *   - the harnesses' seeded sampling, which must be reproducible for any benchmark number to mean anything.
  *
  * Tests of the clausifier itself moved to `lisa.automation.clausification.CertifiedClausificationTest`
- * (code review, §6.3) — they were the majority of this file and were invisible to a clausification-scoped
+ * (code review, §6.3). They were the majority of this file and were invisible to a clausification-scoped
  * test run.
  */
 class ClausalTest extends AnyFunSuite:
@@ -149,7 +149,7 @@ class ClausalTest extends AnyFunSuite:
 
   test("import composition maps each used clause to its own slot, even with duplicate clauses") {
     // `proveOutcome` bridges each import the reconstruction used back to the clausifier's clause at that slot.
-    // Duplicated input clauses are *equal* sequents, so the mapping must still be well-defined — it resolves to
+    // Duplicated input clauses are *equal* sequents, so the mapping must still be well-defined, and it resolves to
     // the first matching slot (`Restate` only needs some import proving that sequent). This pins the tie-break
     // the slot lookup has to preserve, and that the composed proof still declares every clause as an import.
     val p = pred("p", 1); val q = pred("q", 1); val a = fn("a", 0)

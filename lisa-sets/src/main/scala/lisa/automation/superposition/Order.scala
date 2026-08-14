@@ -37,11 +37,11 @@ final class Order(val kbo: KBO):
   /**
    * Orientation memo, keyed on the equality atom's arena [[Core.offset]] (a stable, unique `Int` for a
    * hash-consed term), storing the [[Cmp]] ordinal; `-1` is the "not yet computed" sentinel. Same
-   * primitive-int-map shape as the bank's own tables — no boxing.
+   * primitive-int-map shape as the bank's own tables, so nothing is boxed.
    * See `archive/PossibleOptimizations.md` for caching orientation on the atom record itself (E/Vampire style).
    *
    * '''Why it is safe to cache.''' A verdict is only valid for the KBO parameters it was computed under, and
-   * precedence is read *live* by [[KBO]] — [[Precedence.assign]] rewrites it after the clauses are built, and
+   * precedence is read *live* by [[KBO]]: [[Precedence.assign]] rewrites it after the clauses are built, and
    * a strategy may pick any [[PrecedenceScheme]]/[[Core.WeightScheme]]. So the cache stamps itself with the
    * signature's [[Core.Signature.orderingVersion]] (bumped by every weight/precedence write) and drops itself
    * the moment that moves. This replaces an unwritten "never call `orient` before `Precedence.assign`"
@@ -71,10 +71,9 @@ final class Order(val kbo: KBO):
 
   /** The strictly-`≻`-greater side of an equality atom, or `None` when the sides are `Eq`/`Inc`.
     *
-    * '''Test oracle, not engine API.''' No production path calls this — the inference rules read [[orient]]
+    * '''Test oracle, not engine API.''' No production path calls this; the inference rules read [[orient]]
     * directly and branch on the `Cmp`, rather than allocating an `Option` per query. It is kept because it
-    * states the definition in the form the tests check against; `private[automation]` so a reader of this
-    * class can tell the engine's surface from the oracles. Same for [[isStrictlyMaximal]] and
+    * states the definition in the form the tests check against. The same goes for [[isStrictlyMaximal]] and
     * [[compareClause]]. */
   private[automation] def maximalSide(atom: Term): Option[Term] =
     orient(atom) match
@@ -91,7 +90,7 @@ final class Order(val kbo: KBO):
    *   - equality vs non-equality → the non-equality literal is greater (equality is the lowest level);
    *   - both non-equality (distinct atoms) → compare the atoms by the [[KBO]];
    *   - both equality → multiset extension of the KBO over the side multisets `{s,t}` (positive) /
-   *     `{s,s,t,t}` (negative) — the standard Bachmair-Ganzinger encoding, so a negative equality
+   *     `{s,s,t,t}` (negative), the standard Bachmair-Ganzinger encoding, so a negative equality
    *     outranks the positive one on the same terms (the duplicated sides tip the multiset comparison).
    *
    * Returns `Inc` on genuinely unordered non-ground literals. On equality-free literals this coincides
@@ -99,7 +98,7 @@ final class Order(val kbo: KBO):
    *
    * The `{s,t}` / `{s,s,t,t}` encoding and the equivalent `{{s},{t}}` / `{{s,t}}` multiset-of-multisets form
    * used by E (Vampire's `Ordering_Equality.cpp` is a third, sign-blind variant) all coincide on ground
-   * literals — where completeness is defined — and differ only on rare non-ground positive/negative pairs.
+   * literals, where completeness is defined, and differ only on rare non-ground positive/negative pairs.
    * We use the doubled form for its directness and its "negative outranks positive" property.
    */
   def compareLit(l1: Literal, l2: Literal): Cmp =
@@ -134,7 +133,7 @@ final class Order(val kbo: KBO):
    * specialisation of [[termMultisetCompare]]: since each multiset has size 2, cancelling one
    * common side (by hash-cons identity, i.e. a `kbo` `Eq`) leaves a **singleton-vs-singleton** comparison,
    * so a single `kbo.compare` of the survivors is the whole answer; only when nothing cancels do we run the
-   * full 2×2 domination. Computes **at most four** `kbo.compare`s — fewer when a side cancels. `Eq` when the
+   * full 2×2 domination. Computes **at most four** `kbo.compare`s, fewer when a side cancels. `Eq` when the
    * equations coincide (up to symmetry). (Cancellation is order-independent: two equal sides can only both
    * match one target side if the targets themselves coincide, giving equal survivors either way.)
    */
@@ -158,7 +157,7 @@ final class Order(val kbo: KBO):
    * equal terms). Returns the comparison of the positive against the negative.
    *
    * Because the negative is doubled, cancelling **one** positive side (an `Eq`) still leaves the other of
-   * `u`,`v` present, so it reduces to `{survivor} vs {u,v}` — a singleton-vs-pair whose verdict is
+   * `u`,`v` present, so it reduces to `{survivor} vs {u,v}`, a singleton against a pair whose verdict is
    * [[singleVsPair]] (multiplicity is irrelevant for domination). The "negative wins ties" effect and the
    * "both sides cancel ⇒ negative greater" case both fall out of `singleVsPair`'s `Eq ⇒ Lt` rule. Only when
    * nothing cancels is it a genuine `{s,t}` vs `{u,v}` domination (doubling then irrelevant). `Eq` is
@@ -197,7 +196,7 @@ final class Order(val kbo: KBO):
     true
 
   /** Whether literal `i` is **strictly maximal**: no other literal is `≻_L`-greater-or-equal (`Gt` or `Eq`).
-    * Test oracle — see [[maximalSide]]; selection uses [[isMaximal]], which *is* on the engine's path. */
+    * Test oracle; see [[maximalSide]]; selection uses [[isMaximal]], which *is* on the engine's path. */
   private[automation] def isStrictlyMaximal(literals: Array[Literal], i: Int): Boolean =
     var j = 0
     while j < literals.length do
@@ -209,7 +208,7 @@ final class Order(val kbo: KBO):
 
   /** `res(i)`: literal `i` is maximal (no other literal is `≻_L`-greater), via [[isMaximal]] per index. For the
    *  selector, which needs every literal's verdict and would otherwise call [[isMaximal]] in its own loop.
-   *  Quadratic in the literal count, which is 1–3 in practice. */
+   *  Quadratic in the literal count, which is 1 to 3 in practice. */
   def maximalFlags(literals: Array[Literal]): Array[Boolean] =
     Array.tabulate(literals.length)(isMaximal(literals, _))
 
@@ -222,8 +221,8 @@ final class Order(val kbo: KBO):
    * '''Not currently used by the loop.''' The gates that could want it compare *terms* directly instead:
    * [[Superposition.superpose]]'s orientation checks and [[Demodulation.isPremiseRedundant]] both call
    * `kbo.compare`. Kept as the reference implementation of `≻_C` for the redundancy criteria that will need
-   * a clause-level comparison, and exercised by `OrderTest` — hence `private[automation]`, like the other
-   * oracles here (see [[maximalSide]]).
+   * a clause-level comparison, and exercised by `OrderTest`, like the other oracles here (see
+   * [[maximalSide]]).
    */
   private[automation] def compareClause(c1: Clause, c2: Clause): Cmp =
     literalMultisetCompare(c1.literals, c2.literals)
@@ -232,10 +231,10 @@ final class Order(val kbo: KBO):
 
   /**
    * Multiset extension of a strict order over two multisets `m1`, `m2`: cancel elements the two share
-   * (`cancels`, an equivalence — hash-cons identity for terms, `≻_L`-`Eq` for literals so a symmetric
+   * (`cancels`, an equivalence: hash-cons identity for terms, `≻_L`-`Eq` for literals so a symmetric
    * `s = t` / `t = s` pair cancels, not just syntactically-identical ones), then `m1 >_mul m2` iff every
    * leftover of `m2` is `gt` some leftover of `m1`. Both domination tests can fail → `Inc` (correct for a
-   * partial order). Multisets are tiny (literal counts 1–3), so the `forall`/`exists` closures dominate cost.
+   * partial order). Multisets are tiny (literal counts 1 to 3), so the `forall`/`exists` closures dominate cost.
    */
   private def multisetCompare[A](m1: Array[A], m2: Array[A])(cancels: (A, A) => Boolean)(gt: (A, A) => Boolean): Cmp =
     val used2: Array[Boolean] = new Array[Boolean](m2.length)
@@ -268,6 +267,6 @@ final class Order(val kbo: KBO):
   private[superposition] def termMultisetCompare(m1: Array[Term], m2: Array[Term]): Cmp =
     multisetCompare(m1, m2)(_ == _)((x, y) => kbo.compare(x, y) == Gt)
 
-  /** Multiset extension of `≻_L` on two literal multisets — what [[compareClause]] uses. */
+  /** Multiset extension of `≻_L` on two literal multisets, which is what [[compareClause]] uses. */
   private def literalMultisetCompare(m1: Array[Literal], m2: Array[Literal]): Cmp =
     multisetCompare(m1, m2)((x, y) => compareLit(x, y) == Eq)((x, y) => compareLit(x, y) == Gt)

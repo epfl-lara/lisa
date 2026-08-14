@@ -87,10 +87,10 @@ class FingerprintTest extends AnyFunSuite:
     // NotInTerm query
     assert(Fingerprint.unifiable(NotInTerm, NotInTerm) && Fingerprint.unifiable(NotInTerm, BelowVar))
     assert(!Fingerprint.unifiable(NotInTerm, AnyVar) && !Fingerprint.unifiable(NotInTerm, f))
-    // AnyVar query — everything except NotInTerm
+    // AnyVar query: everything except NotInTerm
     assert(Fingerprint.unifiable(AnyVar, f) && Fingerprint.unifiable(AnyVar, AnyVar) && Fingerprint.unifiable(AnyVar, BelowVar))
     assert(!Fingerprint.unifiable(AnyVar, NotInTerm))
-    // BelowVar query — everything
+    // BelowVar query: everything
     assert(Seq(f, g, AnyVar, BelowVar, NotInTerm).forall(sf => Fingerprint.unifiable(BelowVar, sf)))
   }
 

@@ -37,7 +37,8 @@ empty clause, that is, falsity.
 This is the representation the prover works in, and it is also the representation in which a refutation is
 reconstructed, since the imports of the reconstructed proof are the clause sequents themselves. Emitting it
 directly means the clause set, the prover's working form and the proof's imports are one representation rather
-than three. `Clausification.clauseSequent` is its single definition.
+than three. Both clausifiers build it at the leaves of their distribution step, `UncertifiedClausifier.toClauses`
+and `DistributePhase.distributeClauses`.
 
 Clauses contain no quantifiers. Their free individual variables are read as universally quantified. Producing
 that shape from an arbitrary formula is the work of the pipeline.
@@ -63,9 +64,9 @@ The term `ε(λx. φ)` is therefore a witness that behaves like a fresh function
 
 **Quantifier stripping.** After Skolemization there ae no existential quantifiers, but there are universal ones. Since a clause
 carries no quantifiers and reads its free variables as universal, each `∀x. ψ` is replaced by `ψ` with `x`
-instantiated at a fresh variable. The kernel's `LeftForall` rule performs exactly this instantiation. But universal quantifiers can exist deep in the formula, underneath conjunctions and disjunctions. Stripping them in place is one option; lifting
-them to the root first, using prenex equivalences, is another. Both are available, for reasons given in
-Section 2.5.
+instantiated at a fresh variable. The kernel's `LeftForall` rule performs exactly this instantiation. But universal quantifiers can exist deep in the formula, underneath conjunctions and disjunctions. They are stripped where they
+stand, by walking the formula's tree and mirroring each connective, which costs a proof linear in the size of
+the formula.
 
 **Distribution.** At this stage, the formula is a tree of conjunctions and disjunctions over literals, without quantifiers, and
 distributing disjunction over conjunction yields the clauses. Two facts are important.
@@ -176,7 +177,7 @@ calls its continuation on the transformed problem, and wraps the result in the s
 | order | phase | file | transformation |
 |---|---|---|---|
 | 1 | screening | [ScreenPhase.scala](ScreenPhase.scala) | rename every free input variable; expand every quantifier to explicit lambda form |
-| 2 | negation | [NegatedPhase.scala](NegatedPhase.scala) | move the conjecture `φ` to the hypotheses as `¬∀x̄. φ` |
+| 2 | negation | [NegatedPhase.scala](NegatedPhase.scala) | move the conjecture `φ` to the hypotheses as `¬φ`, freezing its free individual variables |
 | 3 | naming | `certifyNaming` in [CertifiedClausifier.scala](CertifiedClausifier.scala) | replace subformulas above the threshold by `nm(x̄)`, adding their definitions |
 | 4 | negation normal form | [NnfPhase.scala](NnfPhase.scala) | eliminate `⇒` and `⇔`, push negation to the atoms |
 | 5 | Skolemization | [SkolemPhase.scala](SkolemPhase.scala) | remove `∃` using epsilon terms, then abbreviate each as `esk(x̄)` |
@@ -185,10 +186,11 @@ calls its continuation on the transformed problem, and wraps the result in the s
 
 Below phase 2 the conjecture is always absent (it's the empty sequent), and every later phase requires this of its input.
 
-Phase 2 also closes the conjecture's free individual variables before negating it. A goal `φ(x̄)` asserts
-`∀x̄. φ(x̄)`, so what must be refuted is `∃x̄. ¬φ`, which Skolemization turns into fresh constants. Negating
-`φ(x̄)` unchanged would leave `x̄` as clause variables and refute only `∃x̄. φ`, a weaker statement that does not
-yield the intended conclusion.
+Phase 2 also adds the conjecture's free individual variables to `frozen`. A goal `φ(x̄)` asserts `∀x̄. φ(x̄)`, so
+`x̄` must not be instantiable: left as clause variables they would refute only `∃x̄. φ`, a weaker statement that
+does not yield the intended conclusion. Freezing them makes the prover treat them as symbols, which is what
+closing them universally and Skolemizing the resulting `∃x̄. ¬φ` would achieve, without introducing an `∃` and
+therefore without a Skolem definition or a step to recover the original goal.
 
 ### 2.3 Representation of proofs under construction
 
@@ -199,20 +201,23 @@ discharge. [ProofIR.scala](ProofIR.scala) supplies the intermediate representati
 | type | role |
 |---|---|
 | `ClausificationProof` | a list of steps together with an import list, mirroring `SCProof` |
-| `KernelStep` | an ordinary kernel proof step |
-| `ClausificationSubproof` | a nested `ClausificationProof`, some of whose imports are declared as assumptions |
-| `Assumption` | an assumed formula together with the index of the import it stands for |
+| `ClausificationProofStep` | either a kernel `SCProofStep` or a `ClausificationSubproof` |
+| `ClausificationSubproof` | a nested `ClausificationProof`, some of whose imports are declared as assumptions, by index |
 
-`lowerClausificationProof` converts this representation into a kernel `SCProof`. For each assumption it adds
-the assumed formula to the left side of the steps that need it, and inserts a `Hypothesis(φ ⊢ φ)` step to
-account for the corresponding import. Only the steps whose premises reach an import can be affected by an
-assumption, so the others are left unchanged, which keeps lowering proportional to the number of steps that
+`clausificationProofToSCProof` converts this representation into a kernel `SCProof`. For each assumption it adds
+the assumed formula to the left side of the steps that need it, and inserts one `RestateTrue` step, proving the
+tautology `assumptions ⊢ φ`, to account for the corresponding import. Only the steps whose premises reach an import can be affected by an
+assumption, so the others are left unchanged, which keeps the conversion proportional to the number of steps that
 genuinely depend on the assumption.
 
-One restriction applies and is checked rather than assumed: a nested kernel `SCSubproof` must have no imports
-of its own. Lowering rewrites such a subproof's conclusion but not its imports, and the kernel matches an
-import against the parent step that discharges it, so an import that kept its original left side would fail to
-match a parent that had gained the assumptions.
+A kernel `SCSubproof` is converted exactly like a `ClausificationSubproof` that declares no assumption of its
+own, so the two follow the same rule at every depth.
+
+One restriction applies to both and is checked rather than assumed. The imports of a converted subproof receive
+the assumptions handed to it, and the kernel matches each of those imports against the parent step that
+discharges it, so such a step must be one that also received them, that is, one whose premises reach an import.
+The phases respect this: `DistributePhase`, for instance, derives each clause from steps that reach no import
+and cites only the closing `Cut` against the axiom import.
 
 ### 2.4 Names
 
@@ -241,10 +246,10 @@ above negation, because at that point every sequent still has an empty left side
 is therefore legal at every sort. Renaming is applied to all input variables rather than only to those that
 collide, so that afterwards the absence of input names outside `v`, `P` and `F` holds by construction.
 
-The predicate namespace shares its prefix with `schemaP`, the placeholder `P` of the library theorems, so the
+The predicate namespace shares its prefix with `schemaP`, the placeholder `P` of the library theorem, so the
 two are kept apart by the counter: screening numbers from 1, making `P_1` the first screened predicate and
 leaving the bare `P` to the schema. Without that, the first screened predicate of every problem would be the
-very symbol the Skolem and prenex bridges instantiate, which is the fault screening exists to remove.
+very symbol the Skolem bridge instantiates, which is the fault screening exists to remove.
 
 Screening has a second task. The kernel's beta normal form contracts `λy. p(y)` to `p`, so `∀y. p(y)` can be
 presented as an application of `∀` to `p` with no lambda in it. The extractors that the phases match on require
@@ -255,28 +260,23 @@ formulas up to beta-eta normal form, so it costs no proof step.
 
 ### 2.5 Library theorems
 
-The pipeline uses five theorems of the Lisa library, listed as `Clausification.libImports` and supplied by the
-caller of the tactic. They appear at the end of the import list of every proof the package produces.
+The pipeline uses one theorem of the Lisa library, `(∃x. P(x)) ⇔ P(ε(λx. P(x)))`, the witness adequacy
+statement of Section 1.3. It is listed as `Clausification.libImports`, supplied by the caller of the tactic,
+and appears at the end of the import list of every proof the package produces.
 
-| theorem | used by |
-|---|---|
-| `(∃x. P(x)) ⇔ P(ε(λx. P(x)))` | Skolemization, as the witness adequacy statement of Section 1.3 |
-| `(∀x. P(x)) ∧ R ⇔ ∀x. (P(x) ∧ R)` and its mirror image | quantifier stripping, when lifting a quantifier over a conjunction |
-| `(∀x. P(x)) ∨ R ⇔ ∀x. (P(x) ∨ R)` and its mirror image | quantifier stripping, when lifting a quantifier over a disjunction |
-
-The four prenex equivalences are needed only by one of the two stripping strategies. `PrenexPhase` can either
-walk the formula and apply `LeftForall` at each quantifier where it stands, which produces a proof linear in
-the size of the formula, or lift each quantifier to the root using the equivalences above and then strip at the
-root, which produces a proof proportional to the number of quantifiers times the depth. Neither dominates, so
-the phase estimates both and chooses per formula.
+Four prenex equivalences, `(∀x. P(x)) ∧ R ⇔ ∀x. (P(x) ∧ R)` and its three variants, used to sit beside it.
+They served a second quantifier-stripping strategy, which lifted each quantifier to the root before stripping
+it there, giving a proof proportional to the number of quantifiers times the depth rather than to the size of
+the formula. Measured over the 944 equality-free FOF theorems, that strategy roughly doubled both proof size
+and time and failed 19 problems the present one handles, so it and the four theorems were removed.
 
 ### 2.6 The uncertified conversion
 
 [UncertifiedClausifier.scala](UncertifiedClausifier.scala) implements the whole uncertified pipeline: selective
 naming, negation normal form, one Skolemization pass directly using with fresh function symbols instead of epsilon terms, and
 distribution.
-The phase performs the same universal closure of the conjecture as phase 2, and the same quantifier expansion as
-screening, both at its own entry point.
+It freezes the conjecture's free individual variables as phase 2 does, and performs the same quantifier
+expansion as screening, both at its own entry point.
 
 ### 2.7 Shared support
 
@@ -284,7 +284,7 @@ screening, both at its own entry point.
 |---|---|
 | [Clausification.scala](Clausification.scala) | the `Problem` type, the generated names, the library theorems, assumption discharge, size estimation, and the shared helpers |
 | [NamingSupport.scala](NamingSupport.scala) | creation of a naming predicate over a subformula's free variables, and the small proofs that discharge a definition |
-| [ProofIR.scala](ProofIR.scala) | the intermediate proof representation and its lowering, described in Section 2.3 |
+| [ProofIR.scala](ProofIR.scala) | the intermediate proof representation and its conversion to `SCProof`, described in Section 2.3 |
 
 `Clausification.checkInterrupted` is called at every point in the pipeline where work can grow without bound.
 It observes thread interruption and available heap, so that a caller with a time budget can stop a conversion
@@ -298,15 +298,15 @@ Where the dependencies leave a choice, the order follows the pipeline of Section
 
 | order | file | why it sits here |
 |---|---|---|
-| 1 | [ProofIR.scala](ProofIR.scala) | the proof representation every phase produces, and the lowering that turns it into a kernel proof. It uses nothing from the package, so nothing precedes it |
-| 2 | [Clausification.scala](Clausification.scala) | the vocabulary: `Problem`, `clauseSequent`, the generated names, the library theorems, and the `ClausificationProver` type, which is a function from a problem to a `ClausificationProof` and so needs ProofIR first |
+| 1 | [ProofIR.scala](ProofIR.scala) | the proof representation every phase produces, and the conversion that turns it into a kernel proof. It uses nothing from the package, so nothing precedes it |
+| 2 | [Clausification.scala](Clausification.scala) | the vocabulary: `Problem`, the generated names, the library theorems, and the `ClausificationProver` type, which is a function from a problem to a `ClausificationProof` and so needs ProofIR first |
 | 3 | [UncertifiedClausifier.scala](UncertifiedClausifier.scala) | every transformation of Section 1.3 in one pass and without a proof. Read early as the overview: it is the shortest complete account of what clausification does here, and the certified pipeline below is the same work carried out so that each step can be justified |
 | 4 | [NamingSupport.scala](NamingSupport.scala) | how a naming predicate is created and how its definition is discharged, used by the naming phase and by Skolemization |
 | 5 | [ScreenPhase.scala](ScreenPhase.scala) | the first phase, and the one that establishes the name and shape invariants the rest assume |
 | 6 | [NegatedPhase.scala](NegatedPhase.scala) | where the conjecture goes, and where the prover contract comes from |
 | 7 | [NnfPhase.scala](NnfPhase.scala) | the smallest phase, and the one whose certification is a single step |
 | 8 | [SkolemPhase.scala](SkolemPhase.scala) | the first phase that introduces a symbol and must discharge it |
-| 9 | [PrenexPhase.scala](PrenexPhase.scala) | the largest phase, and the only one with two strategies for the same result |
+| 9 | [PrenexPhase.scala](PrenexPhase.scala) | one derivation per axiom, mirroring the formula's own tree |
 | 10 | [DistributePhase.scala](DistributePhase.scala) | the last phase, where the clauses are finally built |
 | 11 | [CertifiedClausifier.scala](CertifiedClausifier.scala) | the composition root, read last because it is the only file that mentions all the others |
 
@@ -337,6 +337,6 @@ Tests are in [`../../../../../test/scala/lisa/automation/clausification/`](../..
 | `CertifiedClausificationTest` | the pipeline end to end, including a satisfiable problem asserted not to be refuted |
 | `CertifiedFastEquivalenceTest` | the certified and uncertified conversions compared stage by stage |
 | `AdversarialInputTest` | each precondition of the pipeline, paired with the input that violates it |
-| `ProofIRTest` | lowering, which steps receive the assumptions, and the restriction on nested subproofs |
-| `PrenexRewriteTest` | the lifting strategy of Section 2.5, which the heuristic rarely selects |
+| `ProofIRTest` | the conversion, which steps receive the assumptions, and the restriction on subproof premises |
+| `PrenexPhaseTest` | quantifier stripping where the quantifier's sibling mentions its binder free |
 | `ScreenPhaseTest`, `DistributePhaseTest`, `NamingSupportTest` | the individual phases named |

@@ -13,13 +13,13 @@ import BenchUtil.{withTimeout, toClausificationProblem, median}
 /**
  * The shared FOF evaluation harness, parameterised by the dataset (`listFileName`) and the env var that
  * overrides its list location (`listEnvVar`). Both [[FofEvaluation]] (equality-free) and [[EqFofEvaluation]]
- * (equality-bearing) are thin configs over one instance of this — they differ only in the dataset and its
+ * (equality-bearing) are thin configs over one instance of this, differing only in the dataset and its
  * documentation.
  *
  * Each sampled problem is parsed, run through the (un)certified clausifier
- * ([[CertifiedClausifier.certifyClausal]] vs [[UncertifiedClausifier.uncertifyClausal]] — the same
+ * ([[CertifiedClausifier.certifyClausal]] vs [[UncertifiedClausifier.uncertifyClausal]], which give the same
  * clauses either way, so the delta measures the proof-building cost) with [[Clausal.proveOutcome]] as the
- * back-end, and — on a refutation — the composed proof is kernel-checked. The library-lemma statements remain
+ * back-end, and on a refutation the composed proof is kernel-checked. The library-lemma statements remain
  * trusted imports until a tactic discharges them, so a `bad_proof` flags a composition/reconstruction bug.
  * The prover is timed from **inside** its closure, so `clausifyMs = total − prover` even though `certifyClausal`
  * calls the prover mid-descent (CPS).
@@ -34,7 +34,7 @@ import BenchUtil.{withTimeout, toClausificationProblem, median}
  * The `uncert` token skips certification; `off` skips all equality inferences (superposition, equality
  * resolution/factoring, demodulation); `noindex` runs superposition by linear scan instead of the fingerprint index.
  */
-/** @param childMainClass the object whose `main` a forked child re-enters — the owning harness object, so it
+/** @param childMainClass the object whose `main` a forked child re-enters: the owning harness object, so it
   *                       reads the same problem list. See [[solveForked]]. */
 final class FofHarness(listFileName: String, listEnvVar: String, childMainClass: String):
 
@@ -51,7 +51,7 @@ final class FofHarness(listFileName: String, listEnvVar: String, childMainClass:
 
   def main(args: Array[String]): Unit =
     // The child half of the forked path: solve exactly one problem, print one `RESULT` line, exit. Never
-    // invoked by hand — [[solveRow]] spawns it. Kept in this same main so the child needs no extra class.
+    // invoked by hand, since [[solveRow]] spawns it. Kept in this same main so the child needs no extra class.
     if args.headOption.contains("solve1") then { solveChild(args.drop(1)); return }
     if args.headOption.contains("verify") then { args.drop(1).foreach(verifyOne); return }
     if args.headOption.contains("sample") then
@@ -102,7 +102,7 @@ final class FofHarness(listFileName: String, listEnvVar: String, childMainClass:
     val rows = paths.map(rel => solveRow(new File(tptpRoot.get, rel), timeoutMs, maxGiven, maxSize, certified))
     report(rows, paths.size)
 
-  /** Which isolation the run used — it changes what the timings mean, so it belongs in the banner above them.
+  /** Which isolation the run used. It changes what the timings mean, so it belongs in the banner above them.
     * `fork` costs a JVM start-up per problem, so per-problem times on fast problems are dominated by it. */
   private def isolationBanner: String =
     if BenchUtil.forkEnabled then "isolation=fork (one JVM per problem; set LISA_FORK=0 for in-process)"
@@ -117,14 +117,14 @@ final class FofHarness(listFileName: String, listEnvVar: String, childMainClass:
    *  `checkMs` (the final kernel check), and the loop-scale counters.
    *
    *  `contaminated` marks a row that ran while an earlier worker was still alive after being abandoned (see
-   *  [[BenchUtil.abandonedWorkers]]) — its timings, and often its verdict, say more about that thread than
+   *  [[BenchUtil.abandonedWorkers]]): its timings, and often its verdict, say more about that thread than
    *  about this problem. */
   private final case class Timing(category: String, clausifyMs: Double = 0.0, proverMs: Double = 0.0, checkMs: Double = 0.0,
                                   givenProcessed: Int = 0, peakActive: Int = 0, peakPassive: Int = 0,
                                   contaminated: Boolean = false, detail: String = "")
 
   /** Deep-check one problem (path relative to the TPTP root): clausify both ways, solve, and report the
-   *  kernel-checker verdict in detail — for diagnosing `BAD_PROOF`. */
+   *  kernel-checker verdict in detail, for diagnosing `BAD_PROOF`. */
   def verifyOne(rel: String): Unit =
     val tptpRoot = BenchUtil.tptpRootOrExplain().getOrElse(return)
     val f = new File(tptpRoot, rel)
@@ -143,12 +143,12 @@ final class FofHarness(listFileName: String, listEnvVar: String, childMainClass:
           case _ => ()
       catch case e: Throwable => println(s"threw ${e.getClass.getSimpleName}: ${e.getMessage}")
 
-  /** Solve one problem and print its row — in its own JVM when [[BenchUtil.forkEnabled]], else in-process. */
+  /** Solve one problem and print its row, in its own JVM when [[BenchUtil.forkEnabled]], else in-process. */
   private def solveRow(f: File, timeoutMs: Long, maxGiven: Int, maxSize: Int, certified: Boolean, equality: Boolean = true, fingerprintIndexing: Boolean = true): Timing =
     val name = f.getName
     if !f.exists then { println(f" $name%-19s ${"-- file not found --"}"); return Timing("MISSING") }
     // Sampled *before* the run: a worker this problem abandons contaminates its successors, not itself. In
-    // fork mode nothing is ever abandoned — the child is killed — so this stays false throughout.
+    // fork mode nothing is ever abandoned, since the child is killed, so this stays false throughout.
     val dirty = BenchUtil.abandonedWorkers > 0
     val (hyps, cj, res0) =
       if BenchUtil.forkEnabled then solveForked(f, timeoutMs, maxGiven, maxSize, certified, equality, fingerprintIndexing)
@@ -165,11 +165,11 @@ final class FofHarness(listFileName: String, listEnvVar: String, childMainClass:
 
   // ── forked execution ──────────────────────────────────────────────────────────────────────────────────────
   // The parent spawns one JVM per problem and reads back a single `RESULT` line. A child that never prints
-  // one was killed on timeout or died on a fatal error, and the two are distinguishable — which is more than
+  // one was killed on timeout or died on a fatal error, and the two are distinguishable, which is more than
   // the in-process path could manage, where both surfaced as `BAD_PROOF` (see the code review, §4.5).
 
   /** Run this problem in a fresh JVM. The child gets `timeoutMs + 5000` wall-clock before it is killed, the
-    * same outer budget the in-process path allowed — but here the kill is real. */
+    * same outer budget the in-process path allowed, but here the kill is real. */
   private def solveForked(f: File, timeoutMs: Long, maxGiven: Int, maxSize: Int, certified: Boolean, equality: Boolean, indexing: Boolean): (Int, String, Timing) =
     val argv = Seq("solve1", f.getPath, timeoutMs.toString, maxGiven.toString, maxSize.toString,
       if certified then "cert" else "uncert", if equality then "on" else "off", if indexing then "index" else "noindex")
@@ -178,7 +178,7 @@ final class FofHarness(listFileName: String, listEnvVar: String, childMainClass:
       case Some(row) => row
       case None      => (-1, "?", Timing(if outcome.timedOut then "HARD_TIMEOUT" else "PROVER_CRASH", detail = outcome.crashDetail))
 
-  /** Child entry: solve one problem, print one machine-readable line, exit. No outer timeout — the parent's
+  /** Child entry: solve one problem, print one machine-readable line, exit. No outer timeout: the parent's
     * `destroyForcibly` is the hard cap, and `solveOne` still honours `timeoutMs` cooperatively. */
   private def solveChild(a: Array[String]): Unit =
     val (hyps, cj, t) = solveLocal(new File(a(0)), a(1).toLong, a(2).toInt, a(3).toInt,
@@ -186,7 +186,7 @@ final class FofHarness(listFileName: String, listEnvVar: String, childMainClass:
     println(encodeRow(hyps, cj, t))
 
   // Plain `toString`/`toDouble`, not the `f` interpolator: `%f` formats in the default locale, which writes
-  // `0,3` where the parser expects `0.3` — a bug that would only appear on a machine configured differently
+  // `0,3` where the parser expects `0.3`, a bug that would only appear on a machine configured differently
   // from the one this was written on.
   private def encodeRow(hyps: Int, cj: String, t: Timing): String =
     Seq(t.category, hyps.toString, cj, t.clausifyMs.toString, t.proverMs.toString, t.checkMs.toString,
@@ -198,7 +198,7 @@ final class FofHarness(listFileName: String, listEnvVar: String, childMainClass:
     else Try((p(1).toInt, p(2), Timing(p(0), p(3).toDouble, p(4).toDouble, p(5).toDouble,
       p(6).toInt, p(7).toInt, p(8).toInt, detail = p.lift(9).getOrElse("")))).toOption
 
-  /** Parse + clausify + solve one problem in this JVM. `outerTimeout` adds the thread-based wall-clock guard —
+  /** Parse + clausify + solve one problem in this JVM. `outerTimeout` adds the thread-based wall-clock guard,
     * wanted when this *is* the run (`LISA_FORK=0`), redundant in a child whose parent will kill it. */
   private def solveLocal(f: File, timeoutMs: Long, maxGiven: Int, maxSize: Int, certified: Boolean,
                          equality: Boolean, indexing: Boolean, outerTimeout: Boolean): (Int, String, Timing) =
@@ -226,7 +226,7 @@ final class FofHarness(listFileName: String, listEnvVar: String, childMainClass:
 
   /** A non-refutation ([[Bridge.Outcome]] `Saturated`/`Timeout`) thrown by the back-end to abort clausification. */
   private final class NonRefutation(val outcome: Bridge.Outcome) extends RuntimeException
-  /** A throw from the prover/reconstruction closure (a proof-composition/reconstruction or search crash) — kept
+  /** A throw from the prover/reconstruction closure (a proof-composition/reconstruction or search crash), kept
    *  distinct from a clausification throw so it is categorised `BAD_PROOF`, not `CLAUSIFY_ERR`. */
   private final class ProverError(cause: Throwable) extends RuntimeException(cause)
 

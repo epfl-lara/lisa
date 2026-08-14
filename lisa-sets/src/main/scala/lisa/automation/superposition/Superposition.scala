@@ -11,7 +11,7 @@ import Cmp.*
  * [[Inference.resolve]] / `factor` idiom: save the trail, unify (one scope), apply the post-σ ordering
  * gates against the shared [[Order]]'s KBO, build the conclusion via a [[Trail.Applier]], restore the
  * trail. **Superposition splits this**: because the overlap is *located and unified by the caller* (the
- * saturation loop, or the fingerprint index — as Vampire's index feeds a substitution to
+ * saturation loop, or the fingerprint index, as Vampire's index feeds a substitution to
  * `performSuperposition`), [[superpose]] receives a trail **already bearing** `mgu(l, u)` and only gates
  * and builds; the caller owns the surrounding `save` / `unify` / `restore`.
  *
@@ -33,7 +33,7 @@ object Superposition:
   // A subterm position is a path of argument indices into an atom (root excluded), represented as
   // `Array[Int]`. It is only *materialised* when an inference fires and must record it in a
   // `Justification`; enumeration itself ([[foreachSubterm]]) walks a single **reused** mutable stack, so
-  // it allocates nothing per position — the E/Vampire subterm-iterator style.
+  // it allocates nothing per position, in the E/Vampire subterm-iterator style.
 
   /** The subterm of `t` at position `pos` (a path of argument indices). */
   def subtermAt(bank: TermBank, t: Term, pos: Array[Int]): Term =
@@ -128,7 +128,7 @@ object Superposition:
         else // committed: instantiate the kept literals straight into a pre-sized array (size known upfront).
           // The dropped literals (`iInto`, `iFrom`) are skipped: `iInto`'s variables were all registered via
           // `intoAtomS` and `iFrom`'s (its atom is exactly `l = r`) via `lS`/`rS` above, so the output variable
-          // numbering is identical to applying them — this just avoids two throwaway arrays and instantiating
+          // numbering is identical to applying them, so this just avoids two throwaway arrays and instantiating
           // the two literals we discard.
           val out: Array[Literal] = new Array[Literal](into.literals.length + from.literals.length - 1)
           out(0) = bank.mkLiteral(newAtom, bank.isPositive(intoLit))
@@ -137,9 +137,9 @@ object Superposition:
           Some(bank.mkClause(out, Justification.Superposition(from, iFrom, fromSide, into, iInto, pos)))
 
   /**
-   * **Equality resolution** — all resolvents of `c` on its **eligible** literals. For each `i` in `eligible`
+   * **Equality resolution**: all resolvents of `c` on its **eligible** literals. For each `i` in `eligible`
    * that is a negative equality `s ≠ t` with `σ = mgu(s, t)`, yields `(c\{i})σ`. The callee picks the
-   * applicable literals (negative equalities that unify); `eligible` — the `selected`/maximal set — is the
+   * applicable literals (negative equalities that unify), and `eligible`, the `selected`/maximal set, is the
    * loop's contribution.
    */
   def equalityResolution(bank: TermBank, trail: Trail, order: Order, c: Clause, eligible: Array[Int]): List[Clause] =
@@ -165,16 +165,16 @@ object Superposition:
   /**
    * **Equality factoring.** For a factored-out literal `i` (`s ≈ t`, side `iSide` = `s`) and a partner `j`
    * (`s' ≈ t'`, side `jSide` = `s'`) with `σ = mgu(s, s')` and gates `sσ ⋠ tσ` **and** `sσ ⋠ t'σ`, yields
-   * `(c\{i} ∨ tσ ≠ t'σ)σ` — **drop the factored literal `i`, keep the partner `j`**, adding the disequality of
+   * `(c\{i} ∨ tσ ≠ t'σ)σ`, which **drops the factored literal `i`, keep the partner `j`**, adding the disequality of
    * their other sides (matching Vampire and E). The callee enumerates the sides: `iSide` ranges over `i`'s
    * `Gt` side (both if incomparable); `jSide` over both sides of `j` (the gates filter).
    *
-   * '''Only `i` need be eligible.''' Bachmair–Ganzinger requires selection/maximality of the literal being
-   * factored out; the partner is any *other* positive equality of `c`. Drawing `j` from `eligible` too — as
-   * this loop used to — silently loses inferences: in `f(x) ≈ a ∨ f(x) ≈ d` with `d ≻ a` the second literal
+   * '''Only `i` need be eligible.''' Bachmair-Ganzinger requires selection/maximality of the literal being
+   * factored out; the partner is any *other* positive equality of `c`. Drawing `j` from `eligible` too, as
+   * this loop once did, silently loses inferences: in `f(x) ≈ a ∨ f(x) ≈ d` with `d ≻ a` the second literal
    * is strictly maximal, so `eligible = {1}` and literal 0 is never offered as a partner, though the factor
    * `d ≉ a ∨ f(x) ≈ a` is legitimate and Vampire derives it (`EqualityFactoring::generateClauses` takes
-   * `getSelectedLiteralIterator` for the factored literal and `iterLits` — all literals — for the partner).
+   * `getSelectedLiteralIterator` for the factored literal and `iterLits`, all literals, for the partner).
    */
   def equalityFactoring(bank: TermBank, trail: Trail, order: Order, c: Clause, eligible: Array[Int]): List[Clause] =
     val out = List.newBuilder[Clause]
@@ -225,14 +225,14 @@ object Superposition:
 
   /**
    * `c`'s usable superposition **from-sides**: `(iFrom, fromSide, l, lHead)` for each of `c`'s **selected**
-   * literals that is a positive equality, and each side usable as a rewriting LHS — the `≻`-greater side, both
+   * literals that is a positive equality, and each side usable as a rewriting LHS: the `≻`-greater side, both
    * when the sides are incomparable, neither when they are `Eq`; never a variable side (superposition never
    * rewrites from a variable). `lHead` is `l`'s head symbol, carried along for the cheap pre-check the linear
    * scan makes before attempting unification.
    *
    * '''The selection is read from the clause, never passed in.''' The *from*-index must present exactly the same
    * entries on insertion and removal or it leaks, and the loop's active scan needs the same notion of
-   * eligibility as the index — so which literals are eligible is not the caller's choice to make. Taking it from
+   * eligibility as the index, so which literals are eligible is not the caller's choice to make. Taking it from
    * `c.select` makes every caller agree by construction.
    *
    * Prefer [[Core.Clause.fromSides]], which memoises this on the clause: both consumers want the same list many

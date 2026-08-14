@@ -68,8 +68,8 @@ class BridgeTest extends AnyFunSuite:
 
   test("auto-detect keeps equality ON: a pure-equality problem (needs superposition) still refutes with the default") {
     val f = fn("f", 1); val a = cst("a")
-    // f(a) = a ; f(f(a)) ≠ a  — refutable ONLY by equality reasoning; if auto-detect wrongly disabled equality
-    // (leaving pure resolution + factoring), this would NOT refute — so it guards the detection.
+    // f(a) = a ; f(f(a)) ≠ a: refutable ONLY by equality reasoning; if auto-detect wrongly disabled equality
+    // (leaving pure resolution + factoring), this would NOT refute, so it guards the detection.
     val cs = List(sequent(Set(), Set(eqp(ap(f, a), a))), sequent(Set(eqp(ap(f, ap(f, a)), a)), Set()))
     assert(Bridge.solve(cs, maxGiven = 10000).refuted, "equality problem must stay solvable (equality kept on)")
   }

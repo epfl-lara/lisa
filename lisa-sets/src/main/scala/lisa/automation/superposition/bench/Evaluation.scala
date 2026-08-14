@@ -23,11 +23,11 @@ import BenchUtil.withTimeout
  * }}}
  * `subs`, `unit`, and `sr` each select a `both` / `fwd` / `bwd` / `none` configuration, for subsumption,
  * unit deletion, and general (multi-literal-side) subsumption resolution respectively; `cond` is `on`/`off`
- * for condensation. Defaults track the engine's: `subs`, `unit` and `sr` on, `cond` off — so a run with no
+ * for condensation. Defaults track the engine's: `subs`, `unit` and `sr` on, `cond` off, so a run with no
  * flags measures the configuration that actually ships. `gen` (orthogonal) controls *where*
  * forward simplification runs: `gen` on freshly generated clauses **and** at given-selection; `nogen`
  * (default) only at given-selection. `equality` is `on`/`off` (default on): `off` skips all equality
- * inferences (superposition, equality resolution/factoring, demodulation) — this list is equality-free, so
+ * inferences (superposition, equality resolution/factoring, demodulation). This list is equality-free, so
  * `off` measures the cost of the equality machinery running inertly.
  * The solve loop honours `timeoutMs` cooperatively (checked per given clause), so a budgeted run stops
  * cleanly; a daemon-thread hard cap a few seconds later only backstops a pathological single step.
@@ -35,7 +35,7 @@ import BenchUtil.withTimeout
 object Evaluation:
 
   /** The generated full list (paths relative to the TPTP root, e.g. `Problems/SYN/SYN048-1.p`), and the
-    * seeded draw from it — shared with the other harnesses so a given seed names the same problems. */
+    * seeded draw from it, shared with the other harnesses so a given seed names the same problems. */
   private val listFileName = "tptp-clausal-fo-noeq-uns.txt"
   private val problems: ProblemList = new ProblemList(listFileName, Some("TPTP_CNF_LIST"))
 
@@ -92,7 +92,7 @@ object Evaluation:
   /**
    * Randomly pick `n` problems (deterministically from `seed`) out of the generated clausal/no-equality/
    * unsatisfiable list and try to solve each within `timeoutMs` (and `maxGiven`). **Every refutation is reconstructed
-   * and run through the kernel checker** (reusing the solve — no re-proving), so a `bad_proof` in the
+   * and run through the kernel checker** (reusing the solve, with no re-proving), so a `bad_proof` in the
    * summary flags a soundness/reconstruction bug. Prints a per-problem row and a summary. A larger `n`
    * than the list size just runs the whole list.
    */
@@ -124,7 +124,7 @@ object Evaluation:
     println(f"${"PROBLEM"}%-20s ${"SPC"}%-22s ${"CLS"}%4s  ${"RESULT"}%-12s ${"ms"}%8s")
 
   /** Solve one problem file, kernel-check any refutation, print its table row, and return its result category
-   *  and (solve-only) elapsed ms. The solve runs in its own JVM when [[BenchUtil.forkEnabled]] — see the note
+   *  and (solve-only) elapsed ms. The solve runs in its own JVM when [[BenchUtil.forkEnabled]]; see the note
    *  on `BenchUtil.runForked` for why. The `SPC`/`CLS` columns are read from the file header here rather than
    *  in the child: they cost no solving and keep the child's job to exactly one thing. */
   private def solveRow(
@@ -146,7 +146,7 @@ object Evaluation:
       (result, ms)
 
   /** Solve in a fresh JVM and read back the one `RESULT` line. A child that printed none was killed on
-    * timeout or died on a fatal error — and those two are now distinguishable, which the in-process path
+    * timeout or died on a fatal error, and those two are now distinguishable, which the in-process path
     * could not manage. */
   private def solveForked(f: File, timeoutMs: Long, maxGiven: Int, opts: SearchOptions): (String, Long, String) =
     val argv = Seq("solve1", f.getPath, timeoutMs.toString, maxGiven.toString, encodeOpts(opts))
@@ -157,7 +157,7 @@ object Evaluation:
         val d = outcome.crashDetail
         (if outcome.timedOut then "HARD_TIMEOUT" else "ERROR", 0L, if d.isEmpty then "" else s"  ($d)")
 
-  /** Child entry: solve one problem, print one machine-readable line, exit. No thread guard — the parent's
+  /** Child entry: solve one problem, print one machine-readable line, exit. No thread guard: the parent's
     * `destroyForcibly` is the hard cap, and the loop still honours `timeoutMs` cooperatively. */
   private def solveChild(a: Array[String]): Unit =
     val (result, ms, detail) = solveOnce(new File(a(0)), a(1).toLong, a(2).toInt, decodeOpts(a(3)), outerTimeout = false)
@@ -181,7 +181,7 @@ object Evaluation:
       backwardUnitDeletion = b(3), forwardSubsumptionResolution = b(4), backwardSubsumptionResolution = b(5),
       condensation = b(6), forwardSimplifyAtGeneration = b(7), equality = b(8))
 
-  /** Parse + solve + check in this JVM. `outerTimeout` adds the thread-based wall-clock guard — wanted when
+  /** Parse + solve + check in this JVM. `outerTimeout` adds the thread-based wall-clock guard, wanted when
    *  this *is* the run (`LISA_FORK=0`), redundant in a child whose parent will kill it. */
   private def solveOnce(f: File, timeoutMs: Long, maxGiven: Int, opts: SearchOptions, outerTimeout: Boolean): (String, Long, String) =
     Try(problemToKernel(f)(using (strictMapAtom, strictMapTerm, strictMapVariable))) match

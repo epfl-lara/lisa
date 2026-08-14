@@ -5,47 +5,47 @@ import lisa.automation.clausification.Clausification
 
 /**
  * The SInE **activation policy**: decides, for a *single* prover invocation, whether the strategy's SInE filter
- * ([[Sine]]) should actually fire. This is a purely local decision — each invocation runs it independently on its
+ * ([[Sine]]) should actually fire. This is a purely local decision: each invocation runs it independently on its
  * own copy of the problem; nothing is shared or precomputed across strategies. It sits above the pure mechanism
  * in [[Sine]] and below the per-strategy filter config in [[Strategy]].
  *
  * The trigger is **actual prunability**, not a raw axiom count: a 5000-axiom problem whose conjecture touches
- * 4800 axioms is *not* a SInE problem, while a 300-axiom one touching 20 *is* — and raw count cannot tell them
+ * 4800 axioms is *not* a SInE problem, while a 300-axiom one touching 20 *is*, and raw count cannot tell them
  * apart. Because SInE is cheap (symbol bookkeeping + BFS), we run a conservative probe and read off how much it
  * prunes. Three gates, checked in order:
  *
- *   1. **Prerequisites** — there is a conjecture with at least one symbol to seed from, and the axiom count is at
+ *   1. **Prerequisites**: there is a conjecture with at least one symbol to seed from, and the axiom count is at
  *      least [[SineConfig.minAxioms]] (below that a good prover just chews through them; filtering only risks harm).
  *      The floor is set conservatively (500): SInE earns its keep on the thousand-plus-axiom SUMO/Mizar theories,
  *      not on medium problems where dropping a needed axiom costs more than the search it would save.
- *   2. **Prunability** — a conservative probe ([[Params.probe]]) keeps at most [[Params.keepRatioCutoff]] of the
+ *   2. **Prunability**: a conservative probe ([[Params.probe]]) keeps at most [[Params.keepRatioCutoff]] of the
  *      axioms, i.e. it drops a meaningful fraction. If it barely prunes, running filtered ≈ running unfiltered.
- *   3. **Aggression** — supplied per strategy by its own [[SineConfig]] tolerance/depth (applied by the caller
+ *   3. **Aggression**: supplied per strategy by its own [[SineConfig]] tolerance/depth (applied by the caller
  *      via [[Sine.select]]); the seven SInE-active strategies vary it for portfolio diversity.
  *
- * Gates 1–2 are this object; gate 3 is the strategy's filter. Dropping an axiom keeps the run **sound** (a
+ * Gates 1 and 2 are this object; gate 3 is the strategy's filter. Dropping an axiom keeps the run **sound** (a
  * refutation over a subset is still a refutation) but **incomplete** (a saturation is not a valid
- * (Counter)Satisfiable verdict) — hence at least one portfolio strategy runs unfiltered as the completeness /
+ * (Counter)Satisfiable verdict), hence at least one portfolio strategy runs unfiltered as the completeness /
  * Satisfiable-verdict backstop (see [[Strategy.portfolio]]).
  */
 object SinePolicy:
 
-  /** Gate thresholds. Placeholders — calibrate on large-theory TPTP (CSR/SUMO, MPTP) before CASC; E learned the
+  /** Gate thresholds. Placeholders: calibrate on large-theory TPTP (CSR/SUMO, MPTP) before CASC; E learned the
    *  equivalent table from a corpus.
    *
    *  @param keepRatioCutoff gate-2: filter only if the probe keeps ≤ this fraction (drops ≥ `1 - cutoff`).
    *  @param probe           the conservative filter used to *measure* prunability (independent of the strategy's
    *                         own aggression, so all strategies make the same gate call on a given problem). Its
    *                         [[SineConfig.minAxioms]] (default 500) is the *single* size floor: gate 1 needs at
-   *                         least that many axioms, and below it [[Sine.selectIndices]] keeps everything anyway —
-   *                         so the gate and the selection agree (no 400–499 dead-zone).
+   *                         least that many axioms, and below it [[Sine.selectIndices]] keeps everything anyway,
+   *                         so the gate and the selection agree (no 400 to 499 dead zone).
    */
   final case class Params(
       keepRatioCutoff: Double = 0.9,
       probe: SineConfig = SineConfig(tolerance = 3.0, depth = 0))
 
   /**
-   * Gates 1–2: should this invocation actually run its SInE filter? `hypotheses`/`conjecture` are the
+   * Gates 1 and 2: should this invocation actually run its SInE filter? `hypotheses`/`conjecture` are the
    * pre-clausification formulas (the same ones [[Sine.selectIndices]] consumes).
    */
   def shouldFilter(hypotheses: IndexedSeq[Expression], conjecture: Expression, p: Params = Params()): Boolean =

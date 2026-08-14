@@ -7,15 +7,15 @@ import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
 import Core.*
 
 /**
- * Fingerprint indexing — the fast, imperfect *candidate filter* for the unification-based inferences
+ * Fingerprint indexing: the fast, imperfect *candidate filter* for the unification-based inferences
  * (superposition and ordinary resolution). `archive/Phase5.md` has the design notes and
  * `archive/PossibleOptimizations.md` the struct-of-arrays alternative.
  *
  * A term's **fingerprint** is a fixed-length `Int` vector obtained by sampling a fixed set of positions (a
  * position is a path of argument indices; the empty path is the top). At each position we record one feature:
- *   - a **concrete symbol** — its code (`>= 0`, unchanged);
+ *   - a **concrete symbol**, given by its code (`>= 0`, unchanged);
  *   - `AnyVar` (a variable sits exactly at the position);
- *   - `BelowVar` (the position is strictly below a variable — absent now, but an instance could grow it);
+ *   - `BelowVar` (the position is strictly below a variable, so absent now but an instance could grow it);
  *   - `NotInTerm` (the position can never exist: a concrete symbol of too-small arity is in the way).
  * The three specials are negative (`-1/-2/-3`), disjoint from symbol codes, so `feature >= 0` is the O(1)
  * "is a concrete symbol" test the compatibility relation uses (and no `+1` shift is needed).
@@ -23,7 +23,7 @@ import Core.*
  * Two terms can unify **only if** their fingerprints are *compatible* at every sampled position
  * ([[unifiable]]); the converse fails (false positives), so a fingerprint match is a filter that must be
  * confirmed by a real unification. Crucially it has **no false negatives**: if two terms genuinely unify,
- * their fingerprints are compatible everywhere — so [[FingerprintIndex.retrieveUnifiable]] never hides a real
+ * their fingerprints are compatible everywhere, so [[FingerprintIndex.retrieveUnifiable]] never hides a real
  * partner, which is what makes it safe to replace the linear active-set scan.
  */
 object Fingerprint:
@@ -38,7 +38,7 @@ object Fingerprint:
   inline val NotInTerm = -1
 
   /**
-   * E's default **FP7** sampling scheme: the top symbol, its two arguments, and their four grandchildren —
+   * E's default **FP7** sampling scheme: the top symbol, its two arguments, and their four grandchildren:
    * `{ε, 0, 1, 0.0, 0.1, 1.0, 1.1}` (argument indices are 0-based). A balanced discrimination/size trade-off.
    */
   val FP7: Array[Array[Int]] = Array(
@@ -47,18 +47,18 @@ object Fingerprint:
     Array(0, 0), Array(0, 1), Array(1, 0), Array(1, 1)
   )
 
-  /** The prebuilt sample trie for [[FP7]] — the default for [[FingerprintIndex]] (built once, shared). */
+  /** The prebuilt sample trie for [[FP7]], the default for [[FingerprintIndex]] (built once, shared). */
   val FP7Trie: SampleTrie = new SampleTrie(FP7)
 
   /** The fingerprint of `t` under `trie`'s scheme (one feature per sampled position). */
   def compute(bank: TermBank, t: Term, trie: SampleTrie): Array[Int] = trie.fingerprint(bank, t)
 
   /**
-   * Whether a query feature `qf` and a stored feature `sf` are compatible for **unification** — i.e. whether
+   * Whether a query feature `qf` and a stored feature `sf` are compatible for **unification**, i.e. whether
    * two terms with these features at a position could have a common instance there. Symmetric. The relation:
    *   - `qf` a concrete symbol: `sf ∈ { qf, AnyVar, BelowVar }` (a stored var / below-var can unify with it);
    *   - `qf == NotInTerm`: `sf ∈ { NotInTerm, BelowVar }` (both can be absent);
-   *   - `qf == AnyVar`: any symbol, `AnyVar`, `BelowVar` — everything **except** `NotInTerm` (a query variable
+   *   - `qf == AnyVar`: any symbol, `AnyVar`, `BelowVar`, i.e. everything **except** `NotInTerm` (a query variable
    *     forces the position to exist);
    *   - `qf == BelowVar`: compatible with everything (a below-var instance may or may not have the position).
    */
@@ -80,7 +80,7 @@ object Fingerprint:
  * symbol, and `deg` is exactly the feature to emit for this position and every position beneath it. This keeps
  * the walk allocation-free (no `Option`/ADT, no boxing) while respecting the opaque `Term` boundary.
  *
- * '''Precondition:''' the sampled `positions` are pairwise distinct — a repeat gives two output slots one trie
+ * '''Precondition:''' the sampled `positions` are pairwise distinct. A repeat gives two output slots one trie
  * node, whose `slot` field keeps only the last, leaving the other slot unwritten and (since [[fingerprintInto]]
  * reuses the caller's buffer) carrying the previous term's feature.
  */
@@ -139,7 +139,7 @@ final class SampleTrie(positions: Array[Array[Int]]):
       i += 1
 
 /**
- * A leaf's entry bucket as a **zero-cost opaque type** directly over an `ObjectOpenHashSet[E]` — being opaque,
+ * A leaf's entry bucket as a **zero-cost opaque type** directly over an `ObjectOpenHashSet[E]`. Being opaque,
  * a `Bucket[E]` *is* the set at runtime (no wrapper object per leaf), and the four operations dispatch straight
  * to the set (no representation `match`). A hash set gives O(1) `add`/`remove` even for the big buckets shallow
  * variable-headed terms create (every `f(‹var›)` across the active set fingerprints alike). `null` is the empty
@@ -212,7 +212,7 @@ final class FingerprintIndex[E](bank: TermBank, trie: SampleTrie = Fingerprint.F
       )
 
   /** A trie node: `children` (feature → child) at intermediate levels, an entry `bucket` at leaves. Both lazy
-   *  (`children == null` = no children; a `null` `bucket` = no entries — [[Buckets.Bucket]] treats it as empty). */
+   *  (`children == null` = no children; a `null` `bucket` = no entries, which [[Buckets.Bucket]] treats as empty). */
   private final class Node:
     var children: Int2ObjectOpenHashMap[Node] = null
     var bucket: Buckets.Bucket[E] = null
@@ -299,7 +299,7 @@ final class FingerprintIndex[E](bank: TermBank, trie: SampleTrie = Fingerprint.F
 
 /**
  * The into-index payload: a rewritable non-variable subterm at `pos` (a path of argument indices) inside
- * `clause`'s literal `litIndex` — a *target* location for superposition (and backward demodulation). `pos` is
+ * `clause`'s literal `litIndex`, a *target* location for superposition (and backward demodulation). `pos` is
  * the very array passed on to `Superposition.superpose`. Value equality (on `clause.id`, `litIndex`, and the
  * `pos` contents) so an entry can be removed by a re-derived equal value when the clause leaves the active set.
  */
@@ -311,7 +311,7 @@ final class IntoEntry(val clause: Clause, val litIndex: Int, val pos: Array[Int]
   override def toString: String = s"IntoEntry(c${clause.id}, lit=$litIndex, pos=${pos.mkString("[", ",", "]")})"
 
 /**
- * The from-index payload: the usable maximal `side` (0/1) of `clause`'s positive equality literal `litIndex` —
+ * The from-index payload: the usable maximal `side` (0/1) of `clause`'s positive equality literal `litIndex`.
  * a *source* equation for superposition. Value equality as [[IntoEntry]].
  */
 final class FromEntry(val clause: Clause, val litIndex: Int, val side: Int):
@@ -323,7 +323,7 @@ final class FromEntry(val clause: Clause, val litIndex: Int, val side: Int):
 
 /**
  * The resolution literal-index payload: a selected non-equality literal `litIndex` of active
- * `clause` — an ordinary-resolution partner. The index is keyed by the literal *atom*, and polarity is carried
+ * `clause`, an ordinary-resolution partner. The index is keyed by the literal *atom*, and polarity is carried
  * by *which* of the two per-polarity indices holds the entry (so a query fetches only complementary-polarity
  * candidates); the payload therefore needs only `(clause, litIndex)`. Value equality (on `clause.id`, `litIndex`)
  * so an entry removes by a re-derived equal value when the clause leaves the active set, as [[IntoEntry]]/[[FromEntry]].

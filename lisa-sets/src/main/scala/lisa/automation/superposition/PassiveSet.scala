@@ -15,9 +15,9 @@ import Core.*
  * pop is "dequeue until a live one turns up".
  *
  *   - **age** is just a FIFO queue. Clauses are enqueued in strictly increasing `id` order (ids are monotonic
- *     and every insertion is a freshly built clause), so the front is already the oldest — no heap needed.
+ *     and every insertion is a freshly built clause), so the front is already the oldest and no heap is needed.
  *   - **weight** needs a real min-heap on `(weight, id)`. `mutable.PriorityQueue` is a *max*-heap, so the
- *     ordering is reversed: the lighter clause — ties broken by the smaller id, i.e. the older — comes out
+ *     ordering is reversed: the lighter clause, with ties broken by the smaller id, i.e. the older, comes out
  *     first. The comparison is on raw `Int`s, so no `Tuple2` is allocated and no `Int` boxed per heap step.
  *
  * `balance` alternates between the two Vampire-style, in the ratio [[SearchOptions.ageRatio]] :

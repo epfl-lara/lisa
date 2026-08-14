@@ -4,7 +4,7 @@ import lisa.utils.K.{_, given}
 import Clausification.*
 
 /**
- * Shared support for **definitional naming**: minting a fresh naming predicate over a subformula's free
+ * Shared support for **definitional naming**: creating a fresh naming predicate over a subformula's free
  * variables, and the small kernel proofs that discharge a naming definition `∀x̄. d(x̄) ⇔ subst`. Used by
  * [[SkolemPhase]] (ε-discharge), [[CertifiedClausifier.certifyNaming]] (certified selective naming),
  * and the uncertified [[UncertifiedClausifier]].
@@ -22,42 +22,18 @@ private[clausification] object NamingSupport:
   /** A reflexive quantified iff proof `() ⊢ ∀x̄. (subst ⇔ subst)` (Hypothesis → RightImplies → RightIff →
     * RightForall × |x̄|). Used to discharge a naming definition after its schema variable has been instantiated
     * to `λx̄. subst`. */
-  def proveQuantifiedReflIff(subst: Expression, freeVars: Seq[Variable]): SCProof = {
-    val n = freeVars.size
-    val totalSteps = 3 + n
-    val steps = new Array[SCProofStep](totalSteps)
-    steps(0) = Hypothesis(subst |- subst, subst)
+  def proveQuantifiedReflIff(subst: Expression, freeVars: Seq[Variable]): SCProof =
     val implFormula = implies(subst)(subst)
-    steps(1) = RightImplies(() |- implFormula, 0, subst, subst)
-    val iffFormula = subst <=> subst
-    steps(2) = RightIff(() |- iffFormula, 1, 1, subst, subst)
-    var body: Expression = iffFormula
-    var ref = 2
-    for (k <- 0 until n) {
-      val v = freeVars(n - 1 - k)
-      val phi = body
-      body = forall(Lambda(v, body))
-      steps(3 + k) = RightForall(() |- body, ref, phi, v)
-      ref = 3 + k
-    }
-    SCProof(steps.toIndexedSeq, IndexedSeq.empty)
-  }
+    val base = IndexedSeq(
+      Hypothesis(subst |- subst, subst),
+      RightImplies(() |- implFormula, 0, subst, subst),
+      RightIff(() |- (subst <=> subst), 1, 1, subst, subst))
+    quantifyProof(base, subst <=> subst, freeVars)
 
   /**
-    * The variables a naming atom over `f` abstracts: `f`'s free `Ind`-sorted variables, minus `frozen`, ordered by
-    * identifier.
-    *
-    * Higher-sorted free variables (a predicate variable `P : Ind → Prop`, say) are excluded because the kernel
-    * cannot `forall`-quantify them; they stay free in the definition as opaque parameters, and [[InstSchema]] still
-    * substitutes them correctly since `nm` is fresh and cannot capture. `frozen` variables are excluded because
-    * they are uninterpreted constants pinned by a defining equality. A *nullary* one is the only kind that needs
-    * saying so: it is `Ind`-sorted, so the sort filter alone would abstract it, giving the atom an extra argument
-    * that is the same constant at every occurrence and a definition that quantifies over a symbol not meant to vary.
-    *
-    * '''This is the single definition of that list.''' [[freshNamingAtom]] builds the atom's sort and application
-    * from it, and `CertifiedClausifier.findSite` sizes its rewrite marker `p` from it. `nameOne` then
-    * substitutes `p -> nm` directly, which is well-sorted only if the two lists agree exactly. They were two copies
-    * of one filter expression; sharing this function is what makes the agreement structural rather than a comment.
+    * The variables a naming atom over `f` abstracts: `f`'s free `Ind`-sorted variables, minus `frozen`, ordered
+    * by identifier. `frozen` variables are excluded because they are considered uninterpreted "constants"
+    * pinned by a defining equality.
     */
   def namingVars(f: Expression, frozen: Set[Variable]): Seq[Variable] =
     f.freeVariables.toSeq.filter(v => v.sort == Ind && !frozen.contains(v)).sortBy(_.id.toString)

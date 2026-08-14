@@ -10,7 +10,7 @@ class SuperpositionTest extends AnyFunSuite:
 
   class Fix extends TermFixture:
 
-    /** Locate + unify + [[Superposition.superpose]] + restore — what the loop / term index will do around
+    /** Locate + unify + [[Superposition.superpose]] and restore, which is what the loop and term index do around
      *  the build-only `superpose`. Tests drive superposition through this. */
     def superposeAt(from: Clause, iFrom: Int, fromSide: Int, into: Clause, iInto: Int, uPos: Array[Int]): Option[Clause] =
       val fromAtom = bank.atomOf(from.literals(iFrom))
@@ -116,8 +116,8 @@ class SuperpositionTest extends AnyFunSuite:
     // maximal: selection offers only it, and literal 0 is never eligible.
     val flags = order.maximalFlags(cl.literals)
     assert(!flags(0) && flags(1), s"expected literal 1 to be the only maximal literal, got ${flags.mkString(",")}")
-    // Bachmair–Ganzinger requires eligibility of the *factored* literal only; the partner is any other
-    // positive equality. Drawing the partner from the eligible set too lost this inference entirely — and no
+    // Bachmair-Ganzinger requires eligibility of the *factored* literal only; the partner is any other
+    // positive equality. Drawing the partner from the eligible set too lost this inference entirely, and no
     // other test could see it, since they all pass every literal as eligible.
     val factors = Superposition.equalityFactoring(bank, trail, order, cl, Array(1))
     val expected = factors.find(_.literals.toSet == Set(neg(mkEq(d, a)), pos(mkEq(app(f, x), a))))

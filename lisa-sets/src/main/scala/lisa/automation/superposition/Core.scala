@@ -50,7 +50,7 @@ object Core:
   extension (v: Variable) inline def num: Int = v
   extension (f: Symbol) inline def code: Int = f
 
-  /** The arena offset backing a [[Term]] — a stable, unique `Int` key for hash-consed terms. Inline no-op. */
+  /** The arena offset backing a [[Term]]: a stable, unique `Int` key for hash-consed terms. Inline no-op. */
   extension (t: Term) inline def offset: Int = t
 
   /**
@@ -68,10 +68,10 @@ object Core:
   val defaultSymbolWeight: Int = 1
 
   /** KBO symbol-**weight** generation scheme (the weight twin of [[PrecedenceScheme]]).
-   *  Applied at **intern time** — term weights are cached when terms are built, so the scheme must be fixed
+   *  Applied at **intern time**, since term weights are cached when terms are built, so the scheme must be fixed
    *  on the [[Signature]] before any clause is constructed. */
   enum WeightScheme:
-    /** All symbols weight [[defaultSymbolWeight]] (KBO `const` — Vampire's default and our historical one). */
+    /** All symbols weight [[defaultSymbolWeight]] (KBO `const`, Vampire's default and our historical one). */
     case Const
     /** `weight = arity + 1` (E's `arity` scheme): constants get `1 = VariableWeight` (admissible), so terms
      *  built from higher-arity symbols weigh more. */
@@ -84,10 +84,10 @@ object Core:
    * (`id`), so the hot paths index an array of these rather than dereferencing the object.
    *
    * `weight`/`precedence` are `def`-backed rather than plain `var`s so that **every** write bumps the
-   * owning signature's [[Signature.orderingVersion]] — the stamp any cache over the term ordering (today
+   * owning signature's [[Signature.orderingVersion]], the stamp any cache over the term ordering (today
    * [[Order]]'s orientation memo) checks to invalidate itself. Assignment syntax is unchanged.
    */
-  /** @param name the identifier's bare name, and @param no its counter index — kept apart rather than as one
+  /** @param name the identifier's bare name, and @param no its counter index, kept apart rather than as one
     *             `name_no` string so a consumer rebuilding a kernel identifier does not have to split the
     *             string back up (and get `Identifier("e_1", 0)` wrong where `Identifier("e", 1)` was meant). */
   final class SymbolInfo private[Core] (val id: Symbol, val name: String, val no: Int, val arity: Int, val isPredicate: Boolean, private val owner: Signature):
@@ -120,13 +120,13 @@ object Core:
    */
   final class Signature(weightScheme: WeightScheme = WeightScheme.Const):
     private val infos: mutable.ArrayBuffer[SymbolInfo] = mutable.ArrayBuffer.empty[SymbolInfo]
-    // Keyed by the full symbol identity — see [[intern]]. Only touched during ingestion, never on a search
+    // Keyed by the full symbol identity; see [[intern]]. Only touched during ingestion, never on a search
     // path, so a four-field key costs nothing that matters.
     private val index: mutable.HashMap[(String, Int, Int, Boolean), Symbol] = mutable.HashMap.empty
     private var _orderingVersion: Int = 0
 
     /**
-     * A counter bumped by every write to any symbol's [[SymbolInfo.weight]] or [[SymbolInfo.precedence]] —
+     * A counter bumped by every write to any symbol's [[SymbolInfo.weight]] or [[SymbolInfo.precedence]].
      * i.e. by every change to the term ordering this signature induces (notably [[Precedence.assign]], which
      * runs *after* the clauses are built). Caches over the ordering compare it against the version they were
      * populated under and drop themselves when it moves, so no cache can outlive the parameters it was
@@ -139,8 +139,8 @@ object Core:
     intern("=", 2, isPredicate = true)
 
     /**
-     * Intern a symbol, returning its (stable) code. The key is the whole quadruple — name, counter index,
-     * arity and predicate-ness — because each of the four genuinely distinguishes source symbols:
+     * Intern a symbol, returning its (stable) code. The key is the whole quadruple (name, counter index,
+     * arity and predicate-ness) because each of the four genuinely distinguishes source symbols:
      *
      *   - `no`, or `e` and `e_1` become one symbol;
      *   - `arity`, since a symbol's meaning depends on it;
@@ -157,7 +157,7 @@ object Core:
      *
      * Interning *after* [[Precedence.assign]] is sound but unprincipled: the new symbol keeps its default
      * precedence (its own code), which lands above every rank the scheme assigned, so it silently sits outside
-     * the chosen [[PrecedenceScheme]] — the order stays total, so no completeness is lost.
+     * the chosen [[PrecedenceScheme]]. The order stays total, so no completeness is lost.
      */
     def intern(name: String, no: Int, arity: Int, isPredicate: Boolean): Symbol =
       index.getOrElseUpdate(
@@ -171,7 +171,7 @@ object Core:
         }
       )
 
-    /** Intern a symbol whose identifier carries no counter (`no = 0`) — the built-in equality, and the
+    /** Intern a symbol whose identifier carries no counter (`no = 0`): the built-in equality, and the
       * hand-built signatures in the tests. Kernel input goes through the four-argument form. */
     def intern(name: String, arity: Int, isPredicate: Boolean): Symbol = intern(name, 0, arity, isPredicate)
 
@@ -244,7 +244,7 @@ object Core:
     /** The literal-selection strategy applied by [[Clause.select]] at activation; swap to plug in a policy. */
     var selector: LiteralSelector = BestLiteralSelector
 
-    /** The canonical KBO-based [[Order]] over this bank's terms — **one** shared instance (one `orient`
+    /** The canonical KBO-based [[Order]] over this bank's terms, a **single** shared instance (one `orient`
      *  cache, one `KBO`) for the selector, the generating equality inferences, and demodulation. Lazy so it
      *  is built after the signature is in place; the KBO reads weights/precedence live, so early forcing is
      *  harmless. */
@@ -401,7 +401,7 @@ object Core:
       // One pass over the justification, packing `age` (high bits) and goal-ness (bit 0), so the two parallel
       // 8-case matches don't drift. Age: every generating rule is one generation past its premises; a
       // Canonicalization/Demodulation keeps the parent's age (same generation band). Goal-ness propagates as the
-      // OR over premises (an input's is set by the caller) — the boolean reduction of Vampire's `max` over the
+      // OR over premises (an input's is set by the caller), the boolean reduction of Vampire's `max` over the
       // input-type lattice.
       inline def pack(age: Int, goal: Boolean): Long = (age.toLong << 1) | (if goal then 1L else 0L)
       val packed: Long = justification match
@@ -554,7 +554,7 @@ object Core:
     case Demodulation(target: Clause, targetLit: Int, pos: Array[Int], rule: Clause, ruleSide: Int)
 
     /**
-     * The clauses this inference was derived from, ignoring the literal positions and sides — i.e. the edges
+     * The clauses this inference was derived from, ignoring the literal positions and sides, i.e. the edges
      * out of this node of the derivation DAG. `Nil` for [[Input]].
      *
      * The one place the eight cases are enumerated for DAG *walking*, shared by every consumer that needs
@@ -627,7 +627,7 @@ object Core:
 
     /**
      * This clause's usable superposition from-sides ([[Superposition.fromSides]] over its [[selected]]
-     * literals), computed once and cached — the from-side analogue of [[select]], and activated clauses only,
+     * literals), computed once and cached: the from-side analogue of [[select]], and activated clauses only,
      * since only they are ever asked.
      *
      * '''Why it is worth caching.''' The linear (non-indexed) generation scan asks every *active* clause for its
@@ -638,7 +638,7 @@ object Core:
      *
      * '''Why it is stamped.''' The sides depend on `Order.orient`, hence on the KBO's weights and precedence. A
      * verdict is only valid for the parameters it was computed under, so the cache carries the
-     * [[Signature.orderingVersion]] it was built at and rebuilds when that moves — the same device
+     * [[Signature.orderingVersion]] it was built at and rebuilds when that moves, the same device
      * `Order`'s own orientation memo uses. Within one saturation the ordering is fixed and this never fires;
      * it is what keeps the cache honest if a clause outlives a re-assignment (a bank reused across two
      * saturations under different [[PrecedenceScheme]]s, as the A/B tests do).
@@ -791,7 +791,7 @@ object Core:
      * caller restores the trail either way, exactly the [[unify]] protocol. The two scopes must
      * differ (`ps != ts`, the usual `0`/`1`), and the **target scope `ts` must carry no live bindings**:
      * target terms are treated as rigid (a bound target variable is never dereferenced), so a live `ts`
-     * binding would be silently mis-matched — breaking subsumption soundness. Both preconditions are
+     * binding would be silently mis-matched, breaking subsumption soundness. Both preconditions are
      * asserted at entry (the `ts`-clean check is O(1) via [[liveBindings]]).
      *
      * Cheaper than unification: target variables never bind, so there are no chains to follow and **no occurs

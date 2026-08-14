@@ -11,7 +11,7 @@ class DiscountTest extends AnyFunSuite:
 
     def discount: Discount = new Discount(bank, trail)
 
-  /** The saturation verdict as a comparable string — what the indexed-vs-scan A/B tests below compare (the
+  /** The saturation verdict as a comparable string, which is what the indexed-vs-scan A/B tests below compare (the
     * clause ids and search trajectory differ between the two paths; only the verdict must agree). */
   private def cat(r: Discount.Result): String = r match
     case _: Discount.Result.Refutation => "refuted"
@@ -434,7 +434,7 @@ class DiscountTest extends AnyFunSuite:
 
   test("forward general subsumption resolution: the char-2 index and scan reach the same verdict (A/B)") {
     // Both forward-SR paths use the same char-2 helper (flip a literal of the new clause, find subsumers of the
-    // flipped clause), differing only in retrieval — feature-vector index vs `active` scan — over the same
+    // flipped clause), differing only in retrieval, feature-vector index against `active` scan, over the same
     // candidate set applied in id order, so the verdicts must match.
     def verdict(indexed: Boolean, build: Fix => Seq[Clause]): String =
       val fx = new Fix

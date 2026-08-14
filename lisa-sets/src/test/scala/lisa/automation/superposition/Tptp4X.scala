@@ -12,14 +12,14 @@ import scala.util.Using
  * It ships with the TPTP distribution (`$TPTP/Scripts/tptp4X`), so no download and no network are involved.
  * It is worth having in addition to re-parsing with `lisa.tptp`'s own parser: an *independent* checker rejects
  * things ours accepts, and it is the checker CASC itself applies to a submitted derivation. It caught the
- * applied-naming-atom defect (`X0(X1)` — "Variables cannnot have arguments") that our round-trip did not.
+ * applied-naming-atom defect (`X0(X1)`, "Variables cannnot have arguments") that our round-trip did not.
  *
- * What it does **not** check is that the derivation follows from its leaves — a proof naming two distinct
+ * What it does **not** check is that the derivation follows from its leaves: a proof naming two distinct
  * Skolem constants identically is syntactically perfect. That needs a separate assertion (or GDV, which is
  * only available online); see `CascProverTest`.
  *
- * The binary is a Linux ELF, so on Windows it is invoked through WSL. When it cannot be run at all — no TPTP
- * distribution, no WSL — the tests that use it cancel with a warning rather than fail, so the suite stays
+ * The binary is a Linux ELF, so on Windows it is invoked through WSL. When it cannot be run at all, whether for lack of a TPTP
+ * distribution or of WSL, the tests that use it cancel with a warning rather than fail, so the suite stays
  * portable; the same trade [[TptpCorpus]] makes, and just as deliberately.
  */
 object Tptp4X:
@@ -45,11 +45,11 @@ object Tptp4X:
         p.getOutputStream.close()
         val out = Using(scala.io.Source.fromInputStream(p.getInputStream))(_.mkString).getOrElse("")
         Some((if p.waitFor(60, java.util.concurrent.TimeUnit.SECONDS) then p.exitValue else { p.destroyForcibly(); -1 }, out))
-      catch case _: Throwable => None // no WSL, wrong architecture, not executable — treat as unavailable
+      catch case _: Throwable => None // no WSL, wrong architecture, not executable: treat as unavailable
     }
 
   /** Probed once: can we actually run it here? Checks against a trivially valid clause rather than trusting
-    * that the file exists — the binary is useless on a machine with no WSL, and that must not read as a pass. */
+    * that the file exists, since the binary is useless on a machine with no WSL, and that must not read as a pass. */
   lazy val available: Boolean =
     val probe = Files.createTempFile("tptp4x-probe-", ".p")
     try
@@ -59,7 +59,7 @@ object Tptp4X:
 
   private val warned = new AtomicBoolean(false)
 
-  /** Cancel the calling test — having said why, once — when the checker cannot be run. */
+  /** Cancel the calling test, having said why once, when the checker cannot be run. */
   def orCancel(what: String): Unit =
     if !available && warned.compareAndSet(false, true) then
       println(

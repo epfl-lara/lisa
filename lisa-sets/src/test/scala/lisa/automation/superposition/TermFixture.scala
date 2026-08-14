@@ -5,7 +5,7 @@ import Core.*
 /**
  * The shared term-building fixture for the prover tests.
  *
- * Fourteen test classes each carried a near-identical private `class Fix` — a fresh signature, term bank and
+ * Fourteen test classes each carried a near-identical private `class Fix`: a fresh signature, term bank and
  * trail plus the same dozen builders. Beyond the duplication, the copies had drifted in small ways that cost
  * a reader real time: `clause` was `cl` in one file, `order` was `ord` in another, so telling whether two
  * fixtures meant the same thing needed a diff. One base fixes both.

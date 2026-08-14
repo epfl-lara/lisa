@@ -16,7 +16,7 @@ import Core.*
 trait LiteralSelector:
   def select(bank: TermBank, literals: Array[Literal]): Array[Int]
 
-/** Which [[LiteralSelector]] a strategy uses — a portfolio axis.
+/** Which [[LiteralSelector]] a strategy uses: a portfolio axis.
  *  - [[Complete]] is BG-complete: it selects a negative literal, else **all** ordering-maximal literals (the
  *    only BG-admissible choices). This is the default and the one to use when completeness matters.
  *  - [[FirstNegative]] is BG-admissible *only* on clauses that have a negative literal (it selects one such
@@ -24,7 +24,7 @@ trait LiteralSelector:
  *    than to all maximal literals, so it is a **heuristic, not refutation-complete in general**. (Every complete
  *    selector in Vampire and E instead uses *all maximal* literals in the no-negative case.)
  *  - [[BestLiteral]] is the incomplete greedy variant (Vampire's 1010): a single best literal, ignoring
- *    maximality — faster on many problems but not refutation-complete.
+ *    maximality: faster on many problems but not refutation-complete.
  *  `FirstNegative`/`BestLiteral` are safe as portfolio slices only because a `Complete` slice runs alongside. */
 enum LiteralSelection:
   case FirstNegative, BestLiteral, Complete
@@ -68,7 +68,7 @@ def isNegativeEquality(bank: TermBank, l: Literal): Boolean =
     !bank.isVar(a) && bank.headSymbol(a) == EqualitySymbol && bank.arity(a) == 2
 
 /** Selects the first negative literal, else the first literal; empty for `□`. Not BG-complete on all-positive
- *  clauses (the else-branch is a heuristic) — see [[LiteralSelection]]; use [[CompleteBestLiteralSelector]] when
+ *  clauses (the else-branch is a heuristic); see [[LiteralSelection]]; use [[CompleteBestLiteralSelector]] when
  *  completeness is required. */
 object FirstNegativeSelector extends LiteralSelector:
   def select(bank: TermBank, literals: Array[Literal]): Array[Int] =

@@ -19,9 +19,9 @@ import Core.*
  * **Redundancy gate** ([[isPremiseRedundant]], encompassment demodulation à la Vampire / E's restricted
  * rewriting): a rewrite may *delete/replace* its premise (simplify) except when it rewrites a whole side of
  * a maximal positive **unit** equality with a renaming (variant) matcher; there the premise is not
- * redundant and the rewrite is **skipped** (superposition covers that inference). Everywhere else — inside
+ * redundant and the rewrite is **skipped** (superposition covers that inference). Everywhere else, whether inside
  * a subterm, a non-equality/negative literal, a multi-literal clause, a proper (non-renaming) instance, or
- * rewriting the larger side downward — the premise is always redundant, so demodulation simplifies freely.
+ * rewriting the larger side downward, the premise is always redundant, so demodulation simplifies freely.
  */
 object Demodulation:
 
@@ -29,7 +29,7 @@ object Demodulation:
    *  the distinct variables of `lhs`, precomputed once (they're invariant) for the renaming redundancy check. */
   final case class Rule(source: Clause, side: Int, lhs: Term, rhs: Term, oriented: Boolean, lhsVars: Array[Term])
 
-  /** Whether `c` is a positive unit equality — the shape a demodulator must have. A cheap pre-check before
+  /** Whether `c` is a positive unit equality, the shape a demodulator must have. A cheap pre-check before
     * [[rules]], which would return `Nil` for anything else. */
   def isPositiveUnitEquality(bank: TermBank, c: Clause): Boolean =
     c.literals.length == 1 && bank.isPositive(c.literals(0)) &&
@@ -163,7 +163,7 @@ object Demodulation:
 
   /** Post-match rewrite: with the matcher σ (`rule.lhs` onto the subterm at `path`) **already on the trail**,
    *  apply the orientation and redundancy gates and build the rewritten clause, or `None` if a gate rejects.
-   *  Shared by the scan ([[tryRewrite]]) and the indexed ([[rewriteOnceIndexed]]) paths — the latter gets σ from
+   *  Shared by the scan ([[tryRewrite]]) and the indexed ([[rewriteOnceIndexed]]) paths, the latter getting σ from
    *  the discrimination-tree descent instead of a separate `matchTerm`. Does not touch the trail. */
   private def applyRuleAt(bank: TermBank, trail: Trail, order: Order,
                           c: Clause, iLit: Int, path: IntArrayList, rule: Rule): Option[Clause] =
@@ -190,7 +190,7 @@ object Demodulation:
 
   /**
    * Whether rewriting `c`'s literal `iLit` at position `path` (yielding instance `rS` on that side) keeps
-   * the premise redundant — i.e. the rewrite may simplify (delete/replace) `c`. Encompassment mode. Reads
+   * the premise redundant, i.e. whether the rewrite may simplify (delete/replace) `c`. Encompassment mode. Reads
    * the live position stack (no snapshot): only its depth and first index matter.
    */
   private def isPremiseRedundant(bank: TermBank, order: Order, ap: Trail#Applier,
@@ -209,9 +209,9 @@ object Demodulation:
    *
    *  On the redundancy gate, so written as an explicit search rather than as
    *  `lhsVars.map(ap.apply(_, 0)).distinct`: that spelling allocates a mapped array, a closure, and the set
-   *  and array behind `distinct` — which boxes every element, `Term` being an opaque `Int` — and computes all
+   *  and array behind `distinct`, which boxes every element since `Term` is an opaque `Int`, and computes all
    *  the images before looking at any of them. Here each image is computed once into one array and compared
-   *  against its predecessors, and both loops exit at the first witness. Injectivity over 1–2 variables is
+   *  against its predecessors, and both loops exit at the first witness. Injectivity over one or two variables is
    *  the common case, and `n == 1` needs no array at all. */
   private def matcherIsRenaming(bank: TermBank, ap: Trail#Applier, lhsVars: Array[Term]): Boolean =
     val n = lhsVars.length

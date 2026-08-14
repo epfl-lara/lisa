@@ -27,7 +27,7 @@ import Core.*
  * over the surviving literals.
  *
  * The signature stores an identifier's name and counter index separately, so a rebuilt symbol's identifier is
- * reassembled rather than parsed back out of a `name_no` string — `Identifier("e", 1)`, never the wrong
+ * reassembled rather than parsed back out of a `name_no` string: `Identifier("e", 1)`, never the wrong
  * `Identifier("e_1", 0)`.
  */
 object Reconstruction:
@@ -72,8 +72,8 @@ object Reconstruction:
     private def addStep(s: K.SCProofStep): Int = { steps += s; steps.length - 1 }
     private def addImport(s: K.Sequent): Int = { imports += s; -imports.length }
 
-    /** The canonical kernel variable `cvN` for internal variable `n`. The naming is global — shared across all
-     *  clauses, which are instantiated independently — so it standardises the clauses apart. Every clause's
+    /** The canonical kernel variable `cvN` for internal variable `n`. The naming is global, shared across all
+     *  clauses, which are instantiated independently, so it standardises the clauses apart. Every clause's
      *  sequent, and every `kernelize`d term, uses it, so it needs no per-clause threading. */
     private def canonVar(n: Int): K.Variable = K.Variable(K.Identifier(GeneratedNames.reconClauseVar, n), K.Ind)
 
@@ -309,7 +309,7 @@ object Reconstruction:
     private def applySymbol(head: Symbol, args: IndexedSeq[K.Expression]): K.Expression =
       val info: SymbolInfo = sig.info(head)
       // The signature carries the identifier's two parts, so it is rebuilt rather than parsed back out of a
-      // `name_no` string — `Identifier("e", 1)`, never the wrong `Identifier("e_1", 0)`.
+      // `name_no` string: `Identifier("e", 1)`, never the wrong `Identifier("e_1", 0)`.
       val id: K.Identifier = K.Identifier(info.name, info.no)
       dischargeById.get(id) match
         case Some(lam) => args.foldLeft(lam)((acc, a) => K.Application(acc, a)).betaNormalForm

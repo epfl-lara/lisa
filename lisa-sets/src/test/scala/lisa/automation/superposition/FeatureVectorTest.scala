@@ -4,7 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import Core.*
 
-/** Phase 5 Step 3 (sub-steps 1–2): standalone tests for [[Permutation]] (adaptive feature selection) and
+/** Standalone tests for [[Permutation]] (adaptive feature selection) and
  *  [[FeatureVectorIndex]] (the subsumption feature-vector trie). No saturation-loop wiring yet. */
 class FeatureVectorTest extends AnyFunSuite:
 
@@ -170,7 +170,7 @@ class FeatureVectorTest extends AnyFunSuite:
         assert(idx.existsForwardCandidate(q)(_.id == target) == cone.contains(target),
           s"existence verdict differs from the ≤-cone for q=${q.id}, target=$target")
       // (b) it really short-circuits: an always-true predicate sees exactly one clause when the cone is
-      //     non-empty (the whole point — `forwardCandidates` would have visited all of them)
+      //     non-empty (the whole point, since `forwardCandidates` would have visited all of them)
       var seen = 0
       val found = idx.existsForwardCandidate(q) { _ => seen += 1; true }
       assert(found == cone.nonEmpty)
@@ -180,7 +180,7 @@ class FeatureVectorTest extends AnyFunSuite:
   /**
    * The index shares one feature-vector buffer across every clause-keyed operation, which is only safe because
    * they never nest: a retrieval reads that buffer across all of its `visit` callbacks, so a callback that
-   * queried or mutated the same index would refill it mid-descent and silently drop candidates — a missed
+   * queried or mutated the same index would refill it mid-descent and silently drop candidates: a missed
    * simplification nothing would report. The guard converts that into an immediate failure; this pins that it
    * is armed (and that the ordinary collect-then-mutate usage is unaffected, covered by every other test).
    */
