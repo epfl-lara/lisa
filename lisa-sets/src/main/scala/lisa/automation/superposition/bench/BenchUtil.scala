@@ -11,21 +11,17 @@ import lisa.tptp.KernelParser.axiomLikeRoles
 import lisa.automation.clausification.Clausification
 
 /**
- * A generated problem list (paths relative to the TPTP root) plus the seeded sampling every harness draws
- * from it. One class rather than a copy per harness because the draw has to be *identical* across them:
- * benchmark numbers are only comparable when they name the same problems.
+ * A generated problem list and the seeded sampling every harness draws from it. One class rather than a copy
+ * per harness, since the draw has to be identical across them for the numbers to be comparable.
  *
- * The list ships as a **classpath resource** under `/lisa/automation/superposition/`, so it is found the same
- * way however the harness is launched: `sbt runMain`, a forked child JVM (whose working directory is not the
- * repo root), or a packaged jar. Hence the `.txt` lists living under `src/main/resources`, not beside the
- * sources: a source-relative lookup only works from the repo root, and fails silently anywhere else.
+ * The lists ship as classpath resources rather than beside the sources, so that they are found however the
+ * harness is launched, including from a forked child whose working directory is not the repository root.
  *
  * @param listFileName the generated list, e.g. `tptp-clausal-fo-noeq-uns.txt`
  * @param envVar       optional environment variable naming a file to use instead of the packaged resource
  */
 final class ProblemList(val listFileName: String, envVar: Option[String] = None):
 
-  /** Resource path of the packaged list. */
   private def resourcePath: String = s"/lisa/automation/superposition/$listFileName"
 
   /** The env-var override, when set and pointing at a readable file. Lets a harness run against a hand-made
@@ -35,7 +31,6 @@ final class ProblemList(val listFileName: String, envVar: Option[String] = None)
   /** Whether the list can be read at all, whether the override or the packaged resource. */
   def exists: Boolean = overrideFile.isDefined || getClass.getResource(resourcePath) != null
 
-  /** Where the list came from, for the harness banner. */
   def describe: String = overrideFile.map(_.getPath).getOrElse(s"classpath:$resourcePath")
 
   /** Every problem path, in file order. Throws if neither the override nor the resource can be read. */
@@ -57,12 +52,10 @@ final class ProblemList(val listFileName: String, envVar: Option[String] = None)
   def sample(n: Int = 100, seed: Long = 42): Vector[String] =
     new scala.util.Random(seed).shuffle(all).take(n)
 
-/**
- * Small helpers shared by the benchmark / evaluation entry points ([[Evaluation]], [[FofEvaluation]],
- * [[EqFofEvaluation]], [[BaselineBench]], [[StrategyEvaluation]]): the TPTP-root lookup, the interruptible
- * worker with its abandoned-worker accounting, and the kernel-problem conversion, so each `main` does not
- * carry its own copy.
- */
+/** Small helpers shared by the benchmark / evaluation entry points ([[Evaluation]], [[FofEvaluation]],
+  * [[EqFofEvaluation]], [[BaselineBench]], [[StrategyEvaluation]]): the TPTP-root lookup, the interruptible
+  * worker with its abandoned-worker accounting, and the kernel-problem conversion, so each `main` does not
+  * carry its own copy. */
 object BenchUtil:
 
   /** The TPTP root from the `TPTP` environment variable, or `None` after printing the standard hint, since
@@ -80,17 +73,12 @@ object BenchUtil:
 
   private val abandoned = new java.util.concurrent.atomic.AtomicInteger(0)
 
-  /** Workers that ignored their interrupt and were still running when [[withTimeout]] gave up, since the last
-    * [[resetAbandoned]]. Anything measured after the first one is suspect: an abandoned worker keeps burning
-    * CPU and holding its heap (a saturation's passive set can be millions of clauses) for the rest of the
-    * run, so later problems are timed against a machine that is busy and nearly out of memory, and
-    * `Clausification.checkInterrupted`'s heap valve, which is global, can abort them outright. Observed
-    * turning a 44-refutation run into a 20-refutation one, with problems that refute standalone in 6 ms
-    * reported as `TIMEOUT`. There is no safe way to kill a thread on the JVM, so the harnesses report this
-    * rather than pretend it did not happen. */
+  /** Workers that ignored their interrupt and were still running when [[withTimeout]] gave up. Everything
+    * measured after the first is suspect, since such a worker holds its processor time and its heap for the
+    * rest of the run. Observed turning a 44-refutation run into a 20-refutation one. A thread cannot be
+    * killed on the JVM, so the harnesses report this rather than hide it. */
   def abandonedWorkers: Int = abandoned.get
 
-  /** Zero the [[abandonedWorkers]] count; call at the start of a benchmark run. */
   def resetAbandoned(): Unit = abandoned.set(0)
 
   /** A one-line warning naming the contamination, or `""` when the run was clean. */
@@ -102,12 +90,9 @@ object BenchUtil:
         "the first is suspect: that thread holds CPU and heap for the rest of the run. Re-run the affected " +
         "problems on their own before believing any of these numbers."
 
-  /** Run `body` on a daemon thread; return its outcome, or `None` if it doesn't finish within `ms`.
-   *
-   *  On a timeout the worker is interrupted and then given [[interruptGraceMs]] to unwind, so the common case
-   *  (a solver that notices at its next poll) really is finished before the caller moves on. One that is
-   *  still alive after the grace period cannot be stopped (`Thread.stop` is gone, and unsafe when it existed)
-   *  and is counted in [[abandonedWorkers]] for the harness to report. */
+  /** Run `body` on a daemon thread; return its outcome, or `None` if it doesn't finish within `ms`. On a
+   *  timeout the worker is interrupted and given [[interruptGraceMs]] to unwind; one still alive after that
+   *  cannot be stopped at all, and is counted in [[abandonedWorkers]] for the harness to report. */
   def withTimeout[T](ms: Long)(body: => T): Option[Try[T]] =
     val box = new AtomicReference[Option[Try[T]]](None)
     val th = new Thread(() => box.set(Some(Try(body))))
@@ -117,29 +102,19 @@ object BenchUtil:
       th.interrupt()
       th.join(interruptGraceMs) // give the cooperative poll points a chance to fire
       if th.isAlive then abandoned.incrementAndGet()
-      // `None` unconditionally, even though a worker that unwound during the grace period has by now stored
-      // its `Failure(InterruptedException)`. The budget was exceeded; that is the verdict, and the exception
-      // is just how the worker was stopped. Returning it would reclassify every `HARD_TIMEOUT` as an `ERROR`.
+      // `None` even if the worker unwound in the grace period and stored a `Failure(InterruptedException)`:
+      // the budget was exceeded, and returning that would reclassify every `HARD_TIMEOUT` as an `ERROR`.
       None
 
   // ── running one problem in its own JVM ──────────────────────────────────────────────────────────────────
   //
-  // Why a process and not a thread. A thread can only be *asked* to stop: interruption is cooperative, and
-  // `Thread.stop` was removed (it threw `ThreadDeath` at an arbitrary bytecode boundary, leaving locks and
-  // invariants broken). A worker that does not stop keeps its heap (a saturation's passive set can be
-  // millions of clauses) and its CPU for the rest of the run, so every problem measured afterwards is timed
-  // against a busy, nearly-full JVM, and `Clausification.checkInterrupted`'s heap ceiling, which is
-  // JVM-global, can abort them outright. That turned a 44-refutation corpus run into a 20-refutation one,
-  // reporting problems that refute standalone in 6 ms as `TIMEOUT` (see the code review, §4.4).
+  // A thread can only be asked to stop, so a worker that ignores its interrupt keeps its heap and processor
+  // time for the rest of the run (see `abandonedWorkers`). A child process ends that: the kill is
+  // unconditional, the heap dies with it, and a fatal error takes only that problem with it.
   //
-  // A child process ends that whole class of problem: `destroyForcibly` is unconditional, so the budget is a
-  // real guarantee; the heap dies with the process, so no problem inherits another's garbage, GC state or
-  // static fields; and a fatal `OutOfMemoryError`/`StackOverflowError` kills only that problem.
-  //
-  // The cost is JVM startup plus JIT warm-up per problem, which for a problem that solves in 5 ms dominates
-  // its measurement completely. Verdicts (did it refute?) are unaffected and are what corpus runs turn on;
-  // per-problem *timings* on fast problems are not comparable to in-process ones. Set `LISA_FORK=0` to fall
-  // back to the in-process path when that matters.
+  // The cost is JVM startup and warm-up per problem, which dominates the measurement of anything that solves
+  // quickly. Verdicts are unaffected; per-problem timings on fast problems are not comparable to in-process
+  // ones. Set `LISA_FORK=0` for the in-process path when that matters.
 
   /** Whether harnesses should run each problem in its own JVM. On unless `LISA_FORK` is `0`/`false`/`no`. */
   def forkEnabled: Boolean =
@@ -158,7 +133,6 @@ object BenchUtil:
       if timedOut then ""
       else s"exit=$exitCode${stderr.reverseIterator.find(_.trim.nonEmpty).map(l => s", ${l.trim}").getOrElse("")}"
 
-  /** The marker a child prints its one machine-readable result line with. */
   val ResultPrefix: String = "RESULT\t"
 
   /** Run `mainClass args` in a fresh JVM, with the same java binary, classpath and max heap as this one, and give it

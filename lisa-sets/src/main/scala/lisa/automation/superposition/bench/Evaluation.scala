@@ -9,28 +9,17 @@ import lisa.tptp.KernelParser.{problemToKernel, strictMapAtom, strictMapTerm, st
 import BenchUtil.withTimeout
 
 /**
- * Performance-evaluation harness for the superposition prover (NOT a test -- it has a `main`).
+ * Throughput over clausal, equality-free, unsatisfiable TPTP problems. Every problem is unsatisfiable, so
+ * refuted against timed out is the measure and a saturated verdict would itself be a bug.
  *
- * [[benchmark]] takes a seeded **random sample** of `n` problems from the generated list of clausal,
- * first-order, equality-free, **unsatisfiable** TPTP problems (`tptp-clausal-fo-noeq-uns.txt`) and tries to
- * solve each within a wall-clock budget. Reproducible: the same seed picks the same sample. Since every
- * problem is unsatisfiable, `REFUTED` vs `TIMEOUT` is the throughput axis, and a `SATURATED` (claiming
- * satisfiable) would itself be a bug.
- *
- * Needs the `TPTP` env var pointing at the TPTP root (the directory containing `Problems/`). Run:
+ * Requires `TPTP` to point at the problem library.
  * {{{
- *   TPTP=/path/to/TPTP-v9.2.1 sbt "lisa-sets/runMain lisa.automation.superposition.bench.Evaluation [seed] [n] [timeoutMs] [maxGiven] [subs] [gen] [unit] [sr] [cond] [equality]"
+ *   TPTP=/path sbt "lisa-sets/runMain lisa.automation.superposition.bench.Evaluation [seed] [n] [timeoutMs] [maxGiven] [subs] [gen] [unit] [sr] [cond] [equality]"
  * }}}
- * `subs`, `unit`, and `sr` each select a `both` / `fwd` / `bwd` / `none` configuration, for subsumption,
- * unit deletion, and general (multi-literal-side) subsumption resolution respectively; `cond` is `on`/`off`
- * for condensation. Defaults track the engine's: `subs`, `unit` and `sr` on, `cond` off, so a run with no
- * flags measures the configuration that actually ships. `gen` (orthogonal) controls *where*
- * forward simplification runs: `gen` on freshly generated clauses **and** at given-selection; `nogen`
- * (default) only at given-selection. `equality` is `on`/`off` (default on): `off` skips all equality
- * inferences (superposition, equality resolution/factoring, demodulation). This list is equality-free, so
- * `off` measures the cost of the equality machinery running inertly.
- * The solve loop honours `timeoutMs` cooperatively (checked per given clause), so a budgeted run stops
- * cleanly; a daemon-thread hard cap a few seconds later only backstops a pathological single step.
+ * `subs`, `unit` and `sr` take `both`/`fwd`/`bwd`/`none`, for subsumption, unit deletion and general
+ * subsumption resolution; `cond` and `equality` take `on`/`off`; `gen` runs forward simplification on freshly
+ * generated clauses too. Defaults are the shipped configuration. The list being equality-free, `equality=off`
+ * measures what that machinery costs when it can never apply.
  */
 object Evaluation:
 
@@ -89,13 +78,11 @@ object Evaluation:
       case Some("gen")          => true
       case Some(other)          => sys.error(s"unknown generation mode '$other' (use gen|nogen)")
 
-  /**
-   * Randomly pick `n` problems (deterministically from `seed`) out of the generated clausal/no-equality/
-   * unsatisfiable list and try to solve each within `timeoutMs` (and `maxGiven`). **Every refutation is reconstructed
-   * and run through the kernel checker** (reusing the solve, with no re-proving), so a `bad_proof` in the
-   * summary flags a soundness/reconstruction bug. Prints a per-problem row and a summary. A larger `n`
-   * than the list size just runs the whole list.
-   */
+  /** Randomly pick `n` problems (deterministically from `seed`) out of the generated clausal/no-equality/
+    * unsatisfiable list and try to solve each within `timeoutMs` (and `maxGiven`). **Every refutation is reconstructed
+    * and run through the kernel checker** (reusing the solve, with no re-proving), so a `bad_proof` in the
+    * summary flags a soundness/reconstruction bug. Prints a per-problem row and a summary. A larger `n`
+    * than the list size just runs the whole list. */
   def benchmark(
       seed: Long,
       n: Int = 100,
@@ -202,20 +189,17 @@ object Evaluation:
           case Some(Success(s: Bridge.Outcome.Success))  => checkRefutation(s)
         (result, ms, detail)
 
-  /**
-   * Reconstruct a refutation's kernel proof and check it. `REFUTED` iff the proof is kernel-valid and
-   * concludes the empty sequent `⊢`; otherwise `BAD_PROOF` (a soundness or reconstruction bug). Both halves
-   * of the check earn their keep: a reconstruction can produce a kernel-valid proof of the *wrong* sequent, so
-   * validity alone would pass it. Reconstruction reuses the solve's bank/inputs (no re-proving).
-   * Returns `(category, detail)`.
-   */
+  /** Reconstruct a refutation's kernel proof and check it. `REFUTED` iff the proof is kernel-valid and
+    * concludes the empty sequent `⊢`; otherwise `BAD_PROOF` (a soundness or reconstruction bug). Both halves
+    * of the check earn their keep: a reconstruction can produce a kernel-valid proof of the *wrong* sequent, so
+    * validity alone would pass it. Reconstruction reuses the solve's bank/inputs (no re-proving).
+    * Returns `(category, detail)`. */
   private def checkRefutation(s: Bridge.Outcome.Success): (String, String) =
     Try { val p = s.reconstructKernelProof; (p, K.SCProofChecker.checkSCProof(p)) } match
       case Success((p, r)) if r.isValid && p.conclusion == K.Sequent(Set.empty, Set.empty) => ("REFUTED", "")
       case Success((p, r)) => ("BAD_PROOF", s"  (kernelValid=${r.isValid}, conclusion=${p.conclusion})")
       case Failure(e)      => ("BAD_PROOF", s"  (reconstruction threw: $e)")
 
-  /** Aggregate the per-problem categories into the summary line(s). */
   private def report(rows: Seq[(String, Long)], total: Int): Unit =
     def count(c: String): Int = rows.count(_._1 == c)
     val refuted = count("REFUTED")

@@ -5,33 +5,18 @@ import it.unimi.dsi.fastutil.longs.{LongArrays, LongComparator}
 
 import scala.collection.mutable
 import scala.util.hashing.MurmurHash3
+import lisa.automation.superposition.ordering.*
 
-/**
- * The core datastructures every other file in the package is built on: the symbol signature, a
- * hash-consed term bank backed by a single flat arena, packed literals, and clauses.
- *
- * The whole engine is built around opaque integer references:
- *   - a `Term` is an offset into the [[TermBank]]'s flat `Array[Long]` arena;
- *   - a `Literal` packs an atom term together with a polarity bit;
- *   - symbol codes are dense non-negative ints handed out by a [[Signature]].
- *
- * Variables are encoded directly in the term's functor field as a negative number, so no
- * separate cell type is needed (the E/LADR trick). Free-variable information is cached as
- * a 63-bit mask on every term, exact for variables `0..62` and OR-ed up from children;
- * bit 63 is an overflow marker meaning "some variable numbered >= 63 occurs here, fall
- * back to traversal". A term is ground iff its mask is `0`.
- *
- * Everything lives inside this object so that the opaque types are transparent to the
- * engine (they are abstract `Int`/`Long`s to outside code, e.g. tests).
- */
+/** The syntax used by the prover. A hash-consed term bank over one
+  * flat array, packed literals, clauses, and unification. The README describes the encoding these
+  * declarations assume. */
 object Core:
 
   /** A reference to a term: the offset of its record in a [[TermBank]]'s arena. */
   opaque type Term = Int
 
-  /** Zero-cost views between `Array[Term]` and `Array[Int]` (a `Term` *is* an `Int`). Defined here, where the
-   *  opaque type is transparent, so external code can use the `Int`-array overloads (e.g. `java.util.Arrays.copyOf`)
-   *  that do not resolve on the opaque `Array[Term]`. Inline ⇒ they compile to the identity (the same array). */
+  /** Views between `Array[Term]` and `Array[Int]`, so that callers can reach the `Int` overloads of library
+   *  methods such as `java.util.Arrays.copyOf`. Inline, so both compile to the identity. */
   inline def asArrayInt(array: Array[Term]): Array[Int] = array
   inline def asArrayTerm(array: Array[Int]): Array[Term] = array
 
@@ -44,7 +29,6 @@ object Core:
   /** A variable's number (`>= 0`); distinct from a [[Symbol]] at the type level, though both are `Int` at runtime. */
   opaque type Variable = Int
 
-  /** Construct a [[Variable]] from its (non-negative) number. */
   inline def Variable(num: Int): Variable = num
 
   extension (v: Variable) inline def num: Int = v
@@ -53,119 +37,74 @@ object Core:
   /** The arena offset backing a [[Term]]: a stable, unique `Int` key for hash-consed terms. Inline no-op. */
   extension (t: Term) inline def offset: Int = t
 
-  /**
-   * The equality predicate, reserved as the arity-2 symbol with code `0`: every [[Signature]]
-   * pre-interns it at construction (under the name `"="`), so user symbols start at code 1 and no
-   * other symbol can occupy code 0. Recognising it is needed for selection (preferring negative
-   * equalities) and, later, for superposition.
-   */
+  /** The equality predicate, pre-interned by every [[Signature]] as the arity-2 symbol with code `0`. */
   val EqualitySymbol: Symbol = 0
 
-  /** A unification scope (`0` or `1`): which of the two clauses a variable belongs to. A transparent alias, purely documentary. */
+  /** A unification scope (`0` or `1`), telling which of the two clauses a variable belongs to. */
   type Scope = Int
 
   /** Default Knuth-Bendix weight given to a freshly interned symbol. */
   val defaultSymbolWeight: Int = 1
 
-  /** KBO symbol-**weight** generation scheme (the weight twin of [[PrecedenceScheme]]).
-   *  Applied at **intern time**, since term weights are cached when terms are built, so the scheme must be fixed
-   *  on the [[Signature]] before any clause is constructed. */
+  /** How KBO symbol weights are assigned, as a function of arity. Applied when a symbol is interned, since term
+   *  weights are cached at construction, so the scheme must be fixed before any clause is built. */
   enum WeightScheme:
-    /** All symbols weight [[defaultSymbolWeight]] (KBO `const`, Vampire's default and our historical one). */
+    /** Every symbol weighs [[defaultSymbolWeight]]. Vampire's default. */
     case Const
-    /** `weight = arity + 1` (E's `arity` scheme): constants get `1 = VariableWeight` (admissible), so terms
-     *  built from higher-arity symbols weigh more. */
+    /** `weight = arity + 1`, so terms over higher-arity symbols weigh more. E's `arity` scheme. */
     case Arity
 
+    /** The weight this scheme gives a symbol of arity `arity`. Each case's meaning lives here rather than
+      * being unfolded where symbols are interned, so a new scheme is a new case and nothing else. */
+    def weightOf(arity: Int): Int = this match
+      case Const => defaultSymbolWeight
+      case Arity => arity + 1
+
   /**
-   * The data for one interned symbol: immutable identity (`name`, `arity`, kind) and the
-   * mutable ordering parameters used by KBO (`weight` and `precedence`). One instance is
-   * allocated per distinct symbol. Terms refer to a symbol by its integer [[Symbol]] code
-   * (`id`), so the hot paths index an array of these rather than dereferencing the object.
+   * One interned symbol: its identity, and the weight and precedence that KBO reads.
    *
-   * `weight`/`precedence` are `def`-backed rather than plain `var`s so that **every** write bumps the
-   * owning signature's [[Signature.orderingVersion]], the stamp any cache over the term ordering (today
-   * [[Order]]'s orientation memo) checks to invalidate itself. Assignment syntax is unchanged.
+   * @param name the identifier's bare name and @param no its counter index, stored apart rather than as one
+   *             `name_no` string, so that rebuilding a kernel identifier does not have to split it back up
+   *             and produce `Identifier("e_1", 0)` where `Identifier("e", 1)` was meant.
    */
-  /** @param name the identifier's bare name, and @param no its counter index, kept apart rather than as one
-    *             `name_no` string so a consumer rebuilding a kernel identifier does not have to split the
-    *             string back up (and get `Identifier("e_1", 0)` wrong where `Identifier("e", 1)` was meant). */
-  final class SymbolInfo private[Core] (val id: Symbol, val name: String, val no: Int, val arity: Int, val isPredicate: Boolean, private val owner: Signature):
-    private var _weight: Int = defaultSymbolWeight
-    private var _precedence: Int = id
-
-    /** Knuth-Bendix weight of this symbol. Read live by [[KBO]]; also folded into each term's cached weight
-      * at construction, so a change after terms are built leaves those cached weights stale. */
-    def weight: Int = _weight
-    def weight_=(w: Int): Unit = { _weight = w; owner.bumpOrderingVersion() }
-
-    /** Precedence rank of this symbol, read **live** by [[KBO]] (never cached into terms). */
-    def precedence: Int = _precedence
-    def precedence_=(p: Int): Unit = { _precedence = p; owner.bumpOrderingVersion() }
+  final class SymbolInfo private[Core] (val id: Symbol, val name: String, val no: Int, val arity: Int, val isPredicate: Boolean,
+                                        /** Fixed at interning by the signature's weight function, and immutable
+                                          * because each term folds it into a cached total weight at
+                                          * construction: a later change would leave every existing term stale. */
+                                        val weight: Int):
+    /** Read live by [[KBO]] and never cached into terms, unlike [[weight]]. Defaults to the interning order and
+      * is written once per run, by [[Precedence.assign]], which cannot compute it earlier: the default scheme
+      * ranks symbols by how often they occur across all the input clauses, so it needs every clause first. */
+    var precedence: Int = id
 
     override def toString: String = s"$name/$arity"
 
-  // -----------------------------------------------------------------------------------------
-  // Signature
-  // -----------------------------------------------------------------------------------------
+  // --- Signature ------------------------------------------------------------------------------------------
 
-  /**
-   * Interns function and predicate symbols into dense non-negative codes, and stores the
-   * per-symbol data needed by KBO: a Knuth-Bendix weight and a precedence rank.
-   *
-   * A `(name, arity)` pair denotes a unique symbol, so `f/2` and `f/3` are distinct.
-   * Predicates and functions share the same code space but are tagged via [[isPredicate]].
-   * The default precedence is the interning order; both weight and precedence can be
-   * reassigned afterwards (e.g. once the whole problem signature is known).
-   */
-  final class Signature(weightScheme: WeightScheme = WeightScheme.Const):
+  /** Interns symbols into dense non-negative codes and holds their KBO parameters. Precedence defaults to the
+   *  interning order and is normally reassigned by [[Precedence.assign]] once the whole signature is known. */
+  final class Signature(weightOf: Int => Int = WeightScheme.Const.weightOf):
     private val infos: mutable.ArrayBuffer[SymbolInfo] = mutable.ArrayBuffer.empty[SymbolInfo]
+    /** The full record for symbol `f`; access its fields directly, storing it in a val when several are needed. */
+    def info(f: Symbol): SymbolInfo = infos(f)
+    
     // Keyed by the full symbol identity; see [[intern]]. Only touched during ingestion, never on a search
     // path, so a four-field key costs nothing that matters.
     private val index: mutable.HashMap[(String, Int, Int, Boolean), Symbol] = mutable.HashMap.empty
-    private var _orderingVersion: Int = 0
-
-    /**
-     * A counter bumped by every write to any symbol's [[SymbolInfo.weight]] or [[SymbolInfo.precedence]].
-     * i.e. by every change to the term ordering this signature induces (notably [[Precedence.assign]], which
-     * runs *after* the clauses are built). Caches over the ordering compare it against the version they were
-     * populated under and drop themselves when it moves, so no cache can outlive the parameters it was
-     * computed from. See [[Order.orient]], the only such cache today.
-     */
-    def orderingVersion: Int = _orderingVersion
-    private[Core] def bumpOrderingVersion(): Unit = _orderingVersion += 1
 
     // Reserve code 0 for the equality predicate (see [[EqualitySymbol]]); user symbols start at 1.
     intern("=", 2, isPredicate = true)
 
-    /**
-     * Intern a symbol, returning its (stable) code. The key is the whole quadruple (name, counter index,
-     * arity and predicate-ness) because each of the four genuinely distinguishes source symbols:
-     *
-     *   - `no`, or `e` and `e_1` become one symbol;
-     *   - `arity`, since a symbol's meaning depends on it;
-     *   - `isPredicate`, which the key used to *accept and discard*. A name used at the same arity as both a
-     *     predicate and a function then collapsed into a single symbol, with whichever occurrence interned
-     *     first deciding the kind for both. TPTP input cannot express that (the positions are distinct), but
-     *     a Lisa goal can: `Constant("p", Ind→Prop)` and `Constant("p", Ind→Ind)` are two legal kernel
-     *     symbols. The prover could then resolve across them, which the kernel check catches on the tactic
-     *     path and nothing catches on the CASC path.
-     *
-     * What it deliberately does *not* distinguish is a `Constant` from a `Variable` treated as a symbol (an
-     * ε-abstraction symbol, say). Adding that alone would not close the class, since `Reconstruction` decides
-     * which to rebuild by name membership in its schematic set; the generated namespaces keep them apart.
-     *
-     * Interning *after* [[Precedence.assign]] is sound but unprincipled: the new symbol keeps its default
-     * precedence (its own code), which lands above every rank the scheme assigned, so it silently sits outside
-     * the chosen [[PrecedenceScheme]]. The order stays total, so no completeness is lost.
-     */
+    /** Intern a symbol, returning its stable code. All four components of the key distinguish source symbols:
+      * dropping `no` merges `e` with `e_1`, and dropping `isPredicate` merges a predicate with a function of
+      * the same name and arity, which a Lisa goal can declare and across which the prover would then resolve.
+      *
+      * Interning after [[Precedence.assign]] is sound but leaves the new symbol with its default precedence,
+      * outside the assigned scheme. The order stays total, so completeness is unaffected. */
     def intern(name: String, no: Int, arity: Int, isPredicate: Boolean): Symbol =
       index.getOrElseUpdate(
         (name, no, arity, isPredicate), {
-          val info: SymbolInfo = new SymbolInfo(infos.length, name, no, arity, isPredicate, this)
-          info.weight = weightScheme match
-            case WeightScheme.Const => defaultSymbolWeight
-            case WeightScheme.Arity => arity + 1
+          val info: SymbolInfo = new SymbolInfo(infos.length, name, no, arity, isPredicate, weightOf(arity))
           infos += info
           info.id
         }
@@ -175,11 +114,8 @@ object Core:
       * hand-built signatures in the tests. Kernel input goes through the four-argument form. */
     def intern(name: String, arity: Int, isPredicate: Boolean): Symbol = intern(name, 0, arity, isPredicate)
 
-    /** Number of distinct symbols interned so far. */
     def size: Int = infos.length
 
-    /** The full record for symbol `f`; access its fields directly, storing it in a val when several are needed. */
-    def info(f: Symbol): SymbolInfo = infos(f)
 
     /** Compare two symbols by precedence: negative if `f < g`, positive if `f > g`, `0` if equal. */
     def comparePrecedence(f: Symbol, g: Symbol): Int = Integer.compare(infos(f).precedence, infos(g).precedence)
@@ -188,9 +124,7 @@ object Core:
     /** All interned symbols, in code order (read-only; for admissibility checks and diagnostics). */
     def symbols: Iterator[SymbolInfo] = infos.iterator
 
-  // -----------------------------------------------------------------------------------------
-  // Term bank (flat arena + offset-keyed hash-consing)
-  // -----------------------------------------------------------------------------------------
+  // --- Term bank (flat arena + offset-keyed hash-consing) -------------------------------------------------
 
   /** Variable weight used by KBO; cached into each term's total weight at construction. */
   inline val VariableWeight = 1
@@ -199,12 +133,8 @@ object Core:
   val FvOverflow: Long = 1L << 63
 
   /**
-   * A hash-consed store of terms in a single flat arena. The arena is one growable
-   * `Array[Long]`; every term is written as a contiguous record and a [[Term]] is just the
-   * offset of that record. This is the AoS layout, but with all terms concatenated into one array and offsets used in
-   * place of machine pointers.
-   *
-   * Record layout for a term at offset `p` (`n == arity`):
+   * A hash-consed store of terms in one growable `Array[Long]`, in which a [[Term]] is the offset of its
+   * record. Record layout at offset `p`, with `n` the arity:
    * {{{
    *   mem(p + 0) = (functor & 0xFFFFFFFFL) | (n.toLong << 32)   // functor (<0 = var) + arity
    *   mem(p + 1) = free-variable mask
@@ -212,42 +142,48 @@ object Core:
    *   mem(p + 3 .. p + 2 + n) = the n child offsets
    * }}}
    *
-   * Hash-consing uses a fastutil `Int2IntOpenCustomHashMap` keyed on term offsets, with an
-   * [[IntHash.Strategy]] that hashes and compares a key by reading the record it points at,
-   * so no key object is ever materialised. Interning is write-first: a candidate record is
-   * appended at the bump pointer so it can be hashed/compared by offset like any stored
-   * entry; on a hit the bump pointer is rewound and the stored offset returned, on a miss
-   * the candidate offset is kept and inserted (mapping it to itself).
+   * Hash-consing is write-first: the candidate record is appended at the bump pointer so it can be hashed and
+   * compared by offset like any stored entry, and the pointer is rewound on a hit. No key object is built.
    */
   final class TermBank(val signature: Signature):
 
     private inline val HeaderWords = 3
 
-    // --- arena ----------------------------------------------------------------------------
+    // --- arena --------------------------------------------------------------------------------------------
     private var mem: Array[Long] = new Array[Long](1024)
     private var end: Int = 0 // bump pointer: next free arena slot
 
-    // --- hash-consing: fastutil map keyed on term content via a custom strategy -----------
-    private val internStrategy: IntHash.Strategy = new IntHash.Strategy {
+    // --- hash-consing: fastutil map keyed on term content via a custom strategy ---------------------------
+    private val hashConsStrategy: IntHash.Strategy = new IntHash.Strategy {
       def hashCode(t: Int): Int = hashOf(t)
       def equals(a: Int, b: Int): Boolean = equalRecords(a, b)
     }
 
     // maps a term offset to the canonical offset of its (content-)equal term
-    private val intern: Int2IntOpenCustomHashMap =
-      val m: Int2IntOpenCustomHashMap = new Int2IntOpenCustomHashMap(internStrategy)
+    // hashConsStrategy compares for equality of the record in the term bank, not equality of the offset ("term") itself.
+    // In particular, it always hold that hashConsStrategy.equals(t, hashCons.get(t)) but not t == hashCons.get(t).
+    // `hashCons` is really a map from `term record` to `term offset`, except that the record is given through an offset.
+    private val hashCons: Int2IntOpenCustomHashMap =
+      val m: Int2IntOpenCustomHashMap = new Int2IntOpenCustomHashMap(hashConsStrategy)
       m.defaultReturnValue(-1)
       m
 
     private var clauseCounter: Int = 0
 
-    /** The literal-selection strategy applied by [[Clause.select]] at activation; swap to plug in a policy. */
-    var selector: LiteralSelector = BestLiteralSelector
+    private var _selector: LiteralSelector = null
 
-    /** The canonical KBO-based [[Order]] over this bank's terms, a **single** shared instance (one `orient`
-     *  cache, one `KBO`) for the selector, the generating equality inferences, and demodulation. Lazy so it
-     *  is built after the signature is in place; the KBO reads weights/precedence live, so early forcing is
-     *  harmless. */
+    /** The literal-selection strategy applied by [[Clause.select]] at activation; assign to plug in another.
+      * Defaults to the refutation-complete [[CompleteBestLiteralSelector]], which is what
+      * [[SearchOptions.selection]] ships, so a bank used directly selects as the prover does. Resolved on first
+      * read, so a bank whose clauses are never activated builds no [[Order]]. */
+    def selector: LiteralSelector =
+      if _selector == null then _selector = new CompleteBestLiteralSelector(order)
+      _selector
+
+    def selector_=(s: LiteralSelector): Unit = _selector = s
+
+    /** The one [[Order]] over this bank's terms, shared by the selector, the equality inferences and
+      * demodulation, so that they share its orientation cache. */
     lazy val order: Order = new Order(new KBO(this))
 
     // cached comparator (closing over this bank) for in-place primitive sorting of literal arrays
@@ -256,7 +192,7 @@ object Core:
     /** Sort `lits` in place into canonical literal order (see [[compareLiterals]]); no boxing. */
     def sortLiterals(lits: Array[Literal]): Unit = LongArrays.quickSort(lits, literalOrder)
 
-    // --- constructors ---------------------------------------------------------------------
+    // --- constructors -------------------------------------------------------------------------------------
 
     /** The shared term for variable number `v` (`v >= 0`). */
     def mkVar(v: Variable): Term =
@@ -267,9 +203,8 @@ object Core:
       mem(p + 1) = varBit(v)
       mem(p + 2) = VariableWeight.toLong
       end = p + HeaderWords
-      internCandidate(p)
+      hashConsCandidate(p)
 
-    /** A nullary symbol application, i.e. a constant. */
     def mkConst(f: Symbol): Term = mkApp(f, EmptyArgs)
 
     /** Apply symbol `f` to `children`. The array is read but not retained. */
@@ -293,9 +228,9 @@ object Core:
       mem(p + 1) = mask
       mem(p + 2) = w.toLong & 0xFFFFFFFFL
       end = p + HeaderWords + n
-      internCandidate(p)
+      hashConsCandidate(p)
 
-    // --- accessors ------------------------------------------------------------------------
+    // --- accessors ----------------------------------------------------------------------------------------
 
     /** Raw functor field: `< 0` for variables, the symbol code otherwise. */
     inline def functor(t: Term): Int = mem(t).toInt // low 32 bits, sign-extended
@@ -311,7 +246,6 @@ object Core:
     /** Number of arguments (`0` for variables and constants). */
     inline def arity(t: Term): Int = (mem(t) >>> 32).toInt
 
-    /** The `i`-th argument of `t`. */
     inline def arg(t: Term, i: Int): Term = mem(t + HeaderWords + i).toInt
 
     /** Cached total KBO weight of `t`. */
@@ -322,6 +256,11 @@ object Core:
 
     /** A term is ground iff it has no free variables. */
     inline def isGround(t: Term): Boolean = freeVarMask(t) == 0L
+
+    /** Whether `t` is an equality atom `s = t`, and the whole test: a variable's functor is negative so it
+      * cannot match [[EqualitySymbol]] (`0`), and `=` is interned with arity 2, which [[mkApp]] enforces, so
+      * neither an `isVar` nor an arity guard adds anything. */
+    inline def isEqualityAtom(t: Term): Boolean = functor(t) == EqualitySymbol
 
     /** Whether variable number `v` occurs in `t`; exact via the mask, with a traversal fallback for `v >= 63`. */
     def containsVar(t: Term, v: Variable): Boolean =
@@ -341,53 +280,43 @@ object Core:
           i += 1
         false
 
-    // --- literals -------------------------------------------------------------------------
+    // --- literals -----------------------------------------------------------------------------------------
 
-    /** Build a literal from an atom and a polarity. */
     def mkLiteral(atom: Term, positive: Boolean): Literal = (atom.toLong << 1) | (if positive then 1L else 0L)
 
-    /** The atom term underlying a literal. */
     def atomOf(l: Literal): Term = (l >>> 1).toInt
 
     def isPositive(l: Literal): Boolean = (l & 1L) == 1L
     def isNegative(l: Literal): Boolean = (l & 1L) == 0L
 
-    /** Flip the polarity of a literal. */
     def negate(l: Literal): Literal = l ^ 1L
 
     /** Cached weight of a literal (its atom's weight). */
     def literalWeight(l: Literal): Int = weight(atomOf(l))
 
-    // --- clauses --------------------------------------------------------------------------
+    /** Whether `l`'s atom is an equality `s = t` (see [[isEqualityAtom]]). */
+    inline def isEquality(l: Literal): Boolean = isEqualityAtom(atomOf(l))
 
-    /**
-     * Build a clause directly from `lits`, taking ownership of the array. This is a dumb
-     * constructor (as in E/Vampire): it does not deduplicate, sort, or drop tautologies --
-     * those are normalisation/simplification steps applied separately in the loop. It only
-     * caches the clause weight (sum of literal weights) and assigns a fresh id. The empty
-     * clause (`Array.empty`) denotes falsity.
-     */
+    /** Whether `l` is a negative equality `s ≠ t`, the literal shape equality resolution can remove. */
+    inline def isNegativeEquality(l: Literal): Boolean = isNegative(l) && isEquality(l)
+
+    // --- clauses ------------------------------------------------------------------------------------------
+
+    /** Build a clause from `lits`, taking ownership of the array. It does not deduplicate, sort or drop
+     *  tautologies; that is [[Inference.canonicalize]]'s job. An empty array is the empty clause. */
     def mkClause(lits: Array[Literal], justification: Justification = Justification.Input, goalInput: Boolean = false): Clause =
       val id: Int = clauseCounter
       clauseCounter += 1
       buildClause(lits, justification, goalInput, id)
 
-    /**
-     * Build a clause that exists only to be handed to an index as a retrieval key -- forward/backward
-     * subsumption ask "which stored clause is `≤`/`≥` this one?", and the trie and `Subsumption.subsumes`
-     * both want a [[Clause]], not a bare literal array.
-     *
-     * It differs from [[mkClause]] in exactly one way: it does not draw an id from `clauseCounter`. Minting
-     * one per literal per simplification call inflates the id space that real clauses live in, and ids are
-     * used as identities and as hash keys (`ActiveSet.slot`, the lazy-deletion sets, the fingerprint entries),
-     * so the spread is not free. Every query clause instead carries [[QueryClauseId]], which is negative and
-     * shared: it can never collide with a real id, and it is deliberately useless as an identity, since a
-     * query clause must never be stored (see [[Clause.isQuery]] and the guards in `ActiveSet`/`PassiveSet`).
-     */
-    def mkQueryClause(lits: Array[Literal]): Clause =
-      buildClause(lits, Justification.Input, false, QueryClauseId)
+    /** Build a [[QueryClause]], the throwaway an index retrieval is keyed on; see that class. */
+    def mkQueryClause(lits: Array[Literal]): QueryClause =
+      withSignature(lits)((w, pos, bits) => new QueryClause(lits, w, pos, lits.length - pos, bits))
 
-    private def buildClause(lits: Array[Literal], justification: Justification, goalInput: Boolean, id: Int): Clause =
+    /** Compute a literal array's cached signature -- total weight, positive count, and the head-symbol mask --
+      * in one pass, and hand the three to `use`. `inline`, so the function literal is beta-reduced away and both
+      * builders share the loop without paying a closure or a second traversal for it. */
+    private inline def withSignature[A](lits: Array[Literal])(inline use: (Int, Int, Long) => A): A =
       var w = 0
       var pos = 0
       var predBits = 0L
@@ -398,11 +327,12 @@ object Core:
         if isPositive(l) then pos += 1
         predBits |= 1L << (headSymbol(atomOf(l)) & 63) // head-symbol fingerprint (mod 64)
         i += 1
-      // One pass over the justification, packing `age` (high bits) and goal-ness (bit 0), so the two parallel
-      // 8-case matches don't drift. Age: every generating rule is one generation past its premises; a
-      // Canonicalization/Demodulation keeps the parent's age (same generation band). Goal-ness propagates as the
-      // OR over premises (an input's is set by the caller), the boolean reduction of Vampire's `max` over the
-      // input-type lattice.
+      use(w, pos, predBits)
+
+    private def buildClause(lits: Array[Literal], justification: Justification, goalInput: Boolean, id: Int): Clause =
+      withSignature(lits) { (w, pos, predBits) =>
+      // Age and goal-ness in one match, so they cannot drift apart: a generating rule is one generation past
+      // its premises, canonicalization and demodulation stay in it, and goal-ness is their disjunction.
       inline def pack(age: Int, goal: Boolean): Long = (age.toLong << 1) | (if goal then 1L else 0L)
       val packed: Long = justification match
         case Justification.Input                             => pack(0, goalInput)
@@ -414,30 +344,21 @@ object Core:
         case Justification.EqualityFactoring(p, _, _, _, _) => pack(p.age + 1, p.isGoal)
         case Justification.Demodulation(t, _, _, ru, _)     => pack(math.max(t.age, ru.age), t.isGoal || ru.isGoal)
       new Clause(lits, w, id, justification, (packed >> 1).toInt, pos, lits.length - pos, predBits, (packed & 1L) != 0)
+      }
 
-    // --- internals ------------------------------------------------------------------------
+    // --- internals ----------------------------------------------------------------------------------------
 
-    /**
-     * Look the record freshly written at offset `p` up in the hash-cons table. If an equal
-     * record already exists, rewind the bump pointer (discarding `p`) and return it;
-     * otherwise keep `p` and insert it.
-     */
-    private def internCandidate(p: Term): Term =
-      // putIfAbsent hashes/compares `p` against stored offsets via the arena in a single probe:
-      // it inserts `(p, p)` and returns `-1` when absent, else returns the stored canonical offset.
-      val existing: Term = intern.putIfAbsent(p, p)
+    /** Look up the record just written at offset `p`. On a hit, rewind the bump pointer and return the stored
+      * term; on a miss, keep `p`. `putIfAbsent` does both in one probe, returning `-1` when absent. */
+    private def hashConsCandidate(p: Term): Term =
+      val existing: Term = hashCons.putIfAbsent(p, p)
       if existing != -1 then
         end = p // rewind: discard the candidate we just wrote
         existing
       else p
 
-    /**
-     * Hash a term by its identifying words (functor + arity, then children), using the
-     * standard `MurmurHash3` mixing. The incremental `mix`/`finalizeHash` API is used so the
-     * words are folded straight out of the arena, without materialising an array. This is the
-     * same protocol as `scala.util.hashing.MurmurHash3.productHash` (a `mix` per element,
-     * seeded with `productSeed`, then `finalizeHash`), just reading from the arena in place.
-     */
+    /** Hash a term over functor, arity and children. Uses the incremental `MurmurHash3` API, which is the same
+     *  protocol as `productHash` but folds the words straight out of the arena with no intermediate array. */
     private def hashOf(t: Term): Int =
       val header: Long = mem(t)
       val n: Int = (header >>> 32).toInt
@@ -468,16 +389,11 @@ object Core:
         while nl < end + extra do nl *= 2
         mem = java.util.Arrays.copyOf(mem, nl)
 
-  // -----------------------------------------------------------------------------------------
-  // Syntactic orderings (a total, deterministic order on terms/literals; distinct from KBO)
-  // -----------------------------------------------------------------------------------------
+  // --- Syntactic orderings (a total, deterministic order on terms/literals; distinct from KBO) ------------
 
-  /**
-   * A total, deterministic structural order on terms: compare the raw functor (variables sort before
-   * symbols, as their functor field is negative), then arguments left to right, bottoming out on
-   * hash-consed identity. Used as a selection tie-break and as the canonical literal sort key; this
-   * is purely syntactic and unrelated to the (semantic) [[KBO]].
-   */
+  /** A total, deterministic structural order on terms: the raw functor first (variables sort before symbols,
+    * their functor being negative), then arguments left to right, bottoming out on hash-consed identity. A
+    * selection tie-break and the canonical literal sort key; purely syntactic, unrelated to the [[KBO]]. */
   def compareStructural(bank: TermBank, s: Term, t: Term): Int =
     if s == t then 0
     else
@@ -494,11 +410,9 @@ object Core:
           i += 1
         r
 
-  /**
-   * Canonical order on literals: by atom ([[compareStructural]]), then by polarity (negative before
-   * positive). This groups duplicate and complementary literals adjacently, so canonicalisation can
-   * dedup and detect tautologies in a single pass over the sorted literals.
-   */
+  /** Canonical order on literals: by atom ([[compareStructural]]), then by polarity (negative before
+    * positive). This groups duplicate and complementary literals adjacently, so canonicalisation can
+    * dedup and detect tautologies in a single pass over the sorted literals. */
   def compareLiterals(bank: TermBank, l1: Literal, l2: Literal): Int =
     val c: Int = compareStructural(bank, bank.atomOf(l1), bank.atomOf(l2))
     if c != 0 then c
@@ -506,17 +420,11 @@ object Core:
 
   // Literal-selection strategies live in Selectors.scala (LiteralSelector and friends).
 
-  // -----------------------------------------------------------------------------------------
-  // Clause
-  // -----------------------------------------------------------------------------------------
+  // --- Clause ---------------------------------------------------------------------------------------------
 
-  /**
-   * How a [[Clause]] was derived, recorded for proof reconstruction. We store only the rule and the
-   * parent clauses with the literal positions involved; the unifier is **not** stored -- it is
-   * recomputed by re-unifying the recorded literals during reconstruction (as in E, Vampire and
-   * Prover9). Parents are held by reference, so a clause transitively retains its whole derivation
-   * DAG (see `archive/PossibleOptimizations.md` for the memory note).
-   */
+  /** How a [[Clause]] was derived, recorded for proof reconstruction: the rule, the parent clauses and the
+    * literal positions involved. The unifier is not stored but recomputed during reconstruction, as in E,
+    * Vampire and Prover9. Parents are held by reference, so a clause keeps its whole derivation alive. */
   enum Justification:
     /** A clause from the input problem (no parents). */
     case Input
@@ -525,19 +433,12 @@ object Core:
     /** Factoring of `parent`'s literals `lit1` and `lit2` (same polarity), unifying their atoms. */
     case Factoring(parent: Clause, lit1: Int, lit2: Int)
 
-    /**
-     * Sort + duplicate-removal canonicalisation of `parent`. The parent is retained only so the
-     * derivation can be reconstructed and is **not** inserted into the clause sets. Sorting and
-     * dropping identical literals are logical no-ops on a set of literals, so reconstruction treats
-     * this as a pass-through for now -- but later simplifications recorded the same way will not be.
-     */
+    /** Sorting and duplicate removal on `parent`. Both are no-ops on a set of literals, so reconstruction
+     *  treats this as a pass-through. */
     case Canonicalization(parent: Clause)
 
-    /**
-     * Superposition: rewrite `into`'s literal `intoLit` at subterm position `pos` (a path of argument
-     * indices into the atom) using the positive equality at `from`'s literal `fromLit`, whose side
-     * `fromSide` (0/1) is the rewriting LHS. Both parents are retained for reconstruction.
-     */
+    /** Superposition: rewrite `into`'s literal `intoLit` at subterm position `pos`, a path of argument indices
+     *  into the atom, using the equality at `from`'s literal `fromLit` with side `fromSide` as the left side. */
     case Superposition(from: Clause, fromLit: Int, fromSide: Int, into: Clause, intoLit: Int, pos: Array[Int])
     /** Equality resolution: unify the two sides of `parent`'s negative equality `lit` (`s ≠ t`) and drop it. */
     case EqualityResolution(parent: Clause, lit: Int)
@@ -546,23 +447,12 @@ object Core:
      *  recorded so reconstruction can recompute the substitution. */
     case EqualityFactoring(parent: Clause, dropped: Int, droppedSide: Int, kept: Int, keptSide: Int)
 
-    /**
-     * Demodulation (rewriting): `target`'s literal `targetLit` is rewritten at subterm position `pos`
-     * (a path of argument indices into the atom) by the positive unit equality `rule`, whose side
-     * `ruleSide` (0/1) is the matched left-hand side. A simplification; `target` is the rewritten premise.
-     */
+    /** Demodulation: `target`'s literal `targetLit` is rewritten at position `pos` by the positive unit
+     *  equality `rule`, whose side `ruleSide` matched. */
     case Demodulation(target: Clause, targetLit: Int, pos: Array[Int], rule: Clause, ruleSide: Int)
 
-    /**
-     * The clauses this inference was derived from, ignoring the literal positions and sides, i.e. the edges
-     * out of this node of the derivation DAG. `Nil` for [[Input]].
-     *
-     * The one place the eight cases are enumerated for DAG *walking*, shared by every consumer that needs
-     * only the edges (the proof cone, the derivation printer, tests counting input leaves), so a ninth rule is
-     * one edit rather than a hunt. Deliberately **not** used by [[TermBank.mkClause]], which runs on every
-     * clause ever built and would pay a `List` allocation for it; its own match also needs more than the
-     * premises (whether the rule advances the age generation).
-     */
+    /** The parent clauses: the edges out of this node of the derivation graph, and the one place the cases are
+      * enumerated for walking. Not used by [[TermBank.mkClause]], which would pay its `List` per clause built. */
     def premises: List[Clause] = this match
       case Input                                => Nil
       case Resolution(l, _, r, _)               => List(l, r)
@@ -573,109 +463,84 @@ object Core:
       case EqualityFactoring(p, _, _, _, _)     => List(p)
       case Demodulation(t, _, _, r, _)          => List(t, r)
 
-  /** The [[Clause.id]] borne by every clause built with [[TermBank.mkQueryClause]]. Negative, so it cannot
-    * collide with an id drawn from the clause counter, and shared by all query clauses, so any code that
-    * treats it as an identity is wrong by construction rather than subtly. */
-  final val QueryClauseId: Int = -1
-
   /**
-   * A clause is an array of [[Literal]]s (a disjunction); no canonical ordering or
-   * deduplication is imposed at construction (see [[TermBank.mkClause]]). It caches its
-   * weight and carries a unique id for later age-based selection, its [[Justification]] (how it was
-   * derived) for proof reconstruction, its `age` (`max(parent ages) + 1`, `0` for input), and its
-   * `selected` literal indices, computed by [[select]] when the clause is activated (so clauses
-   * discarded before activation never pay for it). An empty literal array denotes the empty clause
-   * (falsity).
+   * A disjunction of [[Literal]]s, with no ordering or deduplication imposed at construction, together with the
+   * quantities cached from them: the total `weight`, the polarity counts, and `predBits`, a mask with one bit
+   * per literal head symbol modulo 64. Those four are the subsumption signature `Subsumption.sigSubsumes`
+   * compares; that method states what each is for. An empty literal array is the empty clause.
    *
-   * It also caches a cheap **subsumption signature** -- `posCount`/`negCount` (literal polarity
-   * counts) and `predBits` (a 64-bit fingerprint OR-ing one bit per literal's head-symbol code mod
-   * 64). Together with `size` and `weight` these are what `Subsumption.sigSubsumes` compares for its
-   * O(1) necessary-condition pre-filter on θ-subsumption; that method states the conditions and why
-   * each one holds.
+   * This is everything a *subsumption question* needs, and it is a base class rather than a trait so that
+   * reading these through it stays a field load: `sigSubsumes` reads five of them per candidate pair, which is
+   * the most-executed predicate in the prover.
+   *
+   * The two subclasses are the answer to "does this clause have an identity": a [[Clause]] is a real derived
+   * clause with an id, a derivation and a place in the search; a [[QueryClause]] is a throwaway built only to
+   * ask an index a question. Anything that stores clauses asks for a `Clause`, so a query cannot reach it.
    */
-  final class Clause private[Core] (
+  sealed abstract class ClauseBody private[Core] (
       val literals: Array[Literal],
       val weight: Int,
+      val posCount: Int,
+      val negCount: Int,
+      val predBits: Long):
+    inline def size: Int = literals.length
+    inline def isEmpty: Boolean = literals.length == 0
+
+  /**
+   * A throwaway clause used only as an index retrieval key: the literal combination whose subsumers or
+   * subsumees `Simplifier` is asking about. It has no id, no derivation and no selection, because it is never
+   * stored, never simplified and never appears in a proof -- it exists for the duration of one index query.
+   */
+  final class QueryClause private[Core] (lits: Array[Literal], weight: Int, posCount: Int, negCount: Int, predBits: Long)
+      extends ClauseBody(lits, weight, posCount, negCount, predBits):
+    override def toString: String = literals.mkString("?[", ", ", "]")
+
+  /** A clause the prover derived and may store: it carries an identity, the [[Justification]] that produced it,
+    * and the caches that identity makes worthwhile. */
+  final class Clause private[Core] (
+      lits: Array[Literal],
+      w: Int,
       val id: Int,
       val justification: Justification,
       val age: Int,
-      val posCount: Int,
-      val negCount: Int,
-      val predBits: Long,
+      pos: Int,
+      neg: Int,
+      bits: Long,
       /** Derived from the goal (negated conjecture): true for a goal input clause and for any clause with a goal
        *  parent. Used for goal-directed clause selection (Vampire's `nongoal_weight_coefficient`). */
-      val isGoal: Boolean):
+      val isGoal: Boolean)
+      extends ClauseBody(lits, w, pos, neg, bits):
     private var _selected: Array[Int] = null
 
-    /**
-     * The selected literal indices, set once by [[select]] when the clause is activated; `null`
-     * before that (only active clauses are asked for their selection).
-     */
+    /** The selected literal indices, set once by [[select]] at activation; `null` before that. */
     def selected: Array[Int] = _selected
 
-    /**
-     * Compute and store this clause's literal selection using `bank`'s [[LiteralSelector]], and
-     * return it. Idempotent -- the selection is computed once and cached. Called when the clause
-     * moves from the passive to the active set.
-     */
+    /** The literal selection, computed once by `bank`'s [[LiteralSelector]] and cached. Called when the
+      * clause is activated, so a clause discarded before that never pays for it. */
     def select(bank: TermBank): Array[Int] =
       if _selected == null then _selected = bank.selector.select(bank, literals)
       _selected
 
-    private var _fromSides: List[(Int, Int, Term, Symbol)] = null
-    private var _fromSidesVersion: Int = -1
+    private var _rewriteSources: Array[RewriteSource] = null
 
-    /**
-     * This clause's usable superposition from-sides ([[Superposition.fromSides]] over its [[selected]]
-     * literals), computed once and cached: the from-side analogue of [[select]], and activated clauses only,
-     * since only they are ever asked.
-     *
-     * '''Why it is worth caching.''' The linear (non-indexed) generation scan asks every *active* clause for its
-     * from-sides on every given, so the same list was rebuilt `|active| × |given|` times per saturation, one
-     * tuple per usable side each time. Cached, it is built once per activated clause. The from-index maintenance
-     * in [[ActiveSet]] reads it too, which makes its removal take out exactly the entries its insertion put in
-     * rather than re-deriving equal ones.
-     *
-     * '''Why it is stamped.''' The sides depend on `Order.orient`, hence on the KBO's weights and precedence. A
-     * verdict is only valid for the parameters it was computed under, so the cache carries the
-     * [[Signature.orderingVersion]] it was built at and rebuilds when that moves, the same device
-     * `Order`'s own orientation memo uses. Within one saturation the ordering is fixed and this never fires;
-     * it is what keeps the cache honest if a clause outlives a re-assignment (a bank reused across two
-     * saturations under different [[PrecedenceScheme]]s, as the A/B tests do).
-     */
-    def fromSides(bank: TermBank): List[(Int, Int, Term, Symbol)] =
-      val version: Int = bank.signature.orderingVersion
-      if _fromSides == null || _fromSidesVersion != version then
-        _fromSides = Superposition.fromSides(bank, bank.order, this)
-        _fromSidesVersion = version
-      _fromSides
+    /** The rewrites this clause offers superposition ([[Superposition.rewriteSources]]), cached: `ActiveSet`
+      * reads them on both insertion and removal, so caching is what makes removal take out what insertion put
+      * in. Which sides qualify depends on the term ordering, which is fixed for the run by the time any clause
+      * is activated -- see [[Precedence.assign]], the one thing that sets it. */
+    def rewriteSources(bank: TermBank): Array[RewriteSource] =
+      if _rewriteSources == null then _rewriteSources = Superposition.rewriteSources(bank, this)
+      _rewriteSources
 
-    inline def size: Int = literals.length
-    inline def isEmpty: Boolean = literals.length == 0
+    override def toString: String = if isEmpty then "□" else literals.mkString("[", ", ", "]")
 
-    /** True for a clause built by [[TermBank.mkQueryClause]] as a throwaway index key. Its [[id]] is a shared
-      * sentinel, so it must never be stored anywhere keyed by id -- the active and passive sets reject it. */
-    inline def isQuery: Boolean = id == QueryClauseId
+  // --- Unification (Trail) --------------------------------------------------------------------------------
 
-    override def toString: String = (if isQuery then "?" else "") + (if isEmpty then "□" else literals.mkString("[", ", ", "]"))
-
-  // -----------------------------------------------------------------------------------------
-  // Unification (Trail)
-  // -----------------------------------------------------------------------------------------
-
-  /**
-   * Mutable unification state over a [[TermBank]]: a two-scope binding store plus a
-   * backtrackable trail. A unification operand is a `(term, scope)` pair; the scope (`0` or
-   * `1`) tags which clause a variable belongs to, so the same variable number occurring in
-   * two clauses stays distinct without renaming (the LADR "context" idea, fixed to two
-   * scopes). Bindings live in arrays indexed by `(scope, variable number)` -- the shared
-   * arena terms are never mutated.
-   *
-   * `unify` records its bindings on the trail and never cleans up: a caller brackets a
-   * unification attempt with `val s = save(); ...; restore(s)`, on both success and failure.
-   * Between `unify` and `restore` the bindings form the MGU, consumed either by an [[Applier]]
-   * (to instantiate the conclusion of an inference) or read directly for proof reconstruction.
-   */
+  /** Unification and matching over a [[TermBank]]. An operand is a `(term, scope)` pair, where the scope, `0`
+    * or `1`, says which clause the variable belongs to, so that two clauses can share variable numbers without
+    * being renamed. Arena terms are never mutated.
+    *
+    * No operation cleans up after itself. A caller brackets an attempt with `val s = save(); …; restore(s)`,
+    * on both the success and the failure path. */
   final class Trail(val bank: TermBank):
 
     private inline val NScopes = 2
@@ -718,13 +583,9 @@ object Core:
         liveBindings(trailScope(trailTop)) -= 1
         boundTerm(trailScope(trailTop))(trailVar(trailTop)) = -1
 
-    /**
-     * Dereference `(t, s)`: follow variable bindings until reaching an unbound variable or a
-     * non-variable. The result `(term, scope)` is packed into a single `Long` (term in the high 32
-     * bits, scope in the low 32) to avoid allocating a tuple on this hot path; unpack with
-     * [[derefTerm]]/[[derefScope]]. Ground results are normalised to [[GroundScope]] (their scope is
-     * irrelevant), which lets identical ground terms short-circuit in [[unify]].
-     */
+    /** Follow bindings from `(t, s)` to an unbound variable or a non-variable. The result is packed into one
+     *  `Long` rather than a tuple. Ground results take [[GroundScope]], so identical ground terms compare
+     *  equal in [[unify]] whatever scope they arrived in. */
     private def deref(t: Term, s: Scope): Long =
       var ct: Term = t
       var cs: Scope = s
@@ -748,12 +609,8 @@ object Core:
     /** The scope packed by [[deref]] (low 32 bits). */
     private inline def derefScope(packed: Long): Scope = packed.toInt
 
-    /**
-     * Attempt to unify `(t1, s1)` with `(t2, s2)`, leaving the resulting bindings on the
-     * trail. Returns `true` on success (the trail then holds the MGU) and `false` on failure
-     * (any partial bindings remain on the trail). The caller restores the trail either way.
-     * Scopes must be in `0 until NScopes`.
-     */
+    /** Unify `(t1, s1)` with `(t2, s2)`, leaving the bindings on the trail. On failure partial bindings
+     *  remain, so the caller must restore either way. */
     def unify(t1: Term, s1: Scope, t2: Term, s2: Scope): Boolean =
       workTerm.clear()
       workScope.clear()
@@ -783,21 +640,12 @@ object Core:
               i += 1
       true
 
-    /**
-     * One-sided (first-order) matching: extend the current bindings so that `(pat, ps)` becomes
-     * syntactically equal to `(tgt, ts)`, binding **only** pattern-scope (`ps`) variables and treating
-     * the target as rigid. Returns `true` on success -- the trail then holds the matcher, an extension
-     * of any incoming bindings -- and `false` on failure, leaving partial bindings on the trail; the
-     * caller restores the trail either way, exactly the [[unify]] protocol. The two scopes must
-     * differ (`ps != ts`, the usual `0`/`1`), and the **target scope `ts` must carry no live bindings**:
-     * target terms are treated as rigid (a bound target variable is never dereferenced), so a live `ts`
-     * binding would be silently mis-matched, breaking subsumption soundness. Both preconditions are
-     * asserted at entry (the `ts`-clean check is O(1) via [[liveBindings]]).
-     *
-     * Cheaper than unification: target variables never bind, so there are no chains to follow and **no occurs
-     * check**. A re-encountered bound pattern variable is re-checked by a single offset comparison (`bound != t`),
-     * since structurally equal targets are hash-consed to one offset and every binding lives in scope `ts`.
-     */
+    /** Match `(pat, ps)` onto `(tgt, ts)`, binding only pattern-scope variables and treating the target as
+      * rigid. Same trail protocol as [[unify]]. Cheaper than unification: target variables never bind, so there
+      * are no chains to follow and no occurs check is needed.
+      *
+      * The target scope must carry no live bindings, which is asserted. A bound target variable is never
+      * dereferenced, so such a binding would be silently mismatched and subsumption would become unsound. */
     def matchTerm(pat: Term, ps: Scope, tgt: Term, ts: Scope): Boolean =
       assert(ps != ts, "matchTerm: pattern and target scopes must differ")
       assert(liveBindings(ts) == 0, "matchTerm: target scope must have no live bindings (target terms are treated as rigid)")
@@ -872,15 +720,10 @@ object Core:
         boundTerm(s) = nt
         boundScope(s) = java.util.Arrays.copyOf(boundScope(s), nl)
 
-    /** Capture the current bindings as an [[Applier]] for instantiating an inference's conclusion. */
     def applier(): Applier = new Applier
 
-    /**
-     * Instantiates `(term, scope)` operands into fresh shared terms under the trail's current
-     * bindings. Each distinct unbound variable is consistently renamed to a fresh dense
-     * variable (`0, 1, 2, ...`) across all calls on this instance, so the literals of one
-     * conclusion share a coherent, normalised variable numbering.
-     */
+    /** Instantiates operands under the current bindings, renaming each distinct unbound variable to a fresh
+     *  dense number consistently across all calls, so one conclusion's literals share a coherent numbering. */
     final class Applier:
       private val outVars: mutable.HashMap[(Scope, Variable), Variable] = mutable.HashMap.empty
       // per-scope memo (derefed term -> instantiated term), so shared subterms are built once
@@ -913,18 +756,15 @@ object Core:
       def applyLit(l: Literal, s: Scope): Literal =
         bank.mkLiteral(apply(bank.atomOf(l), s), bank.isPositive(l))
 
-      /** Copy every literal of `lits` except index `skip`, each instantiated in scope `s`, into `out` starting
-       *  at index `from`; returns the next free index. The shared surviving-literal copy used by the generating
-       *  builds ([[Inference.resolve]]/`factor`, [[Superposition.superpose]] and the equality inferences). */
+      /** Copy every literal of `lits` except index `skip` into `out` from index `from`, instantiated in scope
+       *  `s`; returns the next free index. This is how every generating rule copies its surviving literals. */
       def copyLitsExcept(lits: Array[Literal], skip: Int, s: Scope, out: Array[Literal], from: Int): Int =
         var n = from
         var k = 0
         while k < lits.length do { if k != skip then { out(n) = applyLit(lits(k), s); n += 1 }; k += 1 }
         n
 
-  // -----------------------------------------------------------------------------------------
-  // small helpers
-  // -----------------------------------------------------------------------------------------
+  // --- small helpers --------------------------------------------------------------------------------------
 
   private val EmptyArgs: Array[Int] = Array.empty[Int]
 

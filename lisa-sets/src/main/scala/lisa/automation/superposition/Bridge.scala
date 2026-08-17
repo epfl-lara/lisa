@@ -7,61 +7,44 @@ import lisa.tptp.{Problem, AnnotatedFormula, AnnotatedSequent}
 import lisa.automation.clausification.Clausification
 
 import Core.*
+import lisa.automation.superposition.ordering.*
 
-/**
- * Entry points that run the superposition prover on problems expressed in Lisa's **kernel** syntax,
- * and the bridge that converts kernel first-order logic into the internal clause representation.
- *
- * A clause (a disjunction of literals) is represented as a kernel [[lisa.utils.K.Sequent]] in the
- * standard way: a sequent `a₁, …, aₘ ⊢ b₁, …, bₙ` denotes the clause
- * `¬a₁ ∨ … ∨ ¬aₘ ∨ b₁ ∨ … ∨ bₙ`. So formulas on the **left** become **negative** literals and those
- * on the **right** become **positive** literals; the empty sequent `⊢` is the empty clause `□`.
- *
- * The entry point is [[solve]]: it runs the saturation **once** and returns an [[Outcome]]: a
- * [[Outcome.Success]] carrying the empty clause `□` and everything needed to reconstruct a proof (the
- * [[TermBank]] and the per-input variable maps), [[Outcome.Saturated]] (no `□`: the set is satisfiable),
- * or [[Outcome.Timeout]] (a budget was hit before deciding). [[solveTPTPProblem]] is the same for a
- * [[lisa.tptp.Problem]] (it converts then solves), and
- * `success.reconstructKernelProof` turns a `Success` into a kernel proof. With an
- * unbounded budget the search is a semi-decision procedure: it may not terminate on a satisfiable
- * first-order set. The loop uses [[CompleteBestLiteralSelector]] (Vampire's complete default selector) by
- * default, so the calculus is refutation-complete. Equality is handled by the superposition inferences
- * (superposition, equality resolution/factoring, demodulation); they are gated by the `equality` parameter
- * and, independently, auto-disabled when the input clause set contains no `=` at all, where they could
- * never fire.
- */
+/** Runs the prover on clauses given as kernel sequents, converting between that form and the internal one. A
+  * sequent `a₁, …, aₘ ⊢ b₁, …, bₙ` is the clause `¬a₁ ∨ … ∨ ¬aₘ ∨ b₁ ∨ … ∨ bₙ`, so the left side carries the
+  * negative literals and the empty sequent is the empty clause.
+  *
+  * [[solve]] saturates once and returns an [[Outcome]]; `Success.reconstructKernelProof` turns a refutation
+  * into a kernel proof. It also switches the equality inferences off when the input contains no equality,
+  * where they could never apply.
+  *
+  * The **encoding** half of the boundary with the kernel; [[Clausal]] is the other half, adapting the
+  * clausification package to this one. A caller with a first-order problem enters through `Clausal`, one that
+  * already holds clause sequents enters here. */
 object Bridge:
 
-  /**
-   * The result of a [[solve]] run: a [[Outcome.Success]] (the empty clause `□` was derived) carrying
-   * everything needed to reconstruct a kernel proof, [[Outcome.Saturated]] (the passive set was
-   * exhausted without `□`, so the clause set is satisfiable, a genuine decision), or [[Outcome.Timeout]]
-   * (a budget was hit before deciding, so the set's status is unknown).
-   */
+  /** The result of a [[solve]] run: a [[Outcome.Success]] (the empty clause `□` was derived) carrying
+    * everything needed to reconstruct a kernel proof, [[Outcome.Saturated]] (the passive set was
+    * exhausted without `□`, so the clause set is satisfiable, a genuine decision), or [[Outcome.Timeout]]
+    * (a budget was hit before deciding, so the set's status is unknown). */
   sealed trait Outcome:
-    /** Whether the set was refuted (`□` derived). */
     def refuted: Boolean = this match
       case _: Outcome.Success => true
       case Outcome.Saturated | Outcome.Timeout => false
 
   object Outcome:
-    /**
-     * A refutation. Holds the empty clause `empty` and the run's [[TermBank]] plus the per-input-clause
-     * variable maps (`inputs`), the context [[reconstructKernelProof]] needs to rebuild the proof.
-     */
+    /** A refutation. Holds the empty clause `empty` and the run's [[TermBank]] plus the per-input-clause
+      * variable maps (`inputs`), the context [[reconstructKernelProof]] needs to rebuild the proof. */
     final case class Success(
         empty: Clause,
         bank: TermBank,
         inputs: collection.Map[Int, Reconstruction.InputInfo],
         schematicIds: Set[K.Identifier] = Set.empty,
         discharge: Map[K.Variable, K.Expression] = Map.empty) extends Outcome:
-      /**
-       * Reconstruct a kernel [[lisa.utils.K.SCProof]] from this refutation: its imports are the input
-       * clause-sequents and its conclusion is the empty sequent `⊢`. Uses the bank and per-input data
-       * carried here, with no re-solving. `schematicNames` (the ε-abstraction symbols from [[Clausal]]) are rebuilt as kernel
-       * variables; when `discharge` maps them to their `λfv. e` values, they are instead inlined back to the
-       * original (ε-)terms so the proof is free of the abstraction symbols. See [[Reconstruction]].
-       */
+      /** Reconstruct a kernel [[lisa.utils.K.SCProof]] from this refutation: its imports are the input
+        * clause-sequents and its conclusion is the empty sequent `⊢`. Uses the bank and per-input data
+        * carried here, with no re-solving. `schematicNames` (the abstraction symbols from [[Clausal]]) are rebuilt as kernel
+        * variables; when `discharge` maps them to their `λfv. e` values, they are instead inlined back to the
+        * original subterms so the proof is free of the abstraction symbols. See [[Reconstruction]]. */
       def reconstructKernelProof: K.SCProof = Reconstruction.reconstruct(empty, bank, inputs, schematicIds, discharge)
 
     /** The passive set was exhausted without deriving `□`: the clause set is satisfiable (a decision). */
@@ -79,29 +62,34 @@ object Bridge:
    * else [[Outcome.Saturated]] (passive exhausted) or [[Outcome.Timeout]] (budget hit). The per-input
    * variable maps are always recorded so a `Success` can be reconstructed later (cheap: O(input size);
    * the proof DAG itself is only walked by [[Outcome.Success.reconstructKernelProof]]).
+   *
+   * @param sequents   the clause set, one sequent per clause.
+   * @param maxGiven   given-clause budget: how many clauses may be activated before the search gives up.
+   * @param maxMillis  wall-clock budget, checked once per given clause.
+   * @param opts       every search knob, in one value; see [[SearchOptions]].
+   * @param symbolVars schematic symbol variables: kernel `Variable`s to be treated as **symbols** by the prover
+   *                   rather than as clause variables, and rebuilt as variables in reconstruction. Dispatched by
+   *                   position: such a variable in a literal-head position is a **predicate** symbol, in a term
+   *                   position a **function** symbol (the abstraction functions `F` from [[Clausal]], and the
+   *                   clausifier's naming atoms `nm…`). Empty for ordinary clausal input.
+   * @param discharge  abstraction discharge: each symbol `F` ↦ its closed value `λfv. e`. When non-empty,
+   *                   reconstruction inlines `F` back to `e`, so the proof carries the original subterms.
+   * @param goal       indices (into `sequents`) of the goal input clauses, the negated conjecture, for
+   *                   goal-directed clause selection. Goal-ness propagates through inferences; empty means no
+   *                   goal bias, as for a conjecture-free problem.
+   * @param onStats    loop instrumentation sink, invoked with the loop's [[Discount.LoopStats]] after
+   *                   saturation, for any outcome. Default no-op.
    */
   def solve(
       sequents: Iterable[K.Sequent],
       maxGiven: Int = Int.MaxValue,
       maxMillis: Long = Long.MaxValue,
-      // Every search knob, in one value; see [[SearchOptions]].
       opts: SearchOptions = SearchOptions(),
-      // Schematic symbol variables: kernel `Variable`s that are to be treated as **symbols** by the prover
-      // (not clause variables) and rebuilt as variables in reconstruction. Dispatched by position: a symbol
-      // variable in a literal-head position is a **predicate** symbol, in a term position a **function**
-      // symbol (ε-abstractions `F` from [[Clausal]], and the clausifier's naming atoms `nm…`). Empty for
-      // ordinary clausal input.
       symbolVars: Set[K.Variable] = Set.empty,
-      // Abstraction discharge: each symbol `F` ↦ its closed value `λfv. e`; when non-empty, reconstruction
-      // inlines `F` back to `e` so the produced proof contains the original (ε-)terms, not `F`.
       discharge: Map[K.Variable, K.Expression] = Map.empty,
-      // Indices (into `sequents`) of the goal input clauses (the negated conjecture), for goal-directed clause
-      // selection. Goal-ness propagates through inferences; empty ⇒ no goal bias (e.g. a conjecture-free problem).
       goal: Set[Int] = Set.empty,
-      // Loop instrumentation sink: invoked with the loop's [[Discount.LoopStats]] (given-clause throughput + peak
-      // active/passive sizes) after saturation, for any outcome. Default no-op.
       onStats: Discount.LoopStats => Unit = _ => ()): Outcome =
-    val sig: Signature = new Signature(opts.weightScheme)
+    val sig: Signature = new Signature(opts.weightScheme.weightOf)
     val bank: TermBank = new TermBank(sig)
     val trail: Trail = new Trail(bank)
     val inputs = mutable.Map.empty[Int, Reconstruction.InputInfo]
@@ -111,26 +99,25 @@ object Bridge:
       inputs(c.id) = (s, vars.iterator.map((kv, n) => n -> kv).toMap)
       c
     }.toSeq
-    // Generate the KBO symbol precedence from the (now fully interned) signature, before anything reads the
-    // ordering, which clause construction never does, and the selector below is the first thing that can.
-    // (`Order` also self-invalidates on a precedence change, so this is for clarity, not correctness.)
+    // Generate the KBO precedence from the now fully-interned signature. This is the last time the ordering
+    // changes; everything after it treats the ordering as fixed, which is what lets the caches over it hold no
+    // version stamp. Clause construction never reads the ordering, and the selector below is the first thing
+    // that can, so this is the right point.
     Precedence.assign(sig, bank, clauses, opts.precedenceScheme)
+    // Admissibility is a property of a *runtime* configuration, the schemes being per-strategy, and is what
+    // makes the ordering a reduction ordering; an inadmissible one loops inside demodulation or quietly loses
+    // completeness. O(|symbols|), and the only place it can be checked: nothing below knows which schemes ran.
+    val inadmissible: Option[String] = bank.order.kbo.checkAdmissibility()
+    assert(inadmissible.isEmpty, s"KBO is not admissible under this configuration: ${inadmissible.getOrElse("")}")
     bank.selector = LiteralSelection.selector(opts.selection, bank)
-    // Equality inferences are *effectively* on only if the input actually contains the equality symbol: with no
-    // `=` literal in the input, none can ever be derived (superposition/resolution/factoring on non-equality
-    // literals never synthesise an `=` atom), so every equality inference is vacuous. Auto-disabling then skips
-    // building the demodulation/superposition indices at zero cost to completeness.
-    val hasEquality: Boolean = clauses.exists { c =>
-      c.literals.exists { l =>
-        val a = bank.atomOf(l)
-        !bank.isVar(a) && bank.headSymbol(a) == EqualitySymbol
-      }
-    }
+    // Equality inferences can fire only if the input contains `=`: no rule on non-equality literals ever
+    // synthesises an `=` atom, so with none in the input they are vacuous, and disabling them skips building the
+    // demodulation and superposition indices at no cost to completeness.
+    val hasEquality: Boolean = clauses.exists(c => c.literals.exists(l => bank.isEquality(l)))
     val schematicIds: Set[K.Identifier] = symbolVars.map(_.id)
-    // The only place the caller's options are altered: equality is additionally gated on the input actually
-    // containing `=`. Everything else is threaded through untouched, so no knob can be silently dropped.
-    val discount = new Discount(bank, trail, opts.copy(equality = opts.equality && hasEquality))
-    val result = discount.saturate(clauses, maxGiven, maxMillis)
+    // The only place the caller's options are altered; everything else is threaded through untouched.
+    val discount = new Discount(bank, trail, clauses, opts.copy(equality = opts.equality && hasEquality))
+    val result = discount.saturate(maxGiven, maxMillis)
     onStats(discount.loopStats)
     result match
       case Discount.Result.Refutation(empty) => Outcome.Success(empty, bank, inputs, schematicIds, discharge)
@@ -148,25 +135,18 @@ object Bridge:
       onStats: Discount.LoopStats => Unit = _ => ()): Outcome =
     solve(problemSequents(problem), maxGiven, maxMillis, opts, onStats = onStats)
 
-  /** Convert a [[lisa.tptp.Problem]] of pure clauses (e.g. a TPTP `cnf` problem) to clause-sequents. */
   private def problemSequents(problem: Problem): Seq[K.Sequent] =
     problem.formulas.map {
       case s: AnnotatedSequent => s.sequent
       case f: AnnotatedFormula => formulaToSequent(f.formula)
     }
 
-  // -----------------------------------------------------------------------------------------
-  // Kernel FOL -> internal clause conversion
+  // ── Kernel formulas to internal clauses ───────────────────────────────────────────────────────────────
   //
-  // Function/predicate symbols are interned by (full identifier, arity) into the shared signature (so
-  // they are consistent across clauses); equality "=" lands on the reserved [[EqualitySymbol]]. The
-  // intern key is the identifier's *whole* string `id.toString` -- NOT `id.name` -- because the kernel
-  // stores a trailing numeric suffix as the counter index `id.no` (e.g. `e_1` is `Identifier("e", 1)`,
-  // so `e_1` and `e_2` share the name `"e"` and differ only in `no`). Keying on `name` alone would
-  // collapse them into one constant (silently corrupting the problem); `toString` is injective here,
-  // since sanitised identifier names never contain the counter separator `_`. Each clause has its own
-  // variable numbering (0, 1, …), since clause variables are independent.
-  // -----------------------------------------------------------------------------------------
+  // Symbols are interned into the shared signature by their whole identifier string, not by `id.name`: the
+  // kernel keeps a trailing numeric suffix in the separate counter field, so `e_1` and `e_2` share the name
+  // `e` and keying on it alone would collapse them into one symbol. Each clause numbers its own variables
+  // from zero, since clause variables are independent.
 
   /** Convert a kernel sequent (`left ⊢ right` = the clause `¬left ∨ right`) to an internal clause, threading a
    *  caller-owned variable map (kernel variable → internal number) for reconstruction and the set of `symbolVars`
@@ -231,7 +211,7 @@ object Bridge:
         throw IllegalArgumentException(s"not a pure clause: literal head is not a predicate constant or symbol variable: $other")
 
   /** Build an internal term: a clause variable (renumbered per clause), a function/constant application, or a
-   *  schematic **function** variable in `symbolVars` (a [[Clausal]] ε-abstraction `F`, or a Lisa function
+   *  schematic **function** variable in `symbolVars` (a [[Clausal]] abstraction function `F`, or a Lisa function
    *  variable), interned as a function symbol (applied or bare-nullary) rather than treated as a clause variable. */
   private def term(bank: TermBank, vars: mutable.HashMap[K.Variable, Int], t: K.Expression, symbolVars: Set[K.Variable]): Term =
     t match
@@ -249,9 +229,19 @@ object Bridge:
         bank.mkApp(sym, args.iterator.map(a => term(bank, vars, a, symbolVars)).toArray)
 
   /** Decompose a curried kernel application `f(a₁)…(aₙ)` into its head `f` and argument list `[a₁, …, aₙ]`.
-    * Shared with [[Clausal]] and [[CascProver]], which each carried an identical private copy. */
-  private[superposition] def headAndArgs(e: K.Expression): (K.Expression, List[K.Expression]) = e match
-    case K.Application(f, arg) =>
-      val (h, as) = headAndArgs(f)
-      (h, as :+ arg)
-    case _ => (e, Nil)
+    * Shared with [[Clausal]] and [[CascProver]], which each carried an identical private copy.
+    *
+    * Peels the spine into an accumulator, so the arguments arrive in order without appending to the tail of a
+    * list per argument: the natural spelling of this is a recursion returning `as :+ arg`, which copies the whole
+    * list at every step. Arities are small, but this runs over every term of every input clause. */
+  private[superposition] def headAndArgs(e: K.Expression): (K.Expression, List[K.Expression]) =
+    var head: K.Expression = e
+    var args: List[K.Expression] = Nil
+    var peeling = true
+    while peeling do
+      head match
+        // The outermost application peels first, so the arguments come off last-to-first; prepending each puts
+        // them back in source order without a copy.
+        case K.Application(f, arg) => args = arg :: args; head = f
+        case _                     => peeling = false
+    (head, args)

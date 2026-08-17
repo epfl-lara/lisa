@@ -6,24 +6,16 @@ import scala.collection.mutable
 
 import Core.*
 
-/**
- * The **passive** (unprocessed) clause set of the DISCOUNT loop, and the age/weight policy that decides which
- * of its clauses becomes the next given.
- *
- * Two views over the same clauses, with **lazy deletion**: a clause popped via one queue stays behind as a
- * stale entry in the other and is skipped when reached. `livePassive` is the authority on membership, so a
- * pop is "dequeue until a live one turns up".
- *
- *   - **age** is just a FIFO queue. Clauses are enqueued in strictly increasing `id` order (ids are monotonic
- *     and every insertion is a freshly built clause), so the front is already the oldest and no heap is needed.
- *   - **weight** needs a real min-heap on `(weight, id)`. `mutable.PriorityQueue` is a *max*-heap, so the
- *     ordering is reversed: the lighter clause, with ties broken by the smaller id, i.e. the older, comes out
- *     first. The comparison is on raw `Int`s, so no `Tuple2` is allocated and no `Int` boxed per heap step.
- *
- * `balance` alternates between the two Vampire-style, in the ratio [[SearchOptions.ageRatio]] :
- * [[SearchOptions.weightRatio]]. An age slice of at least 1 is what makes clause selection *fair*, and hence
- * the loop refutation-complete: no clause can be starved forever by an endless supply of lighter ones.
- */
+/** The unprocessed clauses, held in two queues over the same clauses: one by age, one by weight. [[pop]]
+  * alternates between them in the ratio [[SearchOptions.ageRatio]] to [[SearchOptions.weightRatio]], an age
+  * share of at least one being what keeps selection fair and the loop refutation-complete.
+  *
+  * Deletion is lazy: a clause popped from one queue stays in the other as a stale entry and is skipped when
+  * reached, so `live` is the authority on membership and a pop dequeues until it finds a live clause.
+  *
+  * The age queue is a plain FIFO, ids being monotonic and every insertion fresh, so its front is already the
+  * oldest. The weight queue needs a heap, and `mutable.PriorityQueue` is a max-heap, so its ordering is
+  * reversed to bring out the lightest clause, ties broken by the smaller id. */
 final class PassiveSet(opts: SearchOptions):
   import opts.{ageRatio, weightRatio, nonGoalWeightCoefficient}
 
@@ -43,24 +35,17 @@ final class PassiveSet(opts: SearchOptions):
   private var _peakSize: Int = 0
   private var _totalEnqueued: Int = 0
 
-  /** Max live size reached since the last [[clear]]. */
+  /** Max live size reached over this saturation. */
   def peakSize: Int = _peakSize
 
-  /** Total clauses ever enqueued since the last [[clear]]. */
+  /** Total clauses ever enqueued over this saturation. */
   def totalEnqueued: Int = _totalEnqueued
 
   def isEmpty: Boolean = live.isEmpty
   def nonEmpty: Boolean = !live.isEmpty
 
-  /** Drop everything, for reuse across saturations. */
-  def clear(): Unit =
-    byAge.clear(); byWeight.clear(); live.clear(); balance = 0
-    _peakSize = 0; _totalEnqueued = 0
-
   /** Add `c` to both queues. The caller is responsible for canonicalising/simplifying it first. */
   def enqueue(c: Clause): Unit =
-    require(!c.isQuery, "PassiveSet.enqueue: a query clause is a throwaway index key with a shared sentinel " +
-      "id; `live` is keyed by id, so enqueuing one would make every query clause look already-selected")
     byAge.enqueue(c)
     byWeight.enqueue(c)
     live.add(c.id)
@@ -68,12 +53,10 @@ final class PassiveSet(opts: SearchOptions):
     val n = live.size()
     if n > _peakSize then _peakSize = n
 
-  /**
-   * Pick and remove the next given clause by the age/weight ratio: scan the chosen queue, skipping stale
-   * (already-selected) entries. A live clause is guaranteed when the set is non-empty, since every passive
-   * clause sits in *both* queues. The scan is inlined per queue rather than factored into a by-name helper,
-   * so no thunk is allocated per call.
-   */
+  /** Pick and remove the next given clause by the age/weight ratio: scan the chosen queue, skipping stale
+    * (already-selected) entries. A live clause is guaranteed when the set is non-empty, since every passive
+    * clause sits in *both* queues. The scan is inlined per queue rather than factored into a by-name helper,
+    * so no thunk is allocated per call. */
   def pop(): Clause =
     if balance > 0 || (balance == 0 && ageRatio <= weightRatio) then
       balance -= ageRatio

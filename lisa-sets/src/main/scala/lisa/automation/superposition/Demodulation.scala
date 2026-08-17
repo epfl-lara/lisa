@@ -4,36 +4,39 @@ import scala.collection.mutable
 import it.unimi.dsi.fastutil.ints.IntArrayList
 
 import Core.*
+import lisa.automation.superposition.ordering.*
+import lisa.automation.superposition.index.*
 
-/**
- * Demodulation: simplification by rewriting with **positive unit equalities**. Forward
- * demodulation normal-forms a clause against the active unit equations; backward demodulation rewrites
- * active clauses with a newly arrived unit equality. Each rewrite step replaces a subterm by a strictly
- * smaller instance (the reduction ordering guarantees termination), so a clause is normalised by repeated
- * single steps; each step records a [[Justification.Demodulation]] chained to the previous clause.
- *
- * Matching (not unification) drives it: the rule's LHS is a generalisation of the rewritten subterm, so
- * only the rule's variables bind (via [[Trail.matchTerm]]). The result is built through a [[Trail.Applier]]
- * exactly as the generating inferences do, so the target clause's variables are consistently renumbered.
- *
- * **Redundancy gate** ([[isPremiseRedundant]], encompassment demodulation à la Vampire / E's restricted
- * rewriting): a rewrite may *delete/replace* its premise (simplify) except when it rewrites a whole side of
- * a maximal positive **unit** equality with a renaming (variant) matcher; there the premise is not
- * redundant and the rewrite is **skipped** (superposition covers that inference). Everywhere else, whether inside
- * a subterm, a non-equality/negative literal, a multi-literal clause, a proper (non-renaming) instance, or
- * rewriting the larger side downward, the premise is always redundant, so demodulation simplifies freely.
- */
+/** Rewriting by positive unit equalities. Forward demodulation normal-forms a clause against the active
+  * equations, backward demodulation rewrites active clauses with a new one. Each step replaces a subterm by a
+  * strictly smaller instance, so repeated steps terminate, and each records its own justification.
+  *
+  * Matching drives it rather than unification, so only the rule's variables bind and the rewritten clause stays
+  * rigid, which is what makes the result entail it. [[isPremiseRedundant]] is the exception: rewriting a whole
+  * side of a maximal positive unit equality with a renaming matcher leaves the premise non-redundant, so that
+  * rewrite is skipped and left to superposition.
+  *
+  * The ordering is not a parameter, for the reason given on [[Superposition]]; each public entry reads it once
+  * and passes it down, so the fixpoint loops resolve it per clause rather than per rewrite. */
 object Demodulation:
 
   /** A usable rewrite direction extracted from a positive unit equality clause: `lhs → rhs`. `lhsVars` are
-   *  the distinct variables of `lhs`, precomputed once (they're invariant) for the renaming redundancy check. */
-  final case class Rule(source: Clause, side: Int, lhs: Term, rhs: Term, oriented: Boolean, lhsVars: Array[Term])
+   *  the distinct variables of `lhs`, precomputed once (they're invariant) for the renaming redundancy check.
+   *
+   *  Identity is `(source.id, side)`, which determines the rest, so that a rule re-derived from its clause
+   *  deletes the stored one. Same convention as the [[FromEntry]] payloads of the other index. */
+  final class Rule(val source: Clause, val side: Int, val lhs: Term, val rhs: Term, val oriented: Boolean, val lhsVars: Array[Term]):
+    override def equals(o: Any): Boolean = o match
+      case r: Rule => source.id == r.source.id && side == r.side
+      case _       => false
+    override def hashCode: Int = source.id * 31 + side
+    override def toString: String = s"Rule(c${source.id}, side=$side)"
 
   /** Whether `c` is a positive unit equality, the shape a demodulator must have. A cheap pre-check before
     * [[rules]], which would return `Nil` for anything else. */
   def isPositiveUnitEquality(bank: TermBank, c: Clause): Boolean =
     c.literals.length == 1 && bank.isPositive(c.literals(0)) &&
-      bank.headSymbol(bank.atomOf(c.literals(0))) == EqualitySymbol
+      bank.isEquality(c.literals(0))
 
   /** Distinct variable terms occurring in `t`, in first-occurrence order. */
   private def varsOf(bank: TermBank, t: Term): List[Term] =
@@ -45,21 +48,20 @@ object Demodulation:
         while i < n do { go(bank.arg(x, i)); i += 1 }
     go(t); acc.toList
 
-  /**
-   * The usable rewrite directions of `eq` as a demodulator: `Nil` unless `eq` is a positive unit equality.
-   * Oriented equations rewrite from the `Gt` side; unoriented ones rewrite from a side only if that side's
-   * variables cover the other's (so no fresh variable is introduced) and it is not itself a variable.
-   */
-  def rules(bank: TermBank, order: Order, eq: Clause): List[Rule] =
+  /** The usable rewrite directions of `eq` as a demodulator: `Nil` unless `eq` is a positive unit equality.
+    * Oriented equations rewrite from the `Gt` side; unoriented ones rewrite from a side only if that side's
+    * variables cover the other's (so no fresh variable is introduced) and it is not itself a variable. */
+  def rules(bank: TermBank, eq: Clause): List[Rule] =
     if eq.literals.length != 1 then Nil
     else
+      val order: Order = bank.order
       val lit = eq.literals(0)
       val atom = bank.atomOf(lit)
-      if !bank.isPositive(lit) || !order.isEqualityAtom(atom) then Nil
+      if !bank.isPositive(lit) || !bank.isEqualityAtom(atom) then Nil
       else
         val s0 = bank.arg(atom, 0); val s1 = bank.arg(atom, 1)
         def mk(side: Int, lhs: Term, rhs: Term, oriented: Boolean): Rule =
-          Rule(eq, side, lhs, rhs, oriented, varsOf(bank, lhs).toArray)
+          new Rule(eq, side, lhs, rhs, oriented, varsOf(bank, lhs).toArray)
         order.orient(atom) match
           case Cmp.Gt => if bank.isVar(s0) then Nil else List(mk(0, s0, s1, true))
           case Cmp.Lt => if bank.isVar(s1) then Nil else List(mk(1, s1, s0, true))
@@ -72,46 +74,34 @@ object Demodulation:
             if !bank.isVar(s0) && v1.subsetOf(v0) then rs = mk(0, s0, s1, false) :: rs
             rs
 
-  /** Forward demodulation against a pre-extracted rule set (the loop caches these). */
-  def normalForm(bank: TermBank, trail: Trail, order: Order, clause: Clause, rules: Array[Rule]): Clause =
+  /** Rewrite `clause` to a normal form by repeating `step` until it stops firing. Each step replaces a subterm
+   *  by a strictly smaller instance, so this terminates. One closure per call, not per step. */
+  private def fixpoint(clause: Clause)(step: Clause => Option[Clause]): Clause =
+    var cur: Clause = clause
+    var next: Option[Clause] = step(cur)
+    while next.isDefined do
+      cur = next.get
+      next = step(cur)
+    cur
+
+  /** Forward demodulation against an explicit rule set: the shape backward demodulation needs, where the rules
+   *  are the ones extracted from the single new unit equality. */
+  def normalForm(bank: TermBank, trail: Trail, clause: Clause, rules: Array[Rule]): Clause =
     if rules.isEmpty then clause
     else
-      var cur = clause
-      var step = rewriteOnce(bank, trail, order, cur, rules)
-      while step.isDefined do
-        cur = step.get
-        step = rewriteOnce(bank, trail, order, cur, rules)
-      cur
+      val order: Order = bank.order
+      fixpoint(clause)(rewriteOnce(bank, trail, order, _, rules))
 
-  /** Forward demodulation against a [[DiscriminationTree]] index of demodulators: the same
-   *  simplification as [[normalForm]] over the indexed rule set, but each subterm's matching demodulators are
-   *  found by one tree descent (with σ built on the trail) instead of scanning every rule. */
-  def normalFormIndexed(bank: TermBank, trail: Trail, order: Order, clause: Clause, tree: DiscriminationTree): Clause =
+  /** Forward demodulation against a [[DiscriminationTree]] of demodulators, which is how the loop rewrites the
+   *  given clause against the whole active rule set: each subterm's matching demodulators come from one tree
+   *  descent (with σ built on the trail) rather than a scan of every rule. */
+  def normalFormIndexed(bank: TermBank, trail: Trail, clause: Clause, tree: DiscriminationTree[Rule]): Clause =
     if tree.isEmpty then clause
     else
-      var cur = clause
-      var step = rewriteOnceIndexed(bank, trail, order, cur, tree)
-      while step.isDefined do
-        cur = step.get
-        step = rewriteOnceIndexed(bank, trail, order, cur, tree)
-      cur
+      val order: Order = bank.order
+      fixpoint(clause)(rewriteOnceIndexed(bank, trail, order, _, tree))
 
-  /**
-   * Backward demodulation: a new positive unit equality `newEq` arrives; rewrite each clause in `active`
-   * whose subterms it can reduce. Returns the `(removed, replacement)` pairs (the loop removes the original
-   * and re-inserts the replacement).
-   */
-  def backwardDemodulate(bank: TermBank, trail: Trail, order: Order, newEq: Clause, active: Iterable[Clause]): List[(Clause, Clause)] =
-    val rs = rules(bank, order, newEq).toArray
-    if rs.isEmpty then Nil
-    else
-      val out = mutable.ListBuffer.empty[(Clause, Clause)]
-      for c <- active do
-        val r = normalForm(bank, trail, order, c, rs)
-        if r.id != c.id then out += ((c, r))
-      out.toList
-
-  // --- one rewrite step --------------------------------------------------------------------------
+  // --- one rewrite step -----------------------------------------------------------------------------------
 
   /** The first applicable single rewrite of `c` by any rule, leftmost-outermost over subterm positions.
    *  Enumerates positions with a reused stack ([[Superposition.foreachSubterm]]); a position is only
@@ -136,7 +126,7 @@ object Demodulation:
    *  subterm positions. Same shape as [[rewriteOnce]], but each subterm's matching rules come from one tree
    *  descent (`retrieveGeneralizations`, which leaves σ on the trail) rather than a scan; [[applyRuleAt]] then
    *  applies the gates + build with σ already in place. */
-  private def rewriteOnceIndexed(bank: TermBank, trail: Trail, order: Order, c: Clause, tree: DiscriminationTree): Option[Clause] =
+  private def rewriteOnceIndexed(bank: TermBank, trail: Trail, order: Order, c: Clause, tree: DiscriminationTree[Rule]): Option[Clause] =
     var result: Option[Clause] = None
     var iLit = 0
     while iLit < c.literals.length && result.isEmpty do
@@ -188,14 +178,22 @@ object Demodulation:
           k += 1
         Some(bank.mkClause(newLits, Justification.Demodulation(c, iLit, pos, rule.source, rule.side)))
 
-  /**
-   * Whether rewriting `c`'s literal `iLit` at position `path` (yielding instance `rS` on that side) keeps
-   * the premise redundant, i.e. whether the rewrite may simplify (delete/replace) `c`. Encompassment mode. Reads
-   * the live position stack (no snapshot): only its depth and first index matter.
-   */
+  /** Reproduces [[applyRuleAt]]'s `Applier` order (the rule's two sides, then the target's literals in index
+   *  order); see [[Superposition.replayApplier]]. Change one and change the other. */
+  private[superposition] def replayApplier(bank: TermBank, ap: Trail#Applier,
+                                           rule: Clause, ruleSide: Int, target: Clause): Unit =
+    val ruleAtom: Term = bank.atomOf(rule.literals(0)) // the demodulator is a positive unit equality
+    ap.apply(bank.arg(ruleAtom, ruleSide), 0) //     the rule's lhs
+    ap.apply(bank.arg(ruleAtom, 1 - ruleSide), 0) // its rhs
+    var k = 0
+    while k < target.literals.length do { ap.apply(bank.atomOf(target.literals(k)), 1); k += 1 }
+
+  /** Whether rewriting `c`'s literal `iLit` at position `path` (yielding instance `rS` on that side) keeps
+    * the premise redundant, i.e. whether the rewrite may simplify (delete/replace) `c`. Encompassment mode. Reads
+    * the live position stack (no snapshot): only its depth and first index matter. */
   private def isPremiseRedundant(bank: TermBank, order: Order, ap: Trail#Applier,
                                  c: Clause, lit: Literal, atom: Term, path: IntArrayList, rS: Term, rule: Rule): Boolean =
-    val wholeSide = order.isEqualityAtom(atom) && path.size() == 1
+    val wholeSide = bank.isEqualityAtom(atom) && path.size() == 1
     if !wholeSide then true // rewriting inside a subterm / a non-equality literal: always redundant
     else if !bank.isPositive(lit) || c.literals.length != 1 then true // check only bites on positive unit equalities
     else

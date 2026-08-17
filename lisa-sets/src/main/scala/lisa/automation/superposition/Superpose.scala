@@ -9,25 +9,15 @@ import lisa.utils.prooflib.ProofTacticLib.*
 import lisa.automation.clausification.{Clausification, CertifiedClausifier}
 import lisa.maths.Quantifiers
 
-/**
- * The `Superpose` proof tactic: discharge a first-order goal with the certified superposition prover.
- *
- * It clausifies the goal (negate → NNF → Skolemize → prenex → distribute) with
- * [[CertifiedClausifier.certifyClausal]], refutes the clause set with the DISCOUNT superposition loop
- * ([[Clausal.proveOutcome]]), and reconstructs a kernel proof of the goal. The reconstruction leans on one
- * library lemma, [[lisa.maths.Quantifiers.existsEpsilonIff]], whose schematic statement is exactly the
- * clausifier's [[Clausification.libImports]]; the tactic supplies it as the sub-proof's import, so it is
- * discharged against the real theorem.
- *
- * ==Scope==
- * Any sequent shape, `Γ ⊢ Δ`, both sides possibly empty. The clausifier takes a single conjecture *formula*,
- * so the goal is passed through [[sequentToFormula]] (`⋀Γ ⟹ ⋁Δ`, and just `⋁Δ` when `Γ` is empty) and the
- * proof of `⊢ ⋀Γ ⟹ ⋁Δ` is turned back into `Γ ⊢ Δ` by one closing `Restate`, trivially valid since the
- * kernel's `isSameSequent` compares exactly these two sequents' `sequentToFormula` images, which are the
- * same expression. Cited facts (`Superpose.from(f₁, …, fₙ)`) are folded the same way, so a hypothesis of any
- * shape becomes one axiom of the clause set. Free variables are implicitly universally quantified, as
- * everywhere in Lisa: the clausifier closes them before negating and reinstantiates them at the end.
- */
+/** Discharges a first-order goal by clausifying it with [[CertifiedClausifier.certifyClausal]], refuting the
+  * clauses with [[Clausal.proveOutcome]], and reconstructing a kernel proof. It supplies
+  * [[lisa.maths.Quantifiers.existsEpsilonIff]], the clausifier's one library import, so that the sub-proof is
+  * discharged against the real theorem.
+  *
+  * Accepts any sequent shape, either side possibly empty. The clausifier takes a single formula, so `Γ ⊢ Δ`
+  * is passed as `⋀Γ ⟹ ⋁Δ` and restated back, which the kernel accepts because `isSameSequent` compares
+  * exactly those two images. Cited facts fold in the same way, and free variables are implicitly universally
+  * quantified, as elsewhere in Lisa. */
 object Superpose extends ProofTactic with ProofSequentTactic with ProofFactSequentTactic:
 
   /** Cooperative wall-clock budget for the search, in milliseconds. */
@@ -43,11 +33,9 @@ object Superpose extends ProofTactic with ProofSequentTactic with ProofFactSeque
   /** Signals a non-refutation (saturation/timeout) from the clausal prover, so `certifyClausal` unwinds. */
   private class NotRefuted(val reason: String) extends RuntimeException(reason)
 
-  /**
-   * Build the certified kernel proof of `⊢ sequentToFormula(goal)` from the hypothesis formulas `hypForms`
-   * (each fed as an axiom `⊢ hyp`), or a failure message. The returned proof's imports are
-   * `[⊢ hyp₁, …, ⊢ hypₙ] ++ Clausification.libImports` (the schematic library statement).
-   */
+  /** Build the certified kernel proof of `⊢ sequentToFormula(goal)` from the hypothesis formulas `hypForms`
+    * (each fed as an axiom `⊢ hyp`), or a failure message. The returned proof's imports are
+    * `[⊢ hyp₁, …, ⊢ hypₙ] ++ Clausification.libImports` (the schematic library statement). */
   private def runProver(hypForms: Seq[Expression], goal: Sequent): Either[String, SCProof] =
     val conjectureFormula: Expression = sequentToFormula(goal) // `⋀Γ ⟹ ⋁Δ`, or just `⋁Δ` when `Γ` is empty
     val problem = Clausification.Problem(

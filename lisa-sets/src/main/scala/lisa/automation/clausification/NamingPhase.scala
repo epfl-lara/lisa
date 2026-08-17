@@ -22,11 +22,9 @@ private[clausification] object NamingPhase:
       nmApp: Expression, //          d(x̄)
       subst: Expression, //          the named subformula
       pol: Int, //                   the polarity `subst` occurs at (+1 / -1 / 0 under `⇔`)
+      quantified: Expression, //     the full definition `∀x̄. subst ⇔ d(x̄)`, which the bridge below imports
       bridge: SCProof //             conclusion `f ⊢ named`, one import `() ⊢ quantified`
   ):
-    /** The full definition `∀x̄. subst ⇔ d(x̄)`.*/
-    lazy val quantified: Expression = NamingSupport.quantifyAll(subst <=> nmApp, freeVars)
-
     /** The definition handed to the downstream phases, i.e. the one that gets clausified: only the half
       * the site's polarity actually uses (Plaisted-Greenbaum).
       */
@@ -42,7 +40,8 @@ private[clausification] object NamingPhase:
   /** The subformula UncertifiedClausifier.name names *next*, plus the `RightSubstIff` context to certify it and the
     * polarity it occurs at, which decides which half of the definition the downstream phases get (see
     * [[NamingStep.directional]]). */
-  private final case class Site(subst: Expression, phiBody: Expression, p: Variable, pol: Int)
+  private final case class Site(subst: Expression, phiBody: Expression, p: Variable, pol: Int,
+                                xs: Seq[Variable], rebuild: Expression => Expression)
 
   /** Find the larger child of the deepest-leftmost multiplicative node whose estimate exceeds `threshold`, 
    * post-order (same as the uncertified version)). */
@@ -52,14 +51,16 @@ private[clausification] object NamingPhase:
       val xs = NamingSupport.namingVars(child, frozen)
       val pSort = xs.foldRight(Prop: Sort)((v, acc) => v.sort >>: acc)
       val p = Variable(Identifier(GeneratedNames.hole, markers.next()), pSort)
-      Site(child, rebuild(xs.foldLeft(p: Expression)(_(_))), p, sitePol)
+      // `xs` and `rebuild` are kept: `nameOne` sizes the naming atom from the first, rather than recomputing the
+      // same free-variable list, and fills the same context with it through the second.
+      Site(child, rebuild(xs.foldLeft(p: Expression)(_(_))), p, sitePol, xs, rebuild)
       
     // Returns the site, if any, together with the node's own estimate, which is combined from the children's
     // rather than recomputed: asking for it separately at each node would walk every subtree again. The two
     // children are always searched, where the old `orElse` chain stopped at the first hit, so `markers` may
     // advance further; the numbers never leave the step, being substituted away with `p`.
     def go(f: Expression, pol: Int, rebuild: Expression => Expression): (Option[Site], Est) = f match
-      case And(g, h) => // pos additive, neg multiplicative
+      case And(g, h) => // pos additive, neg multiplicative 
         val (og, eg) = go(g, pol, hole => rebuild(and(hole)(h)))
         val (oh, eh) = go(h, pol, hole => rebuild(and(g)(hole)))
         val here = og.orElse(oh).orElse:
@@ -108,20 +109,19 @@ private[clausification] object NamingPhase:
   def nameOne(f: Expression, counter: Counter, threshold: Int, markers: Counter, frozen: Set[Variable]): Option[NamingStep] =
     checkInterrupted()
     findSite(f, 1, threshold, markers, frozen).map { site =>
-      val (nm, freeVars, nmApp) = NamingSupport.freshNamingAtom(site.subst, counter, frozen) // == namingVars(subst, frozen)
+      val (nm, freeVars, nmApp) = NamingSupport.freshNamingAtomOver(site.xs, counter)
       val substLambda = NamingSupport.lambdifyAll(site.subst, freeVars)
       val nmAppLambda = NamingSupport.lambdifyAll(nmApp, freeVars)
       val quantified = NamingSupport.quantifyAll(site.subst <=> nmApp, freeVars)
-      // `p` and `nm` have the same sort (both over x̄) and both occur applied to x̄, so a *direct* p→nm
-      // substitution gives `nmApp` at the marker while leaving the rest structurally untouched (no β/η, so bound
-      // variable names are preserved), matching UncertifiedClausifier's plain structural naming exactly.
-      val named = substituteVariablesOpti(site.phiBody, Map(site.p -> nm))
+      // The context filled with `nmApp` instead of the marker, which rebuilds only the spine down to the site.
+      // Substituting `p -> nm` through `phiBody` would give the same formula by walking all of it.
+      val named = site.rebuild(nmApp)
       val steps = IndexedSeq(
         Hypothesis(f |- f, f), //                                                                              0
         RightSubstIff(Sequent(Set(f, quantified), Set(named)), 0, Seq((substLambda, nmAppLambda)), (Seq(site.p), site.phiBody)),
         Restate(() |- quantified, -1), //                                                                      2
         Cut(f |- named, 2, 1, quantified))
-      NamingStep(named, nm, freeVars, nmApp, site.subst, site.pol, SCProof(steps, IndexedSeq(() |- quantified)))
+      NamingStep(named, nm, freeVars, nmApp, site.subst, site.pol, quantified, SCProof(steps, IndexedSeq(() |- quantified)))
     }
 
   // ── the naming phase ───────────────────────────────────────────────────────────────────────────
@@ -138,24 +138,16 @@ private[clausification] object NamingPhase:
 
     // Fresh counter for internal proof markers only, so `counter` (naming atoms) advances exactly as UncertifiedClausifier.
     val markers = Counter()
+    /** One hypothesis on its way through naming: the formula naming starts from, and the [[NamingStep]]s applied
+      * to it in order. The form they end at, which is what goes downstream, is the last one's. */
+    final case class HypData(phi: Expression, steps: IndexedSeq[NamingStep]):
+      def named: Expression = steps.lastOption.map(_.named).getOrElse(phi)
     // Per-hypothesis: iterate nameOne to a fixpoint, mirroring UncertifiedClausifier.name.
-    /** One hypothesis on its way through naming.
-      *   - `idx`   : its position in `problem.hypotheses`, which is also its import slot.
-      *   - `phi`   : the hypothesis formula, the form naming starts from.
-      *   - `steps` : the [[NamingStep]]s applied to it, in the order applied.
-      *   - `named` : the form they end at, which is what goes downstream. */
-    final case class HypData(idx: Int, phi: Expression, steps: IndexedSeq[NamingStep], named: Expression)
-    val allData: IndexedSeq[HypData] = problem.hypotheses.zipWithIndex.map { case (hyp, i) =>
+    val allData: IndexedSeq[HypData] = problem.hypotheses.toIndexedSeq.map { hyp =>
       val phi = singleRightFormula(hyp, "hypothesis")
-      val buf = scala.collection.mutable.ArrayBuffer.empty[NamingStep]
-      var current = phi
-      var continue = true
-      while continue do
-        nameOne(current, counter, threshold, markers, problem.frozen) match
-          case None    => continue = false
-          case Some(s) => buf += s; current = s.named
-      HypData(i, phi, buf.toIndexedSeq, current)
-    }.toIndexedSeq
+      HypData(phi, Iterator.unfold(phi)(current =>
+        nameOne(current, counter, threshold, markers, problem.frozen).map(s => (s, s.named))).toIndexedSeq)
+    }
 
     val flatSteps: IndexedSeq[NamingStep] = allData.flatMap(_.steps)
     val Q = flatSteps.size
@@ -178,21 +170,20 @@ private[clausification] object NamingPhase:
 
     val innerSteps = scala.collection.mutable.ArrayBuffer.empty[ClausificationProofStep]
     val namedRefs = scala.collection.mutable.ArrayBuffer.empty[Int] // ref proving `() ⊢ named_i` (per hyp)
-    var jBase = 0
-    for hd <- allData do
+    val defBase = allData.map(_.steps.size).scanLeft(0)(_ + _) // defBase(i): hypothesis i's first definition slot
+    for (hd, i) <- allData.zipWithIndex do
       // Start from `() ⊢ φ` and chain the per-step naming bridges (each `prev ⊢ next` via its definition, Cut
       // in `() ⊢ prev`). With no steps the loop does not run and the import reference is what goes downstream.
-      var prevRef = innerHypRef(hd.idx)
+      var prevRef = innerHypRef(i)
       var prevFormula: Expression = hd.phi
       for k <- hd.steps.indices do
         val st = hd.steps(k)
-        innerSteps += SCSubproof(st.bridge, IndexedSeq(innerDefRef(jBase + k)))
+        innerSteps += SCSubproof(st.bridge, IndexedSeq(innerDefRef(defBase(i) + k)))
         val bridgeRef = innerSteps.size - 1
         innerSteps += Cut(() |- st.named, prevRef, bridgeRef, prevFormula)
         prevRef = innerSteps.size - 1
         prevFormula = st.named
       namedRefs += prevRef
-      jBase += hd.steps.size
 
     // Weaken each `⇔` assumption to the directional half the downstream problem declares. One `Weakening` per
     // definition: the kernel's rule is `isImplyingSequent`, an ortholattice *entailment*, and the checker takes

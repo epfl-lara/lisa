@@ -3,6 +3,8 @@ package lisa.automation.superposition
 import org.scalatest.funsuite.AnyFunSuite
 
 import Core.*
+import Oracles.*
+import lisa.automation.superposition.index.*
 
 /** Standalone tests for [[Permutation]] (adaptive feature selection) and
  *  [[FeatureVectorIndex]] (the subsumption feature-vector trie). No saturation-loop wiring yet. */
@@ -230,17 +232,6 @@ class FeatureVectorTest extends AnyFunSuite:
     idx.insert(victim)
     assert(idx.size == cs.size)
     assert(collect(idx.forwardCandidates(victim)).contains(victim.id))
-  }
-
-  test("clear empties the index") {
-    val fx = new Fix
-    val cs = sampleClauses(fx)
-    val perm = Permutation.build(fx.bank, cs, maxLen = 8)
-    val idx = new FeatureVectorIndex(fx.bank, perm)
-    cs.foreach(idx.insert)
-    idx.clear()
-    assert(idx.isEmpty && idx.size == 0)
-    assert(collect(idx.forwardCandidates(cs.head)).isEmpty)
   }
 
   test("a fully collapsed permutation (no informative features) degenerates to one leaf but stays correct") {

@@ -3,9 +3,11 @@ package lisa.automation.superposition
 import org.scalatest.funsuite.AnyFunSuite
 
 import Core.*
+import Oracles.*
+import lisa.automation.superposition.ordering.*
 
 /**
- * Tests for the equality-aware [[Order]] (Phase 4, step 1): orientation, the literal order `≻_L`
+ * Tests for the equality-aware [[Order]]: orientation, the literal order `≻_L`
  * (equality multiset + resolution order + equality-below-non-equality), (strict) maximality, and the
  * clause order `≻_C`. Terms are built directly through a [[Signature]] + [[TermBank]] (as in [[KBOTest]]);
  * constants interned earlier have lower precedence, so `const("a") < const("b") < const("c")`.
@@ -30,38 +32,22 @@ class OrderTest extends AnyFunSuite:
   }
 
   /**
-   * The orientation memo must not outlive the KBO parameters it was computed under. Precedence is read
-   * *live* by the KBO and is rewritten by [[Precedence.assign]] **after** the clauses are built, so a verdict
-   * cached beforehand would silently survive into the saturation under a different ordering. `Order` stamps
-   * its cache with [[Core.Signature.orderingVersion]] and drops it when that moves.
+   * The orientation memo must not outlive the ordering it was computed under. Weights are fixed when a symbol
+   * is interned, so the only thing that can change the ordering once terms exist is [[Precedence.assign]],
+   * which runs after the clauses are built and clears the memo as its last act.
    *
-   * Here `a`/`b` are equal-weight constants, so their orientation is decided by precedence alone: `a ≺ b`
-   * from the interning order, flipped by raising `a`. Before the version stamp this test read `Lt` twice.
+   * Here `a`/`b` are equal-weight constants, so their orientation is decided by precedence alone.
    */
-  test("the orientation memo is dropped when the signature's ordering parameters change") {
+  test("Precedence.assign drops orientation verdicts taken before it ran") {
     val fx = new Fix; import fx.*
     val a = const("a"); val b = const("b") // interned in order ⇒ precedence a < b
     val eq = mkEq(a, b)
-    assert(order.orient(eq) == Lt) // a ≺ b, and now memoised
-    sig.info(fn("a", 0)).precedence = 1000 // raise `a` above `b`: the cached verdict is now wrong
-    assert(order.orient(eq) == Gt, "orient returned a verdict cached under the previous precedence")
-    sig.info(fn("a", 0)).precedence = 0 // and back again
-    assert(order.orient(eq) == Lt)
-  }
-
-  /**
-   * A symbol *weight* change invalidates the memo too. Demonstrated on **non-ground** sides, because that is
-   * where a late weight change is observable at all: `KBO.accumulateBalance` reads `info.weight` live for a
-   * non-ground compound, whereas a ground term's weight is folded into its arena record at construction and
-   * never re-read, so raising a constant's weight after the term exists changes nothing (cf. `KBOTest`).
-   */
-  test("a weight change also invalidates the orientation memo") {
-    val fx = new Fix; import fx.*
-    val f = fn("f", 1); val g = fn("g", 1); val x = v(0)
-    val eq = mkEq(app(f, x), app(g, x)) // equal weights, one variable each side ⇒ precedence decides: f ≺ g
-    assert(order.orient(eq) == Lt) //         memoised under the default weights
-    sig.info(f).weight = 5 //               f(x) now outweighs g(x), so the weight balance decides first
-    assert(order.orient(eq) == Gt, "orient returned a verdict cached under the previous weights")
+    assert(order.orient(eq) == Lt) // a ≺ b under the interning order, and now memoised
+    // `InvFrequency` puts the *more frequent* symbol lower, and this clause set mentions `b` twice, so the
+    // assignment reverses the two and the memoised verdict is no longer the right one.
+    Precedence.assign(sig, bank, Seq(clause(pos(mkEq(b, b))), clause(pos(mkEq(a, b)))), PrecedenceScheme.InvFrequency)
+    assert(sig.info(fn("a", 0)).precedence > sig.info(fn("b", 0)).precedence, "expected the assignment to flip a/b")
+    assert(order.orient(eq) == Gt, "orient returned a verdict cached under the pre-assignment precedence")
   }
 
   // --- equality literal order (multiset extension) ------------------------------------------------

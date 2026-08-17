@@ -1,23 +1,14 @@
 package lisa.automation.superposition
+package ordering
 
 import Core.*
 
-/**
- * Symbol-**precedence** generation schemes for the KBO term ordering (see `archive/ProverHeuristics.md` for
- * the survey these were drawn from). KBO gives each symbol two independent parameters: a *weight* and a
- * *precedence* (a total order on symbols). The precedence is the tiebreak when the weight balance is zero and
- * drives the lexicographic argument descent, so it decides how equations orient (which side rewrites to
- * which), which literals come out maximal, and thus the whole shape of the search.
- *
- * Each scheme computes the order once, from the input clauses' symbol-occurrence counts. The default is
- * **frequent symbols small** ([[PrecedenceScheme.InvFrequency]]), which is what E and Vampire both settle on:
- * terms then rewrite *toward* the common vocabulary and rare symbols are eliminated first. The alternative
- * [[PrecedenceScheme.Occurrence]] is the interning order, arbitrary and parse-order dependent, kept only as
- * an A/B baseline, and the weak default both provers avoid.
- *
- * Every scheme produces a **total** order (distinct precedences), which KBO needs to stay total on ground
- * terms, since [[KBO]] returns `Inc` on "equal precedence but distinct symbols".
- */
+/** How the KBO symbol precedences are generated, following E and Vampire. Each scheme computes the order once
+  * from the symbol counts of the input clauses. The default makes frequent symbols small, so that terms
+  * rewrite toward the common vocabulary and rare symbols are eliminated first.
+  *
+  * Every scheme gives distinct precedences, which KBO needs to stay total on ground terms: it returns `Inc`
+  * for two distinct symbols of equal precedence. */
 enum PrecedenceScheme:
   /** Interning order (identity): the arbitrary baseline, kept for A/B comparison. */
   case Occurrence
@@ -32,15 +23,15 @@ enum PrecedenceScheme:
 object Precedence:
 
   /**
-   * Overwrite every signature symbol's `precedence` per `scheme`, from symbol-occurrence counts over
-   * `clauses` (the input clause set, in which all function/predicate symbols that will ever appear are present by
-   * then). Call once, after the whole signature is interned and **before** saturation (precedence is read
-   * live by [[KBO]]; term weights are cached from symbol *weights*, not precedence, so this is sound after
-   * clause construction). Idempotent for a fixed input.
+   * Assign every symbol's precedence under `scheme`, from its occurrence count in `clauses`. Call once, after
+   * the signature is interned and before saturation. It has to run this late: the default scheme ranks symbols
+   * by how often they occur, so it needs every clause first. Doing so after the clauses are built is sound
+   * because KBO reads the precedence live and caches only the weights, which are fixed at interning.
+   * Idempotent for a fixed input.
    *
-   * Each write bumps [[Core.Signature.orderingVersion]], so any cache over the term ordering, today
-   * [[Order]]'s orientation memo, drops entries computed under the previous precedence. Assigning late (or
-   * more than once) is therefore safe, not merely conventionally avoided.
+   * This is the only thing that changes the term ordering once terms exist, so it ends by clearing the one
+   * cache built on the ordering ([[Order.invalidate]]). Everything downstream may then treat the ordering as
+   * fixed, which is why nothing else stamps or re-checks it.
    */
   def assign(sig: Signature, bank: TermBank, clauses: Iterable[Clause], scheme: PrecedenceScheme): Unit =
     val count = new Array[Long](sig.size)
@@ -53,6 +44,7 @@ object Precedence:
     val ordered: Array[SymbolInfo] = sig.symbols.toArray.sortWith((a, b) => precedes(a, b, count, scheme))
     var rank = 0
     while rank < ordered.length do { ordered(rank).precedence = rank; rank += 1 }
+    bank.order.invalidate() // no verdict taken under the interning-order precedence may survive this
 
   /** Accumulate every symbol occurrence in `t` (head + all subterms; variables carry no symbol). */
   private def countTerm(bank: TermBank, t: Term, count: Array[Long]): Unit =

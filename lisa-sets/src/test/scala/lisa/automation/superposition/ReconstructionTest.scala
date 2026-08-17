@@ -178,7 +178,7 @@ class ReconstructionTest extends AnyFunSuite:
   }
 
   // -----------------------------------------------------------------------------------------
-  // Equality reconstruction (Phase 4 Step 5): superposition, equality resolution, equality
+  // Equality reconstruction: superposition, equality resolution, equality
   // factoring, and demodulation. Each problem is refuted using the equality inferences, and the
   // kernel must accept the reconstructed `RightSubstEq`/`LeftSubstEq`/`LeftRefl` derivation.
   // -----------------------------------------------------------------------------------------

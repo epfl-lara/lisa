@@ -7,41 +7,27 @@ import lisa.automation.clausification.Clausification.GeneratedNames
 
 import Core.*
 
-/**
- * Reconstruction of a refutation (the empty clause and its [[Justification]] DAG) into a Lisa kernel
- * [[lisa.utils.K.SCProof]] whose imports are the input clause-sequents and whose conclusion is the
- * empty sequent `⊢`. This file is the design; `archive/Reconstruction.md` predates it and describes a
- * different one (it is still marked "design, not implemented").
- *
- * Each clause becomes one proof reference (an import or a step), **memoised** by clause id so a clause
- * reused across the DAG is expanded once. Every clause's kernel sequent uses a canonical variable
- * naming (`cv0, cv1, …`), reused across clauses since each clause is instantiated independently. Inputs
- * import the user's exact sequent and a per-input `InstSchema` renames its variables to the canonical scheme.
- *
- * The mapping: `Input` → import (+ rename `InstSchema`); `Factoring` → `InstSchema` (the merged
- * literals collapse in the set-sequent); `Resolution` → `InstSchema` of each parent by the recomputed
- * mgu, then `Cut` on the resolved atom; `Canonicalization` → pass-through (sort/dedup are no-ops on
- * set-sequents); the equality inferences (superposition, demodulation, equality resolution/factoring) are
- * described by the block comment at their `build*` methods below. The mgu is recomputed by re-unifying the
- * recorded literals; the conclusion's variable numbering is recovered by replaying the inference's `Applier`
- * over the surviving literals.
- *
- * The signature stores an identifier's name and counter index separately, so a rebuilt symbol's identifier is
- * reassembled rather than parsed back out of a `name_no` string: `Identifier("e", 1)`, never the wrong
- * `Identifier("e_1", 0)`.
- */
+/** Reconstruction of a refutation (the empty clause and its [[Justification]] DAG) into a Lisa kernel
+  * [[lisa.utils.K.SCProof]] whose imports are the input clause-sequents and whose conclusion is the
+  * empty sequent `⊢`.
+  *
+  * Each clause becomes one import or step, memoised by clause id so a clause used several times is built once.
+  * Clauses are stated with variables named `cv0, cv1, …`, reused across clauses since each is instantiated
+  * independently; an input is imported as the caller wrote it and renamed by an `InstSchema`. The README lists
+  * which kernel rules each inference maps to.
+  *
+  * Neither the substitution nor the conclusion's variable numbering is stored during the search: the first is
+  * recovered by re-unifying the recorded literals, the second by replaying the inference's `Applier`. */
 object Reconstruction:
 
   /** An input clause's original sequent plus the map (internal var number → its original kernel variable). */
   type InputInfo = (K.Sequent, Map[Int, K.Variable])
 
-  /**
-   * Reconstruct the refutation rooted at `empty` into a kernel proof. `inputs` maps each input clause's
-   * id to its original sequent and variable map (supplied by [[Bridge]]). `schematicNames` are the interned
-   * symbol names that came from **schematic function variables** ([[Clausal]]'s abstraction of non-first-order
-   * subterms); they are rebuilt as kernel `Variable`s rather than `Constant`s so a later `InstSchema` can
-   * instantiate them back.
-   */
+  /** Reconstruct the refutation rooted at `empty` into a kernel proof. `inputs` maps each input clause's
+    * id to its original sequent and variable map (supplied by [[Bridge]]). `schematicNames` are the interned
+    * symbol names that came from **schematic function variables** ([[Clausal]]'s abstraction of non-first-order
+    * subterms); they are rebuilt as kernel `Variable`s rather than `Constant`s so a later `InstSchema` can
+    * instantiate them back. */
   def reconstruct(
       empty: Clause,
       bank: TermBank,
@@ -57,9 +43,8 @@ object Reconstruction:
     private val imports: mutable.ArrayBuffer[K.Sequent] = mutable.ArrayBuffer.empty
     private val memo: mutable.Map[Int, Recon] = mutable.Map.empty
     private val trail: Trail = new Trail(bank)
-    // ε-abstraction discharge ([[Clausal]]), keyed by interned symbol name for [[kernelize]]: each schematic function
-    // symbol `F` maps to its closed value `λfv. e` (the original non-first-order subterm), inlined so the
-    // rebuilt proof is purely `e`-bearing (no `F`, no trailing `InstSchema`). Empty for ordinary clausal input.
+    // Abstraction discharge ([[Clausal]]), keyed by symbol name for [[kernelize]]: each schematic `F` maps to its
+    // closed value `λfv. e`, inlined so the rebuilt proof carries `e` and never `F`. Empty for clausal input.
     private val dischargeById: Map[K.Identifier, K.Expression] = discharge.map((v, e) => v.id -> e).toMap
 
     def reconstructProof(empty: Clause): K.SCProof =
@@ -94,7 +79,7 @@ object Reconstruction:
       case Justification.EqualityResolution(p, i) => buildEqualityResolution(p, i)
       case Justification.EqualityFactoring(p, d, ds, k, ks) => buildEqualityFactoring(p, d, ds, k, ks)
 
-    /** Inline the ε-abstraction discharge into a sequent: substitute every schematic `F` by its `λfv. e` value and
+    /** Inline the abstraction discharge into a sequent: substitute every schematic `F` by its `λfv. e` value and
      *  β-normalise, turning `F`-bearing atoms into `e`-bearing ones. Identity when nothing was abstracted. */
     private def dischargeSeq(s: K.Sequent): K.Sequent =
       if discharge.isEmpty then s
@@ -102,7 +87,7 @@ object Reconstruction:
 
     private def buildInput(c: Clause): Recon =
       val (rawOrigSeq, vm) = inputs(c.id)
-      val origSeq = dischargeSeq(rawOrigSeq) // present the import with `F` inlined back to its ε-term
+      val origSeq = dischargeSeq(rawOrigSeq) // present the import with `F` inlined back to its original subterm
       val imp = addImport(origSeq)
       if vm.isEmpty then Recon(imp, origSeq)
       else
@@ -143,13 +128,13 @@ object Reconstruction:
       val resolvent = K.Sequent(t1seq.left ++ (t2seq.left - phi), (t1seq.right - phi) ++ t2seq.right)
       Recon(addStep(K.Cut(resolvent, t1ref, t2ref, phi)), resolvent)
 
-    // --- equality inferences ------------------------------------------------------------------------
+    // --- equality inferences ------------------------------------------------------------------------------
     //
     // Superposition and demodulation share one shape ([[buildRewrite]]): instantiate both parents by the
-    // recomputed unifier/matcher, `SubstEq` the rewritten literal in the *into/target* instance (adding the
-    // equation `l=r` to its antecedent), then `Cut` the *from/rule* instance (carrying `l=r` on the right)
-    // against it. Equality resolution collapses a unified disequality `s≉t` with `LeftRefl`; equality
-    // factoring is a single `RightSubstEq` (plus a reorientation when the two equalities' sides disagree).
+    // recomputed unifier/matcher, `SubstEq` the rewritten literal in the *into/target* instance, adding `l=r` to
+    // its antecedent, then `Cut` the *from/rule* instance against it. Equality resolution collapses a unified
+    // disequality with `LeftRefl`; equality factoring is one `RightSubstEq`, plus a reorientation if the sides
+    // disagree.
 
     private def buildSuperposition(from: Clause, iFrom: Int, fromSide: Int, into: Clause, iInto: Int, pos: Array[Int]): Recon =
       val fromAtom = bank.atomOf(from.literals(iFrom))
@@ -157,13 +142,7 @@ object Reconstruction:
       buildRewrite(
         from, iFrom, fromSide, into, iInto, pos,
         establish = () => { trail.unify(l, 0, Superposition.subtermAt(bank, bank.atomOf(into.literals(iInto)), pos), 1); () },
-        replay = ap =>
-          // reproduce [[Superposition.superpose]]'s applier order so the conclusion's fresh var numbering matches `c`
-          ap.apply(l, 0); ap.apply(bank.arg(fromAtom, 1 - fromSide), 0); ap.apply(bank.atomOf(into.literals(iInto)), 1)
-          var k = 0
-          while k < into.literals.length do { ap.apply(bank.atomOf(into.literals(k)), 1); k += 1 }
-          k = 0
-          while k < from.literals.length do { ap.apply(bank.atomOf(from.literals(k)), 0); k += 1 }
+        replay = ap => Superposition.replayApplier(bank, ap, from, iFrom, fromSide, into, iInto)
       )
 
     private def buildDemodulation(target: Clause, iTarget: Int, pos: Array[Int], rule: Clause, ruleSide: Int): Recon =
@@ -172,20 +151,14 @@ object Reconstruction:
       buildRewrite(
         rule, 0, ruleSide, target, iTarget, pos,
         establish = () => { trail.matchTerm(l, 0, Superposition.subtermAt(bank, bank.atomOf(target.literals(iTarget)), pos), 1); () },
-        replay = ap =>
-          // reproduce [[Demodulation.tryRewrite]]'s applier order (rule sides first, then target literals in order)
-          ap.apply(l, 0); ap.apply(bank.arg(ruleAtom, 1 - ruleSide), 0)
-          var k = 0
-          while k < target.literals.length do { ap.apply(bank.atomOf(target.literals(k)), 1); k += 1 }
+        replay = ap => Demodulation.replayApplier(bank, ap, rule, ruleSide, target)
       )
 
-    /**
-     * The common superposition/demodulation reconstruction: `from` (scope 0) rewrites `into`'s literal `iInto`
-     * at subterm `pos` with the equation on `from`'s side `fromSide`. `establish` re-binds the trail with the
-     * unifier (superposition) or matcher (demodulation); `replay` re-runs the [[Trail.Applier]] in the
-     * generating code's order so the conclusion's fresh variables match `c`. Emits a `SubstEq` (Right if the
-     * rewritten literal is positive, else Left) that adds `lσ=rσ` to the antecedent, then a `Cut` on `lσ=rσ`.
-     */
+    /** The common superposition/demodulation reconstruction: `from` (scope 0) rewrites `into`'s literal `iInto`
+      * at subterm `pos` with the equation on `from`'s side `fromSide`. `establish` re-binds the trail with the
+      * unifier (superposition) or matcher (demodulation); `replay` re-runs the [[Trail.Applier]] in the
+      * generating code's order so the conclusion's fresh variables match `c`. Emits a `SubstEq` (Right if the
+      * rewritten literal is positive, else Left) that adds `lσ=rσ` to the antecedent, then a `Cut` on `lσ=rσ`. */
     private def buildRewrite(
         from: Clause, iFrom: Int, fromSide: Int, into: Clause, iInto: Int, pos: Array[Int],
         establish: () => Unit, replay: trail.Applier => Unit): Recon =
@@ -249,9 +222,7 @@ object Reconstruction:
       val saved = trail.save()
       trail.unify(s, 0, bank.arg(bank.atomOf(parent.literals(j)), jSide), 0) // σ = mgu(s, s')
       val applier = trail.applier()
-      // reproduce [[Superposition.factorOne]]'s applier order (s, t, t', then the survivors, skipping i)
-      applier.apply(s, 0); applier.apply(t, 0); applier.apply(tp, 0)
-      replaySurvivors(applier, parent, skip = i, scope = 0)
+      Superposition.replayFactoringApplier(bank, applier, parent, i, iSide, j, jSide)
       val substC = substOf(parent, applier, scope = 0)
       val botC = substSeq(pC.seq, substC)
       val hole = freshHole()
@@ -303,7 +274,7 @@ object Reconstruction:
         val args: IndexedSeq[K.Expression] = (0 until n).map(k => kernelize(bank.arg(t, k)))
         applySymbol(bank.headSymbol(t), args)
 
-    /** Apply interned symbol `head` to already-kernelised `args`, honouring the ε-abstraction discharge (inline a
+    /** Apply interned symbol `head` to already-kernelised `args`, honouring the abstraction discharge (inline a
      *  schematic `F` to its `λfv. e` value, β-reduced) and the schematic-symbol convention (an undischarged
      *  schematic symbol round-trips as a `Variable`, so a later `InstSchema` can target it). */
     private def applySymbol(head: Symbol, args: IndexedSeq[K.Expression]): K.Expression =
@@ -340,12 +311,10 @@ object Reconstruction:
       holeCounter += 1
       h
 
-    /**
-     * Flip an equality on the **right** of a derived sequent: given a step `ref` proving `Γ ⊢ Δ, a=b`, emit a
-     * short derivation of `Γ ⊢ Δ, b=a` (reflexivity + one `RightSubstEq` + a `Cut`) and return its reference and
-     * sequent. Used to reorient a rewriting equation whose stored side order is the reverse of the one the
-     * `SubstEq` step needs.
-     */
+    /** Flip an equality on the **right** of a derived sequent: given a step `ref` proving `Γ ⊢ Δ, a=b`, emit a
+      * short derivation of `Γ ⊢ Δ, b=a` (reflexivity + one `RightSubstEq` + a `Cut`) and return its reference and
+      * sequent. Used to reorient a rewriting equation whose stored side order is the reverse of the one the
+      * `SubstEq` step needs. */
     private def flipEqRight(ref: Int, seq: K.Sequent, a: K.Expression, b: K.Expression): (Int, K.Sequent) =
       val ab = mkEqK(a, b)
       val ba = mkEqK(b, a)

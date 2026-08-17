@@ -10,7 +10,7 @@ import lisa.kernel.KernelProof
 import Core.*
 
 /**
- * Low-level, kernel-checked reconstruction tests for the individual Phase-4 equality inferences that the full
+ * Low-level, kernel-checked reconstruction tests for the individual equality inferences that the full
  * saturation loop rarely selects on tiny problems (it prefers demodulation / resolution): **superposition**
  * (both into-polarities and both from-orientations) and **equality factoring** (with and without a
  * side-reorientation). Each test builds one generating step directly, reconstructs the derived clause into a
@@ -26,7 +26,7 @@ class EqualityReconstructionTest extends AnyFunSuite:
       val l = bank.arg(bank.atomOf(from.literals(iFrom)), fromSide)
       val u = Superposition.subtermAt(bank, bank.atomOf(into.literals(iInto)), uPos)
       val saved = trail.save()
-      val res = if trail.unify(l, 0, u, 1) then Superposition.superpose(bank, trail, order, from, iFrom, fromSide, into, iInto, IntArrayList.wrap(uPos)) else None
+      val res = if trail.unify(l, 0, u, 1) then Superposition.superpose(bank, trail, from, iFrom, fromSide, into, iInto, IntArrayList.wrap(uPos)) else None
       trail.restore(saved)
       res
 
@@ -64,6 +64,16 @@ class EqualityReconstructionTest extends AnyFunSuite:
       assert(proof.conclusion == seqOf(derived), s"conclusion ${proof.conclusion} != expected ${seqOf(derived)}")
       assert(proof.imports.toSet.subsetOf(parents.iterator.map(seqOf).toSet), "imports are not among the parents")
 
+    /** `seqOf(c)` with the fixture's `X<n>` variables renamed to the `cv<n>` scheme reconstruction builds its
+      * sequents in, so a **non-ground** derived clause's conclusion can be compared exactly. This is the
+      * invariant every consumer of a reconstructed step depends on: the sequent proved for `c` must name its
+      * variables by `c`'s own internal numbers, because the children name theirs by reading `c` directly. */
+    def canonSeqOf(c: Clause): K.Sequent =
+      val rename: Map[K.Variable, K.Expression] = vmOf(c).map((n, x) =>
+        x -> K.Variable(K.Identifier(lisa.automation.clausification.Clausification.GeneratedNames.reconClauseVar, n), K.Ind))
+      val s = seqOf(c)
+      K.Sequent(s.left.map(K.substituteVariables(_, rename)), s.right.map(K.substituteVariables(_, rename)))
+
   // --- superposition ------------------------------------------------------------------------------
 
   test("reconstruct superposition into a positive predicate literal (RightSubstEq)") {
@@ -74,6 +84,24 @@ class EqualityReconstructionTest extends AnyFunSuite:
     val r = superposeAt(from, 0, 0, into, 0, Array(0)).get // ⇒ P(b)
     assert(r.literals.toSet == Set(pos(app(P, b))))
     checkReconstructs(r, from, into)
+  }
+
+  test("reconstruct superposition when both parents contribute a surviving variable (numbering must match)") {
+    // The only test here whose conclusion is non-ground, and so the only one that can observe *which* fresh
+    // number each variable got: two must survive, one from each parent. It fails if `superpose` and
+    // `Superposition.replayApplier` stop agreeing on the order they hand operands to the `Applier`.
+    val fx = new Fix; import fx.*
+    val P = pred("P", 1); val Q = pred("Q", 1); val R = pred("R", 1)
+    val f = fn("f", 1); val a = const("a"); val b = const("b")
+    val y = v(0); val z = v(1); val w = v(0) // `y`/`z` are scope-0 (from), `w` scope-1 (into): numbers may repeat
+    val from = clause(pos(mkEq(app(f, y), a)), pos(app(P, z))) //  f(y) ≈ a ∨ P(z)
+    val into = clause(pos(app(Q, app(f, b))), pos(app(R, w))) //   Q(f(b)) ∨ R(w)
+    val r = superposeAt(from, 0, 0, into, 0, Array(0)).get //      ⇒ Q(a) ∨ R(w) ∨ P(z), w and z renumbered
+    assert(r.literals.length == 3)
+    assert(vmOf(r).size == 2, s"expected two surviving variables, got ${vmOf(r).keys}")
+    val proof = Reconstruction.reconstruct(r, bank, Seq(from, into).map(p => p.id -> (seqOf(p), vmOf(p))).toMap)
+    KernelProof.assertCorrectProofNoSorry(proof, "reconstruction")
+    assert(proof.conclusion == canonSeqOf(r), s"conclusion ${proof.conclusion} != expected ${canonSeqOf(r)}")
   }
 
   test("reconstruct superposition into a negative literal (LeftSubstEq)") {
@@ -112,7 +140,7 @@ class EqualityReconstructionTest extends AnyFunSuite:
     val fx = new Fix; import fx.*
     val c0 = const("c"); val a = const("a"); val b = const("b"); val f = fn("f", 1); val x = v(0)
     val cl = clause(pos(mkEq(app(f, x), a)), pos(mkEq(app(f, b), c0))) // f(x)≈a ∨ f(b)≈c
-    val factor = Superposition.equalityFactoring(bank, trail, order, cl, Array(0, 1))
+    val factor = Superposition.equalityFactoring(bank, trail, cl, Array(0, 1))
       .find(_.literals.toSet == Set(neg(mkEq(a, c0)), pos(mkEq(app(f, b), c0)))).get // a≉c ∨ f(b)≈c
     factor.justification match
       case Justification.EqualityFactoring(_, d, ds, k, ks) => assert(ds == ks) // same side ⇒ no flip
@@ -124,7 +152,7 @@ class EqualityReconstructionTest extends AnyFunSuite:
     val fx = new Fix; import fx.*
     val c0 = const("c"); val a = const("a"); val b = const("b"); val f = fn("f", 1); val x = v(0)
     val cl = clause(pos(mkEq(app(f, x), a)), pos(mkEq(c0, app(f, b)))) // f(x)≈a ∨ c≈f(b): kept side is arg1
-    val factor = Superposition.equalityFactoring(bank, trail, order, cl, Array(0, 1))
+    val factor = Superposition.equalityFactoring(bank, trail, cl, Array(0, 1))
       .find(_.literals.toSet == Set(neg(mkEq(a, c0)), pos(mkEq(c0, app(f, b))))).get // a≉c ∨ c≈f(b)
     factor.justification match
       case Justification.EqualityFactoring(_, d, ds, k, ks) => assert(ds != ks) // opposite sides ⇒ flip path

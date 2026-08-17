@@ -3,15 +3,14 @@ package lisa.automation.superposition
 import org.scalatest.funsuite.AnyFunSuite
 
 import Core.*
+import lisa.automation.superposition.ordering.*
 
-/** Phase-5 heuristics: KBO symbol-**precedence** generation ([[Precedence]] / [[PrecedenceScheme]]). Checks the
+/** KBO symbol-**precedence** generation ([[Precedence]] / [[PrecedenceScheme]]). Checks the
  *  schemes produce a *total* order (KBO needs it), are deterministic, order symbols as advertised, and, most
  *  importantly, do not change the prover's verdict (an A/B against the former occurrence-order baseline). */
 class PrecedenceTest extends AnyFunSuite:
 
   class Fix extends TermFixture:
-
-    bank.selector = new CompleteBestLiteralSelector(bank.order)
 
     def precOf(f: Symbol): Int = sig.info(f).precedence
     def allPrecedences: Seq[Int] = sig.symbols.map(_.precedence).toSeq
@@ -81,7 +80,7 @@ class PrecedenceTest extends AnyFunSuite:
       val f = fn("f", 1); val a = const("a")
       val cs = Seq(clause(pos(mkEq(app(f, a), a))), clause(neg(mkEq(app(f, app(f, a)), a))))
       Precedence.assign(sig, bank, cs, scheme)
-      new Discount(bank, trail).saturate(cs, maxGiven = 1000) match
+      new Discount(bank, trail, cs).saturate(maxGiven = 1000) match
         case Discount.Result.Refutation(empty) => assert(empty.isEmpty)
         case other => fail(s"$scheme: expected Refutation, got $other")
   }
@@ -91,5 +90,5 @@ class PrecedenceTest extends AnyFunSuite:
     val a = const("a"); val b = const("b"); val P = pred("P", 1)
     val cs = Seq(clause(pos(mkEq(a, b))), clause(pos(app(P, a))))
     Precedence.assign(sig, bank, cs, PrecedenceScheme.InvFrequency)
-    assert(new Discount(bank, trail).saturate(cs, maxGiven = 1000) == Discount.Result.Saturated)
+    assert(new Discount(bank, trail, cs).saturate(maxGiven = 1000) == Discount.Result.Saturated)
   }

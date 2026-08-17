@@ -10,30 +10,18 @@ import lisa.tptp.KernelParser.{problemToKernel, strictMapAtom, strictMapTerm, st
 import lisa.automation.clausification.{Clausification, UncertifiedClausifier}
 import lisa.automation.clausification.Clausification.problemSize
 import BenchUtil.{withTimeout, toClausificationProblem}
+import lisa.automation.superposition.ordering.*
 
 /**
- * A uniform, **reconstruction-free** throughput baseline across all three evaluation datasets (the clausal
- * [[Evaluation]] set, the equality-free [[FofEvaluation]] set, and the equality-bearing [[EqFofEvaluation]]
- * set), drawn with the same seeded shuffle each of those harnesses uses so the sample is identical.
- *
- * Each problem is parsed, clausified with the **non-proof-producing** clausifier
- * ([[UncertifiedClausifier.clausalForm]], the pure clause computation with no clausification proof), and then
- * refuted with [[Clausal.solveOutcome]], which runs the DISCOUNT loop to a verdict and **does not reconstruct a
- * kernel proof**. So the two timed phases are exactly clausification and prover search, with no proof machinery
- * on either side. Per problem it reports: the phase times (ms), the total, the number of **given** clauses the
- * loop processed, and the number of clauses **derived** (ever enqueued to passive). Output rows are
- * tab-separated for easy post-processing, next to E on the same sample.
- *
- * Equality inferences are configured per dataset: **off** for the two equality-free sets (`clausal`, `fof`) and
- * **on** for the equality set (`eq`), the fair configuration for each problem class. Fingerprint indexing is on.
- *
- * Needs the `TPTP` env var pointing at the TPTP root (the directory containing `Problems/`). Run:
+ * Throughput across all three datasets with no proof built on either side, so the two timed phases are exactly
+ * clausification and search. Rows are tab-separated, for comparison against another prover on the same sample.
+ * Equality inferences are on for the equality dataset and off for the other two, the fair setting for each.
+ * Requires `TPTP` to point at the problem library.
  * {{{
- *   TPTP=/path/to/TPTP-v9.2.1 sbt "lisa-sets/runMain lisa.automation.superposition.bench.BaselineBench run <clausal|fof|eq> [n] [seed] [timeoutMs] [maxGiven] [maxSize]"
- *   TPTP=/path/to/TPTP-v9.2.1 sbt "lisa-sets/runMain lisa.automation.superposition.bench.BaselineBench sample <clausal|fof|eq> [n] [seed]"
+ *   TPTP=/path sbt "lisa-sets/runMain lisa.automation.superposition.bench.BaselineBench run <clausal|fof|eq> [n] [seed] [timeoutMs] [maxGiven] [maxSize]"
+ *   TPTP=/path sbt "lisa-sets/runMain lisa.automation.superposition.bench.BaselineBench sample <clausal|fof|eq> [n] [seed]"
  * }}}
- * `sample` prints the seeded draw's TPTP-root-relative paths (one per line) so an external prover (E) can be run
- * on the exact same set.
+ * `sample` prints the drawn paths, so that another prover can be run on the same set.
  */
 object BaselineBench:
 
@@ -108,7 +96,7 @@ object BaselineBench:
     if tptpRoot.isEmpty then return
     val eq = equalityFor(dataset)
     val picked = sample(dataset, n, seed)
-    println(s"# dataset=$dataset list=${lists(dataset)} seed=$seed n=${picked.size} timeout=${timeoutMs}ms maxGiven=$maxGiven maxSize=$maxSize equality=$eq precedence=$precedence index=true (uncertified clausification, NO reconstruction)")
+    println(s"# dataset=$dataset list=${lists(dataset)} seed=$seed n=${picked.size} timeout=${timeoutMs}ms maxGiven=$maxGiven maxSize=$maxSize equality=$eq precedence=$precedence (uncertified clausification, NO reconstruction)")
     println("# ROW\tproblem\tresult\tclausify_ms\tprover_ms\ttotal_ms\tgiven\tderived")
     BenchUtil.resetAbandoned()
     picked.foreach { rel =>

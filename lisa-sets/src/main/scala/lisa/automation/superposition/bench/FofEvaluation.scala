@@ -1,18 +1,12 @@
 package lisa.automation.superposition
 package bench
 
-/**
- * The second evaluation dataset: non-clausal (FOF), first-order, equality-free, arithmetic-free TPTP
- * **theorems** (`tptp-fof-fo-noeq-thm.txt`), the analog of the clausal [[Evaluation]] set, selected the very
- * same way (by the TPTP `SPC` header: `FOF_THM_{RFO,EPR}_NEQ`) but **without** the already-clausal restriction.
- * The `CSR` (SUMO commonsense) domain is excluded: all 359 such problems include a giant numeric
- * ontology whose long numeric-suffixed identifiers (`c_bcase_3235139646`) the TPTP parser mishandles and which
- * exceed any sane clausification size budget, leaving 944 clean FO theorems.
- *
- * Being equality-free, the `equality` ablation here only measures the equality machinery's inert cost (unlike
- * the equality-bearing [[EqFofEvaluation]]). Everything else, the pipeline, CLI and output, is the shared
- * [[FofHarness]]; see it for the run modes and column meanings.
- */
+/** 944 equality-free first-order FOF theorems, the non-clausal analogue of [[Evaluation]]. The SUMO domain is
+  * excluded: all 359 of its problems carry a numeric ontology whose identifiers the TPTP parser mishandles and
+  * which exceeds any reasonable clausification budget.
+  *
+  * Being equality-free, varying `equality` here measures only what the equality machinery costs when it cannot
+  * apply. Everything else is [[FofHarness]]. */
 object FofEvaluation:
   // The third argument names *this* object, so a forked child re-enters here and reads the same problem list.
   private val harness = new FofHarness("tptp-fof-fo-noeq-thm.txt", "TPTP_FOF_LIST",

@@ -6,19 +6,14 @@ import lisa.utils.K.*
 import lisa.automation.clausification.Clausification
 
 /**
- * SInE (Sumo INference Engine) axiom selection: a **preprocessing** relevance filter for large axiom sets, run
- * *before* clausification. Seeded from the conjecture, it keeps only the hypotheses transitively reachable through
- * the trigger ("D") relation, and deletes the rest. See `archive/PortfolioStrategy.md` §implications and E's `ccl_sine.c`
- * / Vampire's `SineUtils.cpp`.
+ * Configuration of the SInE axiom filter. It is sound but incomplete: dropping hypotheses can only make an
+ * unsatisfiable set satisfiable, so a refutation stays valid but a saturation is no longer a satisfiability
+ * verdict. The reference implementations are E's `ccl_sine.c` and Vampire's `SineUtils.cpp`.
  *
- * It is an **incomplete** transformation (it can drop a needed axiom), but **sound**, since removing hypotheses can
- * only turn an unsatisfiable set satisfiable (⇒ we fail to refute), never produce a spurious refutation. Hence it
- * is used only in dedicated portfolio slices, alongside complete strategies.
- *
- * @param tolerance a symbol whose generality ≤ `tolerance × (least generality in the formula)` also triggers it
- *                  (E's "benevolence"). `1.0` = strict/aggressive (rarest only); higher keeps more (safer).
- * @param depth     BFS rounds outward from the goal; `0` = unlimited (full closure), `1` = most aggressive.
- * @param minAxioms below this many hypotheses there is nothing worth pruning, so keep everything.
+ * @param tolerance a symbol whose generality is within this factor of the least general one in a formula also
+ *                  triggers it. `1.0` keeps only the rarest, which is the most aggressive setting.
+ * @param depth     rounds of search outward from the goal; `0` is the full closure.
+ * @param minAxioms below this many hypotheses, keep everything.
  */
 final case class SineConfig(tolerance: Double = 3.0, depth: Int = 0, minAxioms: Int = 500)
 
@@ -30,10 +25,10 @@ object Sine:
     Set(and, or, neg, implies, iff, forall, exists, epsilon, top, bot, equality)
 
   /** The user function/predicate symbols in a formula: every [[Constant]] that is not a [[LogicalConstants]] one.
-   *  Exposed to [[SinePolicy]] for the gate-1 "conjecture has a symbol to seed from". */
+   *  Used by [[shouldFilter]] for the "conjecture has a symbol to seed from" gate. */
   private[superposition] def symbolsOf(e: Expression): Set[Constant] =
     val acc = mutable.HashSet.empty[Constant]
-    // A shared sub-DAG (e.g. the opaque `F(x̄)` witnesses that ε-abstraction/Skolemization reuse across many atoms)
+    // A shared sub-DAG (e.g. the opaque `F(x̄)` witnesses that abstraction and Skolemization reuse across many atoms)
     // must be traversed once, not re-unfolded per occurrence, or a heavily-shared expression blows up
     // exponentially. Memoise by the kernel's `uniqueNumber` (reference identity: shared occurrences are the same node).
     val seen = mutable.HashSet.empty[Long]
@@ -53,10 +48,8 @@ object Sine:
     val fs: Array[Expression] = (s.left.iterator ++ s.right.iterator).toArray
     if fs.isEmpty then top else fs.reduce((a, b) => and(a)(b))
 
-  /**
-   * The indices (into `hypotheses`) SInE keeps, seeded from `conjecture`. Always keeps symbol-less hypotheses.
-   * Keeps **all** hypotheses when there are fewer than `cfg.minAxioms` (nothing to prune).
-   */
+  /** The indices (into `hypotheses`) SInE keeps, seeded from `conjecture`. Always keeps symbol-less hypotheses.
+    * Keeps **all** hypotheses when there are fewer than `cfg.minAxioms` (nothing to prune). */
   def selectIndices(hypotheses: IndexedSeq[Expression], conjecture: Expression, cfg: SineConfig): Set[Int] =
     if hypotheses.size < cfg.minAxioms then hypotheses.indices.toSet
     else
@@ -102,3 +95,40 @@ object Sine:
         val keep = selectIndices(hyps.map(sequentFormula), sequentFormula(conj), cfg)
         Clausification.Problem(hyps.zipWithIndex.collect { case (h, i) if keep(i) => h }, problem.conjecture, problem.frozen)
       case None => problem
+
+  // ── whether to filter at all ──────────────────────────────────────────────────────────────────────
+  //
+  // Decided per prover invocation, on its own copy of the problem, with nothing shared between strategies.
+  // The trigger is how much the filter would actually prune, not the axiom count, since a problem with 5000
+  // axioms whose conjecture reaches 4800 of them is not one SInE can help with. Two gates are checked here:
+  // that there is a conjecture to seed from and at least `minAxioms` axioms, and that a conservative probe
+  // keeps at most `keepRatioCutoff` of them. The third gate, how aggressively to filter, is the strategy's
+  // own [[SineConfig]].
+
+  /** Gate thresholds. Not yet calibrated against a corpus, unlike E's equivalent table.
+   *
+   *  @param keepRatioCutoff filter only if the probe keeps at most this fraction of the axioms.
+   *  @param probe           the filter used to measure prunability. It is independent of the strategy's own
+   *                         aggression, so every strategy makes the same decision on a given problem, and its
+   *                         [[SineConfig.minAxioms]] is the single size floor, shared with [[selectIndices]]
+   *                         so that the gate and the selection cannot disagree.
+   */
+  final case class Params(
+      keepRatioCutoff: Double = 0.9,
+      probe: SineConfig = SineConfig(tolerance = 3.0, depth = 0))
+
+  /** Should this invocation actually run its filter? `hypotheses`/`conjecture` are the pre-clausification
+    * formulas, the same ones [[selectIndices]] consumes. */
+  def shouldFilter(hypotheses: IndexedSeq[Expression], conjecture: Expression, p: Params = Params()): Boolean =
+    hypotheses.size >= p.probe.minAxioms             // gate 1a: enough axioms to be worth it (the single floor)
+      && symbolsOf(conjecture).nonEmpty              // gate 1b: a symbol to seed the search from
+      && {                                           // gate 2: does a conservative probe prune?
+        val kept = selectIndices(hypotheses, conjecture, p.probe)
+        kept.size.toDouble / hypotheses.size <= p.keepRatioCutoff
+      }
+
+  /** Convenience over a [[Clausification.Problem]]: true iff the gates pass for its hypotheses/conjecture. */
+  def shouldFilter(problem: Clausification.Problem, p: Params): Boolean =
+    problem.conjecture match
+      case Some(conj) => shouldFilter(problem.hypotheses.toIndexedSeq.map(sequentFormula), sequentFormula(conj), p)
+      case None       => false

@@ -1,4 +1,5 @@
 package lisa.automation.superposition
+package ordering
 
 import Core.*
 
@@ -9,49 +10,27 @@ enum Cmp:
   case Eq // equal
   case Inc // incomparable
 
-/**
- * The Knuth-Bendix ordering on concrete (fully built) terms of a [[TermBank]].
- *
- * This is the linear *tupling* algorithm of Bernd Löchner, "Things to Know when Implementing
- * KBO" (J. Automated Reasoning 36:289-310, 2006) -- specifically a port of E's recursive
- * `kbo6cmp`/`kbo6cmplex` (`cto_kbolin.c`, "CTKBO4-6"), which is also the basis of Vampire's
- * `KBO::State`. A single simultaneous traversal of the two terms accumulates:
- *
- *   - `wb`  : the weight balance `w(s) - w(t)`;
- *   - `vb`  : per-variable balance `#(x,s) - #(x,t)`, a dense array indexed by variable number;
- *   - `posCount` / `negCount`: how many variables have `vb > 0` / `< 0` (so the *variable
- *     condition* "`s` dominates `t` on every variable" is just `negCount == 0`, and the dual
- *     `posCount == 0`); these are maintained incrementally as `vb` is bumped.
- *
- * The lexicographic descent stops recursing at the first non-`Eq` argument and only sweeps the
- * remaining arguments to finish the balances (`accumulateBalance`), which is what makes the whole compare
- * linear rather than quadratic. The final outcome is resolved by weight, then top-symbol
- * precedence, then the saved lexicographic result, with the variable condition downgrading any
- * otherwise-decisive verdict to `Inc`.
- *
- * Three properties of our representation are exploited (without changing the result): the cached
- * per-term weight gives a ground/ground fast path and a no-descent `accumulateBalance` on ground subterms;
- * hash-consing makes `s == t` an O(1) identity test, so equal terms and equal arguments are
- * dispatched immediately.
- *
- * The accumulator state is reused across calls and reset at the start of each [[compare]];
- * an instance is therefore **not** thread-safe (like E's `OCB` and Vampire's `State`).
- *
- * Comparison is on terms that already share one variable namespace.
- */
+/** The Knuth-Bendix ordering on terms of a [[TermBank]], which must already share one variable namespace.
+  *
+  * Löchner's linear tupling algorithm ("Things to Know when Implementing KBO"), ported
+  * from E. One traversal of both terms accumulates the weight balance and, per
+  * variable, the occurrence balance, plus how many variables are unbalanced each way, so the variable condition
+  * reduces to a counter being zero. The lexicographic descent recurses only to the first differing argument and
+  * sweeps the rest into the balances, which is what keeps it linear.
+  *
+  * The accumulators are reused between calls, so an instance is not thread-safe. */
 final class KBO(val bank: TermBank):
   import Cmp.*
 
   private val signature: Signature = bank.signature
 
-  // --- reused tupling state (reset at the start of every `compare`) -------------------------
+  // --- reused tupling state (reset at the start of every `compare`) ---------------------------------------
   private var wb: Long = 0 // weight balance  w(s) - w(t)
   private var posCount: Int = 0 // number of variables with vb > 0
   private var negCount: Int = 0 // number of variables with vb < 0
   private var vb: Array[Int] = new Array[Int](16) // variable number -> balance #(x,s) - #(x,t)
   private var maxVar: Int = -1 // high-water mark of touched `vb` entries, so `reset` clears only [0..maxVar]
 
-  /** Compare `s` and `t` under the KBO, returning `Gt`, `Lt`, `Eq`, or `Inc`. */
   def compare(s: Term, t: Term): Cmp =
     if s == t then Eq
     else if bank.isGround(s) && bank.isGround(t) then compareGround(s, t)
@@ -96,11 +75,9 @@ final class KBO(val bank: TermBank):
     negCount = 0
     maxVar = -1
 
-  /**
-   * Sweep one term into the accumulators with the given side (`lhs = true` adds to `s`, `false`
-   * to `t`): add `±` each symbol's weight and bump the variable balance for each variable. A
-   * ground subterm is folded in O(1) via its cached weight, with no descent.
-   */
+  /** Sweep one term into the accumulators with the given side (`lhs = true` adds to `s`, `false`
+    * to `t`): add `±` each symbol's weight and bump the variable balance for each variable. A
+    * ground subterm is folded in O(1) via its cached weight, with no descent. */
   private def accumulateBalance(t: Term, lhs: Boolean): Unit =
     if bank.isGround(t) then
       val w: Int = bank.weight(t)
@@ -118,16 +95,12 @@ final class KBO(val bank: TermBank):
 
 
 
-  // --- internals ----------------------------------------------------------------------------
+  // --- internals ------------------------------------------------------------------------------------------
 
-  /**
-   * Full comparison of two ground terms. With no variables the variable condition is vacuous, so
-   * (when the precedence is total) the result is never `Inc`: at each level the cached weight
-   * decides, then top-symbol precedence, then a lexicographic recurse on the arguments. This stays
-   * entirely off the variable-balance machinery and needs no `reset`, reading the cached weights
-   * directly -- the whole point of caching them. Precondition: `s` and `t` are ground, hence so is
-   * every subterm reached by the recursion.
-   */
+  /** Full comparison of two ground terms. With no variables the variable condition is vacuous, so
+    * (when the precedence is total) the result is never `Inc`: at each level the cached weight
+    * decides, then top-symbol precedence, then a lexicographic recurse on the arguments.
+    * Precondition: `s` and `t` are ground. */
   private def compareGround(s: Term, t: Term): Cmp =
     if s == t then Eq
     else
@@ -152,19 +125,15 @@ final class KBO(val bank: TermBank):
             i += 1
           res
 
-  /**
-   * The core comparison (Löchner's `tckbo`): compare `s` and `t`, returning the lexicographic
-   * verdict for this position while updating the global `wb`/`vb`/`pos`/`neg` accumulators over
-   * both subterms. Variable cases settle directly via the occurs check; both-compound cases
-   * resolve by weight, then precedence, then the recursive lexicographic result.
-   */
+  /** The core comparison: compare `s` and `t`, returning the lexicographic
+    * verdict for this position while updating the global `wb`/`vb`/`pos`/`neg` accumulators over
+    * both subterms. Variable cases settle directly via the occurs check; both-compound cases
+    * resolve by weight, then precedence, then the recursive lexicographic result. */
   private def kbocmp(s: Term, t: Term): Cmp =
     if s == t then Eq
     else
-      // "Pacman" reduction: f(a) vs f(b) with the same unary head reduces to a vs b (the head's
-      // weight cancels and carries no variables). Perfect sharing makes f(x) and f(y) the same
-      // handle iff x and y are, so this preserves a != b (which holds here since s != t was handled
-      // above) -- no equality check is needed in or after the loop.
+      // Special case: f(a) vs f(b) with the same unary head reduces to a vs b (the head's
+      // weight cancels and carries no variables). No equality check is needed in or after the loop.
       var a: Term = s
       var b: Term = t
       while bank.arity(a) == 1 && bank.headSymbol(a) == bank.headSymbol(b) do
@@ -216,12 +185,10 @@ final class KBO(val bank: TermBank):
               case Lt => lOrN
               case Inc => Inc
 
-  /**
-   * Lexicographic comparison of the arguments of two terms with the same head symbol (hence the
-   * same arity). Recurses on arguments in lockstep until the first non-`Eq` result, then merely
-   * sweeps the remaining arguments into the balances. Identical arguments are skipped: being the
-   * same handle, they contribute nothing to either balance.
-   */
+  /** Lexicographic comparison of the arguments of two terms with the same head symbol (hence the
+    * same arity). Recurses on arguments in lockstep until the first non-`Eq` result, then merely
+    * sweeps the remaining arguments into the balances. Identical arguments are skipped: being the
+    * same handle, they contribute nothing to either balance. */
   private def kbocmplex(s: Term, t: Term): Cmp =
     var res: Cmp = Eq
     val n: Int = bank.arity(s)
@@ -240,19 +207,10 @@ final class KBO(val bank: TermBank):
 
 
   
-  /**
-   * Validate that the signature's current weights and precedence make this an admissible KBO
-   * (hence a reduction ordering). Returns `None` if admissible, or `Some(reason)` for the first
-   * violation found: the variable weight must be positive, every constant must weigh at least the
-   * variable weight, and a weight-zero unary symbol (if any) must be precedence-maximal.
-   *
-   * '''A test oracle, and an acknowledged gap.''' Only `KBOTest` calls this. Being a test-only check is a
-   * weaker position than it looks: [[WeightScheme]] and [[PrecedenceScheme]] are
-   * user-selectable through [[Strategy]], so admissibility, and with it *termination* of rewriting, is a
-   * property of a runtime configuration that nothing validates at runtime. A scheme added later that violates
-   * it would not fail here; it would loop, or silently lose completeness, somewhere in demodulation. Calling
-   * this once from `Bridge.solve` behind a debug flag would close that; it has not been done.
-   */
+  /** Whether the signature's current weights and precedence make this an admissible KBO, and so a reduction
+    * ordering. `None` if they do, otherwise the first violation: the variable weight must be positive, every
+    * constant must weigh at least that, and a weight-zero unary symbol must be precedence-maximal.
+    * Asserted once per problem by [[Bridge.solve]].*/
   private[automation] def checkAdmissibility(): Option[String] =
     val varWeight: Int = Core.VariableWeight
     if varWeight <= 0 then Some(s"variable weight must be positive, got $varWeight")

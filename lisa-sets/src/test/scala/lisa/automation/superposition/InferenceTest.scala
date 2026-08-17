@@ -3,6 +3,7 @@ package lisa.automation.superposition
 import org.scalatest.funsuite.AnyFunSuite
 
 import Core.*
+import lisa.automation.superposition.ordering.*
 
 /** Tests for the generating inference rules ([[Inference.resolve]], [[Inference.factor]]). */
 class InferenceTest extends AnyFunSuite:

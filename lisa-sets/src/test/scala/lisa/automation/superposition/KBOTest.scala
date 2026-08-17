@@ -3,19 +3,20 @@ package lisa.automation.superposition
 import org.scalatest.funsuite.AnyFunSuite
 
 import Core.*
+import lisa.automation.superposition.ordering.*
 
 /**
  * Tests for the Knuth-Bendix ordering [[KBO]] on concrete terms.
  *
  * The core is standalone (no Lisa dependency), so terms are built directly through a
- * [[Signature]] + [[TermBank]]. Note that a symbol's KBO weight is folded into a term's cached
- * weight *at construction*, so any custom weights must be set before the terms are built;
- * precedence, by contrast, is read live and may be changed at any time.
+ * [[Signature]] + [[TermBank]]. Note that a symbol's KBO weight is folded into a term's cached weight *at
+ * construction*, so it is fixed when the symbol is interned and a test wanting a custom one passes a weight
+ * function to the fixture; precedence, by contrast, is read live and may be changed at any time.
  */
 class KBOTest extends AnyFunSuite:
 
   /** A small fixture: a fresh signature/bank/comparator and helpers to build terms. */
-  class Fix extends TermFixture
+  class Fix(weightOf: Int => Int = WeightScheme.Const.weightOf) extends TermFixture(weightOf)
 
   import Cmp.*
 
@@ -97,12 +98,15 @@ class KBOTest extends AnyFunSuite:
     assert(kbo.compare(app(f, a, a), app(f, a, b)) == Lt)
   }
 
+  /** Weight 0 for unary symbols, the shipped weight of 1 for everything else. Weights are fixed when a symbol
+    * is interned, so a test wanting one the production schemes do not produce supplies it to the fixture. */
+  private def unaryWeighs(w: Int): Int => Int = arity => if arity == 1 then w else defaultSymbolWeight
+
   test("weight-zero maximal unary symbol: f(x) > x, and admissibility holds") {
-    val fx = new Fix
+    val fx = new Fix(unaryWeighs(0))
     import fx.*
     val f = fn("f", 1)
-    val a = const("a")
-    sig.info(f).weight = 0 // set BEFORE building terms (weights are cached at construction)
+    const("a")
     sig.info(f).precedence = 1000 // make f precedence-maximal
     val x = v(0)
     assert(kbo.checkAdmissibility().isEmpty)
@@ -111,16 +115,15 @@ class KBOTest extends AnyFunSuite:
   }
 
   test("admissibility violations are reported") {
-    val fx = new Fix
-    import fx.*
-    val c = fn("c", 0)
-    sig.info(c).weight = 0 // a constant lighter than the variable weight (1)
-    assert(kbo.checkAdmissibility().isDefined)
+    // a constant lighter than the variable weight (1)
+    val fx = new Fix(arity => if arity == 0 then 0 else defaultSymbolWeight)
+    fx.fn("c", 0)
+    assert(fx.kbo.checkAdmissibility().isDefined)
 
-    val fx2 = new Fix
-    val g = fx2.fn("g", 1)
+    // a weight-0 unary that is NOT precedence-maximal
+    val fx2 = new Fix(unaryWeighs(0))
+    fx2.fn("g", 1)
     fx2.fn("h", 0) // some other symbol with higher precedence than g
-    fx2.sig.info(g).weight = 0 // weight-0 unary that is NOT precedence-maximal
     assert(fx2.kbo.checkAdmissibility().isDefined)
   }
 

@@ -5,8 +5,10 @@ import scala.collection.mutable
 import org.scalatest.funsuite.AnyFunSuite
 
 import Core.*
+import Oracles.*
+import lisa.automation.superposition.index.*
 
-/** Tests for the standalone fingerprint index ([[Fingerprint]] + [[FingerprintIndex]], Phase 5 Step 1). */
+/** Tests for the standalone fingerprint index ([[Fingerprint]] + [[FingerprintIndex]]). */
 class FingerprintTest extends AnyFunSuite:
 
   class Fix extends TermFixture:
@@ -19,8 +21,8 @@ class FingerprintTest extends AnyFunSuite:
 
     /** Whether `q` and `t` are fingerprint-compatible at every FP7 position (the descent oracle). */
     def fpCompatible(q: Term, t: Term): Boolean =
-      val qf = Fingerprint.compute(bank, q, Fingerprint.FP7Trie)
-      val tf = Fingerprint.compute(bank, t, Fingerprint.FP7Trie)
+      val qf = fingerprintOf(bank, q, Fingerprint.FP7Trie)
+      val tf = fingerprintOf(bank, t, Fingerprint.FP7Trie)
       qf.indices.forall(i => Fingerprint.unifiable(qf(i), tf(i)))
 
     /** Whether `q` and `t` genuinely unify (two scopes, trail restored). */
@@ -38,7 +40,7 @@ class FingerprintTest extends AnyFunSuite:
     val fx = new Fix; import fx.*
     val f = fn("f", 2); val g = fn("g", 1); val aSym = fn("a", 0); val a = bank.mkConst(aSym)
     val t = app(f, app(g, a), v(0)) // f(g(a), x)
-    val fp = Fingerprint.compute(bank, t, Fingerprint.FP7Trie) // positions ε,0,1,0.0,0.1,1.0,1.1
+    val fp = fingerprintOf(bank, t, Fingerprint.FP7Trie) // positions ε,0,1,0.0,0.1,1.0,1.1
     assert(fp(0) == bank.headSymbol(t).code && fp(0) >= 0) //          ε   → f
     assert(fp(1) == g.code) //                                          0   → g
     assert(fp(2) == AnyVar) //                                          1   → variable x
@@ -50,9 +52,9 @@ class FingerprintTest extends AnyFunSuite:
   test("fingerprint of a constant is the symbol then all NotInTerm; of a variable, AnyVar then BelowVar") {
     val fx = new Fix; import fx.*
     val a = const("a")
-    val fa = Fingerprint.compute(bank, a, Fingerprint.FP7Trie)
+    val fa = fingerprintOf(bank, a, Fingerprint.FP7Trie)
     assert(fa(0) == fn("a", 0).code && (1 until 7).forall(i => fa(i) == NotInTerm))
-    val fv = Fingerprint.compute(bank, v(0), Fingerprint.FP7Trie)
+    val fv = fingerprintOf(bank, v(0), Fingerprint.FP7Trie)
     assert(fv(0) == AnyVar && (1 until 7).forall(i => fv(i) == BelowVar))
   }
 
@@ -74,7 +76,7 @@ class FingerprintTest extends AnyFunSuite:
       app(h, a, app(g, v(0), b), v(1)), app(f, app(f, app(f, a))), app(g, app(g, a, b), app(f, v(2)))
     )
     for t <- terms do
-      assert(Fingerprint.compute(bank, t, Fingerprint.FP7Trie).sameElements(computeRef(t)), s"mismatch for $t")
+      assert(fingerprintOf(bank, t, Fingerprint.FP7Trie).sameElements(computeRef(t)), s"mismatch for $t")
   }
 
   // --- the unification compatibility relation -----------------------------------------------------

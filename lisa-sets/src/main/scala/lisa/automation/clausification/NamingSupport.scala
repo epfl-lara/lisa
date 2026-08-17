@@ -49,8 +49,12 @@ private[clausification] object NamingSupport:
     * `frozen` has no default: every call site states what it is naming under, so the parameter cannot go quietly
     * unused again.
     */
-  def freshNamingAtom(f: Expression, counter: Counter, frozen: Set[Variable]): (Variable, Seq[Variable], Expression) = {
-    val freeVars = namingVars(f, frozen)
+  def freshNamingAtom(f: Expression, counter: Counter, frozen: Set[Variable]): (Variable, Seq[Variable], Expression) =
+    freshNamingAtomOver(namingVars(f, frozen), counter)
+
+  /** [[freshNamingAtom]] for a caller that already holds [[namingVars]]`(f, frozen)`, so the free-variable walk
+    * is not repeated. [[NamingPhase]] is such a caller: it sized its marker from that same list. */
+  def freshNamingAtomOver(freeVars: Seq[Variable], counter: Counter): (Variable, Seq[Variable], Expression) = {
     val nmId = Identifier(GeneratedNames.namingAtom, counter.next())
     val nmSort = freeVars.foldRight(Prop: Sort)((v, acc) => v.sort -> acc)
     val nm = Variable(nmId, nmSort)

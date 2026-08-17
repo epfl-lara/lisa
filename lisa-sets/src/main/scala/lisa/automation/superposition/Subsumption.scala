@@ -2,35 +2,13 @@ package lisa.automation.superposition
 
 import Core.*
 
-/**
- * θ-subsumption between clauses: the redundancy test that drives forward and backward
- * subsumption in the saturation loop.
- *
- * A clause `c` **subsumes** `d` iff there is a substitution `σ` such that `cσ ⊆ d` as a
- * multiset of literals -- i.e. each literal of `c` can be matched (same predicate, same
- * polarity, instantiating only `c`'s variables) onto a *distinct* literal of `d` under one
- * shared `σ`. Subsumption implies `c ⊨ d`, so a subsumed `d` is redundant and may be deleted
- * without affecting completeness (and, crucially for us, without any proof obligation: a
- * deleted clause never enters the empty clause's justification DAG).
- *
- * The test is built directly on the one-sided matcher ([[Core.Trail.matchLiteral]]): `c` is the
- * pattern in scope [[PatScope]] (its variables bind), `d` is the rigid target in scope
- * [[TgtScope]]. The two scopes keep the clauses' variable numbers distinct without renaming.
- *
- * Two layers of work, cheap-before-expensive:
- *
- *   1. [[sigSubsumes]] -- an O(1) necessary-condition pre-filter over the cached clause
- *      signature (size, polarity counts, weight, head-symbol fingerprint). It rejects the vast
- *      majority of non-subsuming pairs before any trail manipulation, and is *sound*: it never
- *      rejects a genuine subsumption (each condition is implied by `cσ ⊆ d`).
- *
- *   2. The matching search itself -- a unit fast path (no injectivity bookkeeping needed for a
- *      one-literal `c`), and otherwise an injective backtracking search over `c`'s literals,
- *      trying the **most constrained (heaviest) literal first** to prune early.
- *
- * [[subsumes]] is self-contained (it applies [[sigSubsumes]] internally) and leaves the trail
- * exactly as it found it on every path, so callers may invoke it freely without bracketing.
- */
+/** θ-subsumption, and the two simplifications built directly on it: subsumption resolution and condensation.
+  * A clause `c` subsumes `d` when some `σ` maps `c`'s literals injectively onto literals of `d`.
+  *
+  * Two layers: [[sigSubsumes]], an O(1) filter over the cached clause signature, then an injective backtracking
+  * search over `c`'s literals, heaviest first so that failure comes early, built on
+  * [[Core.Trail.matchLiteral]] with `c` as pattern and `d` rigid, so neither needs renaming. [[subsumes]]
+  * applies the filter itself and restores the trail on every path, so callers need not bracket it. */
 object Subsumption:
 
   /** Scope of the (pattern) clause whose variables are instantiated by `σ`. */
@@ -39,31 +17,22 @@ object Subsumption:
   /** Scope of the (rigid) target clause `d`; its variables never bind. */
   private inline val TgtScope = 1
 
-  /**
-   * Cheap, sound necessary-condition pre-filter for `c` subsuming `d`, using only the cached
-   * clause signatures (no trail, no matching). All four conditions follow from `cσ ⊆ d`:
-   *   - `c.size <= d.size`            -- the literal map is injective into `d`;
-   *   - `c.posCount <= d.posCount` and `c.negCount <= d.negCount` -- matching preserves polarity;
-   *   - `c.weight <= d.weight`        -- `weight(c) <= weight(cσ) <= weight(d)` (σ can only grow
-   *                                      terms, and `cσ` is a sub-multiset of `d`);
-   *   - `(c.predBits & d.predBits) == c.predBits` -- every head symbol of `c` (mod 64) also
-   *                                      occurs in `d`.
-   * Being only necessary, a `true` here must still be confirmed by [[subsumes]].
-   */
-  def sigSubsumes(c: Clause, d: Clause): Boolean =
+  /** Cheap, sound pre-filter for `c` subsuming `d`, over the cached signatures alone (no trail, no matching).
+    * All four conditions follow from `cσ ⊆ d`: sizes and polarity counts, because the literal map is injective
+    * and preserves polarity; weights, since `weight(c) <= weight(cσ) <= weight(d)`; and every head symbol of
+    * `c` (mod 64) occurring in `d`. Being only necessary, a `true` must still be confirmed by [[subsumes]]. */
+  def sigSubsumes(c: ClauseBody, d: ClauseBody): Boolean =
     c.size <= d.size &&
       c.posCount <= d.posCount &&
       c.negCount <= d.negCount &&
       c.weight <= d.weight &&
       (c.predBits & d.predBits) == c.predBits
 
-  /**
-   * Whether `c` θ-subsumes `d`. Self-contained: applies [[sigSubsumes]] first, then searches for
-   * an injective, polarity-preserving match of all of `c`'s literals onto distinct literals of
-   * `d` under one shared substitution. The trail is restored to its entry state before
-   * returning, on both the `true` and `false` paths.
-   */
-  def subsumes(bank: TermBank, trail: Trail, c: Clause, d: Clause): Boolean =
+  /** Whether `c` θ-subsumes `d`. Self-contained: applies [[sigSubsumes]] first, then searches for
+    * an injective, polarity-preserving match of all of `c`'s literals onto distinct literals of
+    * `d` under one shared substitution. The trail is restored to its entry state before
+    * returning, on both the `true` and `false` paths. */
+  def subsumes(bank: TermBank, trail: Trail, c: ClauseBody, d: ClauseBody): Boolean =
     if !sigSubsumes(c, d) then return false
     val cl: Array[Literal] = c.literals
     val dl: Array[Literal] = d.literals
@@ -94,11 +63,9 @@ object Subsumption:
       j += 1
     false
 
-  /**
-   * Injective backtracking match: assign `c`'s literals (visited in `order`, position `k` onward)
-   * to distinct, not-yet-`used` literals of `d` under one shared σ recorded on the trail. Returns
-   * `true` with the witnessing bindings left on the trail (the top-level [[subsumes]] restores).
-   */
+  /** Injective backtracking match: assign `c`'s literals (visited in `order`, position `k` onward)
+    * to distinct, not-yet-`used` literals of `d` under one shared σ recorded on the trail. Returns
+    * `true` with the witnessing bindings left on the trail (the top-level [[subsumes]] restores). */
   private def matchRec(bank: TermBank, trail: Trail, cl: Array[Literal], dl: Array[Literal], order: Array[Int], used: Array[Boolean], k: Int): Boolean =
     if k == order.length then true
     else
@@ -118,28 +85,14 @@ object Subsumption:
         j += 1
       false
 
-  /**
-   * Subsumption resolution -- a *simplifying* resolution. If `side = C' ∨ L` and some literal `K` of `main`
-   * has the **opposite** polarity to `L` under a one-sided σ with `Lσ = ¬K` **and** `C'σ ⊆ main \ {K}`
-   * (the rest of `side` injectively matches the rest of `main`, σ binding only `side`'s variables), then
-   * `main` is redundant given the shorter clause `main \ {K}`. Returns that clause; `None` otherwise. The
-   * **unit case** (`|side| = 1`, so `C' = ∅` and the second condition is vacuous) is *unit deletion*.
-   *
-   * One-sidedness (matching, not unification) is the guard that makes this a *simplification* rather than a
-   * generating resolution: σ leaves `main` rigid, so the resolvent's literals are a sub-multiset of
-   * `main`'s and the resolvent subsumes `main`, so deleting `main` is sound. A two-sided unifier that bound
-   * `main`'s variables would yield only an instance of `main`, which does not subsume it.
-   *
-   * The result is the canonicalised resolvent, an ordinary clause (`Justification.Resolution`, densely
-   * renumbered, reconstruction-faithful) -- subsumption resolution needs **no** dedicated justification or
-   * reconstruction step; the loop simply deletes `main` (deletion is reconstruction-free, like subsumption).
-   *
-   * **Why the [[subsumes]] gate.** A *longer* side can leave variables outside `L` free (`resolve`'s mgu binds
-   * only `L`), so the built clause `C'σ₀ ∪ M'` need not entail `main`; we keep it **only when it `subsumes`
-   * `main`**, else the deletion would break completeness (discard a clause a refutation needs). Conservative: it
-   * misses SR steps whose `C'` carries extra variables (a complete version needs the full matcher σ + a
-   * reconstruction, deferred; see `archive/PossibleOptimizations.md`).
-   */
+  /** Subsumption resolution. If `side = C' ∨ L` and some literal `K` of `main` has the opposite polarity under
+    * a matcher with `Lσ = ¬K` and `C'σ ⊆ main \ {K}`, then `main` is redundant given `main \ {K}`, which is
+    * returned. The unit case, where `C'` is empty, is unit deletion. The result is an ordinary resolvent, so
+    * reconstruction needs nothing dedicated.
+    *
+    * The [[subsumes]] gate is required for completeness: a longer `side` can leave variables outside `L` free,
+    * since `resolve`'s unifier binds only `L`, and the built clause then need not entail `main`. That makes the
+    * test conservative, missing steps whose `C'` carries extra variables. */
   def subsumptionResolutionResolvent(bank: TermBank, trail: Trail, side: Clause, main: Clause): Option[Clause] =
     // The size/weight/predicate conditions of [[sigSubsumes]] hold here too, and for the same reasons: `C'σ ⊆ M'`
     // and `Lσ = ¬K` put all of `side` into `main` up to polarity. Not `sigSubsumes` itself, since the polarity
@@ -172,19 +125,10 @@ object Subsumption:
       iL += 1
     None
 
-  /**
-   * Condensation: replace `c` by an equivalent shorter clause when one exists. A *condensation* is a factor
-   * `cσ` (two same-polarity literals unified and merged) that is strictly shorter than `c` and **subsumes**
-   * it. A factor is an instance, so `c ⊨ cσ` already; the `subsumes` gate adds `cσ ⊨ c`, making them
-   * equivalent, so replacing `c` by `cσ` is sound and completeness-preserving. (Without the gate the factor is
-   * only a weaker instance, and deleting `c` would drop a constraint -- a completeness failure.)
-   *
-   * Returns the fully-condensed clause -- iterating, since one merge can expose another -- or `c` itself if it
-   * is already condensed. The result is an ordinary factor (`Justification.Factoring`, chained when several
-   * merges apply), so condensation needs no dedicated reconstruction. Unlike the generating factoring in the
-   * loop, condensation is a *simplification*, so it is not restricted to selected or positive literals: it
-   * tries every same-polarity pair.
-   */
+  /** Replace `c` by a strictly shorter factor of itself that also subsumes it, iterating since one merge can
+    * expose another, or return `c` unchanged. A factor is already an instance, so the subsumption check is what
+    * makes the two equivalent and the replacement sound. Being a simplification, it is not restricted to
+    * selected or positive literals and tries every same-polarity pair. */
   def condense(bank: TermBank, trail: Trail, c: Clause): Clause =
     var cur: Clause = c
     var progress = true
@@ -208,12 +152,10 @@ object Subsumption:
         i += 1
     cur
 
-  /**
-   * Indices `0 until lits.length` ordered by descending literal weight. Matching the heaviest (most specific)
-   * literals first prunes the search: they have the fewest candidate targets, so a clash is found before
-   * cheap, ambiguous literals fan the search out. Insertion sort -- clause literal counts are tiny, so this
-   * beats a comparator-driven sort.
-   */
+  /** Indices `0 until lits.length` ordered by descending literal weight. Matching the heaviest (most specific)
+    * literals first prunes the search: they have the fewest candidate targets, so a clash is found before
+    * cheap, ambiguous literals fan the search out. Insertion sort -- clause literal counts are tiny, so this
+    * beats a comparator-driven sort. */
   private def orderByWeightDesc(bank: TermBank, lits: Array[Literal]): Array[Int] =
     val n: Int = lits.length
     val order: Array[Int] = new Array[Int](n)

@@ -8,17 +8,11 @@ import lisa.tptp.KernelParser.{problemToKernel, strictMapAtom, strictMapTerm, st
 import BenchUtil.{withTimeout, toClausificationProblem}
 
 /**
- * Strategy-comparison harness. Runs one or more named [[Strategy]] over the seeded FOF sample
- * ([[FofEvaluation.sample]], which honours the `TPTP_FOF_LIST` override) through the **CASC path** (uncertified
- * clausification + per-invocation SInE gate ([[SinePolicy]]) and [[Strategy.solveOutcome]]) and reports the
- * outcome breakdown (refuted / saturated / timeout / error) per strategy. No proof is built or kernel-checked;
- * we only want the search verdict, exactly what a CASC worker would produce.
- *
- * Unlike [[FofEvaluation]]/[[EqFofEvaluation]] it does **not** skip large problems (no `maxSize`): the point is
- * to see how each strategy, and its SInE filter on the SUMO/CSR theories included via `TPTP_FOF_LIST`, copes
- * with exactly the problems the other harnesses drop, since that is where axiom selection is supposed to earn
- * its keep. Each problem runs on its own daemon thread under a hard wall-clock cap, so a single blow-up
- * (parser overflow, clausification explosion) is contained, not fatal to the run.
+ * Runs one or more named [[Strategy]] over the same sample through the competition path (uncertified
+ * clausification, the [[Sine.shouldFilter]] gate, [[Strategy.solveOutcome]]) and reports the outcome breakdown
+ * per strategy. No proof is built, since only the verdict is wanted. Unlike the other harnesses it does not
+ * skip large problems, which are exactly where axiom selection should help; each runs on its own thread under
+ * a hard cap, so one blow-up does not end the run.
  *
  * {{{
  *   TPTP=/path TPTP_FOF_LIST=/path/list.txt \
@@ -68,7 +62,7 @@ object StrategyEvaluation:
           val cprob = toClausificationProblem(parsed)
           // Per-invocation SInE gate, exactly the CascProver logic (self-decided, nothing shared).
           val pruned = strat.sine match
-            case Some(cfg) if SinePolicy.shouldFilter(cprob, SinePolicy.Params()) => Sine.select(cprob, cfg)
+            case Some(cfg) if Sine.shouldFilter(cprob, Sine.Params()) => Sine.select(cprob, cfg)
             case _                                                                => cprob
           // Uncertified clausify + distinct-object axioms + goal-clause indices, shared with CascProver.
           val (_, clausal, goal) = Clausal.cascSetup(pruned, orthologic = strat.orthologic)

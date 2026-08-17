@@ -1,6 +1,8 @@
 package lisa.automation.superposition
 
 import Core.*
+import lisa.automation.superposition.ordering.*
+import lisa.automation.superposition.index.*
 
 /**
  * The shared term-building fixture for the prover tests.
@@ -13,14 +15,23 @@ import Core.*
  * Each test extends it and adds only what is genuinely its own (a `DiscriminationTree`, a `subsumes`
  * shorthand, a non-default selector). A fresh instance per test keeps them independent: the signature,
  * bank and trail are all mutable, and symbol codes and clause ids depend on interning order.
+ *
+ * `weightOf` maps a symbol's arity to its KBO weight, defaulting to the shipped scheme (every symbol weighs 1).
+ * A test needing weights the production schemes do not produce -- a weight-zero symbol, say -- passes its own,
+ * since weights are fixed when a symbol is interned and cannot be changed afterwards.
+ *
+ * Literal selection is the bank's default, which is the refutation-complete one the prover ships
+ * ([[Core.TermBank.selector]]); a test wanting one of the incomplete strategies assigns it explicitly. It is
+ * worth stating because a saturated verdict means something quite different under the two: under this one it is
+ * a genuine decision, under a one-literal selection it may only mean the selection could not reach the proof.
  */
-class TermFixture:
-  val sig: Signature = new Signature
+class TermFixture(weightOf: Int => Int = WeightScheme.Const.weightOf):
+  val sig: Signature = new Signature(weightOf)
   val bank: TermBank = new TermBank(sig)
   val trail: Trail = new Trail(bank)
 
-  /** The bank's shared KBO-based ordering. Safe to force here: `Order` stamps its orientation memo with the
-    * signature's `orderingVersion`, so a later `Precedence.assign` invalidates it rather than being ignored. */
+  /** The bank's shared KBO-based ordering. Safe to force here: the only thing that changes the ordering after
+    * terms exist is `Precedence.assign`, which clears the orientation memo as its last act. */
   val order: Order = bank.order
   val kbo: KBO = order.kbo
 
