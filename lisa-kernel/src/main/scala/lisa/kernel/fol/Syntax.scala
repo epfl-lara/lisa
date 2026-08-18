@@ -220,12 +220,12 @@ private[fol] trait Syntax {
     /**
      * Cached normal form of the expression by [[OLEquivalenceChecker]].
      */
-    private[fol] var polarExpr: SimpleExpression = null.asInstanceOf[SimpleExpression]
+    private[fol] var polarExpr: Option[SimpleExpression] = None
 
     /**
      * Cached normal form of the expression by [[OLEquivalenceChecker]].
      */
-    def getPolarExpr: Option[SimpleExpression] = Option(polarExpr)
+    def getPolarExpr: Option[SimpleExpression] = polarExpr
 
     /**
      * Sort of the expression.

@@ -199,18 +199,18 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
      * The number of subterms which are actual concrete formulas.
      */
     // val size : Int
-    private[OLEquivalenceChecker] var inverse: SimpleExpression = null
-    def getInverse = Option(inverse)
-    private[OLEquivalenceChecker] var NNF_pos: Expression = null
-    def getNNF_pos = Option(NNF_pos)
-    private[OLEquivalenceChecker] var NNF_neg: Expression = null
-    def getNNF_neg = Option(NNF_neg)
-    private[OLEquivalenceChecker] var formulaAIG: Expression = null
-    def getFormulaAIG = Option(formulaAIG)
-    private[OLEquivalenceChecker] var normalForm: SimpleExpression = null
-    def getNormalForm = Option(normalForm)
-    private[OLEquivalenceChecker] var namelessForm: SimpleExpression = null
-    def getNamelessForm = Option(namelessForm)
+    private[OLEquivalenceChecker] var inverse: Option[SimpleExpression] = None
+    def getInverse = inverse
+    private[OLEquivalenceChecker] var NNF_pos: Option[Expression] = None
+    def getNNF_pos = NNF_pos
+    private[OLEquivalenceChecker] var NNF_neg: Option[Expression] = None
+    def getNNF_neg = NNF_neg
+    private[OLEquivalenceChecker] var formulaAIG: Option[Expression] = None
+    def getFormulaAIG = formulaAIG
+    private[OLEquivalenceChecker] var normalForm: Option[SimpleExpression] = None
+    def getNormalForm = normalForm
+    private[OLEquivalenceChecker] var namelessForm: Option[SimpleExpression] = None
+    def getNamelessForm = namelessForm
   }
 
   /**
@@ -287,9 +287,9 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   /**
    * Returns the negation of `e` in polar form. Use caching.
    */
-  def getInversePolar(e: SimpleExpression): SimpleExpression =
-    if e.inverse != null then e.inverse
-    else
+  def getInversePolar(e: SimpleExpression): SimpleExpression = e.inverse match
+    case Some(inverse) => inverse
+    case None =>
       val inverse = e match {
         case e: SimpleAnd => e.copy(polarity = !e.polarity)
         case e: SimpleForall => e.copy(polarity = !e.polarity)(e.id)
@@ -301,14 +301,14 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
         case e: SimpleApplication if e.sort == Prop => e.copy(polarity = !e.polarity)
         case _ => throw new Exception("Cannot invert expression that is not a formula")
       }
-      e.inverse = inverse
+      e.inverse = Some(inverse)
       inverse
 
   /**
    * Converts back a [[SimpleExpression]] to an [[Expression]] in AIG representation.
    */
   def toExpressionAIG(e: SimpleExpression): Expression =
-    if e.formulaAIG != null then e.formulaAIG
+    if e.formulaAIG.isDefined then e.formulaAIG.get
     else {
       val r: Expression = e match {
         case SimpleAnd(children, polarity) =>
@@ -332,7 +332,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
             neg(g)
         case sl @ SimpleLambda(body) => Lambda(sl.v, toExpressionAIG(body))
       }
-      e.formulaAIG = r
+      e.formulaAIG = Some(r)
       r
     }
 
@@ -341,11 +341,11 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
    */
   def toExpressionNNF(e: SimpleExpression, positive: Boolean): Expression = {
     if (positive) {
-      if e.NNF_pos != null then return e.NNF_pos
-      if e.inverse != null && e.inverse.NNF_neg != null then return e.inverse.NNF_neg
+      if e.NNF_pos.isDefined then return e.NNF_pos.get
+      if e.inverse.isDefined && e.inverse.get.NNF_neg.isDefined then return e.inverse.get.NNF_neg.get
     } else if (!positive) {
-      if e.NNF_neg != null then return e.NNF_neg
-      if e.inverse != null && e.inverse.NNF_pos != null then return e.inverse.NNF_pos
+      if e.NNF_neg.isDefined then return e.NNF_neg.get
+      if e.inverse.isDefined && e.inverse.get.NNF_pos.isDefined then return e.inverse.get.NNF_pos.get
     }
     val r = e match {
       case SimpleAnd(children, polarity) =>
@@ -380,8 +380,8 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
           neg(Application(toExpressionNNF(f, true), toExpressionNNF(arg, true)))
       case sl @ SimpleLambda(body) => Lambda(sl.v, toExpressionNNF(body, true))
     }
-    if (positive) e.NNF_pos = r
-    else e.NNF_neg = r
+    if (positive) e.NNF_pos = Some(r)
+    else e.NNF_neg = Some(r)
     r
   }
 
@@ -392,10 +392,10 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
    * - double negations are eliminated
    */
   def polarize(e: Expression, polarity: Boolean): SimpleExpression = {
-    if (polarity & (e.polarExpr != null)) {
-      e.polarExpr
-    } else if (!polarity & (e.polarExpr != null)) {
-      getInversePolar(e.polarExpr)
+    if (polarity & e.polarExpr.isDefined) {
+      e.polarExpr.get
+    } else if (!polarity & e.polarExpr.isDefined) {
+      getInversePolar(e.polarExpr.get)
     } else {
       val r = e match {
         case neg(arg) =>
@@ -438,8 +438,8 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
         case Constant(id, sort) => SimpleConstant(id, sort, polarity)
         case Variable(id, sort) => SimpleVariable(id, sort, polarity)
       }
-      if (polarity) e.polarExpr = r
-      else e.polarExpr = getInversePolar(r)
+      if (polarity) e.polarExpr = Some(r)
+      else e.polarExpr = Some(getInversePolar(r))
       r
     }
   }
@@ -449,21 +449,22 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
    * @see [[fromLocallyNameless]]
    */
   def toLocallyNameless(e: SimpleExpression): SimpleExpression =
-    if e.namelessForm != null then e.namelessForm
-    else
-      val r = e match {
-        case SimpleAnd(children, polarity) => SimpleAnd(children.map(toLocallyNameless), polarity)
-        case sf @ SimpleForall(inner, polarity) => SimpleForall(toLocallyNameless2(inner, Map((sf.id, Ind) -> 0), 1), polarity)(sf.id)
-        case e: SimpleLiteral => e
-        case SimpleEquality(left, right, polarity) => SimpleEquality(toLocallyNameless(left), toLocallyNameless(right), polarity)
-        case v: SimpleVariable => v
-        case s: SimpleBoundVariable => throw new Exception("This case should be unreachable. Can't call toLocallyNameless on a bound variable")
-        case e: SimpleConstant => e
-        case SimpleApplication(arg1, arg2, polarity) => SimpleApplication(toLocallyNameless(arg1), toLocallyNameless(arg2), polarity)
-        case sl @ SimpleLambda(inner) => SimpleLambda(toLocallyNameless2(inner, Map((sl.v.id, sl.v.sort) -> 0), 1))(sl.v)
-      }
-      e.namelessForm = r
-      r
+    e.namelessForm match
+      case Some(value) => value
+      case None =>
+        val r = e match {
+          case SimpleAnd(children, polarity) => SimpleAnd(children.map(toLocallyNameless), polarity)
+          case sf @ SimpleForall(inner, polarity) => SimpleForall(toLocallyNameless2(inner, Map((sf.id, Ind) -> 0), 1), polarity)(sf.id)
+          case e: SimpleLiteral => e
+          case SimpleEquality(left, right, polarity) => SimpleEquality(toLocallyNameless(left), toLocallyNameless(right), polarity)
+          case v: SimpleVariable => v
+          case s: SimpleBoundVariable => throw new Exception("This case should be unreachable. Can't call toLocallyNameless on a bound variable")
+          case e: SimpleConstant => e
+          case SimpleApplication(arg1, arg2, polarity) => SimpleApplication(toLocallyNameless(arg1), toLocallyNameless(arg2), polarity)
+          case sl @ SimpleLambda(inner) => SimpleLambda(toLocallyNameless2(inner, Map((sl.v.id, sl.v.sort) -> 0), 1))(sl.v)
+        }
+        e.namelessForm = Some(r)
+        r
 
   /**
    * Replaces all [[SimpleVariable]]s with [[SimpleBoundVariable]]s in `e` using localy nameless (de Bruijn) representation.
@@ -514,9 +515,10 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
    * Computes the OL normal form of `e` modulo Orthologic. Uses caching.
    */
   def computeNormalForm(e: SimpleExpression): SimpleExpression = {
-    if e.normalForm != null then e.normalForm
-    else
-      val r: SimpleExpression = e match {
+    e.normalForm match
+      case Some(value) => value
+      case None =>
+        val r: SimpleExpression = e match {
         case SimpleAnd(children, polarity) =>
           val newChildren = children map computeNormalForm
           val simp = reduce(newChildren, polarity)
@@ -552,9 +554,9 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
 
         case _ => getInversePolar(computeNormalForm(getInversePolar(e)))
 
-      }
-      e.normalForm = r
-      r
+        }
+        e.normalForm = Some(r)
+        r
   }
 
   /**
