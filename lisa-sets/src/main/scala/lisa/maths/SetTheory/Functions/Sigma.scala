@@ -33,7 +33,12 @@ object Sigma extends lisa.Main {
   val emptySet = Theorem(
     Σ(∅)(B) === ∅
   ) {
-    sorry
+    val W = { B(a) | a ∈ ∅ }
+    have(z ∈ { x ∈ (∅ × W) | snd(x) ∈ B(fst(x)) } <=> z ∈ (∅ × W) /\ (snd(z) ∈ B(fst(z)))) by Comprehension.apply
+    thenHave(z ∈ Σ(∅)(B) <=> z ∈ (∅ × W) /\ (snd(z) ∈ B(fst(z)))) by Substitute(Σ.definition of (A := ∅))
+    thenHave(z ∈ Σ(∅)(B) <=> z ∈ ∅ /\ (snd(z) ∈ B(fst(z)))) by Substitute(CartesianProduct.leftEmpty of (B := W))
+    thenHave(z ∈ Σ(∅)(B) <=> z ∈ ∅) by Tautology.fromLastStep(EmptySet.definition of (x := z))
+    thenHave(thesis) by Extensionality
   }
 
   /**

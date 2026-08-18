@@ -12,7 +12,7 @@ trait Predef extends ExprOps {
   /**
    * Creates a variable with the given identifier and sort.
    */
-  def variable[S: Sort](id: K.Identifier): Variable[S] = Variable(id)
+  def variable[S: Sort](id: K.Identifier): Variable[S] = new Variable(id)
 
   /**
    *  Creates a constant with the given identifier and sort.
@@ -28,7 +28,7 @@ trait Predef extends ExprOps {
    *  Creates a variable with name equal to the scala identifier. Usage:
    * {{{val x = variable[Ind]}}}
    */
-  def variable[S: Sort](using name: sourcecode.Name): Variable[S] = Variable(name.value)
+  def variable[S: Sort](using name: sourcecode.Name): Variable[S] = new Variable(name.value)
 
   /**
    *  Creates a constant with name equal to the scala identifier. Usage:
@@ -253,7 +253,7 @@ trait Predef extends ExprOps {
   /**
    * Beta-reduces the given expression.
    */
-  def betaReduce[T](e: Expr[T]): Expr[T] = e match {
+  def betaReduce[T](e: Expr[T]): Expr[T] = (e: @unchecked) match {
     case App(f, arg) =>
       val reducedArg = betaReduce(arg)
       betaReduce(f) match {
@@ -280,7 +280,7 @@ trait Predef extends ExprOps {
       def inner[S](e: Expr[S]): Expr[S] =
         if e == l then r.asInstanceOf[Expr[S]]
         else
-          e match
+          (e: @unchecked) match
             case App(f, arg) =>
               val newF = inner(f)
               val newArg = inner(arg)
@@ -312,6 +312,12 @@ trait Predef extends ExprOps {
     case l: K.Lambda => asFrontLambda(l)
 
   /**
+   * Lifts a kernel expression into its front expression tree.
+   */
+  def liftExpression(e: K.Expression): Expr[?] =
+    asFrontExpression(e)
+
+  /**
    * Maps a kernel constant to a corresponding front-end constant.
    */
   def asFrontConstant(c: K.Constant): Constant[?] =
@@ -321,19 +327,19 @@ trait Predef extends ExprOps {
    * Maps a kernel variable to a corresponding front-end variable.
    */
   def asFrontVariable(v: K.Variable): Variable[?] =
-    Variable[Ind](v.id)(using unsafeSortEvidence(v.sort))
+    new Variable[Ind](v.id)(using unsafeSortEvidence(v.sort))
 
   /**
    * Maps a kernel application to a corresponding front-end application.
    */
   def asFrontApplication(a: K.Application): App[?, ?] =
-    App(asFrontExpression(a.f).asInstanceOf, asFrontExpression(a.arg))
+    new App(asFrontExpression(a.f).asInstanceOf, asFrontExpression(a.arg))
 
   /**
    * Maps a kernel lambda to a corresponding front-end lambda.
    */
   def asFrontLambda(l: K.Lambda): Abs[?, ?] =
-    Abs(asFrontVariable(l.v).asInstanceOf, asFrontExpression(l.body))
+    new Abs(asFrontVariable(l.v).asInstanceOf, asFrontExpression(l.body))
 
   /**
    * Computes the greatest identifier in a sequence of expressions.

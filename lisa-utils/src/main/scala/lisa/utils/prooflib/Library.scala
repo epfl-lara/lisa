@@ -1,105 +1,103 @@
 package lisa.utils.prooflib
 
-import lisa.kernel.proof.RunningTheory
-import lisa.kernel.proof.SequentCalculus
-import lisa.utils.KernelHelpers._
-import lisa.utils._
+import lisa.utils.K
+import lisa.utils.K.given
+import lisa.utils.fol.FOL._
 
-/**
- * A class abstracting a [[lisa.kernel.proof.RunningTheory]] providing utility functions and a convenient syntax
- * to write and use Theorems and Definitions.
- * @param theory The inner RunningTheory
- */
-abstract class Library extends lisa.utils.prooflib.WithTheorems with lisa.utils.prooflib.ProofsHelpers {
+import scala.collection.View
+import scala.collection.mutable
 
-  val theory: RunningTheory
-  given library: this.type = this
-  given RunningTheory = theory
+abstract class Library:
+  val theory: K.Theory = K.Theory.empty
+  given K.Theory = theory
 
-  export lisa.kernel.proof.SCProof
+  private val definitions = mutable.HashMap.empty[K.Constant, Thm]
+  private val theoremByFullName = mutable.LinkedHashMap.empty[String, Theorem]
+  private val theoremByShortName = mutable.HashMap.empty[String, Vector[Theorem]]
+  private var sectionIndex = 0
 
-  val K = lisa.utils.K
-  val SC: SequentCalculus.type = K.SC
-  private[prooflib] val F = lisa.utils.fol.FOL
+  def addSymbol(symbol: Constant[?]): Unit =
+    theory.addSymbol(symbol.underlying)
 
-  var last: Option[JUSTIFICATION] = None
+  def Axiom(formula: Expr[Prop]): Thm =
+    val statement = Sequent(Set.empty, Set(formula))
+    K.Axiom(using theory)(statement.underlying) match
+      case Right(thm) => Thm(statement, thm, isSchema = true)
 
-  // Options for files
-  private[prooflib] var _withCache: Boolean = false
-  def withCache(using file: sourcecode.File, om: OutputManager)(): Unit =
-    if last.nonEmpty then om.output(OutputManager.WARNING("Warning: withCache option should be used before the first definition or theorem."))
-    else _withCache = true
+  private def leadingVars(e: Expr[?]): Seq[Variable[?]] =
+    e match
+      case Abs(v, body) => v +: leadingVars(body)
+      case _ => Seq.empty
 
-  private[prooflib] var _draft: Option[sourcecode.File] = None
-  def draft(using file: sourcecode.File, om: OutputManager)(): Unit =
-    if last.nonEmpty then om.output(OutputManager.WARNING("Warning: draft option should be used before the first definition or theorem."))
-    else _draft = Some(file)
-  def isDraft = _draft.nonEmpty
+  protected def registerDefinition[S](constant: Constant[S], definition: K.Thm): Thm =
+    val thm = Thm(Thm.liftSequent(definition.statement), definition, isSchema = true)
+    definitions.update(constant.underlying, thm)
+    thm
 
-  private[prooflib] var _currentSection: Map[String, (String, Int)] = Map.empty
+  def DEF[S: Sort](using name: sourcecode.FullName)(expression: Expr[S]): Constant[S] =
+    val cst = constant[S](name.value)
+    val vars = leadingVars(expression)
+    K.Definition(using theory)(cst.underlying, vars.map(_.underlying), expression.underlying) match
+      case Right(definition) =>
+        registerDefinition(cst, definition)
+        cst
+      case Left(error) =>
+        throw new IllegalArgumentException(s"Invalid definition ${name.value}: $error")
 
-  def section(name: String)(using om: OutputManager, file: sourcecode.File): Unit =
-    val index = _currentSection.get(file.value).map(_._2).getOrElse(0) + 1
-    _currentSection = _currentSection.updated(file.value, (name, index))
-    om.output(OutputManager.BLUE(s" Section ${index}: ${name}"))
+  extension [S](constant: Constant[S])
+    def definition: Thm =
+      definitions.getOrElse(constant.underlying, throw new NoSuchElementException(s"No definition registered for $constant."))
 
-  private[prooflib] var contextHypotheses: Map[sourcecode.File, Set[F.Expr[F.Prop]]] = Map.empty
-  def context(e: F.Expr[F.Prop])(using file: sourcecode.File): Unit =
-    contextHypotheses = contextHypotheses.updated(file, contextHypotheses.getOrElse(file, Set.empty) + e)
+    def shortDefinition: Thm =
+      definition
 
-  val knownDefs: scala.collection.mutable.Map[F.Constant[?], Option[JUSTIFICATION]] = scala.collection.mutable.Map.empty
-  val shortDefs: scala.collection.mutable.Map[F.Constant[?], Option[JUSTIFICATION]] = scala.collection.mutable.Map.empty
+  class DirectDefinition[S: Sort](fullName: String, line: Int | sourcecode.Line, file: String | sourcecode.File)(expression: Expr[S], vars: Seq[Variable[?]]):
+    val cst: Constant[S] = constant[S](fullName)
+    K.Definition(using theory)(cst.underlying, vars.map(_.underlying), expression.underlying) match
+      case Right(definition) => registerDefinition(cst, definition)
+      case Left(error) => throw new IllegalArgumentException(s"Invalid definition $fullName: $error")
 
-  def addSymbol(s: F.Constant[?]): Unit =
-    theory.addSymbol(s.underlying)
-    knownDefs.update(s, None)
-
-  def getDefinition(label: F.Constant[?]): Option[JUSTIFICATION] = knownDefs.get(label) match {
-    case None => throw new UserLisaException.UndefinedSymbolException("Unknown symbol", label, this)
-    case Some(value) => value
-  }
-  def getShortDefinition(label: F.Constant[?]): Option[JUSTIFICATION] = shortDefs.get(label) match {
-    case None => throw new UserLisaException.UndefinedSymbolException("Unknown symbol", label, this)
-    case Some(value) => value
-  }
-
-  extension (symbol: F.Constant[?]) {
-    def definition: JUSTIFICATION = {
-      getDefinition(symbol).get
-    }
-    def shortDefinition: JUSTIFICATION = {
-      getShortDefinition(symbol).get
-    }
-  }
+  def section(name: String)(using output: OutputManager, file: sourcecode.File): Unit =
+    sectionIndex += 1
+    output.section(sectionIndex, name, file.value)
 
   /**
-   * An alias to create a Theorem
+   * Provides access to theorems in the library.
    */
-  def makeTheorem(name: String, statement: K.Sequent, proof: K.SCProof, justifications: Seq[theory.Justification]): K.Judgement[theory.Theorem] =
-    theory.theorem(name, statement, proof, justifications)
+  object theorems:
+    /**
+     * Mutably update the named theorem registry
+     */
+    private[prooflib] def register(theorem: Theorem): Unit =
+      val fullName = theorem.fullName.value
+      require(!theoremByFullName.contains(fullName), s"Theorem $fullName is already registered.")
+      theoremByFullName.update(fullName, theorem)
+      theoremByShortName.updateWith(theorem.shortName):
+        case Some(existing) => Some(existing :+ theorem)
+        case None => Some(Vector(theorem))
 
-  // DEFINITION Syntax
+    /**
+     * A view over all named registered theorems.
+     */
+    def all: View[Theorem] =
+      theoremByFullName.values.view
 
-  /**
-   * Allows to create a definition by shortcut of a predicate symbol:
-   */
-  def makeSimpleDefinition(symbol: String, expression: K.Expression): K.Judgement[theory.Definition] =
-    theory.makeSimpleDefinition(symbol, expression)
+    /**
+     * Lookup a theorem by full or short name (in that order of preference).
+     */
+    def get(name: String): Option[Theorem] =
+      getFull(name).orElse(getShort(name))
 
-  /**
-   * Prints a short representation of the given theorem or definition
-   */
-  def show(using om: OutputManager)(thm: JUSTIFICATION) = {
-    if (thm.withSorry) om.output(thm.repr, Console.YELLOW)
-    else om.output(thm.repr, Console.GREEN)
-  }
+    /**
+     * Lookup a theorem by full name.
+     */
+    def getFull(fullName: String): Option[Theorem] =
+      theoremByFullName.get(fullName)
 
-  /**
-   * Prints a short representation of the last theorem or definition introduced
-   */
-  def show(using om: OutputManager): Unit = last match {
-    case Some(value) => show(value)
-    case None => throw new NoSuchElementException("There is nothing to show: No theorem or definition has been proved yet.")
-  }
-
-}
+    /**
+     * Lookup a theorem by short name, if the short name is unambiguous.
+     */
+    def getShort(shortName: String): Option[Theorem] =
+      theoremByShortName.get(shortName) match
+        case Some(Vector(single)) => Some(single)
+        case _ => None

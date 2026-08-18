@@ -17,14 +17,14 @@ fof(a6, axiom, [P(a, b) & ~P(c, d)] --> []).
 fof(f6, plain, [P(X, f(a)) & ~P(X, f(c))] --> [], inference(instPred, [status(thm), 'P', $fof(P(X, f(Y))), ['Y', 'Z']], [a6])).
 
 fof(a7, axiom, [![X] : P(X, c)] --> []).
-fof(f7, plain, [![X] :( q(X) | ![Y] : p(Y, c))] --> [], 
+fof(f7, plain, [![X] :( q(X) | ![Y] : p(Y, c))] --> [],
       inference(instPred, [status(thm), 'P', $fof(q(X) | ![X] : p(X, Y)), ['X', 'Y']], [a7])).
 
 fof(a8, axiom, [![X] : P(X, f(c))] --> [?[Y] : P(b, f(Y))]).
-fof(f8, plain, [![X] : (q(X) | ![Y] : ~q(Y, f(f(c))))] --> [?[Z] : (q(b) | ![X] : ~(q(X, f(f(Z)))))], 
+fof(f8, plain, [![X] : (q(X) | ![Y] : ~q(Y, f(f(c))))] --> [?[Z] : (q(b) | ![X] : ~(q(X, f(f(Z)))))],
       inference(instPred, [status(thm), 'P', $fof(q(X) | ![X] : ~(q(X, f(Y)))), ['X', 'Y']], [a8])).
 
 
 %fof(a8, axiom, [![X] : P(X, #[Y] : (Q(X) & P(X, Y)))] --> []).
-%fof(f8, plain, [![X] :( q(X) | ![Z] : p(Z, #[Y] : (Q(X) & P(X, Y))))] --> [], 
+%fof(f8, plain, [![X] :( q(X) | ![Z] : p(Z, #[Y] : (Q(X) & P(X, Y))))] --> [],
 %      inference(instPred, [status(thm), 'P', $fof(q(X) | ![X] : p(X, Y)), ['X', 'Y']], [a8])).

@@ -344,8 +344,8 @@ object BasicTheorems extends lisa.Main {
 
       // 6. g(fst(z)) = snd(z)
       val step6 = have(g(fst(z)) === snd(z)) by Congruence.from(
-        step4,
-        step5
+        step5,
+        step4
       )
 
       // 7. fst(z) ∈ dom(g)

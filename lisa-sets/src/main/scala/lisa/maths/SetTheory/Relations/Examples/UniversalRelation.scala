@@ -33,7 +33,24 @@ object UniversalRelation extends lisa.Main {
   val universalRelationDomain = Theorem(
     dom(X × X) === X
   ) {
-    sorry
+    have(x ∈ { fst(z) | z ∈ (X × X) } <=> ∃(z ∈ (X × X), fst(z) === x)) by Replacement.apply
+    val domMem = thenHave(x ∈ dom(X × X) <=> ∃(z ∈ (X × X), fst(z) === x)) by Substitute(dom.definition of (R := X × X))
+
+    // Forward: x ∈ dom(X × X) ==> x ∈ X
+    have(z ∈ (X × X) |- fst(z) ∈ X) by Restate.from(CartesianProduct.fstMembership of (A := X, B := X))
+    thenHave((z ∈ (X × X), fst(z) === x) |- x ∈ X) by Congruence
+    thenHave((z ∈ (X × X)) /\ (fst(z) === x) |- x ∈ X) by Restate
+    thenHave(∃(z ∈ (X × X), fst(z) === x) |- x ∈ X) by LeftExists
+    val forward = thenHave(x ∈ dom(X × X) ==> x ∈ X) by Tautology.fromLastStep(domMem)
+
+    // Backward: x ∈ X ==> x ∈ dom(X × X)
+    have(x ∈ X |- (x, x) ∈ (X × X)) by Tautology.from(CartesianProduct.pairMembership of (x := x, y := x, A := X, B := X))
+    thenHave(x ∈ X |- (x, x) ∈ (X × X) /\ (fst((x, x)) === x)) by Tautology.fromLastStep(Pair.pairFst of (x := x, y := x))
+    thenHave(x ∈ X |- ∃(z, z ∈ (X × X) /\ (fst(z) === x))) by RightExists
+    val backward = thenHave(x ∈ X ==> x ∈ dom(X × X)) by Tautology.fromLastStep(domMem)
+
+    have(x ∈ dom(X × X) <=> x ∈ X) by Tautology.from(forward, backward)
+    thenHave(thesis) by Extensionality
   }
 
   /**
@@ -42,7 +59,24 @@ object UniversalRelation extends lisa.Main {
   val universalRelationRange = Theorem(
     range(X × X) === X
   ) {
-    sorry
+    have(y ∈ { snd(z) | z ∈ (X × X) } <=> ∃(z ∈ (X × X), snd(z) === y)) by Replacement.apply
+    val rangeMem = thenHave(y ∈ range(X × X) <=> ∃(z ∈ (X × X), snd(z) === y)) by Substitute(range.definition of (R := X × X))
+
+    // Forward: y ∈ range(X × X) ==> y ∈ X
+    have(z ∈ (X × X) |- snd(z) ∈ X) by Restate.from(CartesianProduct.sndMembership of (A := X, B := X))
+    thenHave((z ∈ (X × X), snd(z) === y) |- y ∈ X) by Congruence
+    thenHave((z ∈ (X × X)) /\ (snd(z) === y) |- y ∈ X) by Restate
+    thenHave(∃(z ∈ (X × X), snd(z) === y) |- y ∈ X) by LeftExists
+    val forward = thenHave(y ∈ range(X × X) ==> y ∈ X) by Tautology.fromLastStep(rangeMem)
+
+    // Backward: y ∈ X ==> y ∈ range(X × X)
+    have(y ∈ X |- (y, y) ∈ (X × X)) by Tautology.from(CartesianProduct.pairMembership of (x := y, y := y, A := X, B := X))
+    thenHave(y ∈ X |- (y, y) ∈ (X × X) /\ (snd((y, y)) === y)) by Tautology.fromLastStep(Pair.pairSnd of (x := y, y := y))
+    thenHave(y ∈ X |- ∃(z, z ∈ (X × X) /\ (snd(z) === y))) by RightExists
+    val backward = thenHave(y ∈ X ==> y ∈ range(X × X)) by Tautology.fromLastStep(rangeMem)
+
+    have(y ∈ range(X × X) <=> y ∈ X) by Tautology.from(forward, backward)
+    thenHave(thesis) by Extensionality
   }
 
   /**

@@ -1,15 +1,8 @@
 package lisa.utils.fol
 
 import lisa.utils.K
-import lisa.utils.prooflib.ProofTacticLib.ProofTactic
 
 trait Sequents extends Predef {
-
-  /**
-   * Tactic witness for instantiating free variables in a sequent.
-   */
-  object SequentInstantiationRule extends ProofTactic
-  given ProofTactic = SequentInstantiationRule
 
   /**
    * Represents a sequent in the sequent calculus.
@@ -25,7 +18,7 @@ trait Sequents extends Predef {
     /**
      * The underlying kernel sequent.
      */
-    def underlying: lisa.kernel.proof.SequentCalculus.Sequent = K.Sequent(left.map(_.underlying), right.map(_.underlying))
+    def underlying: K.Sequent = K.Sequent(left.map(_.underlying), right.map(_.underlying))
 
     def substituteUnsafe(m: Map[Variable[?], Expr[?]]): Sequent = Sequent(left.map(_.substituteUnsafe(m)), right.map(_.substituteUnsafe(m)))
     override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): Sequent =
@@ -36,62 +29,6 @@ trait Sequents extends Predef {
     def freeVars: Set[Variable[?]] = left.flatMap(_.freeVars) ++ right.flatMap(_.freeVars)
     def freeTermVars: Set[Variable[Ind]] = left.flatMap(_.freeTermVars) ++ right.flatMap(_.freeTermVars)
     def constants: Set[Constant[?]] = left.flatMap(_.constants) ++ right.flatMap(_.constants)
-
-    /**
-     * Instantiate schematic symbols inside this, and produces a kernel proof.
-     * Namely, if "that" is the result of the substitution, the proof should conclude with "that.underlying",
-     * using the assumption "this.underlying" at step index -1.
-     *
-     * @param map The substitution map
-     * @return The sequent after substitution and the proof of the substitution
-     */
-    def instantiateWithProof(map: Map[Variable[?], Expr[?]], index: Int): (Sequent, Seq[K.SCProofStep]) = {
-      (substituteUnsafe(map), instantiateWithProofLikeKernel(map, index))
-
-    }
-
-    /**
-     * Instantiate the quantified variables in the conclusion of the sequent with the given terms.
-     * The sequent must have a single universally quantified formula on the right side.
-     */
-    def instantiateForallWithProof(args: Seq[Expr[Ind]], index: Int): (Sequent, Seq[K.SCProofStep]) = {
-      if this.right.size != 1 then throw new IllegalArgumentException("Right side of sequent must be a single universally quantified formula; found " + this.right.size)
-      this.right.head match {
-        case r @ App(forall, Abs(x: Variable[Ind], f: Expr[Prop])) =>
-          val t = args.head
-          val newf = f.substitute(x := t)
-          val s0 = K.Hypothesis((newf |- newf).underlying, newf.underlying)
-          val s1 = K.LeftForall((r |- newf).underlying, index + 1, f.underlying, x.underlying, t.underlying)
-          val s2 = K.Cut((this.left |- newf).underlying, index, index + 2, r.underlying)
-          if args.tail.isEmpty then (this.left |- newf, Seq(s0, s1, s2))
-          else
-            (this.left |- newf).instantiateForallWithProof(args.tail, index + 3) match {
-              case (s, p) => (s, Seq(s0, s1, s2) ++ p)
-            }
-
-        case _ => throw new IllegalArgumentException("Right side of sequent must be a single universally quantified formula; found " + this.right.head)
-      }
-
-    }
-
-    /**
-     * Given 3 substitution maps like the kernel accepts, i.e. Substitution of Predicate Connector and Ind schemas, do the substitution
-     * and produce the (one-step) kernel proof that the result is provable from the original sequent
-     *
-     * @param mCon The substitution of connector schemas
-     * @param mPred The substitution of predicate schemas
-     * @param mTerm The substitution of function schemas
-     * @return
-     */
-    def instantiateWithProofLikeKernel(
-        map: Map[Variable[?], Expr[?]],
-        index: Int
-    ): Seq[K.SCProofStep] = {
-      val premiseSequent = this.underlying
-      val mapK = map.map((v, e) => (v.underlying, e.underlying))
-      val botK = lisa.utils.KernelHelpers.substituteVariablesInSequent(premiseSequent, mapK)
-      Seq(K.InstSchema(botK, index, mapK))
-    }
 
     /**
      * Add a formula to the left side of the sequent.
@@ -262,6 +199,33 @@ trait Sequents extends Predef {
         (if right.size == 0 then "" else if right.size == 1 then right.head.toString else "( " + right.mkString(", ") + " )")
 
   }
+
+  /**
+   * Front theorem: keeps the front sequent for syntax/error reporting while
+   * carrying the kernel theorem that certifies it.
+   *
+   * `isSchema` preserves whether front tactics may infer instantiations from
+   * this theorem. Explicitly instantiated and locally derived theorems are
+   * confined to their stated expressions.
+   */
+  final case class Thm(statement: Sequent, kernel: K.Thm, isSchema: Boolean = false):
+    def kernelStatement: K.Sequent = kernel.statement
+    def left: Set[Expr[Prop]] = statement.left
+    def right: Set[Expr[Prop]] = statement.right
+    def leftK: Set[K.Expression] = kernel.statement.left
+    def rightK: Set[K.Expression] = kernel.statement.right
+
+  object Thm:
+    def apply(kernel: K.Thm): Thm =
+      Thm(liftSequent(kernel.statement), kernel)
+
+    def liftSequent(statement: K.Sequent): Sequent =
+      Sequent(statement.left.map(liftFormula), statement.right.map(liftFormula))
+
+    def liftFormula(expression: K.Expression): Expr[Prop] =
+      liftExpression(expression).asInstanceOf[Expr[Prop]]
+
+    given asKernel: Conversion[Thm, K.Thm] = _.kernel
 
   /**
    * A sequent with empty left and right sides. Logically false.

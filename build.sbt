@@ -15,17 +15,12 @@ ThisBuild / javacOptions ++= Seq("-encoding", "UTF-8")
 ThisBuild / semanticdbEnabled := true
 ThisBuild / semanticdbVersion := "4.13.6"
 
-val scala2 = "2.13.16"
 val scala3 = "3.7.2"
 val commonSettings = Seq(
   crossScalaVersions := Seq(scala3),
   run / fork := true
 )
 
-val commonSettings2 = commonSettings ++ Seq(
-  scalaVersion := scala2,
-  scalacOptions ++= Seq("-Ypatmat-exhaust-depth", "50")
-)
 val commonSettings3 = commonSettings ++ Seq(
   scalaVersion := scala3,
   scalacOptions ++= Seq(
@@ -44,17 +39,13 @@ val commonSettings3 = commonSettings ++ Seq(
 def withTests(project: Project): ClasspathDependency =
   project % "compile->compile;test->test"
 
-def githubProject(repo: String, commitHash: String) = RootProject(uri(s"$repo#$commitHash"))
-
-lazy val customTstpParser = githubProject("https://github.com/SC-TPTP/scala-tptp-parser.git", "0b4ffa55c71415e925080608707c78ada1d750e5")
-
 lazy val root = Project(
   id = "lisa",
   base = file(".")
 )
   .settings(commonSettings3)
-  .dependsOn(kernel, withTests(utils), withTests(sets)) // Everything but `examples`
-  .aggregate(utils) // To run tests on all modules
+  .dependsOn(kernel, utils, sets)
+  .aggregate(utils, sets)
 
 Compile / run := (sets / Compile / run).evaluated
 
@@ -62,40 +53,43 @@ lazy val kernel = Project(
   id = "lisa-kernel",
   base = file("lisa-kernel")
 )
-  .settings(commonSettings2)
+  .settings(commonSettings)
   .settings(
-    crossScalaVersions := Seq(scala3)
+    scalaVersion := scala3,
+    libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % "test"
   )
+
+lazy val utils = Project(
+  id = "lisa-utils",
+  base = file("lisa-utils")
+)
+  .settings(commonSettings3)
+  .dependsOn(kernel)
 
 lazy val sets = Project(
   id = "lisa-sets",
   base = file("lisa-sets")
 )
   .settings(commonSettings3)
-  .dependsOn(kernel, withTests(utils))
-
-lazy val bench = Project(
-  id = "bench",
-  base = file("bench")
-)
-  .settings(commonSettings3)
-  .enablePlugins(JmhPlugin)
-  .dependsOn(sets)
-
-lazy val utils = Project(
-  id = "lisa-utils",
-  base = file("lisa-utils")
-)
   .settings(
-    commonSettings3 ++ Seq(
-      libraryDependencies += "ch.epfl.lara" %% "scallion" % "0.6" from "https://github.com/epfl-lara/scallion/releases/download/v0.6/scallion_3-0.6.jar",
-      libraryDependencies += "ch.epfl.lara" %% "silex" % "0.6" from "https://github.com/epfl-lara/silex/releases/download/v0.6/silex_3-0.6.jar",
-      libraryDependencies += "com.lihaoyi" %% "mainargs" % "0.7.6"
-    )
+    Compile / unmanagedSources := {
+      val src = (Compile / scalaSource).value
+      (src ** "*.scala").get.filter { file =>
+        val path = IO.relativize(src, file).getOrElse("")
+        path == "lisa/Main.scala" ||
+        path == "lisa/SetTheoryLibrary.scala" ||
+        path.startsWith("lisa/maths/")
+      }
+    },
+    Test / unmanagedSources := {
+      val src = (Test / scalaSource).value
+      (src ** "*.scala").get.filter { file =>
+        val path = IO.relativize(src, file).getOrElse("")
+        path.startsWith("lisa/maths/")
+      }
+    }
   )
-  .dependsOn(kernel)
-  .dependsOn(customTstpParser)
-//.settings(libraryDependencies += "io.github.leoprover" % "scala-tptp-parser_2.13" % "1.4")
+  .dependsOn(kernel, utils)
 
 ThisBuild / assemblyMergeStrategy := {
   case PathList("module-info.class") => MergeStrategy.discard
@@ -114,7 +108,7 @@ lazy val examples = Project(
   .settings(commonSettings)
   .settings(commonSettings3)
   .dependsOn(root)
-  
+
 lazy val holImport = Project(
   id = "lisa-hol",
   base = file("lisa-hol")
@@ -126,3 +120,11 @@ lazy val holImport = Project(
     )
   )
   .dependsOn(sets, utils)
+
+lazy val coc = Project(
+  id = "lisa-coc",
+  base = file("lisa-coc")
+)
+  .settings(commonSettings)
+  .settings(commonSettings3)
+  .dependsOn(root)
