@@ -2,8 +2,8 @@ package lisa.utils.fol
 
 import lisa.utils.K
 import lisa.utils.K.Identifier
-import lisa.utils.K.freshId
 import lisa.utils.K.given_Conversion_String_Identifier
+import lisa.utils.KernelHelpers.freshId
 
 import scala.annotation.showAsInfix
 import scala.annotation.targetName
@@ -18,9 +18,10 @@ trait Syntax {
    *
    * Sorts are used to classify expressions and are either [[Ind]], [[Prop]], or _ [[Arrow]] _.
    */
-  trait Sort:
+  trait Sort {
     type Self
     val underlying: K.Sort
+  }
 
   /**
    * The sort of individuals, i.e. sets, numbers, etc. Corresponds to [[K.Ind]]
@@ -58,10 +59,11 @@ trait Syntax {
   /**
    * A pair of a variable and an expression of matching Sort. Used for substitution.
    */
-  sealed trait SubstPair extends Product:
-    type S // S is existentially quantified
+  sealed trait SubstPair extends Product {
+    type S
     val _1: Variable[S]
     val _2: Expr[S]
+  }
 
   /**
    * Concrete implementation of the [[SubstPair]] trait. Done this way to havee a type membeer instead of a type parameter.
@@ -84,7 +86,7 @@ trait Syntax {
    * Used to cast expressions to a specific sort, without checking.
    * Useful when the type is not known at compile time.
    */
-  def unsafeSortEvidence[S](sort: K.Sort): S is Sort = new Sort { type Self = S; val underlying = sort }
+  def unsafeSortEvidence[S](sort: K.Sort): (S is Sort) = new Sort { type Self = S; val underlying = sort }
 
   /**
    * Converts a (Variable, Expr) pair to a SubstPair
@@ -211,7 +213,7 @@ trait Syntax {
     /**
      * Default String representation of the expression, with potential arguments.
      */
-    final def defaultMkString(args: Seq[Expr[?]]): String = s"$this(${args.map(a => s"${a}").mkString(", ")})"
+    final def defaultMkString(args: Seq[Expr[?]]): String = s"$this(${args.mkString(", ")})"
 
     /**
      * Default String representation of the expression, with potential arguments, encapsulated by parenthesis if necessary.
@@ -379,6 +381,12 @@ trait Syntax {
    * Factory object for [[Variable]].
    */
   object Variable {
+    // val cache = scala.collection.mutable.Map.empty[(K.Identifier, K.Sort), Variable[?]]
+    // def apply[S: Sort as sortEv](id: K.Identifier): Variable[S] =
+    //   cache
+    //     .getOrElseUpdate((id, sortEv.underlying), new Variable(id)(using sortEv))
+    //     .asInstanceOf[Variable[S]] // the evidence check ensures this is well sorted
+
     def unsafe(id: String, sort: K.Sort): Variable[?] = Variable(id)(using unsafeSortEvidence(sort))
     def fresh[S: Sort](existing: Iterable[Expr[?]], baseId: String = "v"): Variable[S] = {
       val newId = freshId(existing.flatMap(_.freeVars.map(_.id)), baseId)
@@ -400,19 +408,6 @@ trait Syntax {
     val sort: K.Sort = sortEv.underlying
     private var infix: Boolean = false
     var customPrinter: Option[Seq[Expr[?]] => String] = None
-
-    /**
-     * Complete identifier used by the front end.
-     */
-    val fullName: String = id.toString
-
-    /**
-     * Unqualified identifier for printing.
-     */
-    val shortName: String =
-      val separator = id.name.lastIndexOf('.')
-      val base = if separator < 0 then id.name else id.name.substring(separator + 1)
-      if id.no == 0 then base else base + K.Identifier.counterSeparator + id.no
 
     /**
      * Set the variable to be printed infix.
@@ -446,7 +441,7 @@ trait Syntax {
      */
     def rename(newId: K.Identifier): Constant[S] = Constant(newId)
     // Special handling for inxfix constants
-    override def toString(): String = shortName
+    override def toString(): String = id.toString
     mkString = (args: Seq[Expr[?]]) =>
       if infix && args.size == 2 then s"${args(0)} $this ${args(1)}"
       else if infix & args.size > 2 then s"(${args(0)} $this ${args(1)})${args.drop(2).map(_.mkStringSeparated).mkString})"
@@ -474,7 +469,6 @@ trait Syntax {
      * Constructs a constant with the given identifier and sort.
      */
     def unsafe(id: String, sort: K.Sort): Constant[?] = Constant(id)(using unsafeSortEvidence(sort))
-    def unsafe(id: Identifier, sort: K.Sort): Constant[?] = Constant(id)(using unsafeSortEvidence(sort))
   }
 
   /**
@@ -506,12 +500,12 @@ trait Syntax {
       if args.size == 0 then toString
       else
         args(0) match {
-          case Abs(v, e) => s"$shortName($v, $e)${args.drop(1).map(_.mkStringSeparated).mkString}"
+          case Abs(v, e) => s"$id($v, $e)${args.drop(1).map(_.mkStringSeparated).mkString}"
           case _ => defaultMkString(args)
         }
     mkStringSeparated = (args: Seq[Expr[?]]) =>
       args match {
-        case Seq(Abs(v, e)) => s"($shortName($v, $e))"
+        case Seq(Abs(v, e)) => s"($id($v, $e))"
         case _ => defaultMkStringSeparated(args)
       }
   }
@@ -544,6 +538,11 @@ trait Syntax {
    * Factory object for [[App]] when the sorts are unknown at compile time.
    */
   object App {
+    // val cache = scala.collection.mutable.Map.empty[(K.Expression, K.Expression), App[?, ?]]
+    // def apply[S, T](f: Expr[Arrow[S, T]], arg: Expr[S]): App[S, T] =
+    //   cache
+    //     .getOrElseUpdate((f.underlying, arg.underlying), new App(f, arg))
+    //     .asInstanceOf[App[S, T]]
 
     /**
      * Constructs an application of `f` to `arg`.
@@ -588,13 +587,17 @@ trait Syntax {
    * Factory object for [[Abs]] when the sorts are unknown at compile time.
    */
   object Abs:
+    // val cache = scala.collection.mutable.Map.empty[(K.Identifier, K.Expression), Abs[?, ?]]
+    // def apply[S, T](v: Variable[S], body: Expr[T]): Abs[S, T] =
+    //   cache
+    //     .getOrElseUpdate((v.id, body.underlying), new Abs(v, body))
+    //     .asInstanceOf[Abs[S, T]]
+
     /**
      * Constructs a lambda abstraction of `v` over `body`. Always succeeds.
      */
     def unsafe(v: Variable[?], body: Expr[?]): Expr[?] =
-      new Abs(v.asInstanceOf, body.asInstanceOf)
-
-    def apply[S1, S2](v: Variable[S1], body: Expr[S2]): Abs[S1, S2] = new Abs(v, body)
+      Abs(v.asInstanceOf[Variable[?]], body.asInstanceOf[Expr[?]])
 
     def apply(xs: Seq[Variable[?]], t: Expr[?]): Expr[?] = xs.foldRight(t)((x, t) => new Abs(x, t))
 

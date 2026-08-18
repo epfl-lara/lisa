@@ -64,8 +64,10 @@ logic, and formalisation of proofs through sequent calculus.
 
 ### Utils
 
-The `lisa-utils` package contains the front syntax, proof helpers, tactics,
-and mathematical-development DSL backed by the LCF-style kernel.
+The `lisa-utils` package contains a set of utilities to interact with the
+kernel. Syntactic sugar, a parser and printer for proofs and formulas,
+unification algorithms, among others. The package also contains LISA's DSL to
+write proofs, tactics, and mathematical developments.
 
 Most user-developed tactics, syntax, and auxiliary utilities go here.
 

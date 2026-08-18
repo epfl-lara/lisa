@@ -13,6 +13,7 @@ import K.SCProofChecker
 class LVL2Test extends AnyFunSuite {
 
   private val sources = getClass.getResource("/level2_steps").getPath
+  println(s"Sources: $sources")
 
   private val problems = Seq[(String, String)](
     "instMult.p" -> "instMult rule tests"
@@ -25,6 +26,7 @@ class LVL2Test extends AnyFunSuite {
         val judgement = SCProofChecker.checkSCProof(res)
         assert(judgement.isValid, K.prettySCProof(judgement))
 
+        println(s"Parsed ${p._1}")
       } catch {
         case e: TPTPParser.TPTPParseException =>
           println(s"Parse error at line ${e.line}:${e.offset}: ${e.getMessage}")

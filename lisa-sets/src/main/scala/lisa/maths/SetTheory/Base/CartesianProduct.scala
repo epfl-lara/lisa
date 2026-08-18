@@ -315,15 +315,10 @@ object CartesianProduct extends lisa.Main {
       Union.rightSubset of (x := A, y := C),
       Union.rightSubset of (x := B, y := D)
     )
-    val s1 = Union.idempotence of (x := RHS)
-    val s2 = Union.monotonic of (x := (A × B), y := (C × D), a := RHS, b := RHS)
-
-    have(s1.statement) by Restate.from(s1)
-    have(s2.statement) by Restate.from(s2)
 
     have(thesis) by Congruence.from(
-      s1,
-      s2,
+      Union.monotonic of (x := (A × B), y := (C × D), a := RHS, b := RHS),
+      Union.idempotence of (x := RHS),
       left,
       right
     )

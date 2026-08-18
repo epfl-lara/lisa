@@ -150,7 +150,7 @@ object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSeque
         val subst1 = RightSubstIff(
           atom :: s.decisions._1 ++ s.decisions._2.map((f: Expression) => neg(f)) |- redF,
           offset + proof1.length - 1,
-          Seq((top, atom)),
+          Seq((atom, top)),
           (Seq(MaRvIn), lambdaF)
         )
         val negatom = neg(atom)
@@ -159,7 +159,7 @@ object Tautology extends ProofTactic with ProofSequentTactic with ProofFactSeque
         val subst2 = RightSubstIff(
           negatom :: s.decisions._1 ++ s.decisions._2.map((f: Expression) => neg(f)) |- redF,
           offset + proof1.length + proof2.length + 1 - 1,
-          Seq((bot, atom)),
+          Seq((atom, bot)),
           (Seq(MaRvIn), lambdaF)
         )
         val red2 = Restate(s.decisions._1 ++ s.decisions._2.map((f: Expression) => neg(f)) |- (redF, atom), offset + proof1.length + proof2.length + 2 - 1)
