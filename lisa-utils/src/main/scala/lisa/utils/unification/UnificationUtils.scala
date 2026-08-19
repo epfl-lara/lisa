@@ -370,14 +370,11 @@ object UnificationUtils:
   type FormulaRewriteResult = RewriteResult[Prop]
 
   def rewrite[A](using ctx: RewriteContext)(from: Expr[A], to: Expr[A]): Option[RewriteResult[A]] =
-    lazy val rule = rewriteOne(from, to)
-
     if eq(from, to) then Some(RewriteResult(ctx, Set.empty, from))
-    else if rule.isDefined then
-      val irule = rule.get
-      Some(RewriteResult(ctx, Set(irule), ctx.representativeVariable(irule).asInstanceOf))
     else
-      (from, to) match
+      lazy val direct: Option[RewriteResult[A]] = rewriteOne(from, to).map: rule =>
+        RewriteResult(ctx, Set(rule), ctx.representativeVariable(rule).asInstanceOf[Expr[A]])
+      lazy val structural: Option[RewriteResult[A]] = (from, to) match
         case (App(fe, arge), App(fp, argp)) if fe.sort == fp.sort =>
           lazy val fun = rewrite(fe, fp.asInstanceOf)
           lazy val arg = rewrite(arge, argp.asInstanceOf)
@@ -395,6 +392,13 @@ object UnificationUtils:
               case RewriteResult(c, r, e) =>
                 RewriteResult(c, r, Abs(freshVar, e))
         case _ => None
+
+      // Prefer the least general rewrite. In particular, a schematic rule `x =
+      // y` should rewrite an argument of `F(x)` before being instantiated
+      // completely to `F(x) = F(y)`. Both are sound, but needlessly
+      // instantiating the rule's assumptions can make them impossible to
+      // discharge from the requested conclusion.
+      structural.orElse(direct)
 
   /**
    * Keeps the first occurrence of each instantiated rewrite rule.
