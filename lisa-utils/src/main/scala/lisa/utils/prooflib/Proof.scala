@@ -6,12 +6,12 @@ import lisa.utils.fol.FOL._
 import scala.collection.View
 import scala.collection.mutable
 
-final class Proof private (val lib: Library, val goal: Option[Sequent], inheritedAssumptions: Iterable[K.Expression] = Nil):
+final class Proof private (val lib: Library, val goal: Option[Sequent], inheritedAssumptions: Iterable[Expr[Prop]] = Nil):
   given Library = lib
   given K.Theory = lib.theory
 
   private val currentErrors: mutable.Set[ProofError] = mutable.Set.empty
-  private val currentAssumptions: mutable.Set[Expr[Prop]] = mutable.Set.from(inheritedAssumptions.map(Thm.liftFormula))
+  private val currentAssumptions: mutable.Set[Expr[Prop]] = mutable.Set.from(inheritedAssumptions)
 
   var lastKnown: Option[Thm] = None
 
@@ -48,7 +48,7 @@ final class Proof private (val lib: Library, val goal: Option[Sequent], inherite
     result
 
   private def child(goal: Option[Sequent] = None, inheritAssumptions: Boolean = true): Proof =
-    new Proof(lib, goal, if inheritAssumptions then currentAssumptions.map(_.underlying) else Nil)
+    new Proof(lib, goal, if inheritAssumptions then currentAssumptions else Nil)
 
   def withSubcontext[T](goal: Option[Sequent] = None, inheritAssumptions: Boolean = true)(inner: Proof ?=> ProofCarrier[T]): ProofCarrier[T] =
     val subproof = child(goal, inheritAssumptions)
