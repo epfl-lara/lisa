@@ -12,8 +12,9 @@ import scala.collection.immutable.HashMap
  */
 object Tableau extends SequentTactic, PremiseSequentTactic, DerivedFromPremises:
   protected def prove(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premises: Seq[Thm]): ProofJudgement =
-    Tautology.proveFromPremises(conclusion.underlying, premises.map(_.kernel)): statement =>
-      solve(statement).toRight("Could not prove the statement by tableau.") match
+    Tautology.proveFromPremises(conclusion.underlying, premises.map(_.kernel))(statement =>
+      solve(statement).toRight("Could not prove the statement by tableau.")
+    ) match
       case Right(theorem) => ProofJudgement(Thm(conclusion, theorem))
       case Left(message) => ProofCarrier(Set(SoftError(message, file, line)), conclusion, None, ())
 
