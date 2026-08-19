@@ -328,7 +328,7 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
    * This axiom defines [[union]] as the function symbol representing this set.
    */
   final val unionAxiom: Thm = Axiom(z ∈ ⋃(x) <=> ∃(y, (y ∈ x) /\ (z ∈ y)))
-  private val unionDefinition: Thm = registerDefinition(⋃, unionAxiom.kernel)
+  private val unionDefinition: Thm = registerDefinition(⋃, unionAxiom)
 
   /**
    * Subset Axiom --- For sets `x` and `y`, `x` is a subset of `y` iff every
@@ -339,7 +339,7 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
    * This axiom defines the [[subset]] symbol as this predicate.
    */
   final val subsetAxiom: Thm = Axiom((x ⊆ y) <=> ∀(z, (z ∈ x) ==> (z ∈ y)))
-  private val subsetDefinition: Thm = registerDefinition(⊆, subsetAxiom.kernel)
+  private val subsetDefinition: Thm = registerDefinition(⊆, subsetAxiom)
 
   /**
    * Power Set Axiom --- For a set `x`, there exists a power set of `x`, denoted
@@ -351,7 +351,7 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
    * set.
    */
   final val powerSetAxiom: Thm = Axiom(x ∈ 𝒫(y) <=> x ⊆ y)
-  private val powerSetDefinition: Thm = registerDefinition(𝒫, powerSetAxiom.kernel)
+  private val powerSetDefinition: Thm = registerDefinition(𝒫, powerSetAxiom)
 
   /**
    * Infinity Axiom --- There exists an infinite set.

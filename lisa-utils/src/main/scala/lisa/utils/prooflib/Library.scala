@@ -62,7 +62,7 @@ abstract class Library:
    * [[lisa.utils.prooflib.BasicStep.Axiom]]. The result type is intentionally
    * opaque to discourage use.
    */
-  def axiom(file: sourcecode.File, line: sourcecode.Line)(statement: Sequent): K.Axiom.Result[K.Thm] =
+  def Axiom(file: sourcecode.File, line: sourcecode.Line)(statement: Sequent): K.Axiom.Result[K.Thm] =
     // we don't yet store axioms in the library, as theorems accumulate them
     // instead. if we store them in multiple places, this could lead to aliasing
     // and cause unnecessary computation at every step that encounters them.
@@ -147,6 +147,18 @@ abstract class Library:
   def DEF[S: Sort](using name: sourcecode.FullName)(expression: Expr[S]): Constant[S] =
     val (cst, _) = define(name.value, expression)
     cst
+
+  /**
+    * **[UNSAFE]**. Register or override a definition for a registered constant.
+    *
+    * Should only be used when necessary, e.g. with theory symbols defined by
+    * axioms. This allows them to still be looked up by [[Constant.definition]]
+    * and used in proofs, but does not guarantee that the definition has the
+    * otherwise expected shape as with other definitions.
+    */
+  def registerDefinition[S](constant: Constant[S], definition: Thm): (constant.type, Thm) =
+    definitions.synchronized:
+      storeDefinition(constant, constant, definition)
 
   extension [S](constant: Constant[S])
     /**
