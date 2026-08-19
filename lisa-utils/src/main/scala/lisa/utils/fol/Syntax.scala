@@ -237,7 +237,8 @@ trait Syntax {
       App.unsafe(this, arg).asInstanceOf
 
     /**
-     * Iteratively construct an unsafe application. If the sorts don't match, will throw an exception.
+     * Infix syntax for [[Multiapp.unsafe]]. Iteratively construct an unsafe
+     * application. If the sorts don't match, will throw an exception.
      * @param args The arguments to apply to `this`.
      * @throws IllegalArgumentException if the sorts don't match.
      */
