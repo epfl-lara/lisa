@@ -7,7 +7,7 @@ import lisa.utils.fol.FOL._
 import scala.collection.View
 import scala.collection.mutable
 
-abstract class Library:
+class Library:
   val theory: K.Theory = K.Theory.empty
   given K.Theory = theory
 

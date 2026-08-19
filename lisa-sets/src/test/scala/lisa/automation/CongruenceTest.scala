@@ -4,7 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class CongruenceTest extends AnyFunSuite with lisa.TestMain {
 
-  given lib: lisa.SetTheoryLibrary.type = lisa.SetTheoryLibrary
+  given testLibrary: lisa.SetTheoryLibrary.type = lisa.SetTheoryLibrary
 
   val a = variable[Ind]
   val b = variable[Ind]
