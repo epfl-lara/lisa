@@ -38,7 +38,7 @@ object Extensions:
      * Map the left value of an Either, if it exists. Otherwise, return the right
      * value.
      */
-    def mapLeft[C](f: A => C): Either[C, B] = prod match
+    inline def mapLeft[C](f: A => C): Either[C, B] = prod match
       case Left(a) => Left(f(a))
       case Right(b) => Right(b)
 
@@ -46,6 +46,6 @@ object Extensions:
      * Map the right value of an Either, if it exists. Otherwise, return the left
      * value.
      */
-    def mapRight[C](f: B => C): Either[A, C] = prod match
+    inline def mapRight[C](f: B => C): Either[A, C] = prod match
       case Left(a) => Left(a)
       case Right(b) => Right(f(b))
