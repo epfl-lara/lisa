@@ -90,7 +90,7 @@ final class CompleteBestLiteralSelector(ordering: Order) extends LiteralSelector
 
   def select(bank: TermBank, literals: Array[Literal]): Array[Int] =
     val n: Int = literals.length
-    if n == 0 then Array.empty[Int]
+    if n == 0 then EmptySelection
     else if n == 1 then Array(0)
     else
       val q: Array[Int] = Array.tabulate(n)(identity) // identity permutation of literal indices; sorted best-first next

@@ -72,13 +72,12 @@ object BaselineBench:
     println(s"# runlist n=${files.size} timeout=${timeoutMs}ms equality=true precedence=InvFrequency (soundness probe)")
     println("# ROW\tproblem\tresult\tclausify_ms\tprover_ms\ttotal_ms\tgiven\tderived")
     BenchUtil.resetAbandoned()
-    var refuted = 0
-    files.foreach { path =>
+    val rows = files.map { path =>
       val r = solveRow(new File(path), timeoutMs, 100000, 50000, equality = true, PrecedenceScheme.InvFrequency)
-      if r.category == "REFUTED" then refuted += 1
-      println(f"ROW\t${r.name}\t${r.category}\t${r.clausifyMs}%.1f\t${r.proverMs}%.1f\t${r.clausifyMs + r.proverMs}%.1f\t${r.processed}\t${r.derived}")
+      printRow(r)
+      r
     }
-    println(s"# REFUTED_COUNT=$refuted  (on known-satisfiable inputs, ANY refutation indicates UNSOUNDNESS)")
+    println(s"# REFUTED_COUNT=${rows.count(_.category == "REFUTED")}  (on known-satisfiable inputs, ANY refutation indicates UNSOUNDNESS)")
     reportContamination()
 
   private def parsePrecedence(s: String): PrecedenceScheme = s.toLowerCase match
@@ -91,6 +90,14 @@ object BaselineBench:
   /** One problem's outcome + phase breakdown (all reconstruction-free). */
   private final case class Row(name: String, category: String, clausifyMs: Double, proverMs: Double, processed: Int, derived: Int)
 
+  /** One TSV row. Plain `toString` on the times, not `%.1f`: the `f` interpolator formats in the default
+    * locale, writing `12,3` where whatever reads this TSV expects `12.3` ([[FofHarness.encodeRow]] avoids
+    * `%f` for the same reason). Rounded to one decimal by hand so the column stays as narrow as before. */
+  private def printRow(r: Row): Unit =
+    def ms(x: Double): String = (math.rint(x * 10.0) / 10.0).toString
+    println(Seq(r.name, r.category, ms(r.clausifyMs), ms(r.proverMs), ms(r.clausifyMs + r.proverMs),
+      r.processed.toString, r.derived.toString).mkString("ROW\t", "\t", ""))
+
   private def run(dataset: String, n: Int, seed: Long, timeoutMs: Long, maxGiven: Int, maxSize: Int, precedence: PrecedenceScheme): Unit =
     val tptpRoot: Option[File] = BenchUtil.tptpRootOrExplain()
     if tptpRoot.isEmpty then return
@@ -99,10 +106,7 @@ object BaselineBench:
     println(s"# dataset=$dataset list=${lists(dataset)} seed=$seed n=${picked.size} timeout=${timeoutMs}ms maxGiven=$maxGiven maxSize=$maxSize equality=$eq precedence=$precedence (uncertified clausification, NO reconstruction)")
     println("# ROW\tproblem\tresult\tclausify_ms\tprover_ms\ttotal_ms\tgiven\tderived")
     BenchUtil.resetAbandoned()
-    picked.foreach { rel =>
-      val r = solveRow(new File(tptpRoot.get, rel), timeoutMs, maxGiven, maxSize, eq, precedence)
-      println(f"ROW\t${r.name}\t${r.category}\t${r.clausifyMs}%.1f\t${r.proverMs}%.1f\t${r.clausifyMs + r.proverMs}%.1f\t${r.processed}\t${r.derived}")
-    }
+    picked.foreach(rel => printRow(solveRow(new File(tptpRoot.get, rel), timeoutMs, maxGiven, maxSize, eq, precedence)))
     reportContamination()
 
   /** Emit the contamination warning as a `#` comment, so it survives the TSV being piped into a spreadsheet

@@ -99,10 +99,7 @@ object Evaluation:
       s"fwdSubs=${opts.forwardSubsumption} bwdSubs=${opts.backwardSubsumption} fwdUD=${opts.forwardUnitDeletion} bwdUD=${opts.backwardUnitDeletion} " +
         s"fwdSR=${opts.forwardSubsumptionResolution} bwdSR=${opts.backwardSubsumptionResolution} cond=${opts.condensation} " +
         s"fwdSimplifyAtGen=${opts.forwardSimplifyAtGeneration} equality=${opts.equality}"
-    val isolation =
-      if BenchUtil.forkEnabled then "isolation=fork (one JVM per problem; set LISA_FORK=0 for in-process)"
-      else "isolation=thread (LISA_FORK=0; a runaway problem can poison later ones)"
-    println(s"list=${problems.describe} (${problems.all.size} problems), seed=$seed, n=${picked.size}, timeout=${timeoutMs}ms, maxGiven=$maxGiven, $cfg, $isolation")
+    println(s"list=${problems.describe} (${problems.all.size} problems), seed=$seed, n=${picked.size}, timeout=${timeoutMs}ms, maxGiven=$maxGiven, $cfg, ${BenchUtil.isolationBanner}")
     printHeader()
     report(picked.map(rel => solveRow(new File(tptpRoot.get, rel), timeoutMs, maxGiven, opts)), picked.size)
 
@@ -138,11 +135,10 @@ object Evaluation:
   private def solveForked(f: File, timeoutMs: Long, maxGiven: Int, opts: SearchOptions): (String, Long, String) =
     val argv = Seq("solve1", f.getPath, timeoutMs.toString, maxGiven.toString, encodeOpts(opts))
     val outcome = BenchUtil.runForked("lisa.automation.superposition.bench.Evaluation", argv, timeoutMs + 5000L)
-    outcome.resultLine.flatMap(decodeResult) match
-      case Some(r) => r
-      case None    =>
-        val d = outcome.crashDetail
-        (if outcome.timedOut then "HARD_TIMEOUT" else "ERROR", 0L, if d.isEmpty then "" else s"  ($d)")
+    outcome.resultLine.flatMap(decodeResult).getOrElse {
+      val d = outcome.crashDetail
+      (if outcome.timedOut then "HARD_TIMEOUT" else "ERROR", 0L, if d.isEmpty then "" else s"  ($d)")
+    }
 
   /** Child entry: solve one problem, print one machine-readable line, exit. No thread guard: the parent's
     * `destroyForcibly` is the hard cap, and the loop still honours `timeoutMs` cooperatively. */
@@ -217,9 +213,8 @@ object Evaluation:
 
   /** First TPTP header value for `key` (e.g. `"SPC"`), read from the leading `% key : value` comments. */
   private def header(f: File, key: String): Option[String] =
-    Using(scala.io.Source.fromFile(f))(
-      _.getLines().find(_.matches(s"%\\s*$key\\s*:.*")).map(_.replaceFirst(s"%\\s*$key\\s*:\\s*", "").trim)
-    ).toOption.flatten
+    val re = s"%\\s*$key\\s*:\\s*(.*)".r // `Regex.unapplySeq` anchors, as `String.matches` did
+    Using(scala.io.Source.fromFile(f))(_.getLines().collectFirst { case re(v) => v.trim }).toOption.flatten
 
   /** Number of `cnf(...)` clauses declared directly in the file (excludes `include`d axioms). */
   private def clauseCount(f: File): Int =

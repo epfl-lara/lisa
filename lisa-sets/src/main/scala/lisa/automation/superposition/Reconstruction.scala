@@ -1,5 +1,7 @@
 package lisa.automation.superposition
 
+import it.unimi.dsi.fastutil.ints.{Int2ObjectOpenHashMap, IntOpenHashSet}
+
 import scala.collection.mutable
 
 import lisa.utils.K
@@ -11,23 +13,16 @@ import Core.*
   * [[lisa.utils.K.SCProof]] whose imports are the input clause-sequents and whose conclusion is the
   * empty sequent `⊢`.
   *
-  * Each clause becomes one import or step, memoised by clause id so a clause used several times is built once.
-  * Clauses are stated with variables named `cv0, cv1, …`, reused across clauses since each is instantiated
-  * independently; an input is imported as the caller wrote it and renamed by an `InstSchema`. The README lists
-  * which kernel rules each inference maps to.
+  * Each clause becomes one import or step. The README lists which kernel rules each inference maps to.
   *
-  * Neither the substitution nor the conclusion's variable numbering is stored during the search: the first is
-  * recovered by re-unifying the recorded literals, the second by replaying the inference's `Applier`. */
+  * The substitution is not stored during the search. it is recovered by re-unifying the recorded literals. */
 object Reconstruction:
 
   /** An input clause's original sequent plus the map (internal var number → its original kernel variable). */
   type InputInfo = (K.Sequent, Map[Int, K.Variable])
 
   /** Reconstruct the refutation rooted at `empty` into a kernel proof. `inputs` maps each input clause's
-    * id to its original sequent and variable map (supplied by [[Bridge]]). `schematicNames` are the interned
-    * symbol names that came from **schematic function variables** ([[Clausal]]'s abstraction of non-first-order
-    * subterms); they are rebuilt as kernel `Variable`s rather than `Constant`s so a later `InstSchema` can
-    * instantiate them back. */
+    * id to its original sequent and variable map (supplied by [[Bridge]]). */
   def reconstruct(
       empty: Clause,
       bank: TermBank,
@@ -45,7 +40,7 @@ object Reconstruction:
     private val trail: Trail = new Trail(bank)
     // Abstraction discharge ([[Clausal]]), keyed by symbol name for [[kernelize]]: each schematic `F` maps to its
     // closed value `λfv. e`, inlined so the rebuilt proof carries `e` and never `F`. Empty for clausal input.
-    private val dischargeById: Map[K.Identifier, K.Expression] = discharge.map((v, e) => v.id -> e).toMap
+    private val dischargeById: Map[K.Identifier, K.Expression] = discharge.map((v, e) => v.id -> e)
 
     def reconstructProof(empty: Clause): K.SCProof =
       refOf(empty)
@@ -62,12 +57,7 @@ object Reconstruction:
      *  sequent, and every `kernelize`d term, uses it, so it needs no per-clause threading. */
     private def canonVar(n: Int): K.Variable = K.Variable(K.Identifier(GeneratedNames.reconClauseVar, n), K.Ind)
 
-    private def refOf(c: Clause): Recon = memo.get(c.id) match
-      case Some(r) => r
-      case None =>
-        val r = build(c)
-        memo(c.id) = r
-        r
+    private def refOf(c: Clause): Recon = memo.getOrElseUpdate(c.id, build(c))
 
     private def build(c: Clause): Recon = c.justification match
       case Justification.Input => buildInput(c)
@@ -80,7 +70,7 @@ object Reconstruction:
       case Justification.EqualityFactoring(p, d, ds, k, ks) => buildEqualityFactoring(p, d, ds, k, ks)
 
     /** Inline the abstraction discharge into a sequent: substitute every schematic `F` by its `λfv. e` value and
-     *  β-normalise, turning `F`-bearing atoms into `e`-bearing ones. Identity when nothing was abstracted. */
+     *  β-normalise. Identity when nothing was abstracted. */
     private def dischargeSeq(s: K.Sequent): K.Sequent =
       if discharge.isEmpty then s
       else K.Sequent(s.left.map(e => K.substituteVariables(e, discharge).betaNormalForm), s.right.map(e => K.substituteVariables(e, discharge).betaNormalForm))
@@ -91,7 +81,7 @@ object Reconstruction:
       val imp = addImport(origSeq)
       if vm.isEmpty then Recon(imp, origSeq)
       else
-        val subst: Map[K.Variable, K.Expression] = vm.map((n, ov) => ov -> (canonVar(n): K.Expression)).toMap
+        val subst: Map[K.Variable, K.Expression] = vm.map((n, ov) => ov -> (canonVar(n): K.Expression))
         val canonSeq = substSeq(origSeq, subst)
         Recon(addStep(K.InstSchema(canonSeq, imp, subst)), canonSeq)
 
@@ -104,8 +94,8 @@ object Reconstruction:
       val subst = substOf(parent, applier, scope = 0)
       val bot = substSeq(p.seq, subst)
       trail.restore(saved)
-      if subst.isEmpty then Recon(p.ref, bot)
-      else Recon(addStep(K.InstSchema(bot, p.ref, subst)), bot)
+      val (ref, seq) = instStep(p, subst, bot)
+      Recon(ref, seq)
 
     private def buildResolution(left: Clause, i: Int, right: Clause, j: Int): Recon =
       val pl = refOf(left); val pr = refOf(right)
@@ -178,7 +168,7 @@ object Reconstruction:
       val a0 = K.substituteVariables(kernelize(bank.arg(fromAtom, 0)), substFrom)
       val a1 = K.substituteVariables(kernelize(bank.arg(fromAtom, 1)), substFrom)
       val sK = K.substituteVariables(kernelize(Superposition.subtermAt(bank, intoAtom, pos)), substInto)
-      val tK = K.substituteVariables(kernelize(bank.arg(fromAtom, 1 - fromSide)), substFrom)
+      val tK = if fromSide == 0 then a1 else a0 // the replacement is the equation's *other* stored side
       val hole = freshHole()
       val phiBody = K.substituteVariables(kernelizeHole(intoAtom, pos, 0, hole), substInto)
       val phiOfS = K.substituteVariables(phiBody, Map(hole -> sK)) // the into-literal's atom instance (φ(s))
@@ -218,9 +208,10 @@ object Reconstruction:
       val pC = refOf(parent)
       val atomI = bank.atomOf(parent.literals(i)) // dropped equality s ≈ t (factored side iSide = s)
       val s = bank.arg(atomI, iSide); val t = bank.arg(atomI, 1 - iSide)
-      val tp = bank.arg(bank.atomOf(parent.literals(j)), 1 - jSide) // partner's other side t'
+      val atomJ = bank.atomOf(parent.literals(j)) // the kept partner equality s' ≈ t'
+      val tp = bank.arg(atomJ, 1 - jSide) // partner's other side t'
       val saved = trail.save()
-      trail.unify(s, 0, bank.arg(bank.atomOf(parent.literals(j)), jSide), 0) // σ = mgu(s, s')
+      trail.unify(s, 0, bank.arg(atomJ, jSide), 0) // σ = mgu(s, s')
       val applier = trail.applier()
       Superposition.replayFactoringApplier(bank, applier, parent, i, iSide, j, jSide)
       val substC = substOf(parent, applier, scope = 0)
@@ -260,7 +251,7 @@ object Reconstruction:
     /** The kernel substitution instantiating `parent`'s variables under the trail, both the domain and the
      *  images named by the canonical [[canonVar]] scheme. */
     private def substOf(parent: Clause, applier: trail.Applier, scope: Scope): Map[K.Variable, K.Expression] =
-      varsOf(parent).iterator.map(v => canonVar(v) -> kernelize(applier.apply(bank.mkVar(Core.Variable(v)), scope))).toMap
+      bank.varsOf(parent).iterator.map(v => canonVar(bank.varNum(v).num) -> kernelize(applier.apply(v, scope))).toMap
 
     private def substSeq(s: K.Sequent, subst: Map[K.Variable, K.Expression]): K.Sequent =
       if subst.isEmpty then s
@@ -268,26 +259,54 @@ object Reconstruction:
 
     /** Convert an internal term to a kernel expression, mapping internal variable numbers via [[canonVar]]. */
     private def kernelize(t: Term): K.Expression =
-      if bank.isVar(t) then canonVar(bank.varNum(t).num)
+      val cached: K.Expression = kernelCache.get(t.offset)
+      if cached != null then cached
       else
-        val n = bank.arity(t)
-        val args: IndexedSeq[K.Expression] = (0 until n).map(k => kernelize(bank.arg(t, k)))
-        applySymbol(bank.headSymbol(t), args)
+        val e: K.Expression =
+          if bank.isVar(t) then canonVar(bank.varNum(t).num)
+          else
+            val n = bank.arity(t)
+            val args: IndexedSeq[K.Expression] = (0 until n).map(k => kernelize(bank.arg(t, k)))
+            applySymbol(bank.headSymbol(t), args)
+        kernelCache.put(t.offset, e)
+        e
+
+    // Kernelised terms, keyed by arena offset. `kernelize` is a pure function of the term -- variables go
+    // through `canonVar`, symbols through `headExpr`, and the discharge is fixed for this Builder -- and terms
+    // are hash-consed, so one offset is one structure. Identical subterms therefore convert once for the whole
+    // proof: within a step, where the rewritten atom is walked both whole and with a hole, and across steps,
+    // where a clause reappears as a parent.
+    private val kernelCache: Int2ObjectOpenHashMap[K.Expression] = new Int2ObjectOpenHashMap()
 
     /** Apply interned symbol `head` to already-kernelised `args`, honouring the abstraction discharge (inline a
-     *  schematic `F` to its `λfv. e` value, β-reduced) and the schematic-symbol convention (an undischarged
-     *  schematic symbol round-trips as a `Variable`, so a later `InstSchema` can target it). */
+     *  higher-order term). */
     private def applySymbol(head: Symbol, args: IndexedSeq[K.Expression]): K.Expression =
-      val info: SymbolInfo = sig.info(head)
-      // The signature carries the identifier's two parts, so it is rebuilt rather than parsed back out of a
-      // `name_no` string: `Identifier("e", 1)`, never the wrong `Identifier("e_1", 0)`.
-      val id: K.Identifier = K.Identifier(info.name, info.no)
-      dischargeById.get(id) match
-        case Some(lam) => args.foldLeft(lam)((acc, a) => K.Application(acc, a)).betaNormalForm
-        case None =>
-          val sort: K.Sort = sortFor(info.arity, info.isPredicate)
-          val hd: K.Expression = if schematicIds.contains(id) then K.Variable(id, sort) else K.Constant(id, sort)
-          args.foldLeft(hd)((acc, a) => K.Application(acc, a))
+      args.foldLeft(headExpr(head))((acc, a) => K.Application(acc, a)) match
+        case applied if dischargedIds.contains(head.code) => applied.betaNormalForm // an inlined `λfv. e`
+        case applied => applied
+
+    /** The kernel head a symbol becomes, before its arguments: its discharge value, or the constant/variable
+     *  built from its identifier. Cached, since it depends on the symbol alone. */
+    private def headExpr(head: Symbol): K.Expression =
+      val cached: K.Expression = headCache(head.code)
+      if cached != null then cached
+      else
+        val info: SymbolInfo = sig.info(head)
+        // The signature carries the identifier's two parts, so it is rebuilt rather than parsed back out of a
+        // `name_no` string: `Identifier("e", 1)`, never the wrong `Identifier("e_1", 0)`.
+        val id: K.Identifier = K.Identifier(info.name, info.no)
+        val hd: K.Expression = dischargeById.get(id) match
+          case Some(lam) => dischargedIds.add(head.code); lam
+          case None =>
+            val sort: K.Sort = sortFor(info.arity, info.isPredicate)
+            if schematicIds.contains(id) then K.Variable(id, sort) else K.Constant(id, sort)
+        headCache(head.code) = hd
+        hd
+
+    // Per-symbol kernel heads, indexed by symbol code; `null` until first use. `dischargedIds` marks the ones
+    // whose head is a `λfv. e` value, so the application above knows to β-normalise.
+    private val headCache: Array[K.Expression] = new Array[K.Expression](sig.size)
+    private val dischargedIds: IntOpenHashSet = new IntOpenHashSet()
 
     /** Kernelise `t` but emit `hole` in place of the subterm at position `pos` (a path of argument indices),
      *  yielding a context `φ(hole)`; everything off the path is kernelised normally via [[kernelize]]. */
@@ -333,14 +352,3 @@ object Reconstruction:
       while k < arity do { s = K.Ind -> s; k += 1 }
       s
 
-    private def varsOf(c: Clause): Set[Int] =
-      val s = mutable.Set.empty[Int]
-      c.literals.foreach(l => collectVars(bank.atomOf(l), s))
-      s.toSet
-
-    private def collectVars(t: Term, s: mutable.Set[Int]): Unit =
-      if bank.isVar(t) then s += bank.varNum(t).num
-      else
-        val n = bank.arity(t)
-        var k = 0
-        while k < n do { collectVars(bank.arg(t, k), s); k += 1 }

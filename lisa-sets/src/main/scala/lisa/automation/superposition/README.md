@@ -186,7 +186,7 @@ package requires.
 
 | entry point | file | result |
 |---|---|---|
-| `Superpose` | [Superpose.scala](Superpose.scala) | a Lisa proof tactic discharging a goal sequent |
+| `Superpose` | [SuperpositionTactic.scala](SuperpositionTactic.scala) | a Lisa proof tactic discharging a goal sequent |
 | `Clausal.prove(problem)` | [Clausal.scala](Clausal.scala) | a kernel `SCProof` of the goal, clausification included |
 | `Clausal.proveOutcome(problem, …)` | [Clausal.scala](Clausal.scala) | the same, budgeted, returning the outcome instead of throwing |
 | `Clausal.solveOutcome(problem, …)` | [Clausal.scala](Clausal.scala) | the outcome alone, with no proof built |
@@ -400,7 +400,7 @@ has a recorded value.
 | file | contents |
 |---|---|
 | [SearchOptions.scala](SearchOptions.scala) | every parameter of the search, in one record passed unchanged through each layer that can configure one: clause selection, the ordering and selection function, and which simplifications run |
-| [Strategy.scala](Strategy.scala) | a named point in that space together with two preprocessing choices, and the eight of them a competition run executes in parallel, taking the first refutation |
+| [Strategies.scala](Strategies.scala) | a named point in that space together with two preprocessing choices, and the eight of them a competition run executes in parallel, taking the first refutation |
 | [Sine.scala](Sine.scala) | axiom selection: keep only the hypotheses reachable from the conjecture through a relation on symbols, applied before clausification on problems with very many of them. Sound but incomplete, so `shouldFilter` decides per problem whether it is worth applying |
 | [CascProver.scala](CascProver.scala) | the command line entry point: read one problem, clausify without a proof, search under a wall clock budget, write a status line and, on a refutation, the derivation |
 
@@ -452,18 +452,17 @@ the dependencies between the files: with the one exception noted after the table
 | 14 | [PassiveSet.scala](PassiveSet.scala) | the smaller of the two clause stores, and the clause selection heuristic |
 | 15 | [ActiveSet.scala](ActiveSet.scala) | the larger, and the place where the indices are kept in agreement |
 | 16 | [Simplifier.scala](Simplifier.scala) | simplification in both directions, over the active set |
-| 17 | [Generator.scala](Generator.scala) | the generating inferences on a given clause, over the same set |
-| 18 | [Discount.scala](Discount.scala) | the loop, which is short once everything it calls has been read |
-| 19 | [Reconstruction.scala](Reconstruction.scala) | the derivation graph turned into a kernel proof |
-| 20 | [Bridge.scala](Bridge.scala) | the kernel interface, which is where a caller enters |
-| 21 | [Clausal.scala](Clausal.scala) | the adapter to clausification, including the abstraction of non-first-order subterms |
-| 22 | [Superpose.scala](Superpose.scala) | the tactic, read last because it is the composition of everything above |
+| 17 | [Discount.scala](Discount.scala) | the loop, which is short once everything it calls has been read |
+| 18 | [Reconstruction.scala](Reconstruction.scala) | the derivation graph turned into a kernel proof |
+| 19 | [Bridge.scala](Bridge.scala) | the kernel interface, which is where a caller enters |
+| 20 | [Clausal.scala](Clausal.scala) | the adapter to clausification, including the abstraction of non-first-order subterms |
+| 21 | [SuperpositionTactic.scala](SuperpositionTactic.scala) | the tactic, read last because it is the composition of everything above |
 
 `Core.scala` is the exception. `TermBank` holds the selection function of position 5 and the ordering of
 position 3, and `Clause` calls into position 7 to compute its own eligible equation sides. These are the only
 forward references in the file and can be passed over on a first reading.
 
-[Strategy.scala](Strategy.scala), [Sine.scala](Sine.scala) and
+[Strategies.scala](Strategies.scala), [Sine.scala](Sine.scala) and
 [CascProver.scala](CascProver.scala) sit above the whole package and can be read at any point after position
 19. See Section 2.10.
 

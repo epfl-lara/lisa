@@ -68,7 +68,7 @@ final class FofHarness(listFileName: String, listEnvVar: String, childMainClass:
     if tptpRoot.isEmpty then return
     val picked = sample(n, seed)
     val mode = if certified then "certified" else "uncertified"
-    println(s"list=${problems.describe} (${allProblems.size} problems), seed=$seed, n=${picked.size}, timeout=${timeoutMs}ms, maxGiven=$maxGiven, maxSize=$maxSize, mode=$mode, equality=$equality, ${isolationBanner}")
+    println(s"list=${problems.describe} (${allProblems.size} problems), seed=$seed, n=${picked.size}, timeout=${timeoutMs}ms, maxGiven=$maxGiven, maxSize=$maxSize, mode=$mode, equality=$equality, ${BenchUtil.isolationBanner}")
     printHeader()
     val rows = picked.map(rel => solveRow(new File(tptpRoot.get, rel), timeoutMs, maxGiven, maxSize, certified, equality))
     report(rows, picked.size)
@@ -86,16 +86,13 @@ final class FofHarness(listFileName: String, listEnvVar: String, childMainClass:
     val certified = a.lift(3).forall(_.toLowerCase != "uncert")
     val maxSize = a.lift(4).map(_.toInt).getOrElse(Int.MaxValue)
     val mode = if certified then "certified" else "uncertified"
-    println(s"files=${a(0)} (${paths.size} problems), timeout=${timeoutMs}ms, maxGiven=$maxGiven, maxSize=$maxSize, mode=$mode, ${isolationBanner}")
+    println(s"files=${a(0)} (${paths.size} problems), timeout=${timeoutMs}ms, maxGiven=$maxGiven, maxSize=$maxSize, mode=$mode, ${BenchUtil.isolationBanner}")
     printHeader()
     val rows = paths.map(rel => solveRow(new File(tptpRoot.get, rel), timeoutMs, maxGiven, maxSize, certified))
     report(rows, paths.size)
 
-  /** Which isolation the run used. It changes what the timings mean, so it belongs in the banner above them.
-    * `fork` costs a JVM start-up per problem, so per-problem times on fast problems are dominated by it. */
-  private def isolationBanner: String =
-    if BenchUtil.forkEnabled then "isolation=fork (one JVM per problem; set LISA_FORK=0 for in-process)"
-    else "isolation=thread (LISA_FORK=0; a runaway problem can poison later ones)"
+  /** Categories whose problem reached the prover, i.e. clausified without error. */
+  private val ReachedProver: Set[String] = Set("REFUTED", "SATURATED", "TIMEOUT", "BAD_PROOF")
 
   private def printHeader(): Unit =
     BenchUtil.resetAbandoned() // this run's contamination count starts here
@@ -165,9 +162,8 @@ final class FofHarness(listFileName: String, listEnvVar: String, childMainClass:
     val argv = Seq("solve1", f.getPath, timeoutMs.toString, maxGiven.toString, maxSize.toString,
       if certified then "cert" else "uncert", if equality then "on" else "off")
     val outcome = BenchUtil.runForked(childMainClass, argv, timeoutMs + 5000L)
-    outcome.resultLine.flatMap(decodeRow) match
-      case Some(row) => row
-      case None      => (-1, "?", Timing(if outcome.timedOut then "HARD_TIMEOUT" else "PROVER_CRASH", detail = outcome.crashDetail))
+    outcome.resultLine.flatMap(decodeRow).getOrElse(
+      (-1, "?", Timing(if outcome.timedOut then "HARD_TIMEOUT" else "PROVER_CRASH", detail = outcome.crashDetail)))
 
   /** Child entry: solve one problem, print one machine-readable line, exit. No outer timeout: the parent's
     * `destroyForcibly` is the hard cap, and `solveOne` still honours `timeoutMs` cooperatively. */
@@ -279,10 +275,11 @@ final class FofHarness(listFileName: String, listEnvVar: String, childMainClass:
 
     // Throughput / scale over problems that reached the prover: total given clauses processed (the throughput
     // measure) and the peak active/passive sizes reached, summed and maxed across the sample.
-    val ran = rows.filter(r => Set("REFUTED", "SATURATED", "TIMEOUT", "BAD_PROOF").contains(r.category))
+    val ran = rows.filter(r => ReachedProver(r.category))
     if ran.nonEmpty then
+      val givenTotal = ran.map(_.givenProcessed.toLong).sum // one `Long` sum: an `Int` one overflows on big runs
       println(
-        f"loop: given total=${ran.map(_.givenProcessed.toLong).sum}%d  avg=${ran.map(_.givenProcessed).sum.toDouble / ran.size}%.0f  " +
+        f"loop: given total=$givenTotal%d  avg=${givenTotal.toDouble / ran.size}%.0f  " +
           f"maxActive=${ran.map(_.peakActive).max}%d  maxPassive=${ran.map(_.peakPassive).max}%d  (over ${ran.size} runs that reached the prover)"
       )
 
@@ -297,7 +294,7 @@ final class FofHarness(listFileName: String, listEnvVar: String, childMainClass:
       phase("prover",   solved.map(_.proverMs))
       phase("check",    solved.map(_.checkMs))
     // Clausification cost across EVERY attempted problem (it runs regardless of the prover's verdict).
-    val attempted = rows.filter(r => Set("REFUTED", "SATURATED", "TIMEOUT", "BAD_PROOF").contains(r.category) || r.category.startsWith("CLAUSIFY_ERR"))
+    val attempted = rows.filter(r => ReachedProver(r.category) || r.category.startsWith("CLAUSIFY_ERR"))
     if attempted.nonEmpty then
       println(s"\nclausify time over all ${attempted.size} attempted (any verdict):")
       phase("clausify", attempted.map(_.clausifyMs))

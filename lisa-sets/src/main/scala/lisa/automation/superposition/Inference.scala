@@ -64,12 +64,7 @@ object Inference:
         i += 1
       val kept = count + 1 // number of literals retained
       // did canonicalisation change anything? a dropped duplicate, or a reorder by the sort
-      var changed = kept < n
-      if !changed then
-        var k = 0
-        while k < n && !changed do
-          if lits(k) != c.literals(k) then changed = true
-          k += 1
+      val changed = kept < n || !java.util.Arrays.equals(asArrayLong(lits), asArrayLong(c.literals))
       if !changed then Some(c)
       else
         // reuse the (already canonical) clone when nothing was dropped; truncate only on dedup

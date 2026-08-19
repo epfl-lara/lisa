@@ -58,18 +58,13 @@ final class KBO(val bank: TermBank):
 
   /** Ensure `vb` can index `v`, and extend the reset high-water mark to cover it. */
   private def ensureVb(v: Int): Unit =
-    if v >= vb.length then
-      var nl: Int = vb.length * 2
-      while nl <= v do nl *= 2
-      vb = java.util.Arrays.copyOf(vb, nl)
+    if v >= vb.length then // `vb.length` is a power of two, so this is the next one above `v`, at least twice as long
+      vb = java.util.Arrays.copyOf(vb, Integer.highestOneBit(v) << 1)
     if v > maxVar then maxVar = v
 
   /** Clear the accumulators for a fresh comparison (only the touched `vb` prefix). */
   private def reset(): Unit =
-    var i = 0
-    while i <= maxVar do
-      vb(i) = 0
-      i += 1
+    java.util.Arrays.fill(vb, 0, maxVar + 1, 0) // a no-op when `maxVar` is -1
     wb = 0
     posCount = 0
     negCount = 0
@@ -216,10 +211,8 @@ final class KBO(val bank: TermBank):
     if varWeight <= 0 then Some(s"variable weight must be positive, got $varWeight")
     else
       // the (unique, when precedence is total) precedence-maximal symbol
-      var maxInfo: Option[SymbolInfo] = None
-      signature.symbols.foreach { info =>
-        if maxInfo.isEmpty || signature.comparePrecedence(info, maxInfo.get) > 0 then maxInfo = Some(info)
-      }
+      val maxInfo: Option[SymbolInfo] =
+        signature.symbols.reduceOption((a, b) => if signature.comparePrecedence(b, a) > 0 then b else a)
       signature.symbols.collectFirst {
         case info if info.arity == 0 && info.weight < varWeight =>
           s"constant ${info.name} has weight ${info.weight} < variable weight $varWeight"

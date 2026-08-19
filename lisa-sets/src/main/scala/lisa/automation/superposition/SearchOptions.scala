@@ -14,33 +14,28 @@ import lisa.automation.superposition.ordering.*
  *
  * @param ageRatio          clause-selection age:weight ratio. An age slice ≥ 1 gives fairness, hence
  *                          completeness; the weight slice gives speed.
- * @param weightRatio       the weight half of that ratio.
+ * @param weightRatio       the weight half of the clause selection ratio.
  * @param nonGoalWeightCoefficient
- *                          goal-directed selection (Vampire's `nongoal_weight_coefficient`): a clause *not*
+ *                          goal-directed selection: a clause *not*
  *                          derived from the goal has its weight-queue key multiplied by this, so goal-derived
- *                          clauses activate far earlier. Only the weight queue is biased, and with no goal
- *                          clauses every clause scales equally, so it has no effect.
+ *                          clauses activate far earlier. No effect if there is no goal clause.
  * @param selection         literal selection. [[LiteralSelection.Complete]] is BG-complete and the default;
- *                          the others are heuristic portfolio slices.
+ *                          the others are heuristic.
  * @param precedenceScheme  how the KBO symbol precedence is generated from the input signature; see
  *                          [[Precedence]]. `InvFrequency` (frequent symbols small) is the default.
- * @param weightScheme      how KBO symbol weights are generated. Applied at intern time, since term weights
- *                          are cached at construction, so it must be fixed before any clause is built.
+ * @param weightScheme      how KBO symbol `???` is the default.
  * @param forwardSubsumption   discard a new/just-selected clause subsumed by an active one.
  * @param backwardSubsumption  delete active clauses subsumed by the given.
  * @param forwardUnitDeletion  shrink the given by active unit clauses (the unit case of subsumption resolution).
  * @param backwardUnitDeletion shrink active clauses when the given is a unit.
  * @param forwardSubsumptionResolution
- *                          general (multi-literal side) subsumption resolution, forward. **On by default**:
- *                          80 refuted vs 74 with it off. It only pays once retrieval is indexed; while the only
- *                          path was a linear active scan it lost, which is why it was originally off.
+ *                          general (multi-literal side) subsumption resolution, forward. On by default.
  * @param backwardSubsumptionResolution the backward direction of the same.
  * @param condensation      replace a new clause by an equivalent shorter factor of itself. Clause-local,
- *                          applied once at creation. **Off by default**: 71 refuted vs 74.
+ *                          applied once at creation. Off by default.
  * @param forwardSimplifyAtGeneration
  *                          also forward-simplify freshly *generated* clauses, not just the given at selection.
- *                          **Off by default**: 72 refuted vs 74, losing `FLD060-4` and `GRP130-2.003`. Indexing
- *                          narrowed the gap from 4 problems to 2 without closing it, so it is not retrieval cost.
+ *                          Off by default.
  * @param equality          master equality switch. When off, **every** equality-specific part of the loop is
  *                          skipped and the finer switches below have no effect, reducing it to ordered
  *                          resolution and factoring. [[Bridge.solve]] also turns it off when the input contains
@@ -50,8 +45,7 @@ import lisa.automation.superposition.ordering.*
  * @param backwardDemodulation rewrite active clauses when the given is a new unit equality.
  * @param forwardUnitDeletionIndexThreshold
  *                          unit count at which forward unit deletion switches from scanning the active-unit
- *                          sublist to querying the index. Purely a performance knob: both paths are complete
- *                          candidate sets verified identically, so verdicts agree.
+ *                          sublist to querying the index. Purely a performance knob.
  * @param factorAfterCheck  drop a factor whose kept literal is no longer KBO-maximal under the unifier. A
  *                          redundancy pruning; omitting it over-approximates, which is sound and complete.
  */
@@ -79,11 +73,6 @@ final case class SearchOptions(
     forwardDemodulation: Boolean = true,
     backwardDemodulation: Boolean = true,
     // ── term indexing ──
-    // Retrieval is always indexed. There were three flags here selecting a linear-scan implementation of each
-    // index instead; they existed to A/B the indices against the scans while the indices were being brought up,
-    // and every one of them defaulted to indexed. Keeping them meant every simplification and every generating
-    // rule had two implementations to change and to argue equal. The scans are in the history if the comparison
-    // is ever wanted again.
     forwardUnitDeletionIndexThreshold: Int = 16,
     // ── misc ──
     factorAfterCheck: Boolean = false):

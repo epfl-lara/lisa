@@ -37,6 +37,13 @@ object Superposition:
     while i < pos.length do { cur = bank.arg(cur, pos(i)); i += 1 }
     cur
 
+  /** [[subtermAt]] on a live position stack, so a caller mid-[[foreachSubterm]] need not snapshot it. */
+  def subtermAt(bank: TermBank, t: Term, pos: IntArrayList): Term =
+    var cur: Term = t
+    var i = 0
+    while i < pos.size do { cur = bank.arg(cur, pos.getInt(i)); i += 1 }
+    cur
+
   /** Rebuild `t` with the subterm at position `pos` replaced by `sub`. */
   def replaceAt(bank: TermBank, t: Term, pos: Array[Int], sub: Term): Term = replaceAt(bank, t, pos, 0, sub)
 

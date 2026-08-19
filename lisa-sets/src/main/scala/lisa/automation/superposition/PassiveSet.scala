@@ -11,17 +11,12 @@ import Core.*
   * share of at least one being what keeps selection fair and the loop refutation-complete.
   *
   * Deletion is lazy: a clause popped from one queue stays in the other as a stale entry and is skipped when
-  * reached, so `live` is the authority on membership and a pop dequeues until it finds a live clause.
-  *
-  * The age queue is a plain FIFO, ids being monotonic and every insertion fresh, so its front is already the
-  * oldest. The weight queue needs a heap, and `mutable.PriorityQueue` is a max-heap, so its ordering is
-  * reversed to bring out the lightest clause, ties broken by the smaller id. */
+  * reached, so `live` is the authority on membership and a pop dequeues until it finds a live clause. */
 final class PassiveSet(opts: SearchOptions):
   import opts.{ageRatio, weightRatio, nonGoalWeightCoefficient}
 
   /** The weight-queue key: the raw clause weight, penalised by [[SearchOptions.nonGoalWeightCoefficient]]
-    * unless the clause is derived from the goal (Vampire's `nongoal_weight_coefficient`). Weights are small,
-    * so the product never overflows. */
+    * unless the clause is derived from the goal. */
   private def selectionWeight(c: Clause): Int = if c.isGoal then c.weight else c.weight * nonGoalWeightCoefficient
 
   private val byAge: mutable.Queue[Clause] = mutable.Queue.empty
@@ -70,7 +65,6 @@ final class PassiveSet(opts: SearchOptions):
         if take(c) then return c
     throw new IllegalStateException("PassiveSet.pop called on an empty passive set")
 
-  /** If `c` is still live, mark it not-live and return `true`; if stale, return `false`. */
-  private def take(c: Clause): Boolean =
-    if live.contains(c.id) then { live.remove(c.id); true }
-    else false
+  /** If `c` is still live, mark it not-live and return `true`; if stale, return `false`. `remove` reports
+    * whether the id was there, so one probe answers both. */
+  private def take(c: Clause): Boolean = live.remove(c.id)

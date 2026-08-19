@@ -18,9 +18,9 @@ object Subsumption:
   private inline val TgtScope = 1
 
   /** Cheap, sound pre-filter for `c` subsuming `d`, over the cached signatures alone (no trail, no matching).
-    * All four conditions follow from `cσ ⊆ d`: sizes and polarity counts, because the literal map is injective
-    * and preserves polarity; weights, since `weight(c) <= weight(cσ) <= weight(d)`; and every head symbol of
-    * `c` (mod 64) occurring in `d`. Being only necessary, a `true` must still be confirmed by [[subsumes]]. */
+    * All four conditions follow from `cσ ⊆ d`: sizes and polarity counts, `weight(c) <= weight(cσ) <= weight(d)`,
+    * and every head symbol of `c` (mod 64) occurring in `d`. 
+    * Being only necessary, a `true` must still be confirmed by [[subsumes]]. */
   def sigSubsumes(c: ClauseBody, d: ClauseBody): Boolean =
     c.size <= d.size &&
       c.posCount <= d.posCount &&
@@ -30,8 +30,7 @@ object Subsumption:
 
   /** Whether `c` θ-subsumes `d`. Self-contained: applies [[sigSubsumes]] first, then searches for
     * an injective, polarity-preserving match of all of `c`'s literals onto distinct literals of
-    * `d` under one shared substitution. The trail is restored to its entry state before
-    * returning, on both the `true` and `false` paths. */
+    * `d` under one shared substitution. The trail is restored to its entry state before returning. */
   def subsumes(bank: TermBank, trail: Trail, c: ClauseBody, d: ClauseBody): Boolean =
     if !sigSubsumes(c, d) then return false
     val cl: Array[Literal] = c.literals
@@ -44,7 +43,27 @@ object Subsumption:
         // try c's most constrained (heaviest -- most structure, fewest matches) literal first
         val order: Array[Int] = orderByWeightDesc(bank, cl)
         val used: Array[Boolean] = new Array[Boolean](dl.length)
-        matchRec(bank, trail, cl, dl, order, used, 0)
+        /** Assign `c`'s literals from position `k` of `order` onward to distinct, not-yet-`used` literals of
+          * `d` under one shared σ recorded on the trail. Returns `true` with the witnessing bindings left on
+          * the trail, which the `restore` below cleans up. */
+        def matchRec(k: Int): Boolean =
+          if k == order.length then true
+          else
+            val ci: Literal = cl(order(k))
+            val ciw: Int = bank.literalWeight(ci)
+            val saved: Int = trail.save()
+            val nd: Int = dl.length
+            var j = 0
+            while j < nd do
+              if !used(j) && bank.literalWeight(dl(j)) >= ciw then // weight skip, as in `matchesSome`
+                if trail.matchLiteral(ci, PatScope, dl(j), TgtScope) then
+                  used(j) = true
+                  if matchRec(k + 1) then return true
+                  used(j) = false
+                trail.restore(saved) // undo this attempt (failed match left partial bindings, or recursion failed)
+              j += 1
+            false
+        matchRec(0)
     trail.restore(s)
     r
 
@@ -54,8 +73,8 @@ object Subsumption:
     val lw: Int = bank.literalWeight(lit)
     var j = 0
     while j < dl.length do
-      // weight skip (Check 1): `lit σ = dl(j)` forces `weight(dl(j)) >= weight(lit)`, so a lighter
-      // target cannot match -- cheaper to reject than to set up and run `matchLiteral`.
+      // weight skip: `lit σ = dl(j)` forces `weight(dl(j)) >= weight(lit)`, so a lighter target cannot
+      // match -- cheaper to reject than to set up and run `matchLiteral`.
       if bank.literalWeight(dl(j)) >= lw then
         val s: Int = trail.save()
         if trail.matchLiteral(lit, PatScope, dl(j), TgtScope) then return true
@@ -63,36 +82,9 @@ object Subsumption:
       j += 1
     false
 
-  /** Injective backtracking match: assign `c`'s literals (visited in `order`, position `k` onward)
-    * to distinct, not-yet-`used` literals of `d` under one shared σ recorded on the trail. Returns
-    * `true` with the witnessing bindings left on the trail (the top-level [[subsumes]] restores). */
-  private def matchRec(bank: TermBank, trail: Trail, cl: Array[Literal], dl: Array[Literal], order: Array[Int], used: Array[Boolean], k: Int): Boolean =
-    if k == order.length then true
-    else
-      val ci: Literal = cl(order(k))
-      val ciw: Int = bank.literalWeight(ci) // Check 1: a matching target must weigh at least this
-      val s: Int = trail.save()
-      val nd: Int = dl.length
-      var j = 0
-      while j < nd do
-        // Check 1 (see matchesSome): skip a target too light to match `ci`
-        if !used(j) && bank.literalWeight(dl(j)) >= ciw then
-          if trail.matchLiteral(ci, PatScope, dl(j), TgtScope) then
-            used(j) = true
-            if matchRec(bank, trail, cl, dl, order, used, k + 1) then return true
-            used(j) = false
-          trail.restore(s) // undo this attempt (failed match left partial bindings, or recursion failed)
-        j += 1
-      false
-
-  /** Subsumption resolution. If `side = C' ∨ L` and some literal `K` of `main` has the opposite polarity under
+  /** Subsumption resolution. If `side = C' ∨ L` and some literal `main = C ∨ K` where there is `σ` such that
     * a matcher with `Lσ = ¬K` and `C'σ ⊆ main \ {K}`, then `main` is redundant given `main \ {K}`, which is
-    * returned. The unit case, where `C'` is empty, is unit deletion. The result is an ordinary resolvent, so
-    * reconstruction needs nothing dedicated.
-    *
-    * The [[subsumes]] gate is required for completeness: a longer `side` can leave variables outside `L` free,
-    * since `resolve`'s unifier binds only `L`, and the built clause then need not entail `main`. That makes the
-    * test conservative, missing steps whose `C'` carries extra variables. */
+    * returned. The unit case, where `C'` is empty, is unit deletion. The result is an ordinary resolvent. */
   def subsumptionResolutionResolvent(bank: TermBank, trail: Trail, side: Clause, main: Clause): Option[Clause] =
     // The size/weight/predicate conditions of [[sigSubsumes]] hold here too, and for the same reasons: `C'σ ⊆ M'`
     // and `Lσ = ¬K` put all of `side` into `main` up to polarity. Not `sigSubsumes` itself, since the polarity
@@ -106,9 +98,11 @@ object Subsumption:
     while iL < sl.length do
       val aL: Term = bank.atomOf(sl(iL))
       val pL: Boolean = bank.isPositive(sl(iL))
+      val wL: Int = bank.literalWeight(sl(iL)) // `Lσ = ¬K` forces `weight(K) >= weight(L)`: the weight skip again
       var iK = 0
       while iK < ml.length do
-        if bank.isPositive(ml(iK)) != pL then // complementary candidate: L could resolve K away
+        // complementary candidate of sufficient weight: L could resolve K away
+        if bank.isPositive(ml(iK)) != pL && bank.literalWeight(ml(iK)) >= wL then
           // cheap one-sided pre-check (necessary for the resolvent to subsume `main`); restore before resolve
           val s: Int = trail.save()
           val matched: Boolean = trail.matchTerm(aL, PatScope, bank.atomOf(ml(iK)), TgtScope)
@@ -128,7 +122,7 @@ object Subsumption:
   /** Replace `c` by a strictly shorter factor of itself that also subsumes it, iterating since one merge can
     * expose another, or return `c` unchanged. A factor is already an instance, so the subsumption check is what
     * makes the two equivalent and the replacement sound. Being a simplification, it is not restricted to
-    * selected or positive literals and tries every same-polarity pair. */
+    * selected literals and tries every same-polarity pair. */
   def condense(bank: TermBank, trail: Trail, c: Clause): Clause =
     var cur: Clause = c
     var progress = true
@@ -139,15 +133,13 @@ object Subsumption:
       while i < cl.length && !progress do
         var j = i + 1
         while j < cl.length && !progress do
-          // `factor` only merges same-polarity literals; pre-check avoids the call for the rest
-          if bank.isPositive(cl(i)) == bank.isPositive(cl(j)) then
-            Inference.factor(bank, trail, cur, i, j) match
-              case Some(f) =>
-                Inference.canonicalize(bank, f) match
-                  // keep the (shorter) factor only when it subsumes `cur` -- then `cur ≡ factor`
-                  case Some(fc) if subsumes(bank, trail, fc, cur) => cur = fc; progress = true
-                  case _ => ()
-              case None => ()
+          Inference.factor(bank, trail, cur, i, j) match // `factor` itself rejects a mixed-polarity pair
+            case Some(f) =>
+              Inference.canonicalize(bank, f) match
+                // keep the (shorter) factor only when it subsumes `cur` -- then `cur ≡ factor`
+                case Some(fc) if subsumes(bank, trail, fc, cur) => cur = fc; progress = true
+                case _ => ()
+            case None => ()
           j += 1
         i += 1
     cur

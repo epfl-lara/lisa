@@ -11,13 +11,9 @@ import lisa.automation.superposition.ordering.*
   *
   * The counterpart of [[Simplifier]], which owns the deleting and shrinking half.
   *
-  * Partners come from the [[ActiveSet]]'s indices, which only narrow the candidate set: each is confirmed by a
-  * real unification before an inference is built. Eligibility is this class's contribution, not the rules': it
+  * Partners come from the [[ActiveSet]]'s indices. The class handles eligibility, not the rules' themselves: it
   * passes only the literal positions the selection admits, and [[Inference]] and [[Superposition]] check only the
-  * term-orientation conditions.
-  *
-  * `emit` is where conclusions go, taken at construction because every method here needs it and there is one
-  * caller. It returns `true` for "stop, `□` was derived", which every method here relays. */
+  * term-orientation conditions. */
 final class Generator(bank: TermBank, trail: Trail, active: ActiveSet, opts: SearchOptions)(emit: Clause => Boolean):
   import opts.*
 
@@ -38,23 +34,14 @@ final class Generator(bank: TermBank, trail: Trail, active: ActiveSet, opts: Sea
 
   /** Resolution of `gc` against the active set: for each of its selected non-equality literals, query the
     * *opposite*-polarity literal index with the atom, so every candidate is already complementary, and confirm
-    * each with [[Inference.resolve]], which re-checks complementarity and does the real unification.
-    *
-    * `gc` is itself indexed by now, so its own complementary literals come back, giving the self-resolutions the
-    * calculus calls for. A single pass over `gc`'s literals produces each ordered partner pair exactly once, so
-    * no self-skip is needed. */
+    * each with [[Inference.resolve]], which re-checks complementarity and does the real unification. */
   private def resolveGiven(gc: Clause, gSel: Array[Int]): Boolean =
-    // Equalities go to superposition and equality resolution, not here. Read once per activation rather than
-    // per candidate, since the index query below can return many.
-    val nonEq: Array[Boolean] = new Array[Boolean](gSel.length)
-    var k = 0
-    while k < gSel.length do { nonEq(k) = !bank.isEquality(gc.literals(gSel(k))); k += 1 }
     var stop = false // set inside the retrieval callback, where `return` is not available
     var gi = 0
     while gi < gSel.length && !stop do
-      if nonEq(gi) then
-        val iLit: Int = gSel(gi)
-        val lit: Literal = gc.literals(iLit)
+      val iLit: Int = gSel(gi)
+      val lit: Literal = gc.literals(iLit)
+      if !bank.isEquality(lit) then // equalities go to superposition and equality resolution, not here
         active.resolutionPartners(bank.isPositive(lit), bank.atomOf(lit)) { e =>
           if !stop then
             Inference.resolve(bank, trail, gc, iLit, e.clause, e.litIndex) match
@@ -77,7 +64,7 @@ final class Generator(bank: TermBank, trail: Trail, active: ActiveSet, opts: Sea
     while s < gcSources.length && !stop do
       val src: RewriteSource = gcSources(s)
       active.intoCandidates(src.lhs) { e =>
-        if !stop then stop = superposeVerified(gc, src.lit, src.side, e.clause, e.litIndex, e.pos)
+        if !stop then stop = superposeVerified(gc, src.lit, src.side, e.clause, e.litIndex, IntArrayList.wrap(e.pos))
       }
       s += 1
     // Pass 2: active clauses supply the equation; query the from-index with each of gc's non-variable subterms.
@@ -87,7 +74,7 @@ final class Generator(bank: TermBank, trail: Trail, active: ActiveSet, opts: Sea
       Superposition.foreachSubterm(bank, bank.atomOf(gc.literals(iInto))) { (u, path) =>
         active.fromCandidates(u) { e =>
           if !stop && e.clause.id != gc.id then // gc-into-gc already done in Pass 1
-            stop = superposeVerified(e.clause, e.litIndex, e.side, gc, iInto, path.toIntArray)
+            stop = superposeVerified(e.clause, e.litIndex, e.side, gc, iInto, path) // live stack: `superpose` snapshots it
         }
         stop // stop the subterm walk on refutation
       }
@@ -95,14 +82,17 @@ final class Generator(bank: TermBank, trail: Trail, active: ActiveSet, opts: Sea
     stop
 
   /** Verify + build one located superposition: unify `fromC`'s side `fromSide` with `intoC`'s subterm at `pos`,
-   *  then the build-only [[Superposition.superpose]] and `emit`. Restores the trail. `true` on refutation. */
-  private def superposeVerified(fromC: Clause, iFrom: Int, fromSide: Int, intoC: Clause, iInto: Int, pos: Array[Int]): Boolean =
+   *  then the build-only [[Superposition.superpose]] and `emit`. Restores the trail. `true` on refutation.
+   *
+   *  `pos` may be a caller's live subterm-walk stack, so nothing here retains it: [[Superposition.superpose]]
+   *  snapshots it, and only for the inferences that fire. */
+  private def superposeVerified(fromC: Clause, iFrom: Int, fromSide: Int, intoC: Clause, iInto: Int, pos: IntArrayList): Boolean =
     val l: Term = bank.arg(bank.atomOf(fromC.literals(iFrom)), fromSide)
     val u: Term = Superposition.subtermAt(bank, bank.atomOf(intoC.literals(iInto)), pos)
     val saved: Int = trail.save()
     var stop = false
     if trail.unify(l, 0, u, 1) then
-      Superposition.superpose(bank, trail, fromC, iFrom, fromSide, intoC, iInto, IntArrayList.wrap(pos)) match
+      Superposition.superpose(bank, trail, fromC, iFrom, fromSide, intoC, iInto, pos) match
         case Some(rr) => stop = emit(rr)
         case None => ()
     trail.restore(saved)
@@ -138,19 +128,10 @@ final class Generator(bank: TermBank, trail: Trail, active: ActiveSet, opts: Sea
     false
 
   /** Equality resolution and equality factoring on `gc`, both unary: each enumerates every applicable literal
-   *  over the eligible set and the loop takes all the conclusions. */
+   *  over the eligible set. `exists` emits the conclusions in list order and stops at the first `□`. */
   private def equalityInferences(gc: Clause, gSel: Array[Int]): Boolean =
-    if emitAll(Superposition.equalityResolution(bank, trail, gc, gSel)) then return true
-    if emitAll(Superposition.equalityFactoring(bank, trail, gc, gSel)) then return true
-    false
-
-  /** Hand each of `cs` to `emit` in order; `true` as soon as one is (or becomes) the empty clause. */
-  private def emitAll(cs: List[Clause]): Boolean =
-    var xs = cs
-    while xs.nonEmpty do
-      if emit(xs.head) then return true
-      xs = xs.tail
-    false
+    Superposition.equalityResolution(bank, trail, gc, gSel).exists(emit) ||
+      Superposition.equalityFactoring(bank, trail, gc, gSel).exists(emit)
 
   /** σ-maximality after-check: in the (already σ-applied) factor `f`, the kept literal must be maximal --
    *  no other literal's atom is strictly KBO-greater than it. (Maximal, not strictly: the merged literal

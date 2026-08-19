@@ -37,15 +37,13 @@ final class ProblemList(val listFileName: String, envVar: Option[String] = None)
   lazy val all: Vector[String] =
     def read(source: scala.io.Source): Vector[String] =
       Using(source)(_.getLines().map(_.trim).filter(_.nonEmpty).toVector).get
-    overrideFile.map(f => read(scala.io.Source.fromFile(f))) match
-      case Some(lines) => lines
-      case None =>
-        Option(getClass.getResourceAsStream(resourcePath)) match
-          case Some(in) => read(scala.io.Source.fromInputStream(in))
-          case None =>
-            throw new java.io.FileNotFoundException(
-              s"Problem list $listFileName is on neither the classpath ($resourcePath) nor " +
-                envVar.fold("any override (this list has no env-var override)")(v => s"$$$v"))
+    overrideFile
+      .map(f => scala.io.Source.fromFile(f))
+      .orElse(Option(getClass.getResourceAsStream(resourcePath)).map(scala.io.Source.fromInputStream))
+      .map(read)
+      .getOrElse(throw new java.io.FileNotFoundException(
+        s"Problem list $listFileName is on neither the classpath ($resourcePath) nor " +
+          envVar.fold("any override (this list has no env-var override)")(v => s"$$$v")))
 
   /** A reproducible sample of `n` problems drawn with `seed`: the same seed always picks the same problems,
     * and an `n` past the end of the list returns the whole shuffled list. */
@@ -146,21 +144,19 @@ object BenchUtil:
     val heapMb = math.max(64L, Runtime.getRuntime.maxMemory / (1024 * 1024))
     // `-cp` on the command line: this project's classpath is a few KB, well inside the ~32 KB limit Windows
     // imposes. A much longer one would need an `@argfile` (and its backslash-escaping rules).
-    val cmd = new java.util.ArrayList[String]()
-    List(javaBin, "-cp", System.getProperty("java.class.path"), s"-Xmx${heapMb}m", mainClass).foreach(cmd.add)
-    args.foreach(cmd.add)
+    val cmd = Seq(javaBin, "-cp", System.getProperty("java.class.path"), s"-Xmx${heapMb}m", mainClass) ++ args
     val out = File.createTempFile("lisa-fork-", ".out")
     val err = File.createTempFile("lisa-fork-", ".err")
     try
-      val p = new ProcessBuilder(cmd).redirectOutput(out).redirectError(err).start()
+      val p = new ProcessBuilder(cmd*).redirectOutput(out).redirectError(err).start()
       p.getOutputStream.close() // the child never reads stdin; leaving it open can wedge one that tries
       val finished = p.waitFor(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
       if !finished then
         p.destroyForcibly()
         p.waitFor(10, java.util.concurrent.TimeUnit.SECONDS) // reap it; SIGKILL, so this returns at once
+      // `Using` takes the source by name, so a missing file is a `Failure` rather than a throw
       def lines(f: File): Vector[String] =
-        if !f.isFile then Vector.empty
-        else Using(scala.io.Source.fromFile(f))(_.getLines().toVector).getOrElse(Vector.empty)
+        Using(scala.io.Source.fromFile(f))(_.getLines().toVector).getOrElse(Vector.empty)
       ForkOutcome(if finished then p.exitValue else -1, !finished, lines(out), lines(err))
     finally { out.delete(); err.delete() }
 
@@ -178,3 +174,9 @@ object BenchUtil:
 
   /** Upper median of `xs` (the upper of the two middles when even; `0.0` if empty). */
   def median(xs: Seq[Double]): Double = if xs.isEmpty then 0.0 else xs.sorted.apply(xs.size / 2)
+
+  /** Which isolation the run used. It changes what the timings mean, so it belongs in the banner above them.
+    * `fork` costs a JVM start-up per problem, so per-problem times on fast problems are dominated by it. */
+  def isolationBanner: String =
+    if forkEnabled then "isolation=fork (one JVM per problem; set LISA_FORK=0 for in-process)"
+    else "isolation=thread (LISA_FORK=0; a runaway problem can poison later ones)"

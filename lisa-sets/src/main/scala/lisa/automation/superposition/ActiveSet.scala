@@ -7,18 +7,9 @@ import scala.collection.mutable
 import Core.*
 import lisa.automation.superposition.index.*
 
-/** The processed clauses and the structures that index them -- five fingerprint indices, the demodulator tree,
-  * the feature-vector index, and the unit sublist -- each holding the same clauses under a different key. The
-  * buffer is the only authoritative one.
-  *
-  * [[add]] and [[remove]] are the only entry points, and each touches every structure. A clause left in an
-  * index after removal is not unsound, but it defeats the deletion and keeps being offered as a partner.
-  *
-  * Removal has no back-pointers to a clause's index entries: it walks the clause again and deletes by value
-  * equality, so every derivation it repeats must answer as it did on insertion. The subterm walks and literal
-  * reads depend only on the literals and on `Clause.selected`, which is cached and which [[detach]] asserts is
-  * present; the two derivations that depend on the term ordering are not repeated at all, coming from
-  * [[Core.Clause.rewriteSources]] and [[treeRulesOf]], each recording what insertion used. */
+/** The processed clauses and the structures that index them (five fingerprint indices, the demodulator tree,
+  * the feature-vector index, and the unit sublist) each holding the same clauses under a different structure. The
+  * buffer is the main one. */
 final class ActiveSet(bank: TermBank, trail: Trail, initial: Seq[Clause], opts: SearchOptions):
   import opts.*
 
@@ -36,13 +27,13 @@ final class ActiveSet(bank: TermBank, trail: Trail, initial: Seq[Clause], opts: 
 
   // --- the shadows ----------------------------------------------------------------------------------------
 
-  private val intoIndex: FingerprintIndex[IntoEntry] = new FingerprintIndex(bank)
-  private val fromIndex: FingerprintIndex[FromEntry] = new FingerprintIndex(bank)
-  private val posLitIndex: FingerprintIndex[ResolutionEntry] = new FingerprintIndex(bank)
-  private val negLitIndex: FingerprintIndex[ResolutionEntry] = new FingerprintIndex(bank)
-  private val demodSubtermIndex: FingerprintIndex[IntoEntry] = new FingerprintIndex(bank)
-  private val demodTree: DiscriminationTree[Demodulation.Rule] = new DiscriminationTree(bank, trail)
-  private val units: mutable.ArrayBuffer[Clause] = mutable.ArrayBuffer.empty
+  private val intoIndex: FingerprintIndex[IntoEntry] = new FingerprintIndex(bank) // superposition: targets
+  private val fromIndex: FingerprintIndex[FromEntry] = new FingerprintIndex(bank) // superposition: sources
+  private val posLitIndex: FingerprintIndex[ResolutionEntry] = new FingerprintIndex(bank) // resolution
+  private val negLitIndex: FingerprintIndex[ResolutionEntry] = new FingerprintIndex(bank) // resolution
+  private val demodSubtermIndex: FingerprintIndex[IntoEntry] = new FingerprintIndex(bank) // backward demodulation
+  private val demodTree: DiscriminationTree[Demodulation.Rule] = new DiscriminationTree(bank, trail) // forward demodulation
+  private val units: mutable.ArrayBuffer[Clause] = mutable.ArrayBuffer.empty // forward unit deletion
 
   /** The rules [[add]] inserted into [[demodTree]], by source clause id, so that [[remove]] takes out exactly
     * those rather than re-deriving them. Re-derivation would call `order.orient` and so reproduce the inserted
@@ -55,18 +46,14 @@ final class ActiveSet(bank: TermBank, trail: Trail, initial: Seq[Clause], opts: 
   private val subsumptionIndex: FeatureVectorIndex =
     if subsumptionEnabled then new FeatureVectorIndex(bank, Permutation.build(bank, initial)) else null
 
-  // --- storage view ---------------------------------------------------------------------------------------
-
-  /** How many clauses are active. The by-index and whole-collection views that used to sit here existed for
-    * the linear-scan simplification and generation arms; nothing iterates the active set as a collection now. */
+  /** How many clauses are active. */
   def size: Int = buffer.length
   def peakSize: Int = _peakSize
 
   /** The active unit clauses, as a small sublist so unit deletion needn't scan everything (units are few).
-    * Maintained only when [[SearchOptions.subsumptionEnabled]], which is also when it is read. */
+    * Maintained only when [[SearchOptions.subsumptionEnabled]]. */
   def unitClauses: collection.IndexedSeq[Clause] = units
 
-  // --- the only two doors ---------------------------------------------------------------------------------
 
   /** Add `c` to the active set and to every shadow. `c` must already have been activated (its literal
     * selection computed), since the superposition and resolution indices key on the *selected* literals. */
@@ -85,11 +72,13 @@ final class ActiveSet(bank: TermBank, trail: Trail, initial: Seq[Clause], opts: 
       if c.size == 1 then units += c
     if backwardDemodulationOn then updateDemodSubterms(c, add = true)
 
-  /** Remove `c` from the active set and every shadow. A no-op on the buffer if `c` is not present. */
+  /** Remove `c` from the active set and every shadow, or do nothing at all if `c` is not active: the shadows
+    * hold entries for exactly the buffered clauses, so absence from the buffer settles both halves. */
   def remove(c: Clause): Unit =
-    detach(c)
     val i: Int = slot.get(c.id)
-    if i >= 0 then removeAtInBuffer(i)
+    if i >= 0 then
+      detach(c)
+      removeAtInBuffer(i)
 
   // --- retrieval (each a thin wrapper over the owning shadow) ---------------------------------------------
 
@@ -137,9 +126,7 @@ final class ActiveSet(bank: TermBank, trail: Trail, initial: Seq[Clause], opts: 
       slot.put(moved.id, i)
     buffer.remove(last)
 
-  /** Drop `c` from every shadow. The exact inverse of the shadow half of [[add]]: every line below is guarded
-    * by the identical flag as its counterpart there, so the inverse relation holds by inspection rather than by
-    * an argument about which collections happen to be empty. */
+  /** Drop `c` from every shadow. The exact inverse of the shadow half of [[add]]. */
   private def detach(c: Clause): Unit =
     require(c.selected != null, s"ActiveSet.remove: clause ${c.id} was never activated, so its index entries " +
       "cannot be re-derived (they key on the selected literals)")

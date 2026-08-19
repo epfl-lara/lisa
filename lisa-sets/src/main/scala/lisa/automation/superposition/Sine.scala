@@ -45,8 +45,7 @@ object Sine:
    *  `right.head`. The connective is immaterial ([[symbolsOf]] ignores it and walks both sides); an empty sequent
    *  yields `⊤` (no symbols). */
   private[superposition] def sequentFormula(s: Sequent): Expression =
-    val fs: Array[Expression] = (s.left.iterator ++ s.right.iterator).toArray
-    if fs.isEmpty then top else fs.reduce((a, b) => and(a)(b))
+    (s.left.iterator ++ s.right.iterator).reduceOption((a, b) => and(a)(b)).getOrElse(top)
 
   /** The indices (into `hypotheses`) SInE keeps, seeded from `conjecture`. Always keeps symbol-less hypotheses.
     * Keeps **all** hypotheses when there are fewer than `cfg.minAxioms` (nothing to prune). */

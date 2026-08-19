@@ -1,5 +1,6 @@
 package lisa.automation.superposition
 
+import it.unimi.dsi.fastutil.HashCommon
 import it.unimi.dsi.fastutil.ints.{Int2IntOpenCustomHashMap, Int2IntOpenHashMap, IntArrayList, IntHash, IntOpenHashSet}
 import it.unimi.dsi.fastutil.longs.{LongArrays, LongComparator}
 
@@ -19,6 +20,7 @@ object Core:
    *  methods such as `java.util.Arrays.copyOf`. Inline, so both compile to the identity. */
   inline def asArrayInt(array: Array[Term]): Array[Int] = array
   inline def asArrayTerm(array: Array[Int]): Array[Term] = array
+  inline def asArrayLong(array: Array[Literal]): Array[Long] = array
 
   /** A literal: an atom [[Term]] together with a polarity, packed as `(atom << 1) | sign`. */
   opaque type Literal = Long
@@ -280,6 +282,74 @@ object Core:
           i += 1
         false
 
+    /** The distinct variables occurring in `t`, as variable terms. Read straight off the cached
+      * [[freeVarMask]], so no traversal at all in the ordinary case; a variable numbered `>= 63` is recorded
+      * only as the single [[FvOverflow]] bit, which names no number, so those are gathered by a walk that
+      * descends solely where that bit is set. The order is not part of the contract: mask-named variables come
+      * out ascending and any `>= 63` ones are appended as found. */
+    def varsOf(t: Term): Array[Term] =
+      val m: Long = freeVarMask(t)
+      if (m & FvOverflow) == 0L then maskVars(m) else appendHighVars(maskVars(m), t)
+
+    /** The distinct variables occurring in any literal of `c`, from the union of their atoms' masks. Same
+      * contract and same `>= 63` fallback as the single-term [[varsOf]]. */
+    def varsOf(c: ClauseBody): Array[Term] =
+      val lits: Array[Literal] = c.literals
+      var m: Long = 0L
+      var i = 0
+      while i < lits.length do { m |= freeVarMask(atomOf(lits(i))); i += 1 }
+      var out: Array[Term] = maskVars(m)
+      if (m & FvOverflow) != 0L then
+        i = 0
+        while i < lits.length do { out = appendHighVars(out, atomOf(lits(i))); i += 1 }
+      out
+
+    /** Whether every variable of `a` also occurs in `b`: one `and` over the two cached masks, with no traversal
+      * and nothing allocated. Only `a`'s overflow bit forces the slow path -- with it clear, every variable of
+      * `a` is named by a bit below 63, which `b`'s mask names exactly too. */
+    def varsSubsetOf(a: Term, b: Term): Boolean =
+      val ma: Long = freeVarMask(a)
+      if (ma & FvOverflow) == 0L then (ma & freeVarMask(b)) == ma
+      else
+        // `a` carries a variable numbered >= 63, which the mask lumps into one bit that names no number, so a
+        // bit shared with `b` need not be the same variable: compare them one by one instead.
+        val vs: Array[Term] = varsOf(a)
+        var i = 0
+        while i < vs.length do
+          if !containsVar(b, varNum(vs(i))) then return false
+          i += 1
+        true
+
+    /** The variables `m` names, as terms, in ascending number. Excludes the ones [[FvOverflow]] stands for. */
+    private def maskVars(m: Long): Array[Term] =
+      var bits: Long = m & ~FvOverflow
+      val out: Array[Term] = new Array[Term](java.lang.Long.bitCount(bits))
+      var i = 0
+      while bits != 0L do
+        out(i) = mkVar(Variable(java.lang.Long.numberOfTrailingZeros(bits)))
+        bits &= bits - 1 // clear the lowest set bit
+        i += 1
+      out
+
+    /** Append to `vars` those variables of `t` numbered `>= 63`, which [[freeVarMask]] cannot name, keeping the
+      * result distinct. Descends only into subterms whose own mask carries the overflow bit. */
+    private def appendHighVars(vars: Array[Term], t: Term): Array[Term] =
+      if (freeVarMask(t) & FvOverflow) == 0L then vars
+      else if isVar(t) then
+        var i = 0
+        while i < vars.length && vars(i) != t do i += 1
+        if i < vars.length then vars
+        else
+          val out: Array[Term] = java.util.Arrays.copyOf(vars, vars.length + 1)
+          out(vars.length) = t
+          out
+      else
+        var out: Array[Term] = vars
+        val n: Int = arity(t)
+        var i = 0
+        while i < n do { out = appendHighVars(out, arg(t, i)); i += 1 }
+        out
+
     // --- literals -----------------------------------------------------------------------------------------
 
     def mkLiteral(atom: Term, positive: Boolean): Literal = (atom.toLong << 1) | (if positive then 1L else 0L)
@@ -383,11 +453,10 @@ object Core:
           i += 1
         true
 
+    // `mem.length` is always a power of two, so the next one at or above the requested size is also at least
+    // twice the current length -- no separate doubling floor is needed.
     private def ensureMem(extra: Int): Unit =
-      if end + extra > mem.length then
-        var nl: Int = mem.length * 2
-        while nl < end + extra do nl *= 2
-        mem = java.util.Arrays.copyOf(mem, nl)
+      if end + extra > mem.length then mem = java.util.Arrays.copyOf(mem, HashCommon.nextPowerOfTwo(end + extra))
 
   // --- Syntactic orderings (a total, deterministic order on terms/literals; distinct from KBO) ------------
 
@@ -559,7 +628,7 @@ object Core:
 
     // Count of currently-live bindings per scope (== number of trail entries carrying that scope). Kept in
     // sync by `bind`/`restore`, so `matchTerm` can assert its target scope is binding-free in O(1).
-    private val liveBindings: Array[Int] = Array.fill(NScopes)(0)
+    private val liveBindings: Array[Int] = new Array[Int](NScopes)
 
     // reused worklist for `unify`: two parallel primitive int stacks (no boxing, no tuple allocation)
     private val workTerm: IntArrayList = new IntArrayList()
@@ -713,8 +782,7 @@ object Core:
     private def ensureVarCapacity(s: Scope, v: Variable): Unit =
       val cur: Array[Int] = boundTerm(s)
       if v >= cur.length then
-        var nl: Int = cur.length * 2
-        while nl <= v do nl *= 2
+        val nl: Int = HashCommon.nextPowerOfTwo(v + 1) // lengths are powers of two, so this is at least 2 * cur.length
         val nt: Array[Int] = java.util.Arrays.copyOf(cur, nl)
         java.util.Arrays.fill(nt, cur.length, nl, -1)
         boundTerm(s) = nt

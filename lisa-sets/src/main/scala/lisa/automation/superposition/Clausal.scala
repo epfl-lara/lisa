@@ -159,7 +159,7 @@ object Clausal:
       abs.dischargeSubst.keySet ++
         problem.frozen ++ //                                            Skolem-function symbols from SkolemPhase: a
         //  NULLARY one is Ind-sorted so the `sort != Ind` filter below misses it; it must NOT be a clause variable.
-        absSeqs.iterator.flatMap(s => (s.left ++ s.right).iterator.flatMap(_.freeVariables)).filter(_.sort != K.Ind).toSet
+        absSeqs.iterator.flatMap(s => s.left.iterator ++ s.right.iterator).flatMap(_.freeVariables).filter(_.sort != K.Ind)
     Prepared(abs, orig, work, symbolVars)
 
   /** Like [[proveOutcome]] but stops at the saturation verdict: returns the raw [[Bridge.Outcome]] **without**
@@ -202,5 +202,5 @@ object Clausal:
       case _                   => ()
     clauses.foreach(s => { s.left.foreach(scan); s.right.foreach(scan) })
     val os = objs.toIndexedSeq
-    (for i <- os.indices; j <- (i + 1) until os.size
-     yield K.Sequent(Set(K.equality(os(i))(os(j))), Set.empty)).toIndexedSeq
+    for i <- os.indices; j <- (i + 1) until os.size
+    yield K.Sequent(Set(K.equality(os(i))(os(j))), Set.empty)

@@ -1,6 +1,5 @@
 package lisa.automation.superposition
 
-import scala.collection.mutable
 import it.unimi.dsi.fastutil.ints.IntArrayList
 
 import Core.*
@@ -9,22 +8,14 @@ import lisa.automation.superposition.index.*
 
 /** Rewriting by positive unit equalities. Forward demodulation normal-forms a clause against the active
   * equations, backward demodulation rewrites active clauses with a new one. Each step replaces a subterm by a
-  * strictly smaller instance, so repeated steps terminate, and each records its own justification.
-  *
-  * Matching drives it rather than unification, so only the rule's variables bind and the rewritten clause stays
-  * rigid, which is what makes the result entail it. [[isPremiseRedundant]] is the exception: rewriting a whole
-  * side of a maximal positive unit equality with a renaming matcher leaves the premise non-redundant, so that
-  * rewrite is skipped and left to superposition.
-  *
-  * The ordering is not a parameter, for the reason given on [[Superposition]]; each public entry reads it once
-  * and passes it down, so the fixpoint loops resolve it per clause rather than per rewrite. */
+  * strictly smaller instance, so repeated steps terminate, and each records its own justification. */
 object Demodulation:
 
   /** A usable rewrite direction extracted from a positive unit equality clause: `lhs → rhs`. `lhsVars` are
    *  the distinct variables of `lhs`, precomputed once (they're invariant) for the renaming redundancy check.
    *
    *  Identity is `(source.id, side)`, which determines the rest, so that a rule re-derived from its clause
-   *  deletes the stored one. Same convention as the [[FromEntry]] payloads of the other index. */
+   *  deletes the stored one. */
   final class Rule(val source: Clause, val side: Int, val lhs: Term, val rhs: Term, val oriented: Boolean, val lhsVars: Array[Term]):
     override def equals(o: Any): Boolean = o match
       case r: Rule => source.id == r.source.id && side == r.side
@@ -32,21 +23,10 @@ object Demodulation:
     override def hashCode: Int = source.id * 31 + side
     override def toString: String = s"Rule(c${source.id}, side=$side)"
 
-  /** Whether `c` is a positive unit equality, the shape a demodulator must have. A cheap pre-check before
-    * [[rules]], which would return `Nil` for anything else. */
+  /** Whether `c` is a positive unit equality. */
   def isPositiveUnitEquality(bank: TermBank, c: Clause): Boolean =
     c.literals.length == 1 && bank.isPositive(c.literals(0)) &&
       bank.isEquality(c.literals(0))
-
-  /** Distinct variable terms occurring in `t`, in first-occurrence order. */
-  private def varsOf(bank: TermBank, t: Term): List[Term] =
-    val acc = mutable.LinkedHashSet.empty[Term]
-    def go(x: Term): Unit =
-      if bank.isVar(x) then acc += x
-      else
-        var i = 0; val n = bank.arity(x)
-        while i < n do { go(bank.arg(x, i)); i += 1 }
-    go(t); acc.toList
 
   /** The usable rewrite directions of `eq` as a demodulator: `Nil` unless `eq` is a positive unit equality.
     * Oriented equations rewrite from the `Gt` side; unoriented ones rewrite from a side only if that side's
@@ -60,18 +40,17 @@ object Demodulation:
       if !bank.isPositive(lit) || !bank.isEqualityAtom(atom) then Nil
       else
         val s0 = bank.arg(atom, 0); val s1 = bank.arg(atom, 1)
-        def mk(side: Int, lhs: Term, rhs: Term, oriented: Boolean): Rule =
-          new Rule(eq, side, lhs, rhs, oriented, varsOf(bank, lhs).toArray)
+        def mk(side: Int, lhs: Term, rhs: Term, oriented: Boolean, lhsVars: Array[Term]): Rule =
+          new Rule(eq, side, lhs, rhs, oriented, lhsVars)
         order.orient(atom) match
-          case Cmp.Gt => if bank.isVar(s0) then Nil else List(mk(0, s0, s1, true))
-          case Cmp.Lt => if bank.isVar(s1) then Nil else List(mk(1, s1, s0, true))
+          case Cmp.Gt => if bank.isVar(s0) then Nil else List(mk(0, s0, s1, true, bank.varsOf(s0)))
+          case Cmp.Lt => if bank.isVar(s1) then Nil else List(mk(1, s1, s0, true, bank.varsOf(s1)))
           case Cmp.Eq => Nil
           case Cmp.Inc =>
-            val v0 = varsOf(bank, s0).toSet; val v1 = varsOf(bank, s1).toSet
             var rs: List[Rule] = Nil
             // side 0 as LHS needs vars(s1) ⊆ vars(s0); side 1 as LHS needs vars(s0) ⊆ vars(s1)
-            if !bank.isVar(s1) && v0.subsetOf(v1) then rs = mk(1, s1, s0, false) :: rs
-            if !bank.isVar(s0) && v1.subsetOf(v0) then rs = mk(0, s0, s1, false) :: rs
+            if !bank.isVar(s1) && bank.varsSubsetOf(s0, s1) then rs = mk(1, s1, s0, false, bank.varsOf(s1)) :: rs
+            if !bank.isVar(s0) && bank.varsSubsetOf(s1, s0) then rs = mk(0, s0, s1, false, bank.varsOf(s0)) :: rs
             rs
 
   /** Rewrite `clause` to a normal form by repeating `step` until it stops firing. Each step replaces a subterm
@@ -103,44 +82,43 @@ object Demodulation:
 
   // --- one rewrite step -----------------------------------------------------------------------------------
 
-  /** The first applicable single rewrite of `c` by any rule, leftmost-outermost over subterm positions.
-   *  Enumerates positions with a reused stack ([[Superposition.foreachSubterm]]); a position is only
-   *  materialised (in `tryRewrite`) when a rewrite fires. */
-  private def rewriteOnce(bank: TermBank, trail: Trail, order: Order, c: Clause, rules: Array[Rule]): Option[Clause] =
-    var result: Option[Clause] = None
+  /** Walk the subterm positions of every literal,  calling `attempt(iLit, u, path)` on the
+   *  subterm `u` at `path` of literal `iLit` and stopping as soon as it returns `true`. Positions come from a
+   *  reused stack ([[Superposition.foreachSubterm]]) and one is materialised only when a rewrite fires (in
+   *  [[applyRuleAt]]). */
+  private inline def firstRewrite(bank: TermBank, c: Clause)(inline attempt: (Int, Term, IntArrayList) => Boolean): Unit =
     var iLit = 0
-    while iLit < c.literals.length && result.isEmpty do
-      val li: Int = iLit
-      val atom: Term = bank.atomOf(c.literals(li))
-      Superposition.foreachSubterm(bank, atom) { (u, path) =>
-        var ri = 0
-        while ri < rules.length && result.isEmpty do
-          result = tryRewrite(bank, trail, order, c, li, path, u, rules(ri))
-          ri += 1
-        result.isDefined // stop the traversal once a rewrite is found
-      }
+    var stopped = false
+    while iLit < c.literals.length && !stopped do
+      val li: Int = iLit // the subterm-walk closure cannot capture the loop `var`
+      stopped = Superposition.foreachSubterm(bank, bank.atomOf(c.literals(li))) { (u, path) => attempt(li, u, path) }
       iLit += 1
-    result
 
-  /** The first applicable single rewrite of `c` via the discrimination-tree index, leftmost-outermost over
-   *  subterm positions. Same shape as [[rewriteOnce]], but each subterm's matching rules come from one tree
-   *  descent (`retrieveGeneralizations`, which leaves σ on the trail) rather than a scan; [[applyRuleAt]] then
-   *  applies the gates + build with σ already in place. */
+  /** The first applicable single rewrite of `c` by any rule of `rules`, which are scanned per subterm. */
+  private def rewriteOnce(bank: TermBank, trail: Trail, order: Order, c: Clause, rules: Array[Rule]): Option[Clause] =
+    var found: Option[Clause] = None
+    firstRewrite(bank, c) { (li, u, path) =>
+      var ri = 0
+      while ri < rules.length && found.isEmpty do
+        found = tryRewrite(bank, trail, order, c, li, path, u, rules(ri))
+        ri += 1
+      found.isDefined
+    }
+    found
+
+  /** The first applicable single rewrite of `c` via the discrimination-tree index: each subterm's matching rules
+   *  come from one tree descent (`retrieveGeneralizations`, which leaves σ on the trail) rather than a scan, so
+   *  [[applyRuleAt]] runs the gates and the build with σ already in place. */
   private def rewriteOnceIndexed(bank: TermBank, trail: Trail, order: Order, c: Clause, tree: DiscriminationTree[Rule]): Option[Clause] =
-    var result: Option[Clause] = None
-    var iLit = 0
-    while iLit < c.literals.length && result.isEmpty do
-      val li: Int = iLit
-      val atom: Term = bank.atomOf(c.literals(li))
-      Superposition.foreachSubterm(bank, atom) { (u, path) =>
-        tree.retrieveGeneralizations(u) { rule => // σ (rule.lhs onto u) is live on the trail inside this callback
-          result = applyRuleAt(bank, trail, order, c, li, path, rule)
-          result.isDefined // stop the tree descent once a rewrite fires
-        }
-        result.isDefined // stop the subterm walk once a rewrite fires
+    var found: Option[Clause] = None
+    firstRewrite(bank, c) { (li, u, path) =>
+      tree.retrieveGeneralizations(u) { rule => // σ (rule.lhs onto u) is live on the trail inside this callback
+        found = applyRuleAt(bank, trail, order, c, li, path, rule)
+        found.isDefined // stop the tree descent once a rewrite fires
       }
-      iLit += 1
-    result
+      found.isDefined // stop the subterm walk once a rewrite fires
+    }
+    found
 
   private def tryRewrite(bank: TermBank, trail: Trail, order: Order,
                          c: Clause, iLit: Int, path: IntArrayList, u: Term, rule: Rule): Option[Clause] =
@@ -163,9 +141,20 @@ object Demodulation:
     // orientation re-check on the instance (skip for an already-oriented rule)
     if !rule.oriented && order.kbo.compare(lS, rS) != Cmp.Gt then None
     else
-      val iLitLit: Literal = c.literals(iLit) // the rewritten literal + its atom, read once for the gate and the build
-      val iLitAtom: Term = bank.atomOf(iLitLit)
-      if !isPremiseRedundant(bank, order, ap, c, iLitLit, iLitAtom, path, rS, rule) then None
+      val lit: Literal = c.literals(iLit) // the rewritten literal + its atom, read once for the gate and the build
+      val atom: Term = bank.atomOf(lit)
+      /** Whether rewriting `lit` at `path` (yielding the instance `rS` on that side) keeps the premise
+        * redundant, i.e. whether the rewrite may simplify (delete/replace) `c`.*/
+      val premiseRedundant: Boolean =
+        val wholeSide = bank.isEqualityAtom(atom) && path.size() == 1
+        if !wholeSide then true // rewriting inside a subterm / a non-equality literal: always redundant
+        else if !bank.isPositive(lit) || c.literals.length != 1 then true // check only bites on positive unit equalities
+        else
+          val side: Int = path.getInt(0)
+          val otherS = ap.apply(bank.arg(atom, 1 - side), 1) // the untouched side, instantiated
+          // rewrote the larger side downward ⇒ redundant; else redundant iff the matcher is a proper instance
+          order.kbo.compare(rS, otherS) == Cmp.Lt || !matcherIsRenaming(bank, ap, rule.lhsVars)
+      if !premiseRedundant then None
       else
         val pos: Array[Int] = path.toIntArray // materialise the position only now that the rewrite fires
         val newLits = new Array[Literal](c.literals.length)
@@ -173,7 +162,7 @@ object Demodulation:
         while k < c.literals.length do
           newLits(k) =
             if k == iLit then // the rewritten literal: instantiate its atom, then replace u by r at `pos`
-              bank.mkLiteral(Superposition.replaceAt(bank, ap.apply(iLitAtom, 1), pos, rS), bank.isPositive(iLitLit))
+              bank.mkLiteral(Superposition.replaceAt(bank, ap.apply(atom, 1), pos, rS), bank.isPositive(lit))
             else ap.applyLit(c.literals(k), 1)
           k += 1
         Some(bank.mkClause(newLits, Justification.Demodulation(c, iLit, pos, rule.source, rule.side)))
@@ -188,29 +177,9 @@ object Demodulation:
     var k = 0
     while k < target.literals.length do { ap.apply(bank.atomOf(target.literals(k)), 1); k += 1 }
 
-  /** Whether rewriting `c`'s literal `iLit` at position `path` (yielding instance `rS` on that side) keeps
-    * the premise redundant, i.e. whether the rewrite may simplify (delete/replace) `c`. Encompassment mode. Reads
-    * the live position stack (no snapshot): only its depth and first index matter. */
-  private def isPremiseRedundant(bank: TermBank, order: Order, ap: Trail#Applier,
-                                 c: Clause, lit: Literal, atom: Term, path: IntArrayList, rS: Term, rule: Rule): Boolean =
-    val wholeSide = bank.isEqualityAtom(atom) && path.size() == 1
-    if !wholeSide then true // rewriting inside a subterm / a non-equality literal: always redundant
-    else if !bank.isPositive(lit) || c.literals.length != 1 then true // check only bites on positive unit equalities
-    else
-      val side: Int = path.getInt(0)
-      val otherS = ap.apply(bank.arg(atom, 1 - side), 1) // the untouched side, instantiated
-      // rewrote the larger side downward ⇒ redundant; else redundant iff the matcher is a proper instance
-      order.kbo.compare(rS, otherS) == Cmp.Lt || !matcherIsRenaming(bank, ap, rule.lhsVars)
-
-  /** Whether the matcher σ, restricted to the rule's LHS variables (precomputed on the [[Rule]]), is a
-   *  variable renaming (injective onto variables).
-   *
-   *  On the redundancy gate, so written as an explicit search rather than as
-   *  `lhsVars.map(ap.apply(_, 0)).distinct`: that spelling allocates a mapped array, a closure, and the set
-   *  and array behind `distinct`, which boxes every element since `Term` is an opaque `Int`, and computes all
-   *  the images before looking at any of them. Here each image is computed once into one array and compared
-   *  against its predecessors, and both loops exit at the first witness. Injectivity over one or two variables is
-   *  the common case, and `n == 1` needs no array at all. */
+  /** Whether the matcher σ, restricted to the rule's LHS variables (precomputed on the [[Rule]]), is a variable
+   *  renaming (injective onto variables). Explicit loops rather than `lhsVars.map(ap.apply(_, 0)).distinct`:
+   *  that would allocate a mapped array and a boxing `distinct`, and compute every image before testing any. */
   private def matcherIsRenaming(bank: TermBank, ap: Trail#Applier, lhsVars: Array[Term]): Boolean =
     val n = lhsVars.length
     if n == 0 then true

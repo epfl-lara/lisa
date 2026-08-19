@@ -40,10 +40,7 @@ object Fingerprint:
   val FP7Trie: SampleTrie = new SampleTrie(FP7)
 
   /** Whether a query feature `qf` and a stored feature `sf` are compatible for **unification**: whether two
-    * terms carrying them at a position could have a common instance there. Symmetric. A concrete symbol admits
-    * `{ itself, AnyVar, BelowVar }`; `NotInTerm` admits `{ NotInTerm, BelowVar }`, both being absences; `AnyVar`
-    * admits everything **but** `NotInTerm`, since a query variable forces the position to exist; and `BelowVar`
-    * admits everything, since its instances may or may not have the position. */
+    * terms carrying them at a position could have a common instance there.*/
   def unifiable(qf: Int, sf: Int): Boolean =
     if qf >= 0 then sf == qf || sf == AnyVar || sf == BelowVar
     else if qf == NotInTerm then sf == NotInTerm || sf == BelowVar
@@ -56,10 +53,7 @@ object Fingerprint:
   *
   * The descent carries a term and a tag: `0` means the term is a real subterm, and [[BelowVar]] or
   * [[NotInTerm]] mean the walk has left the term, in which case the tag is the feature to emit here and
-  * everywhere beneath. Keeping it an integer rather than an option makes the walk allocation-free.
-  *
-  * The sampled positions must be pairwise distinct. A repeat would give two slots one trie node, which keeps
-  * only the last, and the other slot would retain the previous term's feature from the reused buffer. */
+  * everywhere beneath. Keeping it an integer rather than an option makes the walk allocation-free. */
 final class SampleTrie(positions: Array[Array[Int]]):
 
   /** The fingerprint length (number of sampled positions). */
@@ -109,28 +103,26 @@ final class SampleTrie(positions: Array[Array[Int]]):
       i += 1
 
 /** A leaf's entries, as an opaque type directly over a hash set, so a bucket is the set at runtime with no
-  * wrapper per leaf. The set gives O(1) insertion and removal even in the large buckets that shallow
-  * variable-headed terms produce, since every `f(x)` in the active set fingerprints alike. `null` is the empty
-  * bucket, which every operation handles, and [[Bucket.add]] returns the new bucket, so callers write
-  * `b = b.add(e)`.
-  *
-  * Two other representations benchmarked the same, so this simplest one is kept. */
+  * wrapper per leaf. The set gives O(1) insertion and removal. `null` is the empty bucket, which every
+  * operation handles; a caller starts one with [[Bucket.of]] and adds to an existing one with [[Bucket.addNew]],
+  * which reports whether the entry was new. */
 object Buckets:
 
   opaque type Bucket[E] >: Null <: AnyRef = ObjectOpenHashSet[E]
 
   object Bucket:
+    /** A fresh bucket holding just `e`. */
+    def of[E](e: E): Bucket[E] =
+      val s = new ObjectOpenHashSet[E](2)
+      s.add(e)
+      s
+
     extension [E](b: Bucket[E])
-      /** Add `e`; a `null` receiver starts a fresh set (returned, so the caller reassigns). */
-      def add(e: E): Bucket[E] =
-        if b == null then { val s = new ObjectOpenHashSet[E](2); s.add(e); s }
-        else { b.add(e); b }
+      /** Add `e` to a non-`null` bucket; whether it was not already present. */
+      def addNew(e: E): Boolean = b.add(e)
 
       /** Remove one entry equal (`==`) to `e`; returns whether one was found. */
       def remove(e: E): Boolean = b != null && b.remove(e)
-
-      /** Whether an entry equal (`==`) to `e` is present (a `null` receiver is empty). */
-      def contains(e: E): Boolean = b != null && b.contains(e)
 
       def isEmpty: Boolean = b == null || b.isEmpty
 
@@ -141,25 +133,14 @@ object Buckets:
           while it.hasNext do visit(it.next())
 
 /** A trie over term fingerprints, generic in the payload. Each term is placed by its fingerprint, one level per
-  * sampled position, and a leaf holds the payloads of every term with that fingerprint. Insertion and removal
-  * are linear in the depth; [[retrieveUnifiable]] descends only the compatible branches and returns a candidate
-  * superset that the caller confirms by unifying.
-  *
-  * Candidates are pushed through a `visit` callback rather than collected, so a query allocates nothing.
-  * Removal prunes emptied nodes and matches the entry by `==`, so a payload with value equality can be deleted
-  * by an equal value re-derived from the clause. The sampling scheme is shared between indices. */
+  * sampled position, and a leaf holds the payloads of every term with that fingerprint. */
 final class FingerprintIndex[E](bank: TermBank, trie: SampleTrie = Fingerprint.FP7Trie):
 
   private val depth: Int = trie.length
   private val root: Node = new Node
   private var _size: Int = 0
 
-  // One reusable fingerprint buffer shared by every term-keyed operation (insert/remove/retrieveUnifiable). This
-  // removes the per-call fingerprint-array allocation on the hot query path (and the amortized one on
-  // insert/remove). It is safe only because these operations never nest on a single index: `retrieveUnifiable`
-  // reads `fpBuf` throughout its descent (across every `visit` callback), so a callback that re-entered any
-  // term-keyed op on the *same* index would refill the buffer mid-descent and silently drop candidates (a false
-  // negative ⇒ incompleteness). `descending` (below) enforces this via `guardNotDescending`.
+  // One reusable fingerprint buffer shared by every term-keyed operation (insert/remove/retrieveUnifiable). 
   private val fpBuf: Array[Int] = new Array[Int](depth)
   private var descending: Boolean = false // true while a retrieveUnifiable descent is live (fpBuf is being read)
 
@@ -193,9 +174,9 @@ final class FingerprintIndex[E](bank: TermBank, trie: SampleTrie = Fingerprint.F
       if c == null then { c = new Node; node.children.put(fpBuf(d), c) }
       node = c
       d += 1
-    val isNew: Boolean = !node.bucket.contains(entry) // `add` is a no-op on a value-equal duplicate,
-    node.bucket = node.bucket.add(entry) //              so count only genuinely new entries
-    if isNew then _size += 1
+    // `addNew` reports whether the entry was new, so a value-equal duplicate is not counted
+    if node.bucket == null then { node.bucket = Buckets.Bucket.of(entry); _size += 1 }
+    else if node.bucket.addNew(entry) then _size += 1
 
   /** Remove one entry equal (`==`) to `entry` stored under `term`'s fingerprint; returns whether one was
    *  found. Emptied nodes are pruned up the path. */

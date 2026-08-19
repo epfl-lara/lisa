@@ -14,10 +14,9 @@ import lisa.automation.superposition.ordering.*
   * negative literals and the empty sequent is the empty clause.
   *
   * [[solve]] saturates once and returns an [[Outcome]]; `Success.reconstructKernelProof` turns a refutation
-  * into a kernel proof. It also switches the equality inferences off when the input contains no equality,
-  * where they could never apply.
+  * into a kernel proof.
   *
-  * The **encoding** half of the boundary with the kernel; [[Clausal]] is the other half, adapting the
+  * The **encoding** half of the boundary with the kernel. [[Clausal]] is the other half, adapting the
   * clausification package to this one. A caller with a first-order problem enters through `Clausal`, one that
   * already holds clause sequents enters here. */
 object Bridge:
@@ -41,17 +40,14 @@ object Bridge:
         schematicIds: Set[K.Identifier] = Set.empty,
         discharge: Map[K.Variable, K.Expression] = Map.empty) extends Outcome:
       /** Reconstruct a kernel [[lisa.utils.K.SCProof]] from this refutation: its imports are the input
-        * clause-sequents and its conclusion is the empty sequent `⊢`. Uses the bank and per-input data
-        * carried here, with no re-solving. `schematicNames` (the abstraction symbols from [[Clausal]]) are rebuilt as kernel
-        * variables; when `discharge` maps them to their `λfv. e` values, they are instead inlined back to the
-        * original subterms so the proof is free of the abstraction symbols. See [[Reconstruction]]. */
+        * clause-sequents and its conclusion is the empty sequent `⊢`. See [[Reconstruction]]. */
       def reconstructKernelProof: K.SCProof = Reconstruction.reconstruct(empty, bank, inputs, schematicIds, discharge)
 
     /** The passive set was exhausted without deriving `□`: the clause set is satisfiable (a decision). */
     case object Saturated extends Outcome
 
     /** A budget, either the `maxGiven` given-clause count or the `maxMillis` wall-clock limit, was hit before
-     *  the search could decide. Not a decision: the set's status is unknown. */
+     *  the search could decide. */
     case object Timeout extends Outcome
 
   /**
@@ -68,10 +64,8 @@ object Bridge:
    * @param maxMillis  wall-clock budget, checked once per given clause.
    * @param opts       every search knob, in one value; see [[SearchOptions]].
    * @param symbolVars schematic symbol variables: kernel `Variable`s to be treated as **symbols** by the prover
-   *                   rather than as clause variables, and rebuilt as variables in reconstruction. Dispatched by
-   *                   position: such a variable in a literal-head position is a **predicate** symbol, in a term
-   *                   position a **function** symbol (the abstraction functions `F` from [[Clausal]], and the
-   *                   clausifier's naming atoms `nm…`). Empty for ordinary clausal input.
+   *                   rather than as clause variables, and rebuilt as variables in reconstruction.
+   *                   Empty for pure first order clausal input.
    * @param discharge  abstraction discharge: each symbol `F` ↦ its closed value `λfv. e`. When non-empty,
    *                   reconstruction inlines `F` back to `e`, so the proof carries the original subterms.
    * @param goal       indices (into `sequents`) of the goal input clauses, the negated conjecture, for
@@ -99,23 +93,15 @@ object Bridge:
       inputs(c.id) = (s, vars.iterator.map((kv, n) => n -> kv).toMap)
       c
     }.toSeq
-    // Generate the KBO precedence from the now fully-interned signature. This is the last time the ordering
-    // changes; everything after it treats the ordering as fixed, which is what lets the caches over it hold no
-    // version stamp. Clause construction never reads the ordering, and the selector below is the first thing
-    // that can, so this is the right point.
+    // Generate the KBO precedence from the fully-interned signature. This is the one time the ordering is definitely fixed.
     Precedence.assign(sig, bank, clauses, opts.precedenceScheme)
-    // Admissibility is a property of a *runtime* configuration, the schemes being per-strategy, and is what
-    // makes the ordering a reduction ordering; an inadmissible one loops inside demodulation or quietly loses
-    // completeness. O(|symbols|), and the only place it can be checked: nothing below knows which schemes ran.
+    // Sanity check that the given order is admissible
     val inadmissible: Option[String] = bank.order.kbo.checkAdmissibility()
     assert(inadmissible.isEmpty, s"KBO is not admissible under this configuration: ${inadmissible.getOrElse("")}")
     bank.selector = LiteralSelection.selector(opts.selection, bank)
-    // Equality inferences can fire only if the input contains `=`: no rule on non-equality literals ever
-    // synthesises an `=` atom, so with none in the input they are vacuous, and disabling them skips building the
-    // demodulation and superposition indices at no cost to completeness.
+    // Equality inferences can fire only if the input contains `=`
     val hasEquality: Boolean = clauses.exists(c => c.literals.exists(l => bank.isEquality(l)))
     val schematicIds: Set[K.Identifier] = symbolVars.map(_.id)
-    // The only place the caller's options are altered; everything else is threaded through untouched.
     val discount = new Discount(bank, trail, clauses, opts.copy(equality = opts.equality && hasEquality))
     val result = discount.saturate(maxGiven, maxMillis)
     onStats(discount.loopStats)
