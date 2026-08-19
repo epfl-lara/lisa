@@ -1,12 +1,12 @@
-package lisa.test.automation
+package lisa.utils.prooflib
 
-import lisa.automation.Tableau.solve
-import lisa.kernel.proof.SCProofChecker.checkSCProof
+import lisa.utils.fol.FOL.{_, given}
 import org.scalatest.funsuite.AnyFunSuite
 
-class TableauTest extends AnyFunSuite with lisa.TestMain {
+class TableauSuite extends AnyFunSuite:
 
-  given lib: lisa.SetTheoryLibrary.type = lisa.SetTheoryLibrary
+  private class TestLibrary extends Library
+  given lib: Library = TestLibrary()
 
   // --- Individual variables ---
   private val u = variable[Ind]
@@ -38,12 +38,9 @@ class TableauTest extends AnyFunSuite with lisa.TestMain {
    * Solve a formula and return (proofFound, proofValid).
    */
   private def solveAndCheck(formula: Expr[Prop]): (Boolean, Boolean) = {
-    val res = Tableau.solve(() |- formula)
-    res match
+    Tableau.solve(() |- formula) match
       case None => (false, false)
-      case Some(proof) =>
-        val judgement = checkSCProof(proof)
-        (true, judgement.isValid)
+      case Some(theorem) => (true, !theorem.kernel.usesSorry)
   }
 
   // ========================================================================
@@ -209,5 +206,3 @@ class TableauTest extends AnyFunSuite with lisa.TestMain {
     assert(found, "Tableau should find a proof for triggerStackOverflow2")
     assert(valid, "Proof for triggerStackOverflow2 should be valid")
   }
-
-}
