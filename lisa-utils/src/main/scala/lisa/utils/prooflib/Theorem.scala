@@ -72,7 +72,7 @@ final class Theorem(theoremKind: TheoremKind)(using library: Library, output: Ou
               inner.judgement
 
   val innerThm: Thm = judgement.destruct._1
-  def thm: Thm = innerThm.copy(isSchema = true)
+  def thm: Thm = innerThm
   def kernel: K.Thm = innerThm.kernel
   val errors: Set[ProofError] = judgement.errors
 

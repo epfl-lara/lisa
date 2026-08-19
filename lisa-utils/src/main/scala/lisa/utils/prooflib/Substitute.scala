@@ -63,9 +63,7 @@ object Substitute extends SequentTactic, DerivedFromPremises:
       val rule = extractRule(thm).get
       sourceMap += rule -> thm
       sourceMap += rule.swap -> thm
-      ctx =
-        if thm.isSchema then ctx.withFreeRule(rule).withFreeRule(rule.swap)
-        else ctx.withConfinedRule(rule).withConfinedRule(rule.swap)
+      ctx = ctx.withFreeRule(rule).withFreeRule(rule.swap)
     formulaRules.foreach: formula =>
       val rule = extractRule(formula).get
       val source = rule.source

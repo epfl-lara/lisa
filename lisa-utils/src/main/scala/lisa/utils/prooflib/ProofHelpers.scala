@@ -50,7 +50,10 @@ object ProofHelpers:
         carrier.recoverWith(conclusion)
 
       case carrier: SoftCarrier[?] =>
-        if carrier.statement.underlying == intended then carrier.judgement
+        if carrier.statement.underlying == intended then
+          carrier.justification match
+            case Some(thm) => carrier.judgement.withJustification(Thm(conclusion, thm.kernel)).copy(statement = conclusion)
+            case None => carrier.judgement.copy(statement = conclusion)
         else
           carrier.justification match
             case Some(thm) =>
@@ -61,7 +64,7 @@ object ProofHelpers:
                     carrier.judgement
                       .withError(SoftError(withParams("Subproof does not prove the requested conclusion.", "Proven" -> carrier.statement, "Conclusion" -> conclusion, "Reason" -> error), file, line))
                       .copy(statement = conclusion),
-                  thm => carrier.judgement.withJustification(Thm(conclusion, thm))
+                  thm => carrier.judgement.withJustification(Thm(conclusion, thm)).copy(statement = conclusion)
                 )
             case None =>
               carrier.judgement
@@ -318,7 +321,8 @@ object ProofHelpers:
      * Instantiates a theorem schema and returns the resulting theorem.
      */
     infix def of(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(insts: SubstPair*): Thm =
-      thm.kernel.of(using file, line)(using library)(insts*)
+      val conclusion = thm.statement.substitute(insts*)
+      BasicStep.InstSchema(using file, line)(using library)(insts*)(thm.kernel)(conclusion).destruct._1
 
   extension (theorem: Theorem)
     /**
