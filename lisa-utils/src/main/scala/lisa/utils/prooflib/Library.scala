@@ -63,10 +63,10 @@ abstract class Library:
    * opaque to discourage use.
    */
   def Axiom(file: sourcecode.File, line: sourcecode.Line)(statement: Sequent): K.Axiom.Result[K.Thm] =
-    // we don't yet store axioms in the library, as theorems accumulate them
+    // we don't yet store axioms in the library, but theorems do accumulate them
     // instead. if we store them in multiple places, this could lead to aliasing
-    // and cause unnecessary computation at every step that encounters them.
-    // the file and line should be stored with the axiom for tracking.
+    // and cause unnecessary computation at every step that encounters them. the
+    // file and line should be stored with the axiom for tracking.
     K.Axiom(using theory)(statement.underlying)
 
   /**
