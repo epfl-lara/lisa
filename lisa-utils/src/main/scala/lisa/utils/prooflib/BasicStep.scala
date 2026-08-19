@@ -83,11 +83,11 @@ object BasicStep:
       summon[K.Axiom.ErrorType =:= Nothing]
       err
 
-    def apply(using sourcecode.File, sourcecode.Line)(using library: Library)(conclusion: Sequent): ProofJudgement =
-      val underlying = conclusion.underlying
-      K.Axiom(using library.theory)(underlying)
+    def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(statement: Sequent): ProofJudgement =
+      library
+        .Axiom(file, line)(statement)
         .mapLeft(liftError)
-        .lift(conclusion)
+        .lift(statement)
 
   object Hypothesis extends SequentTactic:
     private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, pivot: Expr[Prop])(err: K.Hypothesis.ErrorType): ProofError =
