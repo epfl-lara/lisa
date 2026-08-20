@@ -1,22 +1,26 @@
 package lisa.automation.superposition
 
+import lisa.automation.superposition.ordering._
 import org.scalatest.funsuite.AnyFunSuite
 
-import Core.*
-import lisa.automation.superposition.ordering.*
+import Core._
 
-/** The DISCOUNT loop with the equality inferences (superposition, equality resolution, equality factoring)
- *  and the `s = s` tautology drop wired in. */
+/**
+ * The DISCOUNT loop with the equality inferences (superposition, equality resolution, equality factoring)
+ *  and the `s = s` tautology drop wired in.
+ */
 class EqualitySaturationTest extends AnyFunSuite:
 
   // The bank's default selection is already the complete one, so `Fix` adds nothing to [[TermFixture]].
   class Fix extends TermFixture
 
-  /** The saturation verdict as a string, so a table of expected outcomes reads directly. */
+  /**
+   * The saturation verdict as a string, so a table of expected outcomes reads directly.
+   */
   private def cat(r: Discount.Result): String = r match
     case _: Discount.Result.Refutation => "refuted"
-    case Discount.Result.Saturated     => "saturated"
-    case Discount.Result.Unknown       => "unknown"
+    case Discount.Result.Saturated => "saturated"
+    case Discount.Result.Unknown => "unknown"
 
   test("UEQ refutation: f(a)=a, ¬(f(f(a))=a) reduces to □ via superposition + equality resolution") {
     val fx = new Fix; import fx.*
@@ -108,23 +112,52 @@ class EqualitySaturationTest extends AnyFunSuite:
       cat(new Discount(fx.bank, fx.trail, cs, SearchOptions(maxGiven = 5000)).saturate())
 
     val cases: Seq[(String, String, Fix => Seq[Clause])] = Seq(
-      ("ueq f(a)=a ⊢ f(f(a))=a", "refuted", { fx => import fx.*; val f = fn("f", 1); val a = const("a")
-        Seq(clause(pos(mkEq(app(f, a), a))), clause(neg(mkEq(app(f, app(f, a)), a)))) }),
-      ("chain b=a,c=b,d=c ⊢ d=a", "refuted", { fx => import fx.*
-        val a = const("a"); val b = const("b"); val c = const("c"); val d = const("d")
-        Seq(clause(pos(mkEq(b, a))), clause(pos(mkEq(c, b))), clause(pos(mkEq(d, c))), clause(neg(mkEq(d, a)))) }),
-      ("two axioms f(x)=g(x), g(a)=b ⊢ f(a)=b", "refuted", { fx => import fx.*
-        val f = fn("f", 1); val g = fn("g", 1); val a = const("a"); val b = const("b"); val x = v(0)
-        Seq(clause(pos(mkEq(app(f, x), app(g, x)))), clause(pos(mkEq(app(g, a), b))), clause(neg(mkEq(app(f, a), b)))) }),
-      ("superpose into a predicate: f(a)=b, P(f(a)), ¬P(b)", "refuted", { fx => import fx.*
-        val P = pred("P", 1); val f = fn("f", 1); val a = const("a"); val b = const("b")
-        Seq(clause(pos(mkEq(app(f, a), b))), clause(pos(app(P, app(f, a)))), clause(neg(app(P, b)))) }),
-      ("satisfiable a=b, P(a)", "saturated", { fx => import fx.*
-        val a = const("a"); val b = const("b"); val P = pred("P", 1)
-        Seq(clause(pos(mkEq(a, b))), clause(pos(app(P, a)))) })
+      (
+        "ueq f(a)=a ⊢ f(f(a))=a",
+        "refuted",
+        { fx =>
+          import fx.*; val f = fn("f", 1); val a = const("a")
+          Seq(clause(pos(mkEq(app(f, a), a))), clause(neg(mkEq(app(f, app(f, a)), a))))
+        }
+      ),
+      (
+        "chain b=a,c=b,d=c ⊢ d=a",
+        "refuted",
+        { fx =>
+          import fx.*
+          val a = const("a"); val b = const("b"); val c = const("c"); val d = const("d")
+          Seq(clause(pos(mkEq(b, a))), clause(pos(mkEq(c, b))), clause(pos(mkEq(d, c))), clause(neg(mkEq(d, a))))
+        }
+      ),
+      (
+        "two axioms f(x)=g(x), g(a)=b ⊢ f(a)=b",
+        "refuted",
+        { fx =>
+          import fx.*
+          val f = fn("f", 1); val g = fn("g", 1); val a = const("a"); val b = const("b"); val x = v(0)
+          Seq(clause(pos(mkEq(app(f, x), app(g, x)))), clause(pos(mkEq(app(g, a), b))), clause(neg(mkEq(app(f, a), b))))
+        }
+      ),
+      (
+        "superpose into a predicate: f(a)=b, P(f(a)), ¬P(b)",
+        "refuted",
+        { fx =>
+          import fx.*
+          val P = pred("P", 1); val f = fn("f", 1); val a = const("a"); val b = const("b")
+          Seq(clause(pos(mkEq(app(f, a), b))), clause(pos(app(P, app(f, a)))), clause(neg(app(P, b))))
+        }
+      ),
+      (
+        "satisfiable a=b, P(a)",
+        "saturated",
+        { fx =>
+          import fx.*
+          val a = const("a"); val b = const("b"); val P = pred("P", 1)
+          Seq(clause(pos(mkEq(a, b))), clause(pos(app(P, a))))
+        }
+      )
     )
-    for (name, expected, b) <- cases do
-      assert(verdict(b) == expected, s"expected $expected on: $name")
+    for (name, expected, b) <- cases do assert(verdict(b) == expected, s"expected $expected on: $name")
   }
 
   test("discrimination-tree demodulation reaches the expected verdict on each shape of rewriting problem") {
@@ -137,29 +170,69 @@ class EqualitySaturationTest extends AnyFunSuite:
       cat(new Discount(fx.bank, fx.trail, cs, SearchOptions(maxGiven = 5000)).saturate())
 
     val cases: Seq[(String, String, Fix => Seq[Clause])] = Seq(
-      ("ueq f(a)=a ⊢ f(f(a))=a (nested rewrite)", "refuted", { fx => import fx.*; val f = fn("f", 1); val a = const("a")
-        Seq(clause(pos(mkEq(app(f, a), a))), clause(neg(mkEq(app(f, app(f, a)), a)))) }),
-      ("chain b=a,c=b,d=c ⊢ d=a (demodulation chain)", "refuted", { fx => import fx.*
-        val a = const("a"); val b = const("b"); val c = const("c"); val d = const("d")
-        Seq(clause(pos(mkEq(b, a))), clause(pos(mkEq(c, b))), clause(pos(mkEq(d, c))), clause(neg(mkEq(d, a)))) }),
-      ("rewrite with a variable rule f(x)=g(x), g(a)=b ⊢ f(a)=b", "refuted", { fx => import fx.*
-        val f = fn("f", 1); val g = fn("g", 1); val a = const("a"); val b = const("b"); val x = v(0)
-        Seq(clause(pos(mkEq(app(f, x), app(g, x)))), clause(pos(mkEq(app(g, a), b))), clause(neg(mkEq(app(f, a), b)))) }),
-      ("demodulate into a predicate: f(a)=b, P(f(a)), ¬P(b)", "refuted", { fx => import fx.*
-        val P = pred("P", 1); val f = fn("f", 1); val a = const("a"); val b = const("b")
-        Seq(clause(pos(mkEq(app(f, a), b))), clause(pos(app(P, app(f, a)))), clause(neg(app(P, b)))) }),
-      ("deep nesting g(g(a))=a ⊢ g(g(g(g(a))))=a", "refuted", { fx => import fx.*
-        val g = fn("g", 1); val a = const("a")
-        def gg(t: Term, n: Int): Term = if n == 0 then t else gg(app(g, t), n - 1)
-        Seq(clause(pos(mkEq(gg(a, 2), a))), clause(neg(mkEq(gg(a, 4), a)))) }),
-      ("backward: P(f(a)), Q(f(a)) collapsed by a later f(a)=a, ¬P(a)", "refuted", { fx => import fx.*
-        val P = pred("P", 1); val Q = pred("Q", 1); val f = fn("f", 1); val a = const("a")
-        Seq(clause(pos(app(P, app(f, a)))), clause(pos(app(Q, app(f, a)))),
-            clause(pos(mkEq(app(f, a), a))), clause(neg(app(P, a)))) }),
-      ("satisfiable a=b, P(a)", "saturated", { fx => import fx.*
-        val a = const("a"); val b = const("b"); val P = pred("P", 1)
-        Seq(clause(pos(mkEq(a, b))), clause(pos(app(P, a)))) })
+      (
+        "ueq f(a)=a ⊢ f(f(a))=a (nested rewrite)",
+        "refuted",
+        { fx =>
+          import fx.*; val f = fn("f", 1); val a = const("a")
+          Seq(clause(pos(mkEq(app(f, a), a))), clause(neg(mkEq(app(f, app(f, a)), a))))
+        }
+      ),
+      (
+        "chain b=a,c=b,d=c ⊢ d=a (demodulation chain)",
+        "refuted",
+        { fx =>
+          import fx.*
+          val a = const("a"); val b = const("b"); val c = const("c"); val d = const("d")
+          Seq(clause(pos(mkEq(b, a))), clause(pos(mkEq(c, b))), clause(pos(mkEq(d, c))), clause(neg(mkEq(d, a))))
+        }
+      ),
+      (
+        "rewrite with a variable rule f(x)=g(x), g(a)=b ⊢ f(a)=b",
+        "refuted",
+        { fx =>
+          import fx.*
+          val f = fn("f", 1); val g = fn("g", 1); val a = const("a"); val b = const("b"); val x = v(0)
+          Seq(clause(pos(mkEq(app(f, x), app(g, x)))), clause(pos(mkEq(app(g, a), b))), clause(neg(mkEq(app(f, a), b))))
+        }
+      ),
+      (
+        "demodulate into a predicate: f(a)=b, P(f(a)), ¬P(b)",
+        "refuted",
+        { fx =>
+          import fx.*
+          val P = pred("P", 1); val f = fn("f", 1); val a = const("a"); val b = const("b")
+          Seq(clause(pos(mkEq(app(f, a), b))), clause(pos(app(P, app(f, a)))), clause(neg(app(P, b))))
+        }
+      ),
+      (
+        "deep nesting g(g(a))=a ⊢ g(g(g(g(a))))=a",
+        "refuted",
+        { fx =>
+          import fx.*
+          val g = fn("g", 1); val a = const("a")
+          def gg(t: Term, n: Int): Term = if n == 0 then t else gg(app(g, t), n - 1)
+          Seq(clause(pos(mkEq(gg(a, 2), a))), clause(neg(mkEq(gg(a, 4), a))))
+        }
+      ),
+      (
+        "backward: P(f(a)), Q(f(a)) collapsed by a later f(a)=a, ¬P(a)",
+        "refuted",
+        { fx =>
+          import fx.*
+          val P = pred("P", 1); val Q = pred("Q", 1); val f = fn("f", 1); val a = const("a")
+          Seq(clause(pos(app(P, app(f, a)))), clause(pos(app(Q, app(f, a)))), clause(pos(mkEq(app(f, a), a))), clause(neg(app(P, a))))
+        }
+      ),
+      (
+        "satisfiable a=b, P(a)",
+        "saturated",
+        { fx =>
+          import fx.*
+          val a = const("a"); val b = const("b"); val P = pred("P", 1)
+          Seq(clause(pos(mkEq(a, b))), clause(pos(app(P, a))))
+        }
+      )
     )
-    for (name, expected, b) <- cases do
-      assert(verdict(b) == expected, s"expected $expected on: $name")
+    for (name, expected, b) <- cases do assert(verdict(b) == expected, s"expected $expected on: $name")
   }

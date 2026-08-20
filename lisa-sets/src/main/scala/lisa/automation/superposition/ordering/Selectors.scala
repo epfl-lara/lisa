@@ -1,43 +1,53 @@
 package lisa.automation.superposition
 package ordering
 
-import Core.*
+import Core._
 
-/** Literal-selection strategies (Bachmair-Ganzinger selection) for the DISCOUNT loop, together with
-  * the shared Comparator10 quality order they rank by.
-  *
-  * A [[LiteralSelector]] maps a clause's literals to the indices selected for inference, **one or many**, and
-  * only those are used as resolution or factoring partners: by Bachmair-Ganzinger, selecting a negative literal
-  * restricts a clause to it, while selecting the maximal positive ones keeps it complete. Indices are into the
-  * literal array as stored, which is never reordered, so they stay valid as parent positions for reconstruction.
-  * The active selector is [[Core.TermBank.selector]], consulted at clause activation. */
+/**
+ * Literal-selection strategies (Bachmair-Ganzinger selection) for the DISCOUNT loop, together with
+ * the shared Comparator10 quality order they rank by.
+ *
+ * A [[LiteralSelector]] maps a clause's literals to the indices selected for inference, **one or many**, and
+ * only those are used as resolution or factoring partners: by Bachmair-Ganzinger, selecting a negative literal
+ * restricts a clause to it, while selecting the maximal positive ones keeps it complete. Indices are into the
+ * literal array as stored, which is never reordered, so they stay valid as parent positions for reconstruction.
+ * The active selector is [[Core.TermBank.selector]], consulted at clause activation.
+ */
 trait LiteralSelector:
   def select(bank: TermBank, literals: Array[Literal]): Array[Int]
 
-/** Which [[LiteralSelector]] a strategy uses.
+/**
+ * Which [[LiteralSelector]] a strategy uses.
  *  - [[Complete]] selects a negative literal, or else every maximal literal, which are the two admissible
  *    choices. It is the default and the one to use when completeness matters.
  *  - [[FirstNegative]] selects one negative literal, but falls back to the first literal in syntactic order
  *    on an all-positive clause rather than to all maximal ones, so it is not refutation-complete.
  *  - [[BestLiteral]] always selects the single best literal, ignoring maximality, and is not complete either.
- *  The latter two are safe as portfolio members only because a complete one runs alongside them. */
+ *  The latter two are safe as portfolio members only because a complete one runs alongside them.
+ */
 enum LiteralSelection:
   case FirstNegative, BestLiteral, Complete
 
 object LiteralSelection:
-  /** Build the concrete selector for `bank` (only [[CompleteBestLiteralSelector]] needs the order). */
+  /**
+   * Build the concrete selector for `bank` (only [[CompleteBestLiteralSelector]] needs the order).
+   */
   def selector(kind: LiteralSelection, bank: TermBank): LiteralSelector = kind match
     case FirstNegative => FirstNegativeSelector
-    case BestLiteral   => BestLiteralSelector
-    case Complete      => new CompleteBestLiteralSelector(bank.order)
+    case BestLiteral => BestLiteralSelector
+    case Complete => new CompleteBestLiteralSelector(bank.order)
 
-/** Shared empty selection (no literals -- e.g. the empty clause `□`); avoids per-call allocation. */
+/**
+ * Shared empty selection (no literals -- e.g. the empty clause `□`); avoids per-call allocation.
+ */
 private[superposition] val EmptySelection: Array[Int] = Array.empty[Int]
 
-/** Vampire's `Comparator10` quality order, without the colour key, which is not modelled here. A positive
-  * result means `l1` is the more selectable literal. In decreasing priority: a negative equality, since
-  * equality resolution can remove it; then the heavier literal, being more constraining; then a negative
-  * literal; then a structural comparison of the atoms as a total tie-break. */
+/**
+ * Vampire's `Comparator10` quality order, without the colour key, which is not modelled here. A positive
+ * result means `l1` is the more selectable literal. In decreasing priority: a negative equality, since
+ * equality resolution can remove it; then the heavier literal, being more constraining; then a negative
+ * literal; then a structural comparison of the atoms as a total tie-break.
+ */
 def compareLiteralQuality(bank: TermBank, l1: Literal, l2: Literal): Int =
   var c: Int = java.lang.Boolean.compare(bank.isNegativeEquality(l1), bank.isNegativeEquality(l2))
   if c != 0 then c
@@ -49,9 +59,11 @@ def compareLiteralQuality(bank: TermBank, l1: Literal, l2: Literal): Int =
       if c != 0 then c
       else compareStructural(bank, bank.atomOf(l1), bank.atomOf(l2))
 
-/** Selects the first negative literal, else the first literal; empty for `□`. Not BG-complete on all-positive
+/**
+ * Selects the first negative literal, else the first literal; empty for `□`. Not BG-complete on all-positive
  *  clauses (the else-branch is a heuristic); see [[LiteralSelection]]; use [[CompleteBestLiteralSelector]] when
- *  completeness is required. */
+ *  completeness is required.
+ */
 object FirstNegativeSelector extends LiteralSelector:
   def select(bank: TermBank, literals: Array[Literal]): Array[Int] =
     if literals.isEmpty then EmptySelection
@@ -62,13 +74,15 @@ object FirstNegativeSelector extends LiteralSelector:
         i += 1
       Array(0)
 
-/** Vampire's `BestLiteralSelector<Comparator10>` (its selector **1010**): rank the literals by
-  * [[compareLiteralQuality]] (Comparator10 minus the colour key) and select the single greatest.
-  *
-  * This is **not** BG-complete: when a positive literal outweighs every negative one it is selected even though
-  * negatives are present, so some refutations are unreachable. For a complete strategy use
-  * [[CompleteBestLiteralSelector]] (Vampire's default selector 10); for guaranteed negative selection use
-  * [[FirstNegativeSelector]]. */
+/**
+ * Vampire's `BestLiteralSelector<Comparator10>` (its selector **1010**): rank the literals by
+ * [[compareLiteralQuality]] (Comparator10 minus the colour key) and select the single greatest.
+ *
+ * This is **not** BG-complete: when a positive literal outweighs every negative one it is selected even though
+ * negatives are present, so some refutations are unreachable. For a complete strategy use
+ * [[CompleteBestLiteralSelector]] (Vampire's default selector 10); for guaranteed negative selection use
+ * [[FirstNegativeSelector]].
+ */
 object BestLiteralSelector extends LiteralSelector:
   def select(bank: TermBank, literals: Array[Literal]): Array[Int] =
     if literals.isEmpty then EmptySelection
@@ -80,12 +94,14 @@ object BestLiteralSelector extends LiteralSelector:
         i += 1
       Array(best)
 
-/** Vampire's default selector 10. It ranks literals by [[compareLiteralQuality]] and then selects the best
-  * negative literal if one is at least as good as some maximal literal, and otherwise every maximal literal,
-  * which are the two admissible choices, so it is always complete.
-  *
-  * Maximality comes from the shared [[Order]], so the selector and the equality inferences agree on it. That
-  * also makes this class not thread-safe, since the ordering is not. */
+/**
+ * Vampire's default selector 10. It ranks literals by [[compareLiteralQuality]] and then selects the best
+ * negative literal if one is at least as good as some maximal literal, and otherwise every maximal literal,
+ * which are the two admissible choices, so it is always complete.
+ *
+ * Maximality comes from the shared [[Order]], so the selector and the equality inferences agree on it. That
+ * also makes this class not thread-safe, since the ordering is not.
+ */
 final class CompleteBestLiteralSelector(ordering: Order) extends LiteralSelector:
 
   def select(bank: TermBank, literals: Array[Literal]): Array[Int] =
@@ -135,7 +151,9 @@ final class CompleteBestLiteralSelector(ordering: Order) extends LiteralSelector
           i += 1
         out
 
-  /** Insertion-sort the index array `q` so the better literal (by [[compareLiteralQuality]]) comes first. */
+  /**
+   * Insertion-sort the index array `q` so the better literal (by [[compareLiteralQuality]]) comes first.
+   */
   private def sortByQualityDesc(bank: TermBank, literals: Array[Literal], q: Array[Int]): Unit =
     var i = 1
     while i < q.length do

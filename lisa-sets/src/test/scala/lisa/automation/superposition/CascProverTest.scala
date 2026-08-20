@@ -1,11 +1,14 @@
 package lisa.automation.superposition
 
-import java.io.{ByteArrayOutputStream, File}
-import java.nio.file.Files
-
+import lisa.tptp.KernelParser.problemToKernel
+import lisa.tptp.KernelParser.strictMapAtom
+import lisa.tptp.KernelParser.strictMapTerm
+import lisa.tptp.KernelParser.strictMapVariable
 import org.scalatest.funsuite.AnyFunSuite
 
-import lisa.tptp.KernelParser.{problemToKernel, strictMapAtom, strictMapTerm, strictMapVariable}
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.nio.file.Files
 
 /**
  * Tests for [[CascProver]], the CASC entry point.
@@ -26,21 +29,27 @@ class CascProverTest extends AnyFunSuite:
 
   private lazy val tmp: File = Files.createTempDirectory("casc-prover-test").toFile
 
-  /** Write `body` as a `.p` file and return it. */
+  /**
+   * Write `body` as a `.p` file and return it.
+   */
   private def problemFile(name: String, body: String): File =
     val f = new File(tmp, name)
     Files.writeString(f.toPath, body.stripMargin)
     f.deleteOnExit()
     f
 
-  /** Run `CascProver.main` with stdout captured. Its diagnostics (SInE decisions, parse/solve errors) go to
-    * stderr and are deliberately not captured, since only the machine-readable half is under test. */
+  /**
+   * Run `CascProver.main` with stdout captured. Its diagnostics (SInE decisions, parse/solve errors) go to
+   * stderr and are deliberately not captured, since only the machine-readable half is under test.
+   */
   private def run(args: String*): String =
     val out = new ByteArrayOutputStream()
     Console.withOut(out)(CascProver.main(args.toArray))
     out.toString("UTF-8")
 
-  /** The annotated formulas inside the `SZS output start/end CNFRefutation` block. */
+  /**
+   * The annotated formulas inside the `SZS output start/end CNFRefutation` block.
+   */
   private def emittedFormulas(output: String): Vector[String] =
     output.linesIterator
       .dropWhile(l => !l.contains("SZS output start"))
@@ -48,25 +57,28 @@ class CascProverTest extends AnyFunSuite:
       .filter(l => l.startsWith("cnf(") || l.startsWith("fof("))
       .toVector
 
-  /** Feed the emitted derivation back through the parser that read the input, as a problem file, which is
-    * what a competition harness does with it. Parsed whole rather than statement by statement: the clauses
-    * are emitted as `cnf(...)` with `inference(...)` records, and only the problem-level entry point accepts
-    * both (`annotatedStatementToKernel` is fof-only). */
+  /**
+   * Feed the emitted derivation back through the parser that read the input, as a problem file, which is
+   * what a competition harness does with it. Parsed whole rather than statement by statement: the clauses
+   * are emitted as `cnf(...)` with `inference(...)` records, and only the problem-level entry point accepts
+   * both (`annotatedStatementToKernel` is fof-only).
+   */
   private def assertReparses(label: String, formulas: Vector[String]): Unit =
     assert(formulas.nonEmpty, s"$label: no annotated formulas emitted")
     val f = problemFile(s"$label-reparse.p", formulas.mkString("", "\n", "\n"))
     val parsed = scala.util.Try(problemToKernel(f)(using (strictMapAtom, strictMapTerm, strictMapVariable)))
-    assert(parsed.isSuccess,
-      s"$label: the emitted derivation does not re-parse\n${formulas.mkString("\n")}\n  ${parsed.failed.map(_.toString).getOrElse("")}")
+    assert(parsed.isSuccess, s"$label: the emitted derivation does not re-parse\n${formulas.mkString("\n")}\n  ${parsed.failed.map(_.toString).getOrElse("")}")
 
   // ── SZS status ──────────────────────────────────────────────────────────────────────────────────────────
 
   test("an unsatisfiable clause set without a conjecture reports SZS Unsatisfiable") {
-    val f = problemFile("unsat.p",
+    val f = problemFile(
+      "unsat.p",
       """|cnf(a1, axiom, ( p(X) | q(X) )).
          |cnf(a2, axiom, ~p(a)).
          |cnf(a3, axiom, ~q(a)).
-         |""")
+         |"""
+    )
     val out = run("-t", "20", f.getPath)
     assert(out.contains(s"% SZS status Unsatisfiable for ${f.getName}"), s"got:\n$out")
   }
@@ -74,11 +86,13 @@ class CascProverTest extends AnyFunSuite:
   test("a provable conjecture reports SZS Theorem, not Unsatisfiable") {
     // The distinction is the whole point of `szsStatus`: with a conjecture present the refutation of its
     // negation is a *theorem*, and a harness scoring the run reads exactly this word.
-    val f = problemFile("thm.p",
+    val f = problemFile(
+      "thm.p",
       """|fof(ax1, axiom, ![X] : ( p(X) => q(X) )).
          |fof(ax2, axiom, p(a)).
          |fof(goal, conjecture, q(a)).
-         |""")
+         |"""
+    )
     val out = run("-t", "20", f.getPath)
     assert(out.contains(s"% SZS status Theorem for ${f.getName}"), s"got:\n$out")
   }
@@ -86,16 +100,22 @@ class CascProverTest extends AnyFunSuite:
   test("a satisfiable problem reports GaveUp and emits no refutation") {
     // Never `Satisfiable`: the search may be incomplete (SInE pruning, budgets), so claiming satisfiability
     // could be *wrong*, while `GaveUp` merely gives up. A refutation block here would be a soundness bug.
-    val f = problemFile("sat.p", """|cnf(a1, axiom, p(a)).
-                                    |""")
+    val f = problemFile(
+      "sat.p",
+      """|cnf(a1, axiom, p(a)).
+                                    |"""
+    )
     val out = run("-t", "20", f.getPath)
     assert(out.contains(s"% SZS status GaveUp for ${f.getName}"), s"got:\n$out")
     assert(!out.contains("SZS output start"), s"a saturated run must not print a refutation:\n$out")
   }
 
   test("an unparsable problem reports SZS Error rather than throwing") {
-    val f = problemFile("bad.p", """|this is not TPTP at all (((
-                                    |""")
+    val f = problemFile(
+      "bad.p",
+      """|this is not TPTP at all (((
+                                    |"""
+    )
     val out = run("-t", "20", f.getPath)
     assert(out.contains(s"% SZS status Error for ${f.getName}"), s"got:\n$out")
   }
@@ -103,11 +123,13 @@ class CascProverTest extends AnyFunSuite:
   // ── the emitted derivation ──────────────────────────────────────────────────────────────────────────────
 
   test("the refutation block is delimited and ends in the empty clause") {
-    val f = problemFile("block.p",
+    val f = problemFile(
+      "block.p",
       """|cnf(a1, axiom, ( p(X) | q(X) )).
          |cnf(a2, axiom, ~p(a)).
          |cnf(a3, axiom, ~q(a)).
-         |""")
+         |"""
+    )
     val out = run("-t", "20", f.getPath)
     assert(out.contains(s"% SZS output start CNFRefutation for ${f.getName}"), s"got:\n$out")
     assert(out.contains(s"% SZS output end CNFRefutation for ${f.getName}"), s"got:\n$out")
@@ -119,12 +141,14 @@ class CascProverTest extends AnyFunSuite:
   test("every emitted annotated formula re-parses with the TPTP parser") {
     // The contract that matters: a competition harness re-reads this text. `functor` quoting, `!=` literals,
     // `X<n>` variables and un-mangled distinct objects/numerals all have to survive the round trip.
-    val f = problemFile("reparse.p",
+    val f = problemFile(
+      "reparse.p",
       """|cnf(a1, axiom, ( p(X) | q(X) )).
          |cnf(a2, axiom, ~p(a)).
          |cnf(a3, axiom, ( ~q(X) | r(X) )).
          |cnf(a4, axiom, ~r(a)).
-         |""")
+         |"""
+    )
     val out = run("-t", "20", f.getPath)
     assertReparses("resolution", emittedFormulas(out))
   }
@@ -132,10 +156,12 @@ class CascProverTest extends AnyFunSuite:
   test("an equality problem's derivation re-parses too (`!=` literals and equality rules)") {
     // Disequality prints as `a != b`, and the rule names (`superposition`, `equality_resolution`, …) sit in
     // the inference record, a different print path from the pure-resolution case above.
-    val f = problemFile("eq.p",
+    val f = problemFile(
+      "eq.p",
       """|cnf(a1, axiom, f(a) = b).
          |cnf(a2, axiom, f(a) != b).
-         |""")
+         |"""
+    )
     val out = run("-t", "20", f.getPath)
     assert(out.contains("SZS status Unsatisfiable"), s"got:\n$out")
     assertReparses("equality", emittedFormulas(out))
@@ -144,18 +170,18 @@ class CascProverTest extends AnyFunSuite:
   test("distinct objects and non-identifier names survive the round trip un-mangled") {
     // The parser mangles `"hello world"` to a `$d`-prefixed constant with `$s` for the space; `unmangleSpecial`
     // and `functor` have to put it back, or the emitted proof names a symbol the input never had.
-    val f = problemFile("distinct.p",
+    val f = problemFile(
+      "distinct.p",
       """|cnf(d1, axiom, p("hello world")).
          |cnf(d2, axiom, ~p("hello world")).
-         |""")
+         |"""
+    )
     val out = run("-t", "20", f.getPath)
     assert(out.contains("SZS status Unsatisfiable"), s"got:\n$out")
     val formulas = emittedFormulas(out)
-    assert(formulas.exists(_.contains("\"hello world\"")),
-      s"the distinct object should print in its source form, not mangled:\n${formulas.mkString("\n")}")
+    assert(formulas.exists(_.contains("\"hello world\"")), s"the distinct object should print in its source form, not mangled:\n${formulas.mkString("\n")}")
     formulas.foreach { line =>
-      assert(!line.contains("$d") && !line.contains("$s"),
-        s"parser mangling leaked into the output: $line")
+      assert(!line.contains("$d") && !line.contains("$s"), s"parser mangling leaked into the output: $line")
     }
     assertReparses("distinct", formulas)
   }
@@ -166,20 +192,26 @@ class CascProverTest extends AnyFunSuite:
   // emitted proof contradicts itself. Neither problem below is reached by the tests above: they use explicit
   // constants, so only one Skolem ever exists, and they sit far below the naming threshold.
 
-  /** Every distinct functor in the refutation block that starts with `prefix` (`sk`, `nm`, …). */
+  /**
+   * Every distinct functor in the refutation block that starts with `prefix` (`sk`, `nm`, …).
+   */
   private def generatedSymbols(output: String, prefix: String): Set[String] =
     val rx = raw"\b($prefix(?:_\d+)?)\b".r
     emittedFormulas(output).flatMap(l => rx.findAllMatchIn(l).map(_.group(1))).toSet
 
-  /** Two existentials, so clausification mints `sk` and `sk_1`, and the refutation needs both. */
+  /**
+   * Two existentials, so clausification mints `sk` and `sk_1`, and the refutation needs both.
+   */
   private val twoSkolems =
     """|fof(a1, axiom, ? [X] : p(X)).
        |fof(a2, axiom, ? [Y] : q(Y)).
        |fof(a3, axiom, ! [Z,W] : ( ~p(Z) | ~q(W) )).
        |"""
 
-  /** Above the naming threshold, with a free variable under the named subformula, so the naming atom is
-    * *applied*, `nm_1(X)`. Printed as a variable this is `X0(X1)`, which is not valid TPTP at all. */
+  /**
+   * Above the naming threshold, with a free variable under the named subformula, so the naming atom is
+   * *applied*, `nm_1(X)`. Printed as a variable this is `X0(X1)`, which is not valid TPTP at all.
+   */
   private val appliedNamingAtom =
     """|fof(b1, axiom, ! [X] : ( (a1(X) & c1(X)) | (a2(X) & c2(X)) | (a3(X) & c3(X)) | (a4(X) & c4(X)) | (a5(X) & c5(X)) )).
        |fof(b2, axiom, ! [X] : ~a1(X)).
@@ -207,8 +239,7 @@ class CascProverTest extends AnyFunSuite:
     val nms = generatedSymbols(out, "nm")
     assert(nms.nonEmpty, s"expected the naming threshold to fire, but no `nm` atom was emitted:\n$out")
     emittedFormulas(out).foreach { line =>
-      assert(!raw"\bX\d+\s*\(".r.findFirstIn(line).isDefined,
-        s"a variable is being applied, which is not valid TPTP: $line")
+      assert(!raw"\bX\d+\s*\(".r.findFirstIn(line).isDefined, s"a variable is being applied, which is not valid TPTP: $line")
     }
   }
 
@@ -224,7 +255,8 @@ class CascProverTest extends AnyFunSuite:
                    |""",
       "distinct.p" -> """|cnf(d1, axiom, p("hello world")).
                          |cnf(d2, axiom, ~p("hello world")).
-                         |""")
+                         |"""
+    )
     for (name, body) <- problems do
       val out = run("-t", "20", problemFile(name, body).getPath)
       val block = emittedFormulas(out)
@@ -237,10 +269,12 @@ class CascProverTest extends AnyFunSuite:
   // ── command line ────────────────────────────────────────────────────────────────────────────────────────
 
   test("unknown flags are ignored and a named strategy is accepted") {
-    val f = problemFile("cli.p",
+    val f = problemFile(
+      "cli.p",
       """|cnf(a1, axiom, p(a)).
          |cnf(a2, axiom, ~p(a)).
-         |""")
+         |"""
+    )
     val name = Strategy.portfolio.head.name
     val out = run("--some-future-casc-flag", "-t", "20", "--strategy", name, f.getPath)
     assert(out.contains(s"% SZS status Unsatisfiable for ${f.getName}"), s"strategy '$name' run failed:\n$out")

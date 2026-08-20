@@ -29,7 +29,7 @@ object Congruence extends ProofTactic with ProofSequentTactic with ProofFactSequ
     val newAssumptions: Seq[(Expr[Prop], proof.Fact)] = context.map(s => (betaReduce(orAllOrFalse(s.statement.right)), s)).filter((f, s) => !bot.left.contains(f))
     val botWithAssumptions = bot.left ++ newAssumptions.map(_._1) |- bot.right
     var seq = botWithAssumptions
-    
+
     import scala.util.boundary, boundary.break
 
     boundary {
@@ -50,7 +50,7 @@ object Congruence extends ProofTactic with ProofSequentTactic with ProofFactSequ
               if !assumptionWeWantToGet.exists(acceptableAssum => isSame(a, acceptableAssum)) then
                 this((step.statement.left - a) |- a) match
                   case r: iProof.ValidProofTactic => r.validate
-                  case iProof.InvalidProofTactic(e) => 
+                  case iProof.InvalidProofTactic(e) =>
                     break:
                       proof.InvalidProofTactic(s"Failed to prove $a from ${step.statement.left - a} while eliminating premise ${f.statement}: $e")
                 val aProof = have((step.statement.left - a) |- a) by this // TODO: catch errors
@@ -61,7 +61,6 @@ object Congruence extends ProofTactic with ProofSequentTactic with ProofFactSequ
       }
 
     }
-
 
   def apply(using lib: Library, proof: lib.Proof)(premise: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement =
     from(premise)(bot)

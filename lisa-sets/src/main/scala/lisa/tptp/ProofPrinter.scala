@@ -64,11 +64,14 @@ object ProofPrinter {
   def isLowerWord(s: String): Boolean = s.head.isLower && s.tail.forall(_.isLetterOrDigit)
   inline def quoted(s: String): String = if isLowerWord(s) then s else s"'$s'"
 
-  /** A `$n`-prefixed constant — a TPTP numeral parked as an uninterpreted nullary constant by [[KernelParser]]
+  /**
+   * A `$n`-prefixed constant — a TPTP numeral parked as an uninterpreted nullary constant by [[KernelParser]]
    *  (`$n` + `Number.pretty`) — rendered back as a bare TPTP numeral. Integers/rationals reproduce exactly; a real
-   *  or malformed value degrades to a valid escaped atomic word (sound: these numerals are uninterpreted here). */
+   *  or malformed value degrades to a valid escaped atomic word (sound: these numerals are uninterpreted here).
+   */
   private def numeralTerm(v: String): FOF.Term =
-    scala.util.Try(FOF.NumberTerm(leo.datastructures.TPTP.Integer(BigInt(v.trim))))
+    scala.util
+      .Try(FOF.NumberTerm(leo.datastructures.TPTP.Integer(BigInt(v.trim))))
       .orElse(scala.util.Try { val a = v.split("/"); FOF.NumberTerm(leo.datastructures.TPTP.Rational(BigInt(a(0).trim), BigInt(a(1).trim))) })
       .getOrElse(FOF.AtomicTerm(v, Seq()))
 

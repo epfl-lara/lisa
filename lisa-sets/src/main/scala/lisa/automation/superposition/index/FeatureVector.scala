@@ -4,33 +4,45 @@ package index
 import it.unimi.dsi.fastutil.ints.IntArrayList
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
 
-import Core.*
+import Core._
 
-/** Feature-vector indexing for clause **subsumption**, as in Vampire, Prover9 and E. A clause maps to a vector
-  * of monotone features (`c subsumes d ⇒ f(c) ≤ f(d)`), so a subsumer's vector is componentwise `≤` its
-  * subsumee's, and the candidates are a `≤`/`≥`-cone descent of a trie keyed by those vectors, which
-  * `Subsumption.subsumes` then verifies. [[Permutation]] picks the features; [[FeatureVectorIndex]] is the trie. */
+/**
+ * Feature-vector indexing for clause **subsumption**, as in Vampire, Prover9 and E. A clause maps to a vector
+ * of monotone features (`c subsumes d ⇒ f(c) ≤ f(d)`), so a subsumer's vector is componentwise `≤` its
+ * subsumee's, and the candidates are a `≤`/`≥`-cone descent of a trie keyed by those vectors, which
+ * `Subsumption.subsumes` then verifies. [[Permutation]] picks the features; [[FeatureVectorIndex]] is the trie.
+ */
 object FeatureVector:
-  /** Feature source sentinel: the slot holds the clause's positive-literal count. */
+  /**
+   * Feature source sentinel: the slot holds the clause's positive-literal count.
+   */
   inline val PosCount = -1
 
-  /** Feature source sentinel: the slot holds the clause's negative-literal count. */
+  /**
+   * Feature source sentinel: the slot holds the clause's negative-literal count.
+   */
   inline val NegCount = -2
 
-  /** Binary entropy: a symbol present in a fraction `p` of the clauses splits them best at `p = 0.5` (score 1)
-   *  and not at all at `p ∈ {0,1}` (score 0). */
+  /**
+   * Binary entropy: a symbol present in a fraction `p` of the clauses splits them best at `p = 0.5` (score 1)
+   *  and not at all at `p ∈ {0,1}` (score 0).
+   */
   def binaryEntropy(p: Double): Double =
     if p <= 0.0 || p >= 1.0 then 0.0
     else
       val ln2 = 0.6931471805599453
       -(p * math.log(p) + (1.0 - p) * math.log(1.0 - p)) / ln2
 
-/** The chosen features, one per trie level: a literal-count, or a symbol whose occurrences are counted.
-  * [[Permutation.build]] puts the most discriminating at the shallow levels, where the descent prunes most, and
-  * freezes them for the run. The counts are monotone only because subsumption maps literals injectively (as
-  * `Subsumption.matchRec` does): let one literal cover two and a subsumer's count could exceed its subsumee's. */
+/**
+ * The chosen features, one per trie level: a literal-count, or a symbol whose occurrences are counted.
+ * [[Permutation.build]] puts the most discriminating at the shallow levels, where the descent prunes most, and
+ * freezes them for the run. The counts are monotone only because subsumption maps literals injectively (as
+ * `Subsumption.matchRec` does): let one literal cover two and a subsumer's count could exceed its subsumee's.
+ */
 final class Permutation(val sources: Array[Int], sigSize: Int):
-  /** Number of features (vector length / trie depth). */
+  /**
+   * Number of features (vector length / trie depth).
+   */
   val length: Int = sources.length
 
   // Fast per-slot lookup for the fill walk: symbolSlot(code) = vector index if `code` is a featured symbol, else -1.
@@ -43,12 +55,14 @@ final class Permutation(val sources: Array[Int], sigSize: Int):
       sources(d) match
         case FeatureVector.PosCount => posLevel = d
         case FeatureVector.NegCount => negLevel = d
-        case s                      => if s >= 0 && s < sigSize then symbolSlot(s) = d
+        case s => if s >= 0 && s < sigSize then symbolSlot(s) = d
       d += 1
   }
 
-  /** Fill `out` (length [[length]]) with `c`'s feature vector: the polarity slots from the clause's cached
-   *  counts, then one walk per literal atom tallying featured symbols. O(clause size); the caller owns `out`. */
+  /**
+   * Fill `out` (length [[length]]) with `c`'s feature vector: the polarity slots from the clause's cached
+   *  counts, then one walk per literal atom tallying featured symbols. O(clause size); the caller owns `out`.
+   */
   def fillVector(bank: TermBank, c: ClauseBody, out: Array[Int]): Unit =
     java.util.Arrays.fill(out, 0)
     if posLevel >= 0 then out(posLevel) = c.posCount
@@ -68,9 +82,11 @@ final class Permutation(val sources: Array[Int], sigSize: Int):
       while i < n do { countSymbols(bank, bank.arg(t, i), out); i += 1 }
 
 object Permutation:
-  /** An adaptive permutation from `clauses` (typically the initial set): the two polarity counts, then the
-    * up-to `maxLen - 2` symbols of highest presence entropy, most-discriminating first, dropping those present
-    * in all or no clauses. `maxLen` bounds the vector length (E caps at 17). */
+  /**
+   * An adaptive permutation from `clauses` (typically the initial set): the two polarity counts, then the
+   * up-to `maxLen - 2` symbols of highest presence entropy, most-discriminating first, dropping those present
+   * in all or no clauses. `maxLen` bounds the vector length (E caps at 17).
+   */
   def build(bank: TermBank, clauses: Seq[Clause], maxLen: Int = 8): Permutation =
     val sigSize: Int = bank.signature.size
     val total: Int = clauses.size
@@ -119,9 +135,11 @@ object Permutation:
       var i = 0
       while i < n do { collectDistinct(bank, bank.arg(t, i), seenAt, ci, marked); i += 1 }
 
-/** A trie over clauses keyed by their [[Permutation]] feature vectors: a root-to-leaf path spells one vector and
-  * its leaf holds every clause carrying it. Children sit in **sorted** parallel arrays so a descent can take a
-  * whole value range -- the `≤`-cone for [[forwardCandidates]], the `≥`-cone for [[backwardCandidates]]. */
+/**
+ * A trie over clauses keyed by their [[Permutation]] feature vectors: a root-to-leaf path spells one vector and
+ * its leaf holds every clause carrying it. Children sit in **sorted** parallel arrays so a descent can take a
+ * whole value range -- the `≤`-cone for [[forwardCandidates]], the `≥`-cone for [[backwardCandidates]].
+ */
 final class FeatureVectorIndex(bank: TermBank, perm: Permutation):
   private val depth: Int = perm.length
   // One reusable feature-vector buffer for every clause-keyed operation. A retrieval reads it across its whole
@@ -131,7 +149,9 @@ final class FeatureVectorIndex(bank: TermBank, perm: Permutation):
   private var descending: Boolean = false // true while a retrieval descent is live (buf is being read)
   private var _size: Int = 0
 
-  /** Fail loudly if a clause-keyed op is entered during a live retrieval descent (see the `buf` note). */
+  /**
+   * Fail loudly if a clause-keyed op is entered during a live retrieval descent (see the `buf` note).
+   */
   private def guardNotDescending(op: String): Unit =
     if descending then
       throw new IllegalStateException(
@@ -139,10 +159,13 @@ final class FeatureVectorIndex(bank: TermBank, perm: Permutation):
           "candidates dropped. Collect inside the callback and mutate after it returns."
       )
 
-  /** Run `descend` with the guard armed, so a re-entrant clause-keyed op inside a callback throws. */
+  /**
+   * Run `descend` with the guard armed, so a re-entrant clause-keyed op inside a callback throws.
+   */
   private inline def guarded[A](inline descend: => A): A =
     descending = true
-    try descend finally descending = false
+    try descend
+    finally descending = false
 
   private final class Node:
     var keys: Array[Int] = null // internal: sorted child feature-values, used [0, nkids)
@@ -163,7 +186,9 @@ final class FeatureVectorIndex(bank: TermBank, perm: Permutation):
     if node.bucket == null then node.bucket = new ObjectOpenHashSet[Clause](2)
     if node.bucket.add(c) then _size += 1
 
-  /** Remove `c` (matched by identity/`equals`); returns whether it was present. Prunes emptied nodes. */
+  /**
+   * Remove `c` (matched by identity/`equals`); returns whether it was present. Prunes emptied nodes.
+   */
   def remove(c: Clause): Boolean =
     guardNotDescending("remove")
     perm.fillVector(bank, c, buf)
@@ -171,21 +196,27 @@ final class FeatureVectorIndex(bank: TermBank, perm: Permutation):
     if removed then _size -= 1
     removed
 
-  /** Visit every stored clause whose vector is `≤` the query's componentwise: the candidate subsumers of `q`. */
+  /**
+   * Visit every stored clause whose vector is `≤` the query's componentwise: the candidate subsumers of `q`.
+   */
   def forwardCandidates(q: ClauseBody)(visit: Clause => Unit): Unit =
     guardNotDescending("forwardCandidates")
     perm.fillVector(bank, q, buf)
     guarded(descendLe(root, 0, visitAll(visit)))
 
-  /** Whether **some** candidate subsumer of `q` satisfies `pred`: [[forwardCandidates]] short-circuited, since
-    * forward subsumption only asks whether `q` is subsumed at all. Same candidates, same verdict, less work.
-    * `pred` carries the visiting retrievals' constraint: it must not query or mutate this index. */
+  /**
+   * Whether **some** candidate subsumer of `q` satisfies `pred`: [[forwardCandidates]] short-circuited, since
+   * forward subsumption only asks whether `q` is subsumed at all. Same candidates, same verdict, less work.
+   * `pred` carries the visiting retrievals' constraint: it must not query or mutate this index.
+   */
   def existsForwardCandidate(q: ClauseBody)(pred: Clause => Boolean): Boolean =
     guardNotDescending("existsForwardCandidate")
     perm.fillVector(bank, q, buf)
     guarded(descendLe(root, 0, pred))
 
-  /** Visit every stored clause whose vector is `≥` the query's componentwise: the candidate subsumees of `q`. */
+  /**
+   * Visit every stored clause whose vector is `≥` the query's componentwise: the candidate subsumees of `q`.
+   */
   def backwardCandidates(q: ClauseBody)(visit: Clause => Unit): Unit =
     guardNotDescending("backwardCandidates")
     perm.fillVector(bank, q, buf)
@@ -196,7 +227,9 @@ final class FeatureVectorIndex(bank: TermBank, perm: Permutation):
   // Both cones are one recursion each, over a `pred` that returns `true` to stop the descent:
   // `existsForwardCandidate` passes its own, the visiting retrievals one that never stops.
 
-  /** `pred` form of a visiting callback: run it on every candidate and never stop. */
+  /**
+   * `pred` form of a visiting callback: run it on every candidate and never stop.
+   */
   private def visitAll(visit: Clause => Unit): Clause => Boolean = c => { visit(c); false }
 
   private def descendLe(node: Node, d: Int, pred: Clause => Boolean): Boolean =
@@ -222,13 +255,14 @@ final class FeatureVectorIndex(bank: TermBank, perm: Permutation):
     if node.bucket == null then false
     else
       val it = node.bucket.iterator()
-      while it.hasNext do
-        if pred(it.next()) then return true
+      while it.hasNext do if pred(it.next()) then return true
       false
 
   // --- node child management (sorted parallel arrays) -----------------------------------------------------
 
-  /** Find-or-create the child of `node` under `key`, keeping `keys`/`kids` sorted ascending. */
+  /**
+   * Find-or-create the child of `node` under `key`, keeping `keys`/`kids` sorted ascending.
+   */
   private def childForInsert(node: Node, key: Int): Node =
     val idx = lowerBound(node, key)
     if idx < node.nkids && node.keys(idx) == key then node.kids(idx)
@@ -246,7 +280,9 @@ final class FeatureVectorIndex(bank: TermBank, perm: Permutation):
     val idx = lowerBound(node, key)
     if idx < node.nkids && node.keys(idx) == key then idx else -1
 
-  /** First index `i` in `[0, nkids)` with `keys(i) >= key` (binary search); `nkids` if none. */
+  /**
+   * First index `i` in `[0, nkids)` with `keys(i) >= key` (binary search); `nkids` if none.
+   */
   private def lowerBound(node: Node, key: Int): Int =
     var lo = 0
     var hi = node.nkids

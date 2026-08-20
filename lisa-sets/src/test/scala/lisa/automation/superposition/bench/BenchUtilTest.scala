@@ -2,6 +2,7 @@ package lisa.automation.superposition
 package bench
 
 import org.scalatest.funsuite.AnyFunSuite
+
 import scala.util.Success
 
 /**
@@ -15,8 +16,10 @@ import scala.util.Success
  */
 class BenchUtilTest extends AnyFunSuite:
 
-  /** Spin without ever checking the interrupt flag, so only the clock stops us. Bounded so the test does not
-    * leave a thread running for the rest of the JVM's life. */
+  /**
+   * Spin without ever checking the interrupt flag, so only the clock stops us. Bounded so the test does not
+   * leave a thread running for the rest of the JVM's life.
+   */
   private def spinIgnoringInterrupts(ms: Long): Unit =
     val until = System.nanoTime() + ms * 1000000L
     while System.nanoTime() < until do ()

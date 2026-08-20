@@ -20,51 +20,61 @@ import lisa.utils.K.{_, given}
 // of local assumptions is empty.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** A step of a [[ClausificationProof]]: an ordinary kernel step, or a [[ClausificationSubproof]]. Both are
-  * converted by the same code; they differ only in whether the inner proof declares assumptions of its own. */
+/**
+ * A step of a [[ClausificationProof]]: an ordinary kernel step, or a [[ClausificationSubproof]]. Both are
+ * converted by the same code; they differ only in whether the inner proof declares assumptions of its own.
+ */
 private[clausification] type ClausificationProofStep = SCProofStep | ClausificationSubproof
 
-/** The conclusion of a step. Selection on a union type needs this; on either arm alone the member is used. */
+/**
+ * The conclusion of a step. Selection on a union type needs this; on either arm alone the member is used.
+ */
 extension (step: ClausificationProofStep)
   private[clausification] def bot: Sequent = step match
     case s: SCProofStep => s.bot
     case c: ClausificationSubproof => c.bot
 
-/** Whether `sequent` has the shape an assumption import must take, `() ⊢ φ`. */
+/**
+ * Whether `sequent` has the shape an assumption import must take, `() ⊢ φ`.
+ */
 private[clausification] def isAssumptionImport(sequent: Sequent): Boolean =
   sequent.left.isEmpty && sequent.right.size == 1
 
-/** The assumed formula `φ` of an assumption import `() ⊢ φ`, which [[ClausificationSubproof]] checks the shape of. */
+/**
+ * The assumed formula `φ` of an assumption import `() ⊢ φ`, which [[ClausificationSubproof]] checks the shape of.
+ */
 private[clausification] def assumedFormula(sequent: Sequent): Expression = sequent.right.head
 
-/** A subproof that is itself a [[ClausificationProof]], converted to an [[SCSubproof]] by
-  * [[clausificationProofToSCProof]]. Its inner imports split in two: the positions named by [[assumptions]], each
-  * materialised inside the converted subproof by a `RestateTrue(… ⊢ φ)` and added to the left of every conclusion
-  * depending on it, and all other positions, discharged ba reference as usual in the kernel's SCProof.
-  * From outside, this step's bot is the inner conclusion plus the assumed formulas
-  * (see [[bot]]). Construction checks that each assumption names an import of the form `() ⊢ φ`.
-  *
-  * A kernel `SCSubproof` inside a [[ClausificationProof]] is converted by the same code, as the case where
-  * [[assumptions]] is empty, so everything below applies to it as well.
-  *
-  * Two restrictions on the inner proof follow, both asserted during the conversion.
-  *
-  * To avoid unnecessary weeakening and allocation of new sequents, when converting to a kernel proof, assumptions are only added
-  * to steps that need at least one assumption, but they are also recursively added to every imports of subproofs, so the import should be justified
-  * by a step that has dependencies in imports and hence has the assumptions (otherwise there would be a missmatch between the import and the justification
-  * of the import). All our phases respect that; if one day it's inconvenient, solutions can be to add a weakening step, or to exactly track assumptions
-  * dependencies, including through imports, rather than simply "needs 0 assumption"/"needs at least one".
-  *
-  * '''No [[InstSchema]] inside the subproof on a schema variable free in an assumption.''' The conversion prepends the
-  * assumption formulas to the left of a step. Instantiateion would also instantiate the assumption, but then the assumption is not the same throughout the proof.
-  * The pipeline instantiates only its own schemas, and [[ScreenPhase]] keeps input variables out of their
-  * namespace. */
+/**
+ * A subproof that is itself a [[ClausificationProof]], converted to an [[SCSubproof]] by
+ * [[clausificationProofToSCProof]]. Its inner imports split in two: the positions named by [[assumptions]], each
+ * materialised inside the converted subproof by a `RestateTrue(… ⊢ φ)` and added to the left of every conclusion
+ * depending on it, and all other positions, discharged ba reference as usual in the kernel's SCProof.
+ * From outside, this step's bot is the inner conclusion plus the assumed formulas
+ * (see [[bot]]). Construction checks that each assumption names an import of the form `() ⊢ φ`.
+ *
+ * A kernel `SCSubproof` inside a [[ClausificationProof]] is converted by the same code, as the case where
+ * [[assumptions]] is empty, so everything below applies to it as well.
+ *
+ * Two restrictions on the inner proof follow, both asserted during the conversion.
+ *
+ * To avoid unnecessary weeakening and allocation of new sequents, when converting to a kernel proof, assumptions are only added
+ * to steps that need at least one assumption, but they are also recursively added to every imports of subproofs, so the import should be justified
+ * by a step that has dependencies in imports and hence has the assumptions (otherwise there would be a missmatch between the import and the justification
+ * of the import). All our phases respect that; if one day it's inconvenient, solutions can be to add a weakening step, or to exactly track assumptions
+ * dependencies, including through imports, rather than simply "needs 0 assumption"/"needs at least one".
+ *
+ * '''No [[InstSchema]] inside the subproof on a schema variable free in an assumption.''' The conversion prepends the
+ * assumption formulas to the left of a step. Instantiateion would also instantiate the assumption, but then the assumption is not the same throughout the proof.
+ * The pipeline instantiates only its own schemas, and [[ScreenPhase]] keeps input variables out of their
+ * namespace.
+ */
 private[clausification] final case class ClausificationSubproof(
     proof: ClausificationProof,
     premises: IndexedSeq[Int],
     assumptions: IndexedSeq[Int] = IndexedSeq.empty
 ) {
-  // assumptions are the subproof's imports pointed by `assumptions`. Everything else is a regular import, 
+  // assumptions are the subproof's imports pointed by `assumptions`. Everything else is a regular import,
   // and there must be as many of them as of premises.
   require(assumptions.size + premises.size == proof.imports.size, "Subproof assumptions and premises must account for all imports")
   require(assumptions.forall(i => i >= 0 && i < proof.imports.size), "Assumption import indices out of range")
@@ -88,14 +98,18 @@ private[clausification] object ClausificationProof {
     ClausificationProof(proof.steps, proof.imports)
 }
 
-/** Append every assumption in `assumptionSet` to the LHS of `sequent` (idempotent on existing entries).
-  * Takes a precomputed set so callers can amortize the `Seq -> Set` build across many sequents that share
-  * the same assumption list. */
+/**
+ * Append every assumption in `assumptionSet` to the LHS of `sequent` (idempotent on existing entries).
+ * Takes a precomputed set so callers can amortize the `Seq -> Set` build across many sequents that share
+ * the same assumption list.
+ */
 private[clausification] def addAssumptionsLeftSet(sequent: Sequent, assumptionSet: Set[Expression]): Sequent =
   if (assumptionSet.isEmpty) sequent
   else sequent.copy(left = sequent.left ++ assumptionSet)
 
-/** Rebuild a kernel [[SCProofStep]] keeping all its data but swapping its bot. */
+/**
+ * Rebuild a kernel [[SCProofStep]] keeping all its data but swapping its bot.
+ */
 private[clausification] def rewriteStepBot(step: SCProofStep, newBot: Sequent): SCProofStep = step match
   case Cut(_, t1, t2, phi) => Cut(newBot, t1, t2, phi)
   case Hypothesis(_, phi) => Hypothesis(newBot, phi)
@@ -131,7 +145,9 @@ private[clausification] def rewriteStepBot(step: SCProofStep, newBot: Sequent): 
   case step: Sorry => step.copy(bot = newBot)
   case Weakening(_, t1) => Weakening(newBot, t1)
 
-/** Convert a [[ClausificationProof]] to a kernel [[SCProof]] (no assumptions). */
+/**
+ * Convert a [[ClausificationProof]] to a kernel [[SCProof]] (no assumptions).
+ */
 private[clausification] def clausificationProofToSCProof(proof: ClausificationProof): SCProof =
   clausificationProofToSCProof(proof, IndexedSeq.empty, IndexedSeq.empty)
 
@@ -180,7 +196,7 @@ private[clausification] def clausificationProofToSCProof(
       }
     externalImportMapArr(oldIndex) = newRef
   }
-  
+
   // Materialise each local assumption as the tautology `ψ₁, …, ψₖ, φ ⊢ φ`, carrying the other assumptions too,
   // and keep the step that the citations of its import must be redirected to.
   val localAssumptionSteps = localAssumptions.map { i =>
@@ -195,9 +211,11 @@ private[clausification] def clausificationProofToSCProof(
   // identity: no step needs rebuilding. This is the common case, every kernel subproof included.
   val identityMapping = localAssumptions.isEmpty
 
-  /** Translate a premise number into the number of the step that means the same in the converted proof.
-  * A step index moves up by the number of prefix steps inserted at the begining of the proof; an import reference becomes its new
-  * import reference, or the prefix step standing for it. */
+  /**
+   * Translate a premise number into the number of the step that means the same in the converted proof.
+   * A step index moves up by the number of prefix steps inserted at the begining of the proof; an import reference becomes its new
+   * import reference, or the prefix step standing for it.
+   */
   def mapReference(ref: Int): Int =
     if (ref >= 0) localPrefixSize + ref
     else {
@@ -236,18 +254,22 @@ private[clausification] def clausificationProofToSCProof(
   def checkSubproofPremises(premises: Seq[Int]): Unit =
     if (needsAssumptions != null)
       premises.foreach { r =>
-        require(r < 0 || needsAssumptions(r),
+        require(
+          r < 0 || needsAssumptions(r),
           s"Subproof premise $r names a step whose premise cone never reaches an import, so the conversion " +
             s"leaves its bot without the ${assumptionSet.size} assumption(s) that the subproof's imports carry, " +
             "and the kernel would reject the step on an import/premise mismatch. Cite a step derived from an " +
-            "import (e.g. the Cut against the axiom), not a locally-derived closed lemma.")
+            "import (e.g. the Cut against the axiom), not a locally-derived closed lemma."
+        )
       }
 
   def mapPremises(premises: Seq[Int]): Seq[Int] = if (identityMapping) premises else premises.map(mapReference)
 
-  /** Convert and append a subproof step, kernel or clausification: they differ only in whether the inner proof
-    * declares assumptions of its own. Like any other step it is handed the assumptions in scope only if it
-    * reaches an import. */
+  /**
+   * Convert and append a subproof step, kernel or clausification: they differ only in whether the inner proof
+   * declares assumptions of its own. Like any other step it is handed the assumptions in scope only if it
+   * reaches an import.
+   */
   def emitSubproof(inner: ClausificationProof, innerAssumptions: IndexedSeq[Int], premises: Seq[Int], idx: Int): Unit =
     val inherited = if (assumptionsFor(idx).isEmpty) IndexedSeq.empty else assumptions
     if (inherited.nonEmpty) checkSubproofPremises(premises)

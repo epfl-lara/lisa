@@ -1,8 +1,9 @@
 package lisa.automation.superposition
 
-import Core.*
-import lisa.automation.superposition.ordering.*
-import lisa.automation.superposition.index.*
+import lisa.automation.superposition.index._
+import lisa.automation.superposition.ordering._
+
+import Core._
 
 /**
  * Reference definitions the tests check the engine against, which the engine itself does not use.
@@ -26,17 +27,21 @@ object Oracles:
 
   extension (order: Order)
 
-    /** The strictly-`≻`-greater side of an equality atom, or `None` when the sides are `Eq`/`Inc`. The rules
-      * read [[Order.orient]] and branch on the `Cmp` instead, rather than allocating an `Option` per query. */
+    /**
+     * The strictly-`≻`-greater side of an equality atom, or `None` when the sides are `Eq`/`Inc`. The rules
+     * read [[Order.orient]] and branch on the `Cmp` instead, rather than allocating an `Option` per query.
+     */
     def maximalSide(atom: Term): Option[Term] =
       val bank: TermBank = order.kbo.bank
       order.orient(atom) match
         case Cmp.Gt => Some(bank.arg(atom, 0))
         case Cmp.Lt => Some(bank.arg(atom, 1))
-        case _      => None
+        case _ => None
 
-    /** Whether literal `i` is **strictly maximal**: no other literal is `≻_L`-greater-or-equal. The engine's
-      * selection uses `Order.isMaximal`, the non-strict form, which is on its path. */
+    /**
+     * Whether literal `i` is **strictly maximal**: no other literal is `≻_L`-greater-or-equal. The engine's
+     * selection uses `Order.isMaximal`, the non-strict form, which is on its path.
+     */
     def isStrictlyMaximal(literals: Array[Literal], i: Int): Boolean =
       var j = 0
       while j < literals.length do
@@ -46,28 +51,35 @@ object Oracles:
         j += 1
       true
 
-    /** The clause order `≻_C`, the multiset extension of the literal order. The loop never needs it: its
-      * conditions compare terms directly. It is the reference for the redundancy criteria that will. */
+    /**
+     * The clause order `≻_C`, the multiset extension of the literal order. The loop never needs it: its
+     * conditions compare terms directly. It is the reference for the redundancy criteria that will.
+     */
     def compareClause(c1: Clause, c2: Clause): Cmp =
-      multisetCompare(c1.literals, c2.literals)((x, y) => order.compareLit(x, y) == Cmp.Eq)((x, y) =>
-        order.compareLit(x, y) == Cmp.Gt)
+      multisetCompare(c1.literals, c2.literals)((x, y) => order.compareLit(x, y) == Cmp.Eq)((x, y) => order.compareLit(x, y) == Cmp.Gt)
 
-    /** Multiset extension of the [[KBO]] on two term multisets: the generic reference that `Order`'s
-      * specialised two-element equality-literal comparisons are checked against. */
+    /**
+     * Multiset extension of the [[KBO]] on two term multisets: the generic reference that `Order`'s
+     * specialised two-element equality-literal comparisons are checked against.
+     */
     def termMultisetCompare(m1: Array[Term], m2: Array[Term]): Cmp =
       multisetCompare(m1, m2)(_ == _)((x, y) => order.kbo.compare(x, y) == Cmp.Gt)
 
   extension (perm: Permutation)
 
-    /** A freshly-allocated copy of `c`'s feature vector. The index fills a reused buffer via
-      * `Permutation.fillVector` instead, which is why this convenience is not needed in production. */
+    /**
+     * A freshly-allocated copy of `c`'s feature vector. The index fills a reused buffer via
+     * `Permutation.fillVector` instead, which is why this convenience is not needed in production.
+     */
     def vectorOf(bank: TermBank, c: Clause): Array[Int] =
       val out = new Array[Int](perm.length)
       perm.fillVector(bank, c, out)
       out
 
-  /** The fingerprint of `t` under `trie`'s scheme, in a fresh array, which is what a test wants in order to
-    * compare two of them. The index fills its own reused buffer instead, so the allocating form lives here. */
+  /**
+   * The fingerprint of `t` under `trie`'s scheme, in a fresh array, which is what a test wants in order to
+   * compare two of them. The index fills its own reused buffer instead, so the allocating form lives here.
+   */
   def fingerprintOf(bank: TermBank, t: Term, trie: SampleTrie): Array[Int] =
     val fp = new Array[Int](trie.length)
     trie.fingerprintInto(bank, t, fp)

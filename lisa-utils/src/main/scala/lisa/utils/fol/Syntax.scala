@@ -412,15 +412,16 @@ trait Syntax {
       infix = true
       infixRepr = this.toString()
       this
-    
+
     def printInfix(symbol: String): Constant[S] =
       infix = true
       infixRepr = symbol
       this
-    
+
     def disableInfix(): Constant[S] =
       infix = false
       this
+
     /**
      * Sets a custom printer for this (applied) constant.
      *        Does not affect the input syntax.

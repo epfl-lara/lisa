@@ -1,9 +1,9 @@
 package lisa.automation.superposition
 
+import lisa.automation.superposition.ordering._
 import org.scalatest.funsuite.AnyFunSuite
 
-import Core.*
-import lisa.automation.superposition.ordering.*
+import Core._
 
 /**
  * Tests for the Knuth-Bendix ordering [[KBO]] on concrete terms.
@@ -15,7 +15,9 @@ import lisa.automation.superposition.ordering.*
  */
 class KBOTest extends AnyFunSuite:
 
-  /** A small fixture: a fresh signature/bank/comparator and helpers to build terms. */
+  /**
+   * A small fixture: a fresh signature/bank/comparator and helpers to build terms.
+   */
   class Fix(weightOf: Int => Int = WeightScheme.Const.weightOf) extends TermFixture(weightOf)
 
   import Cmp.*
@@ -98,8 +100,10 @@ class KBOTest extends AnyFunSuite:
     assert(kbo.compare(app(f, a, a), app(f, a, b)) == Lt)
   }
 
-  /** Weight 0 for unary symbols, the shipped weight of 1 for everything else. Weights are fixed when a symbol
-    * is interned, so a test wanting one the production schemes do not produce supplies it to the fixture. */
+  /**
+   * Weight 0 for unary symbols, the shipped weight of 1 for everything else. Weights are fixed when a symbol
+   * is interned, so a test wanting one the production schemes do not produce supplies it to the fixture.
+   */
   private def unaryWeighs(w: Int): Int => Int = arity => if arity == 1 then w else defaultSymbolWeight
 
   test("weight-zero maximal unary symbol: f(x) > x, and admissibility holds") {
@@ -173,7 +177,5 @@ class KBOTest extends AnyFunSuite:
       else app(g, randomGround(depth - 1), randomGround(depth - 1))
 
     val terms: Array[Term] = Array.fill(25)(randomGround(4))
-    for s <- terms; t <- terms; u <- terms do
-      if kbo.compare(s, t) == Gt && kbo.compare(t, u) == Gt then
-        assert(kbo.compare(s, u) == Gt, "Gt must be transitive")
+    for s <- terms; t <- terms; u <- terms do if kbo.compare(s, t) == Gt && kbo.compare(t, u) == Gt then assert(kbo.compare(s, u) == Gt, "Gt must be transitive")
   }

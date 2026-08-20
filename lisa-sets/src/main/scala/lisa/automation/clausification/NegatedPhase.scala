@@ -1,8 +1,9 @@
 package lisa.automation.clausification
 
-import lisa.utils.K.{_, given}
 import lisa.automation.Problem
-import Clausification.*
+import lisa.utils.K.{_, given}
+
+import Clausification._
 
 /**
  * Conjecture negation: move `φ` to the hypotheses as `¬φ` and hand a conjecture-free problem downstream.

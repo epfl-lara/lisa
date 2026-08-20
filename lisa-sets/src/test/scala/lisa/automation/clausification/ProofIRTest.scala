@@ -1,9 +1,8 @@
 package lisa.automation.clausification
 
-import org.scalatest.funsuite.AnyFunSuite
-
 import lisa.utils.K
 import lisa.utils.K.{_, given}
+import org.scalatest.funsuite.AnyFunSuite
 
 /**
  * Tests for the assumption-threading in [[ProofIR]]. A kernel `SCSubproof` inside a `ClausificationProof` is
@@ -26,9 +25,11 @@ class ProofIRTest extends AnyFunSuite:
   private def isValid(p: SCProof): Boolean =
     K.SCProofChecker.checkSCProof(p) match
       case K.SCProofCheckerJudgement.SCValidProof(_, usesSorry) => !usesSorry
-      case _                                                    => false
+      case _ => false
 
-  /** `proof` under the single assumption `A`, declared as the assumption import at index 0. */
+  /**
+   * `proof` under the single assumption `A`, declared as the assumption import at index 0.
+   */
   private def underA(steps: IndexedSeq[ClausificationProofStep], imports: IndexedSeq[Sequent]): SCProof =
     clausificationProofToSCProof(ClausificationProof(steps, (() |- A) +: imports), IndexedSeq(0), IndexedSeq.empty)
 
@@ -45,9 +46,7 @@ class ProofIRTest extends AnyFunSuite:
     // The inner proof takes `⊢ C` as an import, discharged by step 0 of the outer proof. Step 0 cites an import,
     // so it gains `A`, and the inner import gains `A` as well: the two sides agree and the kernel accepts.
     val withImports = SCProof(IndexedSeq(Restate(() |- C, -1)), IndexedSeq(() |- C))
-    val converted = underA(
-      IndexedSeq(Restate(() |- C, -2), SCSubproof(withImports, IndexedSeq(0))),
-      IndexedSeq(() |- C))
+    val converted = underA(IndexedSeq(Restate(() |- C, -2), SCSubproof(withImports, IndexedSeq(0))), IndexedSeq(() |- C))
     assert(isValid(converted), s"an import-bearing nested subproof was mis-converted: ${K.SCProofChecker.checkSCProof(converted)}")
     assert(converted.conclusion.left.contains(A), s"conclusion lost the assumption: ${converted.conclusion}")
   }
@@ -58,9 +57,7 @@ class ProofIRTest extends AnyFunSuite:
     // caught here rather than by the kernel later. A subproof all of whose premises are assumption-free is not
     // refused: it is simply converted without the assumptions, and both sides agree.
     val withImports = SCProof(IndexedSeq(Restate(C |- C, -1)), IndexedSeq(C |- C, () |- A))
-    val e = intercept[IllegalArgumentException](underA(
-      IndexedSeq(Hypothesis(C |- C, C), Restate(() |- A, -1), SCSubproof(withImports, IndexedSeq(0, 1))),
-      IndexedSeq.empty))
+    val e = intercept[IllegalArgumentException](underA(IndexedSeq(Hypothesis(C |- C, C), Restate(() |- A, -1), SCSubproof(withImports, IndexedSeq(0, 1))), IndexedSeq.empty))
     assert(e.getMessage.contains("never reaches an import"), s"unexpected message: ${e.getMessage}")
   }
 
@@ -80,10 +77,12 @@ class ProofIRTest extends AnyFunSuite:
   // one can enter a step. This is what lets `DistributePhase` emit its clause derivation flat without paying
   // a rewritten `Sequent` per step; the shape below is that phase in miniature.
 
-  /** A `ClausificationProof` over one assumption import `⊢ A` and one ordinary import `⊢ B`:
-    *   0: `C ⊢ C`      Hypothesis, citing nothing, so it must come out untouched by `A`
-    *   1: `⊢ B`        Restate of the ordinary import, which reaches one, so it must gain `A`
-    *   2: `B, C ⊢ C`   Cut-free join of the two via Weakening, reaching an import through step 1 */
+  /**
+   * A `ClausificationProof` over one assumption import `⊢ A` and one ordinary import `⊢ B`:
+   *   0: `C ⊢ C`      Hypothesis, citing nothing, so it must come out untouched by `A`
+   *   1: `⊢ B`        Restate of the ordinary import, which reaches one, so it must gain `A`
+   *   2: `B, C ⊢ C`   Cut-free join of the two via Weakening, reaching an import through step 1
+   */
   private def mixedProof: ClausificationProof =
     ClausificationProof(
       IndexedSeq(
@@ -91,17 +90,16 @@ class ProofIRTest extends AnyFunSuite:
         Restate(() |- B, -2), //                                       cites import #2 (`⊢ B`)
         Weakening(Set(B, C) |- C, 0) //                                cites step 0 only
       ),
-      IndexedSeq(() |- A, () |- B))
+      IndexedSeq(() |- A, () |- B)
+    )
 
   test("a step whose cone reaches no import keeps its bot; one that reaches an import gains the assumption") {
     val converted = clausificationProofToSCProof(mixedProof, IndexedSeq(0), IndexedSeq.empty)
     assert(isValid(converted), s"selective threading produced an invalid proof: ${K.SCProofChecker.checkSCProof(converted)}")
     // The `RestateTrue` discharging the assumption import is prepended, so the original steps are shifted.
     val bots = converted.steps.map(_.bot)
-    assert(bots.exists(s => s.left == Set(C) && s.right == Set(C)),
-      s"the import-free Hypothesis should not have been given `A`, got: ${bots.mkString(", ")}")
-    assert(bots.exists(s => s.left.contains(A) && s.right == Set(B)),
-      s"the step citing an import should have been given `A`, got: ${bots.mkString(", ")}")
+    assert(bots.exists(s => s.left == Set(C) && s.right == Set(C)), s"the import-free Hypothesis should not have been given `A`, got: ${bots.mkString(", ")}")
+    assert(bots.exists(s => s.left.contains(A) && s.right == Set(B)), s"the step citing an import should have been given `A`, got: ${bots.mkString(", ")}")
   }
 
   test("the conclusion carries the assumptions even when its own cone reaches no import") {

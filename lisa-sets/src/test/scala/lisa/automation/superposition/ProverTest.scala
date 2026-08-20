@@ -1,11 +1,10 @@
 package lisa.automation.superposition
 
-import org.scalatest.funsuite.AnyFunSuite
-
+import lisa.automation.Problem
+import lisa.automation.clausification.Clausification
 import lisa.utils.K
 import lisa.utils.K.{_, given}
-import lisa.automation.clausification.Clausification
-import lisa.automation.Problem
+import org.scalatest.funsuite.AnyFunSuite
 
 /**
  * The preprocessing phases of [[Prover.proveKernel]], which are the only part of the front end that *builds*
@@ -24,8 +23,10 @@ class ProverTest extends AnyFunSuite:
 
   private def hyp(e: Expression): K.Sequent = K.Sequent(Set.empty, Set(e))
 
-  /** Every proving entry point owes this: kernel-valid, concluding the goal, importing the hypotheses in order
-    * and then the library statements. */
+  /**
+   * Every proving entry point owes this: kernel-valid, concluding the goal, importing the hypotheses in order
+   * and then the library statements.
+   */
   private def checkContract(proof: K.SCProof, problem: Problem): Unit =
     assert(K.SCProofChecker.checkSCProof(proof).isValid, s"proof is not kernel-valid:\n${proof.toString}")
     val goal = problem.conjecture.getOrElse(K.Sequent(Set.empty, Set.empty))

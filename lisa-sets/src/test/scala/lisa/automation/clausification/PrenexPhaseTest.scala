@@ -1,9 +1,8 @@
 package lisa.automation.clausification
 
-import org.scalatest.funsuite.AnyFunSuite
-
-import lisa.utils.K.{_, given}
 import lisa.kernel.KernelProof
+import lisa.utils.K.{_, given}
+import org.scalatest.funsuite.AnyFunSuite
 
 /**
  * Prenex stripping on the shape that used to separate the two strategies: a `∀` whose sibling mentions the
@@ -21,8 +20,10 @@ class PrenexPhaseTest extends AnyFunSuite:
   private val zv = Variable(Identifier("z", 0), Ind)
   private val yv = Variable(Identifier("y", 0), Ind)
 
-  /** Run `PrenexPhase`'s entry point on `phi` exactly as `certifyPrenex` does, and return the composed proof
-    * together with the matrix it derived. */
+  /**
+   * Run `PrenexPhase`'s entry point on `phi` exactly as `certifyPrenex` does, and return the composed proof
+   * together with the matrix it derived.
+   */
   private def prenex(phi: Expression): (SCProof, Expression) =
     val ax = () |- phi
     val (sub, matrixAx) = PrenexPhase.provePrenex(ax, -1, Clausification.Counter())
@@ -31,11 +32,12 @@ class PrenexPhaseTest extends AnyFunSuite:
   test("a ∀ whose sibling mentions the binder free is stripped without capturing it") {
     val fa = forall(zv, Application(Pc, zv))
     for (name, inner) <- List(
-      ("AndL", and(fa)(Application(Qc, zv))),
-      ("AndR", and(Application(Qc, zv))(fa)),
-      ("OrL", or(fa)(Application(Qc, zv))),
-      ("OrR", or(Application(Qc, zv))(fa))
-    ) do
+        ("AndL", and(fa)(Application(Qc, zv))),
+        ("AndR", and(Application(Qc, zv))(fa)),
+        ("OrL", or(fa)(Application(Qc, zv))),
+        ("OrR", or(Application(Qc, zv))(fa))
+      )
+    do
       val phi = and(inner)(Application(Qc, yv))
       val (proof, matrix) = prenex(phi)
       KernelProof.assertCorrectProofNoSorry(proof, s"$name (capturing sibling)")

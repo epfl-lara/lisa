@@ -1,14 +1,23 @@
 package lisa.automation.superposition
 package bench
 
-import java.io.File
-import scala.util.{Try, Success, Failure, Using}
-
-import lisa.utils.K
-import lisa.tptp.KernelParser.{problemToKernel, strictMapAtom, strictMapTerm, strictMapVariable}
-import lisa.automation.clausification.{CertifiedClausifier, UncertifiedClausifier}
 import lisa.automation.Problem
-import BenchUtil.{withTimeout, median}
+import lisa.automation.clausification.CertifiedClausifier
+import lisa.automation.clausification.UncertifiedClausifier
+import lisa.tptp.KernelParser.problemToKernel
+import lisa.tptp.KernelParser.strictMapAtom
+import lisa.tptp.KernelParser.strictMapTerm
+import lisa.tptp.KernelParser.strictMapVariable
+import lisa.utils.K
+
+import java.io.File
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
+import scala.util.Using
+
+import BenchUtil.withTimeout
+import BenchUtil.median
 
 /**
  * Runs a dataset through the whole pipeline: clausify, refute, kernel-check the composed proof. A `bad_proof`
@@ -32,57 +41,72 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
 
   private val problems: ProblemList = new ProblemList(listFileName, Some(listEnvVar))
 
-  /** Every problem path in the list, relative to the TPTP root, in file order. */
+  /**
+   * Every problem path in the list, relative to the TPTP root, in file order.
+   */
   def allProblems: Vector[String] = problems.all
 
-  /** A reproducible sample of `n` problems drawn with `seed`; an `n` past the list returns all of it. */
+  /**
+   * A reproducible sample of `n` problems drawn with `seed`; an `n` past the list returns all of it.
+   */
   def sample(n: Int = 100, seed: Long = 42): Vector[String] = problems.sample(n, seed)
 
   // ── configuration ─────────────────────────────────────────────────────────────────────────────────────────
 
-  /** One run's settings. `seed`/`n` choose the sample, `timeoutMs` and `opts.maxGiven` bound each problem,
-    * `maxSize` skips problems whose summed formula size would blow up clausification, and `certified` picks
-    * the clausifier. `raw` is the command line that produced this, handed to a forked child unchanged. */
-  final case class Config(seed: Long = 42, n: Int = 100, timeoutMs: Long = 15000L, maxSize: Int = 50000,
-                          certified: Boolean = true,
-                          opts: SearchOptions = SearchOptions(maxGiven = 100000),
-                          raw: Seq[String] = Nil):
+  /**
+   * One run's settings. `seed`/`n` choose the sample, `timeoutMs` and `opts.maxGiven` bound each problem,
+   * `maxSize` skips problems whose summed formula size would blow up clausification, and `certified` picks
+   * the clausifier. `raw` is the command line that produced this, handed to a forked child unchanged.
+   */
+  final case class Config(
+      seed: Long = 42,
+      n: Int = 100,
+      timeoutMs: Long = 15000L,
+      maxSize: Int = 50000,
+      certified: Boolean = true,
+      opts: SearchOptions = SearchOptions(maxGiven = 100000),
+      raw: Seq[String] = Nil
+  ):
     def mode: String = if certified then "certified" else "uncertified"
 
-  /** Parse `key=value` arguments. Recognised keys: `seed`, `n`, `timeout`, `given`, `size`, `mode` (`cert` or
-    * `uncert`), and any search flag named by [[withFlag]], each taking `on`/`off`. */
+  /**
+   * Parse `key=value` arguments. Recognised keys: `seed`, `n`, `timeout`, `given`, `size`, `mode` (`cert` or
+   * `uncert`), and any search flag named by [[withFlag]], each taking `on`/`off`.
+   */
   private def parse(args: Seq[String]): Config =
     args.foldLeft(Config(raw = args)) { (c, arg) =>
       val (key, value) = arg.span(_ != '=') match { case (k, v) => (k, v.drop(1)) }
       def flag: Boolean = value.toLowerCase match
-        case "on" | "true" | "1"   => true
+        case "on" | "true" | "1" => true
         case "off" | "false" | "0" => false
-        case other                 => sys.error(s"'$key' takes on|off, got '$other'")
+        case other => sys.error(s"'$key' takes on|off, got '$other'")
       key match
-        case "seed"    => c.copy(seed = value.toLong)
-        case "n"       => c.copy(n = value.toInt)
+        case "seed" => c.copy(seed = value.toLong)
+        case "n" => c.copy(n = value.toInt)
         case "timeout" => c.copy(timeoutMs = value.toLong)
-        case "given"   => c.copy(opts = c.opts.copy(maxGiven = value.toInt))
-        case "size"    => c.copy(maxSize = value.toInt)
-        case "mode"    => c.copy(certified = value.toLowerCase != "uncert")
-        case _         => c.copy(opts = withFlag(c.opts, key, flag))
+        case "given" => c.copy(opts = c.opts.copy(maxGiven = value.toInt))
+        case "size" => c.copy(maxSize = value.toInt)
+        case "mode" => c.copy(certified = value.toLowerCase != "uncert")
+        case _ => c.copy(opts = withFlag(c.opts, key, flag))
     }
 
-  /** The search flags the command line can set by name. Everything else keeps its [[SearchOptions]] default. */
+  /**
+   * The search flags the command line can set by name. Everything else keeps its [[SearchOptions]] default.
+   */
   private def withFlag(o: SearchOptions, key: String, on: Boolean): SearchOptions = key match
-    case "equality"      => o.copy(equality = on)
+    case "equality" => o.copy(equality = on)
     case "superposition" => o.copy(superposition = on)
-    case "fwdSubs"       => o.copy(forwardSubsumption = on)
-    case "bwdSubs"       => o.copy(backwardSubsumption = on)
-    case "fwdUD"         => o.copy(forwardUnitDeletion = on)
-    case "bwdUD"         => o.copy(backwardUnitDeletion = on)
-    case "fwdSR"         => o.copy(forwardSubsumptionResolution = on)
-    case "bwdSR"         => o.copy(backwardSubsumptionResolution = on)
-    case "fwdDemod"      => o.copy(forwardDemodulation = on)
-    case "bwdDemod"      => o.copy(backwardDemodulation = on)
-    case "cond"          => o.copy(condensation = on)
-    case "genSimplify"   => o.copy(forwardSimplifyAtGeneration = on)
-    case other           => sys.error(s"unknown option '$other'")
+    case "fwdSubs" => o.copy(forwardSubsumption = on)
+    case "bwdSubs" => o.copy(backwardSubsumption = on)
+    case "fwdUD" => o.copy(forwardUnitDeletion = on)
+    case "bwdUD" => o.copy(backwardUnitDeletion = on)
+    case "fwdSR" => o.copy(forwardSubsumptionResolution = on)
+    case "bwdSR" => o.copy(backwardSubsumptionResolution = on)
+    case "fwdDemod" => o.copy(forwardDemodulation = on)
+    case "bwdDemod" => o.copy(backwardDemodulation = on)
+    case "cond" => o.copy(condensation = on)
+    case "genSimplify" => o.copy(forwardSimplifyAtGeneration = on)
+    case other => sys.error(s"unknown option '$other'")
 
   // ── CLI ───────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -90,30 +114,38 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
     // The child half of the forked path: solve exactly one problem, print one `RESULT` line, exit. It re-parses
     // the parent's own arguments, so the two runs are configured by the same code.
     case "solve1" +: file +: rest => solveChild(file, rest)
-    case "sample" +: rest         =>
+    case "sample" +: rest =>
       sample(rest.lift(0).map(_.toInt).getOrElse(100), rest.lift(1).map(_.toLong).getOrElse(42L)).foreach(println)
-    case "verify" +: rest         => rest.foreach(verifyOne)
-    case "files" +: list +: rest  => runFiles(list, parse(rest))
-    case rest                     => benchmark(parse(rest))
+    case "verify" +: rest => rest.foreach(verifyOne)
+    case "files" +: list +: rest => runFiles(list, parse(rest))
+    case rest => benchmark(parse(rest))
 
-  /** Draw a seeded sample and run each problem. */
+  /**
+   * Draw a seeded sample and run each problem.
+   */
   def benchmark(cfg: Config): Unit =
     val tptpRoot: Option[File] = BenchUtil.tptpRootOrExplain()
     if tptpRoot.isEmpty then return
     val picked = sample(cfg.n, cfg.seed)
-    println(s"list=${problems.describe} (${allProblems.size} problems), seed=${cfg.seed}, n=${picked.size}, " +
-      s"timeout=${cfg.timeoutMs}ms, maxGiven=${cfg.opts.maxGiven}, maxSize=${cfg.maxSize}, mode=${cfg.mode}, " +
-      s"equality=${cfg.opts.equality}, ${BenchUtil.isolationBanner}")
+    println(
+      s"list=${problems.describe} (${allProblems.size} problems), seed=${cfg.seed}, n=${picked.size}, " +
+        s"timeout=${cfg.timeoutMs}ms, maxGiven=${cfg.opts.maxGiven}, maxSize=${cfg.maxSize}, mode=${cfg.mode}, " +
+        s"equality=${cfg.opts.equality}, ${BenchUtil.isolationBanner}"
+    )
     run(picked, tptpRoot.get, cfg)
 
-  /** Run an explicit list of TPTP-root-relative paths, one per line, with no sampling and no size guard. */
+  /**
+   * Run an explicit list of TPTP-root-relative paths, one per line, with no sampling and no size guard.
+   */
   private def runFiles(listPath: String, cfg0: Config): Unit =
     val tptpRoot: Option[File] = BenchUtil.tptpRootOrExplain()
     if tptpRoot.isEmpty then return
     val paths = Using(scala.io.Source.fromFile(listPath))(_.getLines().map(_.trim).filter(_.nonEmpty).toVector).get
     val cfg = cfg0.copy(maxSize = Int.MaxValue)
-    println(s"files=$listPath (${paths.size} problems), timeout=${cfg.timeoutMs}ms, maxGiven=${cfg.opts.maxGiven}, " +
-      s"mode=${cfg.mode}, ${BenchUtil.isolationBanner}")
+    println(
+      s"files=$listPath (${paths.size} problems), timeout=${cfg.timeoutMs}ms, maxGiven=${cfg.opts.maxGiven}, " +
+        s"mode=${cfg.mode}, ${BenchUtil.isolationBanner}"
+    )
     run(paths, tptpRoot.get, cfg)
 
   private def run(paths: Vector[String], tptpRoot: File, cfg: Config): Unit =
@@ -123,18 +155,32 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
 
   // ── one problem ───────────────────────────────────────────────────────────────────────────────────────────
 
-  /** Per-problem outcome and where the wall-clock went: `clausifyMs` (everything outside the prover call),
-    * `proverMs` (search and reconstruction), `checkMs` (the kernel check), plus the loop-scale counters.
-    * `contaminated` marks a row that ran while an abandoned worker was still alive, whose timings and often
-    * whose verdict say more about that thread than about this problem. */
-  private final case class Timing(category: String, clausifyMs: Double = 0.0, proverMs: Double = 0.0, checkMs: Double = 0.0,
-                                  givenProcessed: Int = 0, peakActive: Int = 0, peakPassive: Int = 0,
-                                  contaminated: Boolean = false, detail: String = "")
+  /**
+   * Per-problem outcome and where the wall-clock went: `clausifyMs` (everything outside the prover call),
+   * `proverMs` (search and reconstruction), `checkMs` (the kernel check), plus the loop-scale counters.
+   * `contaminated` marks a row that ran while an abandoned worker was still alive, whose timings and often
+   * whose verdict say more about that thread than about this problem.
+   */
+  private final case class Timing(
+      category: String,
+      clausifyMs: Double = 0.0,
+      proverMs: Double = 0.0,
+      checkMs: Double = 0.0,
+      givenProcessed: Int = 0,
+      peakActive: Int = 0,
+      peakPassive: Int = 0,
+      contaminated: Boolean = false,
+      detail: String = ""
+  )
 
-  /** Categories whose problem reached the prover, i.e. clausified without error. */
+  /**
+   * Categories whose problem reached the prover, i.e. clausified without error.
+   */
   private val ReachedProver: Set[String] = Set("REFUTED", "SATURATED", "TIMEOUT", "BAD_PROOF")
 
-  /** Solve one problem and print its row, in its own JVM when [[BenchUtil.forkEnabled]], else in-process. */
+  /**
+   * Solve one problem and print its row, in its own JVM when [[BenchUtil.forkEnabled]], else in-process.
+   */
   private def solveRow(f: File, cfg: Config): Timing =
     val name = f.getName
     if !f.exists then { println(f" $name%-19s ${"-- file not found --"}"); return Timing("MISSING") }
@@ -151,15 +197,18 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
     println(f"$mark$name%-19s $h%4s $cj%3s  ${res.category}%-12s ${res.clausifyMs}%10.1f ${res.proverMs}%10.1f ${res.checkMs}%9.1f ${res.givenProcessed}%9d$detail")
     res
 
-  /** Run this problem in a fresh JVM and read back its one `RESULT` line. A child that printed none was killed
-    * on timeout or died on a fatal error, and the two are distinguishable. */
+  /**
+   * Run this problem in a fresh JVM and read back its one `RESULT` line. A child that printed none was killed
+   * on timeout or died on a fatal error, and the two are distinguishable.
+   */
   private def solveForked(f: File, cfg: Config): (Int, String, Timing) =
     val outcome = BenchUtil.runForked(childMainClass, Seq("solve1", f.getPath) ++ cfg.raw, cfg.timeoutMs + 5000L)
-    outcome.resultLine.flatMap(decodeRow).getOrElse(
-      (-1, "?", Timing(if outcome.timedOut then "HARD_TIMEOUT" else "PROVER_CRASH", detail = outcome.crashDetail)))
+    outcome.resultLine.flatMap(decodeRow).getOrElse((-1, "?", Timing(if outcome.timedOut then "HARD_TIMEOUT" else "PROVER_CRASH", detail = outcome.crashDetail)))
 
-  /** Child entry: solve one problem, print one machine-readable line, exit. No outer timeout, since the
-    * parent's `destroyForcibly` is the hard cap and the loop still honours `timeoutMs` cooperatively. */
+  /**
+   * Child entry: solve one problem, print one machine-readable line, exit. No outer timeout, since the
+   * parent's `destroyForcibly` is the hard cap and the loop still honours `timeoutMs` cooperatively.
+   */
   private def solveChild(file: String, args: Seq[String]): Unit =
     val (hyps, cj, t) = solveLocal(new File(file), parse(args), outerTimeout = false)
     println(encodeRow(hyps, cj, t))
@@ -167,23 +216,34 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
   // Plain `toString`/`toDouble` rather than the `f` interpolator: `%f` formats in the default locale, writing
   // `0,3` where the parser expects `0.3`.
   private def encodeRow(hyps: Int, cj: String, t: Timing): String =
-    Seq(t.category, hyps.toString, cj, t.clausifyMs.toString, t.proverMs.toString, t.checkMs.toString,
-      t.givenProcessed.toString, t.peakActive.toString, t.peakPassive.toString, t.detail).mkString(BenchUtil.ResultPrefix, "\t", "")
+    Seq(
+      t.category,
+      hyps.toString,
+      cj,
+      t.clausifyMs.toString,
+      t.proverMs.toString,
+      t.checkMs.toString,
+      t.givenProcessed.toString,
+      t.peakActive.toString,
+      t.peakPassive.toString,
+      t.detail
+    ).mkString(BenchUtil.ResultPrefix, "\t", "")
 
   private def decodeRow(line: String): Option[(Int, String, Timing)] =
     val p = line.stripPrefix(BenchUtil.ResultPrefix).split('\t')
     if p.length < 9 then None
-    else Try((p(1).toInt, p(2), Timing(p(0), p(3).toDouble, p(4).toDouble, p(5).toDouble,
-      p(6).toInt, p(7).toInt, p(8).toInt, detail = p.lift(9).getOrElse("")))).toOption
+    else Try((p(1).toInt, p(2), Timing(p(0), p(3).toDouble, p(4).toDouble, p(5).toDouble, p(6).toInt, p(7).toInt, p(8).toInt, detail = p.lift(9).getOrElse("")))).toOption
 
-  /** Parse, clausify and solve one problem in this JVM. `outerTimeout` adds the thread-based wall-clock guard,
-    * wanted when this *is* the run (`LISA_FORK=0`), redundant in a child whose parent will kill it. */
+  /**
+   * Parse, clausify and solve one problem in this JVM. `outerTimeout` adds the thread-based wall-clock guard,
+   * wanted when this *is* the run (`LISA_FORK=0`), redundant in a child whose parent will kill it.
+   */
   private def solveLocal(f: File, cfg: Config, outerTimeout: Boolean): (Int, String, Timing) =
     if !f.exists then return (-1, "?", Timing("MISSING"))
     // Catch `Throwable`, not just `NonFatal`: the recursive TPTP parser can `StackOverflowError` on very
     // deeply-nested formulas, which would otherwise kill the whole run.
     (try Success(problemToKernel(f)(using (strictMapAtom, strictMapTerm, strictMapVariable)))
-     catch { case e: Throwable => Failure(e) }) match
+    catch { case e: Throwable => Failure(e) }) match
       case Failure(e) => (-1, "?", Timing("PARSE_ERR", detail = e.getClass.getSimpleName))
       case Success(parsed) =>
         val cprob = Prover.fromTptp(parsed)
@@ -192,20 +252,36 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
         val size = cprob.size
         if size > cfg.maxSize then (hyps, cj, Timing("SKIPPED", detail = s"|F|=$size > ${cfg.maxSize}"))
         else if !outerTimeout then
-          (hyps, cj, try solveOne(cprob, cfg) catch { case e: Throwable => Timing(s"ERROR(${e.getClass.getSimpleName})") })
+          (
+            hyps,
+            cj,
+            try solveOne(cprob, cfg)
+            catch { case e: Throwable => Timing(s"ERROR(${e.getClass.getSimpleName})") }
+          )
         else
-          (hyps, cj, withTimeout(cfg.timeoutMs + 5000L)(solveOne(cprob, cfg)) match
-            case Some(Success(t)) => t
-            case Some(Failure(e)) => Timing(s"ERROR(${e.getClass.getSimpleName})")
-            case None             => Timing("HARD_TIMEOUT"))
+          (
+            hyps,
+            cj,
+            withTimeout(cfg.timeoutMs + 5000L)(solveOne(cprob, cfg)) match
+              case Some(Success(t)) => t
+              case Some(Failure(e)) => Timing(s"ERROR(${e.getClass.getSimpleName})")
+              case None => Timing("HARD_TIMEOUT")
+          )
 
-  /** A non-refutation thrown by the prover to abort the clausification it was called from. */
+  /**
+   * A non-refutation thrown by the prover to abort the clausification it was called from.
+   */
   private final class NonRefutation(val outcome: Clausal.Outcome) extends RuntimeException
-  /** A throw from the prover closure, kept distinct from a clausification throw so that it is categorised
-    * `BAD_PROOF` rather than `CLAUSIFY_ERR`. */
+
+  /**
+   * A throw from the prover closure, kept distinct from a clausification throw so that it is categorised
+   * `BAD_PROOF` rather than `CLAUSIFY_ERR`.
+   */
   private final class ProverError(cause: Throwable) extends RuntimeException(cause)
 
-  /** Run the pipeline once, timing each phase and recording the loop-scale stats. */
+  /**
+   * Run the pipeline once, timing each phase and recording the loop-scale stats.
+   */
   private def solveOne(cprob: Problem, cfg: Config): Timing =
     val proverNanos = new java.util.concurrent.atomic.AtomicLong(0L)
     val stats = new java.util.concurrent.atomic.AtomicReference[Discount.LoopStats](Discount.LoopStats(0, 0, 0, 0))
@@ -214,11 +290,11 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
       try
         Clausal.prove(p, cfg.opts.copy(maxMillis = cfg.timeoutMs, onStats = stats.set)) match
           case Right(proof) => proof
-          case Left(other)  => throw new NonRefutation(other)
+          case Left(other) => throw new NonRefutation(other)
       catch
-        case nr: NonRefutation        => throw nr // a decided non-refutation: propagate to the SATURATED/TIMEOUT arm
+        case nr: NonRefutation => throw nr // a decided non-refutation: propagate to the SATURATED/TIMEOUT arm
         case ie: InterruptedException => throw ie // hard-timeout interrupt: propagate to the TIMEOUT arm
-        case e: Throwable             => throw new ProverError(e)
+        case e: Throwable => throw new ProverError(e)
       finally proverNanos.addAndGet(System.nanoTime() - ps)
     val t0 = System.nanoTime()
     def clausifyMsSoFar: Double = (System.nanoTime() - t0 - proverNanos.get) / 1e6
@@ -235,17 +311,19 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
         case nr: NonRefutation =>
           val cat = nr.outcome match
             case Clausal.Outcome.Saturated => "SATURATED"
-            case Clausal.Outcome.Timeout   => "TIMEOUT"
-            case _                         => "UNKNOWN"
+            case Clausal.Outcome.Timeout => "TIMEOUT"
+            case _ => "UNKNOWN"
           Timing(cat, clausifyMsSoFar, proverNanos.get / 1e6)
         case _: InterruptedException => Timing("TIMEOUT", clausifyMsSoFar, proverNanos.get / 1e6)
-        case _: ProverError          => Timing("BAD_PROOF", clausifyMsSoFar, proverNanos.get / 1e6)
-        case e: Throwable            => Timing(s"CLAUSIFY_ERR(${e.getClass.getSimpleName})", clausifyMsSoFar, proverNanos.get / 1e6)
+        case _: ProverError => Timing("BAD_PROOF", clausifyMsSoFar, proverNanos.get / 1e6)
+        case e: Throwable => Timing(s"CLAUSIFY_ERR(${e.getClass.getSimpleName})", clausifyMsSoFar, proverNanos.get / 1e6)
     val s = stats.get
     base.copy(givenProcessed = s.givenProcessed, peakActive = s.peakActive, peakPassive = s.peakPassive)
 
-  /** Clausify one problem both ways, solve, and report the kernel checker's verdict in full, for diagnosing a
-    * `BAD_PROOF` row. Both clausifiers take a `Problem => SCProof`, so a non-refutation is fatal here. */
+  /**
+   * Clausify one problem both ways, solve, and report the kernel checker's verdict in full, for diagnosing a
+   * `BAD_PROOF` row. Both clausifiers take a `Problem => SCProof`, so a non-refutation is fatal here.
+   */
   def verifyOne(rel: String): Unit =
     val root: Option[File] = BenchUtil.tptpRootOrExplain()
     if root.isEmpty then return
@@ -254,9 +332,10 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
     def prover(p: Problem): K.SCProof =
       Clausal.prove(p).fold(o => throw new RuntimeException(s"expected a refutation, got $o"), identity)
     for (label, mk) <- Seq[(String, () => K.SCProof)](
-      "uncertified" -> (() => UncertifiedClausifier.uncertifyClausal(cprob, prover)),
-      "certified"   -> (() => CertifiedClausifier.certifyClausal(cprob, prover))
-    ) do
+        "uncertified" -> (() => UncertifiedClausifier.uncertifyClausal(cprob, prover)),
+        "certified" -> (() => CertifiedClausifier.certifyClausal(cprob, prover))
+      )
+    do
       print(f"$rel%-18s $label%-12s ")
       try
         val proof = mk()
@@ -282,8 +361,10 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
     val warning = BenchUtil.contaminationWarning
     if warning.nonEmpty then
       println(warning)
-      println(s"   ${rows.count(_.contaminated)} of $total row${if total == 1 then "" else "s"} ran after that " +
-        "point and are marked `!` above.")
+      println(
+        s"   ${rows.count(_.contaminated)} of $total row${if total == 1 then "" else "s"} ran after that " +
+          "point and are marked `!` above."
+      )
 
     val ran = rows.filter(r => ReachedProver(r.category))
     if ran.nonEmpty then
@@ -300,8 +381,8 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
     if solved.nonEmpty then
       println(s"\nphase times over the $refuted REFUTED problems:")
       phase("clausify", solved.map(_.clausifyMs))
-      phase("prover",   solved.map(_.proverMs))
-      phase("check",    solved.map(_.checkMs))
+      phase("prover", solved.map(_.proverMs))
+      phase("check", solved.map(_.checkMs))
     // Clausification runs regardless of the prover's verdict, so it is worth summing over every attempt.
     val attempted = rows.filter(r => ReachedProver(r.category) || r.category.startsWith("CLAUSIFY_ERR"))
     if attempted.nonEmpty then

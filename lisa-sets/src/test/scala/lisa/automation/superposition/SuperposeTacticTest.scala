@@ -1,9 +1,9 @@
 package lisa.automation.superposition
 
-import org.scalatest.funsuite.AnyFunSuite
-import lisa.kernel.KernelProof
-import lisa.automation.clausification.CertifiedClausifier
 import lisa.automation.Problem
+import lisa.automation.clausification.CertifiedClausifier
+import lisa.kernel.KernelProof
+import org.scalatest.funsuite.AnyFunSuite
 
 /**
  * End-to-end tests of the [[Superpose]] tactic: each theorem is proved by `have(thesis) by Superpose`, so the
@@ -20,12 +20,12 @@ class SuperposeTacticTest extends AnyFunSuite with lisa.TestMain {
   val SS = variable[Ind >>: Prop]
 
   // Proved eagerly at construction; the `test` blocks name them for the report.
-  val implSelf       = Theorem(A ==> A) { have(thesis) by Superpose }
+  val implSelf = Theorem(A ==> A) { have(thesis) by Superpose }
   val excludedMiddle = Theorem(A \/ !A) { have(thesis) by Superpose }
-  val deMorgan       = Theorem(!(A /\ B) <=> (!A \/ !B)) { have(thesis) by Superpose }
-  val fromHyp        = Theorem(B \/ !B) { have(thesis) by Superpose.from(excludedMiddle) } // `.from` plumbing (hyp unused)
+  val deMorgan = Theorem(!(A /\ B) <=> (!A \/ !B)) { have(thesis) by Superpose }
+  val fromHyp = Theorem(B \/ !B) { have(thesis) by Superpose.from(excludedMiddle) } // `.from` plumbing (hyp unused)
   // The name a proof outside this package uses, re-exported by automation/package.scala.
-  val viaExport      = Theorem(B ==> B) { have(thesis) by lisa.automation.Superpose }
+  val viaExport = Theorem(B ==> B) { have(thesis) by lisa.automation.Superpose }
 
   test("propositional: A ⟹ A") { assert(implSelf.statement.underlying == (() |- (A ==> A)).underlying) }
   test("propositional: excluded middle A ∨ ¬A") { succeed }
@@ -51,7 +51,7 @@ class SuperposeTacticTest extends AnyFunSuite with lisa.TestMain {
 
   // ── first-order ──
   val univInst = Theorem(∀(zz, SS(zz)) ==> SS(ww)) { have(thesis) by Superpose }
-  val drinker  = Theorem(∃(zz, SS(zz) ==> ∀(ww, SS(ww)))) { have(thesis) by Superpose }
+  val drinker = Theorem(∃(zz, SS(zz) ==> ∀(ww, SS(ww)))) { have(thesis) by Superpose }
 
   test("first-order: (∀z. S(z)) ⟹ S(w)") { succeed }
   test("first-order: drinker's paradox ∃z. (S(z) ⟹ ∀w. S(w))") { succeed }
@@ -70,10 +70,10 @@ class SuperposeTacticTest extends AnyFunSuite with lisa.TestMain {
   // ── arbitrary sequent shapes ──
   // The clausifier takes one conjecture formula, so the goal is folded through `sequentToFormula` and unfolded
   // by the closing `Restate`. Both sides may be empty, and cited facts of any shape are folded the same way.
-  val seqIdentity  = Theorem(A |- A) { have(thesis) by Superpose }
+  val seqIdentity = Theorem(A |- A) { have(thesis) by Superpose }
   val seqBothSides = Theorem((A /\ B) |- (B \/ A)) { have(thesis) by Superpose }
   val seqMultiLeft = Theorem((A ==> B, A) |- B) { have(thesis) by Superpose }
-  val seqEmptyRhs  = Theorem((A, !A) |- ()) { have(thesis) by Superpose }
+  val seqEmptyRhs = Theorem((A, !A) |- ()) { have(thesis) by Superpose }
   val seqFirstOrder = Theorem(∀(zz, SS(zz)) |- SS(ww)) { have(thesis) by Superpose }
   // A cited fact with a non-empty left-hand side is folded to `⊢ ⋀Γᵢ ⟹ ⋁Δᵢ` by its per-premise Restate.
   val seqFromShaped = Theorem(A |- (A \/ B)) { have(thesis) by Superpose.from(seqIdentity) }

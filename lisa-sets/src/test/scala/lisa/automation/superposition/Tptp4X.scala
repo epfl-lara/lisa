@@ -3,7 +3,6 @@ package lisa.automation.superposition
 import java.io.File
 import java.nio.file.Files
 import java.util.concurrent.atomic.AtomicBoolean
-
 import scala.util.Using
 
 /**
@@ -26,11 +25,15 @@ object Tptp4X:
 
   private def isWindows: Boolean = System.getProperty("os.name").toLowerCase.contains("win")
 
-  /** `$TPTP/Scripts/tptp4X`, if the distribution is present. */
+  /**
+   * `$TPTP/Scripts/tptp4X`, if the distribution is present.
+   */
   lazy val binary: Option[File] =
     TptpCorpus.root.map(r => new File(r, "Scripts/tptp4X")).filter(_.isFile)
 
-  /** `C:\a\b` → `/mnt/c/a/b`; already-POSIX paths pass through. */
+  /**
+   * `C:\a\b` → `/mnt/c/a/b`; already-POSIX paths pass through.
+   */
   private def wslPath(f: File): String =
     val p = f.getAbsolutePath.replace('\\', '/')
     if p.length > 2 && p(1) == ':' then s"/mnt/${p(0).toLower}${p.substring(2)}" else p
@@ -48,8 +51,10 @@ object Tptp4X:
       catch case _: Throwable => None // no WSL, wrong architecture, not executable: treat as unavailable
     }
 
-  /** Probed once: can we actually run it here? Checks against a trivially valid clause rather than trusting
-    * that the file exists, since the binary is useless on a machine with no WSL, and that must not read as a pass. */
+  /**
+   * Probed once: can we actually run it here? Checks against a trivially valid clause rather than trusting
+   * that the file exists, since the binary is useless on a machine with no WSL, and that must not read as a pass.
+   */
   lazy val available: Boolean =
     val probe = Files.createTempFile("tptp4x-probe-", ".p")
     try
@@ -59,19 +64,21 @@ object Tptp4X:
 
   private val warned = new AtomicBoolean(false)
 
-  /** Cancel the calling test, having said why once, when the checker cannot be run. */
+  /**
+   * Cancel the calling test, having said why once, when the checker cannot be run.
+   */
   def orCancel(what: String): Unit =
-    if !available && warned.compareAndSet(false, true) then
-      println(
-        s"""|
-            |${"-" * 100}
-            |-- tptp4X is not runnable here, so the TPTP syntax checks are being CANCELLED, not run.
-            |-- Needs $$TPTP/Scripts/tptp4X (present: ${binary.isDefined})${if isWindows then ", and WSL to run the Linux binary" else ""}.
-            |${"-" * 100}
-            |""".stripMargin)
+    if !available && warned.compareAndSet(false, true) then println(s"""|
+                                                                        |${"-" * 100}
+                                                                        |-- tptp4X is not runnable here, so the TPTP syntax checks are being CANCELLED, not run.
+                                                                        |-- Needs $$TPTP/Scripts/tptp4X (present: ${binary.isDefined})${if isWindows then ", and WSL to run the Linux binary" else ""}.
+                                                                        |${"-" * 100}
+                                                                        |""".stripMargin)
     org.scalatest.Assertions.assume(available, s"tptp4X is unavailable, so $what cannot be checked")
 
-  /** Check a TPTP document. `None` if accepted; `Some(diagnostic)` if rejected. */
+  /**
+   * Check a TPTP document. `None` if accepted; `Some(diagnostic)` if rejected.
+   */
   def check(content: String): Option[String] =
     val f = Files.createTempFile("tptp4x-", ".p")
     try

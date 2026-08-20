@@ -1,10 +1,9 @@
 package lisa.automation.clausification
 
-import org.scalatest.funsuite.AnyFunSuite
-
+import lisa.automation.Problem
 import lisa.utils.K
 import lisa.utils.K.{_, given}
-import lisa.automation.Problem
+import org.scalatest.funsuite.AnyFunSuite
 
 /**
  * Adversarial inputs to the certified clausifier: the cases its `require`s exist for.
@@ -30,13 +29,17 @@ class AdversarialInputTest extends AnyFunSuite:
   private val x = Variable(Identifier("x"), Ind)
   private val P = Variable(Identifier("Pp"), Ind >>: Prop)
 
-  /** A prover meeting `certifyClausal`'s contract: imports = the clause sequents, conclusion = `⊢`. */
+  /**
+   * A prover meeting `certifyClausal`'s contract: imports = the clause sequents, conclusion = `⊢`.
+   */
   private def sorryProver(p: Problem): SCProof =
     SCProof(IndexedSeq(Sorry(Sequent(Set.empty, Set.empty))), p.imports)
 
-  /** The same, as a phase-level [[ClausificationProver]]. A phase expects its downstream to declare the
-    * library statements too. `certifyClausal`'s wrapper appends them, so a test calling a phase directly
-    * has to do it itself or trip the phase's own import check. */
+  /**
+   * The same, as a phase-level [[ClausificationProver]]. A phase expects its downstream to declare the
+   * library statements too. `certifyClausal`'s wrapper appends them, so a test calling a phase directly
+   * has to do it itself or trip the phase's own import check.
+   */
   private def sorryPhaseProver(p: Problem): ClausificationProof =
     val sc = sorryProver(p)
     ClausificationProof(sc.steps, sc.imports ++ Clausification.libImports)
@@ -75,16 +78,14 @@ class AdversarialInputTest extends AnyFunSuite:
   test("a prover that drops a clause import is caught at the boundary, not as an invalid proof") {
     // Contract: imports == the clause sequents, pointwise. Declaring only the clauses the refutation used is
     // the tempting mistake, and without this check it surfaces much later as a kernel rejection.
-    val dropsAnImport: Problem => SCProof = p =>
-      SCProof(IndexedSeq(Sorry(Sequent(Set.empty, Set.empty))), p.imports.drop(1))
+    val dropsAnImport: Problem => SCProof = p => SCProof(IndexedSeq(Sorry(Sequent(Set.empty, Set.empty))), p.imports.drop(1))
     val problem = Problem(Seq(() |- a, () |- b), Some(() |- a))
     val e = intercept[IllegalArgumentException](clausify(problem, dropsAnImport))
     assert(e.getMessage.contains("imports"), s"unexpected message: ${e.getMessage}")
   }
 
   test("a prover that invents an extra import is caught too") {
-    val addsAnImport: Problem => SCProof = p =>
-      SCProof(IndexedSeq(Sorry(Sequent(Set.empty, Set.empty))), p.imports :+ (() |- b))
+    val addsAnImport: Problem => SCProof = p => SCProof(IndexedSeq(Sorry(Sequent(Set.empty, Set.empty))), p.imports :+ (() |- b))
     val e = intercept[IllegalArgumentException](clausify(Problem(Seq(() |- a), Some(() |- a)), addsAnImport))
     assert(e.getMessage.contains("imports"), s"unexpected message: ${e.getMessage}")
   }
@@ -104,10 +105,11 @@ class AdversarialInputTest extends AnyFunSuite:
   test("a phase below the negation step rejects a problem that still carries a conjecture") {
     val withConjecture = Problem(Seq(() |- a), Some(() |- b))
     for (name, phase) <- Seq[(String, Problem => Any)](
-      "certifyDistribute" -> (DistributePhase.certifyDistribute(_, sorryPhaseProver)),
-      "certifySkolem" -> (SkolemPhase.certifySkolem(_, sorryPhaseProver)),
-      "certifyPrenex" -> (PrenexPhase.certifyPrenex(_, sorryPhaseProver))
-    ) do
+        "certifyDistribute" -> (DistributePhase.certifyDistribute(_, sorryPhaseProver)),
+        "certifySkolem" -> (SkolemPhase.certifySkolem(_, sorryPhaseProver)),
+        "certifyPrenex" -> (PrenexPhase.certifyPrenex(_, sorryPhaseProver))
+      )
+    do
       val e = intercept[IllegalArgumentException](phase(withConjecture))
       assert(e.getMessage.contains("conjecture-free"), s"$name: unexpected message: ${e.getMessage}")
   }
@@ -117,8 +119,7 @@ class AdversarialInputTest extends AnyFunSuite:
     // to the literal case and becomes a one-literal "clause" whose literal is a whole implication, a wrong
     // clause set, and the resulting proof would fail far away from the cause.
     for bad <- Seq(implies(a)(b), forall(Lambda(x, P(x))), exists(Lambda(x, P(x))), a <=> b) do
-      val e = intercept[IllegalArgumentException](
-        DistributePhase.certifyDistribute(Problem(Seq(() |- bad), None), sorryPhaseProver))
+      val e = intercept[IllegalArgumentException](DistributePhase.certifyDistribute(Problem(Seq(() |- bad), None), sorryPhaseProver))
       assert(e.getMessage.contains("non-literal leaf"), s"for $bad: unexpected message: ${e.getMessage}")
   }
 
@@ -147,8 +148,7 @@ class AdversarialInputTest extends AnyFunSuite:
 
   test("two assumptions naming the same import are rejected") {
     val inner = ClausificationProof(IndexedSeq(Hypothesis(a |- a, a)), IndexedSeq(() |- a, () |- b))
-    val e = intercept[IllegalArgumentException](
-      ClausificationSubproof(inner, IndexedSeq.empty, IndexedSeq(0, 0)))
+    val e = intercept[IllegalArgumentException](ClausificationSubproof(inner, IndexedSeq.empty, IndexedSeq(0, 0)))
     assert(e.getMessage.contains("distinct"), s"unexpected message: ${e.getMessage}")
   }
 

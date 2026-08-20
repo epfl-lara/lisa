@@ -1,13 +1,14 @@
 package lisa.automation.clausification
 
-import org.scalatest.funsuite.AnyFunSuite
-
+import lisa.tptp.ProofPrinter
 import lisa.utils.K
 import lisa.utils.K.{_, given}
-import lisa.tptp.ProofPrinter
+import org.scalatest.funsuite.AnyFunSuite
 
-/** Checks that `ProofPrinter.formulaToFOFFormula` (strict) prints ε-terms, TPTP distinct objects, and numerals
- *  correctly: the cases that used to throw or be mis-rendered. */
+/**
+ * Checks that `ProofPrinter.formulaToFOFFormula` (strict) prints ε-terms, TPTP distinct objects, and numerals
+ *  correctly: the cases that used to throw or be mis-rendered.
+ */
 class ProofPrinterSpecialTest extends AnyFunSuite:
 
   private def pretty(e: K.Expression): String =

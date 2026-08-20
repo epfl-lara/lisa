@@ -1,13 +1,13 @@
 package lisa.automation.superposition
 
+import it.unimi.dsi.fastutil.ints.IntArrayList
+import lisa.kernel.KernelProof
+import lisa.utils.K
+import org.scalatest.funsuite.AnyFunSuite
+
 import scala.collection.mutable
 
-import org.scalatest.funsuite.AnyFunSuite
-import it.unimi.dsi.fastutil.ints.IntArrayList
-
-import lisa.utils.K
-import lisa.kernel.KernelProof
-import Core.*
+import Core._
 
 /**
  * Low-level, kernel-checked reconstruction tests for the individual equality inferences that the full
@@ -21,7 +21,9 @@ class EqualityReconstructionTest extends AnyFunSuite:
 
   class Fix extends TermFixture:
 
-    /** Locate + unify + [[Superposition.superpose]] + restore (mirrors SuperpositionTest's driver). */
+    /**
+     * Locate + unify + [[Superposition.superpose]] + restore (mirrors SuperpositionTest's driver).
+     */
     def superposeAt(from: Clause, iFrom: Int, fromSide: Int, into: Clause, iInto: Int, uPos: Array[Int]): Option[Clause] =
       val l = bank.arg(bank.atomOf(from.literals(iFrom)), fromSide)
       val u = Superposition.subtermAt(bank, bank.atomOf(into.literals(iInto)), uPos)
@@ -55,8 +57,10 @@ class EqualityReconstructionTest extends AnyFunSuite:
       c.literals.foreach(l => collectVars(bank.atomOf(l), s))
       s.iterator.map(n => n -> K.Variable(K.Identifier("X" + n), K.Ind)).toMap
 
-    /** Reconstruct `derived` (its parents supplied as imports) and assert the kernel accepts the proof and it
-     *  concludes exactly `seqOf(derived)` (well-defined because every `derived` here is ground). */
+    /**
+     * Reconstruct `derived` (its parents supplied as imports) and assert the kernel accepts the proof and it
+     *  concludes exactly `seqOf(derived)` (well-defined because every `derived` here is ground).
+     */
     def checkReconstructs(derived: Clause, parents: Clause*): Unit =
       val inputs = parents.iterator.map(p => p.id -> (seqOf(p), vmOf(p))).toMap
       val proof = Reconstruction.reconstruct(derived, bank, inputs)
@@ -64,13 +68,14 @@ class EqualityReconstructionTest extends AnyFunSuite:
       assert(proof.conclusion == seqOf(derived), s"conclusion ${proof.conclusion} != expected ${seqOf(derived)}")
       assert(proof.imports.toSet.subsetOf(parents.iterator.map(seqOf).toSet), "imports are not among the parents")
 
-    /** `seqOf(c)` with the fixture's `X<n>` variables renamed to the `cv<n>` scheme reconstruction builds its
-      * sequents in, so a **non-ground** derived clause's conclusion can be compared exactly. This is the
-      * invariant every consumer of a reconstructed step depends on: the sequent proved for `c` must name its
-      * variables by `c`'s own internal numbers, because the children name theirs by reading `c` directly. */
+    /**
+     * `seqOf(c)` with the fixture's `X<n>` variables renamed to the `cv<n>` scheme reconstruction builds its
+     * sequents in, so a **non-ground** derived clause's conclusion can be compared exactly. This is the
+     * invariant every consumer of a reconstructed step depends on: the sequent proved for `c` must name its
+     * variables by `c`'s own internal numbers, because the children name theirs by reading `c` directly.
+     */
     def canonSeqOf(c: Clause): K.Sequent =
-      val rename: Map[K.Variable, K.Expression] = vmOf(c).map((n, x) =>
-        x -> K.Variable(K.Identifier(lisa.automation.clausification.Clausification.GeneratedNames.reconClauseVar, n), K.Ind))
+      val rename: Map[K.Variable, K.Expression] = vmOf(c).map((n, x) => x -> K.Variable(K.Identifier(lisa.automation.clausification.Clausification.GeneratedNames.reconClauseVar, n), K.Ind))
       val s = seqOf(c)
       K.Sequent(s.left.map(K.substituteVariables(_, rename)), s.right.map(K.substituteVariables(_, rename)))
 
@@ -140,8 +145,10 @@ class EqualityReconstructionTest extends AnyFunSuite:
     val fx = new Fix; import fx.*
     val c0 = const("c"); val a = const("a"); val b = const("b"); val f = fn("f", 1); val x = v(0)
     val cl = clause(pos(mkEq(app(f, x), a)), pos(mkEq(app(f, b), c0))) // f(x)≈a ∨ f(b)≈c
-    val factor = Superposition.equalityFactoring(bank, trail, cl, Array(0, 1))
-      .find(_.literals.toSet == Set(neg(mkEq(a, c0)), pos(mkEq(app(f, b), c0)))).get // a≉c ∨ f(b)≈c
+    val factor = Superposition
+      .equalityFactoring(bank, trail, cl, Array(0, 1))
+      .find(_.literals.toSet == Set(neg(mkEq(a, c0)), pos(mkEq(app(f, b), c0))))
+      .get // a≉c ∨ f(b)≈c
     factor.justification match
       case Justification.EqualityFactoring(_, d, ds, k, ks) => assert(ds == ks) // same side ⇒ no flip
       case _ => fail("expected EqualityFactoring")
@@ -152,8 +159,10 @@ class EqualityReconstructionTest extends AnyFunSuite:
     val fx = new Fix; import fx.*
     val c0 = const("c"); val a = const("a"); val b = const("b"); val f = fn("f", 1); val x = v(0)
     val cl = clause(pos(mkEq(app(f, x), a)), pos(mkEq(c0, app(f, b)))) // f(x)≈a ∨ c≈f(b): kept side is arg1
-    val factor = Superposition.equalityFactoring(bank, trail, cl, Array(0, 1))
-      .find(_.literals.toSet == Set(neg(mkEq(a, c0)), pos(mkEq(c0, app(f, b))))).get // a≉c ∨ c≈f(b)
+    val factor = Superposition
+      .equalityFactoring(bank, trail, cl, Array(0, 1))
+      .find(_.literals.toSet == Set(neg(mkEq(a, c0)), pos(mkEq(c0, app(f, b)))))
+      .get // a≉c ∨ c≈f(b)
     factor.justification match
       case Justification.EqualityFactoring(_, d, ds, k, ks) => assert(ds != ks) // opposite sides ⇒ flip path
       case _ => fail("expected EqualityFactoring")

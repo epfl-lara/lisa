@@ -1,13 +1,15 @@
 package lisa.automation.superposition
 
+import lisa.automation.superposition.ordering._
 import org.scalatest.funsuite.AnyFunSuite
 
-import Core.*
-import lisa.automation.superposition.ordering.*
+import Core._
 
-/** KBO symbol-**precedence** generation ([[Precedence]] / [[PrecedenceScheme]]). Checks the
+/**
+ * KBO symbol-**precedence** generation ([[Precedence]] / [[PrecedenceScheme]]). Checks the
  *  schemes produce a *total* order (KBO needs it), are deterministic, order symbols as advertised, and, most
- *  importantly, do not change the prover's verdict (an A/B against the former occurrence-order baseline). */
+ *  importantly, do not change the prover's verdict (an A/B against the former occurrence-order baseline).
+ */
 class PrecedenceTest extends AnyFunSuite:
 
   class Fix extends TermFixture:
@@ -54,7 +56,7 @@ class PrecedenceTest extends AnyFunSuite:
     val cs = Seq(
       clause(pos(mkEq(app(f, a), a))), //          f, a, a
       clause(pos(mkEq(app(f, app(f, a)), b))), //  f, f, a, b
-      clause(neg(mkEq(app(g, a), a)))  //          g, a, a
+      clause(neg(mkEq(app(g, a), a))) //          g, a, a
     )
     Precedence.assign(sig, bank, cs, PrecedenceScheme.InvFrequency)
     assert(precOf(f) < precOf(g), "the more frequent unary f should rank below g")

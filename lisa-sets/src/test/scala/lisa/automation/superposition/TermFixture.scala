@@ -1,8 +1,9 @@
 package lisa.automation.superposition
 
-import Core.*
-import lisa.automation.superposition.ordering.*
-import lisa.automation.superposition.index.*
+import lisa.automation.superposition.index._
+import lisa.automation.superposition.ordering._
+
+import Core._
 
 /**
  * The shared term-building fixture for the prover tests.
@@ -30,8 +31,10 @@ class TermFixture(weightOf: Int => Int = WeightScheme.Const.weightOf):
   val bank: TermBank = new TermBank(sig)
   val trail: Trail = new Trail(bank)
 
-  /** The bank's shared KBO-based ordering. Safe to force here: the only thing that changes the ordering after
-    * terms exist is `Precedence.assign`, which clears the orientation memo as its last act. */
+  /**
+   * The bank's shared KBO-based ordering. Safe to force here: the only thing that changes the ordering after
+   * terms exist is `Precedence.assign`, which clears the orientation memo as its last act.
+   */
   val order: Order = bank.order
   val kbo: KBO = order.kbo
 

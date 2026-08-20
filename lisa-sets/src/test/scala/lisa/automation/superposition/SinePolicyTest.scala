@@ -1,8 +1,7 @@
 package lisa.automation.superposition
 
-import org.scalatest.funsuite.AnyFunSuite
-
 import lisa.utils.K.{_, given}
+import org.scalatest.funsuite.AnyFunSuite
 
 /**
  * SInE activation-gate tests ([[Sine.Analysis.shouldFilter]]): the filter fires only when the problem is both
@@ -16,12 +15,14 @@ class SinePolicyTest extends AnyFunSuite:
   private def gates(hyps: IndexedSeq[Sequent], conjecture: Sequent): Boolean =
     Sine.analyse(hyps, conjecture).shouldFilter(Sine.Params())
 
-  /** `n` disjoint noise axioms plus a 2-axiom chain reaching the conjecture symbol `goal` (so almost everything
-   *  is irrelevant). Returns `(hypotheses, conjecture)`. */
+  /**
+   * `n` disjoint noise axioms plus a 2-axiom chain reaching the conjecture symbol `goal` (so almost everything
+   *  is irrelevant). Returns `(hypotheses, conjecture)`.
+   */
   private def sparse(n: Int): (IndexedSeq[Sequent], Sequent) =
     val goal = p("goal")
-    val chain = IndexedSeq(or(goal)(p("g1")), or(p("g1"))(p("g2")))     // 2 reachable from the goal
-    val noise = (0 until n).map(i => or(p(s"n${i}a"))(p(s"n${i}b")))    // n pairwise-disjoint, unreachable
+    val chain = IndexedSeq(or(goal)(p("g1")), or(p("g1"))(p("g2"))) // 2 reachable from the goal
+    val noise = (0 until n).map(i => or(p(s"n${i}a"))(p(s"n${i}b"))) // n pairwise-disjoint, unreachable
     ((chain ++ noise).map(h => () |- h), () |- goal)
 
   test("gate 1: below the axiom floor ⇒ do not filter (even if very prunable)") {

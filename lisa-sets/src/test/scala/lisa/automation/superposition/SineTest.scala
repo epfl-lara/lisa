@@ -1,9 +1,8 @@
 package lisa.automation.superposition
 
-import org.scalatest.funsuite.AnyFunSuite
-
-import lisa.utils.K.{_, given}
 import lisa.automation.Problem
+import lisa.utils.K.{_, given}
+import org.scalatest.funsuite.AnyFunSuite
 
 /**
  * SInE axiom-selection tests: reachability through the trigger relation, the depth/tolerance/size guards, and
@@ -40,8 +39,8 @@ class SineTest extends AnyFunSuite:
 
   test("selection gates and prunes in one pass, which is the path the prover takes") {
     val goalSym = p("goal")
-    val chain = IndexedSeq(or(goalSym)(p("g1")), or(p("g1"))(p("g2")))  // reachable from the conjecture
-    val noise = (0 until 500).map(i => or(p(s"n${i}a"))(p(s"n${i}b")))  // pairwise disjoint, unreachable
+    val chain = IndexedSeq(or(goalSym)(p("g1")), or(p("g1"))(p("g2"))) // reachable from the conjecture
+    val noise = (0 until 500).map(i => or(p(s"n${i}a"))(p(s"n${i}b"))) // pairwise disjoint, unreachable
     val problem = Problem((chain ++ noise).map(h => () |- h), Some(() |- goalSym))
     assert(Sine.selection(problem, SineConfig(tolerance = 2.0, depth = 0)).contains(Set(0, 1)))
   }

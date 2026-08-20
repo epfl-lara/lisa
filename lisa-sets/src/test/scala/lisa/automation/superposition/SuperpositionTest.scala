@@ -1,17 +1,21 @@
 package lisa.automation.superposition
 
-import org.scalatest.funsuite.AnyFunSuite
 import it.unimi.dsi.fastutil.ints.IntArrayList
+import org.scalatest.funsuite.AnyFunSuite
 
-import Core.*
+import Core._
 
-/** Tests for the generating equality inferences ([[Superposition]]). */
+/**
+ * Tests for the generating equality inferences ([[Superposition]]).
+ */
 class SuperpositionTest extends AnyFunSuite:
 
   class Fix extends TermFixture:
 
-    /** Locate + unify + [[Superposition.superpose]] and restore, which is what the loop and term index do around
-     *  the build-only `superpose`. Tests drive superposition through this. */
+    /**
+     * Locate + unify + [[Superposition.superpose]] and restore, which is what the loop and term index do around
+     *  the build-only `superpose`. Tests drive superposition through this.
+     */
     def superposeAt(from: Clause, iFrom: Int, fromSide: Int, into: Clause, iInto: Int, uPos: Array[Int]): Option[Clause] =
       val fromAtom = bank.atomOf(from.literals(iFrom))
       val intoAtom = bank.atomOf(into.literals(iInto))
@@ -121,8 +125,7 @@ class SuperpositionTest extends AnyFunSuite:
     // other test could see it, since they all pass every literal as eligible.
     val factors = Superposition.equalityFactoring(bank, trail, cl, Array(1))
     val expected = factors.find(_.literals.toSet == Set(neg(mkEq(d, a)), pos(mkEq(app(f, x), a))))
-    assert(expected.isDefined,
-      s"lost the factor `d ≉ a ∨ f(x) ≈ a`; got ${factors.map(_.literals.mkString("[", ", ", "]")).mkString("{", "; ", "}")}")
+    assert(expected.isDefined, s"lost the factor `d ≉ a ∨ f(x) ≈ a`; got ${factors.map(_.literals.mkString("[", ", ", "]")).mkString("{", "; ", "}")}")
     expected.get.justification match
       case Justification.EqualityFactoring(p, dropped, _, partner, _) =>
         assert(p == cl && dropped == 1 && partner == 0, s"factored $dropped against $partner, expected 1 against 0")

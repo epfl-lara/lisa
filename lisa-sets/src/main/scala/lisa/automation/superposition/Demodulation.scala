@@ -1,36 +1,44 @@
 package lisa.automation.superposition
 
 import it.unimi.dsi.fastutil.ints.IntArrayList
+import lisa.automation.superposition.index._
+import lisa.automation.superposition.ordering._
 
-import Core.*
-import lisa.automation.superposition.ordering.*
-import lisa.automation.superposition.index.*
+import Core._
 
-/** Rewriting by positive unit equalities. Forward demodulation normal-forms a clause against the active
-  * equations, backward demodulation rewrites active clauses with a new one. Each step replaces a subterm by a
-  * strictly smaller instance, so repeated steps terminate, and each records its own justification. */
+/**
+ * Rewriting by positive unit equalities. Forward demodulation normal-forms a clause against the active
+ * equations, backward demodulation rewrites active clauses with a new one. Each step replaces a subterm by a
+ * strictly smaller instance, so repeated steps terminate, and each records its own justification.
+ */
 object Demodulation:
 
-  /** A usable rewrite direction extracted from a positive unit equality clause: `lhs → rhs`. `lhsVars` are
+  /**
+   * A usable rewrite direction extracted from a positive unit equality clause: `lhs → rhs`. `lhsVars` are
    *  the distinct variables of `lhs`, precomputed once (they're invariant) for the renaming redundancy check.
    *
    *  Identity is `(source.id, side)`, which determines the rest, so that a rule re-derived from its clause
-   *  deletes the stored one. */
+   *  deletes the stored one.
+   */
   final class Rule(val source: Clause, val side: Int, val lhs: Term, val rhs: Term, val oriented: Boolean, val lhsVars: Array[Term]):
     override def equals(o: Any): Boolean = o match
       case r: Rule => source.id == r.source.id && side == r.side
-      case _       => false
+      case _ => false
     override def hashCode: Int = source.id * 31 + side
     override def toString: String = s"Rule(c${source.id}, side=$side)"
 
-  /** Whether `c` is a positive unit equality. */
+  /**
+   * Whether `c` is a positive unit equality.
+   */
   def isPositiveUnitEquality(bank: TermBank, c: Clause): Boolean =
     c.literals.length == 1 && bank.isPositive(c.literals(0)) &&
       bank.isEquality(c.literals(0))
 
-  /** The usable rewrite directions of `eq` as a demodulator: `Nil` unless `eq` is a positive unit equality.
-    * Oriented equations rewrite from the `Gt` side; unoriented ones rewrite from a side only if that side's
-    * variables cover the other's (so no fresh variable is introduced) and it is not itself a variable. */
+  /**
+   * The usable rewrite directions of `eq` as a demodulator: `Nil` unless `eq` is a positive unit equality.
+   * Oriented equations rewrite from the `Gt` side; unoriented ones rewrite from a side only if that side's
+   * variables cover the other's (so no fresh variable is introduced) and it is not itself a variable.
+   */
   def rules(bank: TermBank, eq: Clause): List[Rule] =
     if eq.literals.length != 1 then Nil
     else
@@ -53,8 +61,10 @@ object Demodulation:
             if !bank.isVar(s0) && bank.varsSubsetOf(s1, s0) then rs = mk(0, s0, s1, false, bank.varsOf(s0)) :: rs
             rs
 
-  /** Rewrite `clause` to a normal form by repeating `step` until it stops firing. Each step replaces a subterm
-   *  by a strictly smaller instance, so this terminates. One closure per call, not per step. */
+  /**
+   * Rewrite `clause` to a normal form by repeating `step` until it stops firing. Each step replaces a subterm
+   *  by a strictly smaller instance, so this terminates. One closure per call, not per step.
+   */
   private def fixpoint(clause: Clause)(step: Clause => Option[Clause]): Clause =
     var cur: Clause = clause
     var next: Option[Clause] = step(cur)
@@ -63,17 +73,21 @@ object Demodulation:
       next = step(cur)
     cur
 
-  /** Forward demodulation against an explicit rule set: the shape backward demodulation needs, where the rules
-   *  are the ones extracted from the single new unit equality. */
+  /**
+   * Forward demodulation against an explicit rule set: the shape backward demodulation needs, where the rules
+   *  are the ones extracted from the single new unit equality.
+   */
   def normalForm(bank: TermBank, trail: Trail, clause: Clause, rules: Array[Rule]): Clause =
     if rules.isEmpty then clause
     else
       val order: Order = bank.order
       fixpoint(clause)(rewriteOnce(bank, trail, order, _, rules))
 
-  /** Forward demodulation against a [[DiscriminationTree]] of demodulators, which is how the loop rewrites the
+  /**
+   * Forward demodulation against a [[DiscriminationTree]] of demodulators, which is how the loop rewrites the
    *  given clause against the whole active rule set: each subterm's matching demodulators come from one tree
-   *  descent (with σ built on the trail) rather than a scan of every rule. */
+   *  descent (with σ built on the trail) rather than a scan of every rule.
+   */
   def normalFormIndexed(bank: TermBank, trail: Trail, clause: Clause, tree: DiscriminationTree[Rule]): Clause =
     if tree.isEmpty then clause
     else
@@ -82,10 +96,12 @@ object Demodulation:
 
   // --- one rewrite step -----------------------------------------------------------------------------------
 
-  /** Walk the subterm positions of every literal,  calling `attempt(iLit, u, path)` on the
+  /**
+   * Walk the subterm positions of every literal,  calling `attempt(iLit, u, path)` on the
    *  subterm `u` at `path` of literal `iLit` and stopping as soon as it returns `true`. Positions come from a
    *  reused stack ([[Superposition.foreachSubterm]]) and one is materialised only when a rewrite fires (in
-   *  [[applyRuleAt]]). */
+   *  [[applyRuleAt]]).
+   */
   private inline def firstRewrite(bank: TermBank, c: Clause)(inline attempt: (Int, Term, IntArrayList) => Boolean): Unit =
     var iLit = 0
     var stopped = false
@@ -94,7 +110,9 @@ object Demodulation:
       stopped = Superposition.foreachSubterm(bank, bank.atomOf(c.literals(li))) { (u, path) => attempt(li, u, path) }
       iLit += 1
 
-  /** The first applicable single rewrite of `c` by any rule of `rules`, which are scanned per subterm. */
+  /**
+   * The first applicable single rewrite of `c` by any rule of `rules`, which are scanned per subterm.
+   */
   private def rewriteOnce(bank: TermBank, trail: Trail, order: Order, c: Clause, rules: Array[Rule]): Option[Clause] =
     var found: Option[Clause] = None
     firstRewrite(bank, c) { (li, u, path) =>
@@ -106,9 +124,11 @@ object Demodulation:
     }
     found
 
-  /** The first applicable single rewrite of `c` via the discrimination-tree index: each subterm's matching rules
+  /**
+   * The first applicable single rewrite of `c` via the discrimination-tree index: each subterm's matching rules
    *  come from one tree descent (`retrieveGeneralizations`, which leaves σ on the trail) rather than a scan, so
-   *  [[applyRuleAt]] runs the gates and the build with σ already in place. */
+   *  [[applyRuleAt]] runs the gates and the build with σ already in place.
+   */
   private def rewriteOnceIndexed(bank: TermBank, trail: Trail, order: Order, c: Clause, tree: DiscriminationTree[Rule]): Option[Clause] =
     var found: Option[Clause] = None
     firstRewrite(bank, c) { (li, u, path) =>
@@ -120,8 +140,7 @@ object Demodulation:
     }
     found
 
-  private def tryRewrite(bank: TermBank, trail: Trail, order: Order,
-                         c: Clause, iLit: Int, path: IntArrayList, u: Term, rule: Rule): Option[Clause] =
+  private def tryRewrite(bank: TermBank, trail: Trail, order: Order, c: Clause, iLit: Int, path: IntArrayList, u: Term, rule: Rule): Option[Clause] =
     val saved = trail.save()
     val result: Option[Clause] =
       if !trail.matchTerm(rule.lhs, 0, u, 1) then None // match rule LHS (scope 0) onto the subterm (scope 1)
@@ -129,12 +148,13 @@ object Demodulation:
     trail.restore(saved)
     result
 
-  /** Post-match rewrite: with the matcher σ (`rule.lhs` onto the subterm at `path`) **already on the trail**,
+  /**
+   * Post-match rewrite: with the matcher σ (`rule.lhs` onto the subterm at `path`) **already on the trail**,
    *  apply the orientation and redundancy gates and build the rewritten clause, or `None` if a gate rejects.
    *  Shared by the scan ([[tryRewrite]]) and the indexed ([[rewriteOnceIndexed]]) paths, the latter getting σ from
-   *  the discrimination-tree descent instead of a separate `matchTerm`. Does not touch the trail. */
-  private def applyRuleAt(bank: TermBank, trail: Trail, order: Order,
-                          c: Clause, iLit: Int, path: IntArrayList, rule: Rule): Option[Clause] =
+   *  the discrimination-tree descent instead of a separate `matchTerm`. Does not touch the trail.
+   */
+  private def applyRuleAt(bank: TermBank, trail: Trail, order: Order, c: Clause, iLit: Int, path: IntArrayList, rule: Rule): Option[Clause] =
     val ap: trail.Applier = trail.applier()
     val lS: Term = ap.apply(rule.lhs, 0)
     val rS: Term = ap.apply(rule.rhs, 0)
@@ -143,8 +163,11 @@ object Demodulation:
     else
       val lit: Literal = c.literals(iLit) // the rewritten literal + its atom, read once for the gate and the build
       val atom: Term = bank.atomOf(lit)
-      /** Whether rewriting `lit` at `path` (yielding the instance `rS` on that side) keeps the premise
-        * redundant, i.e. whether the rewrite may simplify (delete/replace) `c`.*/
+
+      /**
+       * Whether rewriting `lit` at `path` (yielding the instance `rS` on that side) keeps the premise
+       * redundant, i.e. whether the rewrite may simplify (delete/replace) `c`.
+       */
       val premiseRedundant: Boolean =
         val wholeSide = bank.isEqualityAtom(atom) && path.size() == 1
         if !wholeSide then true // rewriting inside a subterm / a non-equality literal: always redundant
@@ -167,19 +190,22 @@ object Demodulation:
           k += 1
         Some(bank.mkClause(newLits, Justification.Demodulation(c, iLit, pos, rule.source, rule.side)))
 
-  /** Reproduces [[applyRuleAt]]'s `Applier` order (the rule's two sides, then the target's literals in index
-   *  order); see [[Superposition.replayApplier]]. Change one and change the other. */
-  private[superposition] def replayApplier(bank: TermBank, ap: Trail#Applier,
-                                           rule: Clause, ruleSide: Int, target: Clause): Unit =
+  /**
+   * Reproduces [[applyRuleAt]]'s `Applier` order (the rule's two sides, then the target's literals in index
+   *  order); see [[Superposition.replayApplier]]. Change one and change the other.
+   */
+  private[superposition] def replayApplier(bank: TermBank, ap: Trail#Applier, rule: Clause, ruleSide: Int, target: Clause): Unit =
     val ruleAtom: Term = bank.atomOf(rule.literals(0)) // the demodulator is a positive unit equality
     ap.apply(bank.arg(ruleAtom, ruleSide), 0) //     the rule's lhs
     ap.apply(bank.arg(ruleAtom, 1 - ruleSide), 0) // its rhs
     var k = 0
     while k < target.literals.length do { ap.apply(bank.atomOf(target.literals(k)), 1); k += 1 }
 
-  /** Whether the matcher σ, restricted to the rule's LHS variables (precomputed on the [[Rule]]), is a variable
+  /**
+   * Whether the matcher σ, restricted to the rule's LHS variables (precomputed on the [[Rule]]), is a variable
    *  renaming (injective onto variables). Explicit loops rather than `lhsVars.map(ap.apply(_, 0)).distinct`:
-   *  that would allocate a mapped array and a boxing `distinct`, and compute every image before testing any. */
+   *  that would allocate a mapped array and a boxing `distinct`, and compute every image before testing any.
+   */
   private def matcherIsRenaming(bank: TermBank, ap: Trail#Applier, lhsVars: Array[Term]): Boolean =
     val n = lhsVars.length
     if n == 0 then true

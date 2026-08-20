@@ -1,13 +1,15 @@
 package lisa.automation.clausification
+import lisa.automation.Problem
 import lisa.utils.K
 import lisa.utils.K.{_, given}
-import lisa.automation.Problem
 
-/** Certified clausification for Lisa, following the SC-TPTP pipeline structure.
-  *
-  * The reusable proof IR (`ClausificationProof`, `ClausificationSubproof`,
-  * conversion to `SCProof`, etc.) lives in [[ProofIR]] (same package). This module hosts the
-  * clausification-specific certification pipeline. */
+/**
+ * Certified clausification for Lisa, following the SC-TPTP pipeline structure.
+ *
+ * The reusable proof IR (`ClausificationProof`, `ClausificationSubproof`,
+ * conversion to `SCProof`, etc.) lives in [[ProofIR]] (same package). This module hosts the
+ * clausification-specific certification pipeline.
+ */
 object Clausification {
 
   /**
@@ -17,57 +19,69 @@ object Clausification {
    */
   private[automation] object GeneratedNames:
     // Certified clausification pipeline (kernel schema vars, naming atoms, substitution-context holes):
-    val skolemFun      = "esk"  // SkolemPhase:            Skolem ε-function schema var
-    val skolemBound    = "u"    // SkolemPhase:            fresh bound-var base (freshId) inside a Skolem-term
-    val namingAtom     = "nm"   // both clausifiers:       the definitional-naming atom (via NamingSupport.freshNamingAtom)
-    val clauseVar      = "w"    // both clausifiers:       the fresh variable each stripped ∀ is instantiated with
-    val epsAbs         = "epsi" // Clausal:                ε-abstraction function schema var lifting ε-terms
-    val etaVar         = "etaZ" // Clausification:         fresh var for η-expansion, avoiding capture when `∀ P` becomes `∀(λz. P(z))`
-    val uncertifiedSkolem = "sk"// UncertifiedClausifier:  Skolem function Constant (not the certified `esk`)
+    val skolemFun = "esk" // SkolemPhase:            Skolem ε-function schema var
+    val skolemBound = "u" // SkolemPhase:            fresh bound-var base (freshId) inside a Skolem-term
+    val namingAtom = "nm" // both clausifiers:       the definitional-naming atom (via NamingSupport.freshNamingAtom)
+    val clauseVar = "w" // both clausifiers:       the fresh variable each stripped ∀ is instantiated with
+    val epsAbs = "epsi" // Clausal:                ε-abstraction function schema var lifting ε-terms
+    val etaVar = "etaZ" // Clausification:         fresh var for η-expansion, avoiding capture when `∀ P` becomes `∀(λz. P(z))`
+    val uncertifiedSkolem = "sk" // UncertifiedClausifier:  Skolem function Constant (not the certified `esk`)
     // Input screening ([[ScreenPhase]]): the three namespaces every free input variable is renamed into,
     // by the sort a symbol ultimately returns. Screening counters start at 1.
-    val inputVar       = "v"    // Ind:                    the clause variables of the input
-    val inputPred      = "P"    // Ind → … → Ind → Prop:   the input's uninterpreted predicate symbols
-    val inputFun       = "F"    // Ind → … → Ind → Ind:    the input's uninterpreted function symbols
+    val inputVar = "v" // Ind:                    the clause variables of the input
+    val inputPred = "P" // Ind → … → Ind → Prop:   the input's uninterpreted predicate symbols
+    val inputFun = "F" // Ind → … → Ind → Ind:    the input's uninterpreted function symbols
     // Proof reconstruction (superposition DAG → kernel, [[lisa.automation.superposition.Reconstruction]]):
-    val reconClauseVar = "cv"   // per-clause canonical clause variable (reused across clauses; instantiated independently)
-    val hole           = "HOLE" // for specifying rewrite positions in proofs.
+    val reconClauseVar = "cv" // per-clause canonical clause variable (reused across clauses; instantiated independently)
+    val hole = "HOLE" // for specifying rewrite positions in proofs.
 
   // ── Clause-count estimation (shared by the uncertified [[UncertifiedClausifier]] and its certified twin
   //    [[CertifiedClausifier]], whose naming decisions must agree bit-for-bit) ──────────────────
   //
-  /** Positive/negative CNF clause-count estimate of a subformula, each saturated at [[clauseCountCap]]. We
-   *  only ever compare it against a naming `threshold`, so the exact count past the cap is irrelevant. */
+  /**
+   * Positive/negative CNF clause-count estimate of a subformula, each saturated at [[clauseCountCap]]. We
+   *  only ever compare it against a naming `threshold`, so the exact count past the cap is irrelevant.
+   */
   private[clausification] final case class Est(pos: Long, neg: Long)
   private[clausification] val atomEst: Est = Est(1, 1)
   private[clausification] val clauseCountCap: Long = 1L << 20
   private[clausification] inline def capMul(a: Long, b: Long): Long = math.min(clauseCountCap, a * b)
   private[clausification] inline def capAdd(a: Long, b: Long): Long = math.min(clauseCountCap, a + b)
 
-  /** How an estimate combines at each connective, in one place so the two paths cannot drift. `implies` is
-    * defined through `or`/`neg` because the uncertified path reaches it that way, rewriting `g ⇒ h` first. */
+  /**
+   * How an estimate combines at each connective, in one place so the two paths cannot drift. `implies` is
+   * defined through `or`/`neg` because the uncertified path reaches it that way, rewriting `g ⇒ h` first.
+   */
   private[clausification] object Est:
-    def and(a: Est, b: Est): Est     = Est(capAdd(a.pos, b.pos), capMul(a.neg, b.neg))
-    def or(a: Est, b: Est): Est      = Est(capMul(a.pos, b.pos), capAdd(a.neg, b.neg))
-    def neg(a: Est): Est             = Est(a.neg, a.pos)
+    def and(a: Est, b: Est): Est = Est(capAdd(a.pos, b.pos), capMul(a.neg, b.neg))
+    def or(a: Est, b: Est): Est = Est(capMul(a.pos, b.pos), capAdd(a.neg, b.neg))
+    def neg(a: Est): Est = Est(a.neg, a.pos)
     def implies(a: Est, b: Est): Est = or(neg(a), b)
-    def iff(a: Est, b: Est): Est     = Est(capAdd(capMul(a.pos, b.neg), capMul(a.neg, b.pos)),
-                                           capAdd(capMul(a.pos, b.pos), capMul(a.neg, b.neg)))
-    /** Total clause count, the size the `⇔` naming loop compares its two sides by. */
+    def iff(a: Est, b: Est): Est = Est(capAdd(capMul(a.pos, b.neg), capMul(a.neg, b.pos)), capAdd(capMul(a.pos, b.pos), capMul(a.neg, b.neg)))
+
+    /**
+     * Total clause count, the size the `⇔` naming loop compares its two sides by.
+     */
     def size(a: Est): Long = capAdd(a.pos, a.neg)
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Library theorem statements used by the certified bridges. They are imports in the resulting kernel proof.
   // ─────────────────────────────────────────────────────────────────────────────
 
-  /** The schema variable appearing in the library statement: predicate `P` (`Ind → Prop`). */
+  /**
+   * The schema variable appearing in the library statement: predicate `P` (`Ind → Prop`).
+   */
   private[clausification] val schemaP: Variable = Variable(Identifier("P", 0), Ind >>: Prop)
   private val vX: Variable = Variable(Identifier("x", 0), Ind)
 
-  /** Statement of `lisa.maths.Quantifiers.existsEpsilonIff`: `() ⊢ ∃(λx.P(x)) ⇔ P(ε(λx.P(x)))`. */
+  /**
+   * Statement of `lisa.maths.Quantifiers.existsEpsilonIff`: `() ⊢ ∃(λx.P(x)) ⇔ P(ε(λx.P(x)))`.
+   */
   val existsEpsilonIffStatement: Sequent = () |- (exists(vX, schemaP(vX)) <=> schemaP(epsilon(vX, schemaP(vX))))
 
-  /** Library imports threaded to every clausification proof, in fixed order. */
+  /**
+   * Library imports threaded to every clausification proof, in fixed order.
+   */
   val libImports: IndexedSeq[Sequent] = IndexedSeq(existsEpsilonIffStatement)
   private[clausification] val libExistsEpsilonIffIdx: Int = 0
 
@@ -77,9 +91,11 @@ object Clausification {
     sequent.right.head
   }
 
-  /** `base`, which must conclude `() ⊢ body`, wrapped in one `RightForall` per variable, innermost first, so the
-    * result concludes `() ⊢ ∀x̄. body`. The shared tail of the two closed proofs that discharge a definition,
-    * [[NamingSupport.proveQuantifiedReflIff]] and [[SkolemPhase.proveQuantifiedReflEq]]. */
+  /**
+   * `base`, which must conclude `() ⊢ body`, wrapped in one `RightForall` per variable, innermost first, so the
+   * result concludes `() ⊢ ∀x̄. body`. The shared tail of the two closed proofs that discharge a definition,
+   * [[NamingSupport.proveQuantifiedReflIff]] and [[SkolemPhase.proveQuantifiedReflEq]].
+   */
   private[clausification] def quantifyProof(base: IndexedSeq[SCProofStep], body: Expression, vars: Seq[Variable]): SCProof =
     val n = vars.size
     val steps = new Array[SCProofStep](base.size + n)
@@ -97,12 +113,16 @@ object Clausification {
   private[clausification] def sameImportList(left: Seq[Sequent], right: Seq[Sequent]): Boolean =
     left.size == right.size && left.zip(right).forall((l, r) => l == r || isSameSequent(l, r))
 
-  /** Negative kernel reference (`-(idx+1)` form) for a library import at `libIdx`
-    * within an outer imports list whose first `nonLibSize` entries are non-library
-    * imports and last [[libImports.size]] entries are the library imports. */
+  /**
+   * Negative kernel reference (`-(idx+1)` form) for a library import at `libIdx`
+   * within an outer imports list whose first `nonLibSize` entries are non-library
+   * imports and last [[libImports.size]] entries are the library imports.
+   */
   private[clausification] def libRef(nonLibSize: Int, libIdx: Int): Int = -(nonLibSize + libIdx + 1)
 
-  /** References into outer imports for the library imports, in their fixed order. */
+  /**
+   * References into outer imports for the library imports, in their fixed order.
+   */
   private[clausification] def libRefs(nonLibSize: Int): IndexedSeq[Int] = libImports.indices.map(libRef(nonLibSize, _)).toIndexedSeq
 
   private[clausification] type ClausificationProver = Problem => ClausificationProof
@@ -127,17 +147,19 @@ object Clausification {
       case Lambda(v, inner) => binder(Lambda(v, etaExpandQuantifiers(inner)))
       case f =>
         val ef = etaExpandQuantifiers(f)
-        val z  = freshEtaVar(ef.freeVariables)
+        val z = freshEtaVar(ef.freeVariables)
         binder(Lambda(z, ef(z)))
     e match
-      case Application(`forall`, body)  => wrapBinder(forall, body)
-      case Application(`exists`, body)  => wrapBinder(exists, body)
-      case Application(`epsilon`, _)    => e // leave Skolem ε-terms exactly as β-normalisation produced them
-      case Application(f, a)            => Application(etaExpandQuantifiers(f), etaExpandQuantifiers(a))
-      case Lambda(v, b)                 => Lambda(v, etaExpandQuantifiers(b))
-      case _                            => e
+      case Application(`forall`, body) => wrapBinder(forall, body)
+      case Application(`exists`, body) => wrapBinder(exists, body)
+      case Application(`epsilon`, _) => e // leave Skolem ε-terms exactly as β-normalisation produced them
+      case Application(f, a) => Application(etaExpandQuantifiers(f), etaExpandQuantifiers(a))
+      case Lambda(v, b) => Lambda(v, etaExpandQuantifiers(b))
+      case _ => e
 
-  /** Negative kernel references for `n` consecutive imports starting at zero-based `start`. */
+  /**
+   * Negative kernel references for `n` consecutive imports starting at zero-based `start`.
+   */
   private[clausification] def negRange(start: Int, n: Int): IndexedSeq[Int] =
     (start until start + n).map(i => -(i + 1)).toIndexedSeq
 
@@ -158,7 +180,8 @@ object Clausification {
       csub: ClausificationSubproof,
       count: Int,
       outerImports: IndexedSeq[Sequent],
-      perStep: Int => (Map[Variable, Expression], Expression, SCProof)): ClausificationProof =
+      perStep: Int => (Map[Variable, Expression], Expression, SCProof)
+  ): ClausificationProof =
     val outerSteps = scala.collection.mutable.ArrayBuffer.empty[ClausificationProofStep]
     outerSteps += csub
     val rhs = csub.bot.right
@@ -177,38 +200,46 @@ object Clausification {
       prevBotRef = outerSteps.size - 1
     ClausificationProof(outerSteps.toIndexedSeq, outerImports)
 
-  /** Heap ceiling for the safety valve below: 90% of max. `maxMemory` is fixed for the life of the JVM, so
-    * it is read once rather than on every poll. */
+  /**
+   * Heap ceiling for the safety valve below: 90% of max. `maxMemory` is fixed for the life of the JVM, so
+   * it is read once rather than on every poll.
+   */
   private val heapCeiling: Long = (Runtime.getRuntime.maxMemory / 10) * 9
 
-  /** Counts calls to [[checkInterrupted]] so the heap is polled only every [[heapPollInterval]]th one. Not
-    * synchronised: it is a heuristic trigger, and a lost increment under concurrent use only shifts *when*
-    * the poll happens, never whether the valve is correct. */
+  /**
+   * Counts calls to [[checkInterrupted]] so the heap is polled only every [[heapPollInterval]]th one. Not
+   * synchronised: it is a heuristic trigger, and a lost increment under concurrent use only shifts *when*
+   * the poll happens, never whether the valve is correct.
+   */
   private var interruptPolls: Int = 0
   private inline val heapPollInterval = 256
 
-  /** Cooperative cancellation hook: throw `InterruptedException` if the
-    * current thread has been interrupted, OR if the JVM is dangerously close
-    * to OOM (used heap > 90% of max).  The latter is a safety valve so a
-    * runaway problem (e.g. an exponential blow-up that allocates faster than
-    * `Thread.interrupted()` can be polled) cannot crash the whole bench.
-    *
-    * The interrupt flag is checked every call, being a plain field read. The heap is not: `totalMemory` and
-    * `freeMemory` are native calls, and this runs per axiom, per naming step and per distribute step, of
-    * which there are thousands. Polling every 256th call keeps the valve responsive (a step allocates a
-    * bounded amount, so the heap cannot run far between polls) at 1/256th of the cost. */
+  /**
+   * Cooperative cancellation hook: throw `InterruptedException` if the
+   * current thread has been interrupted, OR if the JVM is dangerously close
+   * to OOM (used heap > 90% of max).  The latter is a safety valve so a
+   * runaway problem (e.g. an exponential blow-up that allocates faster than
+   * `Thread.interrupted()` can be polled) cannot crash the whole bench.
+   *
+   * The interrupt flag is checked every call, being a plain field read. The heap is not: `totalMemory` and
+   * `freeMemory` are native calls, and this runs per axiom, per naming step and per distribute step, of
+   * which there are thousands. Polling every 256th call keeps the valve responsive (a step allocates a
+   * bounded amount, so the heap cannot run far between polls) at 1/256th of the cost.
+   */
   private[clausification] inline def checkInterrupted(): Unit = {
     if (Thread.interrupted()) throw new InterruptedException("Clausification cancelled")
     interruptPolls += 1
     if ((interruptPolls & (heapPollInterval - 1)) == 0) checkHeadroom()
   }
 
-  /** The out-of-line half of [[checkInterrupted]]: the part worth paying for only occasionally. */
+  /**
+   * The out-of-line half of [[checkInterrupted]]: the part worth paying for only occasionally.
+   */
   private def checkHeadroom(): Unit = {
     val rt = Runtime.getRuntime
     val used = rt.totalMemory() - rt.freeMemory()
     if (used > heapCeiling)
-      throw new InterruptedException(s"Memory pressure: heap ${used / (1024*1024)}MB / max ${rt.maxMemory() / (1024*1024)}MB")
+      throw new InterruptedException(s"Memory pressure: heap ${used / (1024 * 1024)}MB / max ${rt.maxMemory() / (1024 * 1024)}MB")
   }
 
   // The top-level certified clausification pipeline lives in [[CertifiedClausifier.certifyClausal]] (it adds a
@@ -219,17 +250,18 @@ object Clausification {
   // Pure (uncertified) formula transformations  (helpers for the pipeline)
   // ─────────────────────────────────────────────────────────────────────────────
 
-  /** Like [[lisa.kernel.fol.Syntax.substituteVariables]] but avoids redundant work and
-    * heap allocation when parts of the expression tree are unaffected by the substitution:
-    *  - `m.isEmpty` guard: if the substitution is empty, returns `e` unchanged (same reference).
-    *  - Lambda stripping: when a Lambda binder removes the last key from `m`, the body subtree
-    *    is returned as-is without recursion.
-    *  - Smart constructors: the result of an Application or Lambda is the original expression `e`
-    *    (same reference) when both sub-results are reference-equal to the originals. This avoids
-    *    allocating new nodes for unchanged subtrees and lets parent calls short-circuit too.
-    *
-    * The function is observationally identical to the kernel version on well-sorted inputs.
-    */
+  /**
+   * Like [[lisa.kernel.fol.Syntax.substituteVariables]] but avoids redundant work and
+   * heap allocation when parts of the expression tree are unaffected by the substitution:
+   *  - `m.isEmpty` guard: if the substitution is empty, returns `e` unchanged (same reference).
+   *  - Lambda stripping: when a Lambda binder removes the last key from `m`, the body subtree
+   *    is returned as-is without recursion.
+   *  - Smart constructors: the result of an Application or Lambda is the original expression `e`
+   *    (same reference) when both sub-results are reference-equal to the originals. This avoids
+   *    allocating new nodes for unchanged subtrees and lets parent calls short-circuit too.
+   *
+   * The function is observationally identical to the kernel version on well-sorted inputs.
+   */
   private[clausification] def substituteVariablesOpti(e: Expression, m: Map[Variable, Expression]): Expression =
     if (m.isEmpty) e
     else
@@ -244,7 +276,7 @@ object Clausification {
       case v: Variable => m.getOrElse(v, v)
       case _: Constant => e
       case Application(f, arg) =>
-        val newF   = substituteVariablesOptiRec(f, m, fvOfValues)
+        val newF = substituteVariablesOptiRec(f, m, fvOfValues)
         val newArg = substituteVariablesOptiRec(arg, m, fvOfValues)
         if (newF eq f) && (newArg eq arg) then e else Application(newF, newArg)
       case Lambda(v, t) =>

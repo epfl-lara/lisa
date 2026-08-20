@@ -1,9 +1,8 @@
 package lisa.automation.clausification
 
-import org.scalatest.funsuite.AnyFunSuite
-
 import lisa.utils.K
 import lisa.utils.K.{_, given}
+import org.scalatest.funsuite.AnyFunSuite
 
 /**
  * Tests for [[DistributePhase]]'s leaf discipline: its per-clause derivations only ever bottom out on real
@@ -26,8 +25,10 @@ class DistributePhaseTest extends AnyFunSuite:
   private val a = Variable(Identifier("a"), Prop)
   private val b = Variable(Identifier("b"), Prop)
 
-  /** The clauses of `phi` in the shape the phase emits them: negative literals as their atoms on the left,
-    * positive literals on the right. */
+  /**
+   * The clauses of `phi` in the shape the phase emits them: negative literals as their atoms on the left,
+   * positive literals on the right.
+   */
   private def clausesOf(phi: Expression): Seq[Sequent] = DistributePhase.clausesOf(phi)
 
   test("an ordinary NNF matrix distributes to its CNF clauses, negative literals on the left") {
@@ -41,7 +42,7 @@ class DistributePhaseTest extends AnyFunSuite:
     assert(!etaReduced.isInstanceOf[Lambda], "guard: `forall(p)` must not have been normalised into an explicit Lambda")
     etaReduced match
       case Forall(_, _) => fail("`forall(p)` matched the Forall extractor, so this test no longer covers the η-reduced form")
-      case _            => ()
+      case _ => ()
 
     val thrown = intercept[IllegalArgumentException](clausesOf(or(a)(etaReduced)))
     assert(thrown.getMessage.contains("η-reduced"), s"the failure should name the cause, got: ${thrown.getMessage}")

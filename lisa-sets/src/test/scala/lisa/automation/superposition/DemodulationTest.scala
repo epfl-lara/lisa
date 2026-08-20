@@ -1,19 +1,23 @@
 package lisa.automation.superposition
 
+import lisa.automation.superposition.ordering._
 import org.scalatest.funsuite.AnyFunSuite
 
-import Core.*
-import lisa.automation.superposition.ordering.*
+import Core._
 
-/** Tests for demodulation ([[Demodulation]]): simplification by rewriting with positive unit equalities. */
+/**
+ * Tests for demodulation ([[Demodulation]]): simplification by rewriting with positive unit equalities.
+ */
 class DemodulationTest extends AnyFunSuite:
 
   class Fix extends TermFixture
 
-  /** Test convenience: forward-demodulate `clause` by the rules of the unit equalities `eqs`. Production
+  /**
+   * Test convenience: forward-demodulate `clause` by the rules of the unit equalities `eqs`. Production
    *  keeps only the pre-extracted / indexed entry points ([[Demodulation.normalForm]] /
    *  [[Demodulation.normalFormIndexed]], which the loop caches); this scan-from-clauses wrapper lived there
-   *  solely for these tests. */
+   *  solely for these tests.
+   */
   private def forwardDemodulate(bank: TermBank, trail: Trail, clause: Clause, eqs: Iterable[Clause]): Clause =
     Demodulation.normalForm(bank, trail, clause, eqs.iterator.flatMap(Demodulation.rules(bank, _)).toArray)
 

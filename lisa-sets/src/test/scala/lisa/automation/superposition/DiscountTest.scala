@@ -1,23 +1,29 @@
 package lisa.automation.superposition
 
+import lisa.automation.superposition.ordering._
 import org.scalatest.funsuite.AnyFunSuite
 
-import Core.*
-import lisa.automation.superposition.ordering.*
+import Core._
 
-/** Tests for the DISCOUNT saturation loop ([[Discount]]). */
+/**
+ * Tests for the DISCOUNT saturation loop ([[Discount]]).
+ */
 class DiscountTest extends AnyFunSuite:
 
   class Fix extends TermFixture:
 
-    /** A loop over `cs`. One `Discount` saturates one clause set, so this takes it: there is no reset. */
+    /**
+     * A loop over `cs`. One `Discount` saturates one clause set, so this takes it: there is no reset.
+     */
     def discount(cs: Seq[Clause], opts: SearchOptions = SearchOptions()): Discount = new Discount(bank, trail, cs, opts)
 
-  /** The saturation verdict as a string, so the tables of expected outcomes below read directly. */
+  /**
+   * The saturation verdict as a string, so the tables of expected outcomes below read directly.
+   */
   private def cat(r: Discount.Result): String = r match
     case _: Discount.Result.Refutation => "refuted"
-    case Discount.Result.Saturated     => "saturated"
-    case Discount.Result.Unknown       => "unknown"
+    case Discount.Result.Saturated => "saturated"
+    case Discount.Result.Unknown => "unknown"
 
   test("propositional P and ¬P refute") {
     val fx = new Fix; import fx.*
@@ -314,32 +320,72 @@ class DiscountTest extends AnyFunSuite:
       cat(new Discount(fx.bank, fx.trail, cs, SearchOptions(equality = false, maxGiven = 5000)).saturate())
 
     val cases: Seq[(String, String, Fix => Seq[Clause])] = Seq(
-      ("propositional P, ¬P", "refuted", { fx => import fx.*; val p = prop("P"); Seq(clause(pos(p)), clause(neg(p))) }),
-      ("propositional chain ¬P∨Q, ¬Q∨R, P, ¬R", "refuted", { fx => import fx.*
-        val p = prop("P"); val q = prop("Q"); val r = prop("R")
-        Seq(clause(neg(p), pos(q)), clause(neg(q), pos(r)), clause(pos(p)), clause(neg(r))) }),
-      ("first-order ¬P(x)∨Q(x), P(a), ¬Q(a)", "refuted", { fx => import fx.*
-        val p = pred("P", 1); val q = pred("Q", 1); val a = const("a"); val x = v(0)
-        Seq(clause(neg(app(p, x)), pos(app(q, x))), clause(pos(app(p, a))), clause(neg(app(q, a)))) }),
-      ("multi-predicate mix ¬P(x)∨¬Q(x)∨R(x), P(a), Q(a), ¬R(a)", "refuted", { fx => import fx.*
-        val p = pred("P", 1); val q = pred("Q", 1); val r = pred("R", 1); val a = const("a"); val x = v(0)
-        Seq(clause(neg(app(p, x)), neg(app(q, x)), pos(app(r, x))),
-            clause(pos(app(p, a))), clause(pos(app(q, a))), clause(neg(app(r, a)))) }),
+      (
+        "propositional P, ¬P",
+        "refuted",
+        { fx =>
+          import fx.*; val p = prop("P"); Seq(clause(pos(p)), clause(neg(p)))
+        }
+      ),
+      (
+        "propositional chain ¬P∨Q, ¬Q∨R, P, ¬R",
+        "refuted",
+        { fx =>
+          import fx.*
+          val p = prop("P"); val q = prop("Q"); val r = prop("R")
+          Seq(clause(neg(p), pos(q)), clause(neg(q), pos(r)), clause(pos(p)), clause(neg(r)))
+        }
+      ),
+      (
+        "first-order ¬P(x)∨Q(x), P(a), ¬Q(a)",
+        "refuted",
+        { fx =>
+          import fx.*
+          val p = pred("P", 1); val q = pred("Q", 1); val a = const("a"); val x = v(0)
+          Seq(clause(neg(app(p, x)), pos(app(q, x))), clause(pos(app(p, a))), clause(neg(app(q, a))))
+        }
+      ),
+      (
+        "multi-predicate mix ¬P(x)∨¬Q(x)∨R(x), P(a), Q(a), ¬R(a)",
+        "refuted",
+        { fx =>
+          import fx.*
+          val p = pred("P", 1); val q = pred("Q", 1); val r = pred("R", 1); val a = const("a"); val x = v(0)
+          Seq(clause(neg(app(p, x)), neg(app(q, x)), pos(app(r, x))), clause(pos(app(p, a))), clause(pos(app(q, a))), clause(neg(app(r, a))))
+        }
+      ),
       // Needs the factor `{P(y)}`, so it needs *both* positives selected. That is what the complete selection
       // does on an all-positive clause, and it is the bank's default; under a one-literal selection such as
       // `BestLiteralSelector` the factoring step pairs nothing and this set saturates instead.
-      ("needs factoring P(x)∨P(y), ¬P(a)∨¬P(b)", "refuted", { fx => import fx.*
-        val p = pred("P", 1); val a = const("a"); val b = const("b"); val x = v(0); val y = v(1)
-        Seq(clause(pos(app(p, x)), pos(app(p, y))), clause(neg(app(p, a)), neg(app(p, b)))) }),
-      ("self-resolvable ¬P(x)∨P(f(x)), P(a), ¬P(f(f(a)))", "refuted", { fx => import fx.*
-        val p = pred("P", 1); val f = fn("f", 1); val a = const("a"); val x = v(0)
-        Seq(clause(neg(app(p, x)), pos(app(p, app(f, x)))), clause(pos(app(p, a))), clause(neg(app(p, app(f, app(f, a)))))) }),
-      ("satisfiable P(a), Q(b)", "saturated", { fx => import fx.*
-        val p = pred("P", 1); val q = pred("Q", 1); val a = const("a"); val b = const("b")
-        Seq(clause(pos(app(p, a))), clause(pos(app(q, b)))) })
+      (
+        "needs factoring P(x)∨P(y), ¬P(a)∨¬P(b)",
+        "refuted",
+        { fx =>
+          import fx.*
+          val p = pred("P", 1); val a = const("a"); val b = const("b"); val x = v(0); val y = v(1)
+          Seq(clause(pos(app(p, x)), pos(app(p, y))), clause(neg(app(p, a)), neg(app(p, b))))
+        }
+      ),
+      (
+        "self-resolvable ¬P(x)∨P(f(x)), P(a), ¬P(f(f(a)))",
+        "refuted",
+        { fx =>
+          import fx.*
+          val p = pred("P", 1); val f = fn("f", 1); val a = const("a"); val x = v(0)
+          Seq(clause(neg(app(p, x)), pos(app(p, app(f, x)))), clause(pos(app(p, a))), clause(neg(app(p, app(f, app(f, a))))))
+        }
+      ),
+      (
+        "satisfiable P(a), Q(b)",
+        "saturated",
+        { fx =>
+          import fx.*
+          val p = pred("P", 1); val q = pred("Q", 1); val a = const("a"); val b = const("b")
+          Seq(clause(pos(app(p, a))), clause(pos(app(q, b))))
+        }
+      )
     )
-    for (name, expected, b) <- cases do
-      assert(verdict(b) == expected, s"expected $expected on: $name")
+    for (name, expected, b) <- cases do assert(verdict(b) == expected, s"expected $expected on: $name")
   }
 
   // --- simplification over the feature-vector index ---------------------------------------------
@@ -354,27 +400,62 @@ class DiscountTest extends AnyFunSuite:
       cat(new Discount(fx.bank, fx.trail, cs, SearchOptions(equality = false, maxGiven = 5000)).saturate())
 
     val cases: Seq[(String, String, Fix => Seq[Clause])] = Seq(
-      ("unit subsumes a longer clause, then refute", "refuted", { fx => import fx.*
-        val P = pred("P", 1); val Q = pred("Q", 1); val a = const("a"); val b = const("b"); val c = const("c"); val x = v(0)
-        Seq(clause(pos(app(P, x))), clause(pos(app(P, a)), pos(app(Q, b))), clause(neg(app(P, c)))) }),
-      ("satisfiable with redundant instances (forward subsumption)", "saturated", { fx => import fx.*
-        val P = pred("P", 1); val Q = pred("Q", 1); val a = const("a"); val b = const("b"); val x = v(0)
-        Seq(clause(pos(app(P, x))), clause(pos(app(P, a))), clause(pos(app(Q, b)))) }),
-      ("first-order resolution refutation", "refuted", { fx => import fx.*
-        val P = pred("P", 1); val Q = pred("Q", 1); val a = const("a"); val x = v(0)
-        Seq(clause(neg(app(P, x)), pos(app(Q, x))), clause(pos(app(P, a))), clause(neg(app(Q, a)))) }),
-      ("propositional chain", "refuted", { fx => import fx.*
-        val p = prop("P"); val q = prop("Q"); val r = prop("R")
-        Seq(clause(neg(p), pos(q)), clause(neg(q), pos(r)), clause(pos(p)), clause(neg(r))) }),
-      ("backward subsumption (general activates after instance), then refute", "refuted", { fx => import fx.*
-        val P = pred("P", 1); val Q = pred("Q", 1); val a = const("a"); val d = const("d"); val x = v(0)
-        Seq(clause(pos(app(P, a)), pos(app(Q, a))), clause(pos(app(P, x))), clause(neg(app(P, d)))) }),
-      ("unit deletion shrinks then closes", "refuted", { fx => import fx.*
-        val P = pred("P", 1); val Q = pred("Q", 1); val a = const("a")
-        Seq(clause(pos(app(P, a))), clause(neg(app(P, a)), pos(app(Q, a))), clause(neg(app(Q, a)))) })
+      (
+        "unit subsumes a longer clause, then refute",
+        "refuted",
+        { fx =>
+          import fx.*
+          val P = pred("P", 1); val Q = pred("Q", 1); val a = const("a"); val b = const("b"); val c = const("c"); val x = v(0)
+          Seq(clause(pos(app(P, x))), clause(pos(app(P, a)), pos(app(Q, b))), clause(neg(app(P, c))))
+        }
+      ),
+      (
+        "satisfiable with redundant instances (forward subsumption)",
+        "saturated",
+        { fx =>
+          import fx.*
+          val P = pred("P", 1); val Q = pred("Q", 1); val a = const("a"); val b = const("b"); val x = v(0)
+          Seq(clause(pos(app(P, x))), clause(pos(app(P, a))), clause(pos(app(Q, b))))
+        }
+      ),
+      (
+        "first-order resolution refutation",
+        "refuted",
+        { fx =>
+          import fx.*
+          val P = pred("P", 1); val Q = pred("Q", 1); val a = const("a"); val x = v(0)
+          Seq(clause(neg(app(P, x)), pos(app(Q, x))), clause(pos(app(P, a))), clause(neg(app(Q, a))))
+        }
+      ),
+      (
+        "propositional chain",
+        "refuted",
+        { fx =>
+          import fx.*
+          val p = prop("P"); val q = prop("Q"); val r = prop("R")
+          Seq(clause(neg(p), pos(q)), clause(neg(q), pos(r)), clause(pos(p)), clause(neg(r)))
+        }
+      ),
+      (
+        "backward subsumption (general activates after instance), then refute",
+        "refuted",
+        { fx =>
+          import fx.*
+          val P = pred("P", 1); val Q = pred("Q", 1); val a = const("a"); val d = const("d"); val x = v(0)
+          Seq(clause(pos(app(P, a)), pos(app(Q, a))), clause(pos(app(P, x))), clause(neg(app(P, d))))
+        }
+      ),
+      (
+        "unit deletion shrinks then closes",
+        "refuted",
+        { fx =>
+          import fx.*
+          val P = pred("P", 1); val Q = pred("Q", 1); val a = const("a")
+          Seq(clause(pos(app(P, a))), clause(neg(app(P, a)), pos(app(Q, a))), clause(neg(app(Q, a))))
+        }
+      )
     )
-    for (name, expected, b) <- cases do
-      assert(verdict(b) == expected, s"expected $expected on: $name")
+    for (name, expected, b) <- cases do assert(verdict(b) == expected, s"expected $expected on: $name")
   }
 
   // --- forward unit deletion: {¬K} index dispatch vs the activeUnits scan, A/B -------------------
@@ -387,22 +468,26 @@ class DiscountTest extends AnyFunSuite:
     def verdict(threshold: Int, build: Fix => Seq[Clause]): String =
       val fx = new Fix
       val cs = build(fx)
-      cat(new Discount(fx.bank, fx.trail, cs, SearchOptions(equality = false,
-        forwardUnitDeletionIndexThreshold = threshold, maxGiven = 5000)).saturate())
+      cat(new Discount(fx.bank, fx.trail, cs, SearchOptions(equality = false, forwardUnitDeletionIndexThreshold = threshold, maxGiven = 5000)).saturate())
 
     val builders: Seq[(String, Fix => Seq[Clause])] = Seq(
-      "unit deletion shrinks then closes" -> { fx => import fx.*
+      "unit deletion shrinks then closes" -> { fx =>
+        import fx.*
         val P = pred("P", 1); val Q = pred("Q", 1); val a = const("a")
-        Seq(clause(pos(app(P, a))), clause(neg(app(P, a)), pos(app(Q, a))), clause(neg(app(Q, a)))) },
-      "general unit deletes an instance literal, then closes" -> { fx => import fx.*
+        Seq(clause(pos(app(P, a))), clause(neg(app(P, a)), pos(app(Q, a))), clause(neg(app(Q, a))))
+      },
+      "general unit deletes an instance literal, then closes" -> { fx =>
+        import fx.*
         val P = pred("P", 1); val Q = pred("Q", 1); val a = const("a"); val x = v(0)
-        Seq(clause(pos(app(P, x))), clause(neg(app(P, a)), pos(app(Q, a))), clause(neg(app(Q, a)))) },
-      "no unit deletes anything (index branch is a no-op)" -> { fx => import fx.*
+        Seq(clause(pos(app(P, x))), clause(neg(app(P, a)), pos(app(Q, a))), clause(neg(app(Q, a))))
+      },
+      "no unit deletes anything (index branch is a no-op)" -> { fx =>
+        import fx.*
         val P = pred("P", 1); val Q = pred("Q", 1); val a = const("a"); val x = v(0)
-        Seq(clause(neg(app(P, x)), pos(app(Q, x))), clause(pos(app(P, a))), clause(neg(app(Q, a)))) }
+        Seq(clause(neg(app(P, x)), pos(app(Q, x))), clause(pos(app(P, a))), clause(neg(app(Q, a))))
+      }
     )
-    for (name, b) <- builders do
-      assert(verdict(threshold = 0, b) == verdict(threshold = Int.MaxValue, b), s"index dispatch vs scan verdict differ on: $name")
+    for (name, b) <- builders do assert(verdict(threshold = 0, b) == verdict(threshold = Int.MaxValue, b), s"index dispatch vs scan verdict differ on: $name")
   }
 
   // --- general subsumption resolution, both directions, over the sign-flip index -----------------
@@ -416,33 +501,57 @@ class DiscountTest extends AnyFunSuite:
     def verdict(build: Fix => Seq[Clause]): String =
       val fx = new Fix
       val cs = build(fx)
-      cat(new Discount(fx.bank, fx.trail, cs, SearchOptions(equality = false,
-        backwardSubsumptionResolution = true, forwardSubsumptionResolution = true, maxGiven = 5000)).saturate())
+      cat(new Discount(fx.bank, fx.trail, cs, SearchOptions(equality = false, backwardSubsumptionResolution = true, forwardSubsumptionResolution = true, maxGiven = 5000)).saturate())
 
     val cases: Seq[(String, String, Fix => Seq[Clause])] = Seq(
       // backward: the simplifier arrives after its victim, so `gc` resolves an already-active clause
-      ("backward: 2-literal clause SR-resolves a literal of an active clause, then refute", "refuted", { fx => import fx.*
-        val P = pred("P", 1); val Q = pred("Q", 1); val R = pred("R", 1); val a = const("a"); val b = const("b"); val x = v(0)
-        // {¬P(x), Q(x)} SR-resolves {P(a), Q(a), R(b)} on P(a) (rest {Q(x)}→{Q(a)} ⊆ target), deleting P(a).
-        Seq(clause(pos(app(P, a)), pos(app(Q, a)), pos(app(R, b))),
-            clause(neg(app(P, x)), pos(app(Q, x))),
-            clause(neg(app(Q, a))), clause(neg(app(R, b)))) }),
-      ("backward: propositional 2-literal SR chain", "refuted", { fx => import fx.*
-        val p = prop("P"); val q = prop("Q"); val r = prop("R")
-        Seq(clause(pos(p), pos(q)), clause(neg(p), pos(r)), clause(neg(q)), clause(neg(r))) }),
+      (
+        "backward: 2-literal clause SR-resolves a literal of an active clause, then refute",
+        "refuted",
+        { fx =>
+          import fx.*
+          val P = pred("P", 1); val Q = pred("Q", 1); val R = pred("R", 1); val a = const("a"); val b = const("b"); val x = v(0)
+          // {¬P(x), Q(x)} SR-resolves {P(a), Q(a), R(b)} on P(a) (rest {Q(x)}→{Q(a)} ⊆ target), deleting P(a).
+          Seq(clause(pos(app(P, a)), pos(app(Q, a)), pos(app(R, b))), clause(neg(app(P, x)), pos(app(Q, x))), clause(neg(app(Q, a))), clause(neg(app(R, b))))
+        }
+      ),
+      (
+        "backward: propositional 2-literal SR chain",
+        "refuted",
+        { fx =>
+          import fx.*
+          val p = prop("P"); val q = prop("Q"); val r = prop("R")
+          Seq(clause(pos(p), pos(q)), clause(neg(p), pos(r)), clause(neg(q)), clause(neg(r)))
+        }
+      ),
       // forward: the simplifier is already active when its victim is selected
-      ("forward: 2-literal simplifier resolves the new clause, then refute", "refuted", { fx => import fx.*
-        val P = pred("P", 1); val Q = pred("Q", 1); val R = pred("R", 1); val a = const("a"); val b = const("b"); val x = v(0)
-        Seq(clause(neg(app(P, x)), pos(app(Q, x))),
-            clause(pos(app(P, a)), pos(app(Q, a)), pos(app(R, b))),
-            clause(neg(app(Q, a))), clause(neg(app(R, b)))) }),
-      ("forward: propositional 2-literal SR chain", "refuted", { fx => import fx.*
-        val p = prop("P"); val q = prop("Q"); val r = prop("R")
-        Seq(clause(neg(p), pos(r)), clause(pos(p), pos(q)), clause(neg(q)), clause(neg(r))) }),
-      ("no SR applies at all (both directions are no-ops)", "refuted", { fx => import fx.*
-        val P = pred("P", 1); val Q = pred("Q", 1); val a = const("a"); val x = v(0)
-        Seq(clause(neg(app(P, x)), pos(app(Q, x))), clause(pos(app(P, a))), clause(neg(app(Q, a)))) })
+      (
+        "forward: 2-literal simplifier resolves the new clause, then refute",
+        "refuted",
+        { fx =>
+          import fx.*
+          val P = pred("P", 1); val Q = pred("Q", 1); val R = pred("R", 1); val a = const("a"); val b = const("b"); val x = v(0)
+          Seq(clause(neg(app(P, x)), pos(app(Q, x))), clause(pos(app(P, a)), pos(app(Q, a)), pos(app(R, b))), clause(neg(app(Q, a))), clause(neg(app(R, b))))
+        }
+      ),
+      (
+        "forward: propositional 2-literal SR chain",
+        "refuted",
+        { fx =>
+          import fx.*
+          val p = prop("P"); val q = prop("Q"); val r = prop("R")
+          Seq(clause(neg(p), pos(r)), clause(pos(p), pos(q)), clause(neg(q)), clause(neg(r)))
+        }
+      ),
+      (
+        "no SR applies at all (both directions are no-ops)",
+        "refuted",
+        { fx =>
+          import fx.*
+          val P = pred("P", 1); val Q = pred("Q", 1); val a = const("a"); val x = v(0)
+          Seq(clause(neg(app(P, x)), pos(app(Q, x))), clause(pos(app(P, a))), clause(neg(app(Q, a))))
+        }
+      )
     )
-    for (name, expected, b) <- cases do
-      assert(verdict(b) == expected, s"expected $expected on: $name")
+    for (name, expected, b) <- cases do assert(verdict(b) == expected, s"expected $expected on: $name")
   }

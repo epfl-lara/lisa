@@ -1,7 +1,8 @@
 package lisa.automation.superposition
 
+import lisa.automation.superposition.ordering._
+
 import Core.WeightScheme
-import lisa.automation.superposition.ordering.*
 
 /**
  * Every parameter of the search, in one value that each layer forwards whole rather than re-declaring a subset
@@ -91,7 +92,8 @@ final case class SearchOptions(
     // ── budgets and instrumentation ──
     maxGiven: Int = Int.MaxValue,
     maxMillis: Long = Long.MaxValue,
-    onStats: Discount.LoopStats => Unit = _ => ()):
+    onStats: Discount.LoopStats => Unit = _ => ()
+):
 
   // ── derived switches ──────────────────────────────────────────────────────────────────────────────
   //
@@ -99,18 +101,26 @@ final case class SearchOptions(
   // `ActiveSet` and `Simplifier` cannot derive them differently. Every consumer does `import opts.*`, so they
   // read unqualified. `val`, not `def`: some are read inside the generating loops.
 
-  /** Superposition runs at all: the rule is on *and* equality is not switched off wholesale. */
+  /**
+   * Superposition runs at all: the rule is on *and* equality is not switched off wholesale.
+   */
   val superpositionOn: Boolean = equality && superposition
 
-  /** Forward demodulation runs at all, which also decides whether the demodulator set is maintained. */
+  /**
+   * Forward demodulation runs at all, which also decides whether the demodulator set is maintained.
+   */
   val forwardDemodulationOn: Boolean = equality && forwardDemodulation
 
-  /** Backward demodulation runs at all. */
+  /**
+   * Backward demodulation runs at all.
+   */
   val backwardDemodulationOn: Boolean = equality && backwardDemodulation
 
-  /** Whether any subsumption-based simplification runs, and so whether [[ActiveSet]] maintains the
-    * feature-vector index and unit sublist. All six flags, not just the two subsumption ones: unit deletion and
-    * subsumption resolution query the same index, so `forwardUnitDeletion` alone still needs it built. */
+  /**
+   * Whether any subsumption-based simplification runs, and so whether [[ActiveSet]] maintains the
+   * feature-vector index and unit sublist. All six flags, not just the two subsumption ones: unit deletion and
+   * subsumption resolution query the same index, so `forwardUnitDeletion` alone still needs it built.
+   */
   val subsumptionEnabled: Boolean =
     forwardSubsumption || backwardSubsumption || forwardUnitDeletion || backwardUnitDeletion ||
       forwardSubsumptionResolution || backwardSubsumptionResolution

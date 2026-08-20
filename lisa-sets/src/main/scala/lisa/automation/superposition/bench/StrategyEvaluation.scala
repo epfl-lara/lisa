@@ -1,10 +1,15 @@
 package lisa.automation.superposition
 package bench
 
-import java.io.File
-import scala.util.{Success, Failure}
+import lisa.tptp.KernelParser.problemToKernel
+import lisa.tptp.KernelParser.strictMapAtom
+import lisa.tptp.KernelParser.strictMapTerm
+import lisa.tptp.KernelParser.strictMapVariable
 
-import lisa.tptp.KernelParser.{problemToKernel, strictMapAtom, strictMapTerm, strictMapVariable}
+import java.io.File
+import scala.util.Failure
+import scala.util.Success
+
 import BenchUtil.withTimeout
 
 /**
@@ -21,11 +26,11 @@ import BenchUtil.withTimeout
 object StrategyEvaluation:
 
   def main(args: Array[String]): Unit =
-    val seed      = args.lift(0).map(_.toLong).getOrElse(42L)
-    val n         = args.lift(1).map(_.toInt).getOrElse(100)
+    val seed = args.lift(0).map(_.toLong).getOrElse(42L)
+    val n = args.lift(1).map(_.toInt).getOrElse(100)
     val timeoutMs = args.lift(2).map(_.toLong).getOrElse(10000L)
-    val names     = args.lift(3).map(_.split(",").toList.map(_.trim)).getOrElse(List("balanced", "weight-greedy", "age-fair", "unary-redundancy"))
-    val tptpRoot  = BenchUtil.tptpRootOrExplain()
+    val names = args.lift(3).map(_.split(",").toList.map(_.trim)).getOrElse(List("balanced", "weight-greedy", "age-fair", "unary-redundancy"))
+    val tptpRoot = BenchUtil.tptpRootOrExplain()
     if tptpRoot.isEmpty then return
     val strategies = names.flatMap(Strategy.byName)
     if strategies.size != names.size then
@@ -55,17 +60,17 @@ object StrategyEvaluation:
     val t0 = System.nanoTime()
     val cat = withTimeout(timeoutMs + 10000L) {
       (try Success(problemToKernel(f)(using (strictMapAtom, strictMapTerm, strictMapVariable)))
-       catch { case e: Throwable => Failure(e) }) match
+      catch { case e: Throwable => Failure(e) }) match
         case Failure(_) => "PARSE_ERR"
         case Success(parsed) =>
           Prover.solve(Prover.fromTptp(parsed), strat.opts.copy(maxMillis = timeoutMs)) match
             case _: Clausal.Outcome.Success => "REFUTED"
-            case Clausal.Outcome.Saturated  => "SATURATED"
-            case Clausal.Outcome.Timeout    => "TIMEOUT"
+            case Clausal.Outcome.Saturated => "SATURATED"
+            case Clausal.Outcome.Timeout => "TIMEOUT"
     } match
       case Some(Success(c)) => c
       case Some(Failure(e)) => s"ERROR(${e.getClass.getSimpleName})"
-      case None             => "HARD_TIMEOUT" // hard wall-clock cap hit, or a fatal error (OOM) killed the worker
+      case None => "HARD_TIMEOUT" // hard wall-clock cap hit, or a fatal error (OOM) killed the worker
     println(f"$name%-22s $cat%-18s ${(System.nanoTime() - t0) / 1e6}%8.0f")
     cat
 
@@ -74,4 +79,3 @@ object StrategyEvaluation:
     val s = f"[$name] refuted=${c(_ == "REFUTED")}%3d  saturated=${c(_ == "SATURATED")}%3d  timeout=${c(_ == "TIMEOUT")}%3d  " +
       f"hard_timeout=${c(_ == "HARD_TIMEOUT")}%2d  error=${c(_.startsWith("ERROR"))}%2d  parse_err=${c(_ == "PARSE_ERR")}%3d  missing=${c(_ == "MISSING")}%2d  of $total"
     println(s); s
-

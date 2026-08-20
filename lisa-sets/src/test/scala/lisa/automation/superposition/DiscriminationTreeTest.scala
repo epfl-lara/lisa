@@ -1,23 +1,29 @@
 package lisa.automation.superposition
 
+import lisa.automation.superposition.index._
 import org.scalatest.funsuite.AnyFunSuite
 
-import Core.*
-import lisa.automation.superposition.index.*
+import Core._
 import Demodulation.Rule
 
-/** Standalone tests for the **perfect** [[DiscriminationTree]], the forward-demodulation generalization
- *  index, exercised directly rather than through the saturation loop that uses it. */
+/**
+ * Standalone tests for the **perfect** [[DiscriminationTree]], the forward-demodulation generalization
+ *  index, exercised directly rather than through the saturation loop that uses it.
+ */
 class DiscriminationTreeTest extends AnyFunSuite:
 
   class Fix extends TermFixture:
 
-    /** A demodulator `lhs → rhs`; a fresh source clause gives it a distinct id (for removal by (source.id, side)). */
+    /**
+     * A demodulator `lhs → rhs`; a fresh source clause gives it a distinct id (for removal by (source.id, side)).
+     */
     def rule(lhs: Term, rhs: Term): Rule =
       val src = bank.mkClause(Array(bank.mkLiteral(mkEq(lhs, rhs), true)))
       new Rule(src, 0, lhs, rhs, oriented = true, lhsVars = Array.empty[Term])
 
-    /** Does `r.lhs` really match onto `u`? (the exact relation the perfect tree computes.) */
+    /**
+     * Does `r.lhs` really match onto `u`? (the exact relation the perfect tree computes.)
+     */
     def matches(r: Rule, u: Term): Boolean =
       val s = trail.save()
       val ok = trail.matchTerm(r.lhs, 0, u, 1)
@@ -26,7 +32,9 @@ class DiscriminationTreeTest extends AnyFunSuite:
 
     def tree: DiscriminationTree[Rule] = new DiscriminationTree(bank, trail)
 
-  /** The tree is generic in its payload, so a rule is stored under its own left side, as `ActiveSet` does. */
+  /**
+   * The tree is generic in its payload, so a rule is stored under its own left side, as `ActiveSet` does.
+   */
   extension (t: DiscriminationTree[Rule])
     def insertRule(r: Rule): Unit = t.insert(r.lhs, r)
     def removeRule(r: Rule): Boolean = t.remove(r.lhs, r)
@@ -44,18 +52,25 @@ class DiscriminationTreeTest extends AnyFunSuite:
     val a = const("a"); val b = const("b")
     val x = v(0); val y = v(1)
     val rules = Seq(
-      rule(app(f, x), a),           // f(X) → a
-      rule(app(f, a), b),           // f(a) → b
-      rule(app(f, app(g, x)), b),   // f(g(X)) → b
-      rule(app(g, x), a),           // g(X) → a
-      rule(app(h, x, x), a),        // h(X,X) → a  (nonlinear: matched only on equal args)
-      rule(app(h, x, y), b)         // h(X,Y) → b
+      rule(app(f, x), a), // f(X) → a
+      rule(app(f, a), b), // f(a) → b
+      rule(app(f, app(g, x)), b), // f(g(X)) → b
+      rule(app(g, x), a), // g(X) → a
+      rule(app(h, x, x), a), // h(X,X) → a  (nonlinear: matched only on equal args)
+      rule(app(h, x, y), b) // h(X,Y) → b
     )
     val t = tree; rules.foreach(t.insertRule)
     assert(t.size == rules.size)
     val queries = Seq(
-      app(f, a), app(f, b), app(f, app(g, a)), app(g, b),
-      app(h, a, a), app(h, a, b), app(f, app(f, a)), a, app(f, x)
+      app(f, a),
+      app(f, b),
+      app(f, app(g, a)),
+      app(g, b),
+      app(h, a, a),
+      app(h, a, b),
+      app(f, app(f, a)),
+      a,
+      app(f, x)
     )
     for u <- queries do
       val expected = rules.filter(r => matches(r, u)).map(_.source.id).toSet
@@ -77,7 +92,7 @@ class DiscriminationTreeTest extends AnyFunSuite:
     val rNL = rule(app(h, x, x), a) // h(X,X)
     val t = tree; t.insertRule(rNL)
     assert(collect(t.retrieveGeneralizations(app(h, a, a))) == Set(rNL.source.id)) // equal args: matches
-    assert(collect(t.retrieveGeneralizations(app(h, a, b))).isEmpty)               // distinct args: rejected
+    assert(collect(t.retrieveGeneralizations(app(h, a, b))).isEmpty) // distinct args: rejected
   }
 
   test("a matching leaf leaves σ live on the trail (rσ is buildable during visit)") {
@@ -98,7 +113,7 @@ class DiscriminationTreeTest extends AnyFunSuite:
     val fx = new Fix; import fx.*
     val g = fn("g", 1); val a = const("a"); val b = const("b"); val x = v(0)
     val rGa = rule(app(g, app(g, a)), b) // g(g(a)) → b   (fully ground ⇒ one ground edge)
-    val rGx = rule(app(g, x), a)         // g(x) → a
+    val rGx = rule(app(g, x), a) // g(x) → a
     val t = tree; t.insertRule(rGa); t.insertRule(rGx)
     // g(g(a)) matches the ground LHS (exact) and g(x) [x = g(a)]
     assert(collect(t.retrieveGeneralizations(app(g, app(g, a)))) == Set(rGa.source.id, rGx.source.id))
@@ -150,11 +165,14 @@ class DiscriminationTreeTest extends AnyFunSuite:
     val r = rule(app(f, x), a)
     t.insertRule(r)
     for (label, reenter) <- Seq[(String, Rule => Unit)](
-      "retrieveGeneralizations" -> (_ => t.retrieveGeneralizations(app(f, b))(_ => false)),
-      "insert" -> (_ => t.insertRule(rule(app(f, x), b))),
-      "remove" -> (rr => { t.removeRule(rr); () })
-    ) do
-      val e = intercept[IllegalStateException](t.retrieveGeneralizations(app(f, a)) { rr => reenter(rr); false })
+        "retrieveGeneralizations" -> (_ => t.retrieveGeneralizations(app(f, b))(_ => false)),
+        "insert" -> (_ => t.insertRule(rule(app(f, x), b))),
+        "remove" -> (rr => { t.removeRule(rr); () })
+      )
+    do
+      val e = intercept[IllegalStateException](t.retrieveGeneralizations(app(f, a)) { rr =>
+        reenter(rr); false
+      })
       assert(e.getMessage.contains(label), s"expected the $label re-entry to be named, got: ${e.getMessage}")
     // The guard must disarm afterwards, or every later retrieval would throw too.
     assert(collect(t.retrieveGeneralizations(app(f, a))) == Set(r.source.id), "the guard did not disarm")
@@ -177,6 +195,5 @@ class DiscriminationTreeTest extends AnyFunSuite:
       false
     }
     assert(checkpoints.length == 2, s"expected both rules at the leaf to be visited, got ${checkpoints.length}")
-    assert(checkpoints.distinct.length == 1,
-      s"a binding leaked between rules at one leaf: trail checkpoints ${checkpoints.reverse.mkString(", ")}")
+    assert(checkpoints.distinct.length == 1, s"a binding leaked between rules at one leaf: trail checkpoints ${checkpoints.reverse.mkString(", ")}")
   }

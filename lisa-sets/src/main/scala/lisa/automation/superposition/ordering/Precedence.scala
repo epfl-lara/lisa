@@ -1,23 +1,36 @@
 package lisa.automation.superposition
 package ordering
 
-import Core.*
+import Core._
 
-/** How the KBO symbol precedences are generated, following E and Vampire. Each scheme computes the order once
-  * from the symbol counts of the input clauses. The default makes frequent symbols small, so that terms
-  * rewrite toward the common vocabulary and rare symbols are eliminated first.
-  *
-  * Every scheme gives distinct precedences, which KBO needs to stay total on ground terms: it returns `Inc`
-  * for two distinct symbols of equal precedence. */
+/**
+ * How the KBO symbol precedences are generated, following E and Vampire. Each scheme computes the order once
+ * from the symbol counts of the input clauses. The default makes frequent symbols small, so that terms
+ * rewrite toward the common vocabulary and rare symbols are eliminated first.
+ *
+ * Every scheme gives distinct precedences, which KBO needs to stay total on ground terms: it returns `Inc`
+ * for two distinct symbols of equal precedence.
+ */
 enum PrecedenceScheme:
-  /** Interning order (identity): the arbitrary baseline, kept for A/B comparison. */
+  /**
+   * Interning order (identity): the arbitrary baseline, kept for A/B comparison.
+   */
   case Occurrence
-  /** Constants minimal, then more-frequent ⇒ smaller precedence; id tiebreak. The default (E `invfreqconstmin`
-   *  / Vampire `frequency`, direction: frequent-small). */
+
+  /**
+   * Constants minimal, then more-frequent ⇒ smaller precedence; id tiebreak. The default (E `invfreqconstmin`
+   *  / Vampire `frequency`, direction: frequent-small).
+   */
   case InvFrequency
-  /** Higher arity ⇒ larger precedence; id tiebreak. */
+
+  /**
+   * Higher arity ⇒ larger precedence; id tiebreak.
+   */
   case Arity
-  /** Unary symbols largest (E `unary_first`), then by arity; id tiebreak. */
+
+  /**
+   * Unary symbols largest (E `unary_first`), then by arity; id tiebreak.
+   */
   case UnaryFirst
 
 object Precedence:
@@ -46,7 +59,9 @@ object Precedence:
     while rank < ordered.length do { ordered(rank).precedence = rank; rank += 1 }
     bank.order.invalidate() // no verdict taken under the interning-order precedence may survive this
 
-  /** Accumulate every symbol occurrence in `t` (head + all subterms; variables carry no symbol). */
+  /**
+   * Accumulate every symbol occurrence in `t` (head + all subterms; variables carry no symbol).
+   */
   private def countTerm(bank: TermBank, t: Term, count: Array[Long]): Unit =
     if !bank.isVar(t) then
       count(bank.headSymbol(t).code) += 1
@@ -54,8 +69,10 @@ object Precedence:
       var i = 0
       while i < ar do { countTerm(bank, bank.arg(t, i), count); i += 1 }
 
-  /** Strict order: `true` iff `a` should get a **smaller** precedence than `b`. Fully broken by symbol id, so
-   *  the induced order is total. */
+  /**
+   * Strict order: `true` iff `a` should get a **smaller** precedence than `b`. Fully broken by symbol id, so
+   *  the induced order is total.
+   */
   private def precedes(a: SymbolInfo, b: SymbolInfo, count: Array[Long], scheme: PrecedenceScheme): Boolean =
     scheme match
       case PrecedenceScheme.Occurrence =>

@@ -1,11 +1,13 @@
 package lisa.automation.superposition
 
+import lisa.automation.superposition.ordering._
 import org.scalatest.funsuite.AnyFunSuite
 
-import Core.*
-import lisa.automation.superposition.ordering.*
+import Core._
 
-/** Tests for the generating inference rules ([[Inference.resolve]], [[Inference.factor]]). */
+/**
+ * Tests for the generating inference rules ([[Inference.resolve]], [[Inference.factor]]).
+ */
 class InferenceTest extends AnyFunSuite:
 
   class Fix extends TermFixture

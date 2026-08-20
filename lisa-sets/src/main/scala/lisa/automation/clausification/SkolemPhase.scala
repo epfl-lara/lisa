@@ -1,8 +1,9 @@
 package lisa.automation.clausification
 
-import lisa.utils.K.{_, given}
 import lisa.automation.Problem
-import Clausification.*
+import lisa.utils.K.{_, given}
+
+import Clausification._
 
 /**
  * Skolemization by Hilbert `ε`, then abbreviation of each ε-term by a fresh `F(x̄)` (README §1.3 and §1.4 give
@@ -13,10 +14,11 @@ import Clausification.*
  */
 private[clausification] object SkolemPhase:
 
-  /** Certified Skolemization: iterate [[skolemizeOne]] over each hypothesis to a fixpoint, with each
-    * witness `ε(λx.φ)` replaced by a fresh Skolem-function schema variable `F(x̄)`), so ε-terms never nest and never blow
-    * up. Each step's fresh `F` carries a *defining equality* `∀x̄. ε(λx.φ) = F(x̄)` as an assumption.
-    */
+  /**
+   * Certified Skolemization: iterate [[skolemizeOne]] over each hypothesis to a fixpoint, with each
+   * witness `ε(λx.φ)` replaced by a fresh Skolem-function schema variable `F(x̄)`), so ε-terms never nest and never blow
+   * up. Each step's fresh `F` carries a *defining equality* `∀x̄. ε(λx.φ) = F(x̄)` as an assumption.
+   */
   def certifySkolem(problem: Problem, prover: ClausificationProver): ClausificationProof =
     require(problem.conjecture.isEmpty, "certifySkolem expects a conjecture-free problem (consumed by certifyNegated)")
     val counter = Counter()
@@ -25,11 +27,13 @@ private[clausification] object SkolemPhase:
     val outerImports: IndexedSeq[Sequent] = problem.hypotheses.toIndexedSeq ++ libImports
 
     // Per hypothesis: iterate skolemizeOne to a fixpoint.
-    /** One hypothesis on its way through Skolemization.
-      *   - `idx`        : its position in `problem.hypotheses`, which is also its import slot.
-      *   - `hyp`        : the hypothesis sequent itself, `() ⊢ φ`.
-      *   - `steps`      : the [[SkolemStep]]s that removed its existentials, in the order applied.
-      *   - `skolemized` : the ∃-free form they end at, which is what goes downstream. */
+    /**
+     * One hypothesis on its way through Skolemization.
+     *   - `idx`        : its position in `problem.hypotheses`, which is also its import slot.
+     *   - `hyp`        : the hypothesis sequent itself, `() ⊢ φ`.
+     *   - `steps`      : the [[SkolemStep]]s that removed its existentials, in the order applied.
+     *   - `skolemized` : the ∃-free form they end at, which is what goes downstream.
+     */
     final case class HypData(idx: Int, hyp: Sequent, steps: IndexedSeq[SkolemStep], skolemized: Expression)
     val allData: IndexedSeq[HypData] = problem.hypotheses.zipWithIndex.map { case (hyp, i) =>
       val buf = scala.collection.mutable.ArrayBuffer.empty[SkolemStep]
@@ -37,7 +41,7 @@ private[clausification] object SkolemPhase:
       var continue = true
       while continue do
         skolemizeOne(current, counter) match
-          case None    => continue = false
+          case None => continue = false
           case Some(s) => buf += s; current = s.skoFormula
       HypData(i, hyp, buf.toIndexedSeq, current)
     }.toIndexedSeq
@@ -89,31 +93,40 @@ private[clausification] object SkolemPhase:
     val assumptions: IndexedSeq[Int] = (0 until Q).toIndexedSeq.map(j => n + L + j)
     val csub = ClausificationSubproof(innerProof, csubPremises, assumptions)
 
-    dischargeAssumptionsLatestFirst(csub, Q, outerImports, { j =>
-      val st = flatSteps(j)
-      (Map(st.fVar -> NamingSupport.lambdifyAll(st.epsWitness, st.freeVars)), // F := λx̄. ε(λx.φ)
-       defEqs(j),
-       proveQuantifiedReflEq(st.epsWitness, st.freeVars))
-    })
+    dischargeAssumptionsLatestFirst(
+      csub,
+      Q,
+      outerImports,
+      { j =>
+        val st = flatSteps(j)
+        (
+          Map(st.fVar -> NamingSupport.lambdifyAll(st.epsWitness, st.freeVars)), // F := λx̄. ε(λx.φ)
+          defEqs(j),
+          proveQuantifiedReflEq(st.epsWitness, st.freeVars)
+        )
+      }
+    )
 
-  /** Closed proof of `() ⊢ ∀x̄. (t = t)`, which discharges a defining equality after [[InstSchema]] makes it reflexive.
-    * The equality twin of [[NamingSupport.proveQuantifiedReflIff]] (`RightRefl` instead of `RightImplies`/`RightIff`). */
+  /**
+   * Closed proof of `() ⊢ ∀x̄. (t = t)`, which discharges a defining equality after [[InstSchema]] makes it reflexive.
+   * The equality twin of [[NamingSupport.proveQuantifiedReflIff]] (`RightRefl` instead of `RightImplies`/`RightIff`).
+   */
   def proveQuantifiedReflEq(t: Expression, freeVars: Seq[Variable]): SCProof =
     val eq = equality(t)(t)
     quantifyProof(IndexedSeq(RightRefl(() |- eq, eq)), eq, freeVars)
 
   /**
-    * Result of one Skolemization step.
-    *
-    *   - `skoFormula` : the input formula with the leftmost outermost `∃x.φ` replaced by `φ[F(x̄)/x]`, where `F` is a
-    *                    **fresh Skolem-function schema variable** applied to the enclosing universals `x̄` the witness
-    *                    depends on (binding order). Opaque and shared: threaded to the next pass so ε-terms never nest.
-    *   - `freeVars`   : `x̄`.
-    *   - `fVar`       : `F`.
-    *   - `epsWitness` : the Hilbert witness `ε(λx.φ)` that `F` abbreviates, in terms of `x̄`.
-    *   - `defEq`      : the defining equality `∀x̄. ε(λx.φ) = F(x̄)` (an assumption discharged at reconstruction).
-    *   - `bridge`     : SC proof `f ⊢ skoFormula`, with two imports: [[existsEpsilonIffStatement]] and `() ⊢ defEq`.
-    */
+   * Result of one Skolemization step.
+   *
+   *   - `skoFormula` : the input formula with the leftmost outermost `∃x.φ` replaced by `φ[F(x̄)/x]`, where `F` is a
+   *                    **fresh Skolem-function schema variable** applied to the enclosing universals `x̄` the witness
+   *                    depends on (binding order). Opaque and shared: threaded to the next pass so ε-terms never nest.
+   *   - `freeVars`   : `x̄`.
+   *   - `fVar`       : `F`.
+   *   - `epsWitness` : the Hilbert witness `ε(λx.φ)` that `F` abbreviates, in terms of `x̄`.
+   *   - `defEq`      : the defining equality `∀x̄. ε(λx.φ) = F(x̄)` (an assumption discharged at reconstruction).
+   *   - `bridge`     : SC proof `f ⊢ skoFormula`, with two imports: [[existsEpsilonIffStatement]] and `() ⊢ defEq`.
+   */
   case class SkolemStep(
       skoFormula: Expression,
       freeVars: Seq[Variable],
@@ -124,14 +137,14 @@ private[clausification] object SkolemPhase:
   )
 
   /**
-    * Single-step Skolemization with bridge proof. Pops the leftmost outermost `∃x.φ` reachable through `∀`/`∧`/`∨`,
-    * replaces it by the Hilbert-epsilon witness, then **abstracts** that witness to a fresh Skolem function `F(x̄)`
-    * (see [[SkolemStep]]). The bridge derives `f ⊢ skoFormula` in a constant number of steps: instantiate
-    * [[Quantifiers.existsEpsilonIff]] at `P := λx.φ` for the local equivalence, lift it via `RightSubstIff`, then
-    * swap `ε(λx.φ)` for `F(x̄)` via `RightSubstEq` against the imported defining equality (cut in at the end).
-    *
-    * Returns `None` if `f` contains no existential under the supported connectives.
-    */
+   * Single-step Skolemization with bridge proof. Pops the leftmost outermost `∃x.φ` reachable through `∀`/`∧`/`∨`,
+   * replaces it by the Hilbert-epsilon witness, then **abstracts** that witness to a fresh Skolem function `F(x̄)`
+   * (see [[SkolemStep]]). The bridge derives `f ⊢ skoFormula` in a constant number of steps: instantiate
+   * [[Quantifiers.existsEpsilonIff]] at `P := λx.φ` for the local equivalence, lift it via `RightSubstIff`, then
+   * swap `ε(λx.φ)` for `F(x̄)` via `RightSubstEq` against the imported defining equality (cut in at the end).
+   *
+   * Returns `None` if `f` contains no existential under the supported connectives.
+   */
   def skolemizeOne(f: Expression, counter: Counter): Option[SkolemStep] = {
     checkInterrupted()
     // The located `∃x.inner` with its context: `phi_body` is `f` with that site replaced by the marker `p` applied
@@ -140,19 +153,20 @@ private[clausification] object SkolemPhase:
 
     def descend(e: Expression, enclosing: Seq[Variable]): Option[Hit] =
       def bin(g: Expression, h0: Expression, op: (Expression, Expression) => Expression): Option[Hit] =
-        descend(g, enclosing).map(h => h.copy(phi_body = op(h.phi_body, h0)))
+        descend(g, enclosing)
+          .map(h => h.copy(phi_body = op(h.phi_body, h0)))
           .orElse(descend(h0, enclosing).map(h => h.copy(phi_body = op(g, h.phi_body))))
       e match
         case Exists(x, inner) =>
           val pSort = enclosing.foldRight(Prop: Sort)((b, acc) => b.sort >>: acc)
-          val p     = Variable(Identifier(GeneratedNames.hole, counter.next()), pSort)
-          val pApp  = enclosing.foldLeft(p: Expression)(_(_))
+          val p = Variable(Identifier(GeneratedNames.hole, counter.next()), pSort)
+          val pApp = enclosing.foldLeft(p: Expression)(_(_))
           Some(Hit(pApp, x, inner, p, enclosing))
         case Forall(y, body) =>
           descend(body, enclosing :+ y).map(h => h.copy(phi_body = forall(Lambda(y, h.phi_body))))
         case And(g, h0) => bin(g, h0, and(_)(_))
-        case Or(g, h0)  => bin(g, h0, or(_)(_))
-        case _          => None // In NNF, `Neg` only wraps atoms, so no existential reaches here.
+        case Or(g, h0) => bin(g, h0, or(_)(_))
+        case _ => None // In NNF, `Neg` only wraps atoms, so no existential reaches here.
 
     descend(f, Seq.empty).map { h =>
       // Fresh witnesses u_i (one per enclosing binder), distinct from every name in `f`.
@@ -162,7 +176,7 @@ private[clausification] object SkolemPhase:
       }
 
       val renaming: Map[Variable, Expression] = h.enclosing.zip(us).toMap
-      val uToB: Map[Variable, Expression]      = us.zip(h.enclosing).toMap
+      val uToB: Map[Variable, Expression] = us.zip(h.enclosing).toMap
 
       // α-rename x if it clashes with an enclosing binder
       val (xVar, innerX) =
@@ -172,24 +186,24 @@ private[clausification] object SkolemPhase:
         else (h.x, h.inner)
 
       // Local quantities in terms of the fresh u_i.
-      val innerU       = substituteVariablesOpti(innerX, renaming)
+      val innerU = substituteVariablesOpti(innerX, renaming)
       val lambdaInnerU = Lambda(xVar, innerU)
-      val targetU      = exists(lambdaInnerU)
-      val epsWitnessU  = epsilon(lambdaInnerU)
-      val epsFormU     = substituteVariablesOpti(innerU, Map(xVar -> epsWitnessU))
-      val localIff     = targetU <=> epsFormU
+      val targetU = exists(lambdaInnerU)
+      val epsWitnessU = epsilon(lambdaInnerU)
+      val epsFormU = substituteVariablesOpti(innerU, Map(xVar -> epsWitnessU))
+      val localIff = targetU <=> epsFormU
       val targetLambda = us.foldRight(targetU: Expression)((u, e) => Lambda(u, e))
-      val epsLambda    = us.foldRight(epsFormU: Expression)((u, e) => Lambda(u, e))
-      val outerIff     = us.foldRight(localIff: Expression)((u, e) => forall(Lambda(u, e)))
+      val epsLambda = us.foldRight(epsFormU: Expression)((u, e) => Lambda(u, e))
+      val outerIff = us.foldRight(localIff: Expression)((u, e) => forall(Lambda(u, e)))
 
       // replace ε by a fresh Skolem function `F` over the enclosing universals the witness depends on ──
       val mentionedU = us.filter(u => epsWitnessU.freeVariables.contains(u)) // binding order (us is outermost-first)
       val mentionedB = mentionedU.map(u => uToB(u).asInstanceOf[Variable])
-      val fSort      = mentionedU.foldRight(Ind: Sort)((u, acc) => u.sort -> acc)
-      val fVar       = Variable(Identifier(GeneratedNames.skolemFun, counter.next()), fSort) // schema var; discharged via InstSchema
-      val fAppU      = mentionedU.foldLeft(fVar: Expression)((acc, u) => acc(u))
-      val qMarker    = Variable(Identifier(GeneratedNames.hole, counter.next()), fSort) // RightSubstEq context marker
-      val qAppU      = mentionedU.foldLeft(qMarker: Expression)((acc, u) => acc(u))
+      val fSort = mentionedU.foldRight(Ind: Sort)((u, acc) => u.sort -> acc)
+      val fVar = Variable(Identifier(GeneratedNames.skolemFun, counter.next()), fSort) // schema var; discharged via InstSchema
+      val fAppU = mentionedU.foldLeft(fVar: Expression)((acc, u) => acc(u))
+      val qMarker = Variable(Identifier(GeneratedNames.hole, counter.next()), fSort) // RightSubstEq context marker
+      val qAppU = mentionedU.foldLeft(qMarker: Expression)((acc, u) => acc(u))
 
       // Fill the ∃-witness in `phi_body` with `w` (in terms of u), β-normalise and η-expand, used identically for the
       // ε-, F- and marker-forms, so ε/F/marker land at the same positions with the same surrounding binder names.
@@ -198,15 +212,15 @@ private[clausification] object SkolemPhase:
         etaExpandQuantifiers(substituteVariablesOpti(h.phi_body, Map(h.p -> wLambda)).betaNormalForm)
 
       val skoFormulaEps = fill(epsWitnessU) // ε-form
-      val skoFormulaF   = fill(fAppU)       // F-form (threaded onward)
-      val ctxBody       = fill(qAppU)       // marker form (RightSubstEq context body)
+      val skoFormulaF = fill(fAppU) // F-form (threaded onward)
+      val ctxBody = fill(qAppU) // marker form (RightSubstEq context body)
 
       // In terms of the ORIGINAL binders b̄ (as they appear after β in the forms above).
       val epsWitnessB = substituteVariablesOpti(epsWitnessU, uToB)
-      val fAppB       = mentionedB.foldLeft(fVar: Expression)((acc, b) => acc(b))
-      val sLambda     = mentionedB.foldRight(epsWitnessB: Expression)((b, e) => Lambda(b, e)) // λx̄. ε
-      val tLambda     = mentionedB.foldRight(fAppB: Expression)((b, e) => Lambda(b, e))       // λx̄. F(x̄)
-      val defEq       = mentionedB.foldRight(equality(epsWitnessB)(fAppB): Expression)((b, e) => forall(Lambda(b, e)))
+      val fAppB = mentionedB.foldLeft(fVar: Expression)((acc, b) => acc(b))
+      val sLambda = mentionedB.foldRight(epsWitnessB: Expression)((b, e) => Lambda(b, e)) // λx̄. ε
+      val tLambda = mentionedB.foldRight(fAppB: Expression)((b, e) => Lambda(b, e)) // λx̄. F(x̄)
+      val defEq = mentionedB.foldRight(equality(epsWitnessB)(fAppB): Expression)((b, e) => forall(Lambda(b, e)))
 
       // ── bridge: f ⊢ skoFormulaF ; imports [existsEpsilonIff (-1), () ⊢ defEq (-2)] ──
       val steps = scala.collection.mutable.ArrayBuffer.empty[SCProofStep]
@@ -231,7 +245,6 @@ private[clausification] object SkolemPhase:
       val defEqRef = steps.size - 1
       steps += Cut(f |- skoFormulaF, defEqRef, subEqRef, defEq)
 
-      SkolemStep(skoFormulaF, mentionedB, fVar, epsWitnessB, defEq,
-        SCProof(steps.toIndexedSeq, IndexedSeq(existsEpsilonIffStatement, () |- defEq)))
+      SkolemStep(skoFormulaF, mentionedB, fVar, epsWitnessB, defEq, SCProof(steps.toIndexedSeq, IndexedSeq(existsEpsilonIffStatement, () |- defEq)))
     }
   }

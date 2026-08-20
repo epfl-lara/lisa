@@ -2,7 +2,7 @@ package lisa.automation.superposition
 
 import org.scalatest.funsuite.AnyFunSuite
 
-import Core.*
+import Core._
 
 /**
  * What the signature's intern key must and must not distinguish.
@@ -31,8 +31,7 @@ class SignatureTest extends AnyFunSuite:
     val e0 = sig.intern("e", 0, 1, isPredicate = false)
     val e1 = sig.intern("e", 1, 1, isPredicate = false)
     assert(e0 != e1, "`e` and `e_1` are different kernel identifiers")
-    assert(sig.info(e1).name == "e" && sig.info(e1).no == 1,
-      "the identifier is stored in two parts, so consumers rebuild it rather than parsing `e_1` back")
+    assert(sig.info(e1).name == "e" && sig.info(e1).no == 1, "the identifier is stored in two parts, so consumers rebuild it rather than parsing `e_1` back")
   }
 
   test("arity is part of the key") {

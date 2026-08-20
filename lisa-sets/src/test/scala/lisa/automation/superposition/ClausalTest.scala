@@ -1,12 +1,12 @@
 package lisa.automation.superposition
 
-import org.scalatest.funsuite.AnyFunSuite
-
-import lisa.utils.K
-import lisa.kernel.KernelProof
-import lisa.automation.clausification.CertifiedClausifier
 import lisa.automation.Problem
-import lisa.automation.superposition.bench.{FofEvaluation, EqFofEvaluation}
+import lisa.automation.clausification.CertifiedClausifier
+import lisa.automation.superposition.bench.EqFofEvaluation
+import lisa.automation.superposition.bench.FofEvaluation
+import lisa.kernel.KernelProof
+import lisa.utils.K
+import org.scalatest.funsuite.AnyFunSuite
 
 /**
  * Tests for [[Clausal]], the superposition prover's side of the clausification boundary:
@@ -26,7 +26,9 @@ import lisa.automation.superposition.bench.{FofEvaluation, EqFofEvaluation}
  */
 class ClausalTest extends AnyFunSuite:
 
-  /** The clausal prover as `certifyClausal` wants it; see [[Clausal.prove]], which reports a non-refutation. */
+  /**
+   * The clausal prover as `certifyClausal` wants it; see [[Clausal.prove]], which reports a non-refutation.
+   */
   private def prover(p: Problem): K.SCProof =
     Clausal.prove(p).fold(o => fail(s"the clausal prover did not refute: $o"), identity)
 
@@ -38,22 +40,23 @@ class ClausalTest extends AnyFunSuite:
   private def eps(x: K.Variable, phi: K.Expression): K.Expression = K.Application(K.epsilon, K.Lambda(x, phi))
 
   private def containsLambda(e: K.Expression): Boolean = e match
-    case K.Lambda(_, _)      => true
+    case K.Lambda(_, _) => true
     case K.Application(f, a) => containsLambda(f) || containsLambda(a)
-    case _                   => false
+    case _ => false
 
   private def containsForall(e: K.Expression): Boolean = e match
     case K.Application(K.forall, _) => true
-    case K.Application(f, a)        => containsForall(f) || containsForall(a)
-    case K.Lambda(_, b)             => containsForall(b)
-    case _                          => false
+    case K.Application(f, a) => containsForall(f) || containsForall(a)
+    case K.Lambda(_, b) => containsForall(b)
+    case _ => false
 
   private def containsBotTop(e: K.Expression): Boolean =
     if e == K.bot || e == K.top then true
-    else e match
-      case K.Application(f, a) => containsBotTop(f) || containsBotTop(a)
-      case K.Lambda(_, b)      => containsBotTop(b)
-      case _                   => false
+    else
+      e match
+        case K.Application(f, a) => containsBotTop(f) || containsBotTop(a)
+        case K.Lambda(_, b) => containsBotTop(b)
+        case _ => false
 
   test("abstraction replaces an epsilon term by a schematic function of its free variables") {
     val P = pred("P", 1); val Q = pred("Q", 2); val x = vr("x"); val y = vr("y")
@@ -106,8 +109,10 @@ class ClausalTest extends AnyFunSuite:
 
   // --- spike: abstracted ε-clauses through the prover, reconstructed to a kernel-valid proof ---
 
-  /** Refute the two complementary clauses `() ⊢ {atom}` and `{atom} ⊢` (after abstraction) and return the
-   *  reconstructed proof, asserting it is kernel-valid and concludes the empty sequent. */
+  /**
+   * Refute the two complementary clauses `() ⊢ {atom}` and `{atom} ⊢` (after abstraction) and return the
+   *  reconstructed proof, asserting it is kernel-valid and concludes the empty sequent.
+   */
   private def refuteComplementary(abs: Clausal.Abstraction, atom: K.Expression): K.SCProof =
     val a = abs(atom)
     val out = Clausal.refute(Seq(K.Sequent(Set.empty, Set(a)), K.Sequent(Set(a), Set.empty)), symbolVars = abs.dischargeSubst.keySet)
@@ -160,9 +165,7 @@ class ClausalTest extends AnyFunSuite:
     // the slot lookup has to preserve, and that the composed proof still declares every clause as an import.
     val p = pred("p", 1); val q = pred("q", 1); val a = fn("a", 0)
     val clause = K.Sequent(Set.empty, Set(ap(p, a)))
-    val problem = Problem(
-      Seq(clause, clause, K.Sequent(Set.empty, Set(ap(q, a))), K.Sequent(Set.empty, Set(K.neg(ap(p, a))))),
-      None)
+    val problem = Problem(Seq(clause, clause, K.Sequent(Set.empty, Set(ap(q, a))), K.Sequent(Set.empty, Set(K.neg(ap(p, a))))), None)
     val proof = Clausal.prove(problem).fold(o => fail(s"expected a refutation, got $o"), identity)
     KernelProof.assertCorrectProofNoSorry(proof, "Clausal.prove")
     assert(proof.conclusion == K.Sequent(Set.empty, Set.empty), "the prover must conclude the empty sequent")
@@ -177,4 +180,3 @@ class ClausalTest extends AnyFunSuite:
     KernelProof.assertCorrectProofNoSorry(proof, "certifyClausal with Clausal.prove")
     assert(proof.conclusion == K.Sequent(Set.empty, Set(P)))
   }
-

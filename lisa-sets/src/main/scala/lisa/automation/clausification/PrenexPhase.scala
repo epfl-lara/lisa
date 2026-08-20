@@ -1,8 +1,9 @@
 package lisa.automation.clausification
 
-import lisa.utils.K.{_, given}
 import lisa.automation.Problem
-import Clausification.*
+import lisa.utils.K.{_, given}
+
+import Clausification._
 
 /**
  * Universal-quantifier stripping: replace each `∀x. …` by its body with `x` at a fresh clause variable `w`,
@@ -12,21 +13,23 @@ import Clausification.*
  */
 private[clausification] object PrenexPhase:
 
-  /** For each axiom containing a `∀` anywhere in its tree, strip all universals, instantiating each at a fresh
-    * clause variable `w` (pre-order) via `LeftForall`. Certifies the derivation of the quantifier-free matrix
-    * via [[provePrenex]]. */
+  /**
+   * For each axiom containing a `∀` anywhere in its tree, strip all universals, instantiating each at a fresh
+   * clause variable `w` (pre-order) via `LeftForall`. Certifies the derivation of the quantifier-free matrix
+   * via [[provePrenex]].
+   */
   def certifyPrenex(problem: Problem, prover: ClausificationProver): ClausificationProof = {
     require(problem.conjecture.isEmpty, "certifyPrenex expects a conjecture-free problem (consumed by certifyNegated)")
     val counter = Counter()
     val hypotheses = problem.hypotheses.toIndexedSeq
     val n = hypotheses.size
 
-    val steps      = scala.collection.mutable.ArrayBuffer.empty[ClausificationProofStep]
-    val matrices   = scala.collection.mutable.ArrayBuffer.empty[Sequent]
+    val steps = scala.collection.mutable.ArrayBuffer.empty[ClausificationProofStep]
+    val matrices = scala.collection.mutable.ArrayBuffer.empty[Sequent]
     val matrixRefs = scala.collection.mutable.ArrayBuffer.empty[Int]
     for i <- 0 until n do
       checkInterrupted()
-      val ax  = hypotheses(i)
+      val ax = hypotheses(i)
       val phi = singleRightFormula(ax, "axiom")
       if !hasForall(phi) then
         matrices += ax
@@ -48,24 +51,28 @@ private[clausification] object PrenexPhase:
 
   def hasForall(f: Expression): Boolean = f match
     case Forall(_, _) => true
-    case And(g, h)    => hasForall(g) || hasForall(h)
-    case Or(g, h)     => hasForall(g) || hasForall(h)
-    case Neg(g)       => hasForall(g)
-    case _            => false
+    case And(g, h) => hasForall(g) || hasForall(h)
+    case Or(g, h) => hasForall(g) || hasForall(h)
+    case Neg(g) => hasForall(g)
+    case _ => false
 
-  /** Build a kernel proof of `() ⊢ matrix` from the imported `() ⊢ phi`, where `matrix` is `phi` with every
-    * `∀x._` stripped and `x` replaced by a fresh clause variable `w` drawn from `counter`, and return it with
-    * that matrix. Walks `phi`'s tree, mirroring its connectives and using `LeftForall` at each universal to
-    * instantiate it, then `Cut`s against `imported`.
-    *
-    * Proof size is linear in `|phi|`. */
+  /**
+   * Build a kernel proof of `() ⊢ matrix` from the imported `() ⊢ phi`, where `matrix` is `phi` with every
+   * `∀x._` stripped and `x` replaced by a fresh clause variable `w` drawn from `counter`, and return it with
+   * that matrix. Walks `phi`'s tree, mirroring its connectives and using `LeftForall` at each universal to
+   * instantiate it, then `Cut`s against `imported`.
+   *
+   * Proof size is linear in `|phi|`.
+   */
   def provePrenex(imported: Sequent, premise: Int, counter: Counter): (SCSubproof, Sequent) = {
     val phi = singleRightFormula(imported, "imported (prenex source)")
 
     val steps = scala.collection.mutable.ArrayBuffer.empty[SCProofStep]
     def emit(s: SCProofStep): Int = { steps += s; steps.size - 1 }
 
-    /** `Hypothesis(e ⊢ e)`, the derivation of a subformula whose matrix is itself. */
+    /**
+     * `Hypothesis(e ⊢ e)`, the derivation of a subformula whose matrix is itself.
+     */
     def hypothesis(e: Expression): Int = emit(Hypothesis(e |- e, e))
 
     // Builds steps with conclusion `orig ⊢ matrixOf(orig)` and returns the step index, or `None` when `orig`
@@ -74,9 +81,9 @@ private[clausification] object PrenexPhase:
     def go(orig: Expression): Option[Int] = orig match
       case Forall(x, body) =>
         val v = Variable(Identifier(GeneratedNames.clauseVar, counter.next()), Ind)
-        val bodySub  = substituteVariablesOpti(body, Map(x -> v))
+        val bodySub = substituteVariablesOpti(body, Map(x -> v))
         val innerIdx = go(bodySub).getOrElse(hypothesis(bodySub))
-        val innerM   = steps(innerIdx).bot.right.head
+        val innerM = steps(innerIdx).bot.right.head
         // LeftForall(b, t1, phi, x, t): from `Γ, body[x:=v] ⊢ Δ` derive `Γ, ∀x.body ⊢ Δ`.
         Some(emit(LeftForall(orig |- innerM, innerIdx, body, x, v)))
 

@@ -1,10 +1,10 @@
 package lisa.automation.superposition
 
+import lisa.automation.superposition.ordering._
 import org.scalatest.funsuite.AnyFunSuite
 
-import Core.*
-import Oracles.*
-import lisa.automation.superposition.ordering.*
+import Core._
+import Oracles._
 
 /**
  * Tests for the equality-aware [[Order]]: orientation, the literal order `≻_L`
@@ -72,9 +72,18 @@ class OrderTest extends AnyFunSuite:
     val x = v(0); val y = v(1)
     // ground + variable terms with shared structure, to exercise cancellation and incomparability
     val pool: Array[Term] = Array(
-      a, b, x, y,
-      app(f, a), app(f, b), app(f, x), app(f, y),
-      app(g, a, b), app(g, x, y), app(g, a, x), app(g, x, a)
+      a,
+      b,
+      x,
+      y,
+      app(f, a),
+      app(f, b),
+      app(f, x),
+      app(f, y),
+      app(g, a, b),
+      app(g, x, y),
+      app(g, a, x),
+      app(g, x, a)
     )
     // the reference encoding: positive → {s,t}, negative → {s,s,t,t} (Bachmair-Ganzinger, doubled)
     def sides(s: Term, t: Term, pos: Boolean): Array[Term] = if pos then Array(s, t) else Array(s, s, t, t)

@@ -1,18 +1,22 @@
 package lisa.automation.superposition
 
-import Core.*
+import Core._
 
-/** Binary resolution and factoring, plus the canonicalisation of new clauses. Each rule takes
-  * explicit literal indices, which the loop draws from the clause's selection, unifies, builds the conclusion
-  * through an [[Trail.Applier]] that renumbers its variables, records a [[Justification]], and restores the trail. */
+/**
+ * Binary resolution and factoring, plus the canonicalisation of new clauses. Each rule takes
+ * explicit literal indices, which the loop draws from the clause's selection, unifies, builds the conclusion
+ * through an [[Trail.Applier]] that renumbers its variables, records a [[Justification]], and restores the trail.
+ */
 object Inference:
 
-  /** Binary resolution: resolve `c1`'s literal `i1` against `c2`'s literal `i2`, which must be
-    * complementary (opposite polarity). On success returns the resolvent
-    * `(c1 \ {i1} ∪ c2 \ {i2})σ`, with `σ` the mgu of the two atoms; `None` if they aren't
-    * complementary or don't unify. The two parents' variables are kept apart by scope (0 vs 1), so
-    * shared variable numbers don't clash. Duplicate literals are *not* removed here (left to
-    * canonicalisation), matching the reference provers. */
+  /**
+   * Binary resolution: resolve `c1`'s literal `i1` against `c2`'s literal `i2`, which must be
+   * complementary (opposite polarity). On success returns the resolvent
+   * `(c1 \ {i1} ∪ c2 \ {i2})σ`, with `σ` the mgu of the two atoms; `None` if they aren't
+   * complementary or don't unify. The two parents' variables are kept apart by scope (0 vs 1), so
+   * shared variable numbers don't clash. Duplicate literals are *not* removed here (left to
+   * canonicalisation), matching the reference provers.
+   */
   def resolve(bank: TermBank, trail: Trail, c1: Clause, i1: Int, c2: Clause, i2: Int): Option[Clause] =
     val l1: Literal = c1.literals(i1)
     val l2: Literal = c2.literals(i2)
@@ -30,12 +34,14 @@ object Inference:
       trail.restore(saved)
       result
 
-  /** Sort a clause's literals, drop duplicates and detect tautologies. Returns `None` for a tautology, the
-    * same clause if it was already canonical, or a new one recording a [[Justification.Canonicalization]].
-    *
-    * A positive `s = s` makes the clause a tautology, but a negative `s ≠ s` is left in place for equality
-    * resolution to close with a proper justification. Clauses are not normalised up to variable renaming, so
-    * two variants of one clause remain distinct. */
+  /**
+   * Sort a clause's literals, drop duplicates and detect tautologies. Returns `None` for a tautology, the
+   * same clause if it was already canonical, or a new one recording a [[Justification.Canonicalization]].
+   *
+   * A positive `s = s` makes the clause a tautology, but a negative `s ≠ s` is left in place for equality
+   * resolution to close with a proper justification. Clauses are not normalised up to variable renaming, so
+   * two variants of one clause remain distinct.
+   */
   def canonicalize(bank: TermBank, c: Clause): Option[Clause] =
     var t = 0
     while t < c.literals.length do
@@ -71,9 +77,11 @@ object Inference:
         val canonical: Array[Literal] = if kept == n then lits else lits.take(kept)
         Some(bank.mkClause(canonical, Justification.Canonicalization(c)))
 
-  /** Factoring: merge `c`'s literals `i` and `j` (distinct, same polarity) by unifying their atoms.
-    * On success returns `(c \ {j})σ` -- literal `j` is dropped, having become identical to `i` under
-    * `σ`. `None` if they differ in polarity or don't unify. */
+  /**
+   * Factoring: merge `c`'s literals `i` and `j` (distinct, same polarity) by unifying their atoms.
+   * On success returns `(c \ {j})σ` -- literal `j` is dropped, having become identical to `i` under
+   * `σ`. `None` if they differ in polarity or don't unify.
+   */
   def factor(bank: TermBank, trail: Trail, c: Clause, i: Int, j: Int): Option[Clause] =
     require(i != j, "factoring needs two distinct literals")
     val li: Literal = c.literals(i)

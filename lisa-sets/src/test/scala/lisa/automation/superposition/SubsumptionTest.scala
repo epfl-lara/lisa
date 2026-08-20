@@ -2,23 +2,30 @@ package lisa.automation.superposition
 
 import org.scalatest.funsuite.AnyFunSuite
 
-import Core.*
+import Core._
 
-/** Tests for θ-subsumption ([[Subsumption.subsumes]] and the [[Subsumption.sigSubsumes]] pre-filter).
- *  Convention: the subsuming clause `c` is the pattern (its variables bind); `d` is the rigid target. */
+/**
+ * Tests for θ-subsumption ([[Subsumption.subsumes]] and the [[Subsumption.sigSubsumes]] pre-filter).
+ *  Convention: the subsuming clause `c` is the pattern (its variables bind); `d` is the rigid target.
+ */
 class SubsumptionTest extends AnyFunSuite:
 
   class Fix extends TermFixture:
 
-
-    /** Does `c` subsume `d`? (subsumes restores the trail itself, on both paths.) */
+    /**
+     * Does `c` subsume `d`? (subsumes restores the trail itself, on both paths.)
+     */
     def sub(c: Clause, d: Clause): Boolean = Subsumption.subsumes(bank, trail, c, d)
 
-    /** Subsumption resolution: the shrunk `main \ {K}` if `side` resolves a literal away, else `None`.
-     *  (Unit deletion is the `|side| = 1` case.) */
+    /**
+     * Subsumption resolution: the shrunk `main \ {K}` if `side` resolves a literal away, else `None`.
+     *  (Unit deletion is the `|side| = 1` case.)
+     */
     def unitDel(side: Clause, main: Clause): Option[Clause] = Subsumption.subsumptionResolutionResolvent(bank, trail, side, main)
 
-    /** Condensation: the fully-condensed clause (`== c` if already condensed). */
+    /**
+     * Condensation: the fully-condensed clause (`== c` if already condensed).
+     */
     def condense(c: Clause): Clause = Subsumption.condense(bank, trail, c)
 
   // --- units and identity ---------------------------------------------------------------------

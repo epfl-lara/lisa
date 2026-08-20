@@ -306,28 +306,36 @@ object Quantifiers extends lisa.Main {
   // clausifier discharges against them
   // (`lisa.automation.clausification.Clausification.forall*Statement`, same `P`/`x`/`R`).
 
-  /** `(∀x. P(x)) ∧ R  ⟺  ∀x. (P(x) ∧ R)`  (`R` is closed in x). */
+  /**
+   * `(∀x. P(x)) ∧ R  ⟺  ∀x. (P(x) ∧ R)`  (`R` is closed in x).
+   */
   val forallAndLeft = Theorem(
     ∀(x, P(x)) /\ R <=> ∀(x, P(x) /\ R)
   ) {
     have(thesis) by Tableau
   }
 
-  /** `R ∧ (∀x. P(x))  ⟺  ∀x. (R ∧ P(x))`  (`R` is closed in x). */
+  /**
+   * `R ∧ (∀x. P(x))  ⟺  ∀x. (R ∧ P(x))`  (`R` is closed in x).
+   */
   val forallAndRight = Theorem(
     R /\ ∀(x, P(x)) <=> ∀(x, R /\ P(x))
   ) {
     have(thesis) by Tableau
   }
 
-  /** `(∀x. P(x)) ∨ R  ⟺  ∀x. (P(x) ∨ R)`  (`R` is closed in x). */
+  /**
+   * `(∀x. P(x)) ∨ R  ⟺  ∀x. (P(x) ∨ R)`  (`R` is closed in x).
+   */
   val forallOrLeft = Theorem(
     ∀(x, P(x)) \/ R <=> ∀(x, P(x) \/ R)
   ) {
     have(thesis) by Tableau
   }
 
-  /** `R ∨ (∀x. P(x))  ⟺  ∀x. (R ∨ P(x))`  (`R` is closed in x). */
+  /**
+   * `R ∨ (∀x. P(x))  ⟺  ∀x. (R ∨ P(x))`  (`R` is closed in x).
+   */
   val forallOrRight = Theorem(
     R \/ ∀(x, P(x)) <=> ∀(x, R \/ P(x))
   ) {

@@ -1,28 +1,33 @@
 package lisa.automation.superposition
 
-import scala.collection.mutable
 import it.unimi.dsi.fastutil.ints.IntArrayList
+import lisa.automation.superposition.ordering._
 
-import Core.*
-import lisa.automation.superposition.ordering.*
-import Cmp.*
+import scala.collection.mutable
 
-/** One rewrite a clause offers: read the equality at literal `lit` in the direction that takes its
-  * `side` to the other, so `lhs` is the term to be matched against a subterm elsewhere. Which sides qualify is
-  * [[Superposition.usesSide]]; [[Superposition.rewriteSources]] collects them and
-  * [[Core.Clause.rewriteSources]] memoises that per clause. */
+import Core._
+import Cmp._
+
+/**
+ * One rewrite a clause offers: read the equality at literal `lit` in the direction that takes its
+ * `side` to the other, so `lhs` is the term to be matched against a subterm elsewhere. Which sides qualify is
+ * [[Superposition.usesSide]]; [[Superposition.rewriteSources]] collects them and
+ * [[Core.Clause.rewriteSources]] memoises that per clause.
+ */
 final class RewriteSource(val lit: Int, val side: Int, val lhs: Term):
   override def toString: String = s"RewriteSource(lit=$lit, side=$side)"
 
-/** Superposition, equality resolution and equality factoring. The latter two follow [[Inference]]'s shape:
-  * save the trail, unify, check the ordering conditions, build the conclusion, restore. [[superpose]] splits
-  * it, because the caller locates the overlap and has already unified when it calls in, so it only checks and
-  * builds and the caller owns the surrounding save, unify and restore.
-  *
-  * Eligibility is the loop's concern, not these functions'. These functions check only the term-orientation conditions, independent of selection.
-  *
-  * A subterm position is a path of argument indices into an atom, of length at least one, since superposition
-  * rewrites neither into a variable nor at the atom root. */
+/**
+ * Superposition, equality resolution and equality factoring. The latter two follow [[Inference]]'s shape:
+ * save the trail, unify, check the ordering conditions, build the conclusion, restore. [[superpose]] splits
+ * it, because the caller locates the overlap and has already unified when it calls in, so it only checks and
+ * builds and the caller owns the surrounding save, unify and restore.
+ *
+ * Eligibility is the loop's concern, not these functions'. These functions check only the term-orientation conditions, independent of selection.
+ *
+ * A subterm position is a path of argument indices into an atom, of length at least one, since superposition
+ * rewrites neither into a variable nor at the atom root.
+ */
 object Superposition:
 
   // --- position helpers -----------------------------------------------------------------------------------
@@ -30,21 +35,27 @@ object Superposition:
   // A subterm position is a path of argument indices into an atom (root excluded), represented as
   // `Array[Int]`. It is only *materialised* when an inference fires and must record it in a `Justification`.
 
-  /** The subterm of `t` at position `pos` (a path of argument indices). */
+  /**
+   * The subterm of `t` at position `pos` (a path of argument indices).
+   */
   def subtermAt(bank: TermBank, t: Term, pos: Array[Int]): Term =
     var cur: Term = t
     var i = 0
     while i < pos.length do { cur = bank.arg(cur, pos(i)); i += 1 }
     cur
 
-  /** [[subtermAt]] on a live position stack, so a caller mid-[[foreachSubterm]] need not snapshot it. */
+  /**
+   * [[subtermAt]] on a live position stack, so a caller mid-[[foreachSubterm]] need not snapshot it.
+   */
   def subtermAt(bank: TermBank, t: Term, pos: IntArrayList): Term =
     var cur: Term = t
     var i = 0
     while i < pos.size do { cur = bank.arg(cur, pos.getInt(i)); i += 1 }
     cur
 
-  /** Rebuild `t` with the subterm at position `pos` replaced by `sub`. */
+  /**
+   * Rebuild `t` with the subterm at position `pos` replaced by `sub`.
+   */
   def replaceAt(bank: TermBank, t: Term, pos: Array[Int], sub: Term): Term = replaceAt(bank, t, pos, 0, sub)
 
   private def replaceAt(bank: TermBank, t: Term, pos: Array[Int], depth: Int, sub: Term): Term =
@@ -59,12 +70,14 @@ object Superposition:
         i += 1
       bank.mkApp(bank.headSymbol(t), args)
 
-  /** Visit every **non-variable** proper subterm of `atom` (root excluded), leftmost-outermost, calling
-    * `visit(u, path)` with the subterm `u` and its current position. The `path` [[IntArrayList]] is a single
-    * stack reused across the whole traversal (pushed on descent, popped on return), so enumeration
-    * allocates nothing per position. Snapshot it (`path.toIntArray`) inside `visit` **only** when you keep
-    * the position, i.e. when an inference actually fires. `visit` returns `true` to stop the traversal
-    * early. */
+  /**
+   * Visit every **non-variable** proper subterm of `atom` (root excluded), leftmost-outermost, calling
+   * `visit(u, path)` with the subterm `u` and its current position. The `path` [[IntArrayList]] is a single
+   * stack reused across the whole traversal (pushed on descent, popped on return), so enumeration
+   * allocates nothing per position. Snapshot it (`path.toIntArray`) inside `visit` **only** when you keep
+   * the position, i.e. when an inference actually fires. `visit` returns `true` to stop the traversal
+   * early.
+   */
   def foreachSubterm(bank: TermBank, atom: Term)(visit: (Term, IntArrayList) => Boolean): Boolean =
     val path: IntArrayList = new IntArrayList()
     def go(t: Term): Boolean =
@@ -83,20 +96,22 @@ object Superposition:
 
   // --- inference rules ------------------------------------------------------------------------------------
 
-  /** Whether `c` is `Gt` or `Eq` (i.e. `a ≽ b` when `c = compare(a, b)`). */
+  /**
+   * Whether `c` is `Gt` or `Eq` (i.e. `a ≽ b` when `c = compare(a, b)`).
+   */
   private inline def geq(c: Cmp): Boolean = c == Gt || c == Eq
 
-  /** Superposition, checking and building only. The trail must already carry the unifier of `l`, which is
-    * `from`'s side `fromSide`, with the subterm of `into` at `uPos`; the caller locates the overlap, unifies
-    * it, and owns the surrounding save and restore. `from` is in scope 0 and `into` in scope 1.
-    *
-    * Checks after the substitution that `l` has not become smaller than `r`, that a smaller side of an
-    * equality is not being rewritten, and that the result is not a trivial `x ≈ x`. The caller must have
-    * ensured before unifying that `from`'s literal is a positive equality and that `u` is a non-variable
-    * proper subterm. `uPos` is the caller's live position stack, copied only when the inference fires. */
-  def superpose(bank: TermBank, trail: Trail,
-                from: Clause, iFrom: Int, fromSide: Int,
-                into: Clause, iInto: Int, uPos: IntArrayList): Option[Clause] =
+  /**
+   * Superposition, checking and building only. The trail must already carry the unifier of `l`, which is
+   * `from`'s side `fromSide`, with the subterm of `into` at `uPos`; the caller locates the overlap, unifies
+   * it, and owns the surrounding save and restore. `from` is in scope 0 and `into` in scope 1.
+   *
+   * Checks after the substitution that `l` has not become smaller than `r`, that a smaller side of an
+   * equality is not being rewritten, and that the result is not a trivial `x ≈ x`. The caller must have
+   * ensured before unifying that `from`'s literal is a positive equality and that `u` is a non-variable
+   * proper subterm. `uPos` is the caller's live position stack, copied only when the inference fires.
+   */
+  def superpose(bank: TermBank, trail: Trail, from: Clause, iFrom: Int, fromSide: Int, into: Clause, iInto: Int, uPos: IntArrayList): Option[Clause] =
     val order: Order = bank.order
     val fromAtom: Term = bank.atomOf(from.literals(iFrom))
     val intoLit: Literal = into.literals(iInto)
@@ -137,11 +152,10 @@ object Superposition:
           ap.copyLitsExcept(from.literals, iFrom, 0, out, n1)
           Some(bank.mkClause(out, Justification.Superposition(from, iFrom, fromSide, into, iInto, pos)))
 
-  /** Reproduces [[superpose]]'s `Applier` order, so that reconstruction numbers the conclusion's fresh variables as it did.
-    */
-  private[superposition] def replayApplier(bank: TermBank, ap: Trail#Applier,
-                                           from: Clause, iFrom: Int, fromSide: Int,
-                                           into: Clause, iInto: Int): Unit =
+  /**
+   * Reproduces [[superpose]]'s `Applier` order, so that reconstruction numbers the conclusion's fresh variables as it did.
+   */
+  private[superposition] def replayApplier(bank: TermBank, ap: Trail#Applier, from: Clause, iFrom: Int, fromSide: Int, into: Clause, iInto: Int): Unit =
     val fromAtom: Term = bank.atomOf(from.literals(iFrom))
     ap.apply(bank.arg(fromAtom, fromSide), 0) //     l, as in `superpose`
     ap.apply(bank.arg(fromAtom, 1 - fromSide), 0) // r
@@ -151,10 +165,12 @@ object Superposition:
     k = 0
     while k < from.literals.length do { if k != iFrom then ap.apply(bank.atomOf(from.literals(k)), 0); k += 1 }
 
-  /** **Equality resolution**: all resolvents of `c` on its **eligible** literals. For each `i` in `eligible`
-    * that is a negative equality `s ≠ t` with `σ = mgu(s, t)`, yields `(c\{i})σ`. The callee picks the
-    * applicable literals (negative equalities that unify), and `eligible`, the `selected`/maximal set, is the
-    * loop's contribution. */
+  /**
+   * **Equality resolution**: all resolvents of `c` on its **eligible** literals. For each `i` in `eligible`
+   * that is a negative equality `s ≠ t` with `σ = mgu(s, t)`, yields `(c\{i})σ`. The callee picks the
+   * applicable literals (negative equalities that unify), and `eligible`, the `selected`/maximal set, is the
+   * loop's contribution.
+   */
   def equalityResolution(bank: TermBank, trail: Trail, c: Clause, eligible: Array[Int]): List[Clause] =
     val out = List.newBuilder[Clause]
     var a = 0
@@ -163,7 +179,9 @@ object Superposition:
       a += 1
     out.result()
 
-  /** No ordering condition here beyond eligibility, which the caller supplies, hence no [[Order]] parameter. */
+  /**
+   * No ordering condition here beyond eligibility, which the caller supplies, hence no [[Order]] parameter.
+   */
   private def resolveOne(bank: TermBank, trail: Trail, c: Clause, i: Int): Option[Clause] =
     val lit: Literal = c.literals(i)
     val atom: Term = bank.atomOf(lit)
@@ -181,13 +199,15 @@ object Superposition:
       trail.restore(saved)
       result
 
-  /** Equality factoring. From a factored literal `i` and a partner `j` whose chosen sides unify, derives `c`
-    * without `i`, with the disequality of the two other sides added. Both side choices are enumerated here and
-    * filtered by the ordering conditions.
-    *
-    * Only `i` must be eligible; the partner is any other positive equality of `c`. Drawing the partner from
-    * `eligible` as well would lose inferences: in `f(x) ≈ a ∨ f(x) ≈ d` with `d ≻ a` only the second literal
-    * is eligible, so the legitimate factor `d ≉ a ∨ f(x) ≈ a` would never be derived. */
+  /**
+   * Equality factoring. From a factored literal `i` and a partner `j` whose chosen sides unify, derives `c`
+   * without `i`, with the disequality of the two other sides added. Both side choices are enumerated here and
+   * filtered by the ordering conditions.
+   *
+   * Only `i` must be eligible; the partner is any other positive equality of `c`. Drawing the partner from
+   * `eligible` as well would lose inferences: in `f(x) ≈ a ∨ f(x) ≈ d` with `d ≻ a` only the second literal
+   * is eligible, so the legitimate factor `d ≉ a ∨ f(x) ≈ a` would never be derived.
+   */
   def equalityFactoring(bank: TermBank, trail: Trail, c: Clause, eligible: Array[Int]): List[Clause] =
     val order: Order = bank.order
     val out = List.newBuilder[Clause]
@@ -214,8 +234,7 @@ object Superposition:
       a += 1
     out.result()
 
-  private def factorOne(bank: TermBank, trail: Trail, order: Order,
-                        c: Clause, i: Int, atomI: Term, iSide: Int, j: Int, atomJ: Term, jSide: Int): Option[Clause] =
+  private def factorOne(bank: TermBank, trail: Trail, order: Order, c: Clause, i: Int, atomI: Term, iSide: Int, j: Int, atomJ: Term, jSide: Int): Option[Clause] =
     val s: Term = bank.arg(atomI, iSide); val t: Term = bank.arg(atomI, 1 - iSide)
     val sp: Term = bank.arg(atomJ, jSide); val tp: Term = bank.arg(atomJ, 1 - jSide)
     val saved: Int = trail.save()
@@ -236,10 +255,11 @@ object Superposition:
     trail.restore(saved)
     result
 
-  /** Reproduces [[factorOne]]'s `Applier` order (`s`, `t`, `t'`, then the survivors, skipping `i`); see
-   *  [[replayApplier]]. Change one and change the other. */
-  private[superposition] def replayFactoringApplier(bank: TermBank, ap: Trail#Applier,
-                                                    c: Clause, i: Int, iSide: Int, j: Int, jSide: Int): Unit =
+  /**
+   * Reproduces [[factorOne]]'s `Applier` order (`s`, `t`, `t'`, then the survivors, skipping `i`); see
+   *  [[replayApplier]]. Change one and change the other.
+   */
+  private[superposition] def replayFactoringApplier(bank: TermBank, ap: Trail#Applier, c: Clause, i: Int, iSide: Int, j: Int, jSide: Int): Unit =
     val atomI: Term = bank.atomOf(c.literals(i))
     ap.apply(bank.arg(atomI, iSide), 0) //                            s
     ap.apply(bank.arg(atomI, 1 - iSide), 0) //                        t
@@ -247,21 +267,25 @@ object Superposition:
     var k = 0
     while k < c.literals.length do { if k != i then ap.apply(bank.atomOf(c.literals(k)), 0); k += 1 }
 
-  /** Whether an equality atom oriented `ori` may be used as a rewrite in the direction that takes its `side` to
-    * the other: only the greater side, or either side when the two are incomparable, and neither when they are
-    * equal. */
+  /**
+   * Whether an equality atom oriented `ori` may be used as a rewrite in the direction that takes its `side` to
+   * the other: only the greater side, or either side when the two are incomparable, and neither when they are
+   * equal.
+   */
   private inline def usesSide(ori: Cmp, side: Int): Boolean = ori match
-    case Gt  => side == 0
-    case Lt  => side == 1
+    case Gt => side == 0
+    case Lt => side == 1
     case Inc => true
-    case Eq  => false
+    case Eq => false
 
-  /** The rewrites `c` offers superposition: for each of its **selected** positive equalities, each side that
-    * [[usesSide]] admits and that is not itself a variable.
-    *
-    * The selection is read from the clause rather than passed in, so that the index and the loop cannot disagree
-    * about which literals are eligible; the index would otherwise leak entries. Call
-    * [[Core.Clause.rewriteSources]], which memoises this, rather than this directly. */
+  /**
+   * The rewrites `c` offers superposition: for each of its **selected** positive equalities, each side that
+   * [[usesSide]] admits and that is not itself a variable.
+   *
+   * The selection is read from the clause rather than passed in, so that the index and the loop cannot disagree
+   * about which literals are eligible; the index would otherwise leak entries. Call
+   * [[Core.Clause.rewriteSources]], which memoises this, rather than this directly.
+   */
   def rewriteSources(bank: TermBank, c: Clause): Array[RewriteSource] =
     val order: Order = bank.order
     val sel: Array[Int] = c.select(bank)

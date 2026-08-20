@@ -2,9 +2,10 @@ package lisa.automation.superposition
 package index
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
+
 import scala.collection.mutable
 
-import Core.*
+import Core._
 
 /**
  * A perfect discrimination tree, generic in the payload `E`, answering the generalization query: given a term
@@ -25,8 +26,10 @@ import Core.*
 final class DiscriminationTree[E](bank: TermBank, trail: Trail):
   private inline val VarMarker = -1 // flattened head of a variable (function symbol codes are >= 0)
 
-  /** One variable of a stored key, in both forms the tree needs: `varNum` identifies the edge, so the two `x`s
-    * of `f(x,x)` follow one edge while `f(x,y)` branches, and `varTerm` is that same variable as a term. */
+  /**
+   * One variable of a stored key, in both forms the tree needs: `varNum` identifies the edge, so the two `x`s
+   * of `f(x,x)` follow one edge while `f(x,y)` branches, and `varTerm` is that same variable as a term.
+   */
   private final class VarEdge(val varNum: Int, val varTerm: Term, val child: Node)
 
   private final class Node:
@@ -47,7 +50,9 @@ final class DiscriminationTree[E](bank: TermBank, trail: Trail):
   private var qLen: Int = 0
   private var descending: Boolean = false // true while a retrieval descent is live (the buffers are in use)
 
-  /** Fail loudly if the tree is entered during a live retrieval descent. */
+  /**
+   * Fail loudly if the tree is entered during a live retrieval descent.
+   */
   private def guardNotDescending(op: String): Unit =
     if descending then
       throw new IllegalStateException(
@@ -57,10 +62,13 @@ final class DiscriminationTree[E](bank: TermBank, trail: Trail):
           "it returns."
       )
 
-  /** Run `body` with the guard armed, so a re-entrant operation inside a callback throws. */
+  /**
+   * Run `body` with the guard armed, so a re-entrant operation inside a callback throws.
+   */
   private inline def guarded[A](inline body: => A): A =
     descending = true
-    try body finally descending = false
+    try body
+    finally descending = false
 
   inline def size: Int = _size
   def isEmpty: Boolean = _size == 0
@@ -120,9 +128,11 @@ final class DiscriminationTree[E](bank: TermBank, trail: Trail):
 
   // --- retrieval (generalizations) ------------------------------------------------------------------------
 
-  /** Visit each entry whose key generalizes `query`, with the matcher live on the trail, the key's variables
+  /**
+   * Visit each entry whose key generalizes `query`, with the matcher live on the trail, the key's variables
    *  in scope 0 and the query in scope 1. Exact, so no verification is needed. `visit` returns `true` to stop
-   *  the descent, which this then returns. The trail is restored on return. */
+   *  the descent, which this then returns. The trail is restored on return.
+   */
   def retrieveGeneralizations(query: Term)(visit: E => Boolean): Boolean =
     guardNotDescending("retrieveGeneralizations")
     qLen = 0
@@ -189,8 +199,10 @@ final class DiscriminationTree[E](bank: TermBank, trail: Trail):
 
   // --- removal --------------------------------------------------------------------------------------------
 
-  /** Remove `entry` from under `key`'s path, matching by `==`, and prune emptied nodes. Returns whether one
-   *  was found. `minWeight` is intentionally left stale (sound; see the class doc). */
+  /**
+   * Remove `entry` from under `key`'s path, matching by `==`, and prune emptied nodes. Returns whether one
+   *  was found. `minWeight` is intentionally left stale (sound; see the class doc).
+   */
   def remove(key: Term, entry: E): Boolean =
     guardNotDescending("remove")
     qLen = 0
@@ -229,7 +241,9 @@ final class DiscriminationTree[E](bank: TermBank, trail: Trail):
           if removed && isEmptyNode(c) then node.symChildren.remove(code)
           removed
 
-  /** Drop one entry `== entry` from `node`'s leaf list; whether there was one. */
+  /**
+   * Drop one entry `== entry` from `node`'s leaf list; whether there was one.
+   */
   private def removeEntry(node: Node, entry: E): Boolean =
     val es = node.entries
     if es == null then false

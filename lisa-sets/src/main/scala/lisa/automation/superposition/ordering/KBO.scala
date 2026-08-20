@@ -1,24 +1,28 @@
 package lisa.automation.superposition
 package ordering
 
-import Core.*
+import Core._
 
-/** The four-valued outcome of a KBO comparison of two terms. */
+/**
+ * The four-valued outcome of a KBO comparison of two terms.
+ */
 enum Cmp:
   case Gt // strictly greater
   case Lt // strictly lesser
   case Eq // equal
   case Inc // incomparable
 
-/** The Knuth-Bendix ordering on terms of a [[TermBank]], which must already share one variable namespace.
-  *
-  * Löchner's linear tupling algorithm ("Things to Know when Implementing KBO"), ported
-  * from E. One traversal of both terms accumulates the weight balance and, per
-  * variable, the occurrence balance, plus how many variables are unbalanced each way, so the variable condition
-  * reduces to a counter being zero. The lexicographic descent recurses only to the first differing argument and
-  * sweeps the rest into the balances, which is what keeps it linear.
-  *
-  * The accumulators are reused between calls, so an instance is not thread-safe. */
+/**
+ * The Knuth-Bendix ordering on terms of a [[TermBank]], which must already share one variable namespace.
+ *
+ * Löchner's linear tupling algorithm ("Things to Know when Implementing KBO"), ported
+ * from E. One traversal of both terms accumulates the weight balance and, per
+ * variable, the occurrence balance, plus how many variables are unbalanced each way, so the variable condition
+ * reduces to a counter being zero. The lexicographic descent recurses only to the first differing argument and
+ * sweeps the rest into the balances, which is what keeps it linear.
+ *
+ * The accumulators are reused between calls, so an instance is not thread-safe.
+ */
 final class KBO(val bank: TermBank):
   import Cmp.*
 
@@ -38,7 +42,9 @@ final class KBO(val bank: TermBank):
       reset()
       kbocmp(s, t)
 
-    /** Record an occurrence of variable `v` on the left, updating the balance and the pos/neg counts. */
+    /**
+     * Record an occurrence of variable `v` on the left, updating the balance and the pos/neg counts.
+     */
   private def incVb(v: Int): Unit =
     ensureVb(v)
     val old: Int = vb(v)
@@ -47,7 +53,9 @@ final class KBO(val bank: TermBank):
     else if old == -1 then negCount -= 1
     wb += Core.VariableWeight
 
-  /** Record an occurrence of variable `v` on the right, updating the balance and the pos/neg counts. */
+  /**
+   * Record an occurrence of variable `v` on the right, updating the balance and the pos/neg counts.
+   */
   private def decVb(v: Int): Unit =
     ensureVb(v)
     val old: Int = vb(v)
@@ -56,13 +64,17 @@ final class KBO(val bank: TermBank):
     else if old == 1 then posCount -= 1
     wb -= Core.VariableWeight
 
-  /** Ensure `vb` can index `v`, and extend the reset high-water mark to cover it. */
+  /**
+   * Ensure `vb` can index `v`, and extend the reset high-water mark to cover it.
+   */
   private def ensureVb(v: Int): Unit =
     if v >= vb.length then // `vb.length` is a power of two, so this is the next one above `v`, at least twice as long
       vb = java.util.Arrays.copyOf(vb, Integer.highestOneBit(v) << 1)
     if v > maxVar then maxVar = v
 
-  /** Clear the accumulators for a fresh comparison (only the touched `vb` prefix). */
+  /**
+   * Clear the accumulators for a fresh comparison (only the touched `vb` prefix).
+   */
   private def reset(): Unit =
     java.util.Arrays.fill(vb, 0, maxVar + 1, 0) // a no-op when `maxVar` is -1
     wb = 0
@@ -70,15 +82,16 @@ final class KBO(val bank: TermBank):
     negCount = 0
     maxVar = -1
 
-  /** Sweep one term into the accumulators with the given side (`lhs = true` adds to `s`, `false`
-    * to `t`): add `±` each symbol's weight and bump the variable balance for each variable. A
-    * ground subterm is folded in O(1) via its cached weight, with no descent. */
+  /**
+   * Sweep one term into the accumulators with the given side (`lhs = true` adds to `s`, `false`
+   * to `t`): add `±` each symbol's weight and bump the variable balance for each variable. A
+   * ground subterm is folded in O(1) via its cached weight, with no descent.
+   */
   private def accumulateBalance(t: Term, lhs: Boolean): Unit =
     if bank.isGround(t) then
       val w: Int = bank.weight(t)
       if lhs then wb += w else wb -= w
-    else if bank.isVar(t) then
-      if lhs then incVb(bank.varNum(t).num) else decVb(bank.varNum(t).num)
+    else if bank.isVar(t) then if lhs then incVb(bank.varNum(t).num) else decVb(bank.varNum(t).num)
     else
       val sw: Int = signature.info(bank.headSymbol(t)).weight
       if lhs then wb += sw else wb -= sw
@@ -88,14 +101,14 @@ final class KBO(val bank: TermBank):
         accumulateBalance(bank.arg(t, i), lhs)
         i += 1
 
-
-
   // --- internals ------------------------------------------------------------------------------------------
 
-  /** Full comparison of two ground terms. With no variables the variable condition is vacuous, so
-    * (when the precedence is total) the result is never `Inc`: at each level the cached weight
-    * decides, then top-symbol precedence, then a lexicographic recurse on the arguments.
-    * Precondition: `s` and `t` are ground. */
+  /**
+   * Full comparison of two ground terms. With no variables the variable condition is vacuous, so
+   * (when the precedence is total) the result is never `Inc`: at each level the cached weight
+   * decides, then top-symbol precedence, then a lexicographic recurse on the arguments.
+   * Precondition: `s` and `t` are ground.
+   */
   private def compareGround(s: Term, t: Term): Cmp =
     if s == t then Eq
     else
@@ -120,10 +133,12 @@ final class KBO(val bank: TermBank):
             i += 1
           res
 
-  /** The core comparison: compare `s` and `t`, returning the lexicographic
-    * verdict for this position while updating the global `wb`/`vb`/`pos`/`neg` accumulators over
-    * both subterms. Variable cases settle directly via the occurs check; both-compound cases
-    * resolve by weight, then precedence, then the recursive lexicographic result. */
+  /**
+   * The core comparison: compare `s` and `t`, returning the lexicographic
+   * verdict for this position while updating the global `wb`/`vb`/`pos`/`neg` accumulators over
+   * both subterms. Variable cases settle directly via the occurs check; both-compound cases
+   * resolve by weight, then precedence, then the recursive lexicographic result.
+   */
   private def kbocmp(s: Term, t: Term): Cmp =
     if s == t then Eq
     else
@@ -180,10 +195,12 @@ final class KBO(val bank: TermBank):
               case Lt => lOrN
               case Inc => Inc
 
-  /** Lexicographic comparison of the arguments of two terms with the same head symbol (hence the
-    * same arity). Recurses on arguments in lockstep until the first non-`Eq` result, then merely
-    * sweeps the remaining arguments into the balances. Identical arguments are skipped: being the
-    * same handle, they contribute nothing to either balance. */
+  /**
+   * Lexicographic comparison of the arguments of two terms with the same head symbol (hence the
+   * same arity). Recurses on arguments in lockstep until the first non-`Eq` result, then merely
+   * sweeps the remaining arguments into the balances. Identical arguments are skipped: being the
+   * same handle, they contribute nothing to either balance.
+   */
   private def kbocmplex(s: Term, t: Term): Cmp =
     var res: Cmp = Eq
     val n: Int = bank.arity(s)
@@ -199,13 +216,12 @@ final class KBO(val bank: TermBank):
       i += 1
     res
 
-
-
-  
-  /** Whether the signature's current weights and precedence make this an admissible KBO, and so a reduction
-    * ordering. `None` if they do, otherwise the first violation: the variable weight must be positive, every
-    * constant must weigh at least that, and a weight-zero unary symbol must be precedence-maximal.
-    * Asserted once per problem by [[Clausal.refute]].*/
+  /**
+   * Whether the signature's current weights and precedence make this an admissible KBO, and so a reduction
+   * ordering. `None` if they do, otherwise the first violation: the variable weight must be positive, every
+   * constant must weigh at least that, and a weight-zero unary symbol must be precedence-maximal.
+   * Asserted once per problem by [[Clausal.refute]].
+   */
   private[automation] def checkAdmissibility(): Option[String] =
     val varWeight: Int = Core.VariableWeight
     if varWeight <= 0 then Some(s"variable weight must be positive, got $varWeight")

@@ -6,7 +6,10 @@ import lisa.tptp.KernelParser.problemToSequent
 import lisa.tptp.ProblemGatherer.getPRPproblems
 import lisa.utils.K.repr
 
-import KernelParser.{strictMapAtom, strictMapTerm, strictMapVariable, emptyctx}
+import KernelParser.strictMapAtom
+import KernelParser.strictMapTerm
+import KernelParser.strictMapVariable
+import KernelParser.emptyctx
 
 object Example {
 

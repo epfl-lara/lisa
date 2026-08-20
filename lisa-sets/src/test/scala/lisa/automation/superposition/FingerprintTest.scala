@@ -1,31 +1,39 @@
 package lisa.automation.superposition
 
-import scala.collection.mutable
-
+import lisa.automation.superposition.index._
 import org.scalatest.funsuite.AnyFunSuite
 
-import Core.*
-import Oracles.*
-import lisa.automation.superposition.index.*
+import scala.collection.mutable
 
-/** Tests for the standalone fingerprint index ([[Fingerprint]] + [[FingerprintIndex]]). */
+import Core._
+import Oracles._
+
+/**
+ * Tests for the standalone fingerprint index ([[Fingerprint]] + [[FingerprintIndex]]).
+ */
 class FingerprintTest extends AnyFunSuite:
 
   class Fix extends TermFixture:
 
-    /** Collect the unifiable candidates of `q` from `idx` into a set. */
+    /**
+     * Collect the unifiable candidates of `q` from `idx` into a set.
+     */
     def unif[E](idx: FingerprintIndex[E], q: Term): mutable.LinkedHashSet[E] =
       val s = mutable.LinkedHashSet.empty[E]
       idx.retrieveUnifiable(q)(s += _)
       s
 
-    /** Whether `q` and `t` are fingerprint-compatible at every FP7 position (the descent oracle). */
+    /**
+     * Whether `q` and `t` are fingerprint-compatible at every FP7 position (the descent oracle).
+     */
     def fpCompatible(q: Term, t: Term): Boolean =
       val qf = fingerprintOf(bank, q, Fingerprint.FP7Trie)
       val tf = fingerprintOf(bank, t, Fingerprint.FP7Trie)
       qf.indices.forall(i => Fingerprint.unifiable(qf(i), tf(i)))
 
-    /** Whether `q` and `t` genuinely unify (two scopes, trail restored). */
+    /**
+     * Whether `q` and `t` genuinely unify (two scopes, trail restored).
+     */
     def unifies(q: Term, t: Term): Boolean =
       val saved = trail.save()
       val r = trail.unify(q, 0, t, 1)
@@ -72,11 +80,17 @@ class FingerprintTest extends AnyFunSuite:
 
     val f = fn("f", 1); val g = fn("g", 2); val h = fn("h", 3); val a = const("a"); val b = const("b")
     val terms = Seq(
-      a, v(0), app(f, a), app(f, v(0)), app(g, a, b), app(g, v(0), app(f, b)),
-      app(h, a, app(g, v(0), b), v(1)), app(f, app(f, app(f, a))), app(g, app(g, a, b), app(f, v(2)))
+      a,
+      v(0),
+      app(f, a),
+      app(f, v(0)),
+      app(g, a, b),
+      app(g, v(0), app(f, b)),
+      app(h, a, app(g, v(0), b), v(1)),
+      app(f, app(f, app(f, a))),
+      app(g, app(g, a, b), app(f, v(2)))
     )
-    for t <- terms do
-      assert(fingerprintOf(bank, t, Fingerprint.FP7Trie).sameElements(computeRef(t)), s"mismatch for $t")
+    for t <- terms do assert(fingerprintOf(bank, t, Fingerprint.FP7Trie).sameElements(computeRef(t)), s"mismatch for $t")
   }
 
   // --- the unification compatibility relation -----------------------------------------------------
@@ -98,8 +112,7 @@ class FingerprintTest extends AnyFunSuite:
 
   test("unifiable is symmetric") {
     val feats = Seq(1, 2, 3, AnyVar, BelowVar, NotInTerm)
-    for a <- feats; b <- feats do
-      assert(Fingerprint.unifiable(a, b) == Fingerprint.unifiable(b, a), s"asymmetry at ($a,$b)")
+    for a <- feats; b <- feats do assert(Fingerprint.unifiable(a, b) == Fingerprint.unifiable(b, a), s"asymmetry at ($a,$b)")
   }
 
   // --- index retrieval ----------------------------------------------------------------------------
@@ -130,9 +143,19 @@ class FingerprintTest extends AnyFunSuite:
     val f = fn("f", 1); val g = fn("g", 1); val h = fn("h", 2); val a = const("a"); val b = const("b")
     val idx = new FingerprintIndex[Term](bank)
     val ts = Seq(
-      const("a"), const("b"), app(f, a), app(f, b), app(f, v(0)), app(g, a),
-      app(h, a, b), app(h, v(0), b), app(h, a, v(1)), app(h, v(0), v(1)),
-      app(h, app(f, a), b), app(h, a, app(f, b)), v(7)
+      const("a"),
+      const("b"),
+      app(f, a),
+      app(f, b),
+      app(f, v(0)),
+      app(g, a),
+      app(h, a, b),
+      app(h, v(0), b),
+      app(h, a, v(1)),
+      app(h, v(0), v(1)),
+      app(h, app(f, a), b),
+      app(h, a, app(f, b)),
+      v(7)
     )
     ts.foreach(t => idx.insert(t, t))
     for q <- ts do
@@ -145,13 +168,23 @@ class FingerprintTest extends AnyFunSuite:
     val f = fn("f", 1); val g = fn("g", 1); val h = fn("h", 2); val a = const("a"); val b = const("b")
     val idx = new FingerprintIndex[Term](bank)
     val ts = Seq(
-      const("a"), const("b"), app(f, a), app(f, b), app(f, v(0)), app(g, a),
-      app(h, a, b), app(h, v(0), b), app(h, a, v(1)), app(h, v(0), v(1)),
-      app(h, app(f, a), b), app(h, a, app(f, b)), app(f, app(g, v(0))), v(7)
+      const("a"),
+      const("b"),
+      app(f, a),
+      app(f, b),
+      app(f, v(0)),
+      app(g, a),
+      app(h, a, b),
+      app(h, v(0), b),
+      app(h, a, v(1)),
+      app(h, v(0), v(1)),
+      app(h, app(f, a), b),
+      app(h, a, app(f, b)),
+      app(f, app(g, v(0))),
+      v(7)
     )
     ts.foreach(t => idx.insert(t, t))
-    for q <- ts; t <- ts do
-      if unifies(q, t) then assert(unif(idx, q).contains(t), s"$t unifies with $q but was not retrieved")
+    for q <- ts; t <- ts do if unifies(q, t) then assert(unif(idx, q).contains(t), s"$t unifies with $q but was not retrieved")
   }
 
   // --- insertion / deletion -----------------------------------------------------------------------

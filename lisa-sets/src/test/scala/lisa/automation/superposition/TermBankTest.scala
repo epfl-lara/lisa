@@ -2,7 +2,7 @@ package lisa.automation.superposition
 
 import org.scalatest.funsuite.AnyFunSuite
 
-import Core.*
+import Core._
 
 /**
  * `TermBank.varsOf`, whose two paths must agree.
@@ -19,8 +19,10 @@ import Core.*
  */
 class TermBankTest extends AnyFunSuite:
 
-  /** The variable numbers of `ts`, sorted, so a test can state the expected set without fixing the order --
-    * which `varsOf` deliberately does not promise across the mask and overflow parts of its answer. */
+  /**
+   * The variable numbers of `ts`, sorted, so a test can state the expected set without fixing the order --
+   * which `varsOf` deliberately does not promise across the mask and overflow parts of its answer.
+   */
   private def nums(f: TermFixture, ts: Array[Term]): Seq[Int] = ts.map(f.bank.varNum(_).num).toSeq.sorted
 
   test("a ground term has no variables") {
@@ -81,6 +83,5 @@ class TermBankTest extends AnyFunSuite:
     val t = f.app(g, f.v(5), f.app(g, f.v(64), f.v(5)))
     val found = nums(f, f.bank.varsOf(t)).toSet
     // every variable `varsOf` reports must be one `containsVar` confirms, and no other in range
-    for n <- 0 to 70 do
-      assert(f.bank.containsVar(t, Core.Variable(n)) == found.contains(n), s"disagreement on variable $n")
+    for n <- 0 to 70 do assert(f.bank.containsVar(t, Core.Variable(n)) == found.contains(n), s"disagreement on variable $n")
   }

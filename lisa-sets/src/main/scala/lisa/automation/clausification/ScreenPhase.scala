@@ -1,8 +1,9 @@
 package lisa.automation.clausification
 
-import lisa.utils.K.{_, given}
 import lisa.automation.Problem
-import Clausification.*
+import lisa.utils.K.{_, given}
+
+import Clausification._
 
 /**
  * Input screening, the topmost phase: it renames every free input variable into the reserved namespaces
@@ -13,7 +14,7 @@ private[clausification] object ScreenPhase:
 
   def certifyScreen(problem: Problem, prover: ClausificationProver): ClausificationProof =
     val renaming: Map[Variable, Variable] = screeningRenaming(problem)
-    val sigma: Map[Variable, Expression]    = renaming.map((v, w) => v -> (w: Expression))
+    val sigma: Map[Variable, Expression] = renaming.map((v, w) => v -> (w: Expression))
     val sigmaInv: Map[Variable, Expression] = renaming.map((v, w) => w -> (v: Expression))
     // The entry transformation: rename into the reserved namespaces, then η-expand.
     def screen(s: Sequent): Sequent = etaExpandSequent(applyTo(s, sigma))
@@ -40,34 +41,40 @@ private[clausification] object ScreenPhase:
       val restored = problem.conjecture.filter(c => isSameSequent(c, computed)).getOrElse(computed)
       val steps =
         if restored == subproof.bot then instSteps :+ subproof
-        else instSteps :+ subproof :+
-          (if sigmaInv.isEmpty then Restate(restored, instSteps.size) else InstSchema(restored, instSteps.size, sigmaInv))
+        else
+          instSteps :+ subproof :+
+            (if sigmaInv.isEmpty then Restate(restored, instSteps.size) else InstSchema(restored, instSteps.size, sigmaInv))
       ClausificationProof(steps, problem.imports ++ libImports)
 
-  /** η-expand every quantifier on both sides of `s`. See the class doc for why this is the pipeline's entry
-    * invariant and why it is free at the kernel level. */
+  /**
+   * η-expand every quantifier on both sides of `s`. See the class doc for why this is the pipeline's entry
+   * invariant and why it is free at the kernel level.
+   */
   private def etaExpandSequent(s: Sequent): Sequent =
     Sequent(s.left.map(etaExpandQuantifiers), s.right.map(etaExpandQuantifiers))
 
-  /** The screening renaming: every free variable of the problem to its canonical twin, in a deterministic order
-    * (`Ind` variables to `v_1, v_2, …`, predicates to `P_1, P_2, …`, functions to `F_1, F_2, …`). Variables that
-    * are already their own canonical twin are dropped, so a fully-screened problem gets an empty map (and a
-    * pass-through proof). Third-order and higher variables are dropped too, see below. */
+  /**
+   * The screening renaming: every free variable of the problem to its canonical twin, in a deterministic order
+   * (`Ind` variables to `v_1, v_2, …`, predicates to `P_1, P_2, …`, functions to `F_1, F_2, …`). Variables that
+   * are already their own canonical twin are dropped, so a fully-screened problem gets an empty map (and a
+   * pass-through proof). Third-order and higher variables are dropped too, see below.
+   */
   private[clausification] def screeningRenaming(problem: Problem): Map[Variable, Variable] =
     val sequents: Seq[Sequent] = problem.hypotheses ++ problem.conjecture
     val free: Seq[Variable] = sequents.iterator
       .flatMap(s => s.left.iterator ++ s.right.iterator)
       .flatMap(_.freeVariables)
-      .toSeq.distinct
+      .toSeq
+      .distinct
       .sortBy(v => (v.id.name, v.id.no, v.sort.toString)) // sequent sides are Sets, so order the traversal explicitly
     // Three namespaces: an `Ind` variable is a clause variable, a predicate sort `Ind → … → Ind → Prop` a
     // predicate, a function sort `Ind → … → Ind → Ind` a function (the kernel's own `isPredicate`/`isFunctional`,
     // which `Ind` itself also satisfies, hence the split off first). A variable of any other sort is left unchanged as
     // the pipeline never creates new ones.
-    val inds   = free.filter(_.sort == Ind)
+    val inds = free.filter(_.sort == Ind)
     val higher = free.filterNot(_.sort == Ind)
-    val preds  = higher.filter(_.sort.isPredicate)
-    val funs   = higher.filter(_.sort.isFunctional)
+    val preds = higher.filter(_.sort.isPredicate)
+    val funs = higher.filter(_.sort.isFunctional)
     // Counters start at 1, so no screened name is a bare prefix.
     def canonical(vs: Seq[Variable], prefix: String): Seq[(Variable, Variable)] =
       vs.zipWithIndex.map((v, i) => v -> Variable(Identifier(prefix, i + 1), v.sort))

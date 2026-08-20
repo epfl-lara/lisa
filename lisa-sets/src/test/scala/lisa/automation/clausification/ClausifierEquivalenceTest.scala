@@ -1,15 +1,23 @@
 package lisa.automation.clausification
 
-import java.io.File
-import scala.util.{Try, Success, Failure}
-
+import lisa.automation.superposition.TptpCorpus
+import lisa.automation.superposition.bench.EqFofEvaluation
+import lisa.automation.superposition.bench.FofEvaluation
+import lisa.tptp.AnnotatedFormula
+import lisa.tptp.AnnotatedSequent
+import lisa.tptp.KernelParser.axiomLikeRoles
+import lisa.tptp.KernelParser.problemToKernel
+import lisa.tptp.KernelParser.strictMapAtom
+import lisa.tptp.KernelParser.strictMapTerm
+import lisa.tptp.KernelParser.strictMapVariable
+import lisa.utils.K
 import org.scalatest.funsuite.AnyFunSuite
 
-import lisa.utils.K
-import lisa.tptp.{AnnotatedFormula, AnnotatedSequent}
-import lisa.tptp.KernelParser.{axiomLikeRoles, problemToKernel, strictMapAtom, strictMapTerm, strictMapVariable}
-import lisa.automation.superposition.TptpCorpus
-import lisa.automation.superposition.bench.{FofEvaluation, EqFofEvaluation}
+import java.io.File
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
+
 import Clausification.GeneratedNames
 
 /**
@@ -27,20 +35,27 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
 
   private def size(e: K.Expression): Int = e match
     case K.Application(f, a) => 1 + size(f) + size(a)
-    case K.Lambda(_, b)      => 1 + size(b)
-    case _                   => 1
+    case K.Lambda(_, b) => 1 + size(b)
+    case _ => 1
 
-  /** Run `body` on a daemon thread, returning `Some(result)` if it finishes within `ms`, else interrupting it and
-   *  returning `None`. Used to skip formulas whose certified ε-Skolemization blows up (until it shares terms). */
+  /**
+   * Run `body` on a daemon thread, returning `Some(result)` if it finishes within `ms`, else interrupting it and
+   *  returning `None`. Used to skip formulas whose certified ε-Skolemization blows up (until it shares terms).
+   */
   private def runWithTimeout[A](ms: Long)(body: => A): Option[A] =
     val result = new java.util.concurrent.atomic.AtomicReference[Option[A]](None)
-    val th = new Thread(() => try result.set(Some(body)) catch case _: Throwable => ())
+    val th = new Thread(() =>
+      try result.set(Some(body))
+      catch case _: Throwable => ()
+    )
     th.setDaemon(true)
     th.start()
     th.join(ms)
-    if th.isAlive then { th.interrupt(); None } else result.get
+    if th.isAlive then { th.interrupt(); None }
+    else result.get
 
-  /** Structural equality up to renaming of the **fresh** symbols, with the problem symbols (all other constants)
+  /**
+   * Structural equality up to renaming of the **fresh** symbols, with the problem symbols (all other constants)
    *  matching exactly. Two classes of fresh symbol, treated differently:
    *
    *   - **Ordinary variables** (clause variables `w…` or originals, and naming atoms `nm…`) must match by a
@@ -51,7 +66,8 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
    *     syntactically-identical existentials *merge* (the certified clausifier itself does not: it mints a fresh `esk`
    *     per occurrence). So uncertified is a strict refinement: every uncertified Skolem maps onto one certified symbol, but one
    *     certified symbol may cover several uncertified ones. Requiring only the forward map captures exactly this (and more
-   *     distinct Skolem functions is unconditionally sound, so the relaxation loses no soundness assurance). */
+   *     distinct Skolem functions is unconditionally sound, so the relaxation loses no soundness assurance).
+   */
   // Returns None if isomorphic (in the above sense), else the first structurally-mismatching subexpression pair.
   private def isoMismatch(x: K.Expression, y: K.Expression): Option[(K.Expression, K.Expression)] =
     val fwd = scala.collection.mutable.HashMap.empty[K.Expression, K.Expression]
@@ -65,15 +81,16 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
     def renamable(e: K.Expression): Boolean = e.isInstanceOf[K.Variable] || isSkolem(e)
     def go(a: K.Expression, b: K.Expression): Option[(K.Expression, K.Expression)] = (a, b) match
       case (K.Application(f1, a1), K.Application(f2, a2)) => go(f1, f2).orElse(go(a1, a2))
-      case (K.Lambda(_, _), _) | (_, K.Lambda(_, _))     => if a == b then None else Some((a, b))
-      case _ if isSkolem(a) && isSkolem(b)               => if fwd.getOrElseUpdate(a, b) == b then None else Some((a, b)) // forward only
-      case _ if renamable(a) && renamable(b)             => if fwd.getOrElseUpdate(a, b) == b && bwd.getOrElseUpdate(b, a) == a then None else Some((a, b))
-      case _                                             => if a == b then None else Some((a, b))
+      case (K.Lambda(_, _), _) | (_, K.Lambda(_, _)) => if a == b then None else Some((a, b))
+      case _ if isSkolem(a) && isSkolem(b) => if fwd.getOrElseUpdate(a, b) == b then None else Some((a, b)) // forward only
+      case _ if renamable(a) && renamable(b) => if fwd.getOrElseUpdate(a, b) == b && bwd.getOrElseUpdate(b, a) == a then None else Some((a, b))
+      case _ => if a == b then None else Some((a, b))
     go(x, y)
 
   private def isoUpToRenaming(x: K.Expression, y: K.Expression): Boolean = isoMismatch(x, y).isEmpty
 
-  /** ε-abstraction for the test: replace each `ε(λx.φ)` by a fresh function `F` applied to the ε-term's **Ind**
+  /**
+   * ε-abstraction for the test: replace each `ε(λx.φ)` by a fresh function `F` applied to the ε-term's **Ind**
    *  free variables (sorted by original name), matching UncertifiedClausifier's Skolem functions. Unlike `Clausal.Abstraction`
    *  this filters to `Ind` (the certified path names before Skolem, so ε-terms can contain predicate naming atoms,
    *  which are not Skolem-function arguments). Run *before* ∀-strip so `F`'s arguments carry the original names.
@@ -82,26 +99,31 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
    *  ε-terms are absorbed into their enclosing symbol, exactly as UncertifiedClausifier's opaque Skolem functions absorb
    *  the witnesses they range over), and its identity is the *raw* ε-term, of which only the free variables are observable.
    *  Keying on the raw term (rather than recursively pre-abstracting the body) makes dedup structural: two identical
-   *  ε-terms get one symbol regardless of the numbering order of any inner ε-terms. */
+   *  ε-terms get one symbol regardless of the numbering order of any inner ε-terms.
+   */
   private def absEps(e: K.Expression): K.Expression =
     var n = 0
     val memo = scala.collection.mutable.HashMap.empty[K.Expression, K.Expression] // same raw ε-term ⇒ same symbol
     def go(e: K.Expression): K.Expression = e match
       case eps @ K.Application(f0, _) if f0 == K.epsilon => // an ε-term is opaque, so do NOT descend into its body
-        memo.getOrElseUpdate(eps, {
-          // A **Constant** (like UncertifiedClausifier's Skolem `sk`), NOT a Variable: else a nullary `feps` (result sort
-          // Ind) would be an Ind-valued free variable and cascade in as an argument to outer Skolem functions.
-          val fv = eps.freeVariables.toSeq.filter(_.sort == K.Ind).sortBy(v => (v.id.name, v.id.no))
-          val fSym = K.Constant(K.Identifier("feps", n), fv.foldRight(K.Ind: K.Sort)((v, acc) => v.sort -> acc))
-          n += 1
-          fv.foldLeft(fSym: K.Expression)((acc, v) => K.Application(acc, v))
-        })
+        memo.getOrElseUpdate(
+          eps, {
+            // A **Constant** (like UncertifiedClausifier's Skolem `sk`), NOT a Variable: else a nullary `feps` (result sort
+            // Ind) would be an Ind-valued free variable and cascade in as an argument to outer Skolem functions.
+            val fv = eps.freeVariables.toSeq.filter(_.sort == K.Ind).sortBy(v => (v.id.name, v.id.no))
+            val fSym = K.Constant(K.Identifier("feps", n), fv.foldRight(K.Ind: K.Sort)((v, acc) => v.sort -> acc))
+            n += 1
+            fv.foldLeft(fSym: K.Expression)((acc, v) => K.Application(acc, v))
+          }
+        )
       case K.Application(f, a) => K.Application(go(f), go(a))
-      case K.Lambda(x, b)      => K.Lambda(x, go(b))
-      case _                   => e
+      case K.Lambda(x, b) => K.Lambda(x, go(b))
+      case _ => e
     go(e)
 
-  /** Hypothesis formulas + the negated conjecture, exactly as the clausifier pipeline sees them. */
+  /**
+   * Hypothesis formulas + the negated conjecture, exactly as the clausifier pipeline sees them.
+   */
   private def inputFormulas(parsed: lisa.tptp.TptpProblem): Seq[K.Expression] =
     val hyps = parsed.formulas.collect {
       case f: AnnotatedFormula if axiomLikeRoles.contains(f.role) => f.formula

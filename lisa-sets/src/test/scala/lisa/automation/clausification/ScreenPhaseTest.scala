@@ -1,10 +1,9 @@
 package lisa.automation.clausification
 
-import org.scalatest.funsuite.AnyFunSuite
-
+import lisa.automation.Problem
 import lisa.utils.K
 import lisa.utils.K.{_, given}
-import lisa.automation.Problem
+import org.scalatest.funsuite.AnyFunSuite
 
 /**
  * Regression tests for [[ScreenPhase]], the input screening that keeps the caller's free variables out of the
@@ -36,23 +35,27 @@ import lisa.automation.Problem
  */
 class ScreenPhaseTest extends AnyFunSuite:
 
-  private val y  = Variable(Identifier("y"), Ind)
-  private val z  = Variable(Identifier("z"), Ind)
-  private val u  = Variable(Identifier("u"), Ind)
-  private val w  = Variable(Identifier("w"), Ind)
-  private val Q  = Variable(Identifier("Q"), Ind >>: Prop)
+  private val y = Variable(Identifier("y"), Ind)
+  private val z = Variable(Identifier("z"), Ind)
+  private val u = Variable(Identifier("u"), Ind)
+  private val w = Variable(Identifier("w"), Ind)
+  private val Q = Variable(Identifier("Q"), Ind >>: Prop)
   // Deliberate collisions with the clausifier's own schemas / generated names:
-  private val P   = Variable(Identifier("P"), Ind >>: Prop)     // == Clausification.schemaP (library statements)
-  private val R   = Variable(Identifier("R"), Prop)             // a bare propositional variable, screened as a predicate
-  private val x   = Variable(Identifier("x"), Ind)              // == the bound `x` of the library statements
+  private val P = Variable(Identifier("P"), Ind >>: Prop) // == Clausification.schemaP (library statements)
+  private val R = Variable(Identifier("R"), Prop) // a bare propositional variable, screened as a predicate
+  private val x = Variable(Identifier("x"), Ind) // == the bound `x` of the library statements
   private val esk = Variable(Identifier("esk", 1), Ind >>: Ind) // == the first Skolem function SkolemPhase mints
 
-  /** Prover stub meeting `certifyClausal`'s contract: imports = the clause sequents, conclusion = `⊢`. */
+  /**
+   * Prover stub meeting `certifyClausal`'s contract: imports = the clause sequents, conclusion = `⊢`.
+   */
   private def sorryProver(p: Problem): SCProof =
     SCProof(IndexedSeq(Sorry(Sequent(Set.empty, Set.empty))), p.imports)
 
-  /** Clausify `hyps ⊢ goal` with the stubbed prover; assert the kernel accepts it and that the proof concludes
-    * the caller's goal *verbatim* (screening must restore the caller's names). */
+  /**
+   * Clausify `hyps ⊢ goal` with the stubbed prover; assert the kernel accepts it and that the proof concludes
+   * the caller's goal *verbatim* (screening must restore the caller's names).
+   */
   private def check(what: String, goal: Expression, hyps: Expression*): Unit =
     val problem = Problem(hyps.map(h => () |- h), Some(() |- goal))
     val proof = CertifiedClausifier.certifyClausal(problem, sorryProver)
@@ -88,10 +91,7 @@ class ScreenPhaseTest extends AnyFunSuite:
   }
 
   test("collisions on the hypothesis side are screened too (the σ InstSchema steps)") {
-    check("P(y), ∀z.(P(z) ⟹ Q(z)) ⊢ Q(y) ∨ R",
-      or(Q(y))(R),
-      P(y),
-      forall(Lambda(z, implies(P(z))(Q(z)))))
+    check("P(y), ∀z.(P(z) ⟹ Q(z)) ⊢ Q(y) ∨ R", or(Q(y))(R), P(y), forall(Lambda(z, implies(P(z))(Q(z)))))
   }
 
   test("an input binder that shadows a canonical target is α-renamed, and the goal is still restored verbatim") {
@@ -122,9 +122,9 @@ class ScreenPhaseTest extends AnyFunSuite:
 
   private def containsQuantifier(e: Expression): Boolean = e match
     case Application(`forall`, _) | Application(`exists`, _) => true
-    case Application(f, a)                                   => containsQuantifier(f) || containsQuantifier(a)
-    case Lambda(_, b)                                        => containsQuantifier(b)
-    case _                                                   => false
+    case Application(f, a) => containsQuantifier(f) || containsQuantifier(a)
+    case Lambda(_, b) => containsQuantifier(b)
+    case _ => false
 
   test("an η-reduced ∀ goal is screened, and the caller's own form is restored verbatim") {
     // The expansion must not leak outward: `check` asserts the conclusion is the caller's sequent *structurally*,
@@ -145,15 +145,14 @@ class ScreenPhaseTest extends AnyFunSuite:
     val problem = Problem(Seq(() |- etaAll), Some(() |- pv(x)))
     CertifiedClausifier.certifyClausal(problem, p => { handed = p.hypotheses; sorryProver(p) })
     assert(handed.nonEmpty, "the prover was never reached")
-    assert(handed.forall(s => (s.left ++ s.right).forall(l => !containsQuantifier(l))),
-      s"a quantifier survived into a clause: ${handed.map(_.repr).mkString(" ; ")}")
+    assert(handed.forall(s => (s.left ++ s.right).forall(l => !containsQuantifier(l))), s"a quantifier survived into a clause: ${handed.map(_.repr).mkString(" ; ")}")
   }
 
   test("screening splits by result sort: predicates into `P`, functions into `F`, individuals into `v`") {
     val pred2 = Variable(Identifier("myPred"), Ind >>: Ind >>: Prop) // Ind → Ind → Prop
     val prop0 = Variable(Identifier("myProp"), Prop) //                 a nullary predicate
-    val fun1  = Variable(Identifier("myFun"), Ind >>: Ind) //           Ind → Ind
-    val ind   = Variable(Identifier("myInd"), Ind) //                   an ordinary individual
+    val fun1 = Variable(Identifier("myFun"), Ind >>: Ind) //           Ind → Ind
+    val ind = Variable(Identifier("myInd"), Ind) //                   an ordinary individual
     val problem = Problem(Seq(() |- and(pred2(ind)(fun1(ind)))(prop0)), None)
     val renaming = ScreenPhase.screeningRenaming(problem)
     def namespaceOf(v: Variable): String = renaming(v).id.name
@@ -172,17 +171,27 @@ class ScreenPhaseTest extends AnyFunSuite:
   // than patched. Whatever the input is called, the screened problem uses only the three input namespaces, so no
   // `InstSchema` the pipeline performs on its own schemas or fresh symbols can ever touch an input variable.
   test("after screening, every free variable of the problem is in the `v` / `P` / `F` namespaces") {
-    val nasty: Seq[Variable] = Seq(P, R, x, esk, y, z, Q,
-      Variable(Identifier("nm"), Ind >>: Prop), Variable(Identifier("w", 3), Ind),
-      Variable(Identifier("v", 1), Ind), Variable(Identifier("P", 1), Ind >>: Prop),
-      Variable(Identifier("F", 2), Ind >>: Ind), Variable(Identifier("cv"), Ind))
+    val nasty: Seq[Variable] = Seq(
+      P,
+      R,
+      x,
+      esk,
+      y,
+      z,
+      Q,
+      Variable(Identifier("nm"), Ind >>: Prop),
+      Variable(Identifier("w", 3), Ind),
+      Variable(Identifier("v", 1), Ind),
+      Variable(Identifier("P", 1), Ind >>: Prop),
+      Variable(Identifier("F", 2), Ind >>: Ind),
+      Variable(Identifier("cv"), Ind)
+    )
     val problem = Problem(
       Seq(() |- and(P(y))(R), () |- Q(esk(z)), () |- nasty.filter(_.sort == Ind).map(Q(_)).reduce((f, g) => or(f)(g))),
-      Some(() |- or(Variable(Identifier("nm"), Ind >>: Prop)(x))(Q(Variable(Identifier("F", 2), Ind >>: Ind)(y)))))
+      Some(() |- or(Variable(Identifier("nm"), Ind >>: Prop)(x))(Q(Variable(Identifier("F", 2), Ind >>: Ind)(y))))
+    )
     val renaming = ScreenPhase.screeningRenaming(problem)
-    val allowed = Set(Clausification.GeneratedNames.inputVar,
-                      Clausification.GeneratedNames.inputPred,
-                      Clausification.GeneratedNames.inputFun)
+    val allowed = Set(Clausification.GeneratedNames.inputVar, Clausification.GeneratedNames.inputPred, Clausification.GeneratedNames.inputFun)
 
     // (a) injective, so the inverse used to restore the caller's names exists;
     assert(renaming.values.toSeq.distinct.size == renaming.size, s"screening renaming is not injective: $renaming")

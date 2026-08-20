@@ -1,14 +1,18 @@
 package lisa.automation.superposition
 
+import lisa.automation.clausification.UncertifiedClausifier
+import lisa.kernel.KernelProof
+import lisa.tptp.KernelParser.problemToKernel
+import lisa.tptp.KernelParser.strictMapAtom
+import lisa.tptp.KernelParser.strictMapTerm
+import lisa.tptp.KernelParser.strictMapVariable
+import lisa.tptp.TptpProblem
+import lisa.utils.K
 import org.scalatest.funsuite.AnyFunSuite
 
-import lisa.automation.clausification.UncertifiedClausifier
-import lisa.utils.K
-import lisa.kernel.KernelProof
-import lisa.tptp.TptpProblem
-import lisa.tptp.KernelParser.{problemToKernel, strictMapAtom, strictMapTerm, strictMapVariable}
-
-/** Tests for proof reconstruction ([[Reconstruction]] via [[Clausal.solve]] + [[Clausal.reconstruct]]). */
+/**
+ * Tests for proof reconstruction ([[Reconstruction]] via [[Clausal.solve]] + [[Clausal.reconstruct]]).
+ */
 class ReconstructionTest extends AnyFunSuite:
 
   // kernel construction helpers (clauses as sequents: negative atoms left, positive right)
@@ -22,16 +26,14 @@ class ReconstructionTest extends AnyFunSuite:
 
   private val emptySequent: K.Sequent = K.Sequent(Set.empty, Set.empty)
 
-  /** Reconstruct, then assert the proof is kernel-valid, concludes `⊢`, and imports inputs once each.
-   *  `subsumptionResolution` / `condensation` force those simplifications on for the reconstruction check. */
+  /**
+   * Reconstruct, then assert the proof is kernel-valid, concludes `⊢`, and imports inputs once each.
+   *  `subsumptionResolution` / `condensation` force those simplifications on for the reconstruction check.
+   */
   private def check(name: String, clauses: List[K.Sequent], subsumptionResolution: Boolean = false, condensation: Boolean = false): Unit =
     val proof: Option[K.SCProof] = Clausal.refute(
       clauses,
-      SearchOptions(
-        forwardSubsumptionResolution = subsumptionResolution,
-        backwardSubsumptionResolution = subsumptionResolution,
-        condensation = condensation,
-        maxGiven = 10000)
+      SearchOptions(forwardSubsumptionResolution = subsumptionResolution, backwardSubsumptionResolution = subsumptionResolution, condensation = condensation, maxGiven = 10000)
     ) match
       case s: Clausal.Outcome.Success => Some(s.reconstructKernelProof)
       case _ => None
@@ -244,10 +246,26 @@ class ReconstructionTest extends AnyFunSuite:
   // than letting ~40 cancellations pass under an "All tests passed" headline.
 
   private val synProblems: List[String] = List(
-    "SYN048-1.p", "SYN064-1.p", "SYN073-1.p", "SYN339-1.p", "SYN340-1.p",
-    "SYN341-1.p", "SYN731-1.p", "SYN034-1.p", "SYN035-1.p", "SYN049-1.p",
-    "SYN063-2.p", "SYN081-1.p", "SYN333-1.p", "SYN338-1.p", "SYN343-1.p",
-    "SYN727-1.p", "SYN033-1.p", "SYN051-1.p", "SYN079-1.p", "SYN315-1.p"
+    "SYN048-1.p",
+    "SYN064-1.p",
+    "SYN073-1.p",
+    "SYN339-1.p",
+    "SYN340-1.p",
+    "SYN341-1.p",
+    "SYN731-1.p",
+    "SYN034-1.p",
+    "SYN035-1.p",
+    "SYN049-1.p",
+    "SYN063-2.p",
+    "SYN081-1.p",
+    "SYN333-1.p",
+    "SYN338-1.p",
+    "SYN343-1.p",
+    "SYN727-1.p",
+    "SYN033-1.p",
+    "SYN051-1.p",
+    "SYN079-1.p",
+    "SYN315-1.p"
   )
 
   synProblems.foreach { name =>

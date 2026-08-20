@@ -1,10 +1,10 @@
 package lisa.automation.clausification
 
-import org.scalatest.funsuite.AnyFunSuite
-
+import lisa.kernel.KernelProof
 import lisa.utils.K
 import lisa.utils.K.{_, given}
-import lisa.kernel.KernelProof
+import org.scalatest.funsuite.AnyFunSuite
+
 import Clausification.Counter
 
 /**
@@ -31,13 +31,16 @@ class NamingSupportTest extends AnyFunSuite:
   private val c = Constant(Identifier("c"), Ind)
   private val d = Constant(Identifier("d"), Ind)
 
-  /** `((q(sk) ∧ q(y)) ∨ (q(a) ∧ q(b))) ∨ (q(c) ∧ q(d))` where the positive `∨` is multiplicative, so the estimate is
-    * 2·2·2 = 8, past the default threshold of 4, and `findSite` names the larger child. Its free `Ind` variables
-    * are exactly `{sk, y}`. */
+  /**
+   * `((q(sk) ∧ q(y)) ∨ (q(a) ∧ q(b))) ∨ (q(c) ∧ q(d))` where the positive `∨` is multiplicative, so the estimate is
+   * 2·2·2 = 8, past the default threshold of 4, and `findSite` names the larger child. Its free `Ind` variables
+   * are exactly `{sk, y}`.
+   */
   private val big: Expression = or(or(and(q(sk))(q(y)))(and(q(a))(q(b))))(and(q(c))(q(d)))
 
   private def nameOnce(f: Expression, frozen: Set[Variable]): NamingPhase.NamingStep =
-    NamingPhase.nameOne(f, Counter(), UncertifiedClausifier.DefaultThreshold, Counter(), frozen)
+    NamingPhase
+      .nameOne(f, Counter(), UncertifiedClausifier.DefaultThreshold, Counter(), frozen)
       .getOrElse(fail(s"nothing was named in $f: the test formula no longer trips the threshold"))
 
   test("namingVars keeps free Ind variables, drops higher-sorted ones and drops frozen ones") {
@@ -54,8 +57,7 @@ class NamingSupportTest extends AnyFunSuite:
     assert(!frozen.freeVars.contains(sk), "`sk` was abstracted despite being frozen")
     assert(frozen.freeVars.size == loose.freeVars.size - 1, "arity did not drop by exactly one")
     // and the atom's sort follows the list, so the use site really is one argument shorter
-    assert(frozen.nm.sort == (Ind >>: Prop) && loose.nm.sort == (Ind >>: Ind >>: Prop),
-      s"atom sorts: frozen=${frozen.nm.sort}  loose=${loose.nm.sort}")
+    assert(frozen.nm.sort == (Ind >>: Prop) && loose.nm.sort == (Ind >>: Ind >>: Prop), s"atom sorts: frozen=${frozen.nm.sort}  loose=${loose.nm.sort}")
   }
 
   test("the frozen symbol stays free in the definition rather than being quantified over") {

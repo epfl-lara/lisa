@@ -2,15 +2,19 @@ package lisa.automation.superposition
 
 import org.scalatest.funsuite.AnyFunSuite
 
-import Core.*
+import Core._
 
-/** Tests for one-sided (first-order) matching ([[Core.Trail.matchTerm]] / [[Core.Trail.matchLiteral]]).
- *  Convention: pattern = scope 0 (its variables bind), target = scope 1 (rigid). */
+/**
+ * Tests for one-sided (first-order) matching ([[Core.Trail.matchTerm]] / [[Core.Trail.matchLiteral]]).
+ *  Convention: pattern = scope 0 (its variables bind), target = scope 1 (rigid).
+ */
 class MatchTest extends AnyFunSuite:
 
   class Fix extends TermFixture:
 
-    /** Match `pat` (pattern) onto `tgt` (target), bracketed so the trail is left clean. */
+    /**
+     * Match `pat` (pattern) onto `tgt` (target), bracketed so the trail is left clean.
+     */
     def m(pat: Term, tgt: Term): Boolean =
       val s = trail.save()
       val r = trail.matchTerm(pat, 0, tgt, 1)

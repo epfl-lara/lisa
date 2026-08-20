@@ -1,28 +1,32 @@
 package lisa.automation.superposition
 
 import it.unimi.dsi.fastutil.ints.IntArrayList
+import lisa.automation.superposition.ordering._
 
-import Core.*
-import lisa.automation.superposition.ordering.*
+import Core._
 
-/** Every generating inference the loop performs on a given clause: ordinary resolution and superposition against
-  * the active set, and factoring, equality resolution and equality factoring on the clause itself. [[generate]]
-  * is the only entry point, and runs them in that order.
-  *
-  * The counterpart of [[Simplifier]], which owns the deleting and shrinking half.
-  *
-  * Partners come from the [[ActiveSet]]'s indices. The class handles eligibility, not the rules' themselves: it
-  * passes only the literal positions the selection admits, and [[Inference]] and [[Superposition]] check only the
-  * term-orientation conditions. */
+/**
+ * Every generating inference the loop performs on a given clause: ordinary resolution and superposition against
+ * the active set, and factoring, equality resolution and equality factoring on the clause itself. [[generate]]
+ * is the only entry point, and runs them in that order.
+ *
+ * The counterpart of [[Simplifier]], which owns the deleting and shrinking half.
+ *
+ * Partners come from the [[ActiveSet]]'s indices. The class handles eligibility, not the rules' themselves: it
+ * passes only the literal positions the selection admits, and [[Inference]] and [[Superposition]] check only the
+ * term-orientation conditions.
+ */
 final class Generator(bank: TermBank, trail: Trail, active: ActiveSet, opts: SearchOptions)(emit: Clause => Boolean):
   import opts.*
 
   // Ordering used only for the (optional) post-unification σ-maximality check on factors.
   private val kbo: KBO = bank.order.kbo
 
-  /** Every inference between `gc` (already in the active set, so the self-pairs fire) and the active clauses,
-    * plus every inference of `gc` with itself. `gSel` is `gc`'s literal selection, computed by the caller since
-    * the indices key on it. `true` as soon as some conclusion is the empty clause. */
+  /**
+   * Every inference between `gc` (already in the active set, so the self-pairs fire) and the active clauses,
+   * plus every inference of `gc` with itself. `gSel` is `gc`'s literal selection, computed by the caller since
+   * the indices key on it. `true` as soon as some conclusion is the empty clause.
+   */
   def generate(gc: Clause, gSel: Array[Int]): Boolean =
     if resolveGiven(gc, gSel) then return true
     if superpositionOn && superposeGiven(gc, gSel, gc.rewriteSources(bank)) then return true
@@ -32,9 +36,11 @@ final class Generator(bank: TermBank, trail: Trail, active: ActiveSet, opts: Sea
 
   // --- ordinary resolution --------------------------------------------------------------------------------
 
-  /** Resolution of `gc` against the active set: for each of its selected non-equality literals, query the
-    * *opposite*-polarity literal index with the atom, so every candidate is already complementary, and confirm
-    * each with [[Inference.resolve]], which re-checks complementarity and does the real unification. */
+  /**
+   * Resolution of `gc` against the active set: for each of its selected non-equality literals, query the
+   * *opposite*-polarity literal index with the atom, so every candidate is already complementary, and confirm
+   * each with [[Inference.resolve]], which re-checks complementarity and does the real unification.
+   */
   private def resolveGiven(gc: Clause, gSel: Array[Int]): Boolean =
     var stop = false // set inside the retrieval callback, where `return` is not available
     var gi = 0
@@ -53,10 +59,12 @@ final class Generator(bank: TermBank, trail: Trail, active: ActiveSet, opts: Sea
 
   // --- superposition --------------------------------------------------------------------------------------
 
-  /** Superposition of `gc` against the active set, in both directions, with partners from the fingerprint
+  /**
+   * Superposition of `gc` against the active set, in both directions, with partners from the fingerprint
    *  indices. `gc` is already in both, so Pass 1 (gc's equations rewriting into active subterms) also covers the
    *  `gc`-into-`gc` self-pair; Pass 2 (active equations rewriting into gc's subterms) therefore *skips*
-   *  candidates from `gc` itself. `gcSources` is `gc.rewriteSources`, passed in because the caller has it. */
+   *  candidates from `gc` itself. `gcSources` is `gc.rewriteSources`, passed in because the caller has it.
+   */
   private def superposeGiven(gc: Clause, gSel: Array[Int], gcSources: Array[RewriteSource]): Boolean =
     var stop = false // set inside the retrieval callbacks, where `return` is not available
     // Pass 1: gc supplies the equation; query the into-index with each rewrite it offers.
@@ -81,11 +89,13 @@ final class Generator(bank: TermBank, trail: Trail, active: ActiveSet, opts: Sea
       gi += 1
     stop
 
-  /** Verify + build one located superposition: unify `fromC`'s side `fromSide` with `intoC`'s subterm at `pos`,
+  /**
+   * Verify + build one located superposition: unify `fromC`'s side `fromSide` with `intoC`'s subterm at `pos`,
    *  then the build-only [[Superposition.superpose]] and `emit`. Restores the trail. `true` on refutation.
    *
    *  `pos` may be a caller's live subterm-walk stack, so nothing here retains it: [[Superposition.superpose]]
-   *  snapshots it, and only for the inferences that fire. */
+   *  snapshots it, and only for the inferences that fire.
+   */
   private def superposeVerified(fromC: Clause, iFrom: Int, fromSide: Int, intoC: Clause, iInto: Int, pos: IntArrayList): Boolean =
     val l: Term = bank.arg(bank.atomOf(fromC.literals(iFrom)), fromSide)
     val u: Term = Superposition.subtermAt(bank, bank.atomOf(intoC.literals(iInto)), pos)
@@ -100,12 +110,14 @@ final class Generator(bank: TermBank, trail: Trail, active: ActiveSet, opts: Sea
 
   // --- factoring and the unary equality rules -------------------------------------------------------------
 
-  /** Positive factoring on `gc`: each unordered pair of distinct selected, positive, non-equality literals,
-    * once. Equality literals are factored by [[Superposition.equalityFactoring]] instead.
-    *
-    * Pairing within the selected set loses nothing: a literal that unifies with a selected (maximal) one is
-    * itself maximal, hence also selected. When [[SearchOptions.factorAfterCheck]] is on, a factor whose kept
-    * literal is no longer maximal under the unifier is dropped. */
+  /**
+   * Positive factoring on `gc`: each unordered pair of distinct selected, positive, non-equality literals,
+   * once. Equality literals are factored by [[Superposition.equalityFactoring]] instead.
+   *
+   * Pairing within the selected set loses nothing: a literal that unifies with a selected (maximal) one is
+   * itself maximal, hence also selected. When [[SearchOptions.factorAfterCheck]] is on, a factor whose kept
+   * literal is no longer maximal under the unifier is dropped.
+   */
   private def factorGiven(gc: Clause, gSel: Array[Int]): Boolean =
     var a = 0
     while a < gSel.length do
@@ -127,15 +139,19 @@ final class Generator(bank: TermBank, trail: Trail, active: ActiveSet, opts: Sea
       a += 1
     false
 
-  /** Equality resolution and equality factoring on `gc`, both unary: each enumerates every applicable literal
-   *  over the eligible set. `exists` emits the conclusions in list order and stops at the first `□`. */
+  /**
+   * Equality resolution and equality factoring on `gc`, both unary: each enumerates every applicable literal
+   *  over the eligible set. `exists` emits the conclusions in list order and stops at the first `□`.
+   */
   private def equalityInferences(gc: Clause, gSel: Array[Int]): Boolean =
     Superposition.equalityResolution(bank, trail, gc, gSel).exists(emit) ||
       Superposition.equalityFactoring(bank, trail, gc, gSel).exists(emit)
 
-  /** σ-maximality after-check: in the (already σ-applied) factor `f`, the kept literal must be maximal --
+  /**
+   * σ-maximality after-check: in the (already σ-applied) factor `f`, the kept literal must be maximal --
    *  no other literal's atom is strictly KBO-greater than it. (Maximal, not strictly: the merged literal
-   *  may have an equal twin.) */
+   *  may have an equal twin.)
+   */
   private def keptMaximal(f: Clause, keptIdx: Int): Boolean =
     val keptAtom: Term = bank.atomOf(f.literals(keptIdx))
     var k = 0

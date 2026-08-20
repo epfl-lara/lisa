@@ -1,13 +1,15 @@
 package lisa.automation.superposition
 
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet
+import lisa.automation.superposition.index._
 
 import scala.collection.mutable
 
-import Core.*
-import lisa.automation.superposition.index.*
+import Core._
 
-/** How much each simplification fired during a saturation: observability, and what the ablations read. */
+/**
+ * How much each simplification fired during a saturation: observability, and what the ablations read.
+ */
 final class SimplificationStats:
   var forwardSubsumed: Int = 0
   var backwardSubsumed: Int = 0
@@ -17,14 +19,18 @@ final class SimplificationStats:
   var backwardSubsumptionResolved: Int = 0
   var condensed: Int = 0
 
-/** Every simplification step of the loop, in both directions. [[forward]] discards or shrinks the clause being
-  * selected; [[backwardSubsume]] and [[backwardDemodulate]] delete or shrink active clauses using the given,
-  * before it joins them so that it never simplifies itself; [[condense]] replaces a clause by a shorter factor
-  * of itself. */
+/**
+ * Every simplification step of the loop, in both directions. [[forward]] discards or shrinks the clause being
+ * selected; [[backwardSubsume]] and [[backwardDemodulate]] delete or shrink active clauses using the given,
+ * before it joins them so that it never simplifies itself; [[condense]] replaces a clause by a shorter factor
+ * of itself.
+ */
 final class Simplifier(bank: TermBank, trail: Trail, active: ActiveSet, opts: SearchOptions):
   import opts.*
 
-  /** How much each simplification fired. One `Simplifier` serves one saturation, so these are never reset. */
+  /**
+   * How much each simplification fired. One `Simplifier` serves one saturation, so these are never reset.
+   */
   val stats: SimplificationStats = new SimplificationStats
 
   // --- reusable candidate buffers -------------------------------------------------------------------------
@@ -42,11 +48,13 @@ final class Simplifier(bank: TermBank, trail: Trail, active: ActiveSet, opts: Se
   private val demodCands: mutable.ArrayBuffer[Clause] = mutable.ArrayBuffer.empty // backward demodulation targets
   private val seenIds: IntOpenHashSet = new IntOpenHashSet() // dedup within one collection phase only
 
-  /** Visit `use(query, i)` for each literal `i` of `c`, where `query` is a throwaway clause carrying `c` with
-    * literal `i`'s polarity flipped.
-    *
-    * This is the "char-2" characterisation: a stored clause subsumption-resolves `c` on `Lᵢ`
-    * exactly when it subsumes `c` with `Lᵢ` flipped, and a unit deletes `Lᵢ` exactly when it subsumes `{¬Lᵢ}`. */
+  /**
+   * Visit `use(query, i)` for each literal `i` of `c`, where `query` is a throwaway clause carrying `c` with
+   * literal `i`'s polarity flipped.
+   *
+   * This is the "char-2" characterisation: a stored clause subsumption-resolves `c` on `Lᵢ`
+   * exactly when it subsumes `c` with `Lᵢ` flipped, and a unit deletes `Lᵢ` exactly when it subsumes `{¬Lᵢ}`.
+   */
   private def foreachFlipped(c: Clause, singleton: Boolean)(use: (QueryClause, Int) => Unit): Unit =
     var i = 0
     while i < c.literals.length do
@@ -61,8 +69,10 @@ final class Simplifier(bank: TermBank, trail: Trail, active: ActiveSet, opts: Se
 
   // --- clause-local ---------------------------------------------------------------------------------------
 
-  /** Replace `c` by an equivalent shorter factor of itself, if one exists and [[SearchOptions.condensation]]
-    * is on. Clause-local: no active-set scan, applied once at creation. Cannot produce `□` or a tautology. */
+  /**
+   * Replace `c` by an equivalent shorter factor of itself, if one exists and [[SearchOptions.condensation]]
+   * is on. Clause-local: no active-set scan, applied once at creation. Cannot produce `□` or a tautology.
+   */
   def condense(c: Clause): Clause =
     if !condensation then c
     else
@@ -72,11 +82,13 @@ final class Simplifier(bank: TermBank, trail: Trail, active: ActiveSet, opts: Se
 
   // --- forward --------------------------------------------------------------------------------------------
 
-  /** Forward simplify `m` against the active set. If
-    * some active clause subsumes `m`, return `None`; otherwise apply subsumption resolution, returning the
-    * possibly-shrunk clause or `Some(□)` if a resolution closed it. Forward subsumption asks the index an
-    * *existence* question, so its `≤`-cone descent stops at the first verified subsumer; unit deletion
-    * dispatches on the unit count ([[SearchOptions.forwardUnitDeletionIndexThreshold]]). */
+  /**
+   * Forward simplify `m` against the active set. If
+   * some active clause subsumes `m`, return `None`; otherwise apply subsumption resolution, returning the
+   * possibly-shrunk clause or `Some(□)` if a resolution closed it. Forward subsumption asks the index an
+   * *existence* question, so its `≤`-cone descent stops at the first verified subsumer; unit deletion
+   * dispatches on the unit count ([[SearchOptions.forwardUnitDeletionIndexThreshold]]).
+   */
   def forward(m0: Clause): Option[Clause] =
     var m: Clause = m0
     if forwardSubsumption then
@@ -100,12 +112,13 @@ final class Simplifier(bank: TermBank, trail: Trail, active: ActiveSet, opts: Se
       if m.isEmpty then return Some(m)
     Some(m)
 
-  /** Collect into `out` the active clauses that subsume some one-literal-flipped form of `m`, deduped by id:
-    * the simplifiers of `m`, by the char-2 characterisation ([[foreachFlipped]]). `units` picks which size of
-    * simplifier is wanted -- units delete a literal outright, longer clauses resolve one away -- and
-    * `singleton` picks the query shape that suits it. Collects only: the callers act after the descent. */
-  private def collectSubsumersOfFlipped(m: Clause, singleton: Boolean, units: Boolean,
-                                        out: mutable.ArrayBuffer[Clause]): Unit =
+  /**
+   * Collect into `out` the active clauses that subsume some one-literal-flipped form of `m`, deduped by id:
+   * the simplifiers of `m`, by the char-2 characterisation ([[foreachFlipped]]). `units` picks which size of
+   * simplifier is wanted -- units delete a literal outright, longer clauses resolve one away -- and
+   * `singleton` picks the query shape that suits it. Collects only: the callers act after the descent.
+   */
+  private def collectSubsumersOfFlipped(m: Clause, singleton: Boolean, units: Boolean, out: mutable.ArrayBuffer[Clause]): Unit =
     seenIds.clear(); out.clear()
     foreachFlipped(m, singleton) { (query, _) =>
       active.subsumerCandidates(query) { c =>
@@ -114,9 +127,11 @@ final class Simplifier(bank: TermBank, trail: Trail, active: ActiveSet, opts: Se
       }
     }
 
-  /** Apply unit deletion to `m` by each candidate unit in `cands`, in order: each `subsumptionResolutionResolvent`
+  /**
+   * Apply unit deletion to `m` by each candidate unit in `cands`, in order: each `subsumptionResolutionResolvent`
    *  that fires replaces `m` with the shrunk resolvent, stopping early at `□`; returns the final clause. Shared
-   *  by the few-units direct scan and the many-units indexed dispatch. */
+   *  by the few-units direct scan and the many-units indexed dispatch.
+   */
   private def applyUnitDeletions(cands: collection.IndexedSeq[Clause], m0: Clause): Clause =
     var m: Clause = m0
     var k = 0
@@ -127,11 +142,13 @@ final class Simplifier(bank: TermBank, trail: Trail, active: ActiveSet, opts: Se
       k += 1
     m
 
-  /** Forward subsumption resolution, E-style ("char-2"): a stored clause SR-resolves `m` on literal `M` iff it
+  /**
+   * Forward subsumption resolution, E-style ("char-2"): a stored clause SR-resolves `m` on literal `M` iff it
    *  *subsumes* `m` with `M` flipped. Flip each in turn ([[foreachFlipped]]), keep the non-unit subsumers
    *  (deduped by id), then apply `subsumptionResolutionResolvent` in **id order**, which is
    *  retrieval-independent. Slightly weaker than the complete rule, matching E's forward contextual
-   *  simplify-reflect: a simplifier whose *other* literal also matches the resolved one is missed. */
+   *  simplify-reflect: a simplifier whose *other* literal also matches the resolved one is missed.
+   */
   private def forwardSubsumptionResolveChar2(m0: Clause): Clause =
     var m: Clause = m0
     collectSubsumersOfFlipped(m, singleton = false, units = false, srCands)
@@ -147,9 +164,11 @@ final class Simplifier(bank: TermBank, trail: Trail, active: ActiveSet, opts: Se
 
   // --- backward: subsumption / subsumption resolution -----------------------------------------------------
 
-  /** Backward simplify the active set using `gc` (not yet active): delete each active clause `gc` subsumes, and
-    * shrink each that `gc` subsumption-resolves a literal from (unit deletion if `gc` is a unit, general SR
-    * otherwise). Shrunk clauses go to `emit` after the pass, never mid-iteration. `true` if one closes. */
+  /**
+   * Backward simplify the active set using `gc` (not yet active): delete each active clause `gc` subsumes, and
+   * shrink each that `gc` subsumption-resolves a literal from (unit deletion if `gc` is a unit, general SR
+   * otherwise). Shrunk clauses go to `emit` after the pass, never mid-iteration. `true` if one closes.
+   */
   def backwardSubsume(gc: Clause)(emit: Clause => Boolean): Boolean =
     if backwardSubsumption then
       bwVictims.clear()
@@ -178,7 +197,9 @@ final class Simplifier(bank: TermBank, trail: Trail, active: ActiveSet, opts: Se
         k += 1
     emitAll(shrunk)(emit)
 
-  /** Hand each collected replacement to `emit` in order, short-circuiting on `□`. */
+  /**
+   * Hand each collected replacement to `emit` in order, short-circuiting on `□`.
+   */
   private def emitAll(replacements: mutable.ArrayBuffer[Clause])(emit: Clause => Boolean): Boolean =
     var k = 0
     while k < replacements.length do
@@ -188,8 +209,10 @@ final class Simplifier(bank: TermBank, trail: Trail, active: ActiveSet, opts: Se
 
   // --- backward: demodulation -----------------------------------------------------------------------------
 
-  /** When `gc` is a new positive unit equality, rewrite the active clauses with it: each rewritten clause is
-    * removed from active and its replacement handed to `emit`. `true` on refutation. */
+  /**
+   * When `gc` is a new positive unit equality, rewrite the active clauses with it: each rewritten clause is
+   * removed from active and its replacement handed to `emit`. `true` on refutation.
+   */
   def backwardDemodulate(gc: Clause)(emit: Clause => Boolean): Boolean =
     if !backwardDemodulationOn || !Demodulation.isPositiveUnitEquality(bank, gc) then return false
     val rs: Array[Demodulation.Rule] = Demodulation.rules(bank, gc).toArray

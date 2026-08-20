@@ -1,11 +1,16 @@
 package lisa.automation.superposition
 
-import org.scalatest.funsuite.AnyFunSuite
-
 import lisa.automation.clausification.UncertifiedClausifier
+import lisa.tptp.AnnotatedStatement
+import lisa.tptp.KernelParser.annotatedStatementToKernel
+import lisa.tptp.KernelParser.emptyctx
+import lisa.tptp.KernelParser.problemToKernel
+import lisa.tptp.KernelParser.strictMapAtom
+import lisa.tptp.KernelParser.strictMapTerm
+import lisa.tptp.KernelParser.strictMapVariable
+import lisa.tptp.TptpProblem
 import lisa.utils.K
-import lisa.tptp.{TptpProblem, AnnotatedStatement}
-import lisa.tptp.KernelParser.{annotatedStatementToKernel, problemToKernel, emptyctx, strictMapAtom, strictMapTerm, strictMapVariable}
+import org.scalatest.funsuite.AnyFunSuite
 
 /**
  * Tests for the kernel/TPTP entry points ([[Clausal]]).
@@ -131,7 +136,12 @@ class BridgeTest extends AnyFunSuite:
   }
 
   test("tptp problems: satisfiable clausal problems are not refuted") {
-    satisfiable.foreach(pr => assert(!Clausal.solve(UncertifiedClausifier.clausalForm(Prover.fromTptp(pr)), SearchOptions(maxGiven = 20000)).refuted, s"expected no refutation for ${pr.name}"))
+    satisfiable.foreach(pr =>
+      assert(
+        !Clausal.solve(UncertifiedClausifier.clausalForm(Prover.fromTptp(pr)), SearchOptions(maxGiven = 20000)).refuted,
+        s"expected no refutation for ${pr.name}"
+      )
+    )
   }
 
   test("tptp problem loaded from a real cnf .p file is refuted") {

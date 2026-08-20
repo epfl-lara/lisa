@@ -1,13 +1,15 @@
 package lisa.automation.superposition
 
+import lisa.automation.superposition.index._
 import org.scalatest.funsuite.AnyFunSuite
 
-import Core.*
-import Oracles.*
-import lisa.automation.superposition.index.*
+import Core._
+import Oracles._
 
-/** Standalone tests for [[Permutation]] (adaptive feature selection) and
- *  [[FeatureVectorIndex]] (the subsumption feature-vector trie). No saturation-loop wiring yet. */
+/**
+ * Standalone tests for [[Permutation]] (adaptive feature selection) and
+ *  [[FeatureVectorIndex]] (the subsumption feature-vector trie). No saturation-loop wiring yet.
+ */
 class FeatureVectorTest extends AnyFunSuite:
 
   class Fix extends TermFixture
@@ -54,7 +56,9 @@ class FeatureVectorTest extends AnyFunSuite:
     val P = pred("P", 1); val Q = pred("Q", 1); val R = pred("R", 1)
     val a = const("a"); val b = const("b"); val c = const("c")
     val cs = Seq(
-      clause(pos(app(P, a))), clause(pos(app(Q, b))), clause(pos(app(R, c))),
+      clause(pos(app(P, a))),
+      clause(pos(app(Q, b))),
+      clause(pos(app(R, c))),
       clause(pos(app(P, a)), pos(app(Q, b)))
     )
     val p1 = Permutation.build(bank, cs, maxLen = 4)
@@ -82,15 +86,14 @@ class FeatureVectorTest extends AnyFunSuite:
     val a = const("a"); val b = const("b"); val x = v(0)
     val perm = new Permutation(Array(FeatureVector.PosCount, FeatureVector.NegCount, P.code, Q.code, f.code), sig.size)
     val pairs: Seq[(Clause, Clause)] = Seq(
-      (clause(pos(app(P, x))), clause(pos(app(P, a)))),                          // P(x) ⊑ P(a)
-      (clause(pos(app(P, x))), clause(pos(app(P, a)), pos(app(Q, b)))),          // extra literal grows counts
-      (clause(pos(app(P, x))), clause(pos(app(P, app(f, a))))),                  // x↦f(a) grows the f count
+      (clause(pos(app(P, x))), clause(pos(app(P, a)))), // P(x) ⊑ P(a)
+      (clause(pos(app(P, x))), clause(pos(app(P, a)), pos(app(Q, b)))), // extra literal grows counts
+      (clause(pos(app(P, x))), clause(pos(app(P, app(f, a))))), // x↦f(a) grows the f count
       (clause(neg(app(P, x)), pos(app(Q, x))), clause(neg(app(P, a)), pos(app(Q, a)))) // multi-literal
     )
     for (c, d) <- pairs do
       assert(Subsumption.subsumes(bank, trail, c, d), s"precondition: c must subsume d")
-      assert(le(perm.vectorOf(bank, c), perm.vectorOf(bank, d)),
-        s"vector(${perm.vectorOf(bank, c).mkString(",")}) ≰ vector(${perm.vectorOf(bank, d).mkString(",")})")
+      assert(le(perm.vectorOf(bank, c), perm.vectorOf(bank, d)), s"vector(${perm.vectorOf(bank, c).mkString(",")}) ≰ vector(${perm.vectorOf(bank, d).mkString(",")})")
   }
 
   test("randomized: subsumption implies feature-vector ≤ over many generated pairs (monotonicity)") {
@@ -118,12 +121,15 @@ class FeatureVectorTest extends AnyFunSuite:
       val subset = { val s = dParts.filter(_ => rnd.nextBoolean()); if s.isEmpty then List(dParts(rnd.nextInt(dParts.length))) else s }
       var vi = 0
       val c = clause(subset.map { case (pi, s, t) =>
-        val atom = if rnd.nextBoolean() then { val a = app(preds(pi), v(vi)); vi += 1; a } else app(preds(pi), t)
+        val atom = if rnd.nextBoolean() then { val a = app(preds(pi), v(vi)); vi += 1; a }
+        else app(preds(pi), t)
         if s then pos(atom) else neg(atom)
       }*)
       assert(Subsumption.subsumes(bank, trail, c, d), s"generator precondition: c must subsume d (n=$n)")
-      assert(le(perm.vectorOf(bank, c), perm.vectorOf(bank, d)),
-        s"monotonicity violated (n=$n): ${perm.vectorOf(bank, c).mkString(",")} ≰ ${perm.vectorOf(bank, d).mkString(",")}")
+      assert(
+        le(perm.vectorOf(bank, c), perm.vectorOf(bank, d)),
+        s"monotonicity violated (n=$n): ${perm.vectorOf(bank, c).mkString(",")} ≰ ${perm.vectorOf(bank, d).mkString(",")}"
+      )
       n += 1
   }
 
@@ -169,12 +175,13 @@ class FeatureVectorTest extends AnyFunSuite:
       val cone = cs.filter(c => le(vec(c), vec(q))).map(_.id).toSet
       // (a) same verdict as visiting the whole cone, for an arbitrary predicate over it
       for target <- cone + -1 do // `-1` ⇒ a predicate no clause satisfies
-        assert(idx.existsForwardCandidate(q)(_.id == target) == cone.contains(target),
-          s"existence verdict differs from the ≤-cone for q=${q.id}, target=$target")
+        assert(idx.existsForwardCandidate(q)(_.id == target) == cone.contains(target), s"existence verdict differs from the ≤-cone for q=${q.id}, target=$target")
       // (b) it really short-circuits: an always-true predicate sees exactly one clause when the cone is
       //     non-empty (the whole point, since `forwardCandidates` would have visited all of them)
       var seen = 0
-      val found = idx.existsForwardCandidate(q) { _ => seen += 1; true }
+      val found = idx.existsForwardCandidate(q) { _ =>
+        seen += 1; true
+      }
       assert(found == cone.nonEmpty)
       assert(seen == (if cone.isEmpty then 0 else 1), s"visited $seen clauses instead of short-circuiting (q=${q.id})")
   }
@@ -192,10 +199,11 @@ class FeatureVectorTest extends AnyFunSuite:
     val idx = new FeatureVectorIndex(fx.bank, Permutation.build(fx.bank, cs, maxLen = 8))
     cs.foreach(idx.insert)
     for (label, reenter) <- Seq[(String, Clause => Unit)](
-      "query"  -> (c => idx.forwardCandidates(c)(_ => ())),
-      "insert" -> (c => idx.insert(c)),
-      "remove" -> (c => idx.remove(c))
-    ) do
+        "query" -> (c => idx.forwardCandidates(c)(_ => ())),
+        "insert" -> (c => idx.insert(c)),
+        "remove" -> (c => idx.remove(c))
+      )
+    do
       val e = intercept[IllegalStateException](idx.forwardCandidates(cs.head)(c => reenter(c)))
       assert(e.getMessage.contains("live retrieval descent"), s"$label: unexpected message ${e.getMessage}")
   }

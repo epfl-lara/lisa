@@ -10,7 +10,11 @@ import lisa.utils.K
 
 import java.io.File
 
-import K.{repr, +<<, ->>, +>>, |-}
+import K.repr
+import K.+<<
+import K.->>
+import K.+>>
+import K.|-
 import KernelParser._
 import K.given
 

@@ -1,8 +1,9 @@
 package lisa.automation.clausification
 
-import lisa.utils.K.{_, given}
 import lisa.automation.Problem
-import Clausification.*
+import lisa.utils.K.{_, given}
+
+import Clausification._
 
 /**
  * The last phase: distribute `∨` over `∧` in each quantifier-free NNF matrix `φ` and hand the resulting clauses
@@ -24,7 +25,7 @@ private[clausification] object DistributePhase:
     // Layout: for each hypothesis `() ⊢ φ` (import ref -(i+1)), one `Weakening` per CNF clause. Those become the
     // prover's imports; one final `ClausificationSubproof` wraps the prover call, mapping each clause slot to
     // its `Weakening`.
-    val steps      = scala.collection.mutable.ArrayBuffer.empty[ClausificationProofStep]
+    val steps = scala.collection.mutable.ArrayBuffer.empty[ClausificationProofStep]
     val clauseSeqs = scala.collection.mutable.ArrayBuffer.empty[Sequent]
     val clauseRefs = scala.collection.mutable.ArrayBuffer.empty[Int]
 
@@ -44,9 +45,11 @@ private[clausification] object DistributePhase:
     steps += ClausificationSubproof(downstream, clauseRefs.toIndexedSeq ++ libRefs(n))
     ClausificationProof(steps.toIndexedSeq, outerImports)
 
-  /** The clauses of the quantifier-free NNF matrix `φ`, each as `a₁, …, aₘ ⊢ b₁, …, bₙ` (README §1.2): a
+  /**
+   * The clauses of the quantifier-free NNF matrix `φ`, each as `a₁, …, aₘ ⊢ b₁, …, bₙ` (README §1.2): a
    *  negative literal is carried as its atom on the left, a positive one on the right. The sides are separated
-   *  at the leaves, as [[UncertifiedClausifier]] does on its own side. */
+   *  at the leaves, as [[UncertifiedClausifier]] does on its own side.
+   */
   def clausesOf(phi: Expression): Seq[Sequent] = {
     checkInterrupted()
     phi match
@@ -56,19 +59,23 @@ private[clausification] object DistributePhase:
         val lb = clausesOf(b)
         for (ca <- la; cb <- lb) yield Sequent(ca.left ++ cb.left, ca.right ++ cb.right)
       case lit =>
-        require(isLeaf(lit), s"clausesOf: non-literal leaf in the NNF matrix (expected atom/¬atom/⊤/⊥). " +
-          s"An η-reduced `∀(p)`/`∃(p)` reaching here means prenexing did not strip it: β-normalisation " +
-          s"η-reduced the body and `Clausification.etaExpandQuantifiers` was not applied. Got: $lit")
+        require(
+          isLeaf(lit),
+          s"clausesOf: non-literal leaf in the NNF matrix (expected atom/¬atom/⊤/⊥). " +
+            s"An η-reduced `∀(p)`/`∃(p)` reaching here means prenexing did not strip it: β-normalisation " +
+            s"η-reduced the body and `Clausification.etaExpandQuantifiers` was not applied. Got: $lit"
+        )
         lit match
           case Neg(atom) => Seq(Sequent(Set(atom), Set.empty))
-          case _         => Seq(Sequent(Set.empty, Set(lit)))
+          case _ => Seq(Sequent(Set.empty, Set(lit)))
   }
 
-  /** A literal leaf of an NNF matrix: an atom, a negated atom, or `⊤`/`⊥`, never a connective or quantifier.
-    */
+  /**
+   * A literal leaf of an NNF matrix: an atom, a negated atom, or `⊤`/`⊥`, never a connective or quantifier.
+   */
   private def isLeaf(f: Expression): Boolean = f match
-    case `top` | `bot`                                                                  => true
-    case Neg(g)                                                                         => isLeaf(g)
+    case `top` | `bot` => true
+    case Neg(g) => isLeaf(g)
     case And(_, _) | Or(_, _) | Implies(_, _) | Iff(_, _) | Forall(_, _) | Exists(_, _) => false
-    case Application(`forall`, _) | Application(`exists`, _)                            => false // η-reduced `∀(p)`
-    case _                                                                              => f.sort == Prop
+    case Application(`forall`, _) | Application(`exists`, _) => false // η-reduced `∀(p)`
+    case _ => f.sort == Prop

@@ -1,10 +1,12 @@
 package lisa.automation.superposition
 
-import org.scalatest.funsuite.AnyFunSuite
-
-import lisa.tptp.TptpProblem
 import lisa.automation.clausification.UncertifiedClausifier
-import lisa.tptp.KernelParser.{problemToKernel, strictMapAtom, strictMapTerm, strictMapVariable}
+import lisa.tptp.KernelParser.problemToKernel
+import lisa.tptp.KernelParser.strictMapAtom
+import lisa.tptp.KernelParser.strictMapTerm
+import lisa.tptp.KernelParser.strictMapVariable
+import lisa.tptp.TptpProblem
+import org.scalatest.funsuite.AnyFunSuite
 
 /**
  * Baseline test: the prover ([[Clausal.solve]]) on a sample of easy TPTP `SYN` problems.
@@ -21,10 +23,26 @@ class SynBaselineTest extends AnyFunSuite:
   // 20 small self-contained no-equality unsatisfiable SYN clausal problems (2-5 clauses each),
   // all refutable by ordered resolution + factoring (no paramodulation needed).
   private val problems: List[String] = List(
-    "SYN048-1.p", "SYN064-1.p", "SYN073-1.p", "SYN339-1.p", "SYN340-1.p",
-    "SYN341-1.p", "SYN731-1.p", "SYN034-1.p", "SYN035-1.p", "SYN049-1.p",
-    "SYN063-2.p", "SYN081-1.p", "SYN333-1.p", "SYN338-1.p", "SYN343-1.p",
-    "SYN727-1.p", "SYN033-1.p", "SYN051-1.p", "SYN079-1.p", "SYN315-1.p"
+    "SYN048-1.p",
+    "SYN064-1.p",
+    "SYN073-1.p",
+    "SYN339-1.p",
+    "SYN340-1.p",
+    "SYN341-1.p",
+    "SYN731-1.p",
+    "SYN034-1.p",
+    "SYN035-1.p",
+    "SYN049-1.p",
+    "SYN063-2.p",
+    "SYN081-1.p",
+    "SYN333-1.p",
+    "SYN338-1.p",
+    "SYN343-1.p",
+    "SYN727-1.p",
+    "SYN033-1.p",
+    "SYN051-1.p",
+    "SYN079-1.p",
+    "SYN315-1.p"
   )
 
   problems.foreach { name =>

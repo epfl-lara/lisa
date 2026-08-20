@@ -1,28 +1,34 @@
 package lisa.automation.superposition
 
-import it.unimi.dsi.fastutil.ints.{Int2ObjectOpenHashMap, IntOpenHashSet}
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet
+import lisa.automation.clausification.Clausification.GeneratedNames
+import lisa.utils.K
 
 import scala.collection.mutable
 
-import lisa.utils.K
-import lisa.automation.clausification.Clausification.GeneratedNames
+import Core._
 
-import Core.*
-
-/** Reconstruction of a refutation (the empty clause and its [[Justification]] DAG) into a Lisa kernel
-  * [[lisa.utils.K.SCProof]] whose imports are the input clause-sequents and whose conclusion is the
-  * empty sequent `⊢`.
-  *
-  * Each clause becomes one import or step. The README lists which kernel rules each inference maps to.
-  *
-  * The substitution is not stored during the search. it is recovered by re-unifying the recorded literals. */
+/**
+ * Reconstruction of a refutation (the empty clause and its [[Justification]] DAG) into a Lisa kernel
+ * [[lisa.utils.K.SCProof]] whose imports are the input clause-sequents and whose conclusion is the
+ * empty sequent `⊢`.
+ *
+ * Each clause becomes one import or step. The README lists which kernel rules each inference maps to.
+ *
+ * The substitution is not stored during the search. it is recovered by re-unifying the recorded literals.
+ */
 object Reconstruction:
 
-  /** An input clause's original sequent plus the map (internal var number → its original kernel variable). */
+  /**
+   * An input clause's original sequent plus the map (internal var number → its original kernel variable).
+   */
   type InputInfo = (K.Sequent, Map[Int, K.Variable])
 
-  /** Reconstruct the refutation rooted at `empty` into a kernel proof. `inputs` maps each input clause's
-    * id to its original sequent and variable map (supplied by [[Clausal]]). */
+  /**
+   * Reconstruct the refutation rooted at `empty` into a kernel proof. `inputs` maps each input clause's
+   * id to its original sequent and variable map (supplied by [[Clausal]]).
+   */
   def reconstruct(
       empty: Clause,
       bank: TermBank,
@@ -46,15 +52,19 @@ object Reconstruction:
       refOf(empty)
       K.SCProof(steps.toIndexedSeq, imports.toIndexedSeq)
 
-    /** A reconstructed clause: its proof reference and kernel sequent (already in the canonical `cv…` naming). */
+    /**
+     * A reconstructed clause: its proof reference and kernel sequent (already in the canonical `cv…` naming).
+     */
     private final case class Recon(ref: Int, seq: K.Sequent)
 
     private def addStep(s: K.SCProofStep): Int = { steps += s; steps.length - 1 }
     private def addImport(s: K.Sequent): Int = { imports += s; -imports.length }
 
-    /** The canonical kernel variable `cvN` for internal variable `n`. The naming is global, shared across all
+    /**
+     * The canonical kernel variable `cvN` for internal variable `n`. The naming is global, shared across all
      *  clauses, which are instantiated independently, so it standardises the clauses apart. Every clause's
-     *  sequent, and every `kernelize`d term, uses it, so it needs no per-clause threading. */
+     *  sequent, and every `kernelize`d term, uses it, so it needs no per-clause threading.
+     */
     private def canonVar(n: Int): K.Variable = K.Variable(K.Identifier(GeneratedNames.reconClauseVar, n), K.Ind)
 
     private def refOf(c: Clause): Recon = memo.getOrElseUpdate(c.id, build(c))
@@ -69,8 +79,10 @@ object Reconstruction:
       case Justification.EqualityResolution(p, i) => buildEqualityResolution(p, i)
       case Justification.EqualityFactoring(p, d, ds, k, ks) => buildEqualityFactoring(p, d, ds, k, ks)
 
-    /** Inline the abstraction discharge into a sequent: substitute every schematic `F` by its `λfv. e` value and
-     *  β-normalise. Identity when nothing was abstracted. */
+    /**
+     * Inline the abstraction discharge into a sequent: substitute every schematic `F` by its `λfv. e` value and
+     *  β-normalise. Identity when nothing was abstracted.
+     */
     private def dischargeSeq(s: K.Sequent): K.Sequent =
       if discharge.isEmpty then s
       else K.Sequent(s.left.map(e => K.substituteVariables(e, discharge).betaNormalForm), s.right.map(e => K.substituteVariables(e, discharge).betaNormalForm))
@@ -130,7 +142,12 @@ object Reconstruction:
       val fromAtom = bank.atomOf(from.literals(iFrom))
       val l = bank.arg(fromAtom, fromSide)
       buildRewrite(
-        from, iFrom, fromSide, into, iInto, pos,
+        from,
+        iFrom,
+        fromSide,
+        into,
+        iInto,
+        pos,
         establish = () => { trail.unify(l, 0, Superposition.subtermAt(bank, bank.atomOf(into.literals(iInto)), pos), 1); () },
         replay = ap => Superposition.replayApplier(bank, ap, from, iFrom, fromSide, into, iInto)
       )
@@ -139,19 +156,24 @@ object Reconstruction:
       val ruleAtom = bank.atomOf(rule.literals(0)) // the demodulator is a positive unit equality
       val l = bank.arg(ruleAtom, ruleSide)
       buildRewrite(
-        rule, 0, ruleSide, target, iTarget, pos,
+        rule,
+        0,
+        ruleSide,
+        target,
+        iTarget,
+        pos,
         establish = () => { trail.matchTerm(l, 0, Superposition.subtermAt(bank, bank.atomOf(target.literals(iTarget)), pos), 1); () },
         replay = ap => Demodulation.replayApplier(bank, ap, rule, ruleSide, target)
       )
 
-    /** The common superposition/demodulation reconstruction: `from` (scope 0) rewrites `into`'s literal `iInto`
-      * at subterm `pos` with the equation on `from`'s side `fromSide`. `establish` re-binds the trail with the
-      * unifier (superposition) or matcher (demodulation); `replay` re-runs the [[Trail.Applier]] in the
-      * generating code's order so the conclusion's fresh variables match `c`. Emits a `SubstEq` (Right if the
-      * rewritten literal is positive, else Left) that adds `lσ=rσ` to the antecedent, then a `Cut` on `lσ=rσ`. */
-    private def buildRewrite(
-        from: Clause, iFrom: Int, fromSide: Int, into: Clause, iInto: Int, pos: Array[Int],
-        establish: () => Unit, replay: trail.Applier => Unit): Recon =
+    /**
+     * The common superposition/demodulation reconstruction: `from` (scope 0) rewrites `into`'s literal `iInto`
+     * at subterm `pos` with the equation on `from`'s side `fromSide`. `establish` re-binds the trail with the
+     * unifier (superposition) or matcher (demodulation); `replay` re-runs the [[Trail.Applier]] in the
+     * generating code's order so the conclusion's fresh variables match `c`. Emits a `SubstEq` (Right if the
+     * rewritten literal is positive, else Left) that adds `lσ=rσ` to the antecedent, then a `Cut` on `lσ=rσ`.
+     */
+    private def buildRewrite(from: Clause, iFrom: Int, fromSide: Int, into: Clause, iInto: Int, pos: Array[Int], establish: () => Unit, replay: trail.Applier => Unit): Recon =
       val pFrom = refOf(from); val pInto = refOf(into)
       val fromAtom = bank.atomOf(from.literals(iFrom))
       val intoLit = into.literals(iInto)
@@ -236,20 +258,26 @@ object Reconstruction:
         val (step2, bot2) = flipEqRight(step1, bot1, fa, fb)
         Recon(step2, bot2)
 
-    /** Emit an `InstSchema` for a non-empty substitution, else reuse the premise directly (identity-σ). */
+    /**
+     * Emit an `InstSchema` for a non-empty substitution, else reuse the premise directly (identity-σ).
+     */
     private def instStep(p: Recon, subst: Map[K.Variable, K.Expression], bot: K.Sequent): (Int, K.Sequent) =
       if subst.isEmpty then (p.ref, p.seq) else (addStep(K.InstSchema(bot, p.ref, subst)), bot)
 
-    /** Replay the `Applier` over the surviving literals (all but `skip`), in index order, so its fresh
-     *  variable numbering matches the clause the prover generated. */
+    /**
+     * Replay the `Applier` over the surviving literals (all but `skip`), in index order, so its fresh
+     *  variable numbering matches the clause the prover generated.
+     */
     private def replaySurvivors(applier: trail.Applier, c: Clause, skip: Int, scope: Scope): Unit =
       var k = 0
       while k < c.literals.length do
         if k != skip then applier.apply(bank.atomOf(c.literals(k)), scope)
         k += 1
 
-    /** The kernel substitution instantiating `parent`'s variables under the trail, both the domain and the
-     *  images named by the canonical [[canonVar]] scheme. */
+    /**
+     * The kernel substitution instantiating `parent`'s variables under the trail, both the domain and the
+     *  images named by the canonical [[canonVar]] scheme.
+     */
     private def substOf(parent: Clause, applier: trail.Applier, scope: Scope): Map[K.Variable, K.Expression] =
       bank.varsOf(parent).iterator.map(v => canonVar(bank.varNum(v).num) -> kernelize(applier.apply(v, scope))).toMap
 
@@ -257,7 +285,9 @@ object Reconstruction:
       if subst.isEmpty then s
       else K.Sequent(s.left.map(K.substituteVariables(_, subst)), s.right.map(K.substituteVariables(_, subst)))
 
-    /** Convert an internal term to a kernel expression, mapping internal variable numbers via [[canonVar]]. */
+    /**
+     * Convert an internal term to a kernel expression, mapping internal variable numbers via [[canonVar]].
+     */
     private def kernelize(t: Term): K.Expression =
       val cached: K.Expression = kernelCache.get(t.offset)
       if cached != null then cached
@@ -278,15 +308,19 @@ object Reconstruction:
     // where a clause reappears as a parent.
     private val kernelCache: Int2ObjectOpenHashMap[K.Expression] = new Int2ObjectOpenHashMap()
 
-    /** Apply interned symbol `head` to already-kernelised `args`, honouring the abstraction discharge (inline a
-     *  higher-order term). */
+    /**
+     * Apply interned symbol `head` to already-kernelised `args`, honouring the abstraction discharge (inline a
+     *  higher-order term).
+     */
     private def applySymbol(head: Symbol, args: IndexedSeq[K.Expression]): K.Expression =
       args.foldLeft(headExpr(head))((acc, a) => K.Application(acc, a)) match
         case applied if dischargedIds.contains(head.code) => applied.betaNormalForm // an inlined `λfv. e`
         case applied => applied
 
-    /** The kernel head a symbol becomes, before its arguments: its discharge value, or the constant/variable
-     *  built from its identifier. Cached, since it depends on the symbol alone. */
+    /**
+     * The kernel head a symbol becomes, before its arguments: its discharge value, or the constant/variable
+     *  built from its identifier. Cached, since it depends on the symbol alone.
+     */
     private def headExpr(head: Symbol): K.Expression =
       val cached: K.Expression = headCache(head.code)
       if cached != null then cached
@@ -308,8 +342,10 @@ object Reconstruction:
     private val headCache: Array[K.Expression] = new Array[K.Expression](sig.size)
     private val dischargedIds: IntOpenHashSet = new IntOpenHashSet()
 
-    /** Kernelise `t` but emit `hole` in place of the subterm at position `pos` (a path of argument indices),
-     *  yielding a context `φ(hole)`; everything off the path is kernelised normally via [[kernelize]]. */
+    /**
+     * Kernelise `t` but emit `hole` in place of the subterm at position `pos` (a path of argument indices),
+     *  yielding a context `φ(hole)`; everything off the path is kernelised normally via [[kernelize]].
+     */
     private def kernelizeHole(t: Term, pos: Array[Int], depth: Int, hole: K.Variable): K.Expression =
       if depth == pos.length then hole
       else
@@ -319,21 +355,27 @@ object Reconstruction:
           (0 until n).map(i => if i == k then kernelizeHole(bank.arg(t, i), pos, depth + 1, hole) else kernelize(bank.arg(t, i)))
         applySymbol(bank.headSymbol(t), args)
 
-    /** A kernel equality atom `a = b`, built with the exact constant [[kernelize]] produces for `=`. */
+    /**
+     * A kernel equality atom `a = b`, built with the exact constant [[kernelize]] produces for `=`.
+     */
     private def mkEqK(a: K.Expression, b: K.Expression): K.Expression = applySymbol(EqualitySymbol, IndexedSeq(a, b))
 
     private var holeCounter: Int = 0
 
-    /** A fresh `Ind` context variable for a substitution lambda, distinct from every `canonVar` (`cv…`). */
+    /**
+     * A fresh `Ind` context variable for a substitution lambda, distinct from every `canonVar` (`cv…`).
+     */
     private def freshHole(): K.Variable =
       val h = K.Variable(K.Identifier(GeneratedNames.hole, holeCounter), K.Ind)
       holeCounter += 1
       h
 
-    /** Flip an equality on the **right** of a derived sequent: given a step `ref` proving `Γ ⊢ Δ, a=b`, emit a
-      * short derivation of `Γ ⊢ Δ, b=a` (reflexivity + one `RightSubstEq` + a `Cut`) and return its reference and
-      * sequent. Used to reorient a rewriting equation whose stored side order is the reverse of the one the
-      * `SubstEq` step needs. */
+    /**
+     * Flip an equality on the **right** of a derived sequent: given a step `ref` proving `Γ ⊢ Δ, a=b`, emit a
+     * short derivation of `Γ ⊢ Δ, b=a` (reflexivity + one `RightSubstEq` + a `Cut`) and return its reference and
+     * sequent. Used to reorient a rewriting equation whose stored side order is the reverse of the one the
+     * `SubstEq` step needs.
+     */
     private def flipEqRight(ref: Int, seq: K.Sequent, a: K.Expression, b: K.Expression): (Int, K.Sequent) =
       val ab = mkEqK(a, b)
       val ba = mkEqK(b, a)
@@ -344,11 +386,11 @@ object Reconstruction:
       val outSeq = K.Sequent(seq.left, (seq.right - ab) + ba)
       (addStep(K.Cut(outSeq, ref, r2, ab)), outSeq)
 
-
-    /** The kernel sort of a symbol: `Ind → … → Ind → (Prop|Ind)` with `arity` argument places. */
+    /**
+     * The kernel sort of a symbol: `Ind → … → Ind → (Prop|Ind)` with `arity` argument places.
+     */
     private def sortFor(arity: Int, isPredicate: Boolean): K.Sort =
       var s: K.Sort = if isPredicate then K.Prop else K.Ind
       var k = 0
       while k < arity do { s = K.Ind -> s; k += 1 }
       s
-
