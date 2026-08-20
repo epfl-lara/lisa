@@ -12,6 +12,7 @@ import lisa.utils.K
 import lisa.utils.fol.{FOL => F}
 import lisa.utils.prooflib.Exports._
 import lisa.utils.prooflib.ProofJudgement
+import lisa.utils.prooflib.Proof
 import lisa.utils.prooflib.Subproof
 import lisa.utils.prooflib.TacticHelpers.failWith
 
@@ -58,7 +59,7 @@ object Tactics:
       case _ => 1
 
     // Bidirectional type checking proof construct(infer, check, equal)
-    def prove(using lib: SetTheoryLibrary.type, proof: lib.Proof)(bot: F.Sequent): ProofJudgement =
+    def prove(using lib: SetTheoryLibrary.type, proof: Proof)(bot: F.Sequent): ProofJudgement =
       import lib.*
       if bot.right.size != 1 then invalidTactic("Typecheck can only prove one theorem once upon a time")
       else
@@ -86,13 +87,13 @@ object Tactics:
             case _ => failWith("Type check can only check type relation(∈)")
         }
 
-    def apply(using lib: SetTheoryLibrary.type, proof: lib.Proof)(bot: F.Sequent): ProofJudgement =
+    def apply(using lib: SetTheoryLibrary.type, proof: Proof)(bot: F.Sequent): ProofJudgement =
       prove(bot)
 
     /**
      * Infer the type of the given term(↑)
      */
-    def inferProof(using lib: SetTheoryLibrary.type, proof: lib.Proof)(localContext: Set[Expr[Prop]], tm: Expr[Ind]): ProofJudgement =
+    def inferProof(using lib: SetTheoryLibrary.type, proof: Proof)(localContext: Set[Expr[Prop]], tm: Expr[Ind]): ProofJudgement =
       import lib.*
       // println("Infer term:" + tm.toString())
       Subproof {
@@ -100,7 +101,7 @@ object Tactics:
           // e1: Π(x:T1).T2, e2: T1 => e1(e2): T2(e2)
           case Sapp(func: Expr[Ind], tm2: Expr[Ind]) =>
             val funcProof = inferProof(using SetTheoryLibrary)(localContext, func)
-            if !funcProof.isValid then failWith(s"Failed to infer the type of the given func($func)")
+            if !funcProof.isValid then failWith(funcProof)
             val h1 = have(funcProof)
             val funcInferredType = h1.statement.right.head match
               case typeOf(tm, ty) => ty
@@ -108,7 +109,7 @@ object Tactics:
             funcInferredType match // func's type must be Π-class
               case SPi(ty1: Expr[Ind], ty2: Expr[Ind >>: Ind]) =>
                 val typeLevelProof = checkProof(using SetTheoryLibrary)(localContext, tm2, ty1)
-                if !typeLevelProof.isValid then failWith(s"Failed to construct the proof of $tm2 ∈ $ty1")
+                if !typeLevelProof.isValid then failWith(typeLevelProof)
                 val h2 = have(typeLevelProof)
                 val (boundVar, typeBody) = ty2 match
                   case Abs(v, body) => (v, body)
@@ -145,7 +146,7 @@ object Tactics:
               case _ => failWith("SPi: Failed to extract the inferred type from valid proof")
             val (u1, u1Facts, u1Primises) = localContext
               .collectFirst {
-                case typeOf(s, u) if s == ty => (u, Seq(), Set(isUniverse(u), ty ∈ u))
+                case typeOf(s, u) if isSame(s, ty) => (u, Seq(), Set(isUniverse(u), ty ∈ u))
               }
               .getOrElse {
                 (universeOf(ty), Seq(universeOfIsUniverse of (x := ty)), Set())
@@ -174,16 +175,31 @@ object Tactics:
                     "computeType can only handle fully applied functions. Function " + tcf + " has arity " + tcf.arity + " but was applied to " + args.size + " arguments."
                   )
                 val subst = (tcf.typ.args zip args).map((v, a) => (v := a))
-                have(tm ∈ tcf.typ.outTyp.substitute(subst*) ++<< (() |- localContext)) by Tautology.from(tcf.justif.of(subst*))
+                val instance = args.foldLeft(tcf.justif.statement.right.head) {
+                  case (forall(v, body), arg) => body.substitute(v := arg)
+                  case _ => failWith(s"Typing theorem for $tcf does not quantify all type arguments.")
+                }
+                val instantiated =
+                  if args.isEmpty then have(tcf.justif)
+                  else have(instance) by InstantiateForall(args*)(tcf.justif)
+                val typing = tm ∈ tcf.typ.outTyp.substitute(subst*)
+                @annotation.tailrec
+                def antecedents(formula: Expr[Prop], acc: Set[Expr[Prop]] = Set.empty): (Set[Expr[Prop]], Expr[Prop]) =
+                  formula match
+                    case premise ==> result => antecedents(result, acc + premise)
+                    case result => acc -> result
+                val (requirements, result) = antecedents(instance)
+                if !isSame(result, typing) then failWith(s"Instantiated typing theorem for $tcf concludes $result instead of $typing.")
+                have((localContext ++ requirements) |- typing) by Tautology.from(instantiated)
 
               case _ =>
-                val tyOpt: Option[Expr[Ind]] = localContext.collectFirst { case typeOf(t1, t2) if t1 == tm => t2 }
+                val tyOpt: Option[Expr[Ind]] = localContext.collectFirst { case typeOf(t1, t2) if isSame(t1, tm) => t2 }
                 tyOpt match
                   case Some(ty) => have(tm ∈ ty |- tm ∈ ty) by Hypothesis
                   case None => have(tm ∈ universeOf(tm)) by Tautology.from(TSort of (U := tm))
 
           case _ =>
-            val tyOpt: Option[Expr[Ind]] = localContext.collectFirst { case typeOf(t1, t2) if t1 == tm => t2 }
+            val tyOpt: Option[Expr[Ind]] = localContext.collectFirst { case typeOf(t1, t2) if isSame(t1, tm) => t2 }
             tyOpt match
               case Some(ty) => have(tm ∈ ty |- tm ∈ ty) by Hypothesis
               case None => have(tm ∈ universeOf(tm)) by Tautology.from(TSort of (U := tm))
@@ -192,7 +208,7 @@ object Tactics:
     /**
      * Check the type of the given term(↓)
      */
-    def checkProof(using lib: SetTheoryLibrary.type, proof: lib.Proof)(localContext: Set[Expr[Prop]], tm: Expr[Ind], ty: Expr[Ind]): ProofJudgement =
+    def checkProof(using lib: SetTheoryLibrary.type, proof: Proof)(localContext: Set[Expr[Prop]], tm: Expr[Ind], ty: Expr[Ind]): ProofJudgement =
       import lib.*
       // println("Check term's type: " + tm.toString() + " ∈ " + ty.toString())
       Subproof {
@@ -241,7 +257,7 @@ object Tactics:
       }
 
     // Construct subset proof(ty1 ⊆ ty2) for the given two expressions
-    def subsetProof(using lib: SetTheoryLibrary.type, proof: lib.Proof)(localContext: Set[Expr[Prop]], sub: Expr[Ind], sup: Expr[Ind]): ProofJudgement =
+    def subsetProof(using lib: SetTheoryLibrary.type, proof: Proof)(localContext: Set[Expr[Prop]], sub: Expr[Ind], sup: Expr[Ind]): ProofJudgement =
       import lib.*
       // println("Trying to construct subsetProof for: " + sub.toString() + " ⊆ " + sup.toString())
       Subproof {
