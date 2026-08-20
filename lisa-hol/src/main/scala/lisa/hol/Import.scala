@@ -10,10 +10,10 @@ import lisa.hol.extractor.TheoremRef
 import lisa.hol.extractor._
 import lisa.hol.{core => h}
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
+import lisa.utils.K
 import lisa.utils.collection.VecSet
-import lisa.utils.prooflib.BasicStepTactic.Restate
-import lisa.utils.prooflib.OutputManager
-import lisa.utils.prooflib.SimpleDeducedSteps.Discharge
+import lisa.utils.prooflib.BasicStep.Restate
+import lisa.utils.prooflib.{Discharge, FatalCarrierDestructionException, OutputManager, Proof, Subproof, Thm}
 import lisa.utils.unification.UnificationUtils.RewriteContext
 import lisa.utils.unification.UnificationUtils.matchExpr
 
@@ -24,7 +24,7 @@ object Import extends lisa.HOL:
 
   // lib.withCache()
 
-  type Justification = lib.JUSTIFICATION
+  type Justification = Thm
 
   sealed trait ImportException extends Exception
   case class InvalidAbstractionException(term: h.Term) extends Exception(s"Invalid abstraction term: $term. Expected a variable.") with ImportException
@@ -55,10 +55,22 @@ object Import extends lisa.HOL:
   given LoggingMode = currentLoggingMode
 
   object Transformers:
+    private val typeNumbers = mutable.Map.empty[K.Expression, Int]
+    private var nextTypeNumber = 1
+
+    private def typeNumber(tpe: Expr[Ind]): Int =
+      typeNumbers.getOrElseUpdate(
+        tpe.underlying, {
+          val result = nextTypeNumber
+          nextTypeNumber += 1
+          result
+        }
+      )
+
     def mkTypedVar(name: String, tpe: Expr[Ind]): TypedVariable =
-      // unfortunate to double the clashes, but identifier indices are
-      // expected to be positive
-      TypedVariable(K.Identifier(name, tpe.hashCode().abs), tpe)
+      // HOL types are erased in the kernel, so encode them in variable ids.
+      // A map avoids the collisions inherent in using a 32-bit hash directly.
+      TypedVariable(K.Identifier(name, typeNumber(tpe)), tpe)
 
     extension (typ: h.Type)
       def toLisaType: Expr[Ind] =
@@ -206,7 +218,7 @@ object Import extends lisa.HOL:
           matchExpr(using RewriteContext.empty)(cstType, tpe) match
             case None => throw MalformedConstantInstance(name, tpe)
             case Some(subst) =>
-              debug(s"[Constant Lookup] Match successful with substitution: ${subst.map { case (k, v) => s"$k -> $v" }.mkString(", ")}")
+              debug(s"[Constant Lookup] Match successful with substitution: ${subst.asSubstPair.mkString(", ")}")
               val typeArgs = typeVars.map(v => subst(v).getOrElse(v))
               val appliedCst = (cst #@@ typeArgs).asInstanceOf[Expr[Ind]]
 
@@ -311,20 +323,17 @@ object Import extends lisa.HOL:
           HOLTheorem(using
             summon[OutputManager],
             theoremName, // just need to set the right name for better tracking
+            sourcecode.Name(sanitizedName),
             summon[sourcecode.Line],
             summon[sourcecode.File]
           )(goal) { proof ?=>
-            val stepCache = mutable.Map.empty[Long, proof.Fact]
+            val stepCache = mutable.Map.empty[Long, Thm]
             HOLProofType.resetCache()
             val recons = reconstructStep(using extractor, proof, stepCache)(index, step)
 
             have(HOLSteps.Clean.all(recons))
 
             debug(f"[CACHE] Theorem #$index%06d reconstructed with a step cache usage of ${stepCache.size} steps, and ${HOLProofType.cacheSize} typing proofs.")
-            debug {
-              val proofSize = proof.currentSCProof.totalLength
-              f"[INNER SIZE] Theorem #$index%06d required an SCProof of totalLength ${proofSize}."
-            }
           }
 
         val reconstructed =
@@ -381,12 +390,7 @@ object Import extends lisa.HOL:
             val sanitized = sanitize(name)
             sourcecode.FullName(s"$baseName.$sanitized")
 
-          val cst = DEF(using
-            summon[OutputManager],
-            cleanedName,
-            summon[sourcecode.Line],
-            summon[sourcecode.File]
-          )(definitionTerm)(using unsafeSortEvidence(definitionTerm.sort))
+          val cst = DEF(using cleanedName)(definitionTerm)(using unsafeSortEvidence(definitionTerm.sort))
 
           val nonEmptyAssumptions = typeArgs.map(nonEmpty)
           val conj = nonEmptyAssumptions.reduceOption(_ /\ _).getOrElse(⊤)
@@ -397,7 +401,7 @@ object Import extends lisa.HOL:
           val fullTyping = typeArgs.foldRight(conj ==> baseTyping): (v, inner) =>
             ∀(v, inner)
 
-          val typeJust = Lemma(fullTyping) { proof ?=>
+          val typeCarrier = Subproof {
 
             // typechecking does not account for non-emptiness of constant and
             // function types so we will add and eliminate these manually too.
@@ -411,18 +415,21 @@ object Import extends lisa.HOL:
 
             val allAssumptions = nonEmptyAssumptions ++ extraNonEmpty
 
-            lib.have(allAssumptions |- body :: abstractType) by Typecheck.prove
+            have(allAssumptions |- body :: abstractType) by Typecheck.prove
             val conditional = thenHave(allAssumptions |- appliedCst :: abstractType) by Substitute(cst.definition)
 
             // remove assumptions about non variables
-            val discharged = lib.have(Discharge(nonEmptyJustifs*)(conditional))
+            val discharged = have(Discharge(nonEmptyJustifs*)(conditional))
 
-            val implication = lib.have(conj ==> baseTyping) by Weakening(discharged)
+            val implication = have(conj ==> baseTyping) by Weakening(discharged)
 
-            typeArgs.foldRight(implication: proof.Fact): (v, premise) =>
+            typeArgs.foldRight(implication: Thm): (v, premise) =>
               val prev = premise.statement.right.head // inv: always singleton
-              lib.have(∀(v, prev)) by RightForall(premise)
+              have(∀(v, prev)) by RightForall(premise)
           }
+          if !typeCarrier.isValid then
+            throw new IllegalArgumentException(typeCarrier.errors.map(_.message).mkString("Invalid typing proof: ", "; ", ""))
+          val typeJust = typeCarrier.destruct._1
 
           val funClass = FunctionalClass(
             inTyp = typeArgs.map(_ => None),
@@ -448,11 +455,11 @@ object Import extends lisa.HOL:
    * @param ctx current proof context
    * @param step the step to reconstruct, as a [[JustifiedTheorem]]
    */
-  private def reconstructStep(using extractor: ExtractorContext, ctx: lib.Proof, cache: StepCache[ctx.Fact])(index: Long, step: JustifiedTheorem): ctx.Fact =
+  private def reconstructStep(using extractor: ExtractorContext, ctx: Proof, cache: StepCache[Thm])(index: Long, step: JustifiedTheorem): Thm =
     debug(s"Reconstructing step with statement ${step.statement} and proof type ${step.proof.getClass.getSimpleName}")
     debug(s"Current cache size: ${cache.size}. Current theorem map size: ${theoremMap.size}.")
 
-    def resolveFact(index: Long): ctx.Fact =
+    def resolveFact(index: Long): Thm =
       debug(s"Resolving fact with index $index")
 
       // is this a named theorem?
@@ -510,6 +517,13 @@ object Import extends lisa.HOL:
         case s @ h.DEFINITION(name, term) => reconstructConstantDefinition(s)
         case s @ h.TYPE_DEFINITION(name, term, just) => reconstructTypeDefinition(s)
     }
+
+    currentLoggingMode match
+      case LoggingMode.Debug =>
+        val expected = stmt.toLisaSequent
+        if result.kernel.statement != expected.underlying then
+          debug(s"[STEP MISMATCH] $index\nExpected: $expected\nActual: ${result.statement}")
+      case LoggingMode.Silent => ()
 
     cache(index) = result
     result
@@ -599,10 +613,17 @@ object Import extends lisa.HOL:
           if true then // count % 10 == 0 then
             printProgress(count)
         catch e =>
+            debug(e.getStackTrace.mkString("\n"))
+            val errorMessage = e match
+              case e: FatalCarrierDestructionException =>
+                (e.carrier.errors + e.carrier.fatalError)
+                  .map(error => s"${error.file}:${error.line}: ${error.message}")
+                  .mkString("\n")
+              case _ => e.getMessage
             print(f"""
                   | [INFO] Extracted $count theorems so far in ${time()}%.2f.
                   | [ERROR] Encountered an error while reconstructing further.
-                  | [ERROR] Error message: ${e.getMessage}
+                  | [ERROR] Error message: $errorMessage
                   | """.stripMargin)
 
     println(s"[INFO] Successfully imported ${theoremMap.size} theorems with ${theoremMap.keySet.max} steps in ${time()}s.")
@@ -618,7 +639,7 @@ object Import extends lisa.HOL:
       case _ => throw new IllegalArgumentException(s"Invalid logging mode: $logMode. Expected '--silent' or '--debug'.")
 
     importFromPrefix(prefix, theoremCount, if output then Some(outputFile) else None, overwrite)
-    // val innersizes = theoremMap.values.collect{case (t: THM) => t.kernelProof.get.totalLength}
+    // val innersizes = theoremMap.values.collect{case (t: Theorem) => t.kernelProof.get.totalLength}
     // val constantJustSizes = Constants.
     // println(s"Total inner proof size: $innersizes")
 

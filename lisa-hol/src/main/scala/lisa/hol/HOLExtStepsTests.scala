@@ -1,6 +1,6 @@
 package lisa.hol
 
-import lisa.automation.Substitution.{Apply => Substitute}
+import lisa.utils.prooflib.Substitute
 import lisa.hol.ExtendedHOLSteps._INST_TYPE_RENAME
 import lisa.hol.basics.Truth.SYM
 import lisa.hol.HOLHelperTheorems._
@@ -12,21 +12,19 @@ import lisa.maths.SetTheory.Base.Replacement.|
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
 import lisa.maths.SetTheory.Types.TypingRules.TAbs
-import lisa.utils.prooflib.BasicStepTactic.LeftSubstEq
-import lisa.utils.prooflib.BasicStepTactic.Restate
-import lisa.utils.prooflib.BasicStepTactic.RightAnd
-import lisa.utils.prooflib.BasicStepTactic.RightSubstEq
-import lisa.utils.prooflib.BasicStepTactic.Weakening
-import lisa.utils.prooflib.BasicStepTactic._
+import lisa.utils.prooflib.BasicStep.LeftSubstEq
+import lisa.utils.prooflib.BasicStep.Restate
+import lisa.utils.prooflib.BasicStep.RightAnd
+import lisa.utils.prooflib.BasicStep.RightSubstEq
+import lisa.utils.prooflib.BasicStep.Weakening
+import lisa.utils.prooflib.BasicStep._
 import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.ProofTacticLib._
-import lisa.utils.prooflib.SimpleDeducedSteps.Discharge
-import lisa.utils.prooflib.SimpleDeducedSteps._
+import lisa.utils.prooflib.Exports.*
+import lisa.utils.prooflib.Discharge
+import lisa.utils.prooflib.Exports.*
 import lisa.utils.unification.UnificationUtils.Substitution
 
 object HOLExtStepsTests extends lisa.HOL {
-  draft()
-
   val A = typevar
   val B = typevar
   val T = typevar

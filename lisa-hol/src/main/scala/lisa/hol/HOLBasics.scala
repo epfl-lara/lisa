@@ -1,6 +1,6 @@
 package lisa.hol
 
-import lisa.automation.Substitution.{Apply => Substitute}
+import lisa.utils.prooflib.Substitute
 import lisa.hol.HOLHelperTheorems._
 import lisa.hol.HOLSteps._
 import lisa.hol.VarsAndFunctions._
@@ -14,10 +14,10 @@ import lisa.hol.basics.Inductive._
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
 import lisa.maths.SetTheory.Types.TypingRules.TAbs
-import lisa.utils.prooflib.BasicStepTactic._
+import lisa.utils.prooflib.BasicStep._
 import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.ProofTacticLib._
-import lisa.utils.prooflib.SimpleDeducedSteps._
+import lisa.utils.prooflib.Exports.*
+import lisa.utils.prooflib.Exports.*
 
 /**
  * HOL Light axioms: ETA_AX, INFINITY_AX, SELECT_AX.
@@ -28,8 +28,7 @@ import lisa.utils.prooflib.SimpleDeducedSteps._
  */
 object HOLBasics extends lisa.HOL {
   
-  val lib = summon[Library]
-  lib.withCache()
+  val lib = lisa.SetTheoryLibrary
 
   val A = typevar
   val B = typevar
@@ -64,17 +63,13 @@ object HOLBasics extends lisa.HOL {
   val etaAx = HOLTheorem(hforall(A ->: B) * fun(t, fun(x, t * x) =:= t)):
     assumeAll
     val pred = fun(t, fun(x, t * x) =:= t)
+    val T, e2 = variable[Ind]
+    val e = variable[Ind >>: Ind]
 
-    val beta = have(pred * t === (fun(x, t * x) =:= t)) subproof:
-      val bc = BETA_CONV(pred * t)
-      have(thesis) by Tautology.from(
-        bc,
-        eqAlign of (A := 𝔹, x := pred * t, y := (fun(x, t * x) =:= t)),
-        have(HOLProofType(pred * t)),
-        have(HOLProofType(fun(x, t * x) =:= t))
-      )
+    val beta = have(t :: (A ->: B) |- pred * t === (fun(x, t * x) =:= t)) by
+      Tautology.from(BetaReduction of (T := (A ->: B), e := λ(t, fun(x, t * x) =:= t), e2 := t))
 
-    have(pred * t) by Substitute(beta)(ETA(x, t))
+    have(t :: (A ->: B) |- pred * t) by Substitute(beta)(ETA(x, t))
 
     thenHave((t :: (A ->: B)) ==> (pred * t)) by Restate
     thenHave(∀(t :: (A ->: B), pred * t)) by RightForall
@@ -159,13 +154,13 @@ object HOLBasics extends lisa.HOL {
     // assuming P * x, derive P * (hselect(A) * P)
     val core = have((P :: (A ->: 𝔹), x :: A, P * x === One) |- (P * (hselect(A) * P) === One)) subproof:
       have((x :: A) /\ (P * x === One) |- (x :: A) /\ (P * x === One)) by Hypothesis
-      have((x :: A) /\ (P * x === One) |- ∃(x, (x :: A) /\ (P * x === One))) by RightExists.withParameters(x)(lastStep)
+      have((x :: A) /\ (P * x === One) |- ∃(x, (x :: A) /\ (P * x === One))) by RightExists(lastStep)
       val witness = have((P :: (A ->: 𝔹), (x :: A) /\ (P * x === One)) |- ∃(x, (x :: A) /\ (P * x === One))) by Weakening(lastStep)
       
       val T = variable[Ind]
       val e = variable[Ind >>: Ind]
       val e2 = variable[Ind]
-      val selectBR = have(fun(P, selectTerm) * P === selectTerm) by Weakening(BetaReduction of (T := A ->: 𝔹, e2 := P, e := λ(P, selectTerm)))
+      val selectBR = have(P :: (A ->: 𝔹) |- fun(P, selectTerm) * P === selectTerm) by Weakening(BetaReduction of (T := A ->: 𝔹, e2 := P, e := λ(P, selectTerm)))
       // prove P * selectTerm === One, then substitute to fold back
       have((P :: (A ->: 𝔹), x :: A, P * x === One) |- (P * selectTerm === One)) by Tautology.from(selectFact, witness)
       thenHave((P :: (A ->: 𝔹), x :: A, P * x === One) |- (P * (fun(P, selectTerm) * P) === One)) by Substitute(selectBR)
@@ -181,7 +176,7 @@ object HOLBasics extends lisa.HOL {
       )
 
     // Beta reduce innerPred * x
-    val innerBeta = have(innerPred * x === (himp * (P * x) * (P * (hselect(A) * P)))) subproof:
+    val innerBeta = have((P :: (A ->: 𝔹), x :: A) |- innerPred * x === (himp * (P * x) * (P * (hselect(A) * P)))) subproof:
       val bc = BETA_CONV(innerPred * x)
       have(thesis) by Tautology.from(
         bc,
@@ -201,7 +196,7 @@ object HOLBasics extends lisa.HOL {
       have(HOLProofType(innerPred))
     )
 
-    val outerBeta = have(outerPred * P === (hforall(A) * innerPred)) subproof:
+    val outerBeta = have(P :: (A ->: 𝔹) |- outerPred * P === (hforall(A) * innerPred)) subproof:
       val bc = BETA_CONV(outerPred * P)
       have(thesis) by Tautology.from(
         bc,
