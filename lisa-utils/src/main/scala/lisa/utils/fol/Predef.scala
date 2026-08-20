@@ -12,35 +12,35 @@ trait Predef extends ExprOps {
   /**
    * Creates a variable with the given identifier and sort.
    */
-  def variable[S](using IsSort[S])(id: K.Identifier): Variable[S] = new Variable(id)
+  def variable[S](using Sort[S])(id: K.Identifier): Variable[S] = new Variable(id)
 
   /**
    *  Creates a constant with the given identifier and sort.
    */
-  def constant[S](using IsSort[S])(id: K.Identifier): Constant[S] = new Constant(id)
+  def constant[S](using Sort[S])(id: K.Identifier): Constant[S] = new Constant(id)
 
   /**
    * Creates a binder with the given identifier and sorts.
    */
-  def binder[S1, S2, S3](using IsSort[S1], IsSort[S2], IsSort[S3])(id: K.Identifier): Binder[S1, S2, S3] = new Binder(id)
+  def binder[S1, S2, S3](using Sort[S1], Sort[S2], Sort[S3])(id: K.Identifier): Binder[S1, S2, S3] = new Binder(id)
 
   /**
    *  Creates a variable with name equal to the scala identifier. Usage:
    * {{{val x = variable[Ind]}}}
    */
-  def variable[S](using name: sourcecode.Name, is: IsSort[S]): Variable[S] = new Variable(name.value)
+  def variable[S](using name: sourcecode.Name, is: Sort[S]): Variable[S] = new Variable(name.value)
 
   /**
    *  Creates a constant with name equal to the scala identifier. Usage:
    * {{{val c = constant[Ind]}}}
    */
-  def constant[S](using name: sourcecode.Name, is: IsSort[S]): Constant[S] = new Constant(name.value)
+  def constant[S](using name: sourcecode.Name, is: Sort[S]): Constant[S] = new Constant(name.value)
 
   /**
    *  Creates a binder with name equal to the scala identifier. Usage:
    * {{{val B = binder[Ind, Prop, Prop]}}}
    */
-  def binder[S1, S2, S3](using name: sourcecode.Name)(using IsSort[S1], IsSort[S2], IsSort[S3]): Binder[S1, S2, S3] = new Binder(name.value)
+  def binder[S1, S2, S3](using name: sourcecode.Name)(using Sort[S1], Sort[S2], Sort[S3]): Binder[S1, S2, S3] = new Binder(name.value)
 
   /**
    *  Creates a variable with a runtime sort.
