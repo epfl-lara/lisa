@@ -1,16 +1,16 @@
 package lisa.hol.basics
 
-import lisa.automation.Substitution.{Apply => Substitute}
+import lisa.utils.prooflib.Substitute
 import lisa.hol.HOLHelperTheorems._
 import lisa.hol.HOLSteps._
 import lisa.hol.VarsAndFunctions._
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
 import lisa.maths.SetTheory.Types.TypingRules.TAbs
-import lisa.utils.prooflib.BasicStepTactic._
+import lisa.utils.prooflib.BasicStep._
 import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.ProofTacticLib._
-import lisa.utils.prooflib.SimpleDeducedSteps._
+import lisa.utils.prooflib.Exports.*
+import lisa.utils.prooflib.Exports.*
 
 /**
  * HOL Light choice operator (select / epsilon).
@@ -29,7 +29,7 @@ object Select extends lisa.HOL {
   val y = typedvar(A)
   val P = typedvar(A ->: 𝔹)
 
-  val lib = summon[Library]
+  val lib = lisa.SetTheoryLibrary
 
   // defining select
 
@@ -40,7 +40,7 @@ object Select extends lisa.HOL {
     assumeAll
 
     val existsCase = have(∃(y, (y :: A) /\ (P * y === One)) |- selectProp(selectTerm)) subproof:
-      lib.have((y :: A) /\ (P * y === One) |- selectProp(y)) by Restate
+      have((y :: A) /\ (P * y === One) |- selectProp(y)) by Restate
       thenHave((y :: A) /\ (P * y === One) |- selectProp(selectTerm)) by RightEpsilon.withParameters(selectProp(y), y, y)
       thenHave(∃(y, (y :: A) /\ (P * y === One)) |- selectProp(selectTerm)) by LeftExists
 
@@ -79,7 +79,7 @@ object Select extends lisa.HOL {
     )
 
     val typing_of_select = Theorem(∀(A, nonEmpty(A) ==> hselect(A) :: ((A ->: 𝔹) ->: A))):
-      lib.have((nonEmpty(A), (P :: (A ->: 𝔹))) |- selectProp(selectTerm)) by Weakening(selectWellDefined)
+      have((nonEmpty(A), (P :: (A ->: 𝔹))) |- selectProp(selectTerm)) by Weakening(selectWellDefined)
       thenHave(nonEmpty(A) |- (P :: (A ->: 𝔹)) ==> (selectTerm :: A)) by Weakening
       val epsType = thenHave(nonEmpty(A) |- ∀(P :: (A ->: 𝔹), selectTerm :: A)) by RightForall
 
@@ -87,7 +87,7 @@ object Select extends lisa.HOL {
       val T2 = variable[Ind >>: Ind]
       val e = variable[Ind >>: Ind]
 
-      lib.have(nonEmpty(A) |- fun(P, selectTerm) :: ((A ->: 𝔹) ->: A)) by Cut(epsType, TAbs of (T1 := (A ->: 𝔹), T2 := λ(x, A), e := λ(P, selectTerm)))
+      have(nonEmpty(A) |- fun(P, selectTerm) :: ((A ->: 𝔹) ->: A)) by Cut(epsType, TAbs of (T1 := (A ->: 𝔹), T2 := λ(x, A), e := λ(P, selectTerm)))
       thenHave(nonEmpty(A) |- hselect(A) :: ((A ->: 𝔹) ->: A)) by Substitute(hselect.definition)
       thenHave(nonEmpty(A) ==> hselect(A) :: ((A ->: 𝔹) ->: A)) by Restate
       thenHave(thesis) by RightForall

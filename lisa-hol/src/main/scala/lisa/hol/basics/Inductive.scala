@@ -1,6 +1,6 @@
 package lisa.hol.basics
 
-import lisa.automation.Substitution.{Apply => Substitute}
+import lisa.utils.prooflib.Substitute
 import lisa.hol.HOLHelperTheorems
 import lisa.hol.HOLHelperTheorems._
 import lisa.hol.HOLSteps._
@@ -14,10 +14,10 @@ import lisa.maths.SetTheory.Base.Pair.given
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
 import lisa.maths.SetTheory.Types.TypingRules.TAbs
-import lisa.utils.prooflib.BasicStepTactic._
+import lisa.utils.prooflib.BasicStep._
 import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.ProofTacticLib._
-import lisa.utils.prooflib.SimpleDeducedSteps._
+import lisa.utils.prooflib.Exports.*
+import lisa.utils.prooflib.Exports.*
 
 /**
  * HOL Light inductive type, successor, ONE_ONE, ONTO,
@@ -32,7 +32,7 @@ object Inductive extends lisa.HOL {
   val y = typedvar(A)
   val P = typedvar(A ->: 𝔹)
 
-  val lib = summon[Library]
+  val lib = lisa.SetTheoryLibrary
 
   // define ONE_ONE
   // let ONE_ONE = new_definition
@@ -66,7 +66,7 @@ object Inductive extends lisa.HOL {
     )
 
     val typing_of_oneone = Theorem(∀(A, ∀(B, (nonEmpty(A) /\ nonEmpty(B)) ==> hOneOne(A)(B) :: ((A ->: B) ->: 𝔹)))) {
-      lib.have((nonEmpty(A), nonEmpty(B)) |- fun(f, hforall(A) * fun(x, hforall(A) * fun(y, himp * ((f * x) =:= (f * y)) * (x =:= y)))) :: ((A ->: B) ->: 𝔹)) by Typecheck.prove
+      have((nonEmpty(A), nonEmpty(B)) |- fun(f, hforall(A) * fun(x, hforall(A) * fun(y, himp * ((f * x) =:= (f * y)) * (x =:= y)))) :: ((A ->: B) ->: 𝔹)) by Typecheck.prove
       thenHave((nonEmpty(A), nonEmpty(B)) |- hOneOne(A)(B) :: ((A ->: B) ->: 𝔹)) by Substitute(hOneOne.definition)
       thenHave((nonEmpty(A) /\ nonEmpty(B)) ==> hOneOne(A)(B) :: ((A ->: B) ->: 𝔹)) by Restate
       thenHave(thesis) by Generalize
@@ -105,7 +105,7 @@ object Inductive extends lisa.HOL {
     )
 
     val typing_of_onto = Theorem(∀(A, ∀(B, (nonEmpty(A) /\ nonEmpty(B)) ==> hOnto(A)(B) :: ((A ->: B) ->: 𝔹)))) {
-      lib.have((nonEmpty(A), nonEmpty(B)) |- fun(f, hforall(B) * fun(y, hexists(A) * fun(x, y =:= (f * x)))) :: ((A ->: B) ->: 𝔹)) by Typecheck.prove
+      have((nonEmpty(A), nonEmpty(B)) |- fun(f, hforall(B) * fun(y, hexists(A) * fun(x, y =:= (f * x)))) :: ((A ->: B) ->: 𝔹)) by Typecheck.prove
       thenHave((nonEmpty(A), nonEmpty(B)) |- hOnto(A)(B) :: ((A ->: B) ->: 𝔹)) by Substitute(hOnto.definition)
       thenHave((nonEmpty(A) /\ nonEmpty(B)) ==> hOnto(A)(B) :: ((A ->: B) ->: 𝔹)) by Restate
       thenHave(thesis) by Generalize
@@ -124,16 +124,16 @@ object Inductive extends lisa.HOL {
 
     val nonEmpty = Theorem(∃(x, x ∈ ind)):
       // the empty set is in any chosen inductive set
-      lib.have(inductive(y) |- inductive(y)) by Restate
+      have(inductive(y) |- inductive(y)) by Restate
       thenHave(inductive(y) |- inductive(ε(z, inductive(z)))) by RightEpsilon.withParameters(inductive(z), z, y)
       thenHave(inductive(y) |- ∅ ∈ ε(z, inductive(z))) by Weakening
 
       thenHave((inductive(y), ind === ε(z, inductive(z))) |- ∅ ∈ ind) by RightSubstEq.withParameters(Seq((ε(z, inductive(z)), ind)), (Seq(z), ∅ ∈ z))
-      lib.have(inductive(y) |- ∅ ∈ ind) by Cut(ind.definition, lastStep)
+      have(inductive(y) |- ∅ ∈ ind) by Cut(ind.definition, lastStep)
 
       // an inductive set actually exists, so our choice is justified
       thenHave(∃(y, inductive(y)) |- ∅ ∈ ind) by LeftExists
-      lib.have(∅ ∈ ind) by Cut(lib.infinityAxiom, lastStep)
+      have(∅ ∈ ind) by Cut(lib.infinityAxiom, lastStep)
 
       thenHave(∃(x, x ∈ ind)) by RightExists
 
@@ -141,27 +141,27 @@ object Inductive extends lisa.HOL {
   }
 
   val indIsInductive = Theorem(inductive(ind)):
-    lib.have(inductive(y) |- inductive(y)) by Restate
+    have(inductive(y) |- inductive(y)) by Restate
     thenHave(inductive(y) |- inductive(ε(z, inductive(z)))) by RightEpsilon.withParameters(inductive(z), z, y)
 
     thenHave((inductive(y), ind === ε(z, inductive(z))) |- inductive(ind)) by RightSubstEq.withParameters(Seq((ε(z, inductive(z)), ind)), (Seq(z), inductive(z)))
-    lib.have(inductive(y) |- inductive(ind)) by Cut(ind.definition, lastStep)
+    have(inductive(y) |- inductive(ind)) by Cut(ind.definition, lastStep)
 
     thenHave(∃(y, inductive(y)) |- inductive(ind)) by LeftExists
-    lib.have(inductive(ind)) by Cut(lib.infinityAxiom, lastStep)
+    have(inductive(ind)) by Cut(lib.infinityAxiom, lastStep)
 
   val succ: TypedConstant = {
     val i = typedvar(ind)
     val succ = DEF(fun(i, ⋃(unorderedPair(i, unorderedPair(i, i)))))
 
     val succType = Theorem(succ :: (ind ->: ind)):
-      val indClosed = lib.have(∀(i :: ind, ⋃(unorderedPair(i, unorderedPair(i, i))) :: ind)) by Weakening(indIsInductive)
+      val indClosed = have(∀(i :: ind, ⋃(unorderedPair(i, unorderedPair(i, i))) :: ind)) by Weakening(indIsInductive)
 
       val T1 = variable[Ind]
       val T2 = variable[Ind >>: Ind]
       val e = variable[Ind >>: Ind]
 
-      lib.have(fun(i, ⋃(unorderedPair(i, unorderedPair(i, i)))) :: (ind ->: ind)) by Cut(lastStep, TAbs of (T1 := ind, T2 := λ(x, ind), e := λ(i, ⋃(unorderedPair(i, unorderedPair(i, i))))))
+      have(fun(i, ⋃(unorderedPair(i, unorderedPair(i, i)))) :: (ind ->: ind)) by Cut(lastStep, TAbs of (T1 := ind, T2 := λ(x, ind), e := λ(i, ⋃(unorderedPair(i, unorderedPair(i, i))))))
       thenHave(succ :: (ind ->: ind)) by Substitute(succ.definition)
 
     TypedConstant(succ.id, ind ->: ind, succType)
@@ -176,15 +176,15 @@ object Inductive extends lisa.HOL {
     val f = typedvar(ind ->: ind)
 
     def expanded(i: Expr[Ind]) = ⋃(unorderedPair(i, unorderedPair(i, i)))
-    val expandedTyping = have(expanded(i) :: ind) subproof:
-      have(∀(i :: ind, expanded(i) :: ind)) by Weakening(indIsInductive)
+    val expandedTyping = have(i :: ind |- expanded(i) :: ind) subproof:
+      have(∀(i :: ind, expanded(i) :: ind)) by Tautology.from(indIsInductive)
       thenHave(i :: ind ==> expanded(i) :: ind) by InstantiateForall(i)
 
-    val betaSucc = have(succ * i === expanded(i)) subproof:
+    val betaSucc = have(i :: ind |- succ * i === expanded(i)) subproof:
       val T = variable[Ind]
       val e = variable[Ind >>: Ind]
       val e2 = variable[Ind]
-      have(fun(i, expanded(i)) * i === expanded(i)) by Weakening(BetaReduction of (T := ind, e2 := i, e := λ(i, expanded(i))))
+      have(i :: ind |- fun(i, expanded(i)) * i === expanded(i)) by Weakening(BetaReduction of (T := ind, e2 := i, e := λ(i, expanded(i))))
       thenHave(thesis) by Substitute(succ.definition)
 
     val betaOneOne = have(hOneOne(ind)(ind) * succ === hforall(ind) * fun(x, hforall(ind) * fun(y, himp * ((succ * x) =:= (succ * y)) * (x =:= y)))) subproof:
@@ -194,7 +194,7 @@ object Inductive extends lisa.HOL {
       val cond = have(((hOneOne(ind)(ind) * succ) :: 𝔹, ooDef(succ) :: 𝔹) |- hOneOne(ind)(ind) * succ === ooDef(succ)) by Substitute(eqAlign)(lastStep)
       have(Discharge(HOLProofType(hOneOne(ind)(ind) * succ), HOLProofType(ooDef(succ)))(cond))
 
-    val oneOneDirect = have((succ * x) === (succ * y) |- x === y) subproof:
+    val oneOneDirect = have((x :: ind, y :: ind, (succ * x) === (succ * y)) |- x === y) subproof:
       assume(x :: ind, y :: ind)
       have(expanded(x) === expanded(y) |- x === y) subproof:
         // Abbreviations
@@ -210,7 +210,7 @@ object Inductive extends lisa.HOL {
           val xInSingleton = lastStep
           have(unorderedPair(x, x) ∈ ux) by Tautology.from(pairAxiom of (z := unorderedPair(x, x), x := x, y := unorderedPair(x, x)))
           have(x ∈ unorderedPair(x, x) /\ unorderedPair(x, x) ∈ ux) by Tautology.from(xInSingleton, lastStep)
-          have(∃(w, x ∈ w /\ w ∈ ux)) by RightExists.withParameters(unorderedPair(x, x))(lastStep)
+          have(∃(w, x ∈ w /\ w ∈ ux)) by RightExists(lastStep)
           have(x ∈ expanded(x)) by Tautology.from(lastStep, unionAxiom of (z := x, x := ux))
 
         // Lemma: x ∈ expanded(y) ⊢ x ∈ y ∨ x = y
@@ -225,7 +225,7 @@ object Inductive extends lisa.HOL {
           // case w = {y,y}: x ∈ w gives x ∈ {y,y}, hence x = y
           val caseSingleton = have((x ∈ w, w === unorderedPair(y, y)) |- (x ∈ y) \/ (x === y)) subproof:
             have((x ∈ w, w === unorderedPair(y, y)) |- x ∈ unorderedPair(y, y)) by Congruence
-            lib.have(thesis) by Tautology.from(lastStep, pairAxiom of (z := x, x := y, y := y))
+            have(thesis) by Tautology.from(lastStep, pairAxiom of (z := x, x := y, y := y))
           // combine: w ∈ {y, {y,y}} means w = y ∨ w = {y,y}
           have((x ∈ w, w ∈ uy) |- (x ∈ y) \/ (x === y)) by Tautology.from(
             pairAxiom of (z := w, x := y, y := unorderedPair(y, y)),
@@ -234,7 +234,7 @@ object Inductive extends lisa.HOL {
           )
           have((x ∈ w) /\ (w ∈ uy) |- (x ∈ y) \/ (x === y)) by Weakening(lastStep)
           have(∃(w, (x ∈ w) /\ (w ∈ uy)) |- (x ∈ y) \/ (x === y)) by LeftExists.withParameters((x ∈ w) /\ (w ∈ uy), w)(lastStep)
-          lib.have(thesis) by Tautology.from(lastStep, unionAxiom of (z := x, x := uy))
+          have(thesis) by Tautology.from(lastStep, unionAxiom of (z := x, x := uy))
 
         val xToy = have(expanded(x) === expanded(y) |- (x ∈ y) \/ (x === y)) subproof:
           have(x ∈ ⋃(ux) |- x ∈ ⋃(ux)) by Hypothesis
@@ -243,18 +243,25 @@ object Inductive extends lisa.HOL {
             (Seq(w), x ∈ w)
           )(lastStep)
           have(expanded(x) === expanded(y) |- x ∈ ⋃(uy)) by Cut(xinex, lastStep)
-          lib.have(thesis) by Cut(lastStep, membershipLemma)
+          have(thesis) by Cut(lastStep, membershipLemma)
 
         val yTox = xToy of (x := y, y := x)
         val cycle = have(x ∈ y /\ y ∈ x |- ()) by Weakening(FoundationAxiom.membershipAsymmetric)
         have(thesis) by Tautology.from(xToy, yTox, cycle)
       thenHave((succ * x) === (succ * y) |- x === y) by Substitute(betaSucc)
 
-    val oneOneImp = have(himp * ((succ * x) =:= (succ * y)) * (x =:= y)) subproof:
-      have(((succ * x) :: ind, (succ * y) :: ind, (succ * x) =:= (succ * y)) |- (x =:= y)) by Substitute(eqAlign)(oneOneDirect)
-      val cond1 = have(((succ * x) :: ind, (succ * y) :: ind) |- ((succ * x) =:= (succ * y)) ==> (x =:= y)) by Weakening(lastStep)
+    val oneOneImp = have((x :: ind, y :: ind) |- himp * ((succ * x) =:= (succ * y)) * (x =:= y)) subproof:
+      have((x :: ind, y :: ind, (succ * x) :: ind, (succ * y) :: ind) |- ((succ * x) =:= (succ * y)) ==> (x =:= y)) by Tautology.from(
+        oneOneDirect,
+        eqAlign of (A := ind, x := succ * x, y := succ * y),
+        eqAlign of (A := ind, x := x, y := y)
+      )
+      val cond1 = lastStep
       have(Discharge(HOLProofType(succ * x), HOLProofType(succ * y))(cond1))
-      val cond2 = have((((succ * x) =:= (succ * y)) :: 𝔹, (x =:= y) :: 𝔹) |- himp * ((succ * x) =:= (succ * y)) * (x =:= y)) by Substitute(himpCorrect)(lastStep)
+      val cond2 = have((x :: ind, y :: ind, ((succ * x) =:= (succ * y)) :: 𝔹, (x =:= y) :: 𝔹) |- himp * ((succ * x) =:= (succ * y)) * (x =:= y)) by Tautology.from(
+        himpCorrect of (p := (succ * x) =:= (succ * y), q := x =:= y),
+        lastStep
+      )
       have(Discharge(HOLProofType((succ * x) =:= (succ * y)), HOLProofType(x =:= y))(cond2))
 
     val oneOneForall = have(hforall(ind) * fun(x, hforall(ind) * fun(y, himp * ((succ * x) =:= (succ * y)) * (x =:= y)))) subproof:
@@ -280,7 +287,7 @@ object Inductive extends lisa.HOL {
       thenHave((∃(x, x :: ind)) |- ∀(x :: ind, p2 * x)) by RightForall
       val stmt = thenHave((∃(x, x :: ind), p2 :: ind ->: 𝔹) |- hforall(ind) * p2) by Substitute(hforallCorrect)
 
-      lib.have(Discharge(HOLProofType(p2), ind.nonEmptyThm)(stmt))
+      have(Discharge(HOLProofType(p2), ind.nonEmptyThm)(stmt))
 
     have(hOneOne(ind)(ind) * succ) by Substitute(betaOneOne)(oneOneForall)
 
@@ -307,11 +314,11 @@ object Inductive extends lisa.HOL {
       have(Discharge(HOLProofType(hOnto(ind)(ind) * succ), HOLProofType(ontoBody))(cond))
 
     // Step 2: betaSucc — succ * x === expanded(x)
-    val betaSucc = have(succ * x === expanded(x)) subproof:
+    val betaSucc = have(x :: ind |- succ * x === expanded(x)) subproof:
       val T = variable[Ind]
       val e = variable[Ind >>: Ind]
       val e2 = variable[Ind]
-      have(fun(x, expanded(x)) * x === expanded(x)) by Weakening(BetaReduction of (T := ind, e2 := x, e := λ(x, expanded(x))))
+      have(x :: ind |- fun(x, expanded(x)) * x === expanded(x)) by Weakening(BetaReduction of (T := ind, e2 := x, e := λ(x, expanded(x))))
       thenHave(thesis) by Substitute(succ.definition)
 
     // Step 3: Core set theory — ∅ ≠ succ(x)
@@ -324,7 +331,7 @@ object Inductive extends lisa.HOL {
         val xInSingleton = lastStep
         have(unorderedPair(x, x) ∈ ux) by Tautology.from(pairAxiom of (z := unorderedPair(x, x), x := x, y := unorderedPair(x, x)))
         have(x ∈ unorderedPair(x, x) /\ unorderedPair(x, x) ∈ ux) by Tautology.from(xInSingleton, lastStep)
-        have(∃(w, x ∈ w /\ w ∈ ux)) by RightExists.withParameters(unorderedPair(x, x))(lastStep)
+        have(∃(w, x ∈ w /\ w ∈ ux)) by RightExists(lastStep)
         have(x ∈ expanded(x)) by Tautology.from(lastStep, unionAxiom of (z := x, x := ux))
 
       // x ∉ ∅
@@ -341,7 +348,7 @@ object Inductive extends lisa.HOL {
       have(!(∅ === expanded(x))) by Restate.from(lastStep)
 
     // Step 4: ∅ ≠ succ * x (substitute betaSucc)
-    val emptyNotSuccApp = have(!(∅ === (succ * x))) subproof:
+    val emptyNotSuccApp = have(x :: ind |- !(∅ === (succ * x))) subproof:
       have(thesis) by Substitute(betaSucc)(emptyNotSucc)
 
     // Step 5: Lift to HOL
@@ -357,7 +364,7 @@ object Inductive extends lisa.HOL {
 
     // Step 5b: Set up inner existential for arbitrary y
     val innerExPred = fun(x, y =:= (succ * x))
-    val innerExLift = have(hexists(ind) * innerExPred <=> ∃(x :: ind, innerExPred * x)) subproof:
+    val innerExLift = have(y :: ind |- hexists(ind) * innerExPred <=> ∃(x :: ind, innerExPred * x)) subproof:
       have(thesis) by Tautology.from(
         hexistsCorrect of (A := ind, P := innerExPred, x := x),
         have(HOLProofType(innerExPred)),
@@ -365,7 +372,7 @@ object Inductive extends lisa.HOL {
       )
 
     // innerExPred * x === (y =:= (succ * x)) by beta reduction
-    val innerExBeta = have(innerExPred * x === (y =:= (succ * x))) subproof:
+    val innerExBeta = have((x :: ind, y :: ind) |- innerExPred * x === (y =:= (succ * x))) subproof:
       val bc = BETA_CONV(innerExPred * x)
       have(thesis) by Tautology.from(
         bc,
@@ -375,7 +382,7 @@ object Inductive extends lisa.HOL {
       )
 
     // outerPred * y === hexists(ind) * innerExPred by beta reduction
-    val outerBeta = have(outerPred * y === hexists(ind) * innerExPred) subproof:
+    val outerBeta = have(y :: ind |- outerPred * y === hexists(ind) * innerExPred) subproof:
       val bc = BETA_CONV(outerPred * y)
       have(thesis) by Tautology.from(
         bc,
@@ -385,13 +392,13 @@ object Inductive extends lisa.HOL {
       )
 
     // Step 5c: outerPred * y <=> ∃(x :: ind, y === succ * x)
-    val outerPredFOL = have(outerPred * y <=> ∃(x :: ind, y === (succ * x))) subproof:
-      val eqAlignInst = have((y =:= (succ * x) === One) <=> (y === (succ * x))) subproof:
+    val outerPredFOL = have(y :: ind |- outerPred * y <=> ∃(x :: ind, y === (succ * x))) subproof:
+      val eqAlignInst = have((x :: ind, y :: ind) |- (y =:= (succ * x) === One) <=> (y === (succ * x))) subproof:
         have(((y :: ind, (succ * x) :: ind) |- (y =:= (succ * x) === One) <=> (y === (succ * x)))) by Weakening(eqAlign of (A := ind, x := y, y := succ * x))
         have(Discharge(HOLProofType(y), HOLProofType(succ * x))(lastStep))
 
-      val innerEquiv = have((innerExPred * x) <=> (y === (succ * x))) subproof:
-        have((y =:= (succ * x)) <=> (y === (succ * x))) by Tautology.from(
+      val innerEquiv = have((x :: ind, y :: ind) |- (innerExPred * x) <=> (y === (succ * x))) subproof:
+        have((x :: ind, y :: ind) |- (y =:= (succ * x)) <=> (y === (succ * x))) by Tautology.from(
           eqAlignInst,
           boolBivalence of (x := y =:= (succ * x)),
           boolZeroXorOne of (x := y =:= (succ * x)),
@@ -431,7 +438,9 @@ object Inductive extends lisa.HOL {
       have(thesis) by Tautology.from(lastStep, emptyNoPreimage)
 
     // Step 8: Bridge FOL to HOL
-    have(∀(y :: ind, outerPred * y) |- (y :: ind) ==> (outerPred * y)) by InstantiateForall
+    val allOuter = ∀(y :: ind, outerPred * y)
+    val allOuterThm = have(allOuter |- allOuter) by Hypothesis
+    have(allOuter |- (y :: ind) ==> (outerPred * y)) by InstantiateForall(y)(allOuterThm)
     have((∀(y :: ind, outerPred * y), y :: ind) |- ∃(x :: ind, y === (succ * x))) by Tautology.from(lastStep, outerPredFOL)
     thenHave(∀(y :: ind, outerPred * y) |- (y :: ind) ==> ∃(x :: ind, y === (succ * x))) by Restate
     thenHave(∀(y :: ind, outerPred * y) |- ∀(y :: ind, ∃(x :: ind, y === (succ * x)))) by RightForall

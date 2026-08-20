@@ -1,16 +1,16 @@
 package lisa.hol.basics
 
-import lisa.automation.Substitution.{Apply => Substitute}
+import lisa.utils.prooflib.Substitute
 import lisa.hol.HOLHelperTheorems._
 import lisa.hol.HOLSteps._
 import lisa.hol.basics.Truth.{holT, holTruth}
 import lisa.hol.basics.Forall.{hforall, hforallCorrect}
 import lisa.hol.VarsAndFunctions._
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
-import lisa.utils.prooflib.BasicStepTactic._
+import lisa.utils.prooflib.BasicStep._
 import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.ProofTacticLib._
-import lisa.utils.prooflib.SimpleDeducedSteps._
+import lisa.utils.prooflib.Exports.*
+import lisa.utils.prooflib.Exports.*
 
 /**
  * HOL Light false constant and related proofs.
@@ -23,7 +23,7 @@ object False extends lisa.HOL {
 
   val p = typedvar(𝔹)
 
-  val lib = summon[Library]
+  val lib = lisa.SetTheoryLibrary
 
   /**
    * False as defined in HOL Light
@@ -46,14 +46,14 @@ object False extends lisa.HOL {
   }
 
   val holFalseZero = HOLTheorem(holF === Zero):
-    lib.have(∀(p :: 𝔹, fun(p, p) * p) |- ()) subproof:
+    have(∀(p :: 𝔹, fun(p, p) * p) |- ()) subproof:
       val beta = have((Zero :: 𝔹) |- (fun(p, p) * Zero === Zero)) subproof:
         BETA_CONV(fun(p, p) * Zero)
         val conditional = thenHave(((fun(p, p) * Zero) :: 𝔹, Zero :: 𝔹) |- fun(p, p) * Zero === Zero) by Substitute(eqAlign)
         have(Discharge(have(HOLProofType(fun(p, p) * Zero)))(conditional))
       have(!(Zero === One)) by Weakening(`0 != 1`)
       thenHave((Zero :: 𝔹) |- !(fun(p, p) * Zero === One)) by Substitute(beta)
-      lib.have((Zero :: 𝔹) /\ !(fun(p, p) * Zero === One)) by Tautology.from(Zero.justif, lastStep)
+      have((Zero :: 𝔹) /\ !(fun(p, p) * Zero === One)) by Tautology.from(Zero.justif, lastStep)
       thenHave(∃(p :: 𝔹, !(fun(p, p) * p))) by RightExists
 
     val conditional = thenHave((∃(p, p :: 𝔹), fun(p, p) :: (𝔹 ->: 𝔹), hforall(𝔹) * fun(p, p)) |- ()) by Substitute(hforallCorrect)

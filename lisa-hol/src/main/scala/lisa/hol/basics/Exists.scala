@@ -1,6 +1,6 @@
 package lisa.hol.basics
 
-import lisa.automation.Substitution.{Apply => Substitute}
+import lisa.utils.prooflib.Substitute
 import lisa.hol.HOLHelperTheorems._
 import lisa.hol.HOLSteps._
 import lisa.hol.basics.Truth.{holT, holTruth, SYM}
@@ -8,10 +8,10 @@ import lisa.hol.basics.Forall.{hforall, hforallCorrect}
 import lisa.hol.basics.Connectives.{himp, himpCorrect, hnot, hnotCorrect, p}
 import lisa.hol.VarsAndFunctions._
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
-import lisa.utils.prooflib.BasicStepTactic._
+import lisa.utils.prooflib.BasicStep._
 import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.ProofTacticLib._
-import lisa.utils.prooflib.SimpleDeducedSteps._
+import lisa.utils.prooflib.Exports.*
+import lisa.utils.prooflib.Exports.*
 
 /**
  * HOL Light existential quantifier.
@@ -28,7 +28,7 @@ object Exists extends lisa.HOL {
   val P = typedvar(A ->: 𝔹)
   val q = typedvar(𝔹)
 
-  val lib = summon[Library]
+  val lib = lisa.SetTheoryLibrary
 
   /**
    * Higher-order embedded existential quantifier.
@@ -50,14 +50,17 @@ object Exists extends lisa.HOL {
       val faType = hforall(A) :: ((A ->: 𝔹) ->: 𝔹)
       val fbType = hforall(𝔹) :: ((𝔹 ->: 𝔹) ->: 𝔹)
       val impType = himp :: (𝔹 ->: 𝔹 ->: 𝔹)
+      val boolNonEmpty = 𝔹.nonEmptyThm.statement.right.head
 
-      val faStep = have(faType) by Restate.from(hforall.justif of A)
-      val fbStep = have(fbType) by Tautology.from(hforall.justif of 𝔹, 𝔹.nonEmptyThm)
+      val faJustif = have(nonEmpty(A) ==> faType) by InstantiateForall(A)(hforall.justif)
+      val fbJustif = have(boolNonEmpty ==> fbType) by InstantiateForall(𝔹)(hforall.justif)
+      val faStep = have(nonEmpty(A) |- faType) by Restate.from(faJustif)
+      val fbStep = have(fbType) by Tautology.from(fbJustif, 𝔹.nonEmptyThm)
       val imStep = have(impType) by Restate.from(himp.justif)
 
       have((faType, fbType, impType, exists(q, q :: 𝔹), nonEmpty(A)) |- fun(P, hforall(𝔹) * fun(q, himp * (hforall(A) * fun(x, himp * (P * x) * q)) * q)) :: ((A ->: 𝔹) ->: 𝔹)) by Typecheck.prove
       thenHave((faType, fbType, impType, exists(q, q :: 𝔹), nonEmpty(A)) |- hexists(A) :: ((A ->: 𝔹) ->: 𝔹)) by Substitute(hexists.definition)
-      lib.have(nonEmpty(A) ==> hexists(A) :: ((A ->: 𝔹) ->: 𝔹)) by Tautology.from(lastStep, hforall.justif of A, hforall.justif of 𝔹, himp.justif, 𝔹.nonEmptyThm)
+      have(nonEmpty(A) ==> hexists(A) :: ((A ->: 𝔹) ->: 𝔹)) by Tautology.from(lastStep, faJustif, fbJustif, himp.justif, 𝔹.nonEmptyThm)
       thenHave(thesis) by RightForall
 
     HOLPolymorphicConstant[Ind >>: Ind](hexists.id, FunctionalClass(List(None), List(A), ((A ->: 𝔹) ->: 𝔹)), typing_of_exists)
@@ -91,7 +94,7 @@ object Exists extends lisa.HOL {
     // Note: these use the outer (free) variables x, q
 
     // himp * (P * x) * q <=> (P * x ==> q)
-    val innerImpLift = have(innerImp <=> (P * x ==> q)) subproof:
+    val innerImpLift = have((x :: A, q :: 𝔹) |- innerImp <=> (P * x ==> q)) subproof:
       have(thesis) by Tautology.from(
         himpCorrect of (p := P * x, q := q),
         have(HOLProofType(P * x)),
@@ -99,13 +102,13 @@ object Exists extends lisa.HOL {
       )
 
     // hforall(A) * innerPred <=> ∀(x :: A, innerPred * x)
-    val innerFALift = have(innerFA <=> ∀(x :: A, innerPred * x)) subproof:
+    val innerFALift = have(q :: 𝔹 |- innerFA <=> ∀(x :: A, innerPred * x)) subproof:
       val typing = have(HOLProofType(innerPred))
-      val inst = have((innerPred :: (A ->: 𝔹), nonEmpty(A)) |- (innerFA <=> ∀(x :: A, innerPred * x))) by Weakening(hforallCorrect of (P := innerPred, x := x))
-      have(thesis) by Cut(typing, inst)
+      val correctness = have((innerPred :: (A ->: 𝔹), nonEmpty(A)) |- innerFA <=> ∀(x :: A, innerPred * x)) by Weakening(hforallCorrect of (P := innerPred, x := x))
+      have(thesis) by Cut.withParameters(innerPred :: (A ->: 𝔹))(typing, correctness)
 
     // himp * innerFA * q <=> (innerFA ==> q)
-    val outerImpLift = have(outerImp <=> (innerFA ==> q)) subproof:
+    val outerImpLift = have(q :: 𝔹 |- outerImp <=> (innerFA ==> q)) subproof:
       have(thesis) by Tautology.from(
         himpCorrect of (p := innerFA, q := q),
         have(HOLProofType(innerFA)),
@@ -122,7 +125,7 @@ object Exists extends lisa.HOL {
       )
 
     // Beta reductions
-    val outerBeta = have(outerPred * q === outerImp) subproof:
+    val outerBeta = have(q :: 𝔹 |- outerPred * q === outerImp) subproof:
       val bc = BETA_CONV(outerPred * q)
       have(thesis) by Tautology.from(
         bc,
@@ -131,7 +134,7 @@ object Exists extends lisa.HOL {
         have(HOLProofType(outerImp))
       )
 
-    val innerBeta = have(innerPred * x === innerImp) subproof:
+    val innerBeta = have((x :: A, q :: 𝔹) |- innerPred * x === innerImp) subproof:
       val bc = BETA_CONV(innerPred * x)
       have(thesis) by Tautology.from(
         bc,
@@ -171,7 +174,7 @@ object Exists extends lisa.HOL {
           have(HOLProofType(innerPred0))
         )
 
-      val innerBeta0 = have(innerPred0 * x === innerImp0) subproof:
+      val innerBeta0 = have(x :: A |- innerPred0 * x === innerImp0) subproof:
         val bc = BETA_CONV(innerPred0 * x)
         have(thesis) by Tautology.from(
           bc,
@@ -180,7 +183,7 @@ object Exists extends lisa.HOL {
           have(HOLProofType(innerImp0))
         )
 
-      val innerImpLift0 = have(innerImp0 <=> (P * x ==> Zero)) subproof:
+      val innerImpLift0 = have(x :: A |- innerImp0 <=> (P * x ==> Zero)) subproof:
         have(thesis) by Tautology.from(
           himpCorrect of (p := P * x, q := Zero),
           have(HOLProofType(P * x)),
@@ -191,8 +194,8 @@ object Exists extends lisa.HOL {
       // because: innerPred0 * x === innerImp0 (by innerBeta0)
       //          innerImp0 <=> (P * x ==> Zero) (by innerImpLift0)
       //          (P * x ==> Zero) <=> ¬(P * x) (since 0 ≠ 1)
-      val innerPredNeg = have(innerPred0 * x <=> !(P * x)) subproof:
-        have(innerImp0 <=> !(P * x)) by Tautology.from(innerImpLift0, `0 != 1`)
+      val innerPredNeg = have(x :: A |- innerPred0 * x <=> !(P * x)) subproof:
+        have(x :: A |- innerImp0 <=> !(P * x)) by Tautology.from(innerImpLift0, `0 != 1`)
         thenHave(thesis) by Substitute(innerBeta0)
 
       // Main argument:
@@ -262,12 +265,14 @@ object Exists extends lisa.HOL {
       //   body <=> ∀(q :: 𝔹, outerPred * q) [outerFALift]
 
       // innerPredEquiv: innerPred * x <=> (P * x ==> q)
-      val innerPredEquiv = have(innerPred * x <=> (P * x ==> q)) subproof:
-        have(innerImp <=> (P * x ==> q)) by Restate.from(innerImpLift)
+      val innerPredEquiv = have((x :: A, q :: 𝔹) |- innerPred * x <=> (P * x ==> q)) subproof:
+        have((x :: A, q :: 𝔹) |- innerImp <=> (P * x ==> q)) by Restate.from(innerImpLift)
         thenHave(thesis) by Substitute(innerBeta)
 
       // Forward: ∀(x :: A, P * x ==> q) ⊢ innerFA  (with q ∈ 𝔹 on left)
-      have(∀(x :: A, P * x ==> q) |- (x :: A) ==> (P * x ==> q)) by InstantiateForall
+      val allInner = ∀(x :: A, P * x ==> q)
+      val allInnerThm = have(allInner |- allInner) by Hypothesis
+      have(allInner |- (x :: A) ==> (P * x ==> q)) by InstantiateForall(x)(allInnerThm)
       // Combine with innerPredEquiv to get innerPred * x; need x ∈ A and q ∈ 𝔹 for innerPredEquiv
       have((∀(x :: A, P * x ==> q), x :: A, q :: 𝔹) |- innerPred * x) by Tautology.from(lastStep, innerPredEquiv)
       // Move x ∈ A to right so RightForall can generalize over x
@@ -277,7 +282,9 @@ object Exists extends lisa.HOL {
       val forallToInnerFA = lastStep
 
       // Reverse: innerFA ⊢ ∀(x :: A, P * x ==> q)  (with q ∈ 𝔹 on left)
-      have(∀(x :: A, innerPred * x) |- (x :: A) ==> innerPred * x) by InstantiateForall
+      val allPred = ∀(x :: A, innerPred * x)
+      val allPredThm = have(allPred |- allPred) by Hypothesis
+      have(allPred |- (x :: A) ==> innerPred * x) by InstantiateForall(x)(allPredThm)
       have((∀(x :: A, innerPred * x), x :: A, q :: 𝔹) |- (P * x ==> q)) by Tautology.from(lastStep, innerPredEquiv)
       thenHave((∀(x :: A, innerPred * x), q :: 𝔹) |- (x :: A) ==> (P * x ==> q)) by Restate
       thenHave((∀(x :: A, innerPred * x), q :: 𝔹) |- ∀(x :: A, P * x ==> q)) by RightForall
@@ -285,17 +292,13 @@ object Exists extends lisa.HOL {
       val innerFAToForall = lastStep
 
       // outerImp <=> (∀(x :: A, P * x ==> q) ==> q)  — with q ∈ 𝔹 on left
-      have((q :: 𝔹) |- outerImp <=> (∀(x :: A, P * x ==> q) ==> q)) by Tautology.from(
-        outerImpLift,
-        forallToInnerFA,
-        innerFAToForall,
-        HOLProofType(innerFA)
-      )
+      val innerFAEquiv = have((q :: 𝔹) |- innerFA <=> allInner) by Tautology.from(forallToInnerFA, innerFAToForall)
+      have((q :: 𝔹) |- outerImp <=> (allInner ==> q)) by Substitute(innerFAEquiv)(outerImpLift)
       val outerImpFOL = lastStep
 
       // outerPred * q <=> outerImp
-      val outerPredEquiv = have(outerPred * q <=> outerImp) subproof:
-        have(outerImp <=> outerImp) by Restate
+      val outerPredEquiv = have(q :: 𝔹 |- outerPred * q <=> outerImp) subproof:
+        have(q :: 𝔹 |- outerImp <=> outerImp) by Restate
         thenHave(thesis) by Substitute(outerBeta)
 
       // outerPred * q <=> (∀(x :: A, P * x ==> q) ==> q) — with q ∈ 𝔹 on left
@@ -303,7 +306,9 @@ object Exists extends lisa.HOL {
       val outerPredFOL = lastStep
 
       // Convert: ∀(q :: 𝔹, ∀(x :: A, P*x ==> q) ==> q) |- ∀(q :: 𝔹, outerPred * q)
-      have(∀(q :: 𝔹, ∀(x :: A, P * x ==> q) ==> q) |- (q :: 𝔹) ==> (∀(x :: A, P * x ==> q) ==> q)) by InstantiateForall
+      val allOuter = ∀(q :: 𝔹, ∀(x :: A, P * x ==> q) ==> q)
+      val allOuterThm = have(allOuter |- allOuter) by Hypothesis
+      have(allOuter |- (q :: 𝔹) ==> (∀(x :: A, P * x ==> q) ==> q)) by InstantiateForall(q)(allOuterThm)
       // Combine with outerPredFOL: carry q ∈ 𝔹 explicitly
       have((∀(q :: 𝔹, ∀(x :: A, P * x ==> q) ==> q), q :: 𝔹) |- outerPred * q) by Tautology.from(lastStep, outerPredFOL)
       // Move q ∈ 𝔹 to right for RightForall

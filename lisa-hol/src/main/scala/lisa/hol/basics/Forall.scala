@@ -1,15 +1,15 @@
 package lisa.hol.basics
 
-import lisa.automation.Substitution.{Apply => Substitute}
+import lisa.utils.prooflib.Substitute
 import lisa.hol.HOLHelperTheorems._
 import lisa.hol.HOLSteps._
 import lisa.hol.basics.Truth.{_SYM, SYM, holT, holTruth, oneTrue}
 import lisa.hol.VarsAndFunctions._
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
-import lisa.utils.prooflib.BasicStepTactic._
+import lisa.utils.prooflib.BasicStep._
 import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.ProofTacticLib._
-import lisa.utils.prooflib.SimpleDeducedSteps._
+import lisa.utils.prooflib.Exports.*
+import lisa.utils.prooflib.Exports.*
 
 /**
  * HOL Light universal quantifier.
@@ -25,7 +25,7 @@ object Forall extends lisa.HOL {
   val x = typedvar(A)
   val P = typedvar(A ->: 𝔹)
 
-  val lib = summon[Library]
+  val lib = lisa.SetTheoryLibrary
 
   /**
    * Higher-order embedded universal quantifier.
@@ -81,16 +81,18 @@ object Forall extends lisa.HOL {
       val `P x holds` = // |- P * x
         EQ_MP(SYM(`P x one`), holTruth)
 
-      lib.have(P =:= fun(x, holT) |- (x :: A) ==> P * x) by Weakening(`P x holds`)
+      val cleaned = have(Discharge(holT.justif)(`P x holds`))
+      have(P =:= fun(x, holT) |- (x :: A) ==> P * x) by Restate.from(cleaned)
       thenHave(P =:= fun(x, holT) |- ∀(x :: A, P * x)) by RightForall
       thenHave(hforall(A) * P |- ∀(x :: A, P * x)) by Substitute(beta)
       thenHave(thesis) by Weakening
 
     val bwd = have(∀(x :: A, P * x) ==> (hforall(A) * P)) subproof:
-      have(∀(x :: A, P * x) |- (x :: A) ==> P * x) by InstantiateForall
-      val `P x holds` = have(∀(x :: A, P * x) |- P * x) by Weakening(lastStep)
-      val `P x one` = have(∀(x :: A, P * x) |- P * x =:= One) by Tautology.from(`P x holds`, One.justif, have(HOLProofType(P * x)), eqAlign of (A := 𝔹, x := P * x, y := One))
-      val `P x T` = have(∀(x :: A, P * x) |- P * x =:= holT) by Substitute(holTruth)(`P x one`)
+      val all = assume(∀(x :: A, P * x))
+      val instantiated = have((x :: A) ==> P * x) by InstantiateForall(x)(all)
+      val `P x holds` = have(x :: A |- P * x) by Restate.from(instantiated)
+      val `P x one` = have(x :: A |- P * x =:= One) by Tautology.from(`P x holds`, One.justif, have(HOLProofType(P * x)), eqAlign of (A := 𝔹, x := P * x, y := One))
+      val `P x T` = have(x :: A |- P * x =:= holT) by Substitute(holTruth)(`P x one`)
       val Peq = have(
         Clean.all( // P =:= fun(x, holT)
           TRANS(

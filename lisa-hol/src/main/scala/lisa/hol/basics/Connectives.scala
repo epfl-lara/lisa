@@ -1,6 +1,6 @@
 package lisa.hol.basics
 
-import lisa.automation.Substitution.{Apply => Substitute}
+import lisa.utils.prooflib.Substitute
 import lisa.hol.HOLHelperTheorems
 import lisa.hol.HOLHelperTheorems._
 import lisa.hol.HOLSteps._
@@ -9,16 +9,16 @@ import lisa.hol.basics.Forall.{hforall, hforallCorrect}
 import lisa.hol.basics.False.{holF, holFalseZero}
 import lisa.hol.VarsAndFunctions._
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
-import lisa.utils.prooflib.BasicStepTactic.LeftSubstEq
-import lisa.utils.prooflib.BasicStepTactic.RightSubstEq
-import lisa.utils.prooflib.BasicStepTactic.RightAnd
-import lisa.utils.prooflib.BasicStepTactic.Restate
-import lisa.utils.prooflib.BasicStepTactic.Weakening
-import lisa.utils.prooflib.BasicStepTactic._
+import lisa.utils.prooflib.BasicStep.LeftSubstEq
+import lisa.utils.prooflib.BasicStep.RightSubstEq
+import lisa.utils.prooflib.BasicStep.RightAnd
+import lisa.utils.prooflib.BasicStep.Restate
+import lisa.utils.prooflib.BasicStep.Weakening
+import lisa.utils.prooflib.BasicStep._
 import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.ProofTacticLib._
-import lisa.utils.prooflib.SimpleDeducedSteps.Discharge
-import lisa.utils.prooflib.SimpleDeducedSteps._
+import lisa.utils.prooflib.Exports.*
+import lisa.utils.prooflib.Discharge
+import lisa.utils.prooflib.Exports.*
 
 /**
  * HOL Light logical connectives: conjunction, implication, negation.
@@ -36,7 +36,7 @@ object Connectives extends lisa.HOL {
   val p = typedvar(𝔹)
   val q = typedvar(𝔹)
 
-  val lib = summon[Library]
+  val lib = lisa.SetTheoryLibrary
 
   // ─── Conjunction ───
 
@@ -101,11 +101,11 @@ object Connectives extends lisa.HOL {
         have(HOLProofType(inner)),
         eqAlign of (A := 𝔹, x := lp * p * q, y := inner)
       )
-      thenHave(hand === lp |- hand * p * q === inner) by RightSubstEq.withParameters(Seq((hand, lp)), (Seq(x), x * p * q === inner))
+      thenHave(hand === lp |- hand * p * q === inner) by RightSubstEq.withParameters(Seq((lp, hand)), (Seq(x), x * p * q === inner))
       have(hand * p * q === inner) by Cut(hand.definition, lastStep)
     }
 
-    val fwd = lib.have((hand * p * q === One) ==> ((p === One) /\ (q === One))) subproof:
+    val fwd = have((hand * p * q === One) ==> ((p === One) /\ (q === One))) subproof:
       val reducedProof = have(fun(f, f * p * q) =:= fun(f, f * holT * holT) |- (p === One) /\ (q === One)) subproof {
         assumeAll
         val andEq = have(fun(f, f * p * q) =:= fun(f, f * holT * holT)) by Restate
@@ -167,12 +167,12 @@ object Connectives extends lisa.HOL {
       )
       have(fun(f, f * holT * holT) =:= fun(f, f * holT * holT)) by Cut(have(HOLProofType(fun(f, f * holT * holT))), rfl)
       thenHave((p === holT, q === holT) |- fun(f, f * p * q) =:= fun(f, f * holT * holT)) by RightSubstEq.withParameters(
-        Seq(p -> holT, q -> holT),
+        Seq(holT -> p, holT -> q),
         (Seq(p, q), fun(f, f * p * q) =:= fun(f, f * holT * holT))
       )
       thenHave((holT === One, p === One, q === holT) |- fun(f, f * p * q) =:= fun(f, f * holT * holT)) by LeftSubstEq.withParameters(Seq(holT -> One), (Seq(x), p === x))
       thenHave((holT === One, p === One, q === One) |- fun(f, f * p * q) =:= fun(f, f * holT * holT)) by LeftSubstEq.withParameters(Seq(holT -> One), (Seq(x), q === x))
-      lib.have((p === One, q === One) |- fun(f, f * p * q) =:= fun(f, f * holT * holT)) by Cut(holTruth, lastStep)
+      have((p === One, q === One) |- fun(f, f * p * q) =:= fun(f, f * holT * holT)) by Cut(holTruth, lastStep)
       thenHave((p === One, q === One) |- hand * p * q === One) by Substitute(`beta hand`)
       have(Clean.all(lastStep))
 
@@ -238,7 +238,7 @@ object Connectives extends lisa.HOL {
 
       val `and true` = have(apq === One |- (apq === p) <=> (p ==> q)) subproof:
         have(apq === One |- (One === p) <=> (p ==> q)) by Tautology.from(handCorrect)
-        thenHave(apq === One |- (apq === p) <=> (p ==> q)) by RightSubstEq.withParameters(Seq(apq -> One), (Seq(x), (x === p) <=> (p ==> q)))
+        thenHave(apq === One |- (apq === p) <=> (p ==> q)) by RightSubstEq.withParameters(Seq(One -> apq), (Seq(x), (x === p) <=> (p ==> q)))
 
       val `and false` = have(apq === Zero |- (apq === p) <=> (p ==> q)) subproof:
         have(apq === Zero |- (Zero === p) <=> (p ==> q)) by Tautology.from(
@@ -250,7 +250,7 @@ object Connectives extends lisa.HOL {
           boolZeroXorOne of (x := q),
           boolZeroXorOne of (x := apq)
         )
-        thenHave(apq === Zero |- (apq === p) <=> (p ==> q)) by RightSubstEq.withParameters(Seq(apq -> Zero), (Seq(x), (x === p) <=> (p ==> q)))
+        thenHave(apq === Zero |- (apq === p) <=> (p ==> q)) by RightSubstEq.withParameters(Seq(Zero -> apq), (Seq(x), (x === p) <=> (p ==> q)))
 
       have(thesis) by Tautology.from(cases, `and true`, `and false`)
 

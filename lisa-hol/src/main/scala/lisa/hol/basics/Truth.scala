@@ -1,14 +1,16 @@
 package lisa.hol.basics
 
-import lisa.automation.Substitution.{Apply => Substitute}
+import lisa.utils.prooflib.Substitute
 import lisa.hol.HOLHelperTheorems._
 import lisa.hol.HOLSteps._
 import lisa.hol.VarsAndFunctions._
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
-import lisa.utils.prooflib.BasicStepTactic._
+import lisa.utils.prooflib.BasicStep._
 import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.ProofTacticLib._
-import lisa.utils.prooflib.SimpleDeducedSteps._
+import lisa.utils.prooflib.Exports.*
+import lisa.utils.prooflib.Exports.*
+import lisa.utils.prooflib.TacticHelpers.failWith
+import lisa.utils.prooflib.{Proof, ProofJudgement, Subproof, Thm}
 
 /**
  * HOL Light truth constant and related proofs.
@@ -30,26 +32,26 @@ object Truth extends lisa.HOL {
   val p = typedvar(𝔹)
   val q = typedvar(𝔹)
 
-  val lib = summon[Library]
+  val lib = lisa.SetTheoryLibrary
 
   /**
    *     |- t = u
    *  ------------------
    *     |- u = t
    */
-  object _SYM extends ProofTactic {
-    def apply(using proof: Proof)(prem: proof.Fact): proof.ProofTacticJudgement = TacticSubproof { ip ?=>
+  object _SYM {
+    def apply(using proof: Proof)(prem: Thm): ProofJudgement = Subproof { ip ?=>
       prem.statement match {
         case HOLSequent(_, _, *(*(=:= #@ (typ), t), u)) =>
-          prem.statement.left.foreach(ip.addAssumption(_))
-          val s1 = have((t :: typ, u :: typ, t =:= u) |- u =:= t) by Weakening(eqSym of (A := typ, x := t, y := u))
+          ip.assume(prem.statement.left)
+          val s1 = have((t :: typ, u :: typ, holeq(typ) * t * u) |- holeq(typ) * u * t) by Weakening(eqSym of (A := typ, x := t, y := u))
           val s2 = have(Discharge(prem)(s1))
           val s3 = have(Discharge(have(HOLProofType(t)))(s2))
           val s4 = have(Discharge(have(HOLProofType(u)))(s3))
           have(Clean.all(s4))
 
         case _ =>
-          return proof.InvalidProofTactic(s"The premise is not parseable as an HOL sequent")
+          failWith(s"The premise is not parseable as an HOL sequent")
       }
     }
   }
@@ -57,7 +59,7 @@ object Truth extends lisa.HOL {
   /**
    * SYM: t = u |- u = t
    */
-  def SYM(using line: sourcecode.Line, file: sourcecode.File)(using proof: library.Proof)(prem: proof.Fact) =
+  def SYM(using line: sourcecode.Line, file: sourcecode.File)(using proof: library.Proof)(prem: Thm) =
     have(_SYM(prem))
 
   /**
