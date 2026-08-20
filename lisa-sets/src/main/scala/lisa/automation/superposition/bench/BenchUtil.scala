@@ -2,13 +2,8 @@ package lisa.automation.superposition
 package bench
 
 import java.io.File
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
 import scala.util.{Try, Using}
-
-import lisa.utils.K
-import lisa.tptp.{Problem, AnnotatedFormula, AnnotatedSequent}
-import lisa.tptp.KernelParser.axiomLikeRoles
-import lisa.automation.clausification.Clausification
 
 /**
  * A generated problem list and the seeded sampling every harness draws from it. One class rather than a copy
@@ -50,10 +45,8 @@ final class ProblemList(val listFileName: String, envVar: Option[String] = None)
   def sample(n: Int = 100, seed: Long = 42): Vector[String] =
     new scala.util.Random(seed).shuffle(all).take(n)
 
-/** Small helpers shared by the benchmark / evaluation entry points ([[Evaluation]], [[FofEvaluation]],
-  * [[EqFofEvaluation]], [[BaselineBench]], [[StrategyEvaluation]]): the TPTP-root lookup, the interruptible
-  * worker with its abandoned-worker accounting, and the kernel-problem conversion, so each `main` does not
-  * carry its own copy. */
+/** What every harness needs and none should own a copy of: the TPTP-root lookup, the interruptible worker with
+  * its abandoned-worker accounting, and running one problem in its own JVM. */
 object BenchUtil:
 
   /** The TPTP root from the `TPTP` environment variable, or `None` after printing the standard hint, since
@@ -69,12 +62,11 @@ object BenchUtil:
     * poll points needs a moment. Long enough for that, short enough not to stall a run. */
   private val interruptGraceMs: Long = 2000L
 
-  private val abandoned = new java.util.concurrent.atomic.AtomicInteger(0)
+  private val abandoned = new AtomicInteger(0)
 
   /** Workers that ignored their interrupt and were still running when [[withTimeout]] gave up. Everything
     * measured after the first is suspect, since such a worker holds its processor time and its heap for the
-    * rest of the run. Observed turning a 44-refutation run into a 20-refutation one. A thread cannot be
-    * killed on the JVM, so the harnesses report this rather than hide it. */
+    * rest of the run. A thread cannot be killed on the JVM, so the harnesses report this rather than hide it. */
   def abandonedWorkers: Int = abandoned.get
 
   def resetAbandoned(): Unit = abandoned.set(0)
@@ -106,13 +98,9 @@ object BenchUtil:
 
   // ── running one problem in its own JVM ──────────────────────────────────────────────────────────────────
   //
-  // A thread can only be asked to stop, so a worker that ignores its interrupt keeps its heap and processor
-  // time for the rest of the run (see `abandonedWorkers`). A child process ends that: the kill is
-  // unconditional, the heap dies with it, and a fatal error takes only that problem with it.
-  //
-  // The cost is JVM startup and warm-up per problem, which dominates the measurement of anything that solves
-  // quickly. Verdicts are unaffected; per-problem timings on fast problems are not comparable to in-process
-  // ones. Set `LISA_FORK=0` for the in-process path when that matters.
+  // A thread can only be asked to stop; a child process is killed outright, its heap dies with it, and a fatal
+  // error takes only that problem. The cost is a JVM start-up per problem, which dominates the measurement of
+  // anything that solves quickly. Verdicts are unaffected; set `LISA_FORK=0` when the timings matter.
 
   /** Whether harnesses should run each problem in its own JVM. On unless `LISA_FORK` is `0`/`false`/`no`. */
   def forkEnabled: Boolean =
@@ -159,18 +147,6 @@ object BenchUtil:
         Using(scala.io.Source.fromFile(f))(_.getLines().toVector).getOrElse(Vector.empty)
       ForkOutcome(if finished then p.exitValue else -1, !finished, lines(out), lines(err))
     finally { out.delete(); err.delete() }
-
-  /** Pull hypotheses + conjecture from a parsed TPTP problem (axiom-like roles → LHS-free hypotheses). */
-  def toClausificationProblem(p: Problem): Clausification.Problem =
-    val hyps = p.formulas.collect {
-      case f: AnnotatedFormula if axiomLikeRoles.contains(f.role) => K.Sequent(Set.empty, Set(f.formula))
-      case s: AnnotatedSequent if axiomLikeRoles.contains(s.role) => s.sequent
-    }
-    val conj = p.formulas.collectFirst {
-      case f: AnnotatedFormula if f.role == "conjecture" => K.Sequent(Set.empty, Set(f.formula))
-      case s: AnnotatedSequent if s.role == "conjecture" => s.sequent
-    }
-    Clausification.Problem(hyps, conj)
 
   /** Upper median of `xs` (the upper of the two middles when even; `0.0` if empty). */
   def median(xs: Seq[Double]): Double = if xs.isEmpty then 0.0 else xs.sorted.apply(xs.size / 2)

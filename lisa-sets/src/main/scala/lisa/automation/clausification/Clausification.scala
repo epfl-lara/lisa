@@ -1,6 +1,7 @@
 package lisa.automation.clausification
 import lisa.utils.K
 import lisa.utils.K.{_, given}
+import lisa.automation.Problem
 
 /** Certified clausification for Lisa, following the SC-TPTP pipeline structure.
   *
@@ -69,34 +70,6 @@ object Clausification {
   /** Library imports threaded to every clausification proof, in fixed order. */
   val libImports: IndexedSeq[Sequent] = IndexedSeq(existsEpsilonIffStatement)
   private[clausification] val libExistsEpsilonIffIdx: Int = 0
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Data types
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  /** An input to a solver is a conjecture and a set of hypothesis.
-    * Problems are transformed by the different stages of the clausification process into problems closer to a clausal form.
-    * After the [[NegatedPhase]], the conjecture is None. `frozen` is the set of variables that are fixed
-    * and non-instantiable or quantifiable (e.g. skolem symbols).
-    */
-  case class Problem(hypotheses: Seq[Sequent], conjecture: Option[Sequent], frozen: Set[Variable] = Set.empty) {
-    /** User-facing imports: just the hypotheses. Library imports are threaded
-      * separately via [[Clausification.libImports]] and appear at the end of the
-      * produced kernel proof's imports. */
-    def imports: IndexedSeq[Sequent] = hypotheses.toIndexedSeq
-
-    def hypIndex(i: Int): Int = -(i + 1)
-  }
-  /** Total node count of a kernel expression (variables/constants/applications/lambdas). */
-  def formulaSize(e: Expression): Int = e match
-    case Application(f, a) => 1 + formulaSize(f) + formulaSize(a)
-    case Lambda(_, body)   => 1 + formulaSize(body)
-    case _                 => 1
-
-  /** Sum of formula sizes across all sequents in a problem (LHS + RHS, hypotheses + conjecture). */
-  def problemSize(p: Problem): Int =
-    def seqSize(s: Sequent): Int = s.left.toSeq.map(formulaSize).sum + s.right.toSeq.map(formulaSize).sum
-    p.hypotheses.map(seqSize).sum + p.conjecture.fold(0)(seqSize)
 
   private[clausification] def singleRightFormula(sequent: Sequent, what: String): Expression = {
     require(sequent.left.isEmpty, s"$what must have empty left-hand side, got ${sequent.repr}")

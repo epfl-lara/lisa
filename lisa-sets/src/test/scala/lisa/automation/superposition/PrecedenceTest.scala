@@ -80,7 +80,7 @@ class PrecedenceTest extends AnyFunSuite:
       val f = fn("f", 1); val a = const("a")
       val cs = Seq(clause(pos(mkEq(app(f, a), a))), clause(neg(mkEq(app(f, app(f, a)), a))))
       Precedence.assign(sig, bank, cs, scheme)
-      new Discount(bank, trail, cs).saturate(maxGiven = 1000) match
+      new Discount(bank, trail, cs, SearchOptions(maxGiven = 1000)).saturate() match
         case Discount.Result.Refutation(empty) => assert(empty.isEmpty)
         case other => fail(s"$scheme: expected Refutation, got $other")
   }
@@ -90,5 +90,5 @@ class PrecedenceTest extends AnyFunSuite:
     val a = const("a"); val b = const("b"); val P = pred("P", 1)
     val cs = Seq(clause(pos(mkEq(a, b))), clause(pos(app(P, a))))
     Precedence.assign(sig, bank, cs, PrecedenceScheme.InvFrequency)
-    assert(new Discount(bank, trail, cs).saturate(maxGiven = 1000) == Discount.Result.Saturated)
+    assert(new Discount(bank, trail, cs, SearchOptions(maxGiven = 1000)).saturate() == Discount.Result.Saturated)
   }

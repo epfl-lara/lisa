@@ -156,9 +156,9 @@ the cost of proof construction rather than of clausification.
 |---|---|---|
 | `CertifiedClausifier.certifyClausal(problem, prover)` | [CertifiedClausifier.scala](CertifiedClausifier.scala) | a kernel `SCProof` of the goal |
 | `UncertifiedClausifier.clausalForm(problem)` | [UncertifiedClausifier.scala](UncertifiedClausifier.scala) | the clause set alone |
-| `UncertifiedClausifier.clausalFormWithOrigins(problem)` | [UncertifiedClausifier.scala](UncertifiedClausifier.scala) | each clause paired with the index of the formula it came from |
+| `UncertifiedClausifier.clausalProblemWithOrigins(problem)` | [UncertifiedClausifier.scala](UncertifiedClausifier.scala) | the same, each clause paired with the index of the formula it came from |
 
-The input type is `Clausification.Problem`, defined in [Clausification.scala](Clausification.scala): a sequence
+The input type is `Problem`, defined in [../Problem.scala](../Problem.scala) and shared with the prover: a sequence
 of hypotheses, an optional conjecture, and a set of `frozen` variables. Each hypothesis and the conjecture must
 be a sequent with an empty left side and exactly one formula on the right. The `frozen` set holds variables that
 downstream phases must treat as uninterpreted constants rather than universally quantify; Skolem function

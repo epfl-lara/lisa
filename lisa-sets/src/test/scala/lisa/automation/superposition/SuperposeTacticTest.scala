@@ -2,7 +2,8 @@ package lisa.automation.superposition
 
 import org.scalatest.funsuite.AnyFunSuite
 import lisa.kernel.KernelProof
-import lisa.automation.clausification.{Clausification, CertifiedClausifier}
+import lisa.automation.clausification.CertifiedClausifier
+import lisa.automation.Problem
 
 /**
  * End-to-end tests of the [[Superpose]] tactic: each theorem is proved by `have(thesis) by Superpose`, so the
@@ -23,11 +24,14 @@ class SuperposeTacticTest extends AnyFunSuite with lisa.TestMain {
   val excludedMiddle = Theorem(A \/ !A) { have(thesis) by Superpose }
   val deMorgan       = Theorem(!(A /\ B) <=> (!A \/ !B)) { have(thesis) by Superpose }
   val fromHyp        = Theorem(B \/ !B) { have(thesis) by Superpose.from(excludedMiddle) } // `.from` plumbing (hyp unused)
+  // The name a proof outside this package uses, re-exported by automation/package.scala.
+  val viaExport      = Theorem(B ==> B) { have(thesis) by lisa.automation.Superpose }
 
   test("propositional: A ⟹ A") { assert(implSelf.statement.underlying == (() |- (A ==> A)).underlying) }
   test("propositional: excluded middle A ∨ ¬A") { succeed }
   test("propositional: De Morgan ¬(A ∧ B) ⟺ ¬A ∨ ¬B") { succeed }
   test("`.from`: a cited hypothesis fact is threaded in and discharged") { succeed }
+  test("the tactic is reachable as `lisa.automation.Superpose`") { succeed }
 
   // Regression for the NegatedPhase bug: a conjecture with a free predicate VARIABLE must clausify to a
   // kernel-valid proof WITHOUT the caller pre-freezing anything (frozen defaults to ∅). NegatedPhase pins the
@@ -38,9 +42,9 @@ class SuperposeTacticTest extends AnyFunSuite with lisa.TestMain {
     import lisa.utils.K
     val z, w = variable[Ind]; val S = variable[Ind >>: Prop]
     val conj: K.Expression = (∀(z, S(z)) ==> S(w)).underlying
-    val problem = Clausification.Problem(Seq.empty, Some(K.Sequent(Set.empty, Set(conj))))
-    val prover: Clausification.Problem => K.SCProof =
-      p => Clausal.proveOutcome(p).fold(o => throw new RuntimeException(o.toString), identity)
+    val problem = Problem(Seq.empty, Some(K.Sequent(Set.empty, Set(conj))))
+    val prover: Problem => K.SCProof =
+      p => Clausal.prove(p).fold(o => throw new RuntimeException(o.toString), identity)
     val pk = CertifiedClausifier.certifyClausal(problem, prover)
     KernelProof.assertCorrectProofNoSorry(pk, "certifyClausal on the schematic FO goal")
   }

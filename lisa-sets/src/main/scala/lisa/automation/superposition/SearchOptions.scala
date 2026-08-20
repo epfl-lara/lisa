@@ -38,7 +38,7 @@ import lisa.automation.superposition.ordering.*
  *                          Off by default.
  * @param equality          master equality switch. When off, **every** equality-specific part of the loop is
  *                          skipped and the finer switches below have no effect, reducing it to ordered
- *                          resolution and factoring. [[Bridge.solve]] also turns it off when the input contains
+ *                          resolution and factoring. [[Clausal.refute]] also turns it off when the input contains
  *                          no `=` at all, where the inferences could never fire.
  * @param superposition     the superposition enumeration itself (the heaviest equality inference).
  * @param forwardDemodulation  normal-form the given against the active positive unit equalities.
@@ -48,6 +48,15 @@ import lisa.automation.superposition.ordering.*
  *                          sublist to querying the index. Purely a performance knob.
  * @param factorAfterCheck  drop a factor whose kept literal is no longer KBO-maximal under the unifier. A
  *                          redundancy pruning; omitting it over-approximates, which is sound and complete.
+ * @param sine              SInE axiom selection, applied before clausification; `None` disables it. It only
+ *                          ever *removes* hypotheses, so it needs no justification in a proof.
+ * @param orthologic        replace each hypothesis and the negated conjecture by its orthologic normal form,
+ *                          before clausification. Justified by one step per formula when proofs are on.
+ * @param maxGiven          given-clause budget for the saturation loop.
+ * @param maxMillis         cooperative wall-clock budget for the saturation loop, in milliseconds.
+ * @param onStats           receives the loop instrumentation once the search ends. Being a function, it is the
+ *                          one field that makes two `SearchOptions` compare unequal for equal settings;
+ *                          nothing compares them.
  */
 final case class SearchOptions(
     // ── clause selection ──
@@ -75,7 +84,14 @@ final case class SearchOptions(
     // ── term indexing ──
     forwardUnitDeletionIndexThreshold: Int = 16,
     // ── misc ──
-    factorAfterCheck: Boolean = false):
+    factorAfterCheck: Boolean = false,
+    // ── preprocessing (before clausification) ──
+    sine: Option[SineConfig] = None,
+    orthologic: Boolean = false,
+    // ── budgets and instrumentation ──
+    maxGiven: Int = Int.MaxValue,
+    maxMillis: Long = Long.MaxValue,
+    onStats: Discount.LoopStats => Unit = _ => ()):
 
   // ── derived switches ──────────────────────────────────────────────────────────────────────────────
   //

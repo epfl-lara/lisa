@@ -47,7 +47,7 @@ class EqualitySaturationTest extends AnyFunSuite:
     val fx = new Fix; import fx.*
     val a = const("a"); val b = const("b"); val P = pred("P", 1)
     val cs = Seq(clause(pos(mkEq(a, b))), clause(pos(app(P, a)))) // a = b, P(a)
-    assert(new Discount(bank, trail, cs).saturate(maxGiven = 1000) == Discount.Result.Saturated)
+    assert(new Discount(bank, trail, cs, SearchOptions(maxGiven = 1000)).saturate() == Discount.Result.Saturated)
   }
 
   test("a chain of unit equalities refutes an inequality of its endpoints (demodulation/superposition chaining)") {
@@ -66,8 +66,8 @@ class EqualitySaturationTest extends AnyFunSuite:
     val axiom = clause(pos(mkEq(app(f, a), a)))
     val goal = clause(neg(mkEq(app(f, app(f, a)), a)))
     // both superposition and demodulation bridge f(f(a)) and a; with both off, nothing does ⇒ Saturated
-    val d = new Discount(bank, trail, Seq(axiom, goal), SearchOptions(superposition = false, forwardDemodulation = false, backwardDemodulation = false))
-    assert(d.saturate(maxGiven = 1000) == Discount.Result.Saturated)
+    val d = new Discount(bank, trail, Seq(axiom, goal), SearchOptions(superposition = false, forwardDemodulation = false, backwardDemodulation = false, maxGiven = 1000))
+    assert(d.saturate() == Discount.Result.Saturated)
   }
 
   test("the master equality=false switch skips every equality inference (UEQ not refuted)") {
@@ -76,8 +76,8 @@ class EqualitySaturationTest extends AnyFunSuite:
     val axiom = clause(pos(mkEq(app(f, a), a)))
     val goal = clause(neg(mkEq(app(f, app(f, a)), a)))
     // superposition, equality resolution, equality factoring AND demodulation are all off ⇒ nothing derivable
-    val d = new Discount(bank, trail, Seq(axiom, goal), SearchOptions(equality = false))
-    assert(d.saturate(maxGiven = 1000) == Discount.Result.Saturated)
+    val d = new Discount(bank, trail, Seq(axiom, goal), SearchOptions(equality = false, maxGiven = 1000))
+    assert(d.saturate() == Discount.Result.Saturated)
   }
 
   test("equality=false disables equality resolution too (a ≠ a is not closed)") {
@@ -105,7 +105,7 @@ class EqualitySaturationTest extends AnyFunSuite:
     def verdict(build: Fix => Seq[Clause]): String =
       val fx = new Fix
       val cs = build(fx)
-      cat(new Discount(fx.bank, fx.trail, cs, SearchOptions()).saturate(maxGiven = 5000))
+      cat(new Discount(fx.bank, fx.trail, cs, SearchOptions(maxGiven = 5000)).saturate())
 
     val cases: Seq[(String, String, Fix => Seq[Clause])] = Seq(
       ("ueq f(a)=a ⊢ f(f(a))=a", "refuted", { fx => import fx.*; val f = fn("f", 1); val a = const("a")
@@ -134,7 +134,7 @@ class EqualitySaturationTest extends AnyFunSuite:
     def verdict(build: Fix => Seq[Clause]): String =
       val fx = new Fix
       val cs = build(fx)
-      cat(new Discount(fx.bank, fx.trail, cs, SearchOptions()).saturate(maxGiven = 5000))
+      cat(new Discount(fx.bank, fx.trail, cs, SearchOptions(maxGiven = 5000)).saturate())
 
     val cases: Seq[(String, String, Fix => Seq[Clause])] = Seq(
       ("ueq f(a)=a ⊢ f(f(a))=a (nested rewrite)", "refuted", { fx => import fx.*; val f = fn("f", 1); val a = const("a")

@@ -1,10 +1,11 @@
 import lisa.automation.Congruence
 import lisa.automation.Substitution.{Apply => Substitute}
 import lisa.automation.Tableau
+import lisa.automation.Superpose
 
 object Example extends lisa.Main:
   // draft mode; only proofs from the current file are checked
-  draft()
+  //draft()
 
   // first-order variables
   val x = variable[Ind]
@@ -84,5 +85,10 @@ object Example extends lisa.Main:
   // example showing the Tableau tactic to discharge first-order tautologies
   val buveurs = Theorem(exists(x, P(x) ==> forall(y, P(y)))) {
     have(thesis) by Tableau
+  }
+
+    // example showing the Superpose tactic
+  val buveurs2 = Theorem(exists(x, P(x) ==> forall(y, P(y)))) {
+    have(thesis) by Superpose
   }
 

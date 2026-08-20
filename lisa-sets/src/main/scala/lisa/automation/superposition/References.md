@@ -77,7 +77,7 @@ the publisher's page.
 
 ## Proof output and reconstruction into a kernel
 
-`Reconstruction`, `Bridge`, `Clausal`, `CascProver`, `clausification/CertifiedClausifier`
+`Reconstruction`, `Clausal`, `Tstp`, `CascProver`, `clausification/CertifiedClausifier`
 
 - Sutcliffe, G., Schulz, S., Claessen, K., and Van Gelder, A. [Using the TPTP Language for Writing Derivations and Finite Interpretations](https://doi.org/10.1007/11814771_7). *IJCAR*, 2006.
 - Guilloud, S., Gambhir, S., and Kunčak, V. [LISA — A Modern Proof System](https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.ITP.2023.17). *ITP*, 2023.

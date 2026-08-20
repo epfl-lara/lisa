@@ -8,13 +8,10 @@ import scala.util.Success
  * Tests for [[BenchUtil.withTimeout]]'s handling of a worker that overruns its budget.
  *
  * Interruption on the JVM is cooperative, so "we asked it to stop" and "it stopped" are different facts. A
- * worker that ignores the request keeps burning CPU and holding its heap (a saturation's passive set can be
- * millions of clauses) for the remainder of the run, and every problem measured afterwards is timed against
- * a machine that is busy and nearly out of memory. That is not hypothetical: it turned a 44-refutation
- * corpus run into a 20-refutation one, reporting problems that refute standalone in 6 ms as `TIMEOUT`.
- *
- * Nothing can kill such a thread (`Thread.stop` is gone), so the contract is: wait a grace period, then
- * *count* it, so the harnesses can say the run is contaminated instead of reporting the numbers as fact.
+ * worker that ignores the request keeps burning CPU and holding its heap for the remainder of the run, and
+ * every problem measured afterwards is timed against a machine that is busy and nearly out of memory. Nothing
+ * can kill such a thread, so the contract is: wait a grace period, then *count* it, so the harnesses can say
+ * the run is contaminated instead of reporting the numbers as fact.
  */
 class BenchUtilTest extends AnyFunSuite:
 

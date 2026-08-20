@@ -1,6 +1,7 @@
 package lisa.automation.clausification
 
 import lisa.utils.K.{_, given}
+import lisa.automation.Problem
 import Clausification.*
 
 /**
@@ -58,7 +59,15 @@ object UncertifiedClausifier:
   /** Clausal form of `problem`. The conjecture is negated and appended as the last hypothesis, as
    *  [[NegatedPhase]] does, but the rest is the single-pass pipeline. */
   def clausalForm(problem: Problem, threshold: Int = DefaultThreshold, orthologic: Boolean = false): Problem =
-    Problem(clausalFormWithOrigins(problem, threshold, orthologic).map(_._1).toList, None, negated(problem)._2)
+    clausalProblemWithOrigins(problem, threshold, orthologic)._1
+
+  /** The clausal form **and** each clause's origin: the index, into `hypotheses ++ [¬conjecture]`, of the source
+   *  formula it came from. A front end that must attribute clauses to input formulas, or tell the goal clauses
+   *  apart, needs both halves, and building them separately is how the `frozen` set gets dropped from one of
+   *  them — so they are produced together and [[clausalForm]] is the projection. */
+  def clausalProblemWithOrigins(problem: Problem, threshold: Int = DefaultThreshold, orthologic: Boolean = false): (Problem, IndexedSeq[Int]) =
+    val withOrigins = clausalFormWithOrigins(problem, threshold, orthologic)
+    (Problem(withOrigins.map(_._1).toList, None, negated(problem)._2), withOrigins.map(_._2))
 
   /** Pairs each clause with the index of the source formula it was clausified from:
    *  an index into `hypotheses ++ [¬conjecture]. Lets a proof-printing front-end attribute every clause to its single origin axiom. */

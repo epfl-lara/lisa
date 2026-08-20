@@ -2,12 +2,13 @@ package lisa.automation.superposition
 
 import org.scalatest.funsuite.AnyFunSuite
 
+import lisa.automation.clausification.UncertifiedClausifier
 import lisa.utils.K
 import lisa.kernel.KernelProof
-import lisa.tptp.Problem
+import lisa.tptp.TptpProblem
 import lisa.tptp.KernelParser.{problemToKernel, strictMapAtom, strictMapTerm, strictMapVariable}
 
-/** Tests for proof reconstruction ([[Reconstruction]] via [[Bridge.solve]] + [[Bridge.reconstruct]]). */
+/** Tests for proof reconstruction ([[Reconstruction]] via [[Clausal.solve]] + [[Clausal.reconstruct]]). */
 class ReconstructionTest extends AnyFunSuite:
 
   // kernel construction helpers (clauses as sequents: negative atoms left, positive right)
@@ -24,15 +25,15 @@ class ReconstructionTest extends AnyFunSuite:
   /** Reconstruct, then assert the proof is kernel-valid, concludes `⊢`, and imports inputs once each.
    *  `subsumptionResolution` / `condensation` force those simplifications on for the reconstruction check. */
   private def check(name: String, clauses: List[K.Sequent], subsumptionResolution: Boolean = false, condensation: Boolean = false): Unit =
-    val proof: Option[K.SCProof] = Bridge.solve(
+    val proof: Option[K.SCProof] = Clausal.refute(
       clauses,
-      maxGiven = 10000,
-      opts = SearchOptions(
+      SearchOptions(
         forwardSubsumptionResolution = subsumptionResolution,
         backwardSubsumptionResolution = subsumptionResolution,
-        condensation = condensation)
+        condensation = condensation,
+        maxGiven = 10000)
     ) match
-      case s: Bridge.Outcome.Success => Some(s.reconstructKernelProof)
+      case s: Clausal.Outcome.Success => Some(s.reconstructKernelProof)
       case _ => None
     assert(proof.isDefined, s"$name: expected a refutation")
     val p = proof.get
@@ -253,9 +254,9 @@ class ReconstructionTest extends AnyFunSuite:
     test(s"SYN reconstruction: $name is refuted and the proof is kernel-valid") {
       val f = new java.io.File(TptpCorpus.subdirOrCancel("Problems/SYN", "the SYN reconstruction suite"), name)
       assume(f.exists, s"$f not found")
-      val problem: Problem = problemToKernel(f)(using (strictMapAtom, strictMapTerm, strictMapVariable))
-      val proof: Option[K.SCProof] = Bridge.solveTPTPProblem(problem, maxGiven = 50000) match
-        case s: Bridge.Outcome.Success => Some(s.reconstructKernelProof)
+      val problem: TptpProblem = problemToKernel(f)(using (strictMapAtom, strictMapTerm, strictMapVariable))
+      val proof: Option[K.SCProof] = Clausal.solve(UncertifiedClausifier.clausalForm(Prover.fromTptp(problem)), SearchOptions(maxGiven = 50000)) match
+        case s: Clausal.Outcome.Success => Some(s.reconstructKernelProof)
         case _ => None
       assert(proof.isDefined, s"$name: expected a refutation")
       val p = proof.get

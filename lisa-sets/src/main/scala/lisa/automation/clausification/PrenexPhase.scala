@@ -1,6 +1,7 @@
 package lisa.automation.clausification
 
 import lisa.utils.K.{_, given}
+import lisa.automation.Problem
 import Clausification.*
 
 /**

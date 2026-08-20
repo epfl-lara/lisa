@@ -3,7 +3,8 @@ package lisa.automation.clausification
 import org.scalatest.funsuite.AnyFunSuite
 
 import lisa.utils.K
-import lisa.automation.superposition.Clausal
+import lisa.automation.Problem
+import lisa.automation.superposition.{Clausal, SearchOptions}
 import lisa.kernel.KernelProof
 
 /**
@@ -22,6 +23,11 @@ import lisa.kernel.KernelProof
  * `ScreenPhaseTest`, `PrenexRewriteTest`, `ProofIRTest` and `ClausifierEquivalenceTest`.
  */
 class CertifiedClausificationTest extends AnyFunSuite:
+
+  /** The clausal prover as `certifyClausal` wants it: `Problem => SCProof`. `Clausal.prove` reports a
+    * non-refutation rather than throwing, and every test here needs one, so the absence is a test failure. */
+  private def prover(p: Problem): K.SCProof =
+    Clausal.prove(p).fold(o => fail(s"the clausal prover did not refute: $o"), identity)
 
   private def vr(n: String): K.Variable = K.Variable(K.Identifier(n), K.Ind)
   private def pred(n: String, arity: Int): K.Constant = K.Constant(K.Identifier(n), sortOf(arity, K.Prop))
@@ -57,11 +63,11 @@ class CertifiedClausificationTest extends AnyFunSuite:
     // η-reduces to `∀(big_f(x))` under betaNormalForm; without etaExpandQuantifiers the clausifier leaves the ∀
     // stranded as an opaque atom and the prover saturates on this valid theorem.
     val conjecture = impl(all(x, orr(ap(bigf, a, x), all(y, ap(bigf, x, y)))), ex(x1, all(y1, ap(bigf, x1, y1))))
-    val problem = Clausification.Problem(Seq.empty, Some(K.Sequent(Set.empty, Set(conjecture))))
+    val problem = Problem(Seq.empty, Some(K.Sequent(Set.empty, Set(conjecture))))
     // no clause literal may still contain a quantifier (the bug signature)
     val clauses = lisa.automation.clausification.UncertifiedClausifier.clausalForm(problem).hypotheses
     assert(clauses.forall(_.right.forall(lit => !containsForall(lit))), s"a clause still has a stranded ∀: $clauses")
-    val proof = CertifiedClausifier.certifyClausal(problem, Clausal.prove)
+    val proof = CertifiedClausifier.certifyClausal(problem, prover)
     KernelProof.assertCorrectProofNoSorry(proof, "certifyClausal")
     assert(proof.conclusion == K.Sequent(Set.empty, Set(conjecture)))
   }
@@ -78,8 +84,8 @@ class CertifiedClausificationTest extends AnyFunSuite:
     assert(etaAll match { case K.Forall(_, _) => false; case _ => true }, "premise: the shape evades the Forall extractor")
     // ∀x.p(x) ⊢ p(a)
     val goal = K.Sequent(Set.empty, Set(K.Application(p, a)))
-    val problem = Clausification.Problem(Seq(K.Sequent(Set.empty, Set(etaAll))), Some(goal))
-    val proof = CertifiedClausifier.certifyClausal(problem, Clausal.prove)
+    val problem = Problem(Seq(K.Sequent(Set.empty, Set(etaAll))), Some(goal))
+    val proof = CertifiedClausifier.certifyClausal(problem, prover)
     KernelProof.assertCorrectProofNoSorry(proof, "certifyClausal on η-reduced ∀ input")
     assert(proof.conclusion == goal)
   }
@@ -90,8 +96,8 @@ class CertifiedClausificationTest extends AnyFunSuite:
     val etaEx: K.Expression = K.Application(K.exists, p) // ∃(p)
     // p(a) ⊢ ∃x.p(x): the negated conjecture is what must be quantifier-stripped here, not the hypothesis.
     val goal = K.Sequent(Set.empty, Set(etaEx))
-    val problem = Clausification.Problem(Seq(K.Sequent(Set.empty, Set(K.Application(p, a)))), Some(goal))
-    val proof = CertifiedClausifier.certifyClausal(problem, Clausal.prove)
+    val problem = Problem(Seq(K.Sequent(Set.empty, Set(K.Application(p, a)))), Some(goal))
+    val proof = CertifiedClausifier.certifyClausal(problem, prover)
     KernelProof.assertCorrectProofNoSorry(proof, "certifyClausal on η-reduced ∃ input")
     assert(proof.conclusion == goal, "the caller's η-reduced goal must come back verbatim")
   }
@@ -104,13 +110,13 @@ class CertifiedClausificationTest extends AnyFunSuite:
     val a = fn("a", 0)
     val etaAll: K.Expression = K.Application(K.forall, p) // ∀(p)
     // ∀x.p(x) ⊢ p(a)
-    val problem = Clausification.Problem(
+    val problem = Problem(
       Seq(K.Sequent(Set.empty, Set(etaAll))), Some(K.Sequent(Set.empty, Set(K.Application(p, a)))))
     val clausal = UncertifiedClausifier.clausalForm(problem)
     assert(clausal.hypotheses.forall(_.right.forall(lit => !containsForall(lit))),
       s"a quantifier survived into an uncertified clause: ${clausal.hypotheses.mkString(" ; ")}")
     // and the clause set is actually refutable. It was not, while the ∀ sat there as an opaque literal
-    assert(Clausal.solveOutcome(clausal).refuted, "the uncertified clause set does not refute")
+    assert(Clausal.solve(clausal).refuted, "the uncertified clause set does not refute")
   }
 
   test("the uncertified η-expansion runs after the orthologic normalisation, not before") {
@@ -119,7 +125,7 @@ class CertifiedClausificationTest extends AnyFunSuite:
     // pins the invariant that matters instead: whatever that step emits, no quantifier reaches a clause.
     val p = K.Variable(K.Identifier("p"), sortOf(1, K.Prop))
     val q = pred("q", 1); val a = fn("a", 0); val x = vr("x")
-    val problem = Clausification.Problem(
+    val problem = Problem(
       Seq(K.Sequent(Set.empty, Set(K.Application(K.forall, p))),                       // η-reduced ∀(p)
           K.Sequent(Set.empty, Set(K.Application(K.forall, K.Lambda(x, ap(q, x)))))),  // explicit ∀x.q(x)
       Some(K.Sequent(Set.empty, Set(K.Application(p, a)))))
@@ -127,7 +133,7 @@ class CertifiedClausificationTest extends AnyFunSuite:
       val clausal = UncertifiedClausifier.clausalForm(problem, orthologic = ortho)
       assert(clausal.hypotheses.forall(_.right.forall(lit => !containsForall(lit))),
         s"orthologic=$ortho: a quantifier survived: ${clausal.hypotheses.mkString(" ; ")}")
-      assert(Clausal.solveOutcome(clausal).refuted, s"orthologic=$ortho: the clause set does not refute")
+      assert(Clausal.solve(clausal).refuted, s"orthologic=$ortho: the clause set does not refute")
   }
 
   // --- the two paths must agree on the clause set, not only on η-expansion ---------------------------------
@@ -137,8 +143,8 @@ class CertifiedClausificationTest extends AnyFunSuite:
   // runs never showed them, the same blind spot §1.9 records for the intern key.
 
   /** Whether the uncertified path's clause set for `prob` is refutable. */
-  private def uncertifiedRefutes(prob: Clausification.Problem): Boolean =
-    Clausal.solveOutcome(UncertifiedClausifier.clausalForm(prob), maxGiven = 5000, maxMillis = 10000).refuted
+  private def uncertifiedRefutes(prob: Problem): Boolean =
+    Clausal.solve(UncertifiedClausifier.clausalForm(prob), SearchOptions(maxGiven = 5000, maxMillis = 10000)).refuted
 
   test("uncertified path: a conjecture's free individual variable is frozen, not left a clause variable") {
     // Goal `pp(x)` with `x` free means `∀x. pp(x)`, which does NOT follow from `pp(c)`. Negating `pp(x)` as
@@ -146,11 +152,11 @@ class CertifiedClausificationTest extends AnyFunSuite:
     // "refuted" for a goal that is not valid. Freezing `x` makes it a symbol to the prover, which is what blocks
     // the resolution against `pp(c)`; the same check on the certified path is two lines below.
     val pp = pred("pp", 1); val c = fn("c", 0); val x = vr("x")
-    val prob = Clausification.Problem(
+    val prob = Problem(
       Seq(K.Sequent(Set.empty, Set(ap(pp, c)))), Some(K.Sequent(Set.empty, Set(ap(pp, x)))))
     assert(!uncertifiedRefutes(prob), "the uncertified path refuted `pp(c) ⊢ pp(x)`, which is not valid")
     // the certified path's answer, for comparison: it declines too, on the same frozen variable
-    val certProof = scala.util.Try(CertifiedClausifier.certifyClausal(prob, Clausal.prove))
+    val certProof = scala.util.Try(CertifiedClausifier.certifyClausal(prob, prover))
     assert(certProof.isFailure, "the certified path refuted a goal that is not valid")
   }
 
@@ -159,11 +165,11 @@ class CertifiedClausificationTest extends AnyFunSuite:
     // variables as `Identifier("w", n)` starting at n=0, which renders as the bare `w`, the same identifier as the input's variable
     // exactly. The two merged, turning the hypothesis into the weaker `∀w. q(w,w)`, and the refutation was lost.
     val q = pred("q", 2); val a = fn("a", 0); val c = fn("c", 0); val x = vr("x"); val w = vr("w")
-    val prob = Clausification.Problem(
+    val prob = Problem(
       Seq(K.Sequent(Set.empty, Set(K.Application(K.forall, K.Lambda(x, ap(q, x, w)))))),
       Some(K.Sequent(Set.empty, Set(ap(q, a, c)))))
     assert(uncertifiedRefutes(prob), "the uncertified path lost a valid refutation: the input `w` merged with a clause variable")
-    KernelProof.assertCorrectProofNoSorry(CertifiedClausifier.certifyClausal(prob, Clausal.prove), "certified")
+    KernelProof.assertCorrectProofNoSorry(CertifiedClausifier.certifyClausal(prob, prover), "certified")
   }
 
   test("boolean constants (⊤/⊥) are absorbed in NNF (LCL-style $false padding no longer saturates)") {
@@ -176,10 +182,10 @@ class CertifiedClausificationTest extends AnyFunSuite:
     // reflexivity yields `{⊥}` (⊥ an uninterpreted atom, unrefutable) and the prover saturates.
     val refl = all(x, ap(r, x, x))
     val conj = all(x, ex(y, andd(ap(r, x, y), K.Application(K.neg, K.bot))))
-    val problem = Clausification.Problem(Seq(K.Sequent(Set.empty, Set(refl))), Some(K.Sequent(Set.empty, Set(conj))))
+    val problem = Problem(Seq(K.Sequent(Set.empty, Set(refl))), Some(K.Sequent(Set.empty, Set(conj))))
     val clauses = lisa.automation.clausification.UncertifiedClausifier.clausalForm(problem).hypotheses
     assert(clauses.forall(_.right.forall(lit => !containsBotTop(lit))), s"⊤/⊥ survived clausification: $clauses")
-    val proof = CertifiedClausifier.certifyClausal(problem, Clausal.prove)
+    val proof = CertifiedClausifier.certifyClausal(problem, prover)
     KernelProof.assertCorrectProofNoSorry(proof, "certifyClausal")
     assert(proof.conclusion == K.Sequent(Set.empty, Set(conj)))
   }
@@ -192,7 +198,7 @@ class CertifiedClausificationTest extends AnyFunSuite:
     // clauses `a∨b`, `a∨c`. With `¬b`, `¬c` as further hypotheses and conjecture `a` (negated to `¬a`), the
     // refutation `a∨b, ¬a ⊢ b` then `¬b ⊢ ⊥` closes only if distribution actually happened.
     val hyp1 = orr(a, andd(b, c))
-    val problem = Clausification.Problem(
+    val problem = Problem(
       Seq(K.Sequent(Set.empty, Set(hyp1)),
           K.Sequent(Set.empty, Set(K.Application(K.neg, b))),
           K.Sequent(Set.empty, Set(K.Application(K.neg, c)))),
@@ -201,7 +207,7 @@ class CertifiedClausificationTest extends AnyFunSuite:
     // Sanity: the uncertified clausifier really produces the two distributed binary clauses `a∨b`, `a∨c`.
     val clauses = lisa.automation.clausification.UncertifiedClausifier.clausalForm(problem).hypotheses
     assert(clauses.count(_.right.size == 2) == 2, s"expected `a∨(b∧c)` to distribute into two binary clauses, got: $clauses")
-    val proof = CertifiedClausifier.certifyClausal(problem, Clausal.prove)
+    val proof = CertifiedClausifier.certifyClausal(problem, prover)
     KernelProof.assertCorrectProofNoSorry(proof, "certifyClausal")
     assert(proof.conclusion == K.Sequent(Set.empty, Set(a)))
   }
@@ -219,8 +225,8 @@ class CertifiedClausificationTest extends AnyFunSuite:
       all(Y, ex(Y, ap(p, Y))),               // ∀Y. ∃Y. p(Y)          (∃Y shadows the enclosing ∀Y, k=1)
       all(Y, all(X, ex(Y, ap(r, X, Y))))     // ∀Y. ∀X. ∃Y. r(X, Y)   (∃Y collides with the OUTER ∀Y, k=2)
     ) do
-      val problem = Clausification.Problem(Seq(K.Sequent(Set.empty, Set(hyp))), Some(K.Sequent(Set.empty, Set(hyp))))
-      val proof = CertifiedClausifier.certifyClausal(problem, Clausal.prove)
+      val problem = Problem(Seq(K.Sequent(Set.empty, Set(hyp))), Some(K.Sequent(Set.empty, Set(hyp))))
+      val proof = CertifiedClausifier.certifyClausal(problem, prover)
       KernelProof.assertCorrectProofNoSorry(proof, s"certifyClausal for $hyp")
       assert(proof.conclusion == K.Sequent(Set.empty, Set(hyp)))
   }
@@ -231,13 +237,13 @@ class CertifiedClausificationTest extends AnyFunSuite:
     def all(v: K.Variable, b: K.Expression) = K.Application(K.forall, K.Lambda(v, b))
     // (1) one free var: ∀X.p(X) ⊢ p(Y). Y free ⇒ the goal is ∀Y.p(Y), which follows. Y is frozen rather than
     // ∀-closed, so it reaches the prover as a symbol and the proof concludes the ORIGINAL `⊢ p(Y)` directly.
-    val prob1 = Clausification.Problem(Seq(K.Sequent(Set.empty, Set(all(X, ap(p, X))))), Some(K.Sequent(Set.empty, Set(ap(p, Y)))))
-    val proof1 = CertifiedClausifier.certifyClausal(prob1, Clausal.prove)
+    val prob1 = Problem(Seq(K.Sequent(Set.empty, Set(all(X, ap(p, X))))), Some(K.Sequent(Set.empty, Set(ap(p, Y)))))
+    val proof1 = CertifiedClausifier.certifyClausal(prob1, prover)
     KernelProof.assertCorrectProofNoSorry(proof1, "(1) certifyClausal")
     assert(proof1.conclusion == K.Sequent(Set.empty, Set(ap(p, Y))), s"(1) conclusion ${proof1.conclusion} is not the original goal p(Y)")
     // (2) two free vars, so neither may be instantiated by the other's clause: ∀A∀B.r(A,B) ⊢ r(X,Y).
-    val prob2 = Clausification.Problem(Seq(K.Sequent(Set.empty, Set(all(A, all(B, ap(r, A, B)))))), Some(K.Sequent(Set.empty, Set(ap(r, X, Y)))))
-    val proof2 = CertifiedClausifier.certifyClausal(prob2, Clausal.prove)
+    val prob2 = Problem(Seq(K.Sequent(Set.empty, Set(all(A, all(B, ap(r, A, B)))))), Some(K.Sequent(Set.empty, Set(ap(r, X, Y)))))
+    val proof2 = CertifiedClausifier.certifyClausal(prob2, prover)
     KernelProof.assertCorrectProofNoSorry(proof2, "(2) certifyClausal")
     assert(proof2.conclusion == K.Sequent(Set.empty, Set(ap(r, X, Y))), s"(2) conclusion ${proof2.conclusion} is not the original goal r(X,Y)")
   }
@@ -252,11 +258,11 @@ class CertifiedClausificationTest extends AnyFunSuite:
     val ax2 = ap(p, a)
     val ax3 = ap(s, nm0)
     val conj = ap(q, a)
-    val problem = Clausification.Problem(
+    val problem = Problem(
       Seq(K.Sequent(Set.empty, Set(ax1)), K.Sequent(Set.empty, Set(ax2)), K.Sequent(Set.empty, Set(ax3))),
       Some(K.Sequent(Set.empty, Set(conj)))
     )
-    val proof = CertifiedClausifier.certifyClausal(problem, Clausal.prove)
+    val proof = CertifiedClausifier.certifyClausal(problem, prover)
     KernelProof.assertCorrectProofNoSorry(proof, "certifyClausal")
     assert(proof.conclusion == K.Sequent(Set.empty, Set(conj)))
   }
@@ -271,23 +277,23 @@ class CertifiedClausificationTest extends AnyFunSuite:
     // check the prover reaches the *same* refutation verdict on the uncertified clauses as on the certified path's clauses.
     // (Problems 1 and 2 are valid ⇒ both refute; problem 3 is satisfiable ⇒ both saturate.)
     val problems = Seq(
-      Clausification.Problem(Seq(K.Sequent(Set.empty, Set(forallPx))), Some(K.Sequent(Set.empty, Set(forallPx)))),
-      Clausification.Problem(
+      Problem(Seq(K.Sequent(Set.empty, Set(forallPx))), Some(K.Sequent(Set.empty, Set(forallPx)))),
+      Problem(
         Seq(K.Sequent(Set.empty, Set(body)), K.Sequent(Set.empty, Set(K.Application(K.neg, C)))),
         Some(K.Sequent(Set.empty, Set(A)))),
-      Clausification.Problem(Seq(K.Sequent(Set.empty, Set(forallExists))), Some(K.Sequent(Set.empty, Set(forallPx))))
+      Problem(Seq(K.Sequent(Set.empty, Set(forallExists))), Some(K.Sequent(Set.empty, Set(forallPx))))
     )
     for problem <- problems do
-      var captured: Clausification.Problem = null // record what certifyClausal feeds its prover (the certified clauses)
+      var captured: Problem = null // record what certifyClausal feeds its prover (the certified clauses)
       CertifiedClausifier.certifyClausal(problem, p => { captured = p; K.SCProof(IndexedSeq(K.Sorry(K.Sequent(Set.empty, Set.empty))), p.imports) })
-      val certifiedRefuted = Clausal.solveOutcome(Clausification.Problem(captured.imports.toSeq, None)).refuted
-      val uncertifiedRefuted = Clausal.solveOutcome(lisa.automation.clausification.UncertifiedClausifier.clausalForm(problem)).refuted
+      val certifiedRefuted = Clausal.solve(Problem(captured.imports.toSeq, None)).refuted
+      val uncertifiedRefuted = Clausal.solve(lisa.automation.clausification.UncertifiedClausifier.clausalForm(problem)).refuted
       assert(uncertifiedRefuted == certifiedRefuted, s"uncertified/certified refutation verdict disagree (uncertified=$uncertifiedRefuted, certified=$certifiedRefuted) on $problem")
   }
 
   /** The clause set `certifyClausal` actually hands its prover, with the prover stubbed out. */
-  private def certifiedClauses(problem: Clausification.Problem): Int =
-    var captured: Clausification.Problem = null
+  private def certifiedClauses(problem: Problem): Int =
+    var captured: Problem = null
     CertifiedClausifier.certifyClausal(problem, p => { captured = p; sorryProver(p) })
     captured.imports.size
 
@@ -301,9 +307,9 @@ class CertifiedClausificationTest extends AnyFunSuite:
     // needed half `nm ⇒ c` costs k clauses, while the unused half `c ⇒ nm` costs 2^k.
     def andd(l: K.Expression, r: K.Expression) = K.Application(K.Application(K.and, l), r)
     def orr(l: K.Expression, r: K.Expression) = K.Application(K.Application(K.or, l), r)
-    def problemOf(k: Int): Clausification.Problem =
+    def problemOf(k: Int): Problem =
       val c = (1 to k).map(i => orr(pred(s"a$i", 0), pred(s"b$i", 0)): K.Expression).reduceLeft(andd)
-      Clausification.Problem(Seq(K.Sequent(Set.empty, Set(orr(c, pred("z", 0))))), None)
+      Problem(Seq(K.Sequent(Set.empty, Set(orr(c, pred("z", 0))))), None)
     val c5 = certifiedClauses(problemOf(5))
     val c12 = certifiedClauses(problemOf(12))
     // Linear in k is ~2.4x here; the bidirectional `⇔` contributed 2^k. A loose bound that still fails hard.
@@ -321,13 +327,13 @@ class CertifiedClausificationTest extends AnyFunSuite:
     def clausesOf(n: Int): Int =
       val ps = (1 to n).map(i => pred(s"p$i", 0): K.Expression)
       val chain = ps.reduceLeft(eqv)
-      val problem = Clausification.Problem(Seq(K.Sequent(Set.empty, Set(chain))), None)
+      val problem = Problem(Seq(K.Sequent(Set.empty, Set(chain))), None)
       lisa.automation.clausification.UncertifiedClausifier.clausalForm(problem).hypotheses.size
     val c8 = clausesOf(8); val c16 = clausesOf(16)
     assert(c16 <= 8 * c8, s"equivalence-chain CNF is blowing up: n=8 → $c8 clauses, n=16 → $c16 clauses")
     // no clause literal may contain a residual connective/quantifier
     val ps = (1 to 12).map(i => pred(s"p$i", 0): K.Expression)
-    val problem = Clausification.Problem(Seq(K.Sequent(Set.empty, Set(ps.reduceLeft(eqv)))), None)
+    val problem = Problem(Seq(K.Sequent(Set.empty, Set(ps.reduceLeft(eqv)))), None)
     val cls = lisa.automation.clausification.UncertifiedClausifier.clausalForm(problem).hypotheses
     assert(cls.forall(_.right.forall(lit => !containsForall(lit) && !containsBotTop(lit))))
   }
@@ -337,9 +343,9 @@ class CertifiedClausificationTest extends AnyFunSuite:
     // Skolem arity (constant vs function of the enclosing universal) would make it satisfiable.
     val P = pred("P", 1); val x = vr("x"); val y = vr("y")
     val drinker = K.Application(K.exists, K.Lambda(x, K.Application(K.Application(K.implies, ap(P, x)), K.Application(K.forall, K.Lambda(y, ap(P, y))))))
-    val problem = Clausification.Problem(Seq.empty, Some(K.Sequent(Set.empty, Set(drinker))))
+    val problem = Problem(Seq.empty, Some(K.Sequent(Set.empty, Set(drinker))))
     val uncertified = lisa.automation.clausification.UncertifiedClausifier.clausalForm(problem)
-    assert(Clausal.solveOutcome(uncertified).refuted, "uncertified clausifier's Skolemization broke the drinker's paradox")
+    assert(Clausal.solve(uncertified).refuted, "uncertified clausifier's Skolemization broke the drinker's paradox")
   }
 
   test("uncertified clausifier: a nullary Skolem constant is a function symbol, not a clause variable (no spurious refutation)") {
@@ -348,11 +354,11 @@ class CertifiedClausificationTest extends AnyFunSuite:
     // nullary Skolem were emitted as an Ind-sorted *variable*, the prover would read ¬P(sk) as ∀X. ¬P(X) and
     // resolve it against P(a) to □, an unsound refutation of a satisfiable set (found via MGT031+1).
     val P = pred("P", 1); val a = fn("a", 0); val x = vr("x")
-    val problem = Clausification.Problem(
+    val problem = Problem(
       Seq(K.Sequent(Set.empty, Set(ap(P, a)))),
       Some(K.Sequent(Set.empty, Set(K.Application(K.forall, K.Lambda(x, ap(P, x)))))))
     val uncertified = lisa.automation.clausification.UncertifiedClausifier.clausalForm(problem)
-    assert(!Clausal.solveOutcome(uncertified).refuted, "satisfiable set spuriously refuted: a nullary Skolem became a clause variable")
+    assert(!Clausal.solve(uncertified).refuted, "satisfiable set spuriously refuted: a nullary Skolem became a clause variable")
   }
 
   test("CertifiedClausifier: naming matches UncertifiedClausifier exactly (same subformulas named, identical atoms)") {
@@ -386,8 +392,8 @@ class CertifiedClausificationTest extends AnyFunSuite:
     def eqv(l: K.Expression, r: K.Expression) = K.Application(K.Application(K.iff, l), r)
     val chain = ps.reduceRight(eqv)
     val conj = K.Application(K.Application(K.implies, chain), chain)
-    val problem = Clausification.Problem(Seq.empty, Some(K.Sequent(Set.empty, Set(conj))))
-    val proof = lisa.automation.clausification.CertifiedClausifier.certifyClausal(problem, Clausal.prove)
+    val problem = Problem(Seq.empty, Some(K.Sequent(Set.empty, Set(conj))))
+    val proof = lisa.automation.clausification.CertifiedClausifier.certifyClausal(problem, prover)
     KernelProof.assertCorrectProofNoSorry(proof, "certifyClausal")
     assert(proof.conclusion == K.Sequent(Set.empty, Set(conj)))
   }
@@ -398,8 +404,8 @@ class CertifiedClausificationTest extends AnyFunSuite:
     // conjecture ∀x.P(x): its negation ¬∀x.P(x) NNF/Skolemizes to `¬P(ε(λx.¬P(x)))`, so the clause set carries
     // a genuine ε-term. `Clausal.prove` abstracts it (F), refutes P(x) vs ¬P(F) by x:=F, and reconstructs with
     // F inlined back to the ε-term, giving a purely ε-bearing, kernel-valid proof of `⊢ ∀x.P(x)`.
-    val problem = Clausification.Problem(Seq(K.Sequent(Set.empty, Set(forallPx))), Some(K.Sequent(Set.empty, Set(forallPx))))
-    val proof = CertifiedClausifier.certifyClausal(problem, Clausal.prove)
+    val problem = Problem(Seq(K.Sequent(Set.empty, Set(forallPx))), Some(K.Sequent(Set.empty, Set(forallPx))))
+    val proof = CertifiedClausifier.certifyClausal(problem, prover)
     KernelProof.assertCorrectProofNoSorry(proof, "certifyClausal")
     assert(proof.conclusion == K.Sequent(Set.empty, Set(forallPx)))
   }
@@ -407,7 +413,7 @@ class CertifiedClausificationTest extends AnyFunSuite:
   /** A contract-shaped stub prover: imports = the clause-sequents, conclusion = `∅ ⊢`, via one `Sorry`.
    *  Kernel-checking a proof built on it validates the *composition* (the clausifier's new literal-set
    *  `Restate` steps included) while trusting only the refutation itself. */
-  private def sorryProver(p: Clausification.Problem): K.SCProof =
+  private def sorryProver(p: Problem): K.SCProof =
     K.SCProof(IndexedSeq(K.Sorry(K.Sequent(Set.empty, Set.empty))), p.imports)
 
   test("definitional naming end-to-end: a problem needing a naming atom, refuted by Bridge (kernel-valid)") {
@@ -416,11 +422,11 @@ class CertifiedClausificationTest extends AnyFunSuite:
     // {(A ∧ B) ∨ C, ¬C} ⊢ A. Clausifies via definitional naming (a fresh predicate atom `nm ⟺ A ∧ B`); the
     // nm-clauses must be ingested by Bridge (nm as an uninterpreted predicate) and refuted, then discharged
     // by the clausifier. Exercises the schematic-predicate-variable path end to end with the real prover.
-    val problem = Clausification.Problem(
+    val problem = Problem(
       Seq(K.Sequent(Set.empty, Set(body)), K.Sequent(Set.empty, Set(K.Application(K.neg, C)))),
       Some(K.Sequent(Set.empty, Set(A)))
     )
-    val proof = CertifiedClausifier.certifyClausal(problem, Clausal.prove)
+    val proof = CertifiedClausifier.certifyClausal(problem, prover)
     KernelProof.assertCorrectProofNoSorry(proof, "certifyClausal")
     assert(proof.conclusion == K.Sequent(Set.empty, Set(A)))
   }
@@ -430,7 +436,7 @@ class CertifiedClausificationTest extends AnyFunSuite:
     val body = K.Application(K.Application(K.or, K.Application(K.Application(K.and, A), B)), C) // (A ∧ B) ∨ C
     // (A ∧ B) ∨ C is named (Q>0); its residual rewrite `nm ∨ C` must be emitted as the literal set `{nm, C}`
     // via the Restate. A Sorry refutation isolates that step for the kernel checker.
-    val problem = Clausification.Problem(Seq(K.Sequent(Set.empty, Set(body))), Some(K.Sequent(Set.empty, Set(A))))
+    val problem = Problem(Seq(K.Sequent(Set.empty, Set(body))), Some(K.Sequent(Set.empty, Set(A))))
     val proof = CertifiedClausifier.certifyClausal(problem, sorryProver)
     // `Sorry` is the point here: the prover is stubbed so the kernel checks only the composition around it.
     KernelProof.assertCorrectProof(proof, "certifyClausal with a stubbed prover")
@@ -442,11 +448,11 @@ class CertifiedClausificationTest extends AnyFunSuite:
     val pOrQ = K.Application(K.Application(K.or, P), Q) // P ∨ Q -- already clausal, MULTI-literal
     // {P ∨ Q, ¬P} ⊢ Q. The clausifier must now emit `P ∨ Q` as the literal set `{P, Q}` (one Restate),
     // exercising the uncertified path (all axioms clausal) and the new set-form conversion end-to-end.
-    val problem = Clausification.Problem(
+    val problem = Problem(
       Seq(K.Sequent(Set.empty, Set(pOrQ)), K.Sequent(Set.empty, Set(K.Application(K.neg, P)))),
       Some(K.Sequent(Set.empty, Set(Q)))
     )
-    val proof = CertifiedClausifier.certifyClausal(problem, Clausal.prove)
+    val proof = CertifiedClausifier.certifyClausal(problem, prover)
     KernelProof.assertCorrectProofNoSorry(proof, "certifyClausal")
     assert(proof.conclusion == K.Sequent(Set.empty, Set(Q)))
   }

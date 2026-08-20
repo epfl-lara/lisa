@@ -4,6 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import lisa.utils.K
 import lisa.utils.K.{_, given}
+import lisa.automation.Problem
 
 /**
  * Regression tests for [[ScreenPhase]], the input screening that keeps the caller's free variables out of the
@@ -47,13 +48,13 @@ class ScreenPhaseTest extends AnyFunSuite:
   private val esk = Variable(Identifier("esk", 1), Ind >>: Ind) // == the first Skolem function SkolemPhase mints
 
   /** Prover stub meeting `certifyClausal`'s contract: imports = the clause sequents, conclusion = `⊢`. */
-  private def sorryProver(p: Clausification.Problem): SCProof =
+  private def sorryProver(p: Problem): SCProof =
     SCProof(IndexedSeq(Sorry(Sequent(Set.empty, Set.empty))), p.imports)
 
   /** Clausify `hyps ⊢ goal` with the stubbed prover; assert the kernel accepts it and that the proof concludes
     * the caller's goal *verbatim* (screening must restore the caller's names). */
   private def check(what: String, goal: Expression, hyps: Expression*): Unit =
-    val problem = Clausification.Problem(hyps.map(h => () |- h), Some(() |- goal))
+    val problem = Problem(hyps.map(h => () |- h), Some(() |- goal))
     val proof = CertifiedClausifier.certifyClausal(problem, sorryProver)
     // `assertCorrectProof`, not the `NoSorry` variant: the prover is stubbed with `Sorry` on purpose. Nothing
     // is being proved here, so the kernel checks only the certification scaffolding built around it.
@@ -105,7 +106,7 @@ class ScreenPhaseTest extends AnyFunSuite:
     val q = Constant(Identifier("q"), Ind >>: Prop)
     val closed = forall(Lambda(z, q(z)))
     check("goal ⊢ ∀z.q(z)", closed)
-    assert(ScreenPhase.screeningRenaming(Clausification.Problem(Nil, Some(() |- closed))).isEmpty)
+    assert(ScreenPhase.screeningRenaming(Problem(Nil, Some(() |- closed))).isEmpty)
   }
 
   // --- the phase's second job: η-expanding the input's quantifiers ---------------------------------------
@@ -141,7 +142,7 @@ class ScreenPhaseTest extends AnyFunSuite:
     // well-formed clause that nothing downstream can tell from a genuine atom, so the failure surfaced only as an
     // unexplained non-refutation.
     var handed: Seq[Sequent] = Nil
-    val problem = Clausification.Problem(Seq(() |- etaAll), Some(() |- pv(x)))
+    val problem = Problem(Seq(() |- etaAll), Some(() |- pv(x)))
     CertifiedClausifier.certifyClausal(problem, p => { handed = p.hypotheses; sorryProver(p) })
     assert(handed.nonEmpty, "the prover was never reached")
     assert(handed.forall(s => (s.left ++ s.right).forall(l => !containsQuantifier(l))),
@@ -153,7 +154,7 @@ class ScreenPhaseTest extends AnyFunSuite:
     val prop0 = Variable(Identifier("myProp"), Prop) //                 a nullary predicate
     val fun1  = Variable(Identifier("myFun"), Ind >>: Ind) //           Ind → Ind
     val ind   = Variable(Identifier("myInd"), Ind) //                   an ordinary individual
-    val problem = Clausification.Problem(Seq(() |- and(pred2(ind)(fun1(ind)))(prop0)), None)
+    val problem = Problem(Seq(() |- and(pred2(ind)(fun1(ind)))(prop0)), None)
     val renaming = ScreenPhase.screeningRenaming(problem)
     def namespaceOf(v: Variable): String = renaming(v).id.name
 
@@ -175,7 +176,7 @@ class ScreenPhaseTest extends AnyFunSuite:
       Variable(Identifier("nm"), Ind >>: Prop), Variable(Identifier("w", 3), Ind),
       Variable(Identifier("v", 1), Ind), Variable(Identifier("P", 1), Ind >>: Prop),
       Variable(Identifier("F", 2), Ind >>: Ind), Variable(Identifier("cv"), Ind))
-    val problem = Clausification.Problem(
+    val problem = Problem(
       Seq(() |- and(P(y))(R), () |- Q(esk(z)), () |- nasty.filter(_.sort == Ind).map(Q(_)).reduce((f, g) => or(f)(g))),
       Some(() |- or(Variable(Identifier("nm"), Ind >>: Prop)(x))(Q(Variable(Identifier("F", 2), Ind >>: Ind)(y)))))
     val renaming = ScreenPhase.screeningRenaming(problem)

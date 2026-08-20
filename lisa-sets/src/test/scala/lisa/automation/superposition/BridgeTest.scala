@@ -2,19 +2,20 @@ package lisa.automation.superposition
 
 import org.scalatest.funsuite.AnyFunSuite
 
+import lisa.automation.clausification.UncertifiedClausifier
 import lisa.utils.K
-import lisa.tptp.{Problem, AnnotatedStatement}
+import lisa.tptp.{TptpProblem, AnnotatedStatement}
 import lisa.tptp.KernelParser.{annotatedStatementToKernel, problemToKernel, emptyctx, strictMapAtom, strictMapTerm, strictMapVariable}
 
 /**
- * Tests for the kernel/TPTP entry points ([[Bridge]]).
+ * Tests for the kernel/TPTP entry points ([[Clausal]]).
  *
  * NOTE on the TPTP suite: the TPTP `SYN` problem library is not bundled in this repo (no `TPTP`
  * environment variable, and project scope forbids adding a shared test-resources directory), so the
  * clausal problems below are built from inline TPTP `cnf`/`fof` clauses parsed by Lisa's real TPTP
  * parser. The final test additionally loads a genuine `cnf` problem from a `.p` file (written to a
  * temp file), exercising `lisa.tptp.problemToKernel`. To run against the real SYN collection, set the
- * `TPTP` env var and call `Bridge.solveTPTPProblem(problemToKernel(File(...)))`.
+ * `TPTP` env var and call `Clausal.solveTPTPProblem(problemToKernel(File(...)))`.
  */
 class BridgeTest extends AnyFunSuite:
 
@@ -32,17 +33,17 @@ class BridgeTest extends AnyFunSuite:
   test("kernel sequents: {P} and {¬P} are refuted") {
     val p = pred("P", 0)
     // {P} = ⊢ P ; {¬P} = P ⊢
-    assert(Bridge.solve(List(sequent(Set(), Set(p)), sequent(Set(p), Set())), maxGiven = 10000).refuted)
+    assert(Clausal.refute(List(sequent(Set(), Set(p)), sequent(Set(p), Set())), SearchOptions(maxGiven = 10000)).refuted)
   }
 
   test("kernel sequents: the empty sequent is the empty clause (refuted)") {
-    assert(Bridge.solve(List(sequent(Set(), Set())), maxGiven = 10000).refuted)
+    assert(Clausal.refute(List(sequent(Set(), Set())), SearchOptions(maxGiven = 10000)).refuted)
   }
 
   test("kernel sequents: a satisfiable set is not refuted") {
     val pa = ap(pred("P", 1), cst("a"))
     val qb = ap(pred("Q", 1), cst("b"))
-    assert(!Bridge.solve(List(sequent(Set(), Set(pa)), sequent(Set(), Set(qb))), maxGiven = 10000).refuted)
+    assert(!Clausal.refute(List(sequent(Set(), Set(pa)), sequent(Set(), Set(qb))), SearchOptions(maxGiven = 10000)).refuted)
   }
 
   test("kernel sequents: first-order resolution refutes") {
@@ -51,14 +52,14 @@ class BridgeTest extends AnyFunSuite:
     val pa = ap(pred("P", 1), cst("a")); val qa = ap(pred("Q", 1), cst("a"))
     // {¬P(x), Q(x)} = P(x) ⊢ Q(x) ; {P(a)} = ⊢ P(a) ; {¬Q(a)} = Q(a) ⊢
     val cs = List(sequent(Set(px), Set(qx)), sequent(Set(), Set(pa)), sequent(Set(qa), Set()))
-    assert(Bridge.solve(cs, maxGiven = 10000).refuted)
+    assert(Clausal.refute(cs, SearchOptions(maxGiven = 10000)).refuted)
   }
 
   test("kernel sequents: propositional refutation needing several resolutions") {
     val p = pred("P", 0); val q = pred("Q", 0)
     // {P∨Q} = ⊢ P,Q ; {¬P} = P ⊢ ; {¬Q} = Q ⊢
     val cs = List(sequent(Set(), Set(p, q)), sequent(Set(p), Set()), sequent(Set(q), Set()))
-    assert(Bridge.solve(cs, maxGiven = 10000).refuted)
+    assert(Clausal.refute(cs, SearchOptions(maxGiven = 10000)).refuted)
   }
 
   // --- equality auto-disable (equality inferences run only if the input contains `=`) ---------
@@ -71,7 +72,7 @@ class BridgeTest extends AnyFunSuite:
     // f(a) = a ; f(f(a)) ≠ a: refutable ONLY by equality reasoning; if auto-detect wrongly disabled equality
     // (leaving pure resolution + factoring), this would NOT refute, so it guards the detection.
     val cs = List(sequent(Set(), Set(eqp(ap(f, a), a))), sequent(Set(eqp(ap(f, ap(f, a)), a)), Set()))
-    assert(Bridge.solve(cs, maxGiven = 10000).refuted, "equality problem must stay solvable (equality kept on)")
+    assert(Clausal.refute(cs, SearchOptions(maxGiven = 10000)).refuted, "equality problem must stay solvable (equality kept on)")
   }
 
   test("auto-disable on an equality-free problem: equality=true collapses to equality=false (same verdict)") {
@@ -80,8 +81,8 @@ class BridgeTest extends AnyFunSuite:
     val pa = ap(pred("P", 1), cst("a")); val qa = ap(pred("Q", 1), cst("a"))
     val cs = List(sequent(Set(px), Set(qx)), sequent(Set(), Set(pa)), sequent(Set(qa), Set())) // no `=` anywhere
     // with no equality symbol present, the master switch is irrelevant: on/off must give the same (refuted) verdict.
-    assert(Bridge.solve(cs, maxGiven = 10000, opts = SearchOptions(equality = true)).refuted)
-    assert(Bridge.solve(cs, maxGiven = 10000, opts = SearchOptions(equality = false)).refuted)
+    assert(Clausal.refute(cs, SearchOptions(equality = true, maxGiven = 10000)).refuted)
+    assert(Clausal.refute(cs, SearchOptions(equality = false, maxGiven = 10000)).refuted)
   }
 
   // --- entry point 2: lisa.tptp.Problem -----------------------------------------------------
@@ -89,10 +90,10 @@ class BridgeTest extends AnyFunSuite:
   private def parse(clause: String): AnnotatedStatement =
     annotatedStatementToKernel(clause)(using emptyctx, (strictMapAtom, strictMapTerm, strictMapVariable))
 
-  private def problem(name: String, status: String, clauses: String*): Problem =
-    Problem("inline", "SYN", name, status, Seq("CNF"), clauses.map(parse).toIndexedSeq)
+  private def problem(name: String, status: String, clauses: String*): TptpProblem =
+    TptpProblem("inline", "SYN", name, status, Seq("CNF"), clauses.map(parse).toIndexedSeq)
 
-  private val unsatisfiable: List[Problem] = List(
+  private val unsatisfiable: List[TptpProblem] = List(
     problem("UNS_prop_1", "Unsatisfiable", "fof(a1, axiom, p).", "fof(a2, axiom, ~p)."),
     problem("UNS_prop_2", "Unsatisfiable", "fof(a1, axiom, (p | q)).", "fof(a2, axiom, ~p).", "fof(a3, axiom, ~q)."),
     problem(
@@ -118,7 +119,7 @@ class BridgeTest extends AnyFunSuite:
     problem("UNS_two_const", "Unsatisfiable", "fof(a1, axiom, ![X]: q(X)).", "fof(a2, axiom, ~q(c)).")
   )
 
-  private val satisfiable: List[Problem] = List(
+  private val satisfiable: List[TptpProblem] = List(
     problem("SAT_prop_1", "Satisfiable", "fof(a1, axiom, p).", "fof(a2, axiom, q)."),
     problem("SAT_prop_2", "Satisfiable", "fof(a1, axiom, (p | q)).", "fof(a2, axiom, ~p)."),
     problem("SAT_fo_1", "Satisfiable", "fof(a1, axiom, p(a)).", "fof(a2, axiom, q(b))."),
@@ -126,11 +127,11 @@ class BridgeTest extends AnyFunSuite:
   )
 
   test("tptp problems: unsatisfiable clausal problems are refuted") {
-    unsatisfiable.foreach(pr => assert(Bridge.solveTPTPProblem(pr, maxGiven = 20000).refuted, s"expected a refutation for ${pr.name}"))
+    unsatisfiable.foreach(pr => assert(Clausal.solve(UncertifiedClausifier.clausalForm(Prover.fromTptp(pr)), SearchOptions(maxGiven = 20000)).refuted, s"expected a refutation for ${pr.name}"))
   }
 
   test("tptp problems: satisfiable clausal problems are not refuted") {
-    satisfiable.foreach(pr => assert(!Bridge.solveTPTPProblem(pr, maxGiven = 20000).refuted, s"expected no refutation for ${pr.name}"))
+    satisfiable.foreach(pr => assert(!Clausal.solve(UncertifiedClausifier.clausalForm(Prover.fromTptp(pr)), SearchOptions(maxGiven = 20000)).refuted, s"expected no refutation for ${pr.name}"))
   }
 
   test("tptp problem loaded from a real cnf .p file is refuted") {
@@ -146,7 +147,7 @@ class BridgeTest extends AnyFunSuite:
     val f: java.io.File = java.io.File.createTempFile("superposition_tptp_", ".p")
     try
       java.nio.file.Files.write(f.toPath, content.getBytes("UTF-8"))
-      val pr: Problem = problemToKernel(f)(using (strictMapAtom, strictMapTerm, strictMapVariable))
-      assert(Bridge.solveTPTPProblem(pr, maxGiven = 10000).refuted)
+      val pr: TptpProblem = problemToKernel(f)(using (strictMapAtom, strictMapTerm, strictMapVariable))
+      assert(Clausal.solve(UncertifiedClausifier.clausalForm(Prover.fromTptp(pr)), SearchOptions(maxGiven = 10000)).refuted)
     finally f.delete()
   }

@@ -65,7 +65,7 @@ object Example {
     else println(a.role + " " + a.name + ": " + prettyStatement)
   }
 
-  def printProblem(p: Problem): Unit = {
+  def printProblem(p: TptpProblem): Unit = {
     println("Problem: " + p.name + " (" + p.domain + ") ---")
     println("Status: " + p.status)
     println("SPC: " + p.spc.mkString(", "))

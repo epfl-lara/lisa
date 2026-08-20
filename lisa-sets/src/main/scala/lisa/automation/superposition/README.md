@@ -1,9 +1,11 @@
 # Superposition
 
-This package semi-decides whether a set of clauses is contradictory, and when it doees, produces a
-kernel proof of the empty sequent from the clause sequents. It is the back end of the
+This package semi-decides whether a set of clauses is contradictory, and when it does, produces a
+kernel proof of the empty sequent from the clause sequents. That engine is the back end of the
 [clausification package](../clausification/), which converts a first-order problem into clauses and expects
-exactly such a proof in return.
+exactly such a proof in return. On the other side of it sits the front end, which takes an unclausified
+problem and drives the whole path: preprocessing, clausification, search, and the justification the caller
+asked for. Section 2.1 is the way in.
 
 The text below first states the theory, then the implementation.
 
@@ -14,7 +16,7 @@ The text below first states the theory, then the implementation.
 The caller has a goal and wants a kernel proof of it. As explained in the clausification package, the goal is
 not proved directly. Its negation is added to the hypotheses, the result is converted to clauses, and the
 prover attempts to derive a contradiction from them. Deriving a contradiction means deriving the empty clause,
-which represents falsity. In this package, the problem is assumed to already be in clausal form.
+which represents falsity. The search itself assumes the problem is already in clausal form.
 
 The prover does this by *saturation*. It repeatedly applies inference rules to the clauses it has, adding the
 conclusions to the set, until one of three things happens.
@@ -184,20 +186,30 @@ package requires.
 
 ### 2.1 Entry points
 
-| entry point | file | result |
+The three entry points in [Prover.scala](Prover.scala) all take the same thing, an unclausified `Problem`
+([../Problem.scala](../Problem.scala)) with every other parameter in one `SearchOptions`, and differ only in the
+justification asked for. That difference is what picks the clausifier.
+
+| entry point | result | clausifier |
 |---|---|---|
-| `Superpose` | [SuperpositionTactic.scala](SuperpositionTactic.scala) | a Lisa proof tactic discharging a goal sequent |
-| `Clausal.prove(problem)` | [Clausal.scala](Clausal.scala) | a kernel `SCProof` of the goal, clausification included |
-| `Clausal.proveOutcome(problem, …)` | [Clausal.scala](Clausal.scala) | the same, budgeted, returning the outcome instead of throwing |
-| `Clausal.solveOutcome(problem, …)` | [Clausal.scala](Clausal.scala) | the outcome alone, with no proof built |
-| `Bridge.solve(clauses, …)` | [Bridge.scala](Bridge.scala) | the outcome for a problem that is already clausal |
-| `CascProver` | [CascProver.scala](CascProver.scala) | a command line prover over one TPTP file |
+| `Prover.solve(problem, opts)` | the verdict alone, no proof built | uncertified |
+| `Prover.proveKernel(problem, opts)` | a kernel `SCProof` of the goal | certified |
+| `Prover.proveTstp(problem, opts)` | a TSTP derivation, which needs no kernel justification | uncertified |
 
-`Superpose` is the tactic a Lisa proof uses. It accepts a sequent of any shape, with either side possibly
-empty, and cited facts are folded in as hypotheses. Since the clausifier takes a single formula, the goal
-`Γ ⊢ Δ` is passed as `⋀Γ ⇒ ⋁Δ`.
+Both proving entry points return a proof of the problem's goal — its conjecture, or `⊢` when it has none —
+whose imports are the hypotheses, pointwise and in order, followed by the clausifier's library imports.
 
-The three outcomes of Section 1.1 are the cases of `Bridge.Outcome`: `Success`, which carries everything needed
+Preprocessing runs before clausification, as a phase with a continuation. SInE axiom selection only ever
+removes hypotheses, so nothing justifies it: the kernel version widens the finished proof's import list back to
+the caller's. Orthologic normalisation rewrites each formula to an OL-equal one, so its kernel version is one
+`Restate` per hypothesis plus one for the goal.
+
+`Superpose` ([Superpose.scala](Superpose.scala)) is the tactic a Lisa proof uses: it accepts a sequent of any
+shape, with either side possibly empty, and cited facts are folded in as hypotheses. Since the clausifier takes
+a single formula, the goal `Γ ⊢ Δ` is passed as `⋀Γ ⇒ ⋁Δ`. `CascProver` ([CascProver.scala](CascProver.scala))
+is the command line over one TPTP file.
+
+The three outcomes of Section 1.1 are the cases of `Clausal.Outcome`: `Success`, which carries everything needed
 to reconstruct the proof, `Saturated`, and `Timeout`. A budget is enforced cooperatively, checked once per
 iteration of the loop, so a run that exceeds it stops in a defined state rather than being abandoned.
 
@@ -373,10 +385,9 @@ only make a term larger, a subtree whose smallest entry is heavier than the quer
 | file | contents |
 |---|---|
 | [Reconstruction.scala](Reconstruction.scala) | the derivation graph turned into a kernel proof |
-| [Bridge.scala](Bridge.scala) | conversion between kernel sequents and the internal representation |
-| [Clausal.scala](Clausal.scala) | the adapter to the clausification package, including the abstraction of non-first-order subterms |
+| [Clausal.scala](Clausal.scala) | conversion between kernel sequents and the internal representation, and the abstraction of non-first-order subterms |
 
-`Bridge` converts a list of clause sequents into internal clauses, interning each symbol in the signature and
+`Clausal` converts a list of clause sequents into internal clauses, interning each symbol in the signature and
 numbering each clause's variables from zero, and records what is needed to invert the conversion. It also
 disables the equality rules when the input contains no equality at all, where they could never apply.
 
@@ -386,7 +397,7 @@ Every clause is stated with variables in a canonical naming. The substitution us
 search; it is recomputed by repeating the unification of the recorded literals, which is cheaper than keeping
 every substitution for a search that mostly produces clauses no proof will mention.
 
-`Clausal` replaces each non-first-order subterm by a fresh function
+It also replaces each non-first-order subterm by a fresh function
 symbol applied to its free variables, using the same symbol for identical subterms so that the replacement is a
 genuine function, and records the value of each symbol. The search runs on the abstracted problem.
 
@@ -400,14 +411,14 @@ has a recorded value.
 | file | contents |
 |---|---|
 | [SearchOptions.scala](SearchOptions.scala) | every parameter of the search, in one record passed unchanged through each layer that can configure one: clause selection, the ordering and selection function, and which simplifications run |
-| [Strategies.scala](Strategies.scala) | a named point in that space together with two preprocessing choices, and the eight of them a competition run executes in parallel, taking the first refutation |
+| [Strategy.scala](Strategy.scala) | a named point in that space, and the eight of them a competition run executes in parallel, taking the first refutation |
 | [Sine.scala](Sine.scala) | axiom selection: keep only the hypotheses reachable from the conjecture through a relation on symbols, applied before clausification on problems with very many of them. Sound but incomplete, so `shouldFilter` decides per problem whether it is worth applying |
-| [CascProver.scala](CascProver.scala) | the command line entry point: read one problem, clausify without a proof, search under a wall clock budget, write a status line and, on a refutation, the derivation |
+| [CascProver.scala](CascProver.scala) | the command line: read one problem, search under a wall clock budget, write a status line and, on a refutation, the derivation |
+| [Tstp.scala](Tstp.scala) | that derivation, printed from the internal proof DAG rather than from a kernel proof |
 
 These are the configuration surface for any caller, not only for competition. `Superpose` takes the defaults
-and wires up none of the rest; axiom selection and orthologic normalisation would each fit the certified path
-unchanged, the latter as one `Restate` per hypothesis. Only the eight named strategies and the command line
-prover are specific to competition use.
+and wires up none of the rest, including the two preprocessing phases, which are off by default. Only the eight
+named strategies and the command line prover are specific to competition use.
 
 ### 2.11 Benchmarks
 
@@ -416,9 +427,8 @@ prover are specific to competition use.
 
 | file | subject |
 |---|---|
-| [bench/Evaluation.scala](bench/Evaluation.scala) | problems that are already clausal and contain no equality |
-| [bench/FofHarness.scala](bench/FofHarness.scala) | the shared harness for non-clausal problems |
-| [bench/FofEvaluation.scala](bench/FofEvaluation.scala), [bench/EqFofEvaluation.scala](bench/EqFofEvaluation.scala) | that harness without and with equality |
+| [bench/Harness.scala](bench/Harness.scala) | clausify, refute and kernel-check a dataset; settings are `key=value` arguments |
+| [bench/Evaluation.scala](bench/Evaluation.scala), [bench/FofEvaluation.scala](bench/FofEvaluation.scala), [bench/EqFofEvaluation.scala](bench/EqFofEvaluation.scala) | that harness over the clausal, the equality-free FOF and the equality-bearing FOF datasets |
 | [bench/BaselineBench.scala](bench/BaselineBench.scala) | throughput with no proof built, for comparison with other provers |
 | [bench/StrategyEvaluation.scala](bench/StrategyEvaluation.scala) | the strategies of Section 2.10 against each other |
 | [bench/BenchUtil.scala](bench/BenchUtil.scala) | the shared parts, including the problem lists and the seeded sampling |
@@ -454,17 +464,17 @@ the dependencies between the files: with the one exception noted after the table
 | 16 | [Simplifier.scala](Simplifier.scala) | simplification in both directions, over the active set |
 | 17 | [Discount.scala](Discount.scala) | the loop, which is short once everything it calls has been read |
 | 18 | [Reconstruction.scala](Reconstruction.scala) | the derivation graph turned into a kernel proof |
-| 19 | [Bridge.scala](Bridge.scala) | the kernel interface, which is where a caller enters |
-| 20 | [Clausal.scala](Clausal.scala) | the adapter to clausification, including the abstraction of non-first-order subterms |
-| 21 | [SuperpositionTactic.scala](SuperpositionTactic.scala) | the tactic, read last because it is the composition of everything above |
+| 19 | [Clausal.scala](Clausal.scala) | the kernel interface: clause sequents in and out, and the abstraction of non-first-order subterms |
+| 20 | [Prover.scala](Prover.scala) | the front end, which composes preprocessing, clausification and the search into the three entry points |
+| 21 | [Superpose.scala](Superpose.scala) | the tactic, read last because it is the composition of everything above |
 
 `Core.scala` is the exception. `TermBank` holds the selection function of position 5 and the ordering of
 position 3, and `Clause` calls into position 7 to compute its own eligible equation sides. These are the only
 forward references in the file and can be passed over on a first reading.
 
-[Strategies.scala](Strategies.scala), [Sine.scala](Sine.scala) and
-[CascProver.scala](CascProver.scala) sit above the whole package and can be read at any point after position
-19. See Section 2.10.
+[Strategy.scala](Strategy.scala), [Sine.scala](Sine.scala), [CascProver.scala](CascProver.scala) and
+[Tstp.scala](Tstp.scala) sit above the whole package and can be read at any point after position 19. See
+Section 2.10.
 
 ### 2.13 Tests
 
@@ -479,7 +489,7 @@ Tests are in [`../../../../../test/scala/lisa/automation/superposition/`](../../
 | `FingerprintTest`, `FeatureVectorTest`, `DiscriminationTreeTest` | each index against an exact enumeration of the candidates it should return |
 | `DiscountTest`, `EqualitySaturationTest` | the loop, with the verdict pinned on one clause set per shape of inference and of redundancy |
 | `ReconstructionTest`, `EqualityReconstructionTest` | reconstructed proofs, checked by the kernel |
-| `BridgeTest`, `ClausalTest`, `SuperposeTacticTest` | the entry points of Section 2.1 |
+| `ProverTest`, `BridgeTest`, `ClausalTest`, `SuperposeTacticTest` | the entry points of Section 2.1, including the proof contract they promise |
 | `SineTest`, `SinePolicyTest` | axiom selection and the decision to apply it |
 | `CascProverTest`, `SynBaselineTest` | the command line prover, and a sample of small problems that must continue to be refuted |
 

@@ -7,10 +7,11 @@ import lisa.utils.prooflib.Library
 import lisa.utils.prooflib.ProofTacticLib.*
 
 import lisa.automation.clausification.{Clausification, CertifiedClausifier}
+import lisa.automation.Problem
 import lisa.maths.Quantifiers
 
-/** Discharges a first-order goal by clausifying it with [[CertifiedClausifier.certifyClausal]], refuting the
-  * clauses with [[Clausal.proveOutcome]], and reconstructing a kernel proof. It supplies
+/** Discharges a first-order goal through [[Prover.proveKernel]], which clausifies it with
+  * [[CertifiedClausifier.certifyClausal]], refutes the clauses and reconstructs a kernel proof. It supplies
   * [[lisa.maths.Quantifiers.existsEpsilonIff]], the clausifier's one library import, so that the sub-proof is
   * discharged against the real theorem.
   *
@@ -38,18 +39,15 @@ object Superpose extends ProofTactic with ProofSequentTactic with ProofFactSeque
     * `[⊢ hyp₁, …, ⊢ hypₙ] ++ Clausification.libImports` (the schematic library statement). */
   private def runProver(hypForms: Seq[Expression], goal: Sequent): Either[String, SCProof] =
     val conjectureFormula: Expression = sequentToFormula(goal) // `⋀Γ ⟹ ⋁Δ`, or just `⋁Δ` when `Γ` is empty
-    val problem = Clausification.Problem(
+    val problem = Problem(
       hypotheses = hypForms.map(h => Sequent(Set.empty, Set(h))),
       conjecture = Some(Sequent(Set.empty, Set(conjectureFormula)))
     )
-    val prover: Clausification.Problem => SCProof = p =>
-      Clausal.proveOutcome(p, maxGiven = maxGiven, maxMillis = timeoutMs) match
-        case Right(pr)     => pr
-        case Left(outcome) => throw new NotRefuted(outcome.toString)
-    try Right(CertifiedClausifier.certifyClausal(problem, prover))
-    catch
-      case nr: NotRefuted => Left(s"Superpose could not refute the goal (${nr.reason}).")
-      case e: Throwable   => Left(s"Superpose failed: ${e.getClass.getSimpleName}: ${e.getMessage}")
+    try
+      Prover.proveKernel(problem, SearchOptions(maxGiven = maxGiven, maxMillis = timeoutMs)) match
+        case Right(pr)     => Right(pr)
+        case Left(outcome) => Left(s"Superpose could not refute the goal ($outcome).")
+    catch case e: Throwable => Left(s"Superpose failed: ${e.getClass.getSimpleName}: ${e.getMessage}")
 
   /** `Superpose(Γ ⊢ Δ)`: prove a valid first-order sequent with no cited hypothesis. */
   def apply(using lib: Library, proof: lib.Proof)(bot: F.Sequent): proof.ProofTacticJudgement =

@@ -205,7 +205,7 @@ final class KBO(val bank: TermBank):
   /** Whether the signature's current weights and precedence make this an admissible KBO, and so a reduction
     * ordering. `None` if they do, otherwise the first violation: the variable weight must be positive, every
     * constant must weigh at least that, and a weight-zero unary symbol must be precedence-maximal.
-    * Asserted once per problem by [[Bridge.solve]].*/
+    * Asserted once per problem by [[Clausal.refute]].*/
   private[automation] def checkAdmissibility(): Option[String] =
     val varWeight: Int = Core.VariableWeight
     if varWeight <= 0 then Some(s"variable weight must be positive, got $varWeight")

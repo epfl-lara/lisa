@@ -1,6 +1,5 @@
 package lisa.automation.superposition
 
-import lisa.automation.clausification.Clausification
 import Core.WeightScheme
 import lisa.automation.superposition.ordering.*
 
@@ -11,17 +10,7 @@ import lisa.automation.superposition.ordering.*
   * A strategy is refutation-complete when its age ratio is at least one and its selection is
   * [[LiteralSelection.Complete]]. The others trade completeness for speed and are safe only because a complete
   * strategy runs alongside them. */
-case class Strategy(
-    name: String,
-    opts: SearchOptions,                 // every search knob; see [[SearchOptions]]
-    sine: Option[SineConfig] = None,     // SInE axiom selection (preprocessing, before clausification; None = off)
-    orthologic: Boolean = false):        // replace each axiom/¬conjecture by its orthologic normal form
-                                         // (`reducedNNFForm`, one step each) after negating the conjecture, before naming/clausification
-
-  /** Run this strategy on an already-clausal `problem` to a raw [[Bridge.Outcome]] (no kernel proof). `goal` =
-   *  indices of the negated-conjecture clauses (for goal-directed selection). */
-  def solveOutcome(problem: Clausification.Problem, maxMillis: Long = Long.MaxValue, maxGiven: Int = Int.MaxValue, goal: Set[Int] = Set.empty): Bridge.Outcome =
-    Clausal.solveOutcome(problem, maxGiven = maxGiven, maxMillis = maxMillis, opts = opts, goal = goal)
+case class Strategy(name: String, opts: SearchOptions) // every knob, search and preprocessing; see [[SearchOptions]]
 
 object Strategy:
   import LiteralSelection.{Complete, BestLiteral, FirstNegative}
@@ -49,46 +38,46 @@ object Strategy:
   /** #2 weight-greedy: weight-heavy selection (awr 1:16) + incomplete best-literal: speed over fairness.
    *  Δ balanced: age:weight, literal selection. */
   val weightGreedy = Strategy("weight-greedy",
-    base.copy(weightRatio = 16, selection = BestLiteral),
-    sine = Some(SineConfig(tolerance = 1.5, depth = 2)))
+    base.copy(weightRatio = 16, selection = BestLiteral,
+      sine = Some(SineConfig(tolerance = 1.5, depth = 2))))
 
   /** #3 age-fair: age-heavy (awr 8:1) + no goal bias (nwc 1): the fairest / most complete config.
    *  Δ balanced: age:weight, nwc. Orthologic normalisation on. */
   val ageFair = Strategy("age-fair",
-    base.copy(ageRatio = 8, nonGoalWeightCoefficient = 1),
-    sine = Some(SineConfig(tolerance = 5.0, depth = 0)), orthologic = true)
+    base.copy(ageRatio = 8, nonGoalWeightCoefficient = 1,
+      sine = Some(SineConfig(tolerance = 5.0, depth = 0)), orthologic = true))
 
   /** #4 occurrence: occurrence precedence (Vampire's single most common) + moderately weighty (awr 1:4).
    *  Δ balanced: precedence, age:weight. Orthologic normalisation on. */
   val occurrence = Strategy("occurrence",
-    base.copy(weightRatio = 4, precedenceScheme = PrecedenceScheme.Occurrence),
-    sine = Some(SineConfig(tolerance = 3.0, depth = 0)), orthologic = true)
+    base.copy(weightRatio = 4, precedenceScheme = PrecedenceScheme.Occurrence,
+      sine = Some(SineConfig(tolerance = 3.0, depth = 0)), orthologic = true))
 
   /** #5 equational: arity precedence + arity KBO weights: a distinct term ordering, for rewriting problems.
    *  Δ balanced: precedence, weight scheme. */
   val equational = Strategy("equational",
-    base.copy(precedenceScheme = PrecedenceScheme.Arity, weightScheme = WeightScheme.Arity),
-    sine = Some(SineConfig(tolerance = 3.0, depth = 3)))
+    base.copy(precedenceScheme = PrecedenceScheme.Arity, weightScheme = WeightScheme.Arity,
+      sine = Some(SineConfig(tolerance = 3.0, depth = 3))))
 
   /** #6 unary-redundancy: unary-first precedence + full simplification (subsumption-resolution + condensation).
    *  Δ balanced: precedence, simplification. Orthologic normalisation on. */
   val unaryRedundancy = Strategy("unary-redundancy",
     base.copy(precedenceScheme = PrecedenceScheme.UnaryFirst,
-      forwardSubsumptionResolution = true, backwardSubsumptionResolution = true, condensation = true),
-    sine = Some(SineConfig(tolerance = 2.0, depth = 0)), orthologic = true)
+      forwardSubsumptionResolution = true, backwardSubsumptionResolution = true, condensation = true,
+      sine = Some(SineConfig(tolerance = 2.0, depth = 0)), orthologic = true))
 
   /** #7 subsumption-light: light goal bias (nwc 3) + full simplification.
    *  Δ balanced: nwc, simplification. */
   val subsumptionLight = Strategy("subsumption-light",
     base.copy(nonGoalWeightCoefficient = 3,
-      forwardSubsumptionResolution = true, backwardSubsumptionResolution = true, condensation = true),
-    sine = Some(SineConfig(tolerance = 2.0, depth = 3)))
+      forwardSubsumptionResolution = true, backwardSubsumptionResolution = true, condensation = true,
+      sine = Some(SineConfig(tolerance = 2.0, depth = 3))))
 
   /** #8 first-negative: first-negative literal selection + moderate goal bias (nwc 5).
    *  Δ balanced: literal selection, nwc. Orthologic normalisation on. */
   val firstNegative = Strategy("first-negative",
-    base.copy(selection = FirstNegative, nonGoalWeightCoefficient = 5),
-    sine = Some(SineConfig(tolerance = 1.5, depth = 1)), orthologic = true)
+    base.copy(selection = FirstNegative, nonGoalWeightCoefficient = 5,
+      sine = Some(SineConfig(tolerance = 1.5, depth = 1)), orthologic = true))
 
   /** The default portfolio: eight strategies, one per core, run independently (first refutation wins). Each of
    *  #2 to #8 each differ from #1 `balanced` in exactly two search knobs (SInE excluded) for even coverage of the

@@ -6,7 +6,7 @@ import Core.*
 object Discount:
 
   /** The three outcomes of a saturation: `□` was derived, the passive set emptied without it (so the set is
-   *  satisfiable, a decision), or a budget ran out (so nothing is decided). [[Bridge.Outcome]] mirrors these. */
+   *  satisfiable, a decision), or a budget ran out (so nothing is decided). [[Clausal.Outcome]] mirrors these. */
   enum Result:
     case Refutation(empty: Clause)
     case Saturated
@@ -60,9 +60,9 @@ final class Discount(bank: TermBank, trail: Trail, initial: Seq[Clause], opts: S
 
   /** Saturate the clause set this loop was built on. Returns
     * [[Result.Refutation]] with the empty clause if `□` is derived, [[Result.Saturated]] if the passive set
-    * empties without one, or [[Result.Unknown]] if the `maxGiven` given-clause budget or the `maxMillis`
-    * wall-clock budget is reached first. The time budget is checked once per given clause (cheap). */
-  def saturate(maxGiven: Int = Int.MaxValue, maxMillis: Long = Long.MaxValue): Result =
+    * empties without one, or [[Result.Unknown]] if [[SearchOptions.maxGiven]] or [[SearchOptions.maxMillis]]
+    * is reached first. The time budget is checked once per given clause (cheap). */
+  def saturate(): Result =
     val it = initial.iterator
     while it.hasNext do
       if addPassive(it.next()) then return Result.Refutation(refutation)

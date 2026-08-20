@@ -102,7 +102,7 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
     go(e)
 
   /** Hypothesis formulas + the negated conjecture, exactly as the clausifier pipeline sees them. */
-  private def inputFormulas(parsed: lisa.tptp.Problem): Seq[K.Expression] =
+  private def inputFormulas(parsed: lisa.tptp.TptpProblem): Seq[K.Expression] =
     val hyps = parsed.formulas.collect {
       case f: AnnotatedFormula if axiomLikeRoles.contains(f.role) => f.formula
     }
@@ -124,7 +124,7 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
       val f = new File(root, rel)
       if f.exists then
         // Catch Throwable, not just NonFatal: the TPTP parser can StackOverflow on very large problems.
-        val parsedOpt: Option[lisa.tptp.Problem] =
+        val parsedOpt: Option[lisa.tptp.TptpProblem] =
           try Some(problemToKernel(f)(using (strictMapAtom, strictMapTerm, strictMapVariable)))
           catch case _: Throwable => None
         parsedOpt.foreach { parsed =>

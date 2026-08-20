@@ -4,7 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import lisa.utils.K
 import lisa.utils.K.{_, given}
-import Clausification.Problem
+import lisa.automation.Problem
 
 /**
  * Adversarial inputs to the certified clausifier: the cases its `require`s exist for.

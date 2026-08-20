@@ -17,7 +17,7 @@ import ProofParser._
 object ProofPrinter {
 
   def problemToFile(fileDirectory: String, fileName: String, name: String, axioms: Seq[K.Sequent], conjecture: K.Sequent, source: String): File = {
-    // case class Problem(file: String, domain: String, name: String, status: String, spc: Seq[String], formulas: Seq[AnnotatedStatement])
+    // case class TptpProblem(file: String, domain: String, name: String, status: String, spc: Seq[String], formulas: Seq[AnnotatedStatement])
     val file = new File(fileDirectory + fileName + ".p")
     // val fileName = originFile.split("/").last
     val header =

@@ -2,11 +2,12 @@ package lisa.automation.superposition
 
 import org.scalatest.funsuite.AnyFunSuite
 
-import lisa.tptp.Problem
+import lisa.tptp.TptpProblem
+import lisa.automation.clausification.UncertifiedClausifier
 import lisa.tptp.KernelParser.{problemToKernel, strictMapAtom, strictMapTerm, strictMapVariable}
 
 /**
- * Baseline test: the prover ([[Bridge.solve]]) on a sample of easy TPTP `SYN` problems.
+ * Baseline test: the prover ([[Clausal.solve]]) on a sample of easy TPTP `SYN` problems.
  *
  * These are small, self-contained, no-equality, unsatisfiable clausal problems (SPC
  * `CNF_UNS_EPR_NEQ_HRN`), exactly the fragment ordered resolution handles. They are located
@@ -30,7 +31,7 @@ class SynBaselineTest extends AnyFunSuite:
     test(s"SYN baseline: $name is refuted") {
       val f = new java.io.File(TptpCorpus.subdirOrCancel("Problems/SYN", "the SYN baseline"), name)
       assume(f.exists, s"$f not found")
-      val problem: Problem = problemToKernel(f)(using (strictMapAtom, strictMapTerm, strictMapVariable))
-      assert(Bridge.solveTPTPProblem(problem, maxGiven = 50000).refuted)
+      val problem: TptpProblem = problemToKernel(f)(using (strictMapAtom, strictMapTerm, strictMapVariable))
+      assert(Clausal.solve(UncertifiedClausifier.clausalForm(Prover.fromTptp(problem)), SearchOptions(maxGiven = 50000)).refuted)
     }
   }

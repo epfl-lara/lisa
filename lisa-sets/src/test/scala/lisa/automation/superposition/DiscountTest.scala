@@ -11,7 +11,7 @@ class DiscountTest extends AnyFunSuite:
   class Fix extends TermFixture:
 
     /** A loop over `cs`. One `Discount` saturates one clause set, so this takes it: there is no reset. */
-    def discount(cs: Seq[Clause]): Discount = new Discount(bank, trail, cs)
+    def discount(cs: Seq[Clause], opts: SearchOptions = SearchOptions()): Discount = new Discount(bank, trail, cs, opts)
 
   /** The saturation verdict as a string, so the tables of expected outcomes below read directly. */
   private def cat(r: Discount.Result): String = r match
@@ -64,7 +64,7 @@ class DiscountTest extends AnyFunSuite:
       clause(neg(app(p, x)), pos(app(p, app(f, x)))), // ¬P(x) ∨ P(f(x)) -- generates P(f^n(a)) forever
       clause(pos(app(p, a))) //                          P(a)
     )
-    assert(discount(cs).saturate(maxGiven = 5) == Discount.Result.Unknown)
+    assert(discount(cs, SearchOptions(maxGiven = 5)).saturate() == Discount.Result.Unknown)
   }
 
   test("complete selector (Vampire's default 10) drives a first-order refutation") {
@@ -311,7 +311,7 @@ class DiscountTest extends AnyFunSuite:
     def verdict(build: Fix => Seq[Clause]): String =
       val fx = new Fix
       val cs = build(fx)
-      cat(new Discount(fx.bank, fx.trail, cs, SearchOptions(equality = false)).saturate(maxGiven = 5000))
+      cat(new Discount(fx.bank, fx.trail, cs, SearchOptions(equality = false, maxGiven = 5000)).saturate())
 
     val cases: Seq[(String, String, Fix => Seq[Clause])] = Seq(
       ("propositional P, ¬P", "refuted", { fx => import fx.*; val p = prop("P"); Seq(clause(pos(p)), clause(neg(p))) }),
@@ -351,7 +351,7 @@ class DiscountTest extends AnyFunSuite:
     def verdict(build: Fix => Seq[Clause]): String =
       val fx = new Fix
       val cs = build(fx)
-      cat(new Discount(fx.bank, fx.trail, cs, SearchOptions(equality = false)).saturate(maxGiven = 5000))
+      cat(new Discount(fx.bank, fx.trail, cs, SearchOptions(equality = false, maxGiven = 5000)).saturate())
 
     val cases: Seq[(String, String, Fix => Seq[Clause])] = Seq(
       ("unit subsumes a longer clause, then refute", "refuted", { fx => import fx.*
@@ -388,7 +388,7 @@ class DiscountTest extends AnyFunSuite:
       val fx = new Fix
       val cs = build(fx)
       cat(new Discount(fx.bank, fx.trail, cs, SearchOptions(equality = false,
-        forwardUnitDeletionIndexThreshold = threshold)).saturate(maxGiven = 5000))
+        forwardUnitDeletionIndexThreshold = threshold, maxGiven = 5000)).saturate())
 
     val builders: Seq[(String, Fix => Seq[Clause])] = Seq(
       "unit deletion shrinks then closes" -> { fx => import fx.*
@@ -417,7 +417,7 @@ class DiscountTest extends AnyFunSuite:
       val fx = new Fix
       val cs = build(fx)
       cat(new Discount(fx.bank, fx.trail, cs, SearchOptions(equality = false,
-        backwardSubsumptionResolution = true, forwardSubsumptionResolution = true)).saturate(maxGiven = 5000))
+        backwardSubsumptionResolution = true, forwardSubsumptionResolution = true, maxGiven = 5000)).saturate())
 
     val cases: Seq[(String, String, Fix => Seq[Clause])] = Seq(
       // backward: the simplifier arrives after its victim, so `gc` resolves an already-active clause

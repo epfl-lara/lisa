@@ -4,7 +4,8 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import lisa.utils.K
 import lisa.kernel.KernelProof
-import lisa.automation.clausification.{Clausification, CertifiedClausifier}
+import lisa.automation.clausification.CertifiedClausifier
+import lisa.automation.Problem
 import lisa.automation.superposition.bench.{FofEvaluation, EqFofEvaluation}
 
 /**
@@ -15,7 +16,8 @@ import lisa.automation.superposition.bench.{FofEvaluation, EqFofEvaluation}
  *     alone; reconstruction substitutes the discharge map back.
  *   - **clause-slot composition**: every clause the refutation uses maps to its own import slot, including
  *     when two hypotheses clausify to the *same* sequent.
- *   - **the prover contract**: `Clausal.prove` returns what `certifyClausal` requires of it.
+ *   - **the prover contract**: `Clausal.prove`, folded into the `Problem => SCProof` that `certifyClausal`
+ *     requires, produces a proof that satisfies it.
  *   - the harnesses' seeded sampling, which must be reproducible for any benchmark number to mean anything.
  *
  * Tests of the clausifier itself moved to `lisa.automation.clausification.CertifiedClausificationTest`
@@ -23,6 +25,10 @@ import lisa.automation.superposition.bench.{FofEvaluation, EqFofEvaluation}
  * test run.
  */
 class ClausalTest extends AnyFunSuite:
+
+  /** The clausal prover as `certifyClausal` wants it; see [[Clausal.prove]], which reports a non-refutation. */
+  private def prover(p: Problem): K.SCProof =
+    Clausal.prove(p).fold(o => fail(s"the clausal prover did not refute: $o"), identity)
 
   private def vr(n: String): K.Variable = K.Variable(K.Identifier(n), K.Ind)
   private def pred(n: String, arity: Int): K.Constant = K.Constant(K.Identifier(n), sortOf(arity, K.Prop))
@@ -104,9 +110,9 @@ class ClausalTest extends AnyFunSuite:
    *  reconstructed proof, asserting it is kernel-valid and concludes the empty sequent. */
   private def refuteComplementary(abs: Clausal.Abstraction, atom: K.Expression): K.SCProof =
     val a = abs(atom)
-    val out = Bridge.solve(Seq(K.Sequent(Set.empty, Set(a)), K.Sequent(Set(a), Set.empty)), symbolVars = abs.dischargeSubst.keySet)
-    assert(out.isInstanceOf[Bridge.Outcome.Success], s"expected a refutation, got $out")
-    val proof = out.asInstanceOf[Bridge.Outcome.Success].reconstructKernelProof
+    val out = Clausal.refute(Seq(K.Sequent(Set.empty, Set(a)), K.Sequent(Set(a), Set.empty)), symbolVars = abs.dischargeSubst.keySet)
+    assert(out.isInstanceOf[Clausal.Outcome.Success], s"expected a refutation, got $out")
+    val proof = out.asInstanceOf[Clausal.Outcome.Success].reconstructKernelProof
     KernelProof.assertCorrectProofNoSorry(proof, "Clausal.prove")
     assert(proof.conclusion == K.Sequent(Set.empty, Set.empty))
     proof
@@ -154,10 +160,10 @@ class ClausalTest extends AnyFunSuite:
     // the slot lookup has to preserve, and that the composed proof still declares every clause as an import.
     val p = pred("p", 1); val q = pred("q", 1); val a = fn("a", 0)
     val clause = K.Sequent(Set.empty, Set(ap(p, a)))
-    val problem = Clausification.Problem(
+    val problem = Problem(
       Seq(clause, clause, K.Sequent(Set.empty, Set(ap(q, a))), K.Sequent(Set.empty, Set(K.neg(ap(p, a))))),
       None)
-    val proof = Clausal.prove(problem)
+    val proof = Clausal.prove(problem).fold(o => fail(s"expected a refutation, got $o"), identity)
     KernelProof.assertCorrectProofNoSorry(proof, "Clausal.prove")
     assert(proof.conclusion == K.Sequent(Set.empty, Set.empty), "the prover must conclude the empty sequent")
     assert(proof.imports == problem.imports, "the composed proof must declare the clausifier's clauses verbatim")
@@ -166,8 +172,8 @@ class ClausalTest extends AnyFunSuite:
   test("probe: Clausal.prove satisfies the certifyClausal prover contract (kernel-valid final proof)") {
     val P = pred("P", 0)
     // hypothesis P, conjecture P -- clausifies (already-clausal) to {P, ¬P}; refutation uses both. `⊢ P`.
-    val problem = Clausification.Problem(Seq(K.Sequent(Set.empty, Set(P))), Some(K.Sequent(Set.empty, Set(P))))
-    val proof = CertifiedClausifier.certifyClausal(problem, Clausal.prove)
+    val problem = Problem(Seq(K.Sequent(Set.empty, Set(P))), Some(K.Sequent(Set.empty, Set(P))))
+    val proof = CertifiedClausifier.certifyClausal(problem, prover)
     KernelProof.assertCorrectProofNoSorry(proof, "certifyClausal with Clausal.prove")
     assert(proof.conclusion == K.Sequent(Set.empty, Set(P)))
   }

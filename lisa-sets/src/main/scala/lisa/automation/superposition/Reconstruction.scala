@@ -22,7 +22,7 @@ object Reconstruction:
   type InputInfo = (K.Sequent, Map[Int, K.Variable])
 
   /** Reconstruct the refutation rooted at `empty` into a kernel proof. `inputs` maps each input clause's
-    * id to its original sequent and variable map (supplied by [[Bridge]]). */
+    * id to its original sequent and variable map (supplied by [[Clausal]]). */
   def reconstruct(
       empty: Clause,
       bank: TermBank,

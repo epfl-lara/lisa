@@ -3,19 +3,178 @@ package lisa.automation.superposition
 import scala.collection.mutable
 
 import lisa.utils.K
-import lisa.automation.clausification.{Clausification, UncertifiedClausifier}
+import lisa.automation.clausification.Clausification
+import lisa.automation.Problem
 
-/** The adapter between the clausification package and the prover: the abstraction of non-first-order subterms,
-  * the entry points [[prove]], [[proveOutcome]] and [[solveOutcome]], and the CASC setup [[cascSetup]].
+import Core.*
+import lisa.automation.superposition.ordering.*
+
+/** Everything between [[Prover]] and the saturation engine: the encoding of kernel sequents as internal
+  * clauses and back, the abstraction of non-first-order subterms, and the clausal-level entry points
+  * [[solve]] and [[prove]], which [[Prover]] calls once its own phases have produced a clausal problem.
+  * [[refute]] beneath them is the engine boundary: a clause set in, a verdict out.
+  *
+  * A clause is a kernel sequent: `a₁, …, aₘ ⊢ b₁, …, bₙ` is `¬a₁ ∨ … ∨ ¬aₘ ∨ b₁ ∨ … ∨ bₙ`, so the left side
+  * carries the negative literals and the empty sequent is the empty clause.
   *
   * The prover is first-order over a flat term bank, so every maximal non-first-order subterm of a clause is
   * replaced by a fresh schematic function variable applied to its free variables, and its value recorded. The
   * search runs on the abstracted problem, but the proof is not: [[Reconstruction]] substitutes each value back
-  * as it builds, so no fresh symbol appears in it and the imports can be the clausifier's own clauses.
-  *
-  * [[Bridge]] is the other half of the boundary and does the encoding: kernel clause sequents to internal
-  * clauses and back. Everything here is above that, on the clausification side of it. */
+  * as it builds, so no fresh symbol appears in it and the imports can be the clausifier's own clauses. */
 object Clausal:
+
+  /** The result of a [[solve]] run: a [[Outcome.Success]] (the empty clause `□` was derived) carrying
+    * everything needed to reconstruct a kernel proof, [[Outcome.Saturated]] (the passive set was
+    * exhausted without `□`, so the clause set is satisfiable, a genuine decision), or [[Outcome.Timeout]]
+    * (a budget was hit before deciding, so the set's status is unknown). */
+  sealed trait Outcome:
+    def refuted: Boolean = this match
+      case _: Outcome.Success => true
+      case Outcome.Saturated | Outcome.Timeout => false
+
+  object Outcome:
+    /** A refutation. Holds the empty clause `empty` and the run's [[TermBank]] plus the per-input-clause
+      * variable maps (`inputs`), the context [[reconstructKernelProof]] needs to rebuild the proof. */
+    final case class Success(
+        empty: Clause,
+        bank: TermBank,
+        inputs: collection.Map[Int, Reconstruction.InputInfo],
+        schematicIds: Set[K.Identifier] = Set.empty,
+        discharge: Map[K.Variable, K.Expression] = Map.empty) extends Outcome:
+      /** Reconstruct a kernel [[lisa.utils.K.SCProof]] from this refutation: its imports are the input
+        * clause-sequents and its conclusion is the empty sequent `⊢`. See [[Reconstruction]]. */
+      def reconstructKernelProof: K.SCProof = Reconstruction.reconstruct(empty, bank, inputs, schematicIds, discharge)
+
+    /** The passive set was exhausted without deriving `□`: the clause set is satisfiable (a decision). */
+    case object Saturated extends Outcome
+
+    /** A budget, either the `maxGiven` given-clause count or the `maxMillis` wall-clock limit, was hit before
+     *  the search could decide. */
+    case object Timeout extends Outcome
+
+  /**
+   * Run the saturation **once** on a clause set (kernel sequents `left ⊢ right` = the clause
+   * `¬left ∨ right`). Builds a fresh bank + complete selector, converts each sequent in that bank, and
+   * saturates within the given-clause and wall-clock budgets `opts` carries. Returns
+   * [[Outcome.Success]] with the empty clause (and the context to reconstruct it) iff `□` is derived,
+   * else [[Outcome.Saturated]] (passive exhausted) or [[Outcome.Timeout]] (budget hit). The per-input
+   * variable maps are always recorded so a `Success` can be reconstructed later (cheap: O(input size);
+   * the proof DAG itself is only walked by [[Outcome.Success.reconstructKernelProof]]).
+   *
+   * @param sequents   the clause set, one sequent per clause.
+   * @param opts       every search knob and both budgets, in one value; see [[SearchOptions]].
+   * @param symbolVars schematic symbol variables: kernel `Variable`s to be treated as **symbols** by the prover
+   *                   rather than as clause variables, and rebuilt as variables in reconstruction.
+   *                   Empty for pure first order clausal input.
+   * @param discharge  abstraction discharge: each symbol `F` ↦ its closed value `λfv. e`. When non-empty,
+   *                   reconstruction inlines `F` back to `e`, so the proof carries the original subterms.
+   * @param goal       indices (into `sequents`) of the goal input clauses, the negated conjecture, for
+   *                   goal-directed clause selection. Goal-ness propagates through inferences; empty means no
+   *                   goal bias, as for a conjecture-free problem.
+   */
+  def refute(
+      sequents: Iterable[K.Sequent],
+      opts: SearchOptions = SearchOptions(),
+      symbolVars: Set[K.Variable] = Set.empty,
+      discharge: Map[K.Variable, K.Expression] = Map.empty,
+      goal: Set[Int] = Set.empty): Outcome =
+    val sig: Signature = new Signature(opts.weightScheme.weightOf)
+    val bank: TermBank = new TermBank(sig)
+    val trail: Trail = new Trail(bank)
+    val inputs = mutable.Map.empty[Int, Reconstruction.InputInfo]
+    val clauses: Seq[Clause] = sequents.iterator.zipWithIndex.map { (s, i) =>
+      val vars = mutable.HashMap.empty[K.Variable, Int]
+      val c = clauseOfSequent(bank, s, vars, symbolVars, goalInput = goal.contains(i))
+      inputs(c.id) = (s, vars.iterator.map((kv, n) => n -> kv).toMap)
+      c
+    }.toSeq
+    // Generate the KBO precedence from the fully-interned signature. This is the one time the ordering is definitely fixed.
+    Precedence.assign(sig, bank, clauses, opts.precedenceScheme)
+    // Sanity check that the given order is admissible
+    val inadmissible: Option[String] = bank.order.kbo.checkAdmissibility()
+    assert(inadmissible.isEmpty, s"KBO is not admissible under this configuration: ${inadmissible.getOrElse("")}")
+    bank.selector = LiteralSelection.selector(opts.selection, bank)
+    // Equality inferences can fire only if the input contains `=`
+    val hasEquality: Boolean = clauses.exists(c => c.literals.exists(l => bank.isEquality(l)))
+    val schematicIds: Set[K.Identifier] = symbolVars.map(_.id)
+    val discount = new Discount(bank, trail, clauses, opts.copy(equality = opts.equality && hasEquality))
+    val result = discount.saturate()
+    opts.onStats(discount.loopStats)
+    result match
+      case Discount.Result.Refutation(empty) => Outcome.Success(empty, bank, inputs, schematicIds, discharge)
+      case Discount.Result.Saturated => Outcome.Saturated
+      case Discount.Result.Unknown => Outcome.Timeout
+
+  // ── Kernel formulas to internal clauses ───────────────────────────────────────────────────────────────
+  //
+  // Symbols are interned into the shared signature by their whole identifier string, not by `id.name`: the
+  // kernel keeps a trailing numeric suffix in the separate counter field, so `e_1` and `e_2` share the name
+  // `e` and keying on it alone would collapse them into one symbol. Each clause numbers its own variables
+  // from zero, since clause variables are independent.
+
+  /** Convert a kernel sequent (`left ⊢ right` = the clause `¬left ∨ right`) to an internal clause, threading a
+   *  caller-owned variable map (kernel variable → internal number) for reconstruction and the set of `symbolVars`
+   *  (schematic variables treated as predicate/function symbols, not variables). */
+  private def clauseOfSequent(bank: TermBank, seq: K.Sequent, vars: mutable.HashMap[K.Variable, Int], symbolVars: Set[K.Variable], goalInput: Boolean = false): Clause =
+    val lits: List[Literal] =
+      seq.left.toList.map(f => literal(bank, vars, f, positive = false, symbolVars)) :::
+        seq.right.toList.map(f => literal(bank, vars, f, positive = true, symbolVars))
+    bank.mkClause(lits.toArray, goalInput = goalInput)
+
+  /** Convert one literal: peel a leading `¬` (flipping polarity), then build the atom. */
+  private def literal(bank: TermBank, vars: mutable.HashMap[K.Variable, Int], f: K.Expression, positive: Boolean, symbolVars: Set[K.Variable]): Literal =
+    f match
+      case K.Application(n, inner) if n == K.neg => literal(bank, vars, inner, !positive, symbolVars)
+      case _ => bank.mkLiteral(atomTerm(bank, vars, f, symbolVars), positive)
+
+  /** Build the internal atom term for a predicate application: the head must be a predicate constant, or a
+   *  schematic **predicate** variable listed in `symbolVars` (a clausifier naming atom `nm…`, or a Lisa
+   *  predicate variable), interned as an (uninterpreted) predicate symbol. */
+  private def atomTerm(bank: TermBank, vars: mutable.HashMap[K.Variable, Int], f: K.Expression, symbolVars: Set[K.Variable]): Term =
+    val (head, args) = headAndArgs(f)
+    def app(sym: Symbol): Term = bank.mkApp(sym, args.iterator.map(a => term(bank, vars, a, symbolVars)).toArray)
+    head match
+      case c: K.Constant                           => app(bank.signature.intern(c.id.name, c.id.no, args.size, isPredicate = true))
+      case v: K.Variable if symbolVars.contains(v) => app(bank.signature.intern(v.id.name, v.id.no, args.size, isPredicate = true))
+      case other =>
+        throw IllegalArgumentException(s"not a pure clause: literal head is not a predicate constant or symbol variable: $other")
+
+  /** Build an internal term: a clause variable (renumbered per clause), a function/constant application, or a
+   *  schematic **function** variable in `symbolVars` (a [[Clausal]] abstraction function `F`, or a Lisa function
+   *  variable), interned as a function symbol (applied or bare-nullary) rather than treated as a clause variable. */
+  private def term(bank: TermBank, vars: mutable.HashMap[K.Variable, Int], t: K.Expression, symbolVars: Set[K.Variable]): Term =
+    t match
+      case v: K.Variable if symbolVars.contains(v) => // bare nullary function symbol
+        bank.mkConst(bank.signature.intern(v.id.name, v.id.no, 0, isPredicate = false))
+      case v: K.Variable => bank.mkVar(Core.Variable(vars.getOrElseUpdate(v, vars.size)))
+      case _ =>
+        val (head, args) = headAndArgs(t)
+        val sym: Symbol = head match
+          case c: K.Constant => bank.signature.intern(c.id.name, c.id.no, args.size, isPredicate = false)
+          case v: K.Variable if symbolVars.contains(v) => // applied function symbol `F(fv…)`
+            bank.signature.intern(v.id.name, v.id.no, args.size, isPredicate = false)
+          case other =>
+            throw IllegalArgumentException(s"not first-order: term head is not a constant (applied variable?): $other")
+        bank.mkApp(sym, args.iterator.map(a => term(bank, vars, a, symbolVars)).toArray)
+
+  /** Decompose a curried kernel application `f(a₁)…(aₙ)` into its head `f` and argument list `[a₁, …, aₙ]`.
+    * Shared with [[Clausal]] and [[CascProver]], which each carried an identical private copy.
+    *
+    * Peels the spine into an accumulator, so the arguments arrive in order without appending to the tail of a
+    * list per argument: the natural spelling of this is a recursion returning `as :+ arg`, which copies the whole
+    * list at every step. Arities are small, but this runs over every term of every input clause. */
+  private[superposition] def headAndArgs(e: K.Expression): (K.Expression, List[K.Expression]) =
+    var head: K.Expression = e
+    var args: List[K.Expression] = Nil
+    var peeling = true
+    while peeling do
+      head match
+        // The outermost application peels first, so the arguments come off last-to-first; prepending each puts
+        // them back in source order without a copy.
+        case K.Application(f, arg) => args = arg :: args; head = f
+        case _                     => peeling = false
+    (head, args)
+
 
   /** A first-order abstraction state, threaded across all clauses of one problem so that identical
     * non-first-order subterms share a single schematic symbol. Stateful and single-threaded. */
@@ -62,7 +221,6 @@ object Clausal:
         }
       )
 
-  private def headAndArgs(e: K.Expression): (K.Expression, List[K.Expression]) = Bridge.headAndArgs(e)
 
   private def rebuild(head: K.Expression, args: List[K.Expression]): K.Expression =
     args.foldLeft(head)((acc, a) => K.Application(acc, a))
@@ -81,7 +239,7 @@ object Clausal:
   // ── The clausal-prover adapter for `CertifiedClausifier.certifyClausal` ──────────────────────────────────────
 
   /** Move any negative literal still written `¬A` on the right of a clause to the left as `A`, the form
-   *  [[Bridge]] works in. Both clausifiers already emit that form, so this is the identity on their output;
+   *  [[Clausal]] works in. Both clausifiers already emit that form, so this is the identity on their output;
    *  it is kept for clauses reaching the prover from elsewhere, and because the two forms are only
    *  propositionally equal, which costs a `Restate` to bridge rather than nothing at all. */
   def toWorkingSequent(s: K.Sequent): K.Sequent =
@@ -98,27 +256,13 @@ object Clausal:
   private def abstractSequent(abs: Abstraction, s: K.Sequent): K.Sequent =
     K.Sequent(s.left.map(abs(_)), s.right.map(abs(_)))
 
-  /** The clausal prover to hand to [[lisa.automation.clausification.CertifiedClausifier.certifyClausal]].
-    *
-    * Abstracts every non-first-order subterm to a fresh schematic function symbol `F(fv…)`, refutes
-    * the resulting first-order clause set with [[Bridge]] (which reconstructs with each `F` inlined back to its
-    * original subterm), and presents the proof's imports as the **original** clausifier clauses via a per-used-import
-    * `Restate` into the working form [[Bridge]] uses. Conclusion is the empty sequent `⊢`, as the contract
-    * requires. Purely first-order problems take the same path with an empty abstraction (no `F`, no discharge). */
-  def prove(problem: Clausification.Problem): K.SCProof =
-    proveOutcome(problem) match
-      case Right(proof) => proof
-      case Left(other)  => throw new RuntimeException(s"Clausal.prove: expected a refutation, got $other")
-
-  /** Like [[prove]] but budgeted and total: returns `Right(proof)` on a refutation, or `Left(outcome)` for a
-    * `Saturated`/`Timeout` [[Bridge.Outcome]] instead of throwing, so a benchmark can categorise the result.
-    * `maxGiven`/`maxMillis` bound the underlying [[Bridge]] search. */
-  def proveOutcome(problem: Clausification.Problem, maxGiven: Int = Int.MaxValue, maxMillis: Long = Long.MaxValue,
-                   opts: SearchOptions = SearchOptions(), goal: Set[Int] = Set.empty,
-                   onStats: Discount.LoopStats => Unit = _ => ()): Either[Bridge.Outcome, K.SCProof] =
+  /** A kernel proof of `∅ ⊢` from `problem`'s clauses, taken as imports in order, or `Left(outcome)` when the
+    * search saturates or runs out of budget. */
+  def prove(problem: Problem, opts: SearchOptions = SearchOptions(),
+                   goal: Set[Int] = Set.empty): Either[Clausal.Outcome, K.SCProof] =
     val p = prepare(problem)
-    Bridge.solve(p.work, maxGiven, maxMillis, opts, symbolVars = p.symbolVars, discharge = p.abs.dischargeSubst, goal = goal, onStats = onStats) match
-      case s: Bridge.Outcome.Success => Right(composeProof(s.reconstructKernelProof, p.orig))
+    Clausal.refute(p.work, opts, symbolVars = p.symbolVars, discharge = p.abs.dischargeSubst, goal = goal) match
+      case s: Clausal.Outcome.Success => Right(composeProof(s.reconstructKernelProof, p.orig))
       case other                     => Left(other)
 
   /** Present `base`, whose imports are the working-form abstracted clauses and whose conclusion is `∅ ⊢`, as a
@@ -144,13 +288,13 @@ object Clausal:
     steps += K.SCSubproof(base, premises) // conclusion ∅ ⊢, over the working imports
     K.SCProof(steps.toIndexedSeq, orig) //   imports = the original clausifier clauses
 
-  /** Pre-solve setup shared by [[proveOutcome]] and [[solveOutcome]]: abstract the clausifier clauses to a
+  /** Pre-solve setup shared by [[prove]] and [[solve]]: abstract the clausifier clauses to a
    *  first-order working set, and collect the symbol-variables the solver must treat as symbols rather than
    *  clause variables: the abstraction functions `F` (explicit, incl. bare-nullary), plus every non-`Ind`-sorted
    *  free variable (definitional naming atoms `nm…` and any Lisa predicate/function variable; clause
    *  variables are `Ind`). */
   private final case class Prepared(abs: Abstraction, orig: IndexedSeq[K.Sequent], work: IndexedSeq[K.Sequent], symbolVars: Set[K.Variable])
-  private def prepare(problem: Clausification.Problem): Prepared =
+  private def prepare(problem: Problem): Prepared =
     val abs = new Abstraction
     val orig: IndexedSeq[K.Sequent] = problem.imports //               clausifier clauses (contract import list)
     val absSeqs: IndexedSeq[K.Sequent] = orig.map(o => abstractSequent(abs, o))
@@ -162,45 +306,11 @@ object Clausal:
         absSeqs.iterator.flatMap(s => s.left.iterator ++ s.right.iterator).flatMap(_.freeVariables).filter(_.sort != K.Ind)
     Prepared(abs, orig, work, symbolVars)
 
-  /** Like [[proveOutcome]] but stops at the saturation verdict: returns the raw [[Bridge.Outcome]] **without**
-    * reconstructing a kernel proof (no `reconstructKernelProof`, no import composition, no kernel check). For
-    * benchmarking the prover's search in isolation from proof reconstruction. `onStats` still reports the loop
-    * instrumentation. An [[Bridge.Outcome.Success]] means `□` was derived (a refutation); the proof DAG is left
-    * unwalked. */
-  def solveOutcome(problem: Clausification.Problem, maxGiven: Int = Int.MaxValue, maxMillis: Long = Long.MaxValue,
-                   opts: SearchOptions = SearchOptions(), goal: Set[Int] = Set.empty,
-                   onStats: Discount.LoopStats => Unit = _ => ()): Bridge.Outcome =
+  /** Like [[prove]] but stops at the verdict: no `reconstructKernelProof`, no import composition, no kernel
+    * check, so a [[Clausal.Outcome.Success]] leaves the proof DAG unwalked and only says `□` was derived. What
+    * [[Prover.solve]] and [[Prover.proveTstp]] want, neither of which asks for a kernel proof. */
+  def solve(problem: Problem, opts: SearchOptions = SearchOptions(),
+                   goal: Set[Int] = Set.empty): Clausal.Outcome =
     val p = prepare(problem)
-    Bridge.solve(p.work, maxGiven, maxMillis, opts, symbolVars = p.symbolVars, discharge = p.abs.dischargeSubst, goal = goal, onStats = onStats)
+    Clausal.refute(p.work, opts, symbolVars = p.symbolVars, discharge = p.abs.dischargeSubst, goal = goal)
 
-  /** The uncertified CASC clausal setup shared by the prover ([[CascProver]]) and its strategy benchmark
-    * ([[bench.StrategyEvaluation]]): clausify `problem` (already SInE-pruned by the caller) with origin tags, append
-    * the TPTP distinct-object distinctness axioms (origin `-1`), and derive the goal-clause index set, the
-    * clauses coming from the negated conjecture, whose origin equals the hypothesis count. Returns the
-    * origin-tagged clauses (which [[CascProver]] needs for proof printing), the flat clausal problem to solve,
-    * and the goal indices. */
-  def cascSetup(problem: Clausification.Problem, orthologic: Boolean): (IndexedSeq[(K.Sequent, Int)], Clausification.Problem, Set[Int]) =
-    val clauses0 = UncertifiedClausifier.clausalFormWithOrigins(problem, orthologic = orthologic)
-    val distinct = distinctObjectAxioms(clauses0.map(_._1))
-    val clauses  = clauses0 ++ distinct.map(s => (s, -1))
-    val clausal  = Clausification.Problem(clauses.map(_._1).toList, None)
-    val goal     = clauses.iterator.zipWithIndex.collect { case ((_, origin), i) if origin == problem.hypotheses.size => i }.toSet
-    (clauses, clausal, goal)
-
-  /** The pairwise distinctness axioms for the TPTP distinct objects occurring in `clauses`. Such objects are
-    * distinct by definition, so adding these is sound, and without them the encoding as uninterpreted
-    * constants simply loses that information.
-    *
-    * They are returned in the ordinary clause shape, so they feed the prover and print like any other clause.
-    * They carry no derivation, since they are added after clausification. */
-  def distinctObjectAxioms(clauses: Seq[K.Sequent]): IndexedSeq[K.Sequent] =
-    val objs = mutable.LinkedHashSet.empty[K.Constant]
-    def scan(e: K.Expression): Unit = e match
-      case K.Application(f, a) => scan(f); scan(a)
-      case K.Lambda(_, b)      => scan(b)
-      case c: K.Constant       => if c.id.name.startsWith("$d") then objs += c
-      case _                   => ()
-    clauses.foreach(s => { s.left.foreach(scan); s.right.foreach(scan) })
-    val os = objs.toIndexedSeq
-    for i <- os.indices; j <- (i + 1) until os.size
-    yield K.Sequent(Set(K.equality(os(i))(os(j))), Set.empty)

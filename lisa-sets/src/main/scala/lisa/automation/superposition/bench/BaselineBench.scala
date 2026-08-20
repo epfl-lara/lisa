@@ -5,11 +5,10 @@ import java.io.File
 import java.util.concurrent.atomic.AtomicReference
 import scala.util.{Success, Failure, Using}
 
-import lisa.utils.K
 import lisa.tptp.KernelParser.{problemToKernel, strictMapAtom, strictMapTerm, strictMapVariable}
-import lisa.automation.clausification.{Clausification, UncertifiedClausifier}
-import lisa.automation.clausification.Clausification.problemSize
-import BenchUtil.{withTimeout, toClausificationProblem}
+import lisa.automation.clausification.UncertifiedClausifier
+import lisa.automation.Problem
+import BenchUtil.withTimeout
 import lisa.automation.superposition.ordering.*
 
 /**
@@ -32,15 +31,11 @@ object BaselineBench:
     "eq" -> "tptp-fof-fo-eq-thm.txt"
   )
 
-  /** Equality inferences on iff the dataset is the equality-bearing one. */
-  private def equalityFor(dataset: String): Boolean = dataset == "eq"
-
   private def problemsOf(dataset: String): ProblemList =
     val fn = lists.getOrElse(dataset, throw new IllegalArgumentException(s"unknown dataset '$dataset' (use ${lists.keys.mkString("/")})"))
     new ProblemList(fn)
 
-  /** The same reproducible draw every harness uses; see [[ProblemList.sample]], so a seed names the same
-    * problems here as in `Evaluation` / `FofEvaluation`. */
+  /** The same draw the other harnesses use, so a seed names the same problems here as there. */
   def sample(dataset: String, n: Int, seed: Long): Vector[String] = problemsOf(dataset).sample(n, seed)
 
   def main(args: Array[String]): Unit =
@@ -90,9 +85,8 @@ object BaselineBench:
   /** One problem's outcome + phase breakdown (all reconstruction-free). */
   private final case class Row(name: String, category: String, clausifyMs: Double, proverMs: Double, processed: Int, derived: Int)
 
-  /** One TSV row. Plain `toString` on the times, not `%.1f`: the `f` interpolator formats in the default
-    * locale, writing `12,3` where whatever reads this TSV expects `12.3` ([[FofHarness.encodeRow]] avoids
-    * `%f` for the same reason). Rounded to one decimal by hand so the column stays as narrow as before. */
+  /** One TSV row. Plain `toString` on the times, rounded by hand, rather than `%.1f`: the `f` interpolator
+    * formats in the default locale, writing `12,3` where whatever reads this TSV expects `12.3`. */
   private def printRow(r: Row): Unit =
     def ms(x: Double): String = (math.rint(x * 10.0) / 10.0).toString
     println(Seq(r.name, r.category, ms(r.clausifyMs), ms(r.proverMs), ms(r.clausifyMs + r.proverMs),
@@ -101,7 +95,7 @@ object BaselineBench:
   private def run(dataset: String, n: Int, seed: Long, timeoutMs: Long, maxGiven: Int, maxSize: Int, precedence: PrecedenceScheme): Unit =
     val tptpRoot: Option[File] = BenchUtil.tptpRootOrExplain()
     if tptpRoot.isEmpty then return
-    val eq = equalityFor(dataset)
+    val eq = dataset == "eq" // equality inferences on only for the dataset that has equality
     val picked = sample(dataset, n, seed)
     println(s"# dataset=$dataset list=${lists(dataset)} seed=$seed n=${picked.size} timeout=${timeoutMs}ms maxGiven=$maxGiven maxSize=$maxSize equality=$eq precedence=$precedence (uncertified clausification, NO reconstruction)")
     println("# ROW\tproblem\tresult\tclausify_ms\tprover_ms\ttotal_ms\tgiven\tderived")
@@ -124,8 +118,8 @@ object BaselineBench:
      catch { case e: Throwable => Failure(e) }) match
       case Failure(_) => Row(name, "PARSE_ERR", 0, 0, 0, 0)
       case Success(parsed) =>
-        val cprob = toClausificationProblem(parsed)
-        if problemSize(cprob) > maxSize then Row(name, "SKIPPED", 0, 0, 0, 0)
+        val cprob = Prover.fromTptp(parsed)
+        if cprob.size > maxSize then Row(name, "SKIPPED", 0, 0, 0, 0)
         else
           withTimeout(timeoutMs + 5000L)(measure(cprob, timeoutMs, maxGiven, equality, precedence)) match
             case Some(Success(r)) => r.copy(name = name)
@@ -133,20 +127,21 @@ object BaselineBench:
             case None             => Row(name, "HARD_TIMEOUT", 0, 0, 0, 0)
 
   /** Time the two phases: uncertified clausal-form computation, then reconstruction-free saturation. */
-  private def measure(cprob: Clausification.Problem, timeoutMs: Long, maxGiven: Int, equality: Boolean, precedence: PrecedenceScheme): Row =
+  private def measure(cprob: Problem, timeoutMs: Long, maxGiven: Int, equality: Boolean, precedence: PrecedenceScheme): Row =
     val c0 = System.nanoTime()
     val clausal = UncertifiedClausifier.clausalForm(cprob)
     val clausifyMs = (System.nanoTime() - c0) / 1e6
     val stats = new AtomicReference[Discount.LoopStats](Discount.LoopStats(0, 0, 0, 0))
     val p0 = System.nanoTime()
-    val outcome: Bridge.Outcome =
-      try Clausal.solveOutcome(clausal, maxGiven, timeoutMs, SearchOptions(equality = equality, precedenceScheme = precedence), onStats = stats.set)
-      catch case _: InterruptedException => Bridge.Outcome.Timeout
+    val outcome: Clausal.Outcome =
+      try Clausal.solve(clausal, SearchOptions(equality = equality, precedenceScheme = precedence,
+        maxGiven = maxGiven, maxMillis = timeoutMs, onStats = stats.set))
+      catch case _: InterruptedException => Clausal.Outcome.Timeout
     val proverMs = (System.nanoTime() - p0) / 1e6
     val cat = outcome match
-      case _: Bridge.Outcome.Success => "REFUTED"
-      case Bridge.Outcome.Saturated  => "SATURATED"
-      case Bridge.Outcome.Timeout    => "TIMEOUT"
+      case _: Clausal.Outcome.Success => "REFUTED"
+      case Clausal.Outcome.Saturated  => "SATURATED"
+      case Clausal.Outcome.Timeout    => "TIMEOUT"
     val s = stats.get
     Row("", cat, clausifyMs, proverMs, s.givenProcessed, s.passiveEnqueued)
 

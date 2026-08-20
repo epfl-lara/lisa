@@ -5,14 +5,13 @@ import java.io.File
 import scala.util.{Success, Failure}
 
 import lisa.tptp.KernelParser.{problemToKernel, strictMapAtom, strictMapTerm, strictMapVariable}
-import BenchUtil.{withTimeout, toClausificationProblem}
+import BenchUtil.withTimeout
 
 /**
- * Runs one or more named [[Strategy]] over the same sample through the competition path (uncertified
- * clausification, the [[Sine.shouldFilter]] gate, [[Strategy.solveOutcome]]) and reports the outcome breakdown
- * per strategy. No proof is built, since only the verdict is wanted. Unlike the other harnesses it does not
- * skip large problems, which are exactly where axiom selection should help; each runs on its own thread under
- * a hard cap, so one blow-up does not end the run.
+ * Runs one or more named [[Strategy]] over the same sample through [[Prover.solve]], the path the command line
+ * takes, and reports the outcome breakdown per strategy. No proof is built, since only the verdict is wanted.
+ * Unlike [[Harness]] it does not skip large problems, which are exactly where axiom selection should help;
+ * each runs on its own thread under a hard cap, so one blow-up does not end the run.
  *
  * {{{
  *   TPTP=/path TPTP_FOF_LIST=/path/list.txt \
@@ -59,17 +58,10 @@ object StrategyEvaluation:
        catch { case e: Throwable => Failure(e) }) match
         case Failure(_) => "PARSE_ERR"
         case Success(parsed) =>
-          val cprob = toClausificationProblem(parsed)
-          // Per-invocation SInE gate, exactly the CascProver logic (self-decided, nothing shared).
-          val pruned = strat.sine match
-            case Some(cfg) if Sine.shouldFilter(cprob, Sine.Params()) => Sine.select(cprob, cfg)
-            case _                                                                => cprob
-          // Uncertified clausify + distinct-object axioms + goal-clause indices, shared with CascProver.
-          val (_, clausal, goal) = Clausal.cascSetup(pruned, orthologic = strat.orthologic)
-          strat.solveOutcome(clausal, maxMillis = timeoutMs, goal = goal) match
-            case _: Bridge.Outcome.Success => "REFUTED"
-            case Bridge.Outcome.Saturated  => "SATURATED"
-            case Bridge.Outcome.Timeout    => "TIMEOUT"
+          Prover.solve(Prover.fromTptp(parsed), strat.opts.copy(maxMillis = timeoutMs)) match
+            case _: Clausal.Outcome.Success => "REFUTED"
+            case Clausal.Outcome.Saturated  => "SATURATED"
+            case Clausal.Outcome.Timeout    => "TIMEOUT"
     } match
       case Some(Success(c)) => c
       case Some(Failure(e)) => s"ERROR(${e.getClass.getSimpleName})"
