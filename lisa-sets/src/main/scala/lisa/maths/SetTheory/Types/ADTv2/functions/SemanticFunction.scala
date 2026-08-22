@@ -5,7 +5,6 @@ import lisa.maths.SetTheory.Types.ADTv2.FunctionCore.{FunctionSemanticsBase, Sem
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
 import lisa.maths.SetTheory.Types.ADTv2.encoding._
-import lisa.utils.debug.Time
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 final class SemanticFunction[N <: Arity](
@@ -25,10 +24,10 @@ final class SemanticFunction[N <: Arity](
           returnType = semanticReturnType
         )
 
-        private val witness: Witness[N] = Time.measure(s"Witness", false)(new Witness[N](spec))
+        private val witness: Witness[N] = (new Witness[N](spec))
 
         def name: String = semanticName
-        val existence: Existence[N] = Time.measure(s"Existence", false)(new Existence[N](spec, witness))
+        val existence: Existence[N] = (new Existence[N](spec, witness))
         val uniqueness: Uniqueness[N] = new Uniqueness[N](spec)
         def buildPatterns(term: Expr[Ind]): Seq[Pattern[N]] = spec.cases
       }

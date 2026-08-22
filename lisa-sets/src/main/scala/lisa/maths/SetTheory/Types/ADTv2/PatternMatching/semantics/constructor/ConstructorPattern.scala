@@ -6,7 +6,6 @@ import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
 import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{ConstructorHeadPattern, Pattern, PatternSystem}
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
-import lisa.utils.debug.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.utils.prooflib.BasicStepTactic.RightForall
@@ -35,7 +34,7 @@ private[PatternMatching] final case class ConstructorPatternSystem[N <: Arity](
   override def patternsFor(constructor: SemanticConstructor[N]): Seq[Pattern[N]] =
     patterns.filter(_.semanticConstructor == constructor)
 
-  override lazy val coverage: THM = Time.measure(s"ConstructorPatternSystem/Coverage") {
+  override lazy val coverage: THM = {
     require(
       supportsAutomaticCoverage,
       "Automatic coverage is only available for constructor-only pattern systems with one unconditional branch per constructor."
@@ -51,7 +50,7 @@ private[PatternMatching] final case class ConstructorPatternSystem[N <: Arity](
   override def incompatible(pattern1: Pattern[N], pattern2: Pattern[N]): THM =
     incompatibleCache.getOrElseUpdate(
       (pattern1, pattern2),
-      Time.measure(s"ConstructorPattern/Incompatible") {
+      {
         require(pattern1 != pattern2, "incompatible is only meaningful for distinct patterns.")
         val constructorPattern1 = pattern1 match
           case pattern: ConstructorHeadPattern[N] => pattern
@@ -83,7 +82,7 @@ private[PatternMatching] final case class ConstructorPatternSystem[N <: Arity](
   override def branchSelectionFor(constructor: SemanticConstructor[N], term: Expr[Ind]): THM =
     branchSelectionCache.getOrElseUpdate(
       (constructor, term),
-      Time.measure(s"Pattern/Branch selection") {
+      {
         val constructorPatterns = patternsFor(constructor)
         require(
           constructorPatterns.size == 1,

@@ -8,7 +8,6 @@ import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
 import lisa.maths.SetTheory.Types.ADTv2.encoding._
 import lisa.maths.SetTheory.Types.ADTv2.support.DefinedSymbol
-import lisa.utils.debug.Time
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.ProofTacticLib.Arity
@@ -45,7 +44,7 @@ private[ADTv2] abstract class WitnessBase[N <: Arity](
   private val witnessBound: Expr[Ind] = argType × returnType
 
   protected lazy val witnessSemantics: CaseDefinedWitness[N] =
-    Time.measure("Witness/CaseDefinedWitness")(
+    (
       new CaseDefinedWitness[N](
         adt = adt,
         argType = argType,

@@ -5,7 +5,6 @@ import lisa.maths.SetTheory.Ordinals.Integer.omegaSuccessorInduction
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory._
 import lisa.utils.prooflib.QuantifiersIntro
-import lisa.utils.debug.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts._
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
@@ -26,7 +25,7 @@ private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTe
     )
     .toMap
 
-  val induction = Time.measure("ADT induction")(
+  val induction = (
     Lemma(using name = s"${name}/induction")(
       constructors.foldRight[Expr[Prop]](forall(x, x ∈ term ==> P(x)))((c, f) => inductiveCase(c) ==> f)
     ) {

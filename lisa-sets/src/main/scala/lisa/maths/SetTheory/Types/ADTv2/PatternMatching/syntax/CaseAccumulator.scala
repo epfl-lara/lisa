@@ -12,7 +12,6 @@ import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
 import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
 import lisa.maths.SetTheory.Types.ADTv2.interface.SpecializedADT
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.substitutionsFromArgs
-import lisa.utils.debug.Time
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
@@ -114,7 +113,7 @@ class CaseAccumulator[N <: Arity, T, R](val comp: R) {
     
     // A non-nullary (deeply nested) guard ⇒ multi-level system; otherwise the
     // restricted nullary-split system (which also supports recursion).
-    Time.measure(s"PatternSystem build NestedPatternSystem") {
+    {
       NestedPatternSystem(adt.base.semantic, patterns, typeSubstitutions, adt.term)
     }
 
@@ -122,7 +121,7 @@ class CaseAccumulator[N <: Arity, T, R](val comp: R) {
       adt: SpecializedADT[N],
       bodyAt: T => Expr[Ind]
   ): PatternSystem[N] =
-    Time.measure(s"PatternSystem compilation") {
+    {
       val typeSubstitutions =
         substitutionsFromArgs("ADT", adt.base.name, adt.base.typeVariablesSeq, adt.typeArgs)
           .filter(substitution => substitution._2.asInstanceOf[Expr[Ind]] != substitution._1.asInstanceOf[Variable[Ind]])

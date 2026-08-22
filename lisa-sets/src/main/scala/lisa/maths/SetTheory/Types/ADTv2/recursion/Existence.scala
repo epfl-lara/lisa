@@ -12,7 +12,6 @@ import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.LimitKernel
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.tactics.Cuts
 import lisa.maths.SetTheory.Types.TypingHelpers._
-import lisa.utils.debug.Time
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
@@ -57,7 +56,7 @@ private[recursion] final class Existence[N <: Arity](
   // Lemma F — limitIsFixedPoint: W(limitFun) = limitFun
   // ─────────────────────────────────────────────────────────────────────────
 
-  private val limitIsFixedPoint: THM = Time.measure(s"Ex/limitIsFixedPoint")(Lemma(recWitness(limitFun) === limitFun) {
+  private val limitIsFixedPoint: THM = (Lemma(recWitness(limitFun) === limitFun) {
     
     val funTyping = have((f :: spec.typ) |- functionBetween(f)(spec.argType)(spec.returnType)) by Weakening(
       funcBetweenEqInFuncSpace of (A := spec.argType, B := spec.returnType)

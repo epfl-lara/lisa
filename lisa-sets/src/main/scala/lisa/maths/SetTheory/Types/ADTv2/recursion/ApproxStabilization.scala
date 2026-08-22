@@ -4,7 +4,6 @@ import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.Ordinals.Integer.{omegaSuccessorInduction, successorInOmega}
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
-import lisa.utils.debug.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Cut
@@ -50,7 +49,7 @@ private[recursion] final class ApproxStabilization[N <: Arity](
   // ∀n ∈ ω, ∀a ∈ h(n), G(n)(a) = G(Succ(n))(a)
   // ─────────────────────────────────────────────────────────────────────────
 
-  val stabilization: THM = Time.measure(s"AP/stabilization")(
+  val stabilization: THM = (
     Lemma(
       ∀(nVar ∈ N, ∀(a ∈ app(spec.heightFun)(nVar), app(G(nVar))(a) === app(G(S(nVar)))(a)))
     ) {

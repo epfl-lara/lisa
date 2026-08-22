@@ -6,7 +6,6 @@ import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
 import lisa.maths.SetTheory.Types.ADTv2.encoding._
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
-import lisa.utils.debug.Time
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 final class SemanticFunction[N <: Arity](
@@ -32,15 +31,15 @@ final class SemanticFunction[N <: Arity](
 
         private val rawPatterns: Seq[Pattern[N]] = spec.cases
 
-        private val witness: Witness[N] = Time.measure(s"Witness")(new Witness[N](spec))
-        private val approxSeq = Time.measure(s"ApproxSequence")(new ApproxSequence[N](spec, witness))
-        private val witnessAgreement = Time.measure(s"WitnessAgreement")(new helpers.WitnessAgreement[N](spec, witness))
-        private val approxStab = Time.measure(s"ApproxStabilization")(new ApproxStabilization[N](spec, witness, approxSeq, witnessAgreement))
-        private val limitConstruction = Time.measure(s"LimitConstruction")(new LimitConstruction[N](spec, approxSeq, approxStab))
+        private val witness: Witness[N] = (new Witness[N](spec))
+        private val approxSeq = (new ApproxSequence[N](spec, witness))
+        private val witnessAgreement = (new helpers.WitnessAgreement[N](spec, witness))
+        private val approxStab = (new ApproxStabilization[N](spec, witness, approxSeq, witnessAgreement))
+        private val limitConstruction = (new LimitConstruction[N](spec, approxSeq, approxStab))
 
         def name: String = semanticName
-        val existence: Existence[N] = Time.measure(s"Existence")(new Existence[N](spec, witness, approxSeq, approxStab, limitConstruction, witnessAgreement))
-        val uniqueness: Uniqueness[N] = Time.measure(s"Uniqueness")(new Uniqueness[N](spec))
+        val existence: Existence[N] = (new Existence[N](spec, witness, approxSeq, approxStab, limitConstruction, witnessAgreement))
+        val uniqueness: Uniqueness[N] = (new Uniqueness[N](spec))
         def buildPatterns(term: Expr[Ind]): Seq[Pattern[N]] =
           rawPatterns.map(pattern => pattern.withBody(pattern.body.substitute(spec.selfPlaceholder := term)))
       }

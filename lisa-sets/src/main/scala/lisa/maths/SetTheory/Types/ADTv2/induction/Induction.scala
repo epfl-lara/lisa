@@ -9,7 +9,6 @@ import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
 import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
 import lisa.maths.SetTheory.Types.ADTv2.interface.SpecializedADT
 import lisa.utils.prooflib.InstantiateForallSeq
-import lisa.utils.debug.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
 import lisa.maths.SetTheory.Types.TypingHelpers.::
@@ -220,7 +219,7 @@ class Induction[M <: Arity](
         proof.ProofStep,
         (Sequent, Seq[Expr[Ind]], Variable[Ind])
       ] ?=> Unit
-  )(bot: Sequent): proof.ProofTacticJudgement = Time.measure("Induction tactic") {
+  )(bot: Sequent): proof.ProofTacticJudgement = {
     Induction.inferArguments(bot, expectedVar, expectedADT) match
       case Some((inferedVar, inferedADT, _)) if expectedADT.isEmpty && inferedADT.typeArgs.nonEmpty =>
         proof.InvalidProofTactic(

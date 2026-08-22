@@ -3,7 +3,6 @@ package lisa.maths.SetTheory.Types.ADTv2.API
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.encoding._
 import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
-import lisa.utils.debug.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.**
 import lisa.maths.SetTheory.Types.ADTv2.support.core.toSeq
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
@@ -63,7 +62,7 @@ private def ADTBuilder[N <: Arity](
     )
   )
 
-  val adtSyntactic = Time.measure(s"ADT syntactic")(
+  val adtSyntactic = (
     SyntacticADT[N](
       name,
       constructorsSyntactic,

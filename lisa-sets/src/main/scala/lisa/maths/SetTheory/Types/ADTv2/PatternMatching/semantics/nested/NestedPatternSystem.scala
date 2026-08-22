@@ -7,7 +7,6 @@ import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
 import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{Pattern, PatternSystem}
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
-import lisa.utils.debug.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.forallSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.seqOr
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.wellTypedFormula
@@ -46,14 +45,14 @@ private[PatternMatching] final case class NestedPatternSystem[N <: Arity](
   override def supportsAutomaticCoverage: Boolean = false
 
   override lazy val coverage: THM =
-    Time.measure(s"NestedPatternSystem/Coverage") {
+    {
       NestedTrieProofs.coverageCaseShape((adt, targs), clauses, patterns)
     }
 
   override def incompatible(pattern1: Pattern[N], pattern2: Pattern[N]): THM =
     incompatibleCache.getOrElseUpdate(
       (pattern1, pattern2),
-      Time.measure(s"NestedPatternSystem/Incompatible") {
+      {
         NestedTrieProofs.incompatibleCaseShape(
           pattern1.asInstanceOf[NestedConstructorPattern[?]],
           pattern2.asInstanceOf[NestedConstructorPattern[?]]
@@ -64,7 +63,7 @@ private[PatternMatching] final case class NestedPatternSystem[N <: Arity](
   override def branchSelectionFor(constructor: SemanticConstructor[N], term: Expr[Ind]): THM =
     branchSelectionCache.getOrElseUpdate(
       (constructor, term),
-      Time.measure(s"NestedPatternSystem/BranchSelection") {
+      {
         val pats = patternsFor(constructor).map(_.asInstanceOf[NestedConstructorPattern[N]])
         if pats.forall(_.guards.isEmpty) then
           // single unconditional pattern: the selection is trivial.

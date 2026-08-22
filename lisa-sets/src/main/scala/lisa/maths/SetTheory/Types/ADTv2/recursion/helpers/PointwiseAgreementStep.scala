@@ -11,7 +11,6 @@ import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFact
 import lisa.utils.prooflib.InstantiateForallSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.tactics.Cuts
-import lisa.utils.debug.Time
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
@@ -101,7 +100,7 @@ private[recursion] object PointwiseAgreementStep {
       goalEqAt: Expr[Prop]
   )(
       caseEqs: PatternCaseEquations[N]
-  ): proof.Fact = Time.measure("pointwiseAgreementOnSucc") {
+  ): proof.Fact = {
     val pointwiseAtSucc =
       have((ambientTerm ∈ app(heightFun)(S(currentIndex))) ==> goalEqAt) subproof {
         val aInHeightOrd = assume(ambientTerm ∈ app(heightFun)(S(currentIndex)))

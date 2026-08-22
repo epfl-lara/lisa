@@ -10,7 +10,6 @@ import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.nested.NestedT
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.altEqualityTransitivity
-import lisa.utils.debug.Time
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.utils.prooflib.BasicStepTactic.LeftOr
 import lisa.utils.prooflib.BasicStepTactic.Restate
@@ -589,7 +588,7 @@ private[semantics] object NestedTrieProofs {
   ): THM =
     if p1.semanticConstructor != p2.semanticConstructor then
       // different top constructors — `¬(c1(top1) = c2(top2))` from cross injectivity.
-      Time.measure("NestedTrieProofs/Incompatible Cross") {
+      {
       val (adt, targs) = ADT.unapply(p1.specializedAdtTerm).get
       val c1 = adt.constructors.find(_.id == p1.semanticConstructor.id).get
       val c2 = adt.constructors.find(_.id == p2.semanticConstructor.id).get
@@ -630,11 +629,11 @@ private[semantics] object NestedTrieProofs {
       val (guard1, guard2) = selectedGuards
       val guardTy: Ty = guardTypeAt(p1.semanticConstructor, guard1.position, p1.typeSubstitutions)
 
-      Time.measure("NestedTrieProofs/Incompatible Eq") {
+      {
         Lemma(
           (p1.branchPremise1 /\ p2.freshBranchPremise) ==> !(p1.inputTerm1 === p2.inputTerm2)
         ) {
-          sp ?=> Time.measure("inner"){
+          sp ?=> {
           // --- outer structure (mirrors the existing incompatible) ---
           val branch = assume(p1.branchPremise1 /\ p2.freshBranchPremise)
           assume(p1.inputTerm1 === p2.inputTerm2)

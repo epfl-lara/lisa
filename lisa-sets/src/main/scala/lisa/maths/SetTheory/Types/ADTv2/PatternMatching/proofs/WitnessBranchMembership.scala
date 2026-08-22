@@ -6,7 +6,6 @@ import lisa.maths.SetTheory.Base.Symbols.φ
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.utils.prooflib.QuantifiersIntro
-import lisa.utils.debug.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Cut
@@ -73,7 +72,7 @@ private[proofs] trait WitnessBranchMembership[N <: Arity] extends WitnessProofCo
   val witnessMembershipByPattern: Map[Pattern[N], THM] =
     patternMatching.patterns
       .map(pattern =>
-        Time.measure("witness/MembershipByPattern") {
+        {
           val vars = pattern.binders
           val body = pattern.body
           pattern -> (Lemma(

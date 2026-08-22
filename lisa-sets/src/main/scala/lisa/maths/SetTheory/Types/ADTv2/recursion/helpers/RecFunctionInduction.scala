@@ -11,7 +11,6 @@ import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.LimitKernel
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeFormula
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
-import lisa.utils.debug.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Cut
@@ -169,7 +168,7 @@ private[recursion] object RecFunctionInduction {
         thenHave(thesis) by Restate
       }
 
-      val step = Time.measure("Uniqueness/pointwise/step") {
+      val step = {
         have((nVar ∈ N) ==> (P(nVar) ==> P(S(nVar)))) subproof {
           val nInN = assume(nVar ∈ N)
           assume(P(nVar))

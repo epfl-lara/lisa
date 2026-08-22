@@ -11,7 +11,6 @@ import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.{ConstructorHe
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.instantiatedSemanticSignature
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
-import lisa.utils.debug.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
 import lisa.maths.SetTheory.Types.TypingHelpers.::
@@ -142,7 +141,7 @@ private[PatternMatching] final case class NestedConstructorPattern[N <: Arity](
     val guardEq = have(guard.binder === guard.guardTerm) by Tautology.from(patternGuard)
     val guardInHeight = have(guard.guardTerm ∈ app(heightFun)(currentIndex)) by Congruence.from(binderInHeight, guardEq)
 
-    Time.measure(s"RecArg/descendToBinder") {
+    {
       NestedConstructorPattern.descendToBinder(
         heightFun = heightFun,
         hValid = hValid,
@@ -289,7 +288,7 @@ private[PatternMatching] object NestedConstructorPattern {
         val predVar = Variable[Ind](freshId(Seq(currentIndex, target, heightFun), "predVar"))
         val currentTerm = NestedTrieProofs.termOf(currentPat, currentTy)
         val levelSubsts = currentTy._1.semantic.typeVariablesSeq.zip(currentTy._2).map((v, a) => v := a)
-        val currentInZero = Time.measure(s"currentInZero") {
+        val currentInZero = {
           have(!(currentTerm ∈ app(heightFun)(∅))) by Tautology.from(
             hValid,
             currentTy._1.semantic.height.zeroAt(levelSubsts).of(h := heightFun, x := currentTerm)
@@ -333,14 +332,14 @@ private[PatternMatching] object NestedConstructorPattern {
           val semanticSubsts = c.semantic.typeVariablesSeq.zip(currentTy._2).map((v, a) => v := a)
           val semanticSigAtArgs =
             argTerms.zip(c.semantic.semanticSignature2.map(_._2.substitute(semanticSubsts*).asInstanceOf[Expr[Ind]]))
-          val argsTypedSemantic = Time.measure(s"argsTypedSemantic") { have(wellTypedFormula(semanticSigAtArgs)) by Tautology.from(argTypings*) }
+          val argsTypedSemantic = { have(wellTypedFormula(semanticSigAtArgs)) by Tautology.from(argTypings*) }
           val heightSigAtArgs = argTerms.zip(c.semantic.syntacticSignature).map {
             case (term, (_, SelfRef)) => term -> app(heightFun)(predVar)
             case (term, (_, TypeArg(name))) => term -> typeExprToTerm(name).substitute(semanticSubsts*).asInstanceOf[Expr[Ind]]
           }
           val recursiveAtPred = c.semantic.recursiveArgInHeightAt(semanticSubsts)(heightFun, predVar)
           val valueSubsts = c.semantic.variables2.zip(argTerms).map((v, t) => v := t)
-          val childTypingsAtPred = Time.measure(s"childTypingsAtPred") {
+          val childTypingsAtPred = {
             have(wellTypedFormula(heightSigAtArgs)) by Tautology.from(
               hValid,
               predInN,
@@ -369,7 +368,7 @@ private[PatternMatching] object NestedConstructorPattern {
 
           val predSubSucc = have(predVar ⊆ S(predVar)) by Tautology.from(subsetSuccessor.of(n := predVar))
           val predSubCurrent = have(predVar ⊆ currentIndex) by Congruence.from(predSubSucc, currentEqSucc)
-          Time.measure(s"targetInHeight") {
+          {
             have(target ∈ app(heightFun)(currentIndex)) by Tautology.from(
               hValid,
               currentIndexInN,

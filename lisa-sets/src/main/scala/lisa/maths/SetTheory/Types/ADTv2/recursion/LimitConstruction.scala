@@ -7,7 +7,6 @@ import lisa.maths.SetTheory.Functions.Function.abs
 import lisa.maths.SetTheory.Functions.Pi.Pi
 import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.SetTheory.{_, given}
-import lisa.utils.debug.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.equivalenceApply
 import lisa.maths.SetTheory.Types.TypingHelpers._
@@ -33,7 +32,7 @@ private[recursion] final class LimitConstruction[N <: Arity](
   val limitFun: Expr[Ind] =
     abs(spec.argType)(λ(a, app(G(limitIndex(a)))(a)))
 
-  val limitHasType: THM = Time.measure(s"limitHasType")(Lemma(limitFun :: spec.typ) {
+  val limitHasType: THM = (Lemma(limitFun :: spec.typ) {
     val hValid = have(isHeightPred(heightFun)) by Restate.from(heightFunValid)
 
     val everyValueTyped = have(

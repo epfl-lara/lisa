@@ -10,7 +10,6 @@ import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.semantics.DefinedProperty
 import lisa.maths.SetTheory.Types.ADTv2.support.tactics.Cuts
 import lisa.maths.SetTheory.Types.TypingHelpers._
-import lisa.utils.debug.Time
 import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[recursion] final class Uniqueness[N <: Arity](
@@ -93,7 +92,7 @@ private[recursion] final class Uniqueness[N <: Arity](
       xDefFormula /\ yDefFormula |- ∀(pointInput, pointInput ∈ argType ==> (x * pointInput === y * pointInput))
     ) {
 
-      val pointwiseCoreLemma = Time.measure("Pointwise uniqueness") {
+      val pointwiseCoreLemma = {
         RecFunctionInduction.pointwiseUniquenessAt(
           adt = adt,
           patternMatching = spec.patternMatching,

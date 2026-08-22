@@ -9,7 +9,6 @@ import lisa.maths.SetTheory.Types.ADTv2.recursion.Witness
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.specializedConstructors
 import lisa.utils.prooflib.InstantiateForallSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeFormula
-import lisa.utils.debug.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Cut
@@ -36,7 +35,7 @@ private[recursion] final class WitnessAgreement[N <: Arity](
 
   private val agreeOnSlice = ∀(vVar ∈ app(heightFun)(nVar), app(leftFun)(vVar) === app(rightFun)(vVar))
 
-  private val witnessAgreementAtSucc: THM = Time.measure(s"WA/witnessAgreementAtSucc")(
+  private val witnessAgreementAtSucc: THM = (
     Lemma(
       (
         leftFun :: spec.typ,

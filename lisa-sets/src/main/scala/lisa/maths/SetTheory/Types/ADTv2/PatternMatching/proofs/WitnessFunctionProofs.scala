@@ -18,7 +18,6 @@ import lisa.utils.prooflib.InstantiateForallSeq
 import lisa.utils.prooflib.QuantifiersIntro
 import lisa.maths.Quantifiers.∃!
 import lisa.maths.Quantifiers.existsOneAlternativeDefinition
-import lisa.utils.debug.Time
 import lisa.utils.prooflib.BasicStepTactic.LeftExists
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.BasicStepTactic.RightForall
@@ -44,7 +43,7 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
     seqOr(patternMatching.patterns.map(pattern => existsSeq(pattern.binders, branchWitnessAt(pattern, pattern.binders, inputTerm, outputTerm))))
 
 
-  private val witnessMembershipByCases: THM = Time.measure("witness/MembershipByCases") {
+  private val witnessMembershipByCases: THM = {
     val witnessInPattern = pair(inputTerm, outputTerm) ∈ witness ==> patternMatching.caseMembership(pair(inputTerm, outputTerm))
     Lemma(
       ∀(inputTerm ∈ argType, ∀(outputTerm, witnessInPattern))
@@ -81,7 +80,7 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
     }
   }
 
-  private val witnessMembershipByNamedCases: THM = Time.measure("witness/MembershipByNamedCases") {
+  private val witnessMembershipByNamedCases: THM = {
     Lemma(
       ∀(inputTerm ∈ argType,
         ∀(outputTerm,
@@ -204,7 +203,7 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
   private val samePatternBodyEquality: Map[Pattern[N], THM] =
     patternMatching.patterns
       .map(pattern =>
-        Time.measure("witness/SamePatternBody") {
+        {
           val ch = constructorHead(pattern)
           // The *statement* of this lemma is the bare implication over the pattern's
           // own `binders` / `variables2`, because that is exactly the shape
@@ -311,13 +310,13 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
   private val freshBranchDecomposition: Map[Pattern[N], BranchParts] =
     branchDecomposition(_.variables2, alternateOutputTerm)
 
-  private val branchAgreement: Map[(Pattern[N], Pattern[N]), THM] = Time.measure("BranchAgreement") {
+  private val branchAgreement: Map[(Pattern[N], Pattern[N]), THM] = {
     val patterns = patternMatching.patterns
     val builder = scala.collection.mutable.LinkedHashMap.empty[(Pattern[N], Pattern[N]), THM]
 
     // Full construction of the agreement lemma for `(pattern1, pattern2)`.
     def buildDirect(pattern1: Pattern[N], pattern2: Pattern[N]): THM =
-      Time.measure("BranchAgreement inner") {
+      {
         val namedBranch = existsSeq(
           pattern1.binders,
           branchWitnessAt(pattern1, pattern1.binders, inputTerm, outputTerm)
@@ -327,15 +326,14 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
           branchWitnessAt(pattern2, pattern2.variables2, inputTerm, alternateOutputTerm)
         )
 
-        var t0 = Time.get()
-        val l = Lemma(
+        Lemma(
           (namedBranch, freshBranch) |- (outputTerm === alternateOutputTerm)
         ) {
           val hyp = assume(namedBranch /\ freshBranch)
           val namedBranchFact = have(namedBranch) by Weakening(hyp)
           val freshBranchFact = have(freshBranch) by Weakening(hyp)
 
-          val namedToGoal = Time.measure("namedToGoal") {
+          val namedToGoal = {
             have(namedBranch |- (outputTerm === alternateOutputTerm)) subproof {
               // As with `freshToGoal` below, do not `assume(namedBranch)` here, so
               // that `namedBranch` is introduced by QuantifiersIntro rather than
@@ -348,7 +346,7 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
                 val inputEq1 = have(inputTerm === pattern1.inputTermAt(pattern1.binders)) by Weakening(namedBranchDecomposition(pattern1).inputEq)
                 val outputEq1 = have(outputTerm === pattern1.bodyAt(pattern1.binders)) by Weakening(namedBranchDecomposition(pattern1).outputEq)
 
-                val freshToGoal = Time.measure("freshToGoal") {
+                val freshToGoal = {
                   val freshDirect = have(
                     branchWitnessAt(pattern2, pattern2.variables2, inputTerm, alternateOutputTerm) |- (outputTerm === alternateOutputTerm)
                   ) subproof {
@@ -373,7 +371,7 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
                       )
                       have(outputTerm === alternateOutputTerm) by Congruence.from(outputEq1, sameBody, altEq2)
                     else
-                      Time.measure("freshToGoal/inner") {
+                      {
                         val pattern1Rename =
                           constructorHead(pattern1).variables1.zip(pattern1.binders).map((from, to) => from := to)
                         val incompatibleLemma = patternMatching.incompatible(pattern1, pattern2)
@@ -398,10 +396,7 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
 
           have(outputTerm === alternateOutputTerm) by Cut(namedBranchFact, namedToGoal)
           thenHave(thesis) by Restate
-          t0 = Time.get()
         }
-        Time.register("witness/BranchAgreement verification", Time.get() - t0)
-        l
       }
 
     // Derive `(pattern1, pattern2)` from the already-built mirror `(pattern2, pattern1)`.
@@ -410,7 +405,7 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
     // `binders` / `variables2` bound names (kernel-level), and `===` symmetry (the final
     // `Congruence` step, since `Tautology`/`Restate` treat `===` as opaque).
     def buildByMirror(pattern1: Pattern[N], pattern2: Pattern[N], mirror: THM): THM =
-      Time.measure("witness/BranchAgreement mirror") {
+      {
         val namedBranch = existsSeq(
           pattern1.binders,
           branchWitnessAt(pattern1, pattern1.binders, inputTerm, outputTerm)
@@ -441,7 +436,7 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
     builder.toMap
   }
 
-  private val witnessTotality: THM = Time.measure("witness/Totality") {
+  private val witnessTotality: THM = {
     Lemma(
       contextualize(
         ∀(inputTerm ∈ argType, ∃(outputTerm, pair(inputTerm, outputTerm) ∈ witness))
@@ -515,7 +510,7 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
     }
   }
 
-  private val witnessSingleValued: THM = Time.measure("witness/SingleValued") {
+  private val witnessSingleValued: THM = {
     Lemma(
       ∀(inputTerm ∈ argType,
         ∀(outputTerm,
@@ -623,7 +618,7 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
     }
   }
 
-  private val witnessUniqueValue: THM = Time.measure("witness/UniqueValue") {
+  private val witnessUniqueValue: THM = {
     Lemma(
       contextualize(
         ∀(inputTerm ∈ argType, ∃!(outputTerm, pair(inputTerm, outputTerm) ∈ witness))
@@ -668,7 +663,7 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
     }
   }
 
-  val witnessHasType: THM = Time.measure("witness/HasType") {
+  val witnessHasType: THM = {
     Lemma(contextualize(witness :: typ)) {
       if !contextPremises.isEmpty then assume(contextPremise)
 

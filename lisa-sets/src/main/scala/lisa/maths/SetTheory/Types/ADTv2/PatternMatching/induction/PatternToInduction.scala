@@ -6,7 +6,6 @@ import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
 import lisa.maths.SetTheory.Types.ADTv2.interface.SpecializedADT
-import lisa.utils.debug.Time
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.simplify
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.utils.prooflib.ProofTacticLib.Arity
@@ -57,7 +56,7 @@ object PatternToInduction {
       system: PatternSystem[N],
       payloads: Seq[T]
   ): Either[String, InductionBranchSystem[N, T]] =
-    Time.measure("PatternSystem -> InductionBranchSystem") {
+    {
 
       if system.patterns.size != payloads.size then
         Left(
