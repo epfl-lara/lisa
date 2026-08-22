@@ -51,11 +51,15 @@ private def ADTBuilder[N <: Arity](
     }
   }
 
-  val constructorsSyntactic = constructorsArgs.map(args =>
+  // Tags are the constructor's position in this declaration, so they stay small and
+  // independent of what else has been declared elsewhere in the program.
+  val constructorsSyntactic = constructorsArgs.zipWithIndex.map((args, index) =>
     SyntacticConstructor(
       args.map(arg => arg._2),
       args.map(arg => Variable[Ind](arg._1)),
-      args.map(arg => Variable[Ind](s"${arg._1}2"))
+      args.map(arg => Variable[Ind](s"${arg._1}2")),
+      tag = index,
+      owner = name
     )
   )
 

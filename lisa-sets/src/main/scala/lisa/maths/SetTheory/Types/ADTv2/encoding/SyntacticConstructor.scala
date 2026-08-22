@@ -11,31 +11,38 @@ import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
 /**
  *  Syntactic set theoretical interpretation of a constructor for an algebraic data type.
  *  In set theory, a constructor is a tuple containing the arguments it has been applied
- *  to, in addition to a tag uniquely identifying it.
+ *  to, in addition to a tag identifying it among the constructors of its own ADT.
  *
  *  E.g. `cons(1, nil())` is represented as `(tagcons, (1, ((tagnil, ∅), ∅)))`
+ *
+ *  Tags are local to an ADT: they are the constructor's index in the declaration, so
+ *  they stay small and the encoding of an ADT does not depend on what else has been
+ *  declared. The flip side is that constructors of *different* ADTs may share a tag,
+ *  and two nullary constructors of different ADTs have the same representation; only
+ *  [[disjointness]] within one ADT is meaningful.
  *
  *  Constructors injectivity is proved within this class.
  *
  *  @constructor creates a new constructor out of a user specification
  *  @param specification types that the constructor takes as arguments
  *  @param variables1 variables used to represent the arguments of the constructor
+ *  @param tag index of this constructor among the constructors of its ADT
+ *  @param owner name of the ADT this constructor belongs to, used to qualify the names
+ *    of the theorems proved here
  */
 class SyntacticConstructor(
     val specification: Seq[ConstructorArg],
     val variables1: Seq[Variable[Ind]],
-    val variables2: Seq[Variable[Ind]]
+    val variables2: Seq[Variable[Ind]],
+    val tag: Int,
+    val owner: String
 ) {
+
+  require(tag >= 0, s"Constructor tag of $owner must be non-negative, got $tag.")
 
   private def toTerm(n: Int): Expr[Ind] =
     require(n >= 0, "n must be a non-negative integer")
     if n == 0 then ∅ else S(toTerm(n - 1))
-
-  /**
-   * Unique identifier of this constructor
-   */
-  val tag: Int = Constructors.tagCounter
-  Constructors.tagCounter = Constructors.tagCounter + 1
 
   /**
    * Term representation of the tag of this constructor
@@ -141,11 +148,11 @@ class SyntacticConstructor(
    */
   lazy val injectivity =
     if arity == 0 then
-      Lemma(using name = s"const${tag}_injectivity")(term1 === term2) {
+      Lemma(using name = s"$owner/const${tag}_injectivity")(term1 === term2) {
         have(thesis) by RightRefl
       }
     else
-      Lemma(using name = s"const${tag}_injectivity")(
+      Lemma(using name = s"$owner/const${tag}_injectivity")(
         (term1 === term2) <=> seqEq(variables1, variables2)
       ) {
 
@@ -210,8 +217,8 @@ class SyntacticConstructor(
       }
 
   /**
-   *  Tags uniquely identify constructors, so the tag terms of two distinct
-   *  constructors are provably different.
+   *  Tags identify constructors within one ADT, so the tag terms of two distinct
+   *  constructors of the same ADT are provably different.
    *
    *  The tags are concrete naturals `S^tag(∅)`; peeling `min(tag, other.tag)`
    *  successors via injectivity reduces the equality to `S^(maxTag - minTag)(∅) = ∅`,
@@ -248,14 +255,22 @@ class SyntacticConstructor(
   /**
    *  Theorem --- Disjointness of distinct constructors.
    *
-   *  Two instances of distinct constructors are never equal, because their tags differ.
-   *  This is the structural counterpart of [[injectivity]], phrased over the internal
-   *  tuple encoding [[term]].
+   *  Two instances of distinct constructors of the same ADT are never equal, because
+   *  their tags differ. This is the structural counterpart of [[injectivity]], phrased
+   *  over the internal tuple encoding [[term]].
+   *
+   *  Since tags are ADT-local, this is only meaningful within one ADT: two constructors
+   *  of different ADTs may legitimately share a tag and even a representation.
    *
    *  e.g. nil =/= cons(head)(tail)
    */
   def disjointness(other: SyntacticConstructor): THM = {
     require(this != other, "disjointness requires two distinct constructors.")
+    require(
+      tag != other.tag,
+      s"disjointness requires two constructors of the same ADT, but $owner#$tag and " +
+        s"${other.owner}#${other.tag} share a tag; tags are only unique within an ADT."
+    )
     Lemma(!(term1 === other.term2)) {
       have(thesis) by Tautology.from(
         Pair.extensionality of (a := tagTerm, b := subterm1, c := other.tagTerm, d := other.subterm2),

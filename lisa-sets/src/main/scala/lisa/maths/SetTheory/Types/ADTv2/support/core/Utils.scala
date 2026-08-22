@@ -41,10 +41,6 @@ private object MyVariables {
 
 object Utils {
 
-  object Constructors {
-    var tagCounter = 0
-  }
-
   export MyVariables.*
 
   // Variables used

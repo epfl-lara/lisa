@@ -47,7 +47,7 @@ class DefinedSymbol[S](
       t = body
     )
     type T
-    given lisa.utils.fol.FOL.IsSort[T] =
+    given lisa.utils.fol.FOL.Sort[T] =
       lisa.utils.fol.FOL.unsafeSortEvidence(classFunctionExpr.sort)
     DEF(using name = name)(classFunctionExpr.asInstanceOf[Expr[T]])
   }
