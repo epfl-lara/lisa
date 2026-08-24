@@ -70,6 +70,17 @@ class Library:
     K.Axiom(using theory)(statement.underlying)
 
   /**
+   * Declare a single formula as an axiom and retain its front-level statement.
+   *
+   * This overload supports library declarations, while the sequent overload is
+   * used by the proof-facing [[lisa.utils.prooflib.BasicStep.Axiom]] tactic.
+   */
+  def Axiom(using file: sourcecode.File, line: sourcecode.Line)(formula: Expr[Prop]): Thm =
+    val statement = () |- formula
+    Axiom(file, line)(statement) match
+      case Right(theorem) => Thm(statement, theorem)
+
+  /**
    * The leading bouond variables of an expression, in order of appearance. 
    */
   private def leadingVars(e: Expr[?]): Seq[Variable[?]] =
@@ -112,14 +123,13 @@ class Library:
     *
     * @throws AlreadyDefined if the constant is already defined (even if with the same expression).
     */
-  def define[S: Sort](name: String, expression: Expr[S]): (Constant[S], Thm) =
+  private def defineWithVariables[S: Sort](name: String, expression: Expr[S], vars: Seq[Variable[?]]): (Constant[S], Thm) =
     definitions.synchronized:
       val cst = constant[S](name)
       if defines(cst) then
         val (_, existing) = definitions(cst)
         throw AlreadyDefined(name, existing, expression)
       else
-        val vars = leadingVars(expression)
         val thm = 
           K.Definition(using theory)(cst.underlying, vars.map(_.underlying), expression.underlying) match
             case Right(definition) =>
@@ -131,6 +141,9 @@ class Library:
         val wrapped = Thm(stmt, thm)
 
         storeDefinition(cst, expression, wrapped)
+
+  def define[S: Sort](name: String, expression: Expr[S]): (Constant[S], Thm) =
+    defineWithVariables(name, expression, leadingVars(expression))
 
   /**
    * Define a new constant with the given expression.
@@ -149,6 +162,20 @@ class Library:
     cst
 
   /**
+   * Definition declaration with an explicit name and argument list.
+   *
+   * Kept for declarations which cannot use [[DEF]]'s inferred source name or
+   * whose defining arguments are supplied explicitly. Registration and
+   * duplicate checks use the same path as [[define]] and [[DEF]]. The source
+   * location is captured contextually at the declaration site.
+   */
+  class DirectDefinition[S: Sort](using val line: sourcecode.Line, val file: sourcecode.File)(fullName: String)(
+      expression: Expr[S],
+      vars: Seq[Variable[?]]
+  ):
+    val (cst, definition): (Constant[S], Thm) = defineWithVariables(fullName, expression, vars)
+
+  /**
     * **[UNSAFE]**. Register or override a definition for a registered constant.
     *
     * Should only be used when necessary, e.g. with theory symbols defined by
@@ -156,9 +183,10 @@ class Library:
     * and used in proofs, but does not guarantee that the definition has the
     * otherwise expected shape as with other definitions.
     */
-  def registerDefinition[S](constant: Constant[S], definition: Thm): (constant.type, Thm) =
+  def registerDefinition[S](constant: Constant[S], definition: Thm): Thm =
     definitions.synchronized:
       storeDefinition(constant, constant, definition)
+      definition
 
   extension [S](constant: Constant[S])
     /**

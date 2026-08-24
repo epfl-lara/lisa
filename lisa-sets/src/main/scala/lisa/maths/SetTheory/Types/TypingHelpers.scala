@@ -210,10 +210,10 @@ object TypingHelpers:
   ///// Definitions /////
   ///////////////////////
 
-  class TypedSimpleConstantDefinition(using om: OutputManager)(fullName: String, line: Int, file: String)(
+  class TypedSimpleConstantDefinition(using om: OutputManager, line: sourcecode.Line, file: sourcecode.File)(fullName: String)(
       val expression: Expr[Ind],
       val typ: Typ
-  ) extends DirectDefinition[Ind](fullName, line, file)(expression, Seq[Variable[?]]()) {
+  ) extends DirectDefinition[Ind](using line, file)(fullName)(expression, Seq[Variable[?]]()) {
     val typingName = "typing_" + fullName
     val typingJudgement =
       val statement: Sequent = cst :: typ
@@ -226,7 +226,7 @@ object TypingHelpers:
   }
 
   def TYPEDEF(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(term: Expr[Ind], typ: Typ): TypedConstant =
-    TypedSimpleConstantDefinition(name.value, line.value, file.value)(term, typ).typedLabel
+    TypedSimpleConstantDefinition(using om, line, file)(name.value)(term, typ).typedLabel
 
   extension (c: Constant[Ind]) {
     def typedWith(typ: Typ)(justif: Thm): TypedConstant =
