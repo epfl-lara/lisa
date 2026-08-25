@@ -1,7 +1,6 @@
 package lisa.utils.prooflib
 
 import lisa.kernel.fol.{FOL => KF}
-import lisa.kernel.proof.{Helpers => KH}
 import lisa.utils.fol.FOL._
 
 import scala.collection.mutable
@@ -16,50 +15,52 @@ object Helpers:
    * Checks kernel expression equality for two high-level expressions.
    */
   inline def expEq[S, T](s: Expr[S], t: Expr[T]): Boolean =
-    KH.expEq(s.underlying, t.underlying)
+    KF.isSame(s.underlying, t.underlying)
 
   extension [S](set: Set[Expr[S]])
     /**
      * Checks whether this high-level expression set contains an equivalent formula.
      */
     inline def containsEq[T](formula: Expr[T]): Boolean =
-      KH.containsEq(set.map(_.underlying))(formula.underlying)
+      KF.contains(set.map(_.underlying), formula.underlying)
 
     /**
      * Checks whether every expression in this set is equivalent to one in the target set.
      */
     inline def subsetOfEq[T](target: Set[Expr[T]]): Boolean =
-      KH.subsetOfEq(set.map(_.underlying))(target.map(_.underlying))
+      KF.isSubset(set.map(_.underlying), target.map(_.underlying))
 
     /**
      * Checks whether this set is contained in the target set, allowing one exceptional expression.
      */
     inline def containedExcept[T, U](target: Set[Expr[T]], exception: Expr[U]): Boolean =
-      KH.containedExcept(set.map(_.underlying))(target.map(_.underlying), exception.underlying)
+      val underlyingTarget = target.map(_.underlying)
+      set.forall(formula => KF.contains(underlyingTarget, formula.underlying) || expEq(formula, exception))
 
     /**
      * Checks whether this set is contained in the target set, allowing either of two exceptional expressions.
      */
     inline def containedExceptEither[T, U, V](target: Set[Expr[T]], exception1: Expr[U], exception2: Expr[V]): Boolean =
-      KH.containedExceptEither(set.map(_.underlying))(target.map(_.underlying), exception1.underlying, exception2.underlying)
+      val underlyingTarget = target.map(_.underlying)
+      set.forall(formula => KF.contains(underlyingTarget, formula.underlying) || expEq(formula, exception1) || expEq(formula, exception2))
 
   /**
    * Returns source expressions that are not equivalent to any expression in the target set.
    */
   def differenceEq(source: Set[KF.Expression], target: Set[KF.Expression]): Iterator[KF.Expression] =
-    source.iterator.filterNot(expr => KH.containsEq(target)(expr))
+    source.iterator.filterNot(KF.contains(target, _))
 
   /**
    * Keeps the first representative of each simple normal form, optionally confirming exact equality.
    */
   def distinctEq(expressions: Iterator[KF.Expression], limit: Int = Int.MaxValue, exact: Boolean = false): Vector[KF.Expression] =
-    val seen = mutable.HashSet.empty[KF.SimpleExpression]
+    val seen = mutable.HashSet.empty[KF.Expression]
     val result = Vector.newBuilder[KF.Expression]
     val kept = mutable.ArrayBuffer.empty[KF.Expression]
     var size = 0
     while size < limit && expressions.hasNext do
       val expression = expressions.next()
-      if seen.add(KF.simpleReducedForm(expression)) && (!exact || !kept.exists(KH.expEq(_, expression))) then
+      if seen.add(KF.reducedForm(expression)) && (!exact || !kept.exists(KF.isSame(_, expression))) then
         result += expression
         kept += expression
         size += 1
@@ -201,8 +202,8 @@ object Helpers:
    */
   private def abstractDifference(source: KF.Expression, target: KF.Expression, s: KF.Expression, t: KF.Expression, variable: KF.Variable): Option[(KF.Expression, Boolean)] =
     if source.sort != target.sort then None
-    else if source.sort == s.sort && target.sort == t.sort && KH.expEq(source, s) && KH.expEq(target, t) then Some(variable -> true)
-    else if KH.expEq(source, target) then Some(source -> false)
+    else if source.sort == s.sort && target.sort == t.sort && KF.isSame(source, s) && KF.isSame(target, t) then Some(variable -> true)
+    else if KF.isSame(source, target) then Some(source -> false)
     else
       (source, target) match
         case (KF.Application(sourceF, sourceArg), KF.Application(targetF, targetArg)) =>
@@ -229,7 +230,7 @@ object Helpers:
         else
           val sourceCheck = KF.substituteVariables(body, Map(variable -> s))
           val targetCheck = KF.substituteVariables(body, Map(variable -> t))
-          if KH.expEq(sourceCheck, source) && KH.expEq(targetCheck, target) then Some(Seq(variable) -> body)
+          if KF.isSame(sourceCheck, source) && KF.isSame(targetCheck, target) then Some(Seq(variable) -> body)
           else None
       }
 
