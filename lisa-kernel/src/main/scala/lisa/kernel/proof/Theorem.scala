@@ -25,6 +25,7 @@ case class Thm private [proof] (
   rule: Step,
   theory: Theory,
   axioms: Set[Sequent],
+  assumptions: Set[Sequent],
   usesSorry: Boolean = false
 ):
   inline def left: Set[Expression] = statement.left
@@ -45,7 +46,7 @@ sealed trait Step:
 ///////////////////////////////////////////////////////////////////////////////
 // Equality and Set Helpers
 ///////////////////////////////////////////////////////////////////////////////
-object Helpers:
+private[proof] object Helpers:
 
   /**
    * The chosen equality for general checks in proof steps.
@@ -85,6 +86,7 @@ import Helpers.*
 private def theorem(using theory: Theory, rule: Step)(statement: Sequent, premises: Iterable[Thm] = Nil, axioms: Set[Sequent] = Set.empty, usesSorry: Boolean = false): Either[GeneralError, Thm] =
   val sorry = usesSorry || premises.exists(_.usesSorry)
   val allAxioms = premises.foldLeft(axioms)(_ `union` _.axioms)
+  val allAssumptions = premises.foldLeft(Set.empty[Sequent])(_ `union` _.assumptions)
   
   // the last check for any theorem, its premises must be from the same theory context
   val violatingPremise = premises.find(prem => !(theory eq prem.theory))
@@ -99,6 +101,7 @@ private def theorem(using theory: Theory, rule: Step)(statement: Sequent, premis
         rule,
         theory,
         allAxioms,
+        allAssumptions,
         sorry
       )
 
@@ -138,7 +141,7 @@ case object Sorry extends Step:
   type ErrorType = Nothing // Sorry does not throw its own errors
  
   def apply(using theory: Theory)(statement: Sequent): Result[Thm] = 
-    Right(Thm(statement, this, theory, Set.empty, usesSorry = true))
+    Right(Thm(statement, this, theory, Set.empty, Set.empty, usesSorry = true))
 
 /**
  * Perform a sorry step and trivially unwrap the result type.
@@ -150,7 +153,28 @@ case object Axiom extends Step:
   type ErrorType = Nothing // Axiom does not throw its own errors
 
   def apply(using theory: Theory)(statement: Sequent): Result[Thm] = 
-    Right(Thm(statement, this, theory, Set(statement)))
+    Right(Thm(statement, this, theory, Set(statement), Set.empty))
+
+// assumption handling
+
+case object Assume extends Step:
+  type ErrorType = Nothing // Assume does not throw its own errors
+
+  def apply(using theory: Theory)(statement: Sequent): Result[Thm] = 
+    Right(Thm(statement, this, theory, Set.empty, Set(statement)))
+
+case object Discharge extends Step:
+  type ErrorType = GeneralError
+
+  def apply(using theory: Theory)(premise: Thm, justification: Thm): Result[Thm] =
+    val statement = justification.statement
+    val finalAssumptions = 
+      premise.assumptions.filterNot(isSameSequent(_, statement)) `union` justification.assumptions
+
+    // the result is just the premise with an assumption discharged, and axioms/sorry accumulated
+    theorem(premise.statement, Seq(premise, justification), Set.empty)
+      .map(thm => thm.copy(assumptions = finalAssumptions))
+
 
 case object Definition extends Step:
   type ErrorType = DefinitionError
@@ -186,7 +210,7 @@ case object Definition extends Step:
         else equality(appliedCst)(appliedExp)
       val sequent = Sequent(Set.empty, Set(formula))
 
-      val definition = Thm(sequent, this, theory, Set.empty)
+      val definition = Thm(sequent, this, theory, Set.empty, Set.empty)
 
       // MUTABLY update the theory
       theory.registerDefinition(cst, definition)
@@ -221,7 +245,7 @@ case object RestateTrue extends Step:
 
   def apply(using theory: Theory)(statement: Sequent): Result[Thm] =
     if isSameSequent(statement, Sequent(Set.empty, Set(top))) then 
-      Right(Thm(statement, this, theory, Set.empty))
+      Right(Thm(statement, this, theory, Set.empty, Set.empty))
     else Left(NotTrivial(statement))
 
 /**
