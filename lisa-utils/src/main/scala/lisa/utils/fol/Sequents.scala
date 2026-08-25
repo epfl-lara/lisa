@@ -184,7 +184,8 @@ trait Sequents extends Predef {
     infix def -->?(s1: Sequent): Sequent = this removeAllRight s1
 
     /**
-     * Add all formulas on the left (and right) of the given sequent to the left (and right) of this sequent if there is not already a formula OL-same to it.
+     * Remove formulas OL-equivalent to formulas on the corresponding side of
+     * the given sequent.
      */
     infix def --?(s1: Sequent): Sequent = this removeAll s1
 
@@ -205,11 +206,13 @@ trait Sequents extends Predef {
    * carrying the kernel theorem that certifies it.
    */
   final case class Thm(statement: Sequent, kernel: K.Thm):
-    def kernelStatement: K.Sequent = kernel.statement
+    require(
+      statement.underlying == kernel.statement,
+      s"Front statement ${statement.underlying} does not match kernel statement ${kernel.statement}."
+    )
+
     def left: Set[Expr[Prop]] = statement.left
     def right: Set[Expr[Prop]] = statement.right
-    def leftK: Set[K.Expression] = kernel.statement.left
-    def rightK: Set[K.Expression] = kernel.statement.right
 
   object Thm:
     def apply(kernel: K.Thm): Thm =
@@ -247,7 +250,7 @@ trait Sequents extends Predef {
   /**
    * Returns true if the first expression OL-implies the second expression.
    */
-  def isImplying[S: Sort](e1: Expr[Prop], e2: Expr[Prop]): Boolean = {
+  def isImplying(e1: Expr[Prop], e2: Expr[Prop]): Boolean = {
     K.isImplying(e1.underlying, e2.underlying)
   }
 
