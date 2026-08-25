@@ -8,24 +8,6 @@ import lisa.utils.fol.Syntax
 trait ExprOps extends Syntax {
   extension [A](e: Expr[A])
     /**
-     * Apply a function to the expression tree. The function is applied to a
-     * node before traversing its (now new) children.
-     *
-     * @param f the function to apply
-     * @return the transformed expression
-     */
-    def preMap(f: Expr[?] => Expr[?]): Expr[?] = ???
-
-    /**
-     * Apply a function to the expression tree. The function is applied to a
-     * node after traversing its children.
-     *
-     * @param f the function to apply
-     * @return the transformed expression
-     */
-    def postMap(f: Expr[?] => Expr[?]): Expr[?] = ???
-
-    /**
      * All subexpressions of this expression, including itself, in depth-first
      * order.
      */
