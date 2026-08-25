@@ -12,7 +12,6 @@ import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
 import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
 import lisa.maths.SetTheory.Types.ADTv2.interface.SpecializedADT
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.substitutionsFromArgs
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
  * Mutable accumulator collecting constructor cases before validation and compilation.
@@ -20,12 +19,12 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  * An ordered buffer is used (not a map) to support multiple patterns per constructor,
  * as needed for nested patterns like `cons(tru, tl)` and `cons(fals, tl)`.
  */
-class CaseAccumulator[N <: Arity, T, R](val comp: R) {
+class CaseAccumulator[T, R](val comp: R) {
 
   private val underlying = scala.collection.mutable
-    .ArrayBuffer[(Constructor[N], Seq[Expr[Ind]], T)]()
+    .ArrayBuffer[(Constructor[?], Seq[Expr[Ind]], T)]()
 
-  def +=(cons: Constructor[N], args: Seq[Expr[Ind]], value: T): Unit =
+  def +=(cons: Constructor[?], args: Seq[Expr[Ind]], value: T): Unit =
     underlying += ((cons, args, value))
 
   /**
@@ -40,14 +39,14 @@ class CaseAccumulator[N <: Arity, T, R](val comp: R) {
    * Falls back to a [[NestedPatternSystem]] when at least one case contains a concrete
    * term argument (e.g. `cons(tru, tl)`).
    */
-  def compile(adt: SpecializedADT[N])(using ev: T =:= Expr[Ind]): Either[String, PatternSystem[N]] =
+  def compile(adt: SpecializedADT[?])(using ev: T =:= Expr[Ind]): Either[String, PatternSystem] =
     validateCoverage(adt.base) match
       case Some(err) => Left(err)
       case None => Right(buildPatternSystem(adt, bodyAt = ev))
 
   def compileForInduction(
-      adt: SpecializedADT[N]
-  ): Either[String, InductionBranchSystem[N, T]] =
+      adt: SpecializedADT[?]
+  ): Either[String, InductionBranchSystem[T]] =
     validateCoverage(adt.base) match
       case Some(err) => Left(err)
       case None => PatternToInduction.compile(
@@ -56,9 +55,9 @@ class CaseAccumulator[N <: Arity, T, R](val comp: R) {
           underlying.toSeq.map(_._3)
         )
 
-  private def validateCoverage(adt: ADT[N]): Option[String] =
-    val constructors = adt.constructors.toSet
-    val caseConstructors = underlying.map(_._1).toSet
+  private def validateCoverage(adt: ADT[?]): Option[String] =
+    val constructors: Set[Constructor[?]] = adt.constructors.toSet
+    val caseConstructors: Set[Constructor[?]] = underlying.map(_._1).toSet
 
     val missing = constructors -- caseConstructors
     val unknown = caseConstructors -- constructors
@@ -75,10 +74,10 @@ class CaseAccumulator[N <: Arity, T, R](val comp: R) {
       }
 
   private def buildConstructorSystem(
-      adt: SpecializedADT[N],
+      adt: SpecializedADT[?],
       typeSubstitutions: Seq[lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution],
       bodyAt: T => Expr[Ind]
-  ): ConstructorPatternSystem[N] =
+  ): ConstructorPatternSystem =
     ConstructorPatternSystem(
       domain = adt.base.semantic,
       patterns = underlying.toSeq.map { case (cons, args, body) =>
@@ -94,10 +93,10 @@ class CaseAccumulator[N <: Arity, T, R](val comp: R) {
     )
 
   private def buildNestedSystem(
-      adt: SpecializedADT[N],
+      adt: SpecializedADT[?],
       typeSubstitutions: Seq[lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution],
       bodyAt: T => Expr[Ind]
-  ): NestedPatternSystem[N] =
+  ): NestedPatternSystem =
     val patterns = underlying.toSeq.map { case (cons, args, body) =>
       NestedConstructorPattern.fromArgs(
         cons.semantic,
@@ -118,9 +117,9 @@ class CaseAccumulator[N <: Arity, T, R](val comp: R) {
     }
 
   private def buildPatternSystem(
-      adt: SpecializedADT[N],
+      adt: SpecializedADT[?],
       bodyAt: T => Expr[Ind]
-  ): PatternSystem[N] =
+  ): PatternSystem =
     {
       val typeSubstitutions =
         substitutionsFromArgs("ADT", adt.base.name, adt.base.typeVariablesSeq, adt.typeArgs)

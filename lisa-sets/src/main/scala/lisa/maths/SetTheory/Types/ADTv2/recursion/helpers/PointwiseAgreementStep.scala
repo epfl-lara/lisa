@@ -11,7 +11,6 @@ import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFact
 import lisa.utils.prooflib.InstantiateForallSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.tactics.Cuts
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
  * Shared structural core of a "pointwise agreement at the S height"
@@ -50,18 +49,18 @@ private[recursion] object PointwiseAgreementStep {
    *   - `caseEquation` — for one side, the case body (with `slice` substituted) and the
    *     equation `goalFun * input === body`, where `goalFun` is determined by the side.
    */
-  trait PatternCaseEquations[N <: Arity] {
+  trait PatternCaseEquations {
     def recursiveType: Expr[Ind]
     def heightMembershipMonotonic: THM
     def sliceLeft: Expr[Ind]
     def sliceRight: Expr[Ind]
     def sliceAgreement(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact
     def bodyEqAssumptions(using proof: lisa.SetTheoryLibrary.Proof)(
-        pattern: Pattern[N],
+        pattern: Pattern,
         patternGuard: proof.Fact
     ): Set[Expr[Prop]]
     def caseEquation(using proof: lisa.SetTheoryLibrary.Proof)(
-        pattern: Pattern[N],
+        pattern: Pattern,
         slice: Expr[Ind],
         patternPremise: proof.Fact,
         patternGuard: proof.Fact,
@@ -86,12 +85,12 @@ private[recursion] object PointwiseAgreementStep {
     have((atPoint.statement.left ++ pointInHeight.statement.left) |- pEq) by Cut(pointInHeight, viaImpl)
   }
 
-  def pointwiseAgreementOnSucc[N <: Arity](using
+  def pointwiseAgreementOnSucc(using
       proof: lisa.SetTheoryLibrary.Proof
   )(
-      patternMatching: PatternSystem[N],
+      patternMatching: PatternSystem,
       heightFun: Expr[Ind],
-      constructorsAt: Seq[SpecializedConstructorFacts[N]],
+      constructorsAt: Seq[SpecializedConstructorFacts],
       ambientTerm: Variable[Ind],
       currentIndex: Expr[Ind],
       currentIndexInN: proof.Fact,
@@ -99,7 +98,7 @@ private[recursion] object PointwiseAgreementStep {
       heightSuccStrong: THM,
       goalEqAt: Expr[Prop]
   )(
-      caseEqs: PatternCaseEquations[N]
+      caseEqs: PatternCaseEquations
   ): proof.Fact = {
     val pointwiseAtSucc =
       have((ambientTerm ∈ app(heightFun)(S(currentIndex))) ==> goalEqAt) subproof {
@@ -144,7 +143,7 @@ private[recursion] object PointwiseAgreementStep {
             // The per-pattern agreement proof, shared between the witness and uniqueness
             // steps; only `caseEqs.caseEquation` (how `goalFun * input === body` is obtained
             // for each side) is function-specific.
-            val rawEqFor = (pattern: Pattern[N]) =>
+            val rawEqFor = (pattern: Pattern) =>
               have(pattern.branchSelectionBody(ambientTerm) |- goalEqAt) subproof {
                 val selectedPattern = assume(pattern.branchSelectionBody(ambientTerm))
                 val patternGuard = have(pattern.freshBranchCondition) by Weakening(selectedPattern)

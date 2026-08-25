@@ -2,7 +2,6 @@ package lisa.maths.SetTheory.Types.ADTv2.FunctionCore
 
 import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
  * The case-specific parts that [[FunctionSemanticsBase]] needs in order to
@@ -10,10 +9,10 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  * proofs, and how to build the (possibly self-referential) pattern bodies once
  * the defined term is known.
  */
-trait SemanticFunctionInputs[N <: Arity] {
+trait SemanticFunctionInputs {
   def name: String
-  def spec: FunSpecBase[N]
-  def existence: ExistenceProof[N]
-  def uniqueness: UniquenessProof[N]
-  def buildPatterns(term: Expr[Ind]): Seq[Pattern[N]]
+  def spec: FunSpecBase
+  def existence: ExistenceProof
+  def uniqueness: UniquenessProof
+  def buildPatterns(term: Expr[Ind]): Seq[Pattern]
 }

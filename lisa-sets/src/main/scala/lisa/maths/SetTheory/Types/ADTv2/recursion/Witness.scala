@@ -4,7 +4,6 @@ import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.FunctionCore.WitnessBase
 import lisa.maths.SetTheory.Types.TypingHelpers._
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
  * Layer 2 — Witness construction.
@@ -19,8 +18,8 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  *   - the contextual typing premise `selfPlaceholder :: A→T`
  *   - branch return-type checks under that premise
  */
-private[recursion] final class Witness[N <: Arity](spec: FunSpec[N])
-    extends WitnessBase[N](
+private[recursion] final class Witness(spec: FunSpec)
+    extends WitnessBase(
       functionName = spec.functionName,
       adt = spec.adt,
       argType = spec.argType,
@@ -51,7 +50,7 @@ private[recursion] final class Witness[N <: Arity](spec: FunSpec[N])
   override protected def contextPremises: Seq[Expr[Prop]] =
     Seq(typingPremise)
 
-  protected val checkReturnType: Map[Pattern[N], JUSTIFICATION] =
+  protected val checkReturnType: Map[Pattern, JUSTIFICATION] =
     WitnessBase.returnTypeChecks(
       patterns = spec.cases,
       returnType = spec.returnType,

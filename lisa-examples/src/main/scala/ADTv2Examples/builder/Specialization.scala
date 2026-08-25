@@ -14,18 +14,18 @@ object Specialization extends lisa.Main {
 
   section("Specialized ADTs")
   show(box.semantic.induction)
-  show(box.induction(unit))
-  show(list.induction(nat))
-  show(option.elim(boxUnit))
+  show(box.induction)
+  show(list.induction)
+  show(option.elim)
 
   section("Specialized constructors")
-  show(pack.intro(unit))
-  show(pack.introApp(unit))
-  show(cons.intro(nat))
+  show(pack.intro)
+  show(pack.introApp)
+  show(cons.intro)
 
   section("Specialized recursive functions")
-  show(length.intro(nat))
-  show(length.intro(unit))
+  show(length.intro)
+  show(length.intro)
 
   section("More complex specialization")
 

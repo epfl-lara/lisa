@@ -5,18 +5,17 @@ import lisa.maths.SetTheory.Types.ADTv2.FunctionCore.{FunctionSemanticsBase, Sem
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
 import lisa.maths.SetTheory.Types.ADTv2.encoding._
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
-final class SemanticFunction[N <: Arity](
+final class SemanticFunction(
     semanticName: String,
-    semanticAdt: SemanticADT[N],
+    semanticAdt: SemanticADT,
     semanticArgType: Expr[Ind],
-    patternMatching: PatternSystem[N],
+    patternMatching: PatternSystem,
     semanticReturnType: Expr[Ind]
-) extends FunctionSemanticsBase[N](
-      new SemanticFunctionInputs[N] {
+) extends FunctionSemanticsBase(
+      new SemanticFunctionInputs {
 
-        val spec: FunSpec[N] = new FunSpec[N](
+        val spec: FunSpec = new FunSpec(
           functionName = semanticName,
           adt = semanticAdt,
           argType = semanticArgType,
@@ -24,11 +23,11 @@ final class SemanticFunction[N <: Arity](
           returnType = semanticReturnType
         )
 
-        private val witness: Witness[N] = (new Witness[N](spec))
+        private val witness: Witness = (new Witness(spec))
 
         def name: String = semanticName
-        val existence: Existence[N] = (new Existence[N](spec, witness))
-        val uniqueness: Uniqueness[N] = new Uniqueness[N](spec)
-        def buildPatterns(term: Expr[Ind]): Seq[Pattern[N]] = spec.cases
+        val existence: Existence = (new Existence(spec, witness))
+        val uniqueness: Uniqueness = new Uniqueness(spec)
+        def buildPatterns(term: Expr[Ind]): Seq[Pattern] = spec.cases
       }
     )

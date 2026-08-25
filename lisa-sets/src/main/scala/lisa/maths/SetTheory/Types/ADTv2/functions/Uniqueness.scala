@@ -6,11 +6,10 @@ import lisa.utils.prooflib.InstantiateForallSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Restate
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
-private[functions] final class Uniqueness[N <: Arity](
-    override protected val spec: FunSpec[N]
-) extends UniquenessProof[N] {
+private[functions] final class Uniqueness(
+    override protected val spec: FunSpec
+) extends UniquenessProof {
 
   private val argType = spec.argType
 

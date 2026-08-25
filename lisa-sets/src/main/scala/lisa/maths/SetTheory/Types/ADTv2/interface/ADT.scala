@@ -2,25 +2,20 @@ package lisa.maths.SetTheory.Types.ADTv2.interface
 
 import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticADT
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.requireMonomorphicAccess
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.theoremAt
-import lisa.maths.SetTheory.Types.ADTv2.support.core.**
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.generalTheorem
+
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.renderAppliedSymbol
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.typeExprToTerm
-import lisa.maths.SetTheory.Types.ADTv2.support.core.toSeq
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
-final class ADT[N <: Arity](using val line: sourcecode.Line, val file: sourcecode.File, valueOfN: ValueOf[N])(
-    val semantic: SemanticADT[N]
-) extends Constant[IndOf[N]](semantic.id) {
+final class ADT[S](using val line: sourcecode.Line, val file: sourcecode.File, sort: Sort[S])(
+    val semantic: SemanticADT
+) extends Constant[S](semantic.id) {
 
   printAs(args => renderAppliedSymbol(semantic.name, semantic.typeVariablesSeq.size, args))
 
   val name: String = semantic.name
-  val typeVariables: Variable[Ind] ** N = semantic.typeVariables
   val typeVariablesSeq: Seq[Variable[Ind]] = semantic.typeVariablesSeq
-  val get_arity: Int = valueOfN.value
 
   def termAt(args: Seq[Expr[Ind]]): Expr[Ind] =
     (this #@@ args).asInstanceOf[Expr[Ind]]
@@ -29,61 +24,49 @@ final class ADT[N <: Arity](using val line: sourcecode.Line, val file: sourcecod
 
   ADT.register(this)
 
-  lazy val constructors: Seq[Constructor[N]] =
-    semantic.constructors.map(c => new Constructor[N](c, this))
+  lazy val constructors: Seq[Constructor[S]] =
+    semantic.constructors.map(c => new Constructor[S](c, this))
 
-  def induction: THM = {
-    requireMonomorphicAccess("ADT", name, typeVariablesSeq)
-    theoremAt(name, typeVariablesSeq, Seq.empty, "induction", semantic.induction)
-  }
+  /**
+   * The structural induction principle, closed over this ADT's type variables.
+   * Instantiate at type arguments with `of`, e.g. `list.induction of nat`.
+   */
+  lazy val induction: THM =
+    generalTheorem(name, typeVariablesSeq, "induction", semantic.induction)
 
-  def induction(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*): THM =
-    theoremAt(name, typeVariablesSeq, firstTypeArg +: otherTypeArgs, "induction", semantic.induction)
+  /**
+   * Every inhabitant is a constructor applied to typed arguments. Instantiate with `of`.
+   */
+  lazy val elim: THM =
+    generalTheorem(name, typeVariablesSeq, "elimination", semantic.elim)
 
-  def elim: THM = {
-    requireMonomorphicAccess("ADT", name, typeVariablesSeq)
-    theoremAt(name, typeVariablesSeq, Seq.empty, "elimination", semantic.elim)
-  }
+  private lazy val disjointnessThms: Map[(Constructor[S], Constructor[S]), THM] =
+    (for c1 <- constructors; c2 <- constructors if c1 != c2 yield
+      (c1, c2) -> generalTheorem(
+        name,
+        typeVariablesSeq,
+        s"${c1.semantic.name}-${c2.semantic.name}/disjointness",
+        semantic.disjointness(c1.semantic, c2.semantic)
+      )
+    ).toMap
 
-  def elim(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*): THM =
-    theoremAt(name, typeVariablesSeq, firstTypeArg +: otherTypeArgs, "elimination", semantic.elim)
-
-  def disjointness(c1: Constructor[N], c2: Constructor[N]): THM = {
-    requireMonomorphicAccess("ADT", name, typeVariablesSeq)
-    theoremAt(
-      displayName = name,
-      typeVariables = typeVariablesSeq,
-      typeArgs = Seq.empty,
-      suffix = s"${c1.semantic.name}-${c2.semantic.name}/disjointness",
-      baseTheorem = semantic.disjointness(c1.semantic, c2.semantic)
+  /**
+   * Instances of two distinct constructors are never equal. Instantiate with `of`.
+   */
+  def disjointness(c1: Constructor[S], c2: Constructor[S]): THM =
+    disjointnessThms.getOrElse(
+      (c1, c2),
+      throw new IllegalArgumentException(
+        s"$name has no disjointness between ${c1.name} and ${c2.name}; they must be two distinct constructors of $name."
+      )
     )
-  }
-
-  def disjointness(
-      c1: Constructor[N],
-      c2: Constructor[N],
-      firstTypeArg: Expr[Ind],
-      otherTypeArgs: Expr[Ind]*
-  ): THM =
-    theoremAt(
-      name,
-      typeVariablesSeq,
-      firstTypeArg +: otherTypeArgs,
-      s"${c1.semantic.name}-${c2.semantic.name}/disjointness",
-      semantic.disjointness(c1.semantic, c2.semantic)
-    )
-
-  def applyUnsafe(args: Expr[Ind] ** N): Expr[Ind] = termAt(args.toSeq)
 
   def applySeq(args: Seq[Expr[Ind]]): Expr[Ind] = termAt(args)
 
   def apply(args: Expr[Ind]*): Expr[Ind] = termAt(args)
 
-  def applyType(args: TypeExpr*): Expr[Ind] =
-    applySeq(args.map(typeExprToTerm))
-
-  def specialize(args: Expr[Ind]*): SpecializedADT[N] =
-    new SpecializedADT[N](this, args)
+  def specialize(args: Expr[Ind]*): SpecializedADT[S] =
+    new SpecializedADT[S](this, args)
 }
 
 object ADT {
@@ -97,12 +80,6 @@ object ADT {
     namesToADT.update(adt.name, adt)
     idsToADT.update(adt.id, adt)
   }
-
-  def unapply(t: TypeRef): Option[ADT[?]] = getADT(t.name)
-
-  def unapply(obj: TypeExpr): Option[(ADT[?], Seq[TypeExpr])] = obj match
-    case TypeRef(name) => getADT(name).map((_, Seq.empty))
-    case TypeApply(name, args) => getADT(name).map((_, args))
 
   def unapply(obj: Expr[Ind]): Option[(ADT[?], Seq[Expr[Ind]])] =
     obj match

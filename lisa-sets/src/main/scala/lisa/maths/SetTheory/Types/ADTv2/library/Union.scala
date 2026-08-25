@@ -3,8 +3,8 @@ package lisa.maths.SetTheory.Types.ADTv2.library
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2._
 
-private val unionLeft = variable[Ind]
-private val unionRight = variable[Ind]
+val unionLeft = variable[Ind]
+val unionRight = variable[Ind]
 
 val union = adt(
   name = "union",
@@ -26,4 +26,4 @@ lazy val isLeft = fun(union, bool) {
 }
 
 object Union:
-  export lisa.maths.SetTheory.Types.ADTv2.library.{union, inl, inr, isLeft}
+  export lisa.maths.SetTheory.Types.ADTv2.library.{union, inl, inr, isLeft, unionLeft, unionRight}

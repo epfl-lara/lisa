@@ -15,7 +15,6 @@ import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.maths.SetTheory.Types.TypingHelpers.TypeAssign
 import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.BasicStepTactic.RightImplies
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
  *  Tactic performing a structural induction proof over an algebraic data type.
@@ -39,12 +38,12 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  *  @param expectedVar the variable on which the induction is performed
  *  @param expectedADT the algebraic data type on which the induction is performed
  */
-class Induction[M <: Arity](
+class Induction(
     expectedVar: Option[Variable[Ind]],
-    expectedADT: Option[SpecializedADT[M]]
+    expectedADT: Option[SpecializedADT[?]]
 ) extends lisa.utils.prooflib.ProofTacticLib.ProofTactic {
 
-  private def typeSubstitutionMap[N <: Arity](adt: SpecializedADT[N]): Map[String, Expr[Ind]] =
+  private def typeSubstitutionMap(adt: SpecializedADT[?]): Map[String, Expr[Ind]] =
     adt.base.typeVariablesSeq.map(_.id.name).zip(adt.typeArgs).toMap
 
   private def instantiateForallSeq(formula: Expr[Prop], args: Seq[Expr[Ind]]): Expr[Prop] =
@@ -54,9 +53,9 @@ class Induction[M <: Arity](
         case _              => current
     }
 
-  private def caseHypotheses[N <: Arity](
-    constructor: Constructor[N],
-    adt: SpecializedADT[N],
+  private def caseHypotheses(
+    constructor: Constructor[?],
+    adt: SpecializedADT[?],
     binders: Seq[Variable[Ind]],
     prop: Expr[Ind >>: Prop]
   ): Seq[(Variable[Ind], Seq[Expr[Prop]])] =
@@ -69,13 +68,13 @@ class Induction[M <: Arity](
     }
 
   // forall interleaved per binder
-  private def abstractConstructorCase[N <: Arity](using
+  private def abstractConstructorCase(using
       proof: lisa.SetTheoryLibrary.Proof
   )(
       rawCaseProof: proof.Fact,
       binders: Seq[Variable[Ind]],
-      constructor: Constructor[N],
-      adt: SpecializedADT[N],
+      constructor: Constructor[?],
+      adt: SpecializedADT[?],
       prop: Expr[Ind >>: Prop]
   ): proof.Fact =
     caseHypotheses(constructor, adt, binders, prop).foldRight[proof.Fact](rawCaseProof) {
@@ -88,13 +87,13 @@ class Induction[M <: Arity](
     }
 
   // all foralls out front
-  private def normalizeConstructorCase[N <: Arity](using
+  private def normalizeConstructorCase(using
       proof: lisa.SetTheoryLibrary.Proof
   )(
       rawCaseProof: proof.Fact,
       binders: Seq[Variable[Ind]],
-      constructor: Constructor[N],
-      adt: SpecializedADT[N],
+      constructor: Constructor[?],
+      adt: SpecializedADT[?],
       prop: Expr[Ind >>: Prop]
   ): proof.Fact =
     val perBinder   = caseHypotheses(constructor, adt, binders, prop)
@@ -129,13 +128,13 @@ class Induction[M <: Arity](
    *  @param prop the property as a lambda (`λt. P(t)`)
    *  @param context the ambient hypotheses carried through every case
    */
-  private def buildBranchProof[N <: Arity](using
+  private def buildBranchProof(using
       proof: lisa.SetTheoryLibrary.Proof
   )(
-      constructor: Constructor[N],
-      branches: Seq[InductionBranch[N, proof.Fact]],
-      patternSystem: PatternSystem[N],
-      adt: SpecializedADT[N],
+      constructor: Constructor[?],
+      branches: Seq[InductionBranch[proof.Fact]],
+      patternSystem: PatternSystem,
+      adt: SpecializedADT[?],
       prop: Expr[Ind >>: Prop],
       context: Set[Expr[Prop]]
   ): proof.Fact =
@@ -211,23 +210,15 @@ class Induction[M <: Arity](
    *    that register every case that has been added to the tactic.
    *  @param bot the claim
    */
-  def apply[N <: Arity](using
+  def apply(using
       proof: lisa.SetTheoryLibrary.Proof
   )(
       cases: CaseAccumulator[
-        N,
         proof.ProofStep,
         (Sequent, Seq[Expr[Ind]], Variable[Ind])
       ] ?=> Unit
   )(bot: Sequent): proof.ProofTacticJudgement = {
     Induction.inferArguments(bot, expectedVar, expectedADT) match
-      case Some((inferedVar, inferedADT, _)) if expectedADT.isEmpty && inferedADT.typeArgs.nonEmpty =>
-        proof.InvalidProofTactic(
-          s"Induction cannot infer the type-instantiated ADT '${inferedADT.name}' from the goal '$bot'. " +
-            s"Inference is only supported for non-parametric ADTs; for a parametric ADT, pass it explicitly, " +
-            s"e.g. 'Induction($inferedVar, <adt>)'."
-        )
-
       case Some((inferedVar, inferedADT, inferedProp)) =>
 
         val body: Expr[Prop] = inferedProp.getOrElse(bot.right.head)
@@ -249,12 +240,12 @@ class Induction[M <: Arity](
         else
           val context = (if inferedProp.isDefined then bot else bot -<< assignment).left
           val builder =
-            CaseAccumulator[N, proof.ProofStep, (Sequent, Seq[Expr[Ind]], Variable[Ind])](
+            CaseAccumulator[proof.ProofStep, (Sequent, Seq[Expr[Ind]], Variable[Ind])](
               (context |- body, inferedADT.typeArgs, inferedVar)
             )
           cases(using builder)
 
-          val compiledBranchSystem = builder.compileForInduction(inferedADT.asInstanceOf[SpecializedADT[N]])
+          val compiledBranchSystem = builder.compileForInduction(inferedADT.asInstanceOf[SpecializedADT[?]])
 
           compiledBranchSystem match
             case Right(branchSystem) => buildInductionProof(bot, inferedVar, inferedProp, body, prop, context, branchSystem)
@@ -284,7 +275,7 @@ class Induction[M <: Arity](
    *  @param context the ambient hypotheses (the goal minus the typing assumption)
    *  @param branchSystem the compiled per-constructor branches with their payload proofs
    */
-  private def buildInductionProof[N <: Arity](using
+  private def buildInductionProof(using
       proof: lisa.SetTheoryLibrary.Proof
   )(
       bot: Sequent,
@@ -293,7 +284,7 @@ class Induction[M <: Arity](
       body: Expr[Prop],
       prop: Expr[Ind >>: Prop],
       context: Set[Expr[Prop]],
-      branchSystem: InductionBranchSystem[N, proof.ProofStep]
+      branchSystem: InductionBranchSystem[proof.ProofStep]
   ): proof.ProofTacticJudgement = TacticSubproof { sp ?=>
 
     val specializedADT = branchSystem.domain
@@ -363,8 +354,20 @@ object Induction {
   ): Option[(Variable[Ind], SpecializedADT[?])] =
     f match
       case TypeAssign(Variable[Ind](id), typeTerm) =>
-        TypeTermParser.inferADTFromTypeTerm(typeTerm)
+        inferADTFromTypeTerm(typeTerm)
           .flatMap(foundADT => checkFoundArguments(expectedVar, expectedADT, Variable[Ind](id), foundADT))
+      case _ => None
+
+  /**
+   *  Reads a typing term such as `ADT(T1, ..., Tn)` back into the ADT it names and the
+   *  terms it is applied to. The head symbol is matched by identity and the arguments are
+   *  kept as they stand, so nothing is reconstructed from a name.
+   */
+  private def inferADTFromTypeTerm(typeTerm: Expr[Ind]): Option[SpecializedADT[?]] =
+    val (head, args) = unfoldAllApp(typeTerm)
+    head match
+      case c: Constant[?] @unchecked =>
+        ADT.getADT(c.id).map(_.specialize(args.map(_.asInstanceOf[Expr[Ind]])*))
       case _ => None
 
   /**
@@ -405,18 +408,18 @@ object Induction {
 
   def apply() = new Induction(None, None)
 
-  def apply[N <: Arity](adt: ADT[N]) =
+  def apply(adt: ADT[?]) =
     new Induction(None, Some(adt.specialize(adt.typeVariablesSeq*)))
 
-  def apply[N <: Arity](adt: SpecializedADT[N]) =
+  def apply(adt: SpecializedADT[?]) =
     new Induction(None, Some(adt))
 
   def apply(v: Variable[Ind]) =
     new Induction(Some(v), None)
 
-  def apply[N <: Arity](v: Variable[Ind], adt: ADT[N]) =
+  def apply(v: Variable[Ind], adt: ADT[?]) =
     new Induction(Some(v), Some(adt.specialize(adt.typeVariablesSeq*)))
 
-  def apply[N <: Arity](v: Variable[Ind], adt: SpecializedADT[N]) =
+  def apply(v: Variable[Ind], adt: SpecializedADT[?]) =
     new Induction(Some(v), Some(adt))
 }

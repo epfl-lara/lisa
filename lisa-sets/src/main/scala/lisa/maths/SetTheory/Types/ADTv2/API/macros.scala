@@ -3,11 +3,10 @@ package lisa.maths.SetTheory.Types.ADTv2.API
 import lisa.maths.SetTheory.Functions.Function.app
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.TypingHelpers.TypeAssign
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private val T = variable[Ind]
 
-extension [T <: Expr[Ind], N <: Arity](t: T) {
+extension [T <: Expr[Ind]](t: T) {
   infix def ::(e: Expr[Ind]) = TypeAssign[T](t, e)
 }
 

@@ -70,17 +70,17 @@ object Computation extends lisa.Main {
   private val l2 = cons(nat) * zero * l1
   val lengthTwo = Theorem(length(nat) * l2 === succ * (succ * zero)) {
     // length(nil) = zero
-    val lenNil = have(length(nat) * l0 === zero) by Restate.from(length.elim(nat)(nil))
+    val lenNil = have(length(nat) * l0 === zero) by Restate.from((length.elim(nil) of nat))
     // length(cons(zero, nil)) = succ(length(nil)),  needs zero::nat and nil::list[nat]
     val lenL1 = have(length(nat) * l1 === succ * (length(nat) * l0)) by Tautology.from(
-      length.elim(nat)(cons) of (listLengthHead := zero, listLengthTail := l0),
+      length.elim(cons) of (nat, listLengthHead := zero, listLengthTail := l0),
       zero.intro,
-      nil.intro(nat)
+      (nil.intro of nat)
     )
     // length(cons(zero, l1)) = succ(length(l1)),  needs zero::nat and l1::list[nat]
     val l1Typing = have(l1 :: list(nat)) by Typecheck.prove
     val lenL2 = have(length(nat) * l2 === succ * (length(nat) * l1)) by Tautology.from(
-      length.elim(nat)(cons) of (listLengthHead := zero, listLengthTail := l1),
+      length.elim(cons) of (nat, listLengthHead := zero, listLengthTail := l1),
       zero.intro,
       l1Typing
     )
@@ -102,17 +102,17 @@ object Computation extends lisa.Main {
     val oneTyping = have(one :: nat) by Typecheck.prove
 
     // Elimination rules
-    val countLeaf = have(leafCount(unit) * t0 === one) by Restate.from(leafCount.elim(unit)(leaf))
+    val countLeaf = have(leafCount(unit) * t0 === one) by Restate.from((leafCount.elim(leaf) of unit))
     val countT1 = have(leafCount(unit) * t1 === add * (leafCount(unit) * t0) * (leafCount(unit) * t0)) by Tautology.from(
-      leafCount.elim(unit)(node) of (treeLeafValue := star, treeNodeLeft := t0, treeNodeRight := t0),
+      leafCount.elim(node) of (unit, treeLeafValue := star, treeNodeLeft := t0, treeNodeRight := t0),
       star.intro,
-      leaf.intro(unit)
+      (leaf.intro of unit)
     )
     val countT2 = have(leafCount(unit) * t2 === add * (leafCount(unit) * t1) * (leafCount(unit) * t0)) by Tautology.from(
-      leafCount.elim(unit)(node) of (treeLeafValue := star, treeNodeLeft := t1, treeNodeRight := t0),
+      leafCount.elim(node) of (unit, treeLeafValue := star, treeNodeLeft := t1, treeNodeRight := t0),
       star.intro,
       t1Typing,
-      leaf.intro(unit)
+      (leaf.intro of unit)
     )
 
     // Beta-reductions of add

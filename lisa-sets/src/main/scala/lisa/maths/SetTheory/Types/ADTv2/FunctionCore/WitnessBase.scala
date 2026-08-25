@@ -10,13 +10,12 @@ import lisa.maths.SetTheory.Types.ADTv2.encoding._
 import lisa.maths.SetTheory.Types.ADTv2.support.DefinedSymbol
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Types.TypingHelpers._
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
-private[ADTv2] abstract class WitnessBase[N <: Arity](
+private[ADTv2] abstract class WitnessBase(
     functionName: String,
-    adt: SemanticADT[N],
+    adt: SemanticADT,
     argType: Expr[Ind],
-    patternMatching: PatternSystem[N],
+    patternMatching: PatternSystem,
     returnType: Expr[Ind],
     typ: Expr[Ind],
     typeVariablesSeq: Seq[Variable[Ind]]
@@ -26,7 +25,7 @@ private[ADTv2] abstract class WitnessBase[N <: Arity](
 
   protected def witnessParametersSeq: Seq[Variable[Ind]] = typeVariablesSeq
   protected def contextPremises: Seq[Expr[Prop]] = Seq.empty
-  protected def checkReturnType: Map[Pattern[N], JUSTIFICATION]
+  protected def checkReturnType: Map[Pattern, JUSTIFICATION]
 
   private val caseMembership: Expr[Ind] => Expr[Prop] =
     (p: Expr[Ind]) => patternMatching.caseMembership(p)
@@ -43,9 +42,9 @@ private[ADTv2] abstract class WitnessBase[N <: Arity](
 
   private val witnessBound: Expr[Ind] = argType × returnType
 
-  protected lazy val witnessSemantics: CaseDefinedWitness[N] =
+  protected lazy val witnessSemantics: CaseDefinedWitness =
     (
-      new CaseDefinedWitness[N](
+      new CaseDefinedWitness(
         adt = adt,
         argType = argType,
         patternMatching = patternMatching,
@@ -63,10 +62,10 @@ private[ADTv2] abstract class WitnessBase[N <: Arity](
 
   lazy val witnessHasType: THM = witnessSemantics.witnessHasType
 
-  lazy val witnessCaseByPattern: Map[Pattern[N], THM] =
+  lazy val witnessCaseByPattern: Map[Pattern, THM] =
     witnessSemantics.witnessCaseByPattern
 
-  def witnessCase(pattern: Pattern[N]): THM =
+  def witnessCase(pattern: Pattern): THM =
     witnessSemantics.witnessCase(pattern)
 }
 
@@ -77,12 +76,12 @@ object WitnessBase {
    * the pattern's typing premises (plus any extra contextual premises, e.g. the
    * recursive induction hypothesis). Supplied to [[WitnessBase.checkReturnType]].
    */
-  def returnTypeChecks[N <: Arity](
-      patterns: Seq[Pattern[N]],
+  def returnTypeChecks(
+      patterns: Seq[Pattern],
       returnType: Expr[Ind],
-      bodyAt: Pattern[N] => Expr[Ind],
-      extraPremisesAt: Pattern[N] => Set[Expr[Prop]] = (_: Pattern[N]) => Set.empty
-  ): Map[Pattern[N], JUSTIFICATION] =
+      bodyAt: Pattern => Expr[Ind],
+      extraPremisesAt: Pattern => Set[Expr[Prop]] = (_: Pattern) => Set.empty
+  ): Map[Pattern, JUSTIFICATION] =
     patterns
       .map(pattern =>
         pattern -> Lemma((pattern.typingPremises ++ extraPremisesAt(pattern)) |- (bodyAt(pattern) :: returnType)) {

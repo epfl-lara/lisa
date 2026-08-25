@@ -9,10 +9,9 @@ import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts._
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
 import lisa.utils.prooflib.BasicStepTactic.Restate
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
-private[encoding] trait SyntacticADTInduction[N <: Arity] extends SyntacticADTTerm[N] {
-  this: SyntacticADT[N] =>
+private[encoding] trait SyntacticADTInduction extends SyntacticADTTerm {
+  this: SyntacticADT =>
 
   lazy val inductiveCase: Map[SyntacticConstructor, Expr[Prop]] = constructors
     .map(c =>

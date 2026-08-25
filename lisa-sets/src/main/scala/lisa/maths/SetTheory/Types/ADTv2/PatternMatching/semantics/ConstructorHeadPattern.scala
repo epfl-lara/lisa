@@ -10,15 +10,14 @@ import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.maths.SetTheory.Types.TypingTheorems.arrowElim
 import lisa.utils.prooflib.BasicStepTactic.Restate
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
  * Constructor-headed patterns expose extra proof data coming from the semantic
  * constructor encoding.
  */
-private[PatternMatching] trait ConstructorHeadPattern[N <: Arity] extends Pattern[N] {
+private[PatternMatching] trait ConstructorHeadPattern extends Pattern {
 
-  def semanticConstructor: SemanticConstructor[N]
+  def semanticConstructor: SemanticConstructor
 
   def typeSubstitutions: Seq[TypeSubstitution] = Seq.empty
 
@@ -28,13 +27,13 @@ private[PatternMatching] trait ConstructorHeadPattern[N <: Arity] extends Patter
 
   override def arity: Int = semanticConstructor.arity
 
-  override def matchesConstructorCase(constructor: SemanticConstructor[N], args: Seq[Expr[Ind]]): Boolean =
+  override def matchesConstructorCase(constructor: SemanticConstructor, args: Seq[Expr[Ind]]): Boolean =
     semanticConstructor == constructor &&
       guardSignature == args.zipWithIndex.collect {
         case (t, i) if !t.isInstanceOf[Variable[Ind]] => (i, t)
       }.toSet
 
-  def hasSameHeadAs(other: ConstructorHeadPattern[N]): Boolean =
+  def hasSameHeadAs(other: ConstructorHeadPattern): Boolean =
     semanticConstructor == other.semanticConstructor
 
   override def inputTermAt(vars: Seq[Variable[Ind]]): Expr[Ind] =
@@ -45,8 +44,8 @@ private[PatternMatching] trait ConstructorHeadPattern[N <: Arity] extends Patter
 
   override def variables2: Seq[Variable[Ind]] = semanticConstructor.variables2
 
-  private def constructorApplicationTyping[N <: Arity](
-      c: SemanticConstructor[N],
+  private def constructorApplicationTyping(
+      c: SemanticConstructor,
       args: Seq[Variable[Ind]]
   ): THM = Lemma(
     wellTypedFormula(c.semanticSignature(args)) |- (c.appliedTerm(args) :: c.adtTerm)
@@ -105,7 +104,7 @@ private[PatternMatching] trait ConstructorHeadPattern[N <: Arity] extends Patter
    * applied terms can never be equal. Specializes the semantic constructor's
    * [[SemanticConstructor.disjointness]] to this pattern's type substitutions.
    */
-  def disjointness(other: ConstructorHeadPattern[N]): THM = {
+  def disjointness(other: ConstructorHeadPattern): THM = {
     val base = semanticConstructor.disjointness(other.semanticConstructor)
     if typeSubstitutions.isEmpty then base
     else
@@ -134,9 +133,9 @@ private[PatternMatching] trait ConstructorHeadPattern[N <: Arity] extends Patter
 }
 
 private[PatternMatching] object ConstructorHeadPattern {
-  def require[N <: Arity](pattern: Pattern[N]): ConstructorHeadPattern[N] =
+  def require(pattern: Pattern): ConstructorHeadPattern =
     pattern match
-      case constructorHead: ConstructorHeadPattern[N] => constructorHead
+      case constructorHead: ConstructorHeadPattern => constructorHead
       case _ =>
         throw new IllegalArgumentException(
           s"Pattern ${pattern.name} is not constructor-headed."

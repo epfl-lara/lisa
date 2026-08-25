@@ -11,12 +11,11 @@ import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.equivalenceApply
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.maths.SetTheory.Types.TypingRules.TAbs
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
-private[recursion] final class LimitConstruction[N <: Arity](
-    val spec: FunSpec[N],
-    val approxSeq: ApproxSequence[N],
-    val approxStab: ApproxStabilization[N]
+private[recursion] final class LimitConstruction(
+    val spec: FunSpec,
+    val approxSeq: ApproxSequence,
+    val approxStab: ApproxStabilization
 ) {
   val nVar = variable[Ind]
   val mVar = variable[Ind]

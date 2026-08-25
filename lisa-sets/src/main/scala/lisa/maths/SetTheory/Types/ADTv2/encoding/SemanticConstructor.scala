@@ -7,16 +7,13 @@ import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitutio
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.instantiatedTheorem
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.normalizeTypeSubstitutions
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.resolvedTypeArguments
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.theoremAt
 import lisa.utils.prooflib.InstantiateForallSeq
 import lisa.utils.prooflib.QuantifiersIntro
-import lisa.maths.SetTheory.Types.ADTv2.support.core.**
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.altEqualityTransitivity
 import lisa.maths.SetTheory.Types.ADTv2.support.semantics.UniqueCharacterizedSymbol
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
 import lisa.maths.SetTheory.Types.TypingHelpers.::
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
  *  Semantic set theoretical interpretation of a constructor for an algebraic data type.
@@ -46,10 +43,10 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  *  @param underlying the syntactic constructor
  *  @param adt the algebraic data type to which this constructor belongs
  */
-class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcecode.File)(
+class SemanticConstructor(using line: sourcecode.Line, file: sourcecode.File)(
     val name: String,
     private[encoding] val underlying: SyntacticConstructor,
-    adt: SyntacticADT[N]
+    adt: SyntacticADT
 ) {
 
   private def normalizedTypeArguments(
@@ -71,7 +68,6 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
   /**
    * Type variables that may appear in the signature of this constructor.
    */
-  val typeVariables: Variable[Ind] ** N = adt.typeVariables
 
   /**
    * Sequence of type variables that may appear in the signature of this constructor.
@@ -81,7 +77,6 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
   /**
    * Number of type variables in the signature of this constructor.
    */
-  val typeArity: N = adt.typeArity
 
   /**
    * Variables used for constructor arguments.
@@ -181,7 +176,7 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
    */
   private[encoding] val structuralTerm2: Expr[Ind] = underlying.term2
 
-  private val internals = new ConstructorInternals[N](
+  private val internals = new ConstructorInternals(
     adt = adt,
     underlying = underlying,
     semanticSignature = semanticSignature,
@@ -278,7 +273,7 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
    *
    *  Two well-typed applications of distinct constructors are never equal. 
    */
-  def disjointness(other: SemanticConstructor[?]): THM = {
+  def disjointness(other: SemanticConstructor): THM = {
     require(this != other, "disjointness requires two distinct constructors.")
 
     Lemma(
@@ -381,38 +376,6 @@ class SemanticConstructor[N <: Arity](using line: sourcecode.Line, file: sourcec
         case TypeArg(name) => forall(v, (v :: typeExprToTerm(name)) ==> fc)
     }
 
-  def shortDefinitionAt(
-      substitutions: Seq[TypeSubstitution]
-  )(using sourcecode.Line, sourcecode.File): THM =
-    theoremAt(
-      displayName = fullName,
-      typeVariables = typeVariablesSeq,
-      typeArgs = normalizedTypeArguments(substitutions),
-      suffix = "shortDefinition",
-      baseTheorem = shortDefinition
-    )
-
-  def introAt(
-      substitutions: Seq[TypeSubstitution]
-  )(using sourcecode.Line, sourcecode.File): THM =
-    theoremAt(
-      displayName = fullName,
-      typeVariables = typeVariablesSeq,
-      typeArgs = normalizedTypeArguments(substitutions),
-      suffix = "intro",
-      baseTheorem = intro
-    )
-
-  def injectivityAt(
-      substitutions: Seq[TypeSubstitution]
-  )(using sourcecode.Line, sourcecode.File): THM =
-    theoremAt(
-      displayName = fullName,
-      typeVariables = typeVariablesSeq,
-      typeArgs = normalizedTypeArguments(substitutions),
-      suffix = "injectivity",
-      baseTheorem = injectivity
-    )
 
 
   // –––– Exported semantic theorems ––––––––––––––––––––––––––––––––––––––––––

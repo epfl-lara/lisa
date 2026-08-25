@@ -8,7 +8,6 @@ import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Cut
 import lisa.utils.prooflib.BasicStepTactic.RightForall
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
  * Approximant stabilization.
@@ -20,11 +19,11 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  * Exports:
  *   - [[stabilization]]
  */
-private[recursion] final class ApproxStabilization[N <: Arity](
-    val spec: FunSpec[N],
-    val recWitness: Witness[N],
-    val approxSeq: ApproxSequence[N],
-    val witnessAgreement: helpers.WitnessAgreement[N]
+private[recursion] final class ApproxStabilization(
+    val spec: FunSpec,
+    val recWitness: Witness,
+    val approxSeq: ApproxSequence,
+    val witnessAgreement: helpers.WitnessAgreement
 ) {
 
   private val nVar = variable[Ind]

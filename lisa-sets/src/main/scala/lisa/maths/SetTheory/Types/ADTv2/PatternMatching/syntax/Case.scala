@@ -5,9 +5,8 @@ import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.appSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.wellTypedSet
 import lisa.maths.SetTheory.Types.TypingHelpers.::
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
-case class Case[N <: Arity](cons: Constructor[N], args: Expr[Ind]*) {
+case class Case(cons: Constructor[?], args: Expr[Ind]*) {
 
   /**
    *  Used in the context of an induction proof. Adds the subproof corresponding to this
@@ -22,7 +21,7 @@ case class Case[N <: Arity](cons: Constructor[N], args: Expr[Ind]*) {
       proof: Proof,
       line: sourcecode.Line,
       file: sourcecode.File,
-      builder: CaseAccumulator[N, proof.ProofStep, (Sequent, Seq[Expr[Ind]], Variable[Ind])]
+      builder: CaseAccumulator[proof.ProofStep, (Sequent, Seq[Expr[Ind]], Variable[Ind])]
   )(subproof: proof.InnerProof ?=> Unit): Unit =
     val vars: Seq[Variable[Ind]] = args.zipWithIndex.map {
       case (v: Variable[Ind], _) => v
@@ -79,6 +78,6 @@ case class Case[N <: Arity](cons: Constructor[N], args: Expr[Ind]*) {
    *  @param body the body of this case
    *  @param builder the builder for the function definition
    */
-  def apply(body: Expr[Ind])(using builder: CaseAccumulator[N, Expr[Ind], Unit]): Unit =
+  def apply(body: Expr[Ind])(using builder: CaseAccumulator[Expr[Ind], Unit]): Unit =
     builder += (cons, args, body)
 }

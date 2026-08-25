@@ -8,37 +8,34 @@ import lisa.maths.SetTheory.Types.ADTv2.interface.RecFunction
 import lisa.maths.SetTheory.Types.ADTv2.interface.SpecializedADT
 import lisa.maths.SetTheory.Types.ADTv2.recursion
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.substitutionsFromArgs
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
-def fun[N <: Arity](adt: SpecializedADT[N], returnType: Expr[Ind])(using
-    name: sourcecode.Name,
-    valueOfN: ValueOf[N]
+def fun[S: Sort](adt: SpecializedADT[S], returnType: Expr[Ind])(using
+    name: sourcecode.Name
 )(
-    cases: CaseAccumulator[N, Expr[Ind], Unit] ?=> Unit
-): ADTFunction[N] = {
-  val builder = CaseAccumulator[N, Expr[Ind], Unit](())
+    cases: CaseAccumulator[Expr[Ind], Unit] ?=> Unit
+): ADTFunction[S] = {
+  val builder = CaseAccumulator[Expr[Ind], Unit](())
   cases(using builder)
 
   builder.compile(adt) match
     case Right(patternSystem) =>
-      val semantic = SemanticFunction[N](
+      val semantic = SemanticFunction(
         name.value,
         adt.base.semantic,
         adt.term,
         patternSystem,
         returnType
       )
-      new ADTFunction[N](semantic, adt.base)
+      new ADTFunction[S](semantic, adt.base)
     case Left(msg) => throw new IllegalArgumentException(msg)
 }
 
-def recFun[N <: Arity](adt: SpecializedADT[N], returnType: Expr[Ind])(using
-    name: sourcecode.Name,
-    valueOfN: ValueOf[N]
+def recFun[S: Sort](adt: SpecializedADT[S], returnType: Expr[Ind])(using
+    name: sourcecode.Name
 )(
-    cases: Expr[Ind] => (CaseAccumulator[N, Expr[Ind], Unit] ?=> Unit)
-): RecFunction[N] = {
-  val builder = CaseAccumulator[N, Expr[Ind], Unit](())
+    cases: Expr[Ind] => (CaseAccumulator[Expr[Ind], Unit] ?=> Unit)
+): RecFunction[S] = {
+  val builder = CaseAccumulator[Expr[Ind], Unit](())
   val self = RecFunction.selfPlaceholder(name.value)
   cases(self)(using builder)
 
@@ -49,7 +46,7 @@ def recFun[N <: Arity](adt: SpecializedADT[N], returnType: Expr[Ind])(using
   builder.compile(adt) match
     case Right(patternSystem) =>
       val semantic = (
-        recursion.SemanticFunction[N](
+        recursion.SemanticFunction(
           name.value,
           adt.base.semantic,
           adt.term,
@@ -59,6 +56,6 @@ def recFun[N <: Arity](adt: SpecializedADT[N], returnType: Expr[Ind])(using
           returnType
         )
       )
-      new RecFunction[N](semantic, adt.base)
+      new RecFunction[S](semantic, adt.base)
     case Left(msg) => throw new IllegalArgumentException(msg)
 }

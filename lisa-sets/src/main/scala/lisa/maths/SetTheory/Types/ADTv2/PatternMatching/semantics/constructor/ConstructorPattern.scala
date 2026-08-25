@@ -9,29 +9,28 @@ import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitutio
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.utils.prooflib.BasicStepTactic.RightForall
-import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
 
-private[PatternMatching] final case class ConstructorPattern[N <: Arity](
-    semanticConstructor: SemanticConstructor[N],
+private[PatternMatching] final case class ConstructorPattern(
+    semanticConstructor: SemanticConstructor,
     binders: Seq[Variable[Ind]],
     body: Expr[Ind],
     override val branchCondition: Expr[Prop] = ⊤,
     override val typeSubstitutions: Seq[TypeSubstitution] = Seq.empty,
     override val specializedAdtTerm: Expr[Ind]
-) extends ConstructorHeadPattern[N] {
-  override def withBody(newBody: Expr[Ind]): Pattern[N] = copy(body = newBody)
+) extends ConstructorHeadPattern {
+  override def withBody(newBody: Expr[Ind]): Pattern = copy(body = newBody)
 }
 
-private[PatternMatching] final case class ConstructorPatternSystem[N <: Arity](
-    domain: SemanticADT[N],
-    override val patterns: Seq[ConstructorHeadPattern[N]],
+private[PatternMatching] final case class ConstructorPatternSystem(
+    domain: SemanticADT,
+    override val patterns: Seq[ConstructorHeadPattern],
     specializedAdtTerm: Expr[Ind]
-) extends PatternSystem[N] {
-  override def constructors: Seq[SemanticConstructor[N]] =
+) extends PatternSystem {
+  override def constructors: Seq[SemanticConstructor] =
     patterns.map(_.semanticConstructor).distinct
 
-  override def patternsFor(constructor: SemanticConstructor[N]): Seq[Pattern[N]] =
+  override def patternsFor(constructor: SemanticConstructor): Seq[Pattern] =
     patterns.filter(_.semanticConstructor == constructor)
 
   override lazy val coverage: THM = {
@@ -47,20 +46,20 @@ private[PatternMatching] final case class ConstructorPatternSystem[N <: Arity](
     }
   }
 
-  override def incompatible(pattern1: Pattern[N], pattern2: Pattern[N]): THM =
+  override def incompatible(pattern1: Pattern, pattern2: Pattern): THM =
     incompatibleCache.getOrElseUpdate(
       (pattern1, pattern2),
       {
         require(pattern1 != pattern2, "incompatible is only meaningful for distinct patterns.")
         val constructorPattern1 = pattern1 match
-          case pattern: ConstructorHeadPattern[N] => pattern
+          case pattern: ConstructorHeadPattern => pattern
           case _ =>
             throw new IllegalArgumentException(
               s"Pattern ${pattern1.name} is not constructor-headed."
             )
 
         val constructorPattern2 = pattern2 match
-          case pattern: ConstructorHeadPattern[N] => pattern
+          case pattern: ConstructorHeadPattern => pattern
           case _ =>
             throw new IllegalArgumentException(
               s"Pattern ${pattern2.name} is not constructor-headed."
@@ -79,7 +78,7 @@ private[PatternMatching] final case class ConstructorPatternSystem[N <: Arity](
       }
     )
 
-  override def branchSelectionFor(constructor: SemanticConstructor[N], term: Expr[Ind]): THM =
+  override def branchSelectionFor(constructor: SemanticConstructor, term: Expr[Ind]): THM =
     branchSelectionCache.getOrElseUpdate(
       (constructor, term),
       {
@@ -103,7 +102,7 @@ private[PatternMatching] final case class ConstructorPatternSystem[N <: Arity](
 }
 
 private[PatternMatching] object ConstructorPatternSystem {
-  private def domainElim[N <: Arity](domain: SemanticADT[N], specializedAdtTerm: Expr[Ind]): THM =
+  private def domainElim(domain: SemanticADT, specializedAdtTerm: Expr[Ind]): THM =
     if specializedAdtTerm == domain.term then domain.elim
     else
       val base = domain.elim
@@ -112,11 +111,11 @@ private[PatternMatching] object ConstructorPatternSystem {
         have(thesis) by Restate.from(base.of(substitutions*))
       }
 
-  def apply[N <: Arity](
-      rawCases: Map[SemanticConstructor[N], (Seq[Variable[Ind]], Expr[Ind])]
-  ): ConstructorPatternSystem[N] =
+  def apply(
+      rawCases: Map[SemanticConstructor, (Seq[Variable[Ind]], Expr[Ind])]
+  ): ConstructorPatternSystem =
     ConstructorPatternSystem(
-      ADT.getADT(rawCases.head._1.adtName).get.semantic.asInstanceOf[SemanticADT[N]],
+      ADT.getADT(rawCases.head._1.adtName).get.semantic.asInstanceOf[SemanticADT],
       rawCases.toSeq.map((constructor, value) => ConstructorPattern(constructor, value._1, value._2, specializedAdtTerm = constructor.adtTerm)),
       rawCases.head._1.adtTerm
     )

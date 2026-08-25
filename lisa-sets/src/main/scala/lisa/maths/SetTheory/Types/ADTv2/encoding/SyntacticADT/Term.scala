@@ -10,11 +10,10 @@ import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts._
 import lisa.maths.SetTheory.Types.ADTv2.support.semantics.UniqueDefinedSymbol
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.BasicStepTactic.RightForall
-import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.Quantifiers.∃!
 
-private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTBase[N] {
-  this: SyntacticADT[N] =>
+private[encoding] trait SyntacticADTTerm extends SyntacticADTBase {
+  this: SyntacticADT =>
 
   private[encoding] def termDefinitionFormula(adt: Expr[Ind]): Expr[Prop] =
     forall(t, t ∈ adt <=> forall(h, isHeight(h) ==> t ∈ ⋃(range(h))))
@@ -99,7 +98,7 @@ private[encoding] trait SyntacticADTTerm[N <: Arity] extends SyntacticADTBase[N]
 
   private[encoding] lazy val termSatisfiesDefinition: THM = definedClassFunction.definitionFact
 
-  private val heightTermsTHY = HeightTerms[N](
+  private val heightTermsTHY = HeightTerms(
     heightTHY,
     heightConstructorsTHY,
     heightConstructorData,

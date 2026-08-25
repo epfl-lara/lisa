@@ -7,13 +7,12 @@ import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
 import lisa.maths.SetTheory.Types.ADTv2.encoding._
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
-private[proofs] trait WitnessProofContext[N <: Arity] {
+private[proofs] trait WitnessProofContext {
 
-  protected val adt: SemanticADT[N]
+  protected val adt: SemanticADT
   protected val argType: Expr[Ind]
-  protected val patternMatching: PatternSystem[N]
+  protected val patternMatching: PatternSystem
   protected val returnType: Expr[Ind]
   protected val typ: Expr[Ind]
   protected val witness: Expr[Ind]
@@ -21,7 +20,7 @@ private[proofs] trait WitnessProofContext[N <: Arity] {
   protected val witnessBound: Expr[Ind]
   protected val pairWitness: Variable[Ind]
   protected val caseMembership: Expr[Ind] => Expr[Prop]
-  protected val checkReturnType: Map[Pattern[N], JUSTIFICATION]
+  protected val checkReturnType: Map[Pattern, JUSTIFICATION]
   protected val contextPremises: Seq[Expr[Prop]]
 
   protected val inputTerm: Variable[Ind] = variable[Ind]
@@ -43,6 +42,6 @@ private[proofs] trait WitnessProofContext[N <: Arity] {
   protected def contextualize(formula: Expr[Prop]): Expr[Prop] =
     if contextPremises.isEmpty then formula else simplify(contextPremise ==> formula)
 
-  protected def constructorHead(pattern: Pattern[N]): ConstructorHeadPattern[N] =
+  protected def constructorHead(pattern: Pattern): ConstructorHeadPattern =
     ConstructorHeadPattern.require(pattern)
 }

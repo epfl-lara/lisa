@@ -13,11 +13,10 @@ import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Cut
 import lisa.utils.prooflib.BasicStepTactic.Weakening
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
-private[recursion] final class WitnessAgreement[N <: Arity](
-    val spec: FunSpec[N],
-    val recWitness: Witness[N]
+private[recursion] final class WitnessAgreement(
+    val spec: FunSpec,
+    val recWitness: Witness
 ) {
 
   private val leftFun = variable[Ind]
@@ -68,7 +67,7 @@ private[recursion] final class WitnessAgreement[N <: Arity](
           hValid = hValid,
           heightSuccStrong = heightSuccStrong,
           goalEqAt = goalW
-        )(new PointwiseAgreementStep.PatternCaseEquations[N] {
+        )(new PointwiseAgreementStep.PatternCaseEquations {
           val recursiveType: Expr[Ind] = spec.argType
           val heightMembershipMonotonic: THM = spec.adt.height.membershipMonotonicAt(spec.typeSubstitutions)
           val sliceLeft: Expr[Ind] = leftFun
@@ -84,12 +83,12 @@ private[recursion] final class WitnessAgreement[N <: Arity](
           // Witness case equations carry their own contexts, so body equality needs no extra
           // ambient assumptions.
           def bodyEqAssumptions(using proof: lisa.SetTheoryLibrary.Proof)(
-              pattern: Pattern[N],
+              pattern: Pattern,
               patternGuard: proof.Fact
           ): Set[Expr[Prop]] = Set.empty
 
           def caseEquation(using proof: lisa.SetTheoryLibrary.Proof)(
-              pattern: Pattern[N],
+              pattern: Pattern,
               slice: Expr[Ind],
               patternPremise: proof.Fact,
               patternGuard: proof.Fact,

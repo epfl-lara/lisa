@@ -3,7 +3,6 @@ package lisa.maths.SetTheory.Types.ADTv2.FunctionCore
 import lisa.maths.SetTheory.Functions.BasicTheorems
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
  * Pointwise uniqueness of solutions to the function's defining predicate.
@@ -18,9 +17,9 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  *   - by well-founded induction on height in the recursive case
  *     ([[lisa.maths.SetTheory.Types.ADTv2.recursion.Uniqueness]]).
  */
-trait UniquenessProof[N <: Arity] {
+trait UniquenessProof {
 
-  protected def spec: FunSpecBase[N]
+  protected def spec: FunSpecBase
 
   /**
    * Pointwise agreement of any two solutions:

@@ -9,8 +9,8 @@ object SimpleInduction extends lisa.Main {
 
   val n = variable[Ind]
   val prev = variable[Ind]
-  val natDoubleN = variable[Ind]
   val b = variable[Ind]
+  val l = variable[Ind]
 
   section("Induction on Bool")
 
@@ -59,6 +59,34 @@ object SimpleInduction extends lisa.Main {
           succ.intro,
           arrowElim of (f := succ, a := nat.term, b := nat.term, x := succ * (double * natDoubleN)),
           arrowElim of (f := succ, a := nat.term, b := nat.term, x := double * natDoubleN)
+        )
+        have(thesis) by Congruence.from(st1, st2)
+      }
+    }
+  }
+
+  section("Induction on a parametric ADT, inferred from the goal")
+
+  // Unlike the cases above, the ADT here carries a type argument. `Induction()` still
+  // takes no arguments: it reads `l` and `list(nat)` straight off the goal. That works
+  // because the ADT is recovered from the term -- the `list` symbol applied to the `nat`
+  // symbol -- rather than being rebuilt from the declared name "list".
+  val lengthIsNat = Theorem((l :: list(nat)) |- length(nat) * l :: nat) {
+    have(thesis) by Induction() {
+      Case(nil) subproof {
+        have(thesis) by Congruence.from((length.elim(nil) of nat), zero.intro)
+      }
+      Case(cons, listLengthHead, listLengthTail) subproof {
+
+        assume(length(nat) * listLengthTail :: nat)
+
+        val st1 = have(
+          (listLengthHead :: nat, listLengthTail :: list(nat)) |-
+            length(nat) * (cons(nat) * listLengthHead * listLengthTail) === succ * (length(nat) * listLengthTail)
+        ) by Tautology.from((length.elim(cons) of nat))
+        val st2 = have(succ * (length(nat) * listLengthTail) :: nat) by Tautology.from(
+          succ.intro,
+          arrowElim of (f := succ, a := nat.term, b := nat.term, x := length(nat) * listLengthTail)
         )
         have(thesis) by Congruence.from(st1, st2)
       }

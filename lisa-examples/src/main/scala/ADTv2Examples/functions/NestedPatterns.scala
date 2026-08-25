@@ -38,10 +38,10 @@ object NestedPatterns extends lisa.Main {
     Case(cons, fals, tl):
       self * tl
   }
-  show(countTrue.intro(bool))
-  show(countTrue.elim(bool)(nil))
-  show(countTrue.elim(bool)(cons))
-  show(countTrue.elimTotal(bool))
+  show(countTrue.intro)
+  show(countTrue.elim(nil))
+  show(countTrue.elim(cons))
+  show(countTrue.elimTotal)
 
   // Check whether any element of a list of booleans is `tru`.
   lazy val existsTrue = recFun(boolList, bool) { self =>
@@ -53,12 +53,12 @@ object NestedPatterns extends lisa.Main {
       self * tl
   }
   section("existsTrue on List[Bool]")
-  show(existsTrue.intro(bool))
-  show(existsTrue.elim(bool)(nil))
-  show(existsTrue.elim(bool)(cons))
-  show(existsTrue.elim(bool)(Case(cons, tru, tl)))
-  show(existsTrue.elim(bool)(Case(cons, fals, tl)))
-  show(existsTrue.elimTotal(bool))
+  show(existsTrue.intro)
+  show(existsTrue.elim(nil))
+  show(existsTrue.elim(cons))
+  show(existsTrue.elim(Case(cons, tru, tl)))
+  show(existsTrue.elim(Case(cons, fals, tl)))
+  show(existsTrue.elimTotal)
 
   // ── List[Nat] examples ─────────────────────────────────────────────────
 
@@ -133,10 +133,10 @@ object NestedPatterns extends lisa.Main {
       self * tl
   }
 
-  show(hasDuplicate.intro(bool))
-  show(hasDuplicate.elim(bool)(nil))
-  show(hasDuplicate.elim(bool)(Case(cons, tru, cons(bool) * tru * tl)))
-  show(hasDuplicate.elimTotal(bool))
+  show(hasDuplicate.intro)
+  show(hasDuplicate.elim(nil))
+  show(hasDuplicate.elim(Case(cons, tru, cons(bool) * tru * tl)))
+  show(hasDuplicate.elimTotal)
 
   // Time.printSummary()
 }

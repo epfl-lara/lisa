@@ -3,21 +3,20 @@ package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
 
 /**
  * Generic semantic template for a compiled pattern-matching family.
  */
-trait PatternSystem[N <: Arity] {
+trait PatternSystem {
 
-  def patterns: Seq[Pattern[N]]
+  def patterns: Seq[Pattern]
 
-  def constructors: Seq[SemanticConstructor[N]]
+  def constructors: Seq[SemanticConstructor]
 
-  def patternsFor(constructor: SemanticConstructor[N]): Seq[Pattern[N]]
+  def patternsFor(constructor: SemanticConstructor): Seq[Pattern]
 
-  def patternFor(constructor: SemanticConstructor[N]): Pattern[N] =
+  def patternFor(constructor: SemanticConstructor): Pattern =
     patternsFor(constructor) match
       case Seq(pattern) => pattern
       case Seq() =>
@@ -53,14 +52,14 @@ trait PatternSystem[N <: Arity] {
     patterns.forall(pattern => simplify(pattern.branchCondition) == ⊤) &&
       constructors.forall(constructor => patternsFor(constructor).size == 1)
 
-  protected val incompatibleCache = collection.mutable.Map.empty[(Pattern[N], Pattern[N]), THM]
-  protected val branchSelectionCache = collection.mutable.Map.empty[(SemanticConstructor[N], Expr[Ind]), THM]
+  protected val incompatibleCache = collection.mutable.Map.empty[(Pattern, Pattern), THM]
+  protected val branchSelectionCache = collection.mutable.Map.empty[(SemanticConstructor, Expr[Ind]), THM]
 
   lazy val coverage: THM
 
-  def branchSelectionFor(constructor: SemanticConstructor[N], term: Expr[Ind]): THM
+  def branchSelectionFor(constructor: SemanticConstructor, term: Expr[Ind]): THM
 
-  def incompatible(pattern1: Pattern[N], pattern2: Pattern[N]): THM
+  def incompatible(pattern1: Pattern, pattern2: Pattern): THM
 
   lazy val debugTheorems: Seq[(String, Either[String, THM])] = {
     val coverageFact = "coverage" -> Right(coverage)
@@ -94,13 +93,13 @@ trait PatternSystem[N <: Arity] {
 }
 
 object PatternSystem {
-  def constructorCases[N <: Arity](
-      patterns: Seq[Pattern[N]]
-  ): Map[SemanticConstructor[N], Seq[Pattern[N]]] =
+  def constructorCases(
+      patterns: Seq[Pattern]
+  ): Map[SemanticConstructor, Seq[Pattern]] =
     patterns
-      .foldLeft(Map.empty[SemanticConstructor[N], Vector[Pattern[N]]]) { case (acc, pattern) =>
+      .foldLeft(Map.empty[SemanticConstructor, Vector[Pattern]]) { case (acc, pattern) =>
         pattern match
-          case constructorHead: ConstructorHeadPattern[N] =>
+          case constructorHead: ConstructorHeadPattern =>
             val c = constructorHead.semanticConstructor
             acc.updated(c, acc.getOrElse(c, Vector.empty) :+ pattern)
           case _ =>

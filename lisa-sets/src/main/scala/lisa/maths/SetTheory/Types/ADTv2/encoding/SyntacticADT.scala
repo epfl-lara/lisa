@@ -1,9 +1,6 @@
 package lisa.maths.SetTheory.Types.ADTv2.encoding
 
 import lisa.maths.SetTheory.SetTheory._
-import lisa.maths.SetTheory.Types.ADTv2.support.core.**
-import lisa.maths.SetTheory.Types.ADTv2.support.core.toSeq
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
  *  Syntactic set theoretical interpretation of an algebraic data type. That is the least
@@ -32,24 +29,14 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  *  @param constructors constructors of the ADT
  *  @param typeVariables type variables used in the definition of this ADT
  */
-class SyntacticADT[N <: Arity](using line: sourcecode.Line, file: sourcecode.File)(
+class SyntacticADT(using line: sourcecode.Line, file: sourcecode.File)(
     val name: String,
     val constructors: Seq[SyntacticConstructor],
-    val typeVariables: Variable[Ind] ** N
-) extends SyntacticADTInduction[N] {
+    val typeVariablesSeq: Seq[Variable[Ind]]
+) extends SyntacticADTInduction {
 
   protected final def sourceLine: sourcecode.Line = line
 
   protected final def sourceFile: sourcecode.File = file
-
-  /**
-   * Sequence of type variables used in the definition of this ADT
-   */
-  lazy val typeVariablesSeq: Seq[Variable[Ind]] = typeVariables.toSeq
-
-  /**
-   * Number of type variables used in the definition of this ADT
-   */
-  lazy val typeArity: N = typeVariablesSeq.length.asInstanceOf[N]
 
 }

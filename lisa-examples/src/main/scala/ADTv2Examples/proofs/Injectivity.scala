@@ -19,15 +19,15 @@ object Injectivity extends lisa.Main {
   // ── Same-constructor, argument-wise injectivity ─────────────────────────
   section("Argument-wise injectivity (single constructor)")
   show(succ.injectivity) // Nat:    succ(k) = succ(k2) <=> k = k2
-  show(cons.injectivity(nat)) // List:   cons(h,t) = cons(h2,t2) <=> h=h2 /\ t=t2
-  show(some.injectivity(nat)) // Option: some(x) = some(x2) <=> x = x2
-  show(inl.injectivity(nat, bool)) // Union:  inl(x) = inl(x2) <=> x = x2
-  show(pair.injectivity(nat, bool)) // Product:pair(x,y) = pair(x2,y2) <=> x=x2 /\ y=y2
+  show(cons.injectivity) // List:   cons(h,t) = cons(h2,t2) <=> h=h2 /\ t=t2
+  show(some.injectivity) // Option: some(x) = some(x2) <=> x = x2
+  show(inl.injectivity) // Union:  inl(x) = inl(x2) <=> x = x2
+  show(pair.injectivity) // Product:pair(x,y) = pair(x2,y2) <=> x=x2 /\ y=y2
 
   // ── Cross-constructor disjointness ──────────────────────────────────────
   section("Cross-constructor disjointness (distinct constructors)")
   show(nat.disjointness(zero, succ)) // zero != succ(k)
   show(bool.disjointness(tru, fals)) // tru  != fals
-  show(option.disjointness(some, none, nat)) // some(x) != none
-  show(union.disjointness(inl, inr, nat, bool)) // inl(x) != inr(y)
+  show(option.disjointness(some, none)) // some(x) != none
+  show(union.disjointness(inl, inr)) // inl(x) != inr(y)
 }

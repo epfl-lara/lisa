@@ -6,20 +6,19 @@ import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
 import lisa.maths.SetTheory.Types.ADTv2.encoding._
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
-final class SemanticFunction[N <: Arity](
+final class SemanticFunction(
     semanticName: String,
-    semanticAdt: SemanticADT[N],
+    semanticAdt: SemanticADT,
     semanticArgType: Expr[Ind],
     typeSubstitutions: Seq[TypeSubstitution],
     selfPlaceholder: Variable[Ind],
-    patternMatching: PatternSystem[N],
+    patternMatching: PatternSystem,
     semanticReturnType: Expr[Ind]
-) extends FunctionSemanticsBase[N](
-      new SemanticFunctionInputs[N] {
+) extends FunctionSemanticsBase(
+      new SemanticFunctionInputs {
 
-        val spec: FunSpec[N] = new FunSpec[N](
+        val spec: FunSpec = new FunSpec(
           functionName = semanticName,
           adt = semanticAdt,
           argType = semanticArgType,
@@ -29,18 +28,18 @@ final class SemanticFunction[N <: Arity](
           returnType = semanticReturnType
         )
 
-        private val rawPatterns: Seq[Pattern[N]] = spec.cases
+        private val rawPatterns: Seq[Pattern] = spec.cases
 
-        private val witness: Witness[N] = (new Witness[N](spec))
-        private val approxSeq = (new ApproxSequence[N](spec, witness))
-        private val witnessAgreement = (new helpers.WitnessAgreement[N](spec, witness))
-        private val approxStab = (new ApproxStabilization[N](spec, witness, approxSeq, witnessAgreement))
-        private val limitConstruction = (new LimitConstruction[N](spec, approxSeq, approxStab))
+        private val witness: Witness = (new Witness(spec))
+        private val approxSeq = (new ApproxSequence(spec, witness))
+        private val witnessAgreement = (new helpers.WitnessAgreement(spec, witness))
+        private val approxStab = (new ApproxStabilization(spec, witness, approxSeq, witnessAgreement))
+        private val limitConstruction = (new LimitConstruction(spec, approxSeq, approxStab))
 
         def name: String = semanticName
-        val existence: Existence[N] = (new Existence[N](spec, witness, approxSeq, approxStab, limitConstruction, witnessAgreement))
-        val uniqueness: Uniqueness[N] = (new Uniqueness[N](spec))
-        def buildPatterns(term: Expr[Ind]): Seq[Pattern[N]] =
+        val existence: Existence = (new Existence(spec, witness, approxSeq, approxStab, limitConstruction, witnessAgreement))
+        val uniqueness: Uniqueness = (new Uniqueness(spec))
+        def buildPatterns(term: Expr[Ind]): Seq[Pattern] =
           rawPatterns.map(pattern => pattern.withBody(pattern.body.substitute(spec.selfPlaceholder := term)))
       }
     )

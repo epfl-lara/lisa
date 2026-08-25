@@ -11,14 +11,13 @@ import lisa.maths.SetTheory.Types.ADTv2.height.proofs.UniquenessFacts
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.tactics.Cuts
 import lisa.utils.prooflib.QuantifiersIntro
-import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.maths.Quantifiers.∃!
 import lisa.maths.Quantifiers.existsOneAlternativeDefinition
 
-final class HeightConstructors[N <: Arity](
-    base: HeightADT[N],
+final class HeightConstructors(
+    base: HeightADT,
     constructors: Seq[HeightConstructorData],
-    heightStageSet: HeightStageSet[N],
+    heightStageSet: HeightStageSet,
     isConstructor: Expr[Ind >>: Ind >>: Prop]
 ) {
 

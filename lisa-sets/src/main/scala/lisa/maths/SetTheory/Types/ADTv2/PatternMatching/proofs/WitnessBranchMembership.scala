@@ -11,9 +11,8 @@ import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Cut
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.BasicStepTactic.RightForall
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
-private[proofs] trait WitnessBranchMembership[N <: Arity] extends WitnessProofContext[N] {
+private[proofs] trait WitnessBranchMembership extends WitnessProofContext {
 
   // Pointwise membership equivalence for `witness`, proved once over fresh
   // `inputTerm`/`outputTerm` and instantiated per pattern below (and reused by
@@ -69,7 +68,7 @@ private[proofs] trait WitnessBranchMembership[N <: Arity] extends WitnessProofCo
     have(thesis) by Restate.from(quantified)
   }
 
-  val witnessMembershipByPattern: Map[Pattern[N], THM] =
+  val witnessMembershipByPattern: Map[Pattern, THM] =
     patternMatching.patterns
       .map(pattern =>
         {
@@ -201,6 +200,6 @@ private[proofs] trait WitnessBranchMembership[N <: Arity] extends WitnessProofCo
       )
       .toMap
 
-  def witnessMembership(pattern: Pattern[N]): THM =
+  def witnessMembership(pattern: Pattern): THM =
     witnessMembershipByPattern(pattern)
 }

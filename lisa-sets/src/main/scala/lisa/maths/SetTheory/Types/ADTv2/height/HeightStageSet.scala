@@ -16,11 +16,10 @@ import lisa.maths.SetTheory.Types.ADTv2.height.proofs.CoreFacts
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.tactics.Cuts
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.ConstructorArg
-import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.utils.prooflib.QuantifiersIntro
 
-final class HeightStageSet[N <: Arity](
-    base: HeightADT[N],
+final class HeightStageSet(
+    base: HeightADT,
     constructors: Seq[HeightConstructorData],
     isConstructor: Expr[Ind >>: Ind >>: Prop]
 ) {

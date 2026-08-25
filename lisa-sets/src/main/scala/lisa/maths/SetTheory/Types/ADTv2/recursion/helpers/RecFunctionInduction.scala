@@ -17,10 +17,9 @@ import lisa.utils.prooflib.BasicStepTactic.Cut
 import lisa.utils.prooflib.BasicStepTactic.LeftExists
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.BasicStepTactic.Weakening
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
-private[recursion] type PatternSchemas[N <: Arity] =
-  Map[Pattern[N], (Seq[Variable[Ind]], Expr[Prop])]
+private[recursion] type PatternSchemas =
+  Map[Pattern, (Seq[Variable[Ind]], Expr[Prop])]
 
 private[recursion] def asIndEquality(formula: Expr[Prop]): Option[(Expr[Ind], Expr[Ind])] = formula match
   case App(App(eqFun, lhs: Expr[Ind]), rhs: Expr[Ind]) if eqFun == equality => Some((lhs, rhs))
@@ -31,9 +30,9 @@ private[recursion] object RecFunctionInduction {
   private inline def app(f: Expr[Ind])(x: Expr[Ind]): Expr[Ind] =
     lisa.maths.SetTheory.Functions.Predef.app(f)(x)
 
-  private def requireSchemaCoverage[N <: Arity](
-      patternMatching: PatternSystem[N],
-      schemas: PatternSchemas[N],
+  private def requireSchemaCoverage(
+      patternMatching: PatternSystem,
+      schemas: PatternSchemas,
       schemaLabel: String,
       functionName: String
   ): Unit = {
@@ -113,9 +112,9 @@ private[recursion] object RecFunctionInduction {
         )
   }
 
-  def pointwiseUniquenessAt[N <: Arity](
-      adt: SemanticADT[N],
-      patternMatching: PatternSystem[N],
+  def pointwiseUniquenessAt(
+      adt: SemanticADT,
+      patternMatching: PatternSystem,
       argType: Expr[Ind],
       typeSubstitutions: Seq[TypeSubstitution],
       inductionVariable: Variable[Ind],
@@ -125,8 +124,8 @@ private[recursion] object RecFunctionInduction {
       yFun: Expr[Ind],
       xDefinitionFormula: Expr[Prop],
       yDefinitionFormula: Expr[Prop],
-      xPatternSchemas: PatternSchemas[N],
-      yPatternSchemas: PatternSchemas[N],
+      xPatternSchemas: PatternSchemas,
+      yPatternSchemas: PatternSchemas,
       // `Def(x) ⊢ xDefinitionFormula` / `Def(y) ⊢ yDefinitionFormula`: the assumptions are
       // the opaque `Def(·)`; these unfold them to the real definition only where a case
       // schema is extracted.
@@ -186,7 +185,7 @@ private[recursion] object RecFunctionInduction {
             hValid = hValid,
             heightSuccStrong = adt.height.successorStrongAt(typeSubstitutions),
             goalEqAt = propertyAt(slicePoint)
-          )(new PointwiseAgreementStep.PatternCaseEquations[N] {
+          )(new PointwiseAgreementStep.PatternCaseEquations {
             val recursiveType: Expr[Ind] = argType
             val heightMembershipMonotonic: THM = adt.height.membershipMonotonicAt(typeSubstitutions)
             val sliceLeft: Expr[Ind] = xFun
@@ -200,7 +199,7 @@ private[recursion] object RecFunctionInduction {
               ) by Restate.from(assume(P(nVar)))
 
             def bodyEqAssumptions(using proof: lisa.SetTheoryLibrary.Proof)(
-                pattern: Pattern[N],
+                pattern: Pattern,
                 patternGuard: proof.Fact
             ): Set[Expr[Prop]] = {
               val baseContext = Set[Expr[Prop]](
@@ -214,7 +213,7 @@ private[recursion] object RecFunctionInduction {
             }
 
             def caseEquation(using proof: lisa.SetTheoryLibrary.Proof)(
-                pattern: Pattern[N],
+                pattern: Pattern,
                 slice: Expr[Ind],
                 patternPremise: proof.Fact,
                 patternGuard: proof.Fact,

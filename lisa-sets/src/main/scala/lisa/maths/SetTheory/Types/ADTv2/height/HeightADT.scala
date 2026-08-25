@@ -5,9 +5,8 @@ import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.height.proofs.SuccessorFacts
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.semantics.DefinedProperty
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
-final class HeightADT[N <: Arity](
+final class HeightADT(
     name: String,
     typeVariablesSeq: Seq[Variable[Ind]],
     isConstructor: Expr[Ind >>: Ind >>: Prop]

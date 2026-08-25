@@ -10,11 +10,10 @@ import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.semantics.DefinedProperty
 import lisa.maths.SetTheory.Types.ADTv2.support.tactics.Cuts
 import lisa.maths.SetTheory.Types.TypingHelpers._
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
-private[recursion] final class Uniqueness[N <: Arity](
-    override protected val spec: FunSpec[N]
-) extends UniquenessProof[N] {
+private[recursion] final class Uniqueness(
+    override protected val spec: FunSpec
+) extends UniquenessProof {
 
   private val adt = spec.adt
   private val argType = spec.argType
@@ -29,10 +28,10 @@ private[recursion] final class Uniqueness[N <: Arity](
       (v +: restVars, core)
     case other => (Seq.empty, other)
 
-  private def extractPatternCaseSchema[N <: Arity](
+  private def extractPatternCaseSchema(
       definition: Expr[Prop],
       functionHead: Expr[Ind],
-      pattern: Pattern[N]
+      pattern: Pattern
   ): (Seq[Variable[Ind]], Expr[Prop]) = {
     val maybeSchema = splitConjunctions(definition).iterator
       .flatMap(candidate =>
@@ -66,7 +65,7 @@ private[recursion] final class Uniqueness[N <: Arity](
   private def extractPatternSchemas(
       definition: Expr[Prop],
       functionHead: Expr[Ind]
-  ): PatternSchemas[N] =
+  ): PatternSchemas =
     spec.patternMatching.patterns.map(pattern => pattern -> extractPatternCaseSchema(definition, functionHead, pattern)).toMap
 
   // Opaque view of the (~1.5k-char) function-definition formula. Used as the ambient

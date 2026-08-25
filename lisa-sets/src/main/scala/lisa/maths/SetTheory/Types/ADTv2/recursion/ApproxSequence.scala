@@ -18,7 +18,6 @@ import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.tactics.Cuts
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Types.TypingHelpers._
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
  *  Approximant sequence construction.
@@ -34,9 +33,9 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  *    - [[approxSucc]] — ∀k ∈ ω, G(S(k)) = W(G(k))
  *    - [[approxHasType]] — ∀n ∈ ω, G(n) :: spec.typ
  */
-private[recursion] final class ApproxSequence[N <: Arity](
-    val spec: FunSpec[N],
-    val recWitness: Witness[N]
+private[recursion] final class ApproxSequence(
+    val spec: FunSpec,
+    val recWitness: Witness
 ) {
 
   // ─────────────────────────────────────────────────────────────────────────

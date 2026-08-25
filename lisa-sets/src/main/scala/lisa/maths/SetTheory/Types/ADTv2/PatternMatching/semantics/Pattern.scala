@@ -4,7 +4,6 @@ import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
  * Semantic template for one compiled branch of a pattern-matching definition.
@@ -12,7 +11,7 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  * This trait only contains branch-level operations shared by every current
  * pattern family.
  */
-trait Pattern[N <: Arity] {
+trait Pattern {
 
   def binders: Seq[Variable[Ind]]
 
@@ -55,7 +54,7 @@ trait Pattern[N <: Arity] {
    *
    * The default never matches; constructor-headed patterns override it.
    */
-  def matchesConstructorCase(constructor: SemanticConstructor[N], args: Seq[Expr[Ind]]): Boolean = false
+  def matchesConstructorCase(constructor: SemanticConstructor, args: Seq[Expr[Ind]]): Boolean = false
 
   def variables2: Seq[Variable[Ind]]
 
@@ -83,7 +82,7 @@ trait Pattern[N <: Arity] {
 
   def inputTypingAt(vars: Seq[Variable[Ind]], adtTerm: Expr[Ind]): THM
 
-  def withBody(newBody: Expr[Ind]): Pattern[N]
+  def withBody(newBody: Expr[Ind]): Pattern
 
   def recursiveAgreementPoints(recursiveType: Expr[Ind]): Seq[Variable[Ind]] =
     typingSignatureAt(variables2).drop(arity).collect {

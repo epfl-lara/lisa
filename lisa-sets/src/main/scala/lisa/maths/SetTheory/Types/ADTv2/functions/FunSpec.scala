@@ -5,7 +5,6 @@ import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
 import lisa.maths.SetTheory.Types.ADTv2.FunctionCore.FunSpecBase
 import lisa.maths.SetTheory.Types.ADTv2.encoding._
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
  * Specification of a (non-recursive) function defined by pattern matching.
@@ -17,13 +16,13 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  *
  * Holds the shared parameters consumed by [[Witness]] and [[Existence]].
  */
-private[functions] final class FunSpec[N <: Arity](
+private[functions] final class FunSpec(
     override val functionName: String,
-    override val adt: SemanticADT[N],
+    override val adt: SemanticADT,
     override val argType: Expr[Ind],
-    override val patternMatching: PatternSystem[N],
+    override val patternMatching: PatternSystem,
     override val returnType: Expr[Ind]
-) extends FunSpecBase[N](functionName, adt, argType, patternMatching, returnType) {
+) extends FunSpecBase(functionName, adt, argType, patternMatching, returnType) {
 
   // No self-reference here, so the placeholder is just a fresh candidate. It must
   // be fresh w.r.t. every variable occurring in the patterns: a pattern *binder*
@@ -32,6 +31,6 @@ private[functions] final class FunSpec[N <: Arity](
   override val placeholder: Variable[Ind] =
     Variable[Ind](freshId(cases.flatMap(p => p.binders :+ p.inputTerm :+ p.body), functionName))
 
-  protected def bodyFor(pattern: Pattern[N], fVar: Expr[Ind]): Expr[Ind] =
+  protected def bodyFor(pattern: Pattern, fVar: Expr[Ind]): Expr[Ind] =
     pattern.body
 }

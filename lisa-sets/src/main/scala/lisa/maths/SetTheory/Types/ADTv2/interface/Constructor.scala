@@ -3,22 +3,19 @@ package lisa.maths.SetTheory.Types.ADTv2.interface
 import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.instantiatedSemanticSignature
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.requireMonomorphicAccess
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.theoremAt
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.{introAppAt => buildIntroAppAt}
-import lisa.maths.SetTheory.Types.ADTv2.support.core.**
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.generalTheorem
+
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.introAppTheorem
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.renderAppliedSymbol
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.wellTypedSet
-import lisa.maths.SetTheory.Types.ADTv2.support.core.toSeq
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.maths.SetTheory.Types.TypingHelpers.FunctionalClass
 import lisa.maths.SetTheory.Types.TypingHelpers.TypedConstantFunctional
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
-final class Constructor[N <: Arity](using val line: sourcecode.Line, val file: sourcecode.File, valueOfN: ValueOf[N])(
-    val semantic: SemanticConstructor[N],
-    val adt: ADT[N]
-) extends TypedConstantFunctional[IndOf[N]](
+final class Constructor[S](using val line: sourcecode.Line, val file: sourcecode.File, sort: Sort[S])(
+    val semantic: SemanticConstructor,
+    val adt: ADT[S]
+) extends TypedConstantFunctional[S](
       semantic.id,
       FunctionalClass(
         List.fill(semantic.typeVariablesSeq.size)(None),
@@ -31,81 +28,56 @@ final class Constructor[N <: Arity](using val line: sourcecode.Line, val file: s
   printAs(args => renderAppliedSymbol(semantic.fullName, semantic.typeVariablesSeq.size, args))
 
   val name: String = semantic.fullName
-  val typeVariables: Variable[Ind] ** N = semantic.typeVariables
   val typeVariablesSeq: Seq[Variable[Ind]] = semantic.typeVariablesSeq
-  val get_arity: Int = valueOfN.value
   val term: Expr[Ind] = termAt(typeVariablesSeq)
 
-  def intro: THM = {
-    requireMonomorphicAccess("constructor", name, typeVariablesSeq)
-    theoremAt(name, typeVariablesSeq, Seq.empty, "introduction", semantic.intro)
-  }
+  /**
+   * Typing of the fully applied constructor, closed over the ADT's type variables.
+   * Instantiate at type arguments with `of`, e.g. `cons.intro of nat`.
+   *
+   * This is the very theorem handed to [[TypedConstantFunctional]] as the symbol's
+   * typing justification, reused rather than proved a second time. `Typecheck` relies
+   * on that justification being universally closed, so the two must not drift apart.
+   */
+  lazy val intro: THM = justif.asInstanceOf[THM]
 
-  def intro(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*): THM =
-    theoremAt(name, typeVariablesSeq, firstTypeArg +: otherTypeArgs, "introduction", semantic.intro)
-
-  def introApp: THM = {
-    requireMonomorphicAccess("constructor", name, typeVariablesSeq)
-    buildIntroAppAt(
-      displayName = name,
-      typeVariables = typeVariablesSeq,
-      typeArgs = Seq.empty,
-      baseTheorem = semantic.intro,
-      headTermAt = termAt,
-      headTypeAt = substitutions => semantic.typ.substitute(substitutions*),
-      assumptionsAt = substitutions => wellTypedSet(instantiatedSemanticSignature(semantic.semanticSignature, substitutions)),
-      typingArgsAt = substitutions => instantiatedSemanticSignature(semantic.semanticSignature, substitutions),
-      conclusionAt = substitutions =>
-        semantic.appliedTerm.substitute(substitutions*) ::
-          adt.term.substitute(substitutions*)
-    )
-  }
-
-  def introApp(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*): THM = buildIntroAppAt(
+  /**
+   * The curried form of [[intro]]. A genuinely derived statement, so it is proved once
+   * over the type variables rather than closed over them; instantiate with
+   * `of (A := nat)`.
+   */
+  lazy val introApp: THM = introAppTheorem(
     displayName = name,
-    typeVariables = typeVariablesSeq,
-    typeArgs = firstTypeArg +: otherTypeArgs,
     baseTheorem = semantic.intro,
-    headTermAt = termAt,
-    headTypeAt = substitutions => semantic.typ.substitute(substitutions*),
-    assumptionsAt = substitutions => wellTypedSet(instantiatedSemanticSignature(semantic.semanticSignature, substitutions)),
-    typingArgsAt = substitutions => instantiatedSemanticSignature(semantic.semanticSignature, substitutions),
-    conclusionAt = substitutions =>
-      semantic.appliedTerm.substitute(substitutions*) ::
-        adt.term.substitute(substitutions*)
+    headTerm = termAt(typeVariablesSeq),
+    headType = semantic.typ,
+    assumptions = wellTypedSet(semantic.semanticSignature),
+    typingArgs = semantic.semanticSignature,
+    conclusion = semantic.appliedTerm :: adt.term
   )
 
-  def injectivity: THM = {
-    requireMonomorphicAccess("constructor", name, typeVariablesSeq)
-    theoremAt(name, typeVariablesSeq, Seq.empty, "injectivity", semantic.injectivity)
-  }
-
-  def injectivity(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*): THM =
-    theoremAt(name, typeVariablesSeq, firstTypeArg +: otherTypeArgs, "injectivity", semantic.injectivity)
+  /**
+   * Two instances of this constructor are equal exactly when their arguments are.
+   * Instantiate with `of`.
+   */
+  lazy val injectivity: THM =
+    generalTheorem(name, typeVariablesSeq, "injectivity", semantic.injectivity)
 
   def termAt(args: Seq[Expr[Ind]]): Expr[Ind] =
     (this #@@ args).asInstanceOf[Expr[Ind]]
-
-  def applyUnsafe(args: Expr[Ind] ** N): Expr[Ind] = termAt(args.toSeq)
 
   def applySeq(args: Seq[Expr[Ind]]): Expr[Ind] = termAt(args)
 
   def apply(args: Expr[Ind]*): Expr[Ind] = termAt(args)
 
-  def specialize(args: Expr[Ind]*): SpecializedConstructor[N] =
-    new SpecializedConstructor[N](this, args)
+  def specialize(args: Expr[Ind]*): SpecializedConstructor[S] =
+    new SpecializedConstructor[S](this, args)
 }
 
 object Constructor {
-  private def typingJustification[N <: Arity](using
+  private def typingJustification(using
       line: sourcecode.Line,
       file: sourcecode.File
-  )(semantic: SemanticConstructor[N]): THM =
-    theoremAt(
-      displayName = semantic.fullName,
-      typeVariables = semantic.typeVariablesSeq,
-      typeArgs = Seq.empty,
-      suffix = "introduction",
-      baseTheorem = semantic.intro
-    )
+  )(semantic: SemanticConstructor): THM =
+    generalTheorem(semantic.fullName, semantic.typeVariablesSeq, "introduction", semantic.intro)
 }

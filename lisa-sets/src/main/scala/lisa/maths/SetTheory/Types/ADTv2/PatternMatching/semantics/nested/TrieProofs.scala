@@ -64,7 +64,7 @@ private[semantics] object NestedTrieProofs {
   // the pattern's type substitutions. Used wherever a guard term must be parsed
   // and proved against its own argument type.
   private def guardTypeAt(
-      cSem: SemanticConstructor[?],
+      cSem: SemanticConstructor,
       pos: Int,
       typeSubst: Seq[lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution]
   ): Ty =
@@ -76,10 +76,10 @@ private[semantics] object NestedTrieProofs {
       val cts = childTypes(c, ty._2)
       appSeq(c.semantic.term(ty._2))(args.zip(cts).map((a, ct) => termOf(a, ct.get)))
 
-  private def caseArgs(pp: NestedConstructorPattern[?]): Seq[Expr[Ind]] =
+  private def caseArgs(pp: NestedConstructorPattern): Seq[Expr[Ind]] =
     (0 until pp.arity).map(i => pp.guards.find(_.position == i).map(_.guardTerm).getOrElse(pp.topBinders(i)))
 
-  private def renderCase(pp: NestedConstructorPattern[?]): String =
+  private def renderCase(pp: NestedConstructorPattern): String =
     val args = caseArgs(pp).map(arg => NestedTrie.show(NestedTrie.parsePat(arg)))
     if args.isEmpty then pp.semanticConstructor.name
     else s"${pp.semanticConstructor.name}(${args.mkString(", ")})"
@@ -104,9 +104,10 @@ private[semantics] object NestedTrieProofs {
       case RCon(c, args) =>
         val cts = childTypes(c, ty._2)
         val argFacts = args.zip(cts).map((a, t) => typeProof(a, t.get))
-        val intro = if ty._2.isEmpty then c.introApp else c.introApp(ty._2.head, ty._2.tail*)
-        val substs = c.semantic.variables.zip(args.map(termOf(_, ty))).map((v, t) => v := t)
-        val introInst: proof.Fact = if substs.isEmpty then intro else intro.of(substs*)
+        val substs =
+          c.typeVariablesSeq.zip(ty._2).map((v, t) => v := t) ++
+            c.semantic.variables.zip(args.map(termOf(_, ty))).map((v, t) => v := t)
+        val introInst: proof.Fact = if substs.isEmpty then c.introApp else c.introApp.of(substs*)
         have(goal) by Tautology.from((introInst +: argFacts)*)
 
   private def switchIdx(cols: List[ColP], rows: List[RowP]): Option[Int] = {
@@ -118,7 +119,7 @@ private[semantics] object NestedTrieProofs {
       )
     }
   
-  private def interfaceConstructor(pp: NestedConstructorPattern[?]): Constructor[?] =
+  private def interfaceConstructor(pp: NestedConstructorPattern): Constructor[?] =
     ADT.allADTs.toSeq
       .flatMap(_.constructors)
       .find(_.id == pp.semanticConstructor.id)
@@ -129,8 +130,8 @@ private[semantics] object NestedTrieProofs {
       )
 
   private def renderAlignedGuards(
-      p1: NestedConstructorPattern[?],
-      p2: NestedConstructorPattern[?]
+      p1: NestedConstructorPattern,
+      p2: NestedConstructorPattern
   ): String =
     val byPos1 = p1.guards.map(g => g.position -> g.guardTerm).toMap
     val byPos2 = p2.guards.map(g => g.position -> g.guardTerm).toMap
@@ -146,8 +147,8 @@ private[semantics] object NestedTrieProofs {
         .mkString("; ")
 
   private def renderOverlapTrie(
-      p1: NestedConstructorPattern[?],
-      p2: NestedConstructorPattern[?]
+      p1: NestedConstructorPattern,
+      p2: NestedConstructorPattern
   ): String =
     val (adt, targs) = ADT.unapply(p1.specializedAdtTerm).get
     val clauses = Seq(p1, p2).map(pp => (interfaceConstructor(pp), caseArgs(pp)))
@@ -182,20 +183,18 @@ private[semantics] object NestedTrieProofs {
         .collectFirst { case Some(path) => path }
     case _ => None
 
-  // Type-argument-aware accessors for the injectivity theorems. The cross-version
-  // captures the ADT's arity so the two constructors line up with `injectivity`.
-  private def crossInj(adt: ADT[?], c: Constructor[?], d: Constructor[?], targs: Seq[Expr[Ind]]): THM =
+  // The disjointness theorem for two constructors of the same ADT. Only needed to
+  // capture the ADT's arity so the two constructors line up. Like `injectivity`, the
+  // result is closed over the ADT's type variables, so callers instantiate it by
+  // passing the type arguments ahead of the constructor arguments.
+  private def crossInj(adt: ADT[?], c: Constructor[?], d: Constructor[?]): THM =
     adt match
       case a: ADT[n] =>
-        val cc = c.asInstanceOf[Constructor[n]]
-        val dd = d.asInstanceOf[Constructor[n]]
-        if targs.isEmpty then a.disjointness(cc, dd) else a.disjointness(cc, dd, targs.head, targs.tail*)
-  private def sameInj(c: Constructor[?], targs: Seq[Expr[Ind]]): THM =
-    if targs.isEmpty then c.injectivity else c.injectivity(targs.head, targs.tail*)
+        a.disjointness(c.asInstanceOf[Constructor[n]], d.asInstanceOf[Constructor[n]])
 
   // The top constructor's injectivity for a pattern, specialized to its type args.
   // (Used directly so it is unaffected by a pattern's overridden `injectivity`.)
-  def constructorInjectivity(pp: NestedConstructorPattern[?]): THM =
+  def constructorInjectivity(pp: NestedConstructorPattern): THM =
     val base = pp.semanticConstructor.injectivity
     if pp.typeSubstitutions.isEmpty then base
     else
@@ -231,7 +230,7 @@ private[semantics] object NestedTrieProofs {
           case (RCon(c, as), RCon(d, bs)) if path.isEmpty =>
             // cross-constructor injectivity:  typed ⇒ ¬(c(..) === d(..))
             val ctsC = childTypes(c, ty._2); val ctsD = childTypes(d, ty._2)
-            instAll(crossInj(ty._1, c, d, ty._2), argTermsAt(as, ctsC) ++ argTermsAt(bs, ctsD))
+            instAll(crossInj(ty._1, c, d), ty._2 ++ argTermsAt(as, ctsC) ++ argTermsAt(bs, ctsD))
             val injInst = lastStep
             val argTypings = typings(as, ctsC) ++ typings(bs, ctsD)
             have(!(tpc === tqc)) by Tautology.from((injInst +: argTypings)*)
@@ -241,7 +240,7 @@ private[semantics] object NestedTrieProofs {
             disprove(as(i), bs(i), cts(i).get, path.tail)
             val argDiseq = lastStep
             // same-head injectivity:  typed ⇒ ((c(as) === c(bs)) <=> (as === bs))
-            instAll(sameInj(c, ty._2), argTermsAt(as, cts) ++ argTermsAt(bs, cts))
+            instAll(c.injectivity, ty._2 ++ argTermsAt(as, cts) ++ argTermsAt(bs, cts))
             val injInst = lastStep
             val argTypings = typings(as, cts) ++ typings(bs, cts)
             have(!(tpc === tqc)) by Tautology.from((injInst +: argDiseq +: argTypings)*)
@@ -325,7 +324,7 @@ private[semantics] object NestedTrieProofs {
       throw new IllegalArgumentException("coverSwitchBranch requires a switchable column.")
     )
     val col = cols(j); val (adt, targs) = col.ty; val v = col.value
-    val elimThm = if targs.isEmpty then adt.elim else adt.elim(targs.head, targs.tail*)
+    val elimThm: proof.Fact = if targs.isEmpty then adt.elim else adt.elim.of(targs*)
     val implForm = (elimThm.statement.right.head: @unchecked) match
       case forall(y, body) => body.substitute(y := v)
     val inst = have(implForm) by InstantiateForall(v)(elimThm)
@@ -428,7 +427,7 @@ private[semantics] object NestedTrieProofs {
   def coverageCaseShape(
       domain: Ty,
       clauses: Seq[(Constructor[?], Seq[Expr[Ind]])],
-      patterns: Seq[Pattern[?]]
+      patterns: Seq[Pattern]
   ): THM =
     val x = Variable[Ind]("scrutX")
     val dTerm = domain._1.termAt(domain._2)
@@ -470,9 +469,9 @@ private[semantics] object NestedTrieProofs {
   //  Proved by `cover` rooted at the guarded argument variable.
   // ════════════════════════════════════════════════════════════════════════
   def branchSelectionForCaseShape(
-      cSem: SemanticConstructor[?],
+      cSem: SemanticConstructor,
       term: Expr[Ind],
-      patterns: Seq[NestedConstructorPattern[?]],
+      patterns: Seq[NestedConstructorPattern],
       typeSubst: Seq[lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution]
   ): THM =
     val arity = cSem.arity
@@ -489,7 +488,7 @@ private[semantics] object NestedTrieProofs {
     // Each clause's (fresh) guard terms, keyed by argument position. A clause that
     // does not guard a column carries the constructor's own binder there (an RVar,
     // so the trie never switches on it). Disjunct = ∃inner. (cond ∧ term=freshInput).
-    def guardsByPos(p: NestedConstructorPattern[?]): Map[Int, RPat] =
+    def guardsByPos(p: NestedConstructorPattern): Map[Int, RPat] =
       p.freshGuards.map(g => g.position -> parse(g.guardTerm)).toMap
     val innerVarsOf = patterns.map(p => p.variables2.drop(arity).toList)
     val disjuncts = patterns.map(p => p.branchSelectionDisjunct(term)).toList
@@ -536,14 +535,12 @@ private[semantics] object NestedTrieProofs {
   //  Same outer structure as the existing nullary `incompatible`; the final
   //  guard-term disequality uses the recursive divergence peel instead.
   // ════════════════════════════════════════════════════════════════════════
-  def incompatibleCaseShape(p1: NestedConstructorPattern[?], p2: NestedConstructorPattern[?]): THM =
-    p1 match
-      case p1c: NestedConstructorPattern[n] =>
-        incompatibleCaseShapeN[n](p1c, p2.asInstanceOf[NestedConstructorPattern[n]])
+  def incompatibleCaseShape(p1: NestedConstructorPattern, p2: NestedConstructorPattern): THM =
+    incompatibleCaseShapeN(p1, p2)
 
-  private[semantics] def sameHeadGuardEquality[N <: lisa.utils.prooflib.ProofTacticLib.Arity](
-      p1: NestedConstructorPattern[N],
-      p2: NestedConstructorPattern[N],
+  private[semantics] def sameHeadGuardEquality(
+      p1: NestedConstructorPattern,
+      p2: NestedConstructorPattern,
       guard1: BranchGuard,
       guard2: BranchGuard
   ): THM =
@@ -582,9 +579,9 @@ private[semantics] object NestedTrieProofs {
       )
     }
 
-  private def incompatibleCaseShapeN[N <: lisa.utils.prooflib.ProofTacticLib.Arity](
-      p1: NestedConstructorPattern[N],
-      p2: NestedConstructorPattern[N]
+  private def incompatibleCaseShapeN(
+      p1: NestedConstructorPattern,
+      p2: NestedConstructorPattern
   ): THM =
     if p1.semanticConstructor != p2.semanticConstructor then
       // different top constructors — `¬(c1(top1) = c2(top2))` from cross injectivity.
@@ -598,10 +595,11 @@ private[semantics] object NestedTrieProofs {
         val branch = assume(p1.branchPremise1 /\ p2.freshBranchPremise)
         val b1 = have(p1.branchPremise1) by Tautology.from(branch)
         val b2 = have(p2.freshBranchPremise) by Tautology.from(branch)
-        val inj = crossInj(adt, c1, c2, targs)
+        val inj = crossInj(adt, c1, c2)
         val fact0 = have(inj.statement.right.head) by Tautology.from(inj)
-        val target = instantiatePrefix(fact0.statement.right.head, top1 ++ top2)
-        val fact = have(target) by InstantiateForallSeq(top1 ++ top2)(fact0)
+        val instArgs = targs ++ top1 ++ top2
+        val target = instantiatePrefix(fact0.statement.right.head, instArgs)
+        val fact = have(target) by InstantiateForallSeq(instArgs)(fact0)
         have(!(p1.inputTerm1 === p2.inputTerm2)) by Tautology.from(fact, b1, b2)
       }}
     else
@@ -664,7 +662,7 @@ private[semantics] object NestedTrieProofs {
   //  Forward direction uses the top constructor injectivity plus a recursive
   //  injective descent through the guard term (the mirror of `disprove`).
   // ════════════════════════════════════════════════════════════════════════
-  def injectivityCaseShape(pp: NestedConstructorPattern[?]): THM =
+  def injectivityCaseShape(pp: NestedConstructorPattern): THM =
     val v1 = pp.variables1.toList; val v2 = pp.variables2.toList
     val ar = pp.arity
     val (top1, _) = v1.splitAt(ar); val (top2, _) = v2.splitAt(ar)
@@ -686,7 +684,7 @@ private[semantics] object NestedTrieProofs {
             val cts = childTypes(c, ty._2)
             val t1 = as1.zip(cts).map((a, t) => termOf(a, t.get))
             val t2 = as2.zip(cts).map((a, t) => termOf(a, t.get))
-            instAll(sameInj(c, ty._2), t1 ++ t2)
+            instAll(c.injectivity, ty._2 ++ t1 ++ t2)
             val injInst = lastStep
             val tys = as1.zip(cts).map((a, t) => typeProof(a, t.get)) ++ as2.zip(cts).map((a, t) => typeProof(a, t.get))
             as1.indices.toList.foldLeft(Map.empty[(Variable[Ind], Variable[Ind]), proof.Fact]) { (acc, i) =>

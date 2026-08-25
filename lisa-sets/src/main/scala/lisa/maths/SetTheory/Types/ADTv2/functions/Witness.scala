@@ -3,7 +3,6 @@ package lisa.maths.SetTheory.Types.ADTv2.functions
 import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.FunctionCore.WitnessBase
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
  * Witness construction.
@@ -18,9 +17,9 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  * typing premise, so `W` is already a solution rather than a step operator. The
  * branch return-type checks are supplied by the caller.
  */
-private[functions] final class Witness[N <: Arity](
-    spec: FunSpec[N]
-) extends WitnessBase[N](
+private[functions] final class Witness(
+    spec: FunSpec
+) extends WitnessBase(
       functionName = spec.functionName,
       adt = spec.adt,
       argType = spec.argType,
@@ -30,7 +29,7 @@ private[functions] final class Witness[N <: Arity](
       typeVariablesSeq = spec.typeVariablesSeq
     ) {
 
-  protected val checkReturnType: Map[Pattern[N], JUSTIFICATION] =
+  protected val checkReturnType: Map[Pattern, JUSTIFICATION] =
     WitnessBase.returnTypeChecks(
       patterns = spec.cases,
       returnType = spec.returnType,

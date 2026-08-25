@@ -23,7 +23,7 @@ object NestedPatternInduction extends lisa.Main {
       Case(nil) subproof {
         // existsTrue[list/nil[bool/term1]] = bool/fals ⇒ countTrue[list/nil[bool/term1]] = nat/zero
 
-        have(thesis) by Tautology.from(countTrue.elim(bool)(nil))
+        have(thesis) by Tautology.from((countTrue.elim(nil) of bool))
       }
       Case(cons, tru, tl) subproof {
         // ( cons/arg0 ∈ bool/term1, tl ∈ list/term2[bool/term1], existsTrue[tl] = bool/fals ⇒ countTrue[tl] = nat/zero, cons/arg0 = bool/tru )
@@ -39,7 +39,7 @@ object NestedPatternInduction extends lisa.Main {
         )
 
         val existsAtTru = have(existsTrue(bool) * listAtArg0 === tru) by
-          Tautology.from(existsTrue.elim(bool)(Case(cons, tru, tl)))
+          Tautology.from((existsTrue.elim(Case(cons, tru, tl)) of bool))
 
         have(thesis) subproof {
           assume(existsTrue(bool) * listAtArg0 === fals)
@@ -68,9 +68,9 @@ object NestedPatternInduction extends lisa.Main {
         )
 
         val existsAtFals = have(existsTrue(bool) * listAtArg0 === existsTrue(bool) * tl) by
-          Tautology.from(existsTrue.elim(bool)(Case(cons, fals, tl)))
+          Tautology.from((existsTrue.elim(Case(cons, fals, tl)) of bool))
         val countAtFals = have(countTrue(bool) * listAtArg0 === countTrue(bool) * tl) by
-          Tautology.from(countTrue.elim(bool)(Case(cons, fals, tl)))
+          Tautology.from((countTrue.elim(Case(cons, fals, tl)) of bool))
 
         have(thesis) subproof {
           assume(existsTrue(bool) * listAtArg0 === fals)
@@ -94,7 +94,7 @@ object NestedPatternInduction extends lisa.Main {
       Case(nil) subproof {
         // existsTrue[list/nil[bool/term1]] = bool/fals ⇒ countTrue[list/nil[bool/term1]] = nat/zero
 
-        have(thesis) by Tautology.from(countTrue.elim(bool)(nil))
+        have(thesis) by Tautology.from((countTrue.elim(nil) of bool))
       }
       Case(cons, tru, tl) subproof {
         // ( cons/arg0 ∈ bool/term1, tl ∈ list/term2[bool/term1], existsTrue[tl] = bool/fals ⇒ countTrue[tl] = nat/zero, cons/arg0 = bool/tru )
@@ -110,7 +110,7 @@ object NestedPatternInduction extends lisa.Main {
         )
 
         val existsAtTru = have(existsTrue(bool) * listAtArg0 === tru) by
-          Tautology.from(existsTrue.elim(bool)(Case(cons, tru, tl)))
+          Tautology.from((existsTrue.elim(Case(cons, tru, tl)) of bool))
 
         have(thesis) subproof {
           assume(existsTrue(bool) * listAtArg0 === fals)
@@ -139,9 +139,9 @@ object NestedPatternInduction extends lisa.Main {
         )
 
         val existsAtFals = have(existsTrue(bool) * listAtArg0 === existsTrue(bool) * tl) by
-          Tautology.from(existsTrue.elim(bool)(Case(cons, fals, tl)))
+          Tautology.from((existsTrue.elim(Case(cons, fals, tl)) of bool))
         val countAtFals = have(countTrue(bool) * listAtArg0 === countTrue(bool) * tl) by
-          Tautology.from(countTrue.elim(bool)(Case(cons, fals, tl)))
+          Tautology.from((countTrue.elim(Case(cons, fals, tl)) of bool))
 
         have(thesis) subproof {
           assume(existsTrue(bool) * listAtArg0 === fals)

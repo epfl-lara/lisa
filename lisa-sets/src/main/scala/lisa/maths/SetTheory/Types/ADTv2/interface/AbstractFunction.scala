@@ -5,16 +5,13 @@ import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.FunctionCore.FunctionSemanticsBase
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.syntax.Case
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.requireMonomorphicAccess
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.theoremAt
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.introAppAt
-import lisa.maths.SetTheory.Types.ADTv2.support.core.**
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.generalTheorem
+
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.introAppTheorem
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.renderAppliedSymbol
-import lisa.maths.SetTheory.Types.ADTv2.support.core.toSeq
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.maths.SetTheory.Types.TypingHelpers.FunctionalClass
 import lisa.maths.SetTheory.Types.TypingHelpers.TypedConstantFunctional
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
  * Interface-level wrapper around the semantic layer of a (possibly recursive)
@@ -26,14 +23,14 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  * of the freshly introduced application variable differ, supplied here through
  * [[kindLabel]] and [[introAppVariable]].
  */
-abstract class AbstractFunction[N <: Arity](using
+abstract class AbstractFunction[S](using
     val line: sourcecode.Line,
     val file: sourcecode.File,
-    valueOfN: ValueOf[N]
+    sort: Sort[S]
 )(
-    val semantic: FunctionSemanticsBase[N],
-    val adt: ADT[N]
-) extends TypedConstantFunctional[IndOf[N]](
+    val semantic: FunctionSemanticsBase,
+    val adt: ADT[S]
+) extends TypedConstantFunctional[S](
       semantic.id,
       FunctionalClass(
         List.fill(semantic.typeVariablesSeq.size)(None),
@@ -56,20 +53,18 @@ abstract class AbstractFunction[N <: Arity](using
   printAs(args => renderAppliedSymbol(semantic.name, semantic.typeVariablesSeq.size, args))
 
   val name: String = semantic.name
-  val typeVariables: Variable[Ind] ** N = semantic.typeVariables
   val typeVariablesSeq: Seq[Variable[Ind]] = semantic.typeVariablesSeq
-  val get_arity: Int = valueOfN.value
   val term: Expr[Ind] = termAt(typeVariablesSeq)
 
   lazy val argType: Expr[Ind] = semantic.argType
   lazy val returnType: Expr[Ind] = semantic.returnType
   lazy val functionType: Expr[Ind] = semantic.typ
-  private lazy val patterns: Seq[Pattern[N]] = semantic.patterns
+  private lazy val patterns: Seq[Pattern] = semantic.patterns
 
-  private lazy val patternIndices: Map[Pattern[N], Int] =
+  private lazy val patternIndices: Map[Pattern, Int] =
     patterns.zipWithIndex.toMap
 
-  private def eliminationSuffix(pattern: Pattern[N]): String = {
+  private def eliminationSuffix(pattern: Pattern): String = {
     val index = patternIndices.getOrElse(
       pattern,
       throw new IllegalArgumentException(s"Pattern ${pattern.name} does not belong to $kindLabel $name.")
@@ -77,123 +72,69 @@ abstract class AbstractFunction[N <: Arity](using
     s"elimination/${pattern.name}/$index"
   }
 
-  def intro: THM = {
-    requireMonomorphicAccess(kindLabel, name, typeVariablesSeq)
-    theoremAt(name, typeVariablesSeq, Seq.empty, "introduction", semantic.intro)
-  }
+  /**
+   * Typing of the defined symbol, closed over the type variables. Instantiate at type
+   * arguments with `of`, e.g. `length.intro of nat`.
+   *
+   * Reuses the theorem handed to [[TypedConstantFunctional]] as this symbol.s typing
+   * justification rather than proving a second copy; `Typecheck` needs that
+   * justification universally closed, so the two must not drift apart.
+   */
+  lazy val intro: THM = justif.asInstanceOf[THM]
 
-  def intro(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*): THM =
-    theoremAt(name, typeVariablesSeq, firstTypeArg +: otherTypeArgs, "introduction", semantic.intro)
+  /**
+   * The applied form of [[intro]]. A derived statement rather than an instance, so it is
+   * proved once over the type variables; instantiate with `of (A := nat)`.
+   */
+  lazy val introApp: THM = introAppTheorem(
+    displayName = name,
+    baseTheorem = semantic.intro,
+    headTerm = termAt(typeVariablesSeq),
+    headType = semantic.typ,
+    assumptions = Set(introAppVariable :: semantic.argType),
+    typingArgs = Seq(introAppVariable -> semantic.argType),
+    conclusion = app(termAt(typeVariablesSeq))(introAppVariable) :: semantic.returnType
+  )
 
-  def introApp: THM = {
-    requireMonomorphicAccess(kindLabel, name, typeVariablesSeq)
-    introAppAt(
-      displayName = name,
-      typeVariables = typeVariablesSeq,
-      typeArgs = Seq.empty,
-      baseTheorem = semantic.intro,
-      headTermAt = termAt,
-      headTypeAt = substitutions => semantic.typ.substitute(substitutions*),
-      assumptionsAt = substitutions => Set(introAppVariable :: semantic.argType.substitute(substitutions*)),
-      typingArgsAt = substitutions => Seq(introAppVariable -> semantic.argType.substitute(substitutions*)),
-      conclusionAt = substitutions =>
-        app(termAt(typeVariablesSeq))(introAppVariable) ::
-          semantic.returnType.substitute(substitutions*)
+  /**
+   * The defining equation of every branch at once. Instantiate with `of`.
+   */
+  lazy val elimTotal: THM =
+    generalTheorem(name, typeVariablesSeq, "eliminationTotal", semantic.elimTotal)
+
+  private lazy val elimByPatternThms: Map[Pattern, THM] =
+    patterns.map(p => p -> generalTheorem(name, typeVariablesSeq, eliminationSuffix(p), semantic.elimByPattern(p))).toMap
+
+  private lazy val elimByConstThms: Map[Constructor[?], THM] =
+    adt.constructors
+      .map(c => c -> generalTheorem(name, typeVariablesSeq, s"elimination/${c.semantic.name}", semantic.elimByConst(c.semantic)))
+      .toMap
+
+  /**
+   * The defining equation of one branch. Instantiate with `of`.
+   */
+  def elimByPattern(pattern: Pattern): THM =
+    elimByPatternThms.getOrElse(
+      pattern,
+      throw new IllegalArgumentException(s"Pattern ${pattern.name} does not belong to $kindLabel $name.")
     )
-  }
 
-  def introApp(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*): THM = {
-    val typeArgs = firstTypeArg +: otherTypeArgs
-    introAppAt(
-      displayName = name,
-      typeVariables = typeVariablesSeq,
-      typeArgs = typeArgs,
-      baseTheorem = semantic.intro,
-      headTermAt = termAt,
-      headTypeAt = substitutions => semantic.typ.substitute(substitutions*),
-      assumptionsAt = substitutions => Set(introAppVariable :: semantic.argType.substitute(substitutions*)),
-      typingArgsAt = substitutions => Seq(introAppVariable -> semantic.argType.substitute(substitutions*)),
-      conclusionAt = substitutions =>
-        app(termAt(typeArgs))(introAppVariable) ::
-          semantic.returnType.substitute(substitutions*)
+  /**
+   * The defining equations of every branch covering one constructor. Instantiate with `of`.
+   */
+  def elimByConst(constructor: Constructor[?]): THM =
+    elimByConstThms.getOrElse(
+      constructor,
+      throw new IllegalArgumentException(s"${constructor.name} is not a constructor of $kindLabel $name's domain.")
     )
-  }
 
-  def elimByPattern(pattern: Pattern[N]): THM = {
-    requireMonomorphicAccess(kindLabel, name, typeVariablesSeq)
-    theoremAt(
-      displayName = name,
-      typeVariables = typeVariablesSeq,
-      typeArgs = Seq.empty,
-      suffix = eliminationSuffix(pattern),
-      baseTheorem = semantic.elimByPattern(pattern)
-    )
-  }
+  def elim: THM = elimTotal
 
-  def elimByPattern(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*)(pattern: Pattern[N]): THM = {
-    val typeArgs = firstTypeArg +: otherTypeArgs
-    theoremAt(
-      displayName = name,
-      typeVariables = typeVariablesSeq,
-      typeArgs = typeArgs,
-      suffix = eliminationSuffix(pattern),
-      baseTheorem = semantic.elimByPattern(pattern)
-    )
-  }
+  def elim(pattern: Pattern): THM = elimByPattern(pattern)
 
-  def elimByConst(constructor: Constructor[N]): THM = {
-    requireMonomorphicAccess(kindLabel, name, typeVariablesSeq)
-    theoremAt(
-      displayName = name,
-      typeVariables = typeVariablesSeq,
-      typeArgs = Seq.empty,
-      suffix = s"elimination/${constructor.semantic.name}",
-      baseTheorem = semantic.elimByConst(constructor.semantic)
-    )
-  }
+  def elim(constructor: Constructor[?]): THM = elimByConst(constructor)
 
-  def elimByConst(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*)(constructor: Constructor[N]): THM = {
-    val typeArgs = firstTypeArg +: otherTypeArgs
-    theoremAt(
-      displayName = name,
-      typeVariables = typeVariablesSeq,
-      typeArgs = typeArgs,
-      suffix = s"elimination/${constructor.semantic.name}",
-      baseTheorem = semantic.elimByConst(constructor.semantic)
-    )
-  }
-
-  def elimTotal: THM = {
-    requireMonomorphicAccess(kindLabel, name, typeVariablesSeq)
-    theoremAt(name, typeVariablesSeq, Seq.empty, "eliminationTotal", semantic.elimTotal)
-  }
-
-  def elimTotal(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*): THM =
-    theoremAt(name, typeVariablesSeq, firstTypeArg +: otherTypeArgs, "eliminationTotal", semantic.elimTotal)
-
-  def elim(): THM =
-    elimTotal
-
-  def elim(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*): THM =
-    elimTotal(firstTypeArg, otherTypeArgs*)
-
-  def elim(pattern: Pattern[N]): THM =
-    elimByPattern(pattern)
-
-  def elim(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*)(pattern: Pattern[N]): THM =
-    elimByPattern(firstTypeArg, otherTypeArgs*)(pattern)
-
-  def elim(constructor: Constructor[N]): THM =
-    elimByConst(constructor)
-
-  def elim(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*)(constructor: Constructor[N]): THM =
-    elimByConst(firstTypeArg, otherTypeArgs*)(constructor)
-
-  def elim(c: Case[N]): THM =
-    elimByPattern(patternFor(c))
-
-  def elim(firstTypeArg: Expr[Ind], otherTypeArgs: Expr[Ind]*)(c: Case[N]): THM =
-    elimByPattern(firstTypeArg, otherTypeArgs*)(patternFor(c))
+  def elim(c: Case): THM = elimByPattern(patternFor(c))
 
   /**
    * Order- and binder-name-independent lookup of the branch matching `c`.
@@ -202,7 +143,7 @@ abstract class AbstractFunction[N <: Arity](using
    * plus its concrete (guard) arguments, so it does not depend on the order in
    * which the branches were declared.
    */
-  def patternFor(c: Case[N]): Pattern[N] =
+  def patternFor(c: Case): Pattern =
     patterns
       .collectFirst { case p if p.matchesConstructorCase(c.cons.semantic, c.args) => p }
       .getOrElse(
@@ -214,23 +155,15 @@ abstract class AbstractFunction[N <: Arity](using
   def termAt(args: Seq[Expr[Ind]]): Expr[Ind] =
     (this #@@ args).asInstanceOf[Expr[Ind]]
 
-  def applyUnsafe(args: Expr[Ind] ** N): Expr[Ind] = termAt(args.toSeq)
-
   def applySeq(args: Seq[Expr[Ind]]): Expr[Ind] = termAt(args)
 
   def apply(args: Expr[Ind]*): Expr[Ind] = termAt(args)
 }
 
 object AbstractFunction {
-  private def typingJustification[N <: Arity](using
+  private def typingJustification(using
       line: sourcecode.Line,
       file: sourcecode.File
-  )(semantic: FunctionSemanticsBase[N]): THM =
-    theoremAt(
-      displayName = semantic.name,
-      typeVariables = semantic.typeVariablesSeq,
-      typeArgs = Seq.empty,
-      suffix = "introduction",
-      baseTheorem = semantic.intro
-    )
+  )(semantic: FunctionSemanticsBase): THM =
+    generalTheorem(semantic.name, semantic.typeVariablesSeq, "introduction", semantic.intro)
 }

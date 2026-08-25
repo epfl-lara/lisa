@@ -4,8 +4,8 @@ import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2._
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.SelfRef
 
-private val listLengthHead = variable[Ind]
-private val listLengthTail = variable[Ind]
+val listLengthHead = variable[Ind]
+val listLengthTail = variable[Ind]
 
 lazy val list = adt(
   name = "list",
@@ -23,4 +23,4 @@ lazy val length = recFun(list, nat) { self =>
 }
 
 object List:
-  export lisa.maths.SetTheory.Types.ADTv2.library.{list, nil, cons, length}
+  export lisa.maths.SetTheory.Types.ADTv2.library.{list, nil, cons, length, listLengthHead, listLengthTail}

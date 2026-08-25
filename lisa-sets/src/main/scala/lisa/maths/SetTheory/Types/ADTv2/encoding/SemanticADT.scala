@@ -6,16 +6,13 @@ import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitutio
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.instantiatedTheorem
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.normalizeTypeSubstitutions
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.resolvedTypeArguments
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.theoremAt
 import lisa.utils.prooflib.QuantifiersIntro
-import lisa.maths.SetTheory.Types.ADTv2.support.core.**
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts._
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.BasicStepTactic.RightForall
-import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
 
 /**
@@ -34,9 +31,9 @@ import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
  *  @param underlying the syntactic representation of this ADT
  *  @param constructors constructors of this ADT
  */
-class SemanticADT[N <: Arity](
-    underlying: SyntacticADT[N],
-    val constructors: Seq[SemanticConstructor[N]]
+class SemanticADT(
+    underlying: SyntacticADT,
+    val constructors: Seq[SemanticConstructor]
 ) {
 
   private def normalizedTypeArguments(
@@ -143,7 +140,7 @@ class SemanticADT[N <: Arity](
       )
 
     def termsHaveHeightAt(
-        c: SemanticConstructor[N],
+        c: SemanticConstructor,
         substitutions: Seq[TypeSubstitution]
     )(using sourcecode.Line, sourcecode.File): THM =
       termsHaveHeightAt(c.underlying, substitutions)
@@ -164,7 +161,6 @@ class SemanticADT[N <: Arity](
   /**
    * Type variables of this ADT.
    */
-  val typeVariables: Variable[Ind] ** N = underlying.typeVariables
 
   /**
    * Sequence of type variables of this ADT.
@@ -174,7 +170,6 @@ class SemanticADT[N <: Arity](
   /**
    * Number of type variables in this ADT.
    */
-  val typeArity: N = underlying.typeArity
 
   /**
    *  Term representing this ADT where type variables are instantiated with given
@@ -197,7 +192,7 @@ class SemanticADT[N <: Arity](
    *
    *  e.g. Nil != Cons(head, tail)
    */
-  def disjointness(c1: SemanticConstructor[N], c2: SemanticConstructor[N]) =
+  def disjointness(c1: SemanticConstructor, c2: SemanticConstructor) =
 
     val vars1WellTyped: Set[Expr[Prop]] = wellTypedSet(c1.semanticSignature1)
     val vars2WellTyped: Set[Expr[Prop]] = wellTypedSet(c2.semanticSignature2)
@@ -415,7 +410,7 @@ class SemanticADT[N <: Arity](
    *  Returns a map binding each constructor to formula describing whether x is an
    *  instance of it.
    */
-  private lazy val isConstructorMap: Map[SemanticConstructor[N], Expr[Prop]] =
+  private lazy val isConstructorMap: Map[SemanticConstructor, Expr[Prop]] =
     constructors
       .map(c =>
         c -> existsSeq(
@@ -446,7 +441,7 @@ class SemanticADT[N <: Arity](
     val inductionPreconditionsIneq = seqAnd(inductionPreconditionIneq.map(_._2))
 
     // Weakening of the negation of the induction preconditions
-    val weakNegInductionPreconditionIneq: Map[SemanticConstructor[N], Expr[Prop]] =
+    val weakNegInductionPreconditionIneq: Map[SemanticConstructor, Expr[Prop]] =
       constructors
         .map(c =>
           c -> c.semanticSignature2.foldRight[Expr[Prop]](x === c.appliedTerm2)((el, fc) =>
@@ -571,39 +566,5 @@ class SemanticADT[N <: Arity](
     thenHave(thesis) by RightForall
   }
 
-  def inductionAt(
-      substitutions: Seq[TypeSubstitution]
-  )(using sourcecode.Line, sourcecode.File): THM =
-    theoremAt(
-      displayName = name,
-      typeVariables = typeVariablesSeq,
-      typeArgs = normalizedTypeArguments(substitutions),
-      suffix = "induction",
-      baseTheorem = induction
-    )
-
-  def elimAt(
-      substitutions: Seq[TypeSubstitution]
-  )(using sourcecode.Line, sourcecode.File): THM =
-    theoremAt(
-      displayName = name,
-      typeVariables = typeVariablesSeq,
-      typeArgs = normalizedTypeArguments(substitutions),
-      suffix = "elimination",
-      baseTheorem = elim
-    )
-
-  def disjointnessAt(
-      c1: SemanticConstructor[N],
-      c2: SemanticConstructor[N],
-      substitutions: Seq[TypeSubstitution]
-  )(using sourcecode.Line, sourcecode.File): THM =
-    theoremAt(
-      displayName = name,
-      typeVariables = typeVariablesSeq,
-      typeArgs = normalizedTypeArguments(substitutions),
-      suffix = s"${c1.name}-${c2.name}/disjointness",
-      baseTheorem = disjointness(c1, c2)
-    )
 
 }

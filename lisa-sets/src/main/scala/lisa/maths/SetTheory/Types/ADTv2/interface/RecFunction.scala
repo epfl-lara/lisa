@@ -2,12 +2,11 @@ package lisa.maths.SetTheory.Types.ADTv2.interface
 
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.recursion.SemanticFunction
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
-final class RecFunction[N <: Arity](using line: sourcecode.Line, file: sourcecode.File, valueOfN: ValueOf[N])(
-    semantic: SemanticFunction[N],
-    adt: ADT[N]
-) extends AbstractFunction[N](semantic, adt) {
+final class RecFunction[S](using line: sourcecode.Line, file: sourcecode.File, sort: Sort[S])(
+    semantic: SemanticFunction,
+    adt: ADT[S]
+) extends AbstractFunction[S](semantic, adt) {
 
   protected def kindLabel: String = "recursive function"
 

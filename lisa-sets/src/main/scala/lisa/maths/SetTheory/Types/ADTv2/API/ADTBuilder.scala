@@ -3,18 +3,21 @@ package lisa.maths.SetTheory.Types.ADTv2.API
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.encoding._
 import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
-import lisa.maths.SetTheory.Types.ADTv2.support.core.**
-import lisa.maths.SetTheory.Types.ADTv2.support.core.toSeq
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
-private def ADTBuilder[N <: Arity](
+/**
+ * `S` is the sort of the declared symbol: `Ind` for a monomorphic ADT, and one arrow
+ * per type variable, so `list` is an `ADT[Ind >>: Ind]`. Each `adt` overload below
+ * writes its own sort down, and the sort evidence comes from LISA's own `Sort`
+ * derivation rather than anything computed here.
+ */
+private def ADTBuilder[S](using Sort[S])(
     name: String,
     typeVars: Seq[String],
     constructors: Seq[
       (String, Seq[(String, String | ConstructorArg)])
     ]
-)(using ValueOf[N]): ADT[N] = {
+): ADT[S] = {
 
   require(
     typeVars.distinct.size == typeVars.size,
@@ -62,43 +65,30 @@ private def ADTBuilder[N <: Arity](
     )
   )
 
-  val adtSyntactic = (
-    SyntacticADT[N](
-      name,
-      constructorsSyntactic,
-      **.fromSeq[Variable[Ind], N](typeVars.map(Variable[Ind](_)))
-    )
+  val adtSyntactic = SyntacticADT(
+    name,
+    constructorsSyntactic,
+    typeVars.map(Variable[Ind](_))
   )
 
   val constructorsSemantic = constructorsSyntactic.zip(constructorsName).map { case (ctor, name) =>
-    SemanticConstructor[N](
+    SemanticConstructor(
       name,
       ctor,
       adtSyntactic
     )
   }
 
-  val adtSemantic = SemanticADT[N](adtSyntactic, constructorsSemantic)
-
-  new ADT[N](adtSemantic)
+  new ADT[S](SemanticADT(adtSyntactic, constructorsSemantic))
 }
-
-def adt[N <: Arity](
-    name: String,
-    typeVars: String ** N,
-    constructors: Seq[
-      (String, Seq[(String, String | ConstructorArg)])
-    ]
-)(using ValueOf[N]): ADT[N] =
-  ADTBuilder[N](name, typeVars.toSeq, constructors)
 
 def adt(
     name: String,
     constructors: Seq[
       (String, Seq[(String, String | ConstructorArg)])
     ]
-): ADT[0] =
-  ADTBuilder[0](name, Seq.empty, constructors)
+): ADT[Ind] =
+  ADTBuilder[Ind](name, Seq.empty, constructors)
 
 def adt(
     name: String,
@@ -106,8 +96,8 @@ def adt(
     constructors: Seq[
       (String, Seq[(String, String | ConstructorArg)])
     ]
-): ADT[1] =
-  ADTBuilder[1](name, Seq(typeVars), constructors)
+): ADT[Ind >>: Ind] =
+  ADTBuilder[Ind >>: Ind](name, Seq(typeVars), constructors)
 
 def adt(
     name: String,
@@ -115,8 +105,8 @@ def adt(
     constructors: Seq[
       (String, Seq[(String, String | ConstructorArg)])
     ]
-): ADT[2] =
-  ADTBuilder[2](name, Seq(typeVars._1, typeVars._2), constructors)
+): ADT[Ind >>: Ind >>: Ind] =
+  ADTBuilder[Ind >>: Ind >>: Ind](name, Seq(typeVars._1, typeVars._2), constructors)
 
 def adt(
     name: String,
@@ -124,8 +114,8 @@ def adt(
     constructors: Seq[
       (String, Seq[(String, String | ConstructorArg)])
     ]
-): ADT[3] =
-  ADTBuilder[3](name, Seq(typeVars._1, typeVars._2, typeVars._3), constructors)
+): ADT[Ind >>: Ind >>: Ind >>: Ind] =
+  ADTBuilder[Ind >>: Ind >>: Ind >>: Ind](name, Seq(typeVars._1, typeVars._2, typeVars._3), constructors)
 
 def adt(
     name: String,
@@ -133,8 +123,8 @@ def adt(
     constructors: Seq[
       (String, Seq[(String, String | ConstructorArg)])
     ]
-): ADT[4] =
-  ADTBuilder[4](name, Seq(typeVars._1, typeVars._2, typeVars._3, typeVars._4), constructors)
+): ADT[Ind >>: Ind >>: Ind >>: Ind >>: Ind] =
+  ADTBuilder[Ind >>: Ind >>: Ind >>: Ind >>: Ind](name, Seq(typeVars._1, typeVars._2, typeVars._3, typeVars._4), constructors)
 
 def adt(
     name: String,
@@ -142,29 +132,9 @@ def adt(
     constructors: Seq[
       (String, Seq[(String, String | ConstructorArg)])
     ]
-): ADT[5] =
-  ADTBuilder[5](
+): ADT[Ind >>: Ind >>: Ind >>: Ind >>: Ind >>: Ind] =
+  ADTBuilder[Ind >>: Ind >>: Ind >>: Ind >>: Ind >>: Ind](
     name,
     Seq(typeVars._1, typeVars._2, typeVars._3, typeVars._4, typeVars._5),
     constructors
   )
-
-def adt(
-    name: String,
-    typeVars: Seq[String],
-    constructors: Seq[
-      (String, Seq[(String, String | ConstructorArg)])
-    ]
-): ADT[?] =
-  val typeVarsSeq = typeVars.toSeq
-  typeVarsSeq.size match
-    case 0 => ADTBuilder[0](name, typeVarsSeq, constructors)
-    case 1 => ADTBuilder[1](name, typeVarsSeq, constructors)
-    case 2 => ADTBuilder[2](name, typeVarsSeq, constructors)
-    case 3 => ADTBuilder[3](name, typeVarsSeq, constructors)
-    case 4 => ADTBuilder[4](name, typeVarsSeq, constructors)
-    case 5 => ADTBuilder[5](name, typeVarsSeq, constructors)
-    case n =>
-      throw new IllegalArgumentException(
-        s"ADT $name has unsupported arity $n. Supported arities: 0 to 5."
-      )

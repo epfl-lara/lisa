@@ -3,7 +3,6 @@ package lisa.maths.SetTheory.Types.ADTv2.functions
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.FunctionCore.ExistenceProof
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
  * Existence of a solution.
@@ -13,10 +12,10 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  * a solution, so `∃f. Def(f)` follows by a single `RightExists` — no
  * approximant/limit fixpoint construction is needed.
  */
-private[functions] final class Existence[N <: Arity](
-    spec: FunSpec[N],
-    witness: Witness[N]
-) extends ExistenceProof[N] {
+private[functions] final class Existence(
+    spec: FunSpec,
+    witness: Witness
+) extends ExistenceProof {
 
   /**
    * ∃f, Def(f)

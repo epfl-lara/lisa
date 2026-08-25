@@ -156,46 +156,44 @@ object InterfaceHelpers {
       }
       ._1
 
-  def theoremAt(using
+  /**
+   * The general form of `baseTheorem`, universally closed over the owner's type
+   * variables. A caller wanting it at specific type arguments instantiates this with
+   * `of` rather than asking for a separately proved copy.
+   *
+   * A monomorphic owner has nothing to close over, so the base theorem is returned
+   * unchanged and no derived theorem is created at all.
+   */
+  def generalTheorem(using
       line: sourcecode.Line,
       file: sourcecode.File
   )(
       displayName: String,
       typeVariables: Seq[Variable[Ind]],
-      typeArgs: Seq[Expr[Ind]],
       suffix: String,
       baseTheorem: THM
-  ): THM = {
-    require(
-      typeArgs.isEmpty || typeArgs.size == typeVariables.size,
-      s"$displayName expects ${typeVariables.size} type argument(s), got ${typeArgs.size}."
-    )
-    val substitutions =
-      if typeArgs.isEmpty then Seq.empty
-      else typeVariables.zip(typeArgs).map((variable, arg) => variable := arg)
-    val theoremOwner =
-      if typeArgs.isEmpty then displayName
-      else Utils.renderAppliedSymbol(displayName, typeVariables.size, typeArgs)
-    val theoremName = s"$theoremOwner/$suffix"
+  ): THM =
+    if typeVariables.isEmpty then baseTheorem
+    else
+      val theoremName = s"$displayName/$suffix"
+      THM(
+        forallSeq(typeVariables, formulaOf(baseTheorem.statement, theoremName)),
+        theoremName,
+        line.value,
+        file.value,
+        Theorem
+      ) {
+        have(baseTheorem.statement) by Restate.from(baseTheorem)
+        thenHave(thesis) by QuantifiersIntro(typeVariables)
+      }
 
-    THM(
-      quantifiedTypeStatement(
-        baseTheorem.statement,
-        typeVariables,
-        substitutions,
-        theoremName
-      ),
-      theoremName,
-      line.value,
-      file.value,
-      Theorem
-    ) {
-      have(baseTheorem.statement.substitute(substitutions*)) by
-        Restate.from(baseTheorem.of(substitutions*))
-      thenHave(thesis) by QuantifiersIntro(getRemainingTypeVariables(typeVariables, substitutions))
-    }
-  }
-
+  /**
+   * A copy of `baseTheorem` with type variables substituted away.
+   *
+   * Unlike the user-facing accessors, which expose one general theorem and let callers
+   * instantiate it with `of`, the internal height machinery needs a standalone theorem
+   * outside any proof, so it still pays for a derived copy per instantiation.
+   */
   def instantiatedTheorem(using
       line: sourcecode.Line,
       file: sourcecode.File
@@ -217,53 +215,38 @@ object InterfaceHelpers {
     }
   }
 
-  def introAppAt(using
+  /**
+   * The applied ("curried") form of a typing introduction rule. Unlike
+   * [[generalTheorem]] this is a genuinely derived statement rather than an instance of
+   * the base one, so it is proved once, in general form, over the owner's type
+   * variables; callers instantiate it with `of`.
+   */
+  def introAppTheorem(using
       line: sourcecode.Line,
       file: sourcecode.File
   )(
       displayName: String,
-      typeVariables: Seq[Variable[Ind]],
-      typeArgs: Seq[Expr[Ind]],
       baseTheorem: THM,
-      headTermAt: Seq[Expr[Ind]] => Expr[Ind],
-      headTypeAt: Seq[TypeSubstitution] => Expr[Ind],
-      assumptionsAt: Seq[TypeSubstitution] => Set[Expr[Prop]],
-      typingArgsAt: Seq[TypeSubstitution] => Seq[(Variable[Ind], Expr[Ind])],
-      conclusionAt: Seq[TypeSubstitution] => Expr[Prop]
-  ): THM = {
-    require(
-      typeArgs.isEmpty || typeArgs.size == typeVariables.size,
-      s"$displayName expects ${typeVariables.size} type argument(s), got ${typeArgs.size}."
-    )
-    val substitutions =
-      if typeArgs.isEmpty then Seq.empty
-      else typeVariables.zip(typeArgs).map((variable, arg) => variable := arg)
-    val theoremOwner =
-      if typeArgs.isEmpty then displayName
-      else Utils.renderAppliedSymbol(displayName, typeVariables.size, typeArgs)
-    val theoremName = s"$theoremOwner/introApp"
-    val headTerm = headTermAt(typeArgs)
-    val headType = headTypeAt(substitutions)
-    val typingArgs = typingArgsAt(substitutions)
-
+      headTerm: Expr[Ind],
+      headType: Expr[Ind],
+      assumptions: Set[Expr[Prop]],
+      typingArgs: Seq[(Variable[Ind], Expr[Ind])],
+      conclusion: Expr[Prop]
+  ): THM =
     THM(
-      assumptionsAt(substitutions) |- conclusionAt(substitutions),
-      theoremName,
+      assumptions |- conclusion,
+      s"$displayName/introApp",
       line.value,
       file.value,
       Theorem
     ) {
-      have(baseTheorem.statement.substitute(substitutions*)) by
-        Restate.from(baseTheorem.of(substitutions*))
-
+      have(baseTheorem.statement) by Restate.from(baseTheorem)
       val appliedTyping = proveAppliedTyping(
         headTyping = lastStep,
         headTerm = headTerm,
         headType = headType,
         args = typingArgs
       )
-
       have(thesis) by Tautology.from(appliedTyping)
     }
-  }
 }

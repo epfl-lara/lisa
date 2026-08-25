@@ -6,10 +6,10 @@ import lisa.maths.SetTheory.Types.ADTv2._
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.SelfRef
 import lisa.maths.SetTheory.Types.TypingHelpers
 
-private val natPredN = variable[Ind]
-private val natDoubleN = variable[Ind]
-private val natAddN = variable[Ind]
-private val natAddRight = variable[Ind]
+val natPredN = variable[Ind]
+val natDoubleN = variable[Ind]
+val natAddN = variable[Ind]
+val natAddRight = variable[Ind]
 
 val nat = adt(
   name = "nat",
@@ -48,4 +48,4 @@ lazy val add = recFun(nat, natEndo) { self =>
 }
 
 object Nat:
-  export lisa.maths.SetTheory.Types.ADTv2.library.{nat, zero, succ, pred, double, add}
+  export lisa.maths.SetTheory.Types.ADTv2.library.{nat, zero, succ, pred, double, add, natPredN, natDoubleN, natAddN, natAddRight}

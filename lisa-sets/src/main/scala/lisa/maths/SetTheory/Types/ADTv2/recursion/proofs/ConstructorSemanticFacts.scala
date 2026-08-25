@@ -7,12 +7,11 @@ import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.instantiatedSem
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeFormula
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
 private[recursion] object ConstructorSemanticFacts {
 
-  final case class SpecializedConstructorFacts[N <: Arity](
-      underlying: SemanticConstructor[N],
+  final case class SpecializedConstructorFacts(
+      underlying: SemanticConstructor,
       typeSubstitutions: Seq[TypeSubstitution]
   ) {
     def name: String = underlying.name
@@ -34,21 +33,21 @@ private[recursion] object ConstructorSemanticFacts {
       underlying.appliedEqualityFromStructuralAt(typeSubstitutions)(heightFun, n, term0)
   }
 
-  def specializedConstructors[N <: Arity](
-      constructors: Seq[SemanticConstructor[N]],
+  def specializedConstructors(
+      constructors: Seq[SemanticConstructor],
       typeSubstitutions: Seq[TypeSubstitution]
-  ): Seq[SpecializedConstructorFacts[N]] =
+  ): Seq[SpecializedConstructorFacts] =
     constructors.map(SpecializedConstructorFacts(_, typeSubstitutions))
 
-  def constructorBranchAtHeight[N <: Arity](
-      c: SpecializedConstructorFacts[N],
+  def constructorBranchAtHeight(
+      c: SpecializedConstructorFacts,
       heightSet: Expr[Ind],
       term: Expr[Ind]
   ): Expr[Prop] =
     c.branchAtHeight(heightSet, term)
 
-  def constructorDisjunctionAtHeight[N <: Arity](
-      constructors: Seq[SpecializedConstructorFacts[N]],
+  def constructorDisjunctionAtHeight(
+      constructors: Seq[SpecializedConstructorFacts],
       heightSet: Expr[Ind],
       term: Expr[Ind]
   ): Expr[Prop] =

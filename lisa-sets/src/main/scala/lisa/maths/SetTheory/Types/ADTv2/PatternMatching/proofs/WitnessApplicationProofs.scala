@@ -9,11 +9,10 @@ import lisa.utils.prooflib.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Restate
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
-private[proofs] trait WitnessApplicationProofs[N <: Arity] extends WitnessFunctionProofs[N] {
+private[proofs] trait WitnessApplicationProofs extends WitnessFunctionProofs {
 
-  val witnessCaseByPattern: Map[Pattern[N], THM] =
+  val witnessCaseByPattern: Map[Pattern, THM] =
     patternMatching.patterns
       .map(pattern =>
         val vars = pattern.binders
@@ -119,6 +118,6 @@ private[proofs] trait WitnessApplicationProofs[N <: Arity] extends WitnessFuncti
       )
       .toMap
 
-  def witnessCase(pattern: Pattern[N]): THM =
+  def witnessCase(pattern: Pattern): THM =
     witnessCaseByPattern(pattern)
 }

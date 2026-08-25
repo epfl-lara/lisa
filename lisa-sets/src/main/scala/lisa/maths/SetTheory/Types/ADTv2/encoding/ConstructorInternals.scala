@@ -13,11 +13,10 @@ import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
 import lisa.maths.SetTheory.Types.TypingRules.TAbs
 import lisa.maths.SetTheory.Types.TypingTheorems.arrowElim
 import lisa.utils.prooflib.BasicStepTactic.RightForall
-import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.utils.prooflib.QuantifiersIntro
 
-private[encoding] final class ConstructorInternals[N <: Arity](
-    adt: SyntacticADT[N],
+private[encoding] final class ConstructorInternals(
+    adt: SyntacticADT,
     underlying: SyntacticConstructor,
     semanticSignature: Seq[(Variable[Ind], Expr[Ind])],
     variables: Seq[Variable[Ind]],

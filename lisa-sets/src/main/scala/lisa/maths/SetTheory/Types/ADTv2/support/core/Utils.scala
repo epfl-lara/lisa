@@ -118,16 +118,12 @@ object Utils {
       case SelfRef => adt
       case TypeArg(name) => Variable[Ind](name)
 
+  /**
+   * The schematic variable standing for a declared type parameter. A type parameter is
+   * identified by the name it was declared with, so this is a lookup, not a conversion.
+   */
   def typeExprToTerm(name: String): Variable[Ind] =
     Variable[Ind](name)
-
-  def typeExprToTerm(tpe: TypeExpr): Expr[Ind] = tpe match
-    case TypeRef(name) =>
-      Variable[Ind](name)
-    case TypeApply(name, args) =>
-      val c = Constant[Ind](s"$name[${args.mkString(",")}]")
-      registerConstant(c)
-      c
 
   // Well-typedness predicates
 

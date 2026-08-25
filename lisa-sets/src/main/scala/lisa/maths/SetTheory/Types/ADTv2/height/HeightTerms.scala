@@ -10,11 +10,10 @@ import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Functions.UnionRange.unionRangeMembership
 import lisa.maths.SetTheory.Types.ADTv2.support.tactics.Cuts
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
-final class HeightTerms[N <: Arity](
-    base: HeightADT[N],
-    constructorsTheory: HeightConstructors[N],
+final class HeightTerms(
+    base: HeightADT,
+    constructorsTheory: HeightConstructors,
     constructors: Seq[HeightConstructorData],
     term: Expr[Ind],
     termSatisfiesDefinition: THM

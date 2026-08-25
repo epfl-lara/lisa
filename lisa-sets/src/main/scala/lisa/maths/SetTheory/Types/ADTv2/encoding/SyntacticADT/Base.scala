@@ -7,10 +7,9 @@ import lisa.maths.SetTheory.Types.ADTv2.height.HeightConstructors
 import lisa.maths.SetTheory.Types.ADTv2.height.HeightStageSet
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.semantics.UniqueDefinedSymbol
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
-private[encoding] trait SyntacticADTBase[N <: Arity] {
-  this: SyntacticADT[N] =>
+private[encoding] trait SyntacticADTBase {
+  this: SyntacticADT =>
 
   protected inline final def app(f: Expr[Ind], x: Expr[Ind]): Expr[Ind] = lisa.maths.SetTheory.Functions.Predef.app(f)(x)
 
@@ -47,11 +46,11 @@ private[encoding] trait SyntacticADTBase[N <: Arity] {
   )
 
   protected val heightTHY = 
-    HeightADT[N](name, typeVariablesSeq, isConstructor)
+    HeightADT(name, typeVariablesSeq, isConstructor)
   private val heightStageSet = 
-    HeightStageSet[N](heightTHY, heightConstructorData, isConstructor)
+    HeightStageSet(heightTHY, heightConstructorData, isConstructor)
   protected val heightConstructorsTHY = 
-    HeightConstructors[N](heightTHY, heightConstructorData, heightStageSet, isConstructor)
+    HeightConstructors(heightTHY, heightConstructorData, heightStageSet, isConstructor)
 
 
   def isHeight(h: Expr[Ind]): Expr[Prop] = heightTHY.isHeight(h)

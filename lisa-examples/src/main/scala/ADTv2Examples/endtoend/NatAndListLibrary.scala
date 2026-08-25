@@ -10,9 +10,9 @@ object NatAndListLibrary extends lisa.Main {
   val list2 = cons(nat) * (succ * zero) * list1
 
   section("Introduction rules")
-  show(nil.intro(nat))
-  show(cons.intro(nat))
-  show(length.intro(nat))
+  show(nil.intro)
+  show(cons.intro)
+  show(length.intro)
 
   section("Type checking")
 

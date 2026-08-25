@@ -12,7 +12,6 @@ import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.LimitKernel
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.tactics.Cuts
 import lisa.maths.SetTheory.Types.TypingHelpers._
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
  * Layer 3 — Existence without circularity.
@@ -28,14 +27,14 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  * Exported:
  *   - [[witnessExists]] — ∃f, Def(f)
  */
-private[recursion] final class Existence[N <: Arity](
-    val spec: FunSpec[N],
-    val recWitness: Witness[N],
-    val approxSeq: ApproxSequence[N],
-    val approxStab: ApproxStabilization[N],
-    val limitConstruction: LimitConstruction[N],
-    val witnessAgreement: helpers.WitnessAgreement[N]
-) extends ExistenceProof[N] {
+private[recursion] final class Existence(
+    val spec: FunSpec,
+    val recWitness: Witness,
+    val approxSeq: ApproxSequence,
+    val approxStab: ApproxStabilization,
+    val limitConstruction: LimitConstruction,
+    val witnessAgreement: helpers.WitnessAgreement
+) extends ExistenceProof {
 
   val nVar = variable[Ind]
   private val heightSuccessorInclusion = spec.adt.height.successorInclusionAt(spec.typeSubstitutions)

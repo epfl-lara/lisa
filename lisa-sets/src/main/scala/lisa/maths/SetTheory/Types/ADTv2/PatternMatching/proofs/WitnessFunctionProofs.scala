@@ -22,13 +22,12 @@ import lisa.utils.prooflib.BasicStepTactic.LeftExists
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.BasicStepTactic.RightRefl
-import lisa.utils.prooflib.ProofTacticLib.Arity
 import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
 
-private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMembership[N] {
+private[proofs] trait WitnessFunctionProofs extends WitnessBranchMembership {
 
   private def branchWitnessAt(
-      pattern: Pattern[N],
+      pattern: Pattern,
       vars: Seq[Variable[Ind]],
       ambientInput: Expr[Ind],
       ambientOutput: Expr[Ind]
@@ -200,7 +199,7 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
     }
   }
 
-  private val samePatternBodyEquality: Map[Pattern[N], THM] =
+  private val samePatternBodyEquality: Map[Pattern, THM] =
     patternMatching.patterns
       .map(pattern =>
         {
@@ -274,9 +273,9 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
   private case class BranchParts(premise: THM, inputEq: THM, outputEq: THM)
 
   private def branchDecomposition(
-      vars: Pattern[N] => Seq[Variable[Ind]],
+      vars: Pattern => Seq[Variable[Ind]],
       ambientOutput: Expr[Ind]
-  ): Map[Pattern[N], BranchParts] =
+  ): Map[Pattern, BranchParts] =
     patternMatching.patterns
       .map(pattern =>
         val branchVars = vars(pattern)
@@ -304,18 +303,18 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
       )
       .toMap
 
-  private val namedBranchDecomposition: Map[Pattern[N], BranchParts] =
+  private val namedBranchDecomposition: Map[Pattern, BranchParts] =
     branchDecomposition(_.binders, outputTerm)
 
-  private val freshBranchDecomposition: Map[Pattern[N], BranchParts] =
+  private val freshBranchDecomposition: Map[Pattern, BranchParts] =
     branchDecomposition(_.variables2, alternateOutputTerm)
 
-  private val branchAgreement: Map[(Pattern[N], Pattern[N]), THM] = {
+  private val branchAgreement: Map[(Pattern, Pattern), THM] = {
     val patterns = patternMatching.patterns
-    val builder = scala.collection.mutable.LinkedHashMap.empty[(Pattern[N], Pattern[N]), THM]
+    val builder = scala.collection.mutable.LinkedHashMap.empty[(Pattern, Pattern), THM]
 
     // Full construction of the agreement lemma for `(pattern1, pattern2)`.
-    def buildDirect(pattern1: Pattern[N], pattern2: Pattern[N]): THM =
+    def buildDirect(pattern1: Pattern, pattern2: Pattern): THM =
       {
         val namedBranch = existsSeq(
           pattern1.binders,
@@ -404,7 +403,7 @@ private[proofs] trait WitnessFunctionProofs[N <: Arity] extends WitnessBranchMem
     // one up to: `/\` commutativity (handled by `Tautology`), α-equivalence of a pattern's
     // `binders` / `variables2` bound names (kernel-level), and `===` symmetry (the final
     // `Congruence` step, since `Tautology`/`Restate` treat `===` as opaque).
-    def buildByMirror(pattern1: Pattern[N], pattern2: Pattern[N], mirror: THM): THM =
+    def buildByMirror(pattern1: Pattern, pattern2: Pattern, mirror: THM): THM =
       {
         val namedBranch = existsSeq(
           pattern1.binders,

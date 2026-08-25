@@ -4,9 +4,9 @@ import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2._
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.SelfRef
 
-private val treeLeafValue = variable[Ind]
-private val treeNodeLeft = variable[Ind]
-private val treeNodeRight = variable[Ind]
+val treeLeafValue = variable[Ind]
+val treeNodeLeft = variable[Ind]
+val treeNodeRight = variable[Ind]
 
 lazy val tree = adt(
   name = "tree",
@@ -48,4 +48,4 @@ lazy val isEmpty = fun(tree, bool) {
 }
 
 object Tree:
-  export lisa.maths.SetTheory.Types.ADTv2.library.{tree, leaf, node, size, leafCount, mirror, isEmpty}
+  export lisa.maths.SetTheory.Types.ADTv2.library.{tree, leaf, node, size, leafCount, mirror, isEmpty, treeLeafValue, treeNodeLeft, treeNodeRight}

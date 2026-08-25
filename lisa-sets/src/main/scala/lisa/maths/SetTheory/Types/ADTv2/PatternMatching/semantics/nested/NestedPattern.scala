@@ -15,7 +15,6 @@ import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.utils.prooflib.BasicStepTactic.LeftExists
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
  * A constructor-headed pattern where some arguments are compiled into branch
@@ -36,8 +35,8 @@ private[PatternMatching] final case class BranchGuard(
     resolvedNullary: Option[ResolvedNullaryGuard]
 )
 
-private[PatternMatching] final case class NestedConstructorPattern[N <: Arity](
-    semanticConstructor: SemanticConstructor[N],
+private[PatternMatching] final case class NestedConstructorPattern(
+    semanticConstructor: SemanticConstructor,
     topBinders: Seq[Variable[Ind]],
     innerBinders: Seq[Variable[Ind]],
     innerTypes: Seq[Expr[Ind]],
@@ -46,7 +45,7 @@ private[PatternMatching] final case class NestedConstructorPattern[N <: Arity](
     guards: Seq[BranchGuard],
     override val typeSubstitutions: Seq[TypeSubstitution] = Seq.empty,
     override val specializedAdtTerm: Expr[Ind]
-) extends ConstructorHeadPattern[N] {
+) extends ConstructorHeadPattern {
 
   // All existentially-bound variables: the top constructor-argument binders plus
   // the free variables appearing inside (possibly non-nullary) guard terms.
@@ -157,7 +156,7 @@ private[PatternMatching] final case class NestedConstructorPattern[N <: Arity](
     }
   }
 
-  override def withBody(newBody: Expr[Ind]): Pattern[N] = copy(body = newBody)
+  override def withBody(newBody: Expr[Ind]): Pattern = copy(body = newBody)
 }
 
 private[PatternMatching] object NestedConstructorPattern {
@@ -186,13 +185,13 @@ private[PatternMatching] object NestedConstructorPattern {
    * `Left(v)` keeps `v` as a binder.
    * `Right(t)` introduces a fresh binder and adds an equality guard against `t`.
    */
-  def fromArgs[N <: Arity](
-      constructor: SemanticConstructor[N],
+  def fromArgs(
+      constructor: SemanticConstructor,
       args: Seq[Either[Variable[Ind], Expr[Ind]]],
       body: Expr[Ind],
       typeSubstitutions: Seq[TypeSubstitution] = Seq.empty,
       specializedAdtTerm: Expr[Ind]
-  ): NestedConstructorPattern[N] =
+  ): NestedConstructorPattern =
     val topBinders: Seq[Variable[Ind]] = args.zipWithIndex.map {
       case (Left(v), _) => v
       case (Right(_), i) => variable[Ind](s"${constructor.name}/arg$i")
@@ -257,10 +256,11 @@ private[PatternMatching] object NestedConstructorPattern {
       case RCon(c, args) =>
         val cts = NestedTrieProofs.resolvedChildTypes(c, ty._2)
         val argFacts = args.zip(cts).map((a, t) => typeProof(leafTyping, a, t.get))
-        val intro = if ty._2.isEmpty then c.introApp else c.introApp(ty._2.head, ty._2.tail*)
         val argTerms = args.zip(cts).map((a, t) => NestedTrieProofs.termOf(a, t.get))
-        val substs = c.semantic.variables.zip(argTerms).map((v, t) => v := t)
-        val introInst: proof.Fact = if substs.isEmpty then intro else intro.of(substs*)
+        val substs =
+          c.typeVariablesSeq.zip(ty._2).map((v, t) => v := t) ++
+            c.semantic.variables.zip(argTerms).map((v, t) => v := t)
+        val introInst: proof.Fact = if substs.isEmpty then c.introApp else c.introApp.of(substs*)
         have(goal) by Tautology.from((introInst +: argFacts)*)
 
   private def descendToBinder(using

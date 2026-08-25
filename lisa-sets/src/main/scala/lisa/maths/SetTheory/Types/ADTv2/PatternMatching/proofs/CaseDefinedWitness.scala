@@ -4,7 +4,6 @@ import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
 import lisa.maths.SetTheory.Types.ADTv2.encoding._
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
  * Shared semantic witness construction for ADTv2 functions.
@@ -28,10 +27,10 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  * When `contextPremises` is empty, exported theorems are plain formulas. When it is
  * non-empty, theorems are wrapped under the conjunction of these premises.
  */
-final class CaseDefinedWitness[N <: Arity](
-    protected val adt: SemanticADT[N],
+final class CaseDefinedWitness(
+    protected val adt: SemanticADT,
     protected val argType: Expr[Ind],
-    protected val patternMatching: PatternSystem[N],
+    protected val patternMatching: PatternSystem,
     protected val returnType: Expr[Ind],
     protected val typ: Expr[Ind],
     protected val witness: Expr[Ind],
@@ -39,6 +38,6 @@ final class CaseDefinedWitness[N <: Arity](
     protected val witnessBound: Expr[Ind],
     protected val pairWitness: Variable[Ind],
     protected val caseMembership: Expr[Ind] => Expr[Prop],
-    protected val checkReturnType: Map[Pattern[N], JUSTIFICATION],
+    protected val checkReturnType: Map[Pattern, JUSTIFICATION],
     protected val contextPremises: Seq[Expr[Prop]] = Seq.empty
-) extends WitnessApplicationProofs[N]
+) extends WitnessApplicationProofs

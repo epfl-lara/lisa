@@ -10,7 +10,6 @@ import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitutio
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.forallSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.seqOr
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.wellTypedFormula
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
  * Pattern system supporting multi-level nested patterns (e.g. `isGreaterThanTwo`),
@@ -23,12 +22,12 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  * `WitnessFunctionProofs`. `branchSelectionFor` (recursion only) is not yet
  * implemented.
  */
-private[PatternMatching] final case class NestedPatternSystem[N <: Arity](
-    domain: SemanticADT[N],
-    override val patterns: Seq[NestedConstructorPattern[N]],
+private[PatternMatching] final case class NestedPatternSystem(
+    domain: SemanticADT,
+    override val patterns: Seq[NestedConstructorPattern],
     typeSubstitutions: Seq[TypeSubstitution] = Seq.empty,
     specializedAdtTerm: Expr[Ind]
-) extends PatternSystem[N] {
+) extends PatternSystem {
   import NestedTrie.Tree
   import NestedTrie.Tree.{Fail, Leaf, Switch}
 
@@ -36,9 +35,9 @@ private[PatternMatching] final case class NestedPatternSystem[N <: Arity](
 
   lazy val (adt, targs) = ADT.unapply(specializedAdtTerm).get
 
-  override def constructors: Seq[SemanticConstructor[N]] = domain.constructors
+  override def constructors: Seq[SemanticConstructor] = domain.constructors
 
-  override def patternsFor(constructor: SemanticConstructor[N]): Seq[Pattern[N]] =
+  override def patternsFor(constructor: SemanticConstructor): Seq[Pattern] =
     patterns.filter(_.semanticConstructor == constructor)
 
   // The split branches carry guard conditions, so coverage is not automatic.
@@ -49,22 +48,22 @@ private[PatternMatching] final case class NestedPatternSystem[N <: Arity](
       NestedTrieProofs.coverageCaseShape((adt, targs), clauses, patterns)
     }
 
-  override def incompatible(pattern1: Pattern[N], pattern2: Pattern[N]): THM =
+  override def incompatible(pattern1: Pattern, pattern2: Pattern): THM =
     incompatibleCache.getOrElseUpdate(
       (pattern1, pattern2),
       {
         NestedTrieProofs.incompatibleCaseShape(
-          pattern1.asInstanceOf[NestedConstructorPattern[?]],
-          pattern2.asInstanceOf[NestedConstructorPattern[?]]
+          pattern1.asInstanceOf[NestedConstructorPattern],
+          pattern2.asInstanceOf[NestedConstructorPattern]
         )
       }
     )
 
-  override def branchSelectionFor(constructor: SemanticConstructor[N], term: Expr[Ind]): THM =
+  override def branchSelectionFor(constructor: SemanticConstructor, term: Expr[Ind]): THM =
     branchSelectionCache.getOrElseUpdate(
       (constructor, term),
       {
-        val pats = patternsFor(constructor).map(_.asInstanceOf[NestedConstructorPattern[N]])
+        val pats = patternsFor(constructor).map(_.asInstanceOf[NestedConstructorPattern])
         if pats.forall(_.guards.isEmpty) then
           // single unconditional pattern: the selection is trivial.
           val target = forallSeq(
@@ -91,10 +90,10 @@ private[PatternMatching] final case class NestedPatternSystem[N <: Arity](
   private lazy val clauses: Seq[(Constructor[?], Seq[Expr[Ind]])] =
     patterns.map(p => (interfaceCtor(p.semanticConstructor), clauseArgs(p)))
 
-  private def clauseArgs(p: NestedConstructorPattern[N]): Seq[Expr[Ind]] =
+  private def clauseArgs(p: NestedConstructorPattern): Seq[Expr[Ind]] =
     (0 until p.arity).map(i => p.guards.find(_.position == i).map(_.guardTerm).getOrElse(p.topBinders(i)))
 
-  private def interfaceCtor(sc: SemanticConstructor[N]): Constructor[?] =
+  private def interfaceCtor(sc: SemanticConstructor): Constructor[?] =
     ADT.allADTs.toSeq.flatMap(_.constructors).find(_.id == sc.id).getOrElse(throw new IllegalArgumentException(s"No interface constructor for ${sc.name}."))
 
   private def gapNodes(tree: Tree): Seq[(NestedTrie.Occ, List[String])] = tree match

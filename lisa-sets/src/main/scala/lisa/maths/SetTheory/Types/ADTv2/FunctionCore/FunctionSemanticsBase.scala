@@ -5,10 +5,8 @@ import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
 import lisa.maths.SetTheory.Types.ADTv2.encoding._
 import lisa.maths.SetTheory.Types.ADTv2.support.UniqueCharacterizedSymbol
-import lisa.maths.SetTheory.Types.ADTv2.support.core.**
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers._
-import lisa.utils.prooflib.ProofTacticLib.Arity
 
 /**
  * Semantic layer shared by the non-recursive
@@ -25,13 +23,11 @@ import lisa.utils.prooflib.ProofTacticLib.Arity
  * via [[UniqueCharacterizedSymbol]], and deriving the elimination/introduction
  * theorems from its characterization `forall(f, (term === f) <=> untypedDef)`.
  */
-class FunctionSemanticsBase[N <: Arity](data: SemanticFunctionInputs[N]) {
+class FunctionSemanticsBase(data: SemanticFunctionInputs) {
   val name: String = data.name
   val argType: Expr[Ind] = data.spec.argType
   val returnType: Expr[Ind] = data.spec.returnType
-  val typeVariables: Variable[Ind] ** N = data.spec.adt.typeVariables
   val typeVariablesSeq: Seq[Variable[Ind]] = data.spec.typeVariablesSeq
-  val typeArity: N = data.spec.typeArity
   val typ: Expr[Ind] = data.spec.typ
 
   /**
@@ -53,14 +49,14 @@ class FunctionSemanticsBase[N <: Arity](data: SemanticFunctionInputs[N]) {
 
   def term(args: Seq[Expr[Ind]]): Expr[Ind] = definedClassFunction.term(args)
 
-  val patterns: Seq[Pattern[N]] =
+  val patterns: Seq[Pattern] =
     data.buildPatterns(term)
 
   /**
    * For each pattern, the short defining equation
    * `branchPremise ==> (term * inputTerm === body)`.
    */
-  private val shortDefinitionByPattern: Map[Pattern[N], THM] =
+  private val shortDefinitionByPattern: Map[Pattern, THM] =
     patterns
       .map(pattern =>
         pattern -> Lemma(
@@ -87,17 +83,17 @@ class FunctionSemanticsBase[N <: Arity](data: SemanticFunctionInputs[N]) {
       )
       .toMap
 
-  def shortDefinition(pattern: Pattern[N]): THM =
+  def shortDefinition(pattern: Pattern): THM =
     shortDefinitionByPattern(pattern)
 
-  def elimByPattern(pattern: Pattern[N]): THM =
+  def elimByPattern(pattern: Pattern): THM =
     shortDefinition(pattern)
 
   /**
    * For each constructor, the conjunction of the short defining equations of
    * the patterns covering it.
    */
-  private val elimByConstThm: Map[SemanticConstructor[N], THM] =
+  private val elimByConstThm: Map[SemanticConstructor, THM] =
     PatternSystem
       .constructorCases(patterns)
       .map { (constructor, patternsForConst) =>
@@ -111,19 +107,19 @@ class FunctionSemanticsBase[N <: Arity](data: SemanticFunctionInputs[N]) {
       }
       .toMap
 
-  def elimByConst(constructor: SemanticConstructor[N]): THM =
+  def elimByConst(constructor: SemanticConstructor): THM =
     elimByConstThm.getOrElse(
       constructor,
       throw new IllegalArgumentException(s"No pattern registered for constructor ${constructor.name}.")
     )
 
-  def elim(pattern: Pattern[N]): THM =
+  def elim(pattern: Pattern): THM =
     elimByPattern(pattern)
 
-  def elim(constructor: SemanticConstructor[N]): THM =
+  def elim(constructor: SemanticConstructor): THM =
     elimByConst(constructor)
 
-  def shortDefinition(constructor: SemanticConstructor[N]): THM =
+  def shortDefinition(constructor: SemanticConstructor): THM =
     elimByConst(constructor)
 
   /**
