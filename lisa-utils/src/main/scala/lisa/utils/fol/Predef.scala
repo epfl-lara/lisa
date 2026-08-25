@@ -268,7 +268,7 @@ trait Predef extends ExprOps {
    * Reduces the given expression to beta-OL-normal form.
    */
   def normalForm[T](e: Expr[T]): Expr[T] =
-    asFrontExpression(K.reducedForm(e.underlying)).asInstanceOf[Expr[T]]
+    liftExpression(K.reducedForm(e.underlying)).asInstanceOf[Expr[T]]
 
   extension [S](e: Expr[S]) {
 
@@ -303,43 +303,25 @@ trait Predef extends ExprOps {
   }
 
   /**
-   * Maps a kernel expression to a corresponding front-end expression.
-   */
-  def asFrontExpression(e: K.Expression): Expr[?] = e match
-    case c: K.Constant => asFrontConstant(c)
-    case v: K.Variable => asFrontVariable(v)
-    case a: K.Application => asFrontApplication(a)
-    case l: K.Lambda => asFrontLambda(l)
-
-  /**
    * Lifts a kernel expression into its front expression tree.
    */
-  def liftExpression(e: K.Expression): Expr[?] =
-    asFrontExpression(e)
+  def liftExpression(e: K.Expression): Expr[?] = e match
+    case c: K.Constant => liftConstant(c)
+    case v: K.Variable => liftVariable(v)
+    case a: K.Application => liftApplication(a)
+    case l: K.Lambda => liftLambda(l)
 
-  /**
-   * Maps a kernel constant to a corresponding front-end constant.
-   */
-  def asFrontConstant(c: K.Constant): Constant[?] =
+  private def liftConstant(c: K.Constant): Constant[?] =
     new Constant[Ind](c.id)(using unsafeSortEvidence(c.sort))
 
-  /**
-   * Maps a kernel variable to a corresponding front-end variable.
-   */
-  def asFrontVariable(v: K.Variable): Variable[?] =
+  private def liftVariable(v: K.Variable): Variable[?] =
     new Variable[Ind](v.id)(using unsafeSortEvidence(v.sort))
 
-  /**
-   * Maps a kernel application to a corresponding front-end application.
-   */
-  def asFrontApplication(a: K.Application): App[?, ?] =
-    new App(asFrontExpression(a.f).asInstanceOf, asFrontExpression(a.arg))
+  private def liftApplication(a: K.Application): App[?, ?] =
+    new App(liftExpression(a.f).asInstanceOf, liftExpression(a.arg))
 
-  /**
-   * Maps a kernel lambda to a corresponding front-end lambda.
-   */
-  def asFrontLambda(l: K.Lambda): Abs[?, ?] =
-    new Abs(asFrontVariable(l.v).asInstanceOf, asFrontExpression(l.body))
+  private def liftLambda(l: K.Lambda): Abs[?, ?] =
+    new Abs(liftVariable(l.v).asInstanceOf, liftExpression(l.body))
 
   /**
    * Computes the greatest identifier in a sequence of expressions.
