@@ -14,11 +14,7 @@ case class LinearProof(
   steps: Array[ProofStep],
   imports: Array[Sequent]
 ):
-  given theory: K.Theory = K.Theory.empty
-
-  val importSteps: Array[ProofStep] = imports.map(Assume(_))
-  // Convert import steps to Thm for checking
-  val importThms: Array[K.Thm] = imports.map { statement =>
+  def importThms(using theory: K.Theory): Array[K.Thm] = imports.map { statement =>
     K.Assume(statement) match
       case Right(thm) => thm
   }
