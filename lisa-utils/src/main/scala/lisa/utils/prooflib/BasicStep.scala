@@ -44,8 +44,8 @@ object BasicStep:
   // Proof construction helpers
   ///////////////////////////////////////////////////////////////////////////////
 
-  private def successful(thm: K.Thm)(using Library): ProofJudgement =
-    ProofJudgement(thm)
+  private def successful(thm: K.Thm, conclusion: Sequent)(using Library): ProofJudgement =
+    ProofJudgement(Thm(conclusion, thm))
 
   /**
    * Weakening helper. Does not handle errors like [[Weakening.apply]].
@@ -234,12 +234,12 @@ object BasicStep:
           case Some(phi) => prove(underlying, prem1, prem2, phi).toOption
           case None =>
             prem1.right.iterator
-              .filter(phi => prem2.left.contains(phi) || K.Helpers.containsEq(prem2.left)(phi))
+              .filter(phi => prem2.left.contains(phi) || KF.contains(prem2.left, phi))
               .nextOption()
               .flatMap(phi => prove(underlying, prem1, prem2, phi).toOption)
 
       inferred match
-        case Some(thm) => successful(thm)
+        case Some(thm) => successful(thm, conclusion)
         case None => inferenceFailure(file, line)("Could not infer the Cut pivot.", conclusion, "First premise" -> prem1, "Second premise" -> prem2)
 
   object LeftAnd extends PremiseSequentTactic:
@@ -293,7 +293,7 @@ object BasicStep:
         case _ => None
 
       inferred match
-        case Some(thm) => successful(thm)
+        case Some(thm) => successful(thm, conclusion)
         case None => inferenceFailure(file, line)("Could not infer conjuncts for LeftAnd.", conclusion, "Premise" -> premise)
 
   object LeftOr:
@@ -338,7 +338,7 @@ object BasicStep:
               case -1 => None
               case i => weakening(underlying, premises(i))
 
-        inferred.fold(inferenceFailure(file, line)("Could not infer disjuncts for LeftOr.", conclusion, "Premises" -> premises))(successful)
+        inferred.fold(inferenceFailure(file, line)("Could not infer disjuncts for LeftOr.", conclusion, "Premises" -> premises))(thm => successful(thm, conclusion))
 
     def apply(using
         file: sourcecode.File,
@@ -413,7 +413,7 @@ object BasicStep:
           case (Some(phi), Some(psi)) => prove(underlying, prem1, prem2, phi, psi).toOption
 
       inferred match
-        case Some(thm) => successful(thm)
+        case Some(thm) => successful(thm, conclusion)
         case None => inferenceFailure(file, line)("Could not infer the antecedent and consequent for LeftImplies.", conclusion, "First premise" -> prem1, "Second premise" -> prem2)
 
   object LeftIff extends PremiseSequentTactic:
@@ -461,7 +461,7 @@ object BasicStep:
           case Some(KF.implies(phi, psi)) => prove(underlying, premise, phi, psi).toOption
           case _ => None
       inferred match
-        case Some(thm) => successful(thm)
+        case Some(thm) => successful(thm, conclusion)
         case None => inferenceFailure(file, line)("Could not infer the equivalent formulas for LeftIff.", conclusion, "Premise" -> premise)
 
   object LeftNot extends PremiseSequentTactic:
@@ -500,7 +500,7 @@ object BasicStep:
           case None => weakening(underlying, premise)
           case Some(phi) => prove(underlying, premise, phi).toOption
       inferred match
-        case Some(thm) => successful(thm)
+        case Some(thm) => successful(thm, conclusion)
         case None => inferenceFailure(file, line)("Could not infer the negated formula for LeftNot.", conclusion, "Premise" -> premise)
 
   object LeftForall extends PremiseSequentTactic:
@@ -558,7 +558,7 @@ object BasicStep:
         case _ => None
 
       inferred match
-        case Some(thm) => successful(thm)
+        case Some(thm) => successful(thm, conclusion)
         case None => inferenceFailure(file, line)("Could not infer the universal formula or its instantiating term for LeftForall.", conclusion, "Premise" -> premise)
 
   object LeftExists extends PremiseSequentTactic:
@@ -600,12 +600,12 @@ object BasicStep:
         case (None, None) => weakening(underlying, premise)
         case (None, Some(instance)) =>
           underlying.left.iterator.collectFirstDefined:
-            case KF.exists(KF.Lambda(x: KF.Variable, phi)) if K.Helpers.expEq(phi, instance) =>
+            case KF.exists(KF.Lambda(x: KF.Variable, phi)) if KF.isSame(phi, instance) =>
               prove(underlying, premise, phi, x).toOption
             case _ => None
         case _ => None
       inferred match
-        case Some(thm) => successful(thm)
+        case Some(thm) => successful(thm, conclusion)
         case None => inferenceFailure(file, line)("Could not infer the existential formula for LeftExists.", conclusion, "Premise" -> premise)
 
   object RightAnd:
@@ -654,7 +654,7 @@ object BasicStep:
               case -1 => None
               case i => weakening(underlying, premises(i))
 
-        inferred.fold(inferenceFailure(file, line)("Could not infer conjuncts for RightAnd.", conclusion, "Premises" -> premises))(successful)
+        inferred.fold(inferenceFailure(file, line)("Could not infer conjuncts for RightAnd.", conclusion, "Premises" -> premises))(thm => successful(thm, conclusion))
 
     def apply(using
         file: sourcecode.File,
@@ -710,7 +710,7 @@ object BasicStep:
         case _ => None
 
       inferred match
-        case Some(thm) => successful(thm)
+        case Some(thm) => successful(thm, conclusion)
         case None => inferenceFailure(file, line)("Could not infer disjuncts for RightOr.", conclusion, "Premise" -> premise)
 
   object RightImplies extends PremiseSequentTactic:
@@ -758,7 +758,7 @@ object BasicStep:
         case _ => None
 
       inferred match
-        case Some(thm) => successful(thm)
+        case Some(thm) => successful(thm, conclusion)
         case None => inferenceFailure(file, line)("Could not infer the antecedent and consequent for RightImplies.", conclusion, "Premise" -> premise)
 
   object RightIff:
@@ -819,7 +819,7 @@ object BasicStep:
         case None => weakening(underlying, prem1)
         case _ => None
       inferred match
-        case Some(thm) => successful(thm)
+        case Some(thm) => successful(thm, conclusion)
         case None => inferenceFailure(file, line)("Could not infer the equivalent formulas for RightIff.", conclusion, "First premise" -> prem1, "Second premise" -> prem2)
 
   object RightNot extends PremiseSequentTactic:
@@ -858,7 +858,7 @@ object BasicStep:
           case None => weakening(underlying, premise)
           case Some(phi) => prove(underlying, premise, phi).toOption
       inferred match
-        case Some(thm) => successful(thm)
+        case Some(thm) => successful(thm, conclusion)
         case None => inferenceFailure(file, line)("Could not infer the negated formula for RightNot.", conclusion, "Premise" -> premise)
 
   object RightForall extends PremiseSequentTactic:
@@ -900,12 +900,12 @@ object BasicStep:
         case (None, None) => weakening(underlying, premise)
         case (None, Some(instance)) =>
           underlying.right.iterator.collectFirstDefined:
-            case KF.forall(KF.Lambda(x: KF.Variable, phi)) if K.Helpers.expEq(phi, instance) =>
+            case KF.forall(KF.Lambda(x: KF.Variable, phi)) if KF.isSame(phi, instance) =>
               prove(underlying, premise, phi, x).toOption
             case _ => None
         case _ => None
       inferred match
-        case Some(thm) => successful(thm)
+        case Some(thm) => successful(thm, conclusion)
         case None => inferenceFailure(file, line)("Could not infer the universal formula for RightForall.", conclusion, "Premise" -> premise)
 
   object RightExists extends PremiseSequentTactic:
@@ -963,7 +963,7 @@ object BasicStep:
         case _ => None
 
       inferred match
-        case Some(thm) => successful(thm)
+        case Some(thm) => successful(thm, conclusion)
         case None => inferenceFailure(file, line)("Could not infer the existential formula or its instantiating term for RightExists.", conclusion, "Premise" -> premise)
 
   object RightEpsilon extends PremiseSequentTactic:
@@ -1019,7 +1019,7 @@ object BasicStep:
               case _ => None
         case _ => None
       inferred match
-        case Some(thm) => successful(thm)
+        case Some(thm) => successful(thm, conclusion)
         case None => inferenceFailure(file, line)("Could not infer the epsilon formula or source term for RightEpsilon.", conclusion, "Premise" -> premise)
 
   object Weakening extends PremiseSequentTactic:
@@ -1072,7 +1072,7 @@ object BasicStep:
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
       val underlying = conclusion.underlying
       differenceEq(premise.left, underlying.left).nextOption().flatMap(eq => prove(underlying, premise, eq).toOption) match
-        case Some(thm) => successful(thm)
+        case Some(thm) => successful(thm, conclusion)
         case None => inferenceFailure(file, line)("Could not infer a reflexive equality for LeftRefl.", conclusion, "Premise" -> premise)
 
   object RightRefl extends SequentTactic:
@@ -1106,7 +1106,7 @@ object BasicStep:
       val candidates = underlying.right.iterator.collect:
         case eq @ KF.equality(_, _) => eq
       val inferred = candidates.collectFirstDefined(eq => prove(underlying, eq).toOption)
-      inferred.fold(inferenceFailure(file, line)("Could not infer a reflexive equality for RightRefl.", conclusion))(successful)
+      inferred.fold(inferenceFailure(file, line)("Could not infer a reflexive equality for RightRefl.", conclusion))(thm => successful(thm, conclusion))
 
   object LeftSubstEq extends PremiseSequentTactic:
     private def prove(conclusion: K.Sequent, premise: K.Thm, equalities: Seq[(KF.Expression, KF.Expression)], lambdaPhi: (Seq[KF.Variable], KF.Expression))(using
@@ -1166,7 +1166,7 @@ object BasicStep:
       }
 
       inferred match
-        case Some(thm) => successful(thm)
+        case Some(thm) => successful(thm, conclusion)
         case None => inferenceFailure(file, line)("Could not infer LeftSubstEq equalities and lambda parameters.", conclusion, "Premise" -> premise)
 
   object RightSubstEq extends PremiseSequentTactic:
@@ -1227,7 +1227,7 @@ object BasicStep:
       }
 
       inferred match
-        case Some(thm) => successful(thm)
+        case Some(thm) => successful(thm, conclusion)
         case None => inferenceFailure(file, line)("Could not infer RightSubstEq equalities and lambda parameters.", conclusion, "Premise" -> premise)
 
   val LeftSubstIff: LeftSubstEq.type = LeftSubstEq
