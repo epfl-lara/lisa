@@ -64,7 +64,7 @@ object Tautology extends SequentTactic with PremiseSequentTactic:
       var left = conclusion.left
       val cuts = Vector.newBuilder[(K.Expression, K.Thm)]
       for (formula, thm) <- premiseFormulas.result() do
-        if !K.Helpers.containsEq(left)(formula) then
+        if !K.contains(left, formula) then
           left += formula
           cuts += formula -> thm
 
