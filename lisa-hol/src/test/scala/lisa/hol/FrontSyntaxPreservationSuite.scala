@@ -25,6 +25,11 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
   private def statementDescendants(statement: Sequent): Iterator[Expr[?]] =
     (statement.left ++ statement.right).iterator.flatMap(descendants)
 
+  private def typedConstant(name: String): TypedConstant =
+    val raw = Constant[Ind](K.Identifier(name))
+    SetTheoryLibrary.addSymbol(raw)
+    TypedConstant(raw.id, 𝔹, sorry(() |- TypeAssign(raw, 𝔹)))
+
   test("HOL type constructors survive front theorem instantiation"):
     val typeVariable = TypeVariable(K.Identifier("preserved-type-variable"))
     val replacement = TypeVariable(K.Identifier("preserved-type-replacement"))
@@ -47,13 +52,30 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
     val replacementType = TypeVariable(K.Identifier("typed-variable-replacement-type"))
     val typed = TypedVariable(K.Identifier("preserved-typed-variable"), originalType)
     val statement = TypeAssign(typed, originalType) |- (typed === typed)
-    val schema = axiom(statement)
+    val schema = sorry(statement)
 
     val instance = schema.of(originalType := replacementType)
     val retained = statementDescendants(instance.statement).collectFirst { case variable: TypedVariable => variable }.get
 
     assert(retained.typ.eq(replacementType))
     assert(computeType(retained) eq replacementType)
+
+  test("HOL transitivity retains typed constants through inferred basic steps"):
+    val left = typedConstant("transitivity-left")
+    val middle = typedConstant("transitivity-middle")
+    val right = typedConstant("transitivity-right")
+    val first = sorry(HOLSequent(Set.empty, left =:= middle))
+    val second = sorry(HOLSequent(Set.empty, middle =:= right))
+
+    val result = Proof.withContext:
+      HOLSteps._TRANS(first, second)
+
+    assert(result.isValid, result.errors.map(_.message).mkString("\n"))
+    val retained = statementDescendants(result.destruct._1.statement).collect { case constant: TypedConstant => constant }.toSeq
+    val retainedLeft = retained.find(_.eq(left)).get
+    val retainedRight = retained.find(_.eq(right)).get
+    assert(computeType(retainedLeft) eq 𝔹)
+    assert(computeType(retainedRight) eq 𝔹)
 
   test("HOL type instantiation and cleanup work without metadata registries"):
     val originalType = TypeVariable(K.Identifier("inst-type-original"))
@@ -65,7 +87,7 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
       typeAssigns = Set(TypeAssign(typed, originalType)),
       typeVarsNonEmpty = Set(nonEmpty(originalType))
     )
-    val premise = axiom(statement)
+    val premise = sorry(statement)
 
     val result = Proof.withContext:
       HOLSteps._INST_TYPE(Seq(originalType -> 𝔹), premise)
