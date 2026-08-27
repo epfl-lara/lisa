@@ -183,19 +183,19 @@ object Tableau extends SequentTactic, PremiseSequentTactic, DerivedFromPremises:
         penalty + branch.numberInstantiated(variable) * 20 + termPenalty(term)
       .sum
 
-  def alpha(branch: Branch): Branch =
-    branch.alpha.head match
+  def alpha(branch: Branch): Option[Branch] =
+    branch.alpha.headOption.collect:
       case K.and(left, right) => branch.copy(alpha = branch.alpha.tail).prepended(left).prepended(right)
 
-  def beta(branch: Branch): List[(Branch, K.Expression)] =
-    branch.beta.head match
+  def beta(branch: Branch): Option[List[(Branch, K.Expression)]] =
+    branch.beta.headOption.collect:
       case K.or(left, right) =>
         val rest = branch.copy(beta = branch.beta.tail)
         List(rest.prepended(left) -> left, rest.prepended(right) -> right)
 
-  def delta(branch: Branch): (Branch, K.Variable, K.Expression) =
-    branch.delta.head match
-      case quantified @ K.exists(K.Lambda(variable, body)) =>
+  def delta(branch: Branch): Option[(Branch, K.Variable, K.Expression)] =
+    branch.delta.headOption.collect:
+      case K.exists(K.Lambda(variable, body)) =>
         val fresh = K.Variable(K.Identifier(variable.id.name, branch.maxIndex), K.Ind)
         val instance = K.substituteVariables(body, Map(variable -> fresh))
         (
@@ -206,8 +206,8 @@ object Tableau extends SequentTactic, PremiseSequentTactic, DerivedFromPremises:
           instance
         )
 
-  def gamma(branch: Branch): (Branch, K.Variable, K.Expression) =
-    branch.gamma.head match
+  def gamma(branch: Branch): Option[(Branch, K.Variable, K.Expression)] =
+    branch.gamma.headOption.collect:
       case quantified @ K.forall(K.Lambda(variable, body)) =>
         val (instance, metavariable) =
           if branch.unifiable.contains(variable) then
@@ -223,11 +223,10 @@ object Tableau extends SequentTactic, PremiseSequentTactic, DerivedFromPremises:
         )
         (next.prepended(instance), metavariable, instance)
 
-  def applyInst(branch: Branch, variable: K.Variable, term: K.Expression): (Branch, K.Expression) =
-    val quantified = branch.unifiable(variable)._1
-    val tried = branch.triedInstantiation.updated(variable, branch.triedInstantiation.getOrElse(variable, Set.empty) + term)
-    quantified match
+  def applyInst(branch: Branch, variable: K.Variable, term: K.Expression): Option[(Branch, K.Expression)] =
+    branch.unifiable.get(variable).map(_._1).collect:
       case K.forall(K.Lambda(bound, body)) =>
+        val tried = branch.triedInstantiation.updated(variable, branch.triedInstantiation.getOrElse(variable, Set.empty) + term)
         val instance = instantiate(body, bound, term)
         branch
           .prepended(instance)
@@ -243,53 +242,60 @@ object Tableau extends SequentTactic, PremiseSequentTactic, DerivedFromPremises:
     val closing = close(branch)
     if closing.exists(_._1.isEmpty) then K.RestateTrue(using library.theory)(K.Sequent(closing.get._2, Set.empty)).toOption
     else if branch.alpha.nonEmpty then
-      decide(alpha(branch)).flatMap: proof =>
-        branch.alpha.head match
-          case conjunction @ K.and(left, right) if proof.statement.left.contains(left) || proof.statement.left.contains(right) =>
+      alpha(branch).flatMap(decide).flatMap: proof =>
+        branch.alpha.headOption match
+          case Some(conjunction @ K.and(left, right)) if proof.statement.left.contains(left) || proof.statement.left.contains(right) =>
             val statement = K.Sequent((proof.statement.left - left - right) + conjunction, proof.statement.right)
             K.Weakening(using library.theory)(statement, proof).toOption
-          case _ => Some(proof)
+          case Some(_) => Some(proof)
+          case None => None
     else if branch.delta.nonEmpty then
-      val (next, fresh, instance) = delta(branch)
-      decide(next).flatMap: proof =>
-        if proof.statement.left.contains(instance) then
-          val statement = K.Sequent((proof.statement.left - instance) + branch.delta.head, proof.statement.right)
-          K.LeftExists(using library.theory)(statement, proof, instance, fresh).toOption
-        else Some(proof)
+      delta(branch).flatMap: (next, fresh, instance) =>
+        decide(next).flatMap: proof =>
+          if proof.statement.left.contains(instance) then
+            val statement = K.Sequent((proof.statement.left - instance) + branch.delta.head, proof.statement.right)
+            K.LeftExists(using library.theory)(statement, proof, instance, fresh).toOption
+          else Some(proof)
     else if branch.beta.nonEmpty then
-      val branches = beta(branch)
-      val proofs = Vector.newBuilder[K.Thm]
-      val iterator = branches.iterator
-      while iterator.hasNext do
-        val (next, disjunct) = iterator.next()
-        decide(next) match
-          case None => return None
-          case Some(proof) if !proof.statement.left.contains(disjunct) => return Some(proof)
-          case Some(proof) => proofs += proof
-      val result = proofs.result()
-      val left = result.iterator.zip(branches.iterator).flatMap((proof, branch) => proof.statement.left - branch._2).toSet + branch.beta.head
-      branch.beta.head match
-        case K.or(first, second) =>
-          K.LeftOr(using library.theory)(K.Sequent(left, Set.empty), result, Seq(first, second)).toOption
+      beta(branch).flatMap: branches =>
+        def proveBranches(remaining: List[(Branch, K.Expression)], proofs: Vector[K.Thm]): Either[Option[K.Thm], Vector[K.Thm]] =
+          remaining match
+            case Nil => Right(proofs)
+            case (next, disjunct) :: tail =>
+              decide(next) match
+                case None => Left(None)
+                case Some(proof) if !proof.statement.left.contains(disjunct) => Left(Some(proof))
+                case Some(proof) => proveBranches(tail, proofs :+ proof)
+
+        proveBranches(branches, Vector.empty) match
+          case Left(result) => result
+          case Right(result) =>
+            val left = result.iterator.zip(branches.iterator).flatMap((proof, branch) => proof.statement.left - branch._2).toSet + branch.beta.head
+            branch.beta.headOption match
+              case Some(K.or(first, second)) =>
+                K.LeftOr(using library.theory)(K.Sequent(left, Set.empty), result, Seq(first, second)).toOption
+              case _ => None
     else if branch.gamma.nonEmpty then
-      val (next, metavariable, instance) = gamma(branch)
-      decide(next).flatMap: proof =>
-        if proof.statement.left.contains(instance) then
-          branch.gamma.head match
-            case K.forall(K.Lambda(variable, body)) =>
-              val statement = K.Sequent((proof.statement.left - instance) + branch.gamma.head, proof.statement.right)
-              K.LeftForall(using library.theory)(statement, proof, body, variable, metavariable).toOption
-        else Some(proof)
+      gamma(branch).flatMap: (next, metavariable, instance) =>
+        decide(next).flatMap: proof =>
+          if proof.statement.left.contains(instance) then
+            branch.gamma.headOption match
+              case Some(K.forall(K.Lambda(variable, body))) =>
+                val statement = K.Sequent((proof.statement.left - instance) + branch.gamma.head, proof.statement.right)
+                K.LeftForall(using library.theory)(statement, proof, body, variable, metavariable).toOption
+              case _ => None
+          else Some(proof)
     else if closing.exists(_._1.nonEmpty) then
       val (variable, term) = closing.get._1.minBy((variable, _) => branch.varsOrder(variable))
-      val (next, instance) = applyInst(branch, variable, term)
-      decide(next).flatMap: proof =>
-        if proof.statement.left.contains(instance) then
-          branch.unifiable(variable)._1 match
-            case quantified @ K.forall(K.Lambda(bound, body)) =>
-              val statement = K.Sequent((proof.statement.left - instance) + quantified, proof.statement.right)
-              K.LeftForall(using library.theory)(statement, proof, body, bound, term).toOption
-        else Some(proof)
+      applyInst(branch, variable, term).flatMap: (next, instance) =>
+        decide(next).flatMap: proof =>
+          if proof.statement.left.contains(instance) then
+            branch.unifiable.get(variable).map(_._1) match
+              case Some(quantified @ K.forall(K.Lambda(bound, body))) =>
+                val statement = K.Sequent((proof.statement.left - instance) + quantified, proof.statement.right)
+                K.LeftForall(using library.theory)(statement, proof, body, bound, term).toOption
+              case _ => None
+          else Some(proof)
     else None
 
   def instantiate(formula: K.Expression, variable: K.Variable, term: K.Expression): K.Expression =
