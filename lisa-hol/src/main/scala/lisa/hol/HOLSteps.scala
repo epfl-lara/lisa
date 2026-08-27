@@ -127,7 +127,11 @@ object HOLSteps extends lisa._HOL {
 
     val j2 = have((p :: 𝔹, q :: 𝔹, (q === One) <=> (p === One), !(p === One), (q === Zero) <=> (p === Zero)) |- p === Zero) by Tautology.from(Bdef of (p := p))
     val j3 = have((p :: 𝔹, q :: 𝔹, (q === One) <=> (p === One), !(p === One), (q === Zero) <=> (p === Zero)) |- q === Zero) by Tautology.from(lastStep)
-    val j4 = have((p :: 𝔹, q :: 𝔹, (q === One) <=> (p === One), !(p === One), (q === Zero) <=> (p === Zero)) |- (p === q)) by Substitute(j3)(j2)
+    val j4WithEquality = have(
+      (p :: 𝔹, q :: 𝔹, (q === One) <=> (p === One), !(p === One), (q === Zero) <=> (p === Zero), q === Zero) |- (p === q)
+    ) by RightSubstEq.withParameters(Seq(Zero -> q), Seq(q) -> (p === q))(j2)
+    val j4 = have((p :: 𝔹, q :: 𝔹, (q === One) <=> (p === One), !(p === One), (q === Zero) <=> (p === Zero)) |- (p === q)) by
+      Cut.withParameters(q === Zero)(j3, j4WithEquality)
 
     have(thesis) by Tautology.from(j4, i3, h4)
 
