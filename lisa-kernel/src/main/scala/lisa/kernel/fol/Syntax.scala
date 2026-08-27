@@ -12,7 +12,7 @@ private[fol] trait Syntax {
   /**
    * An abstract type, later instantiated  in [[OLEquivalenceChecker]] to be the type of expressions in normal form modulo OL.
    */
-  type SimpleExpression
+  private[kernel] type SimpleExpression
 
   /**
    * An identifier for a variable or constant symbol.
@@ -221,11 +221,6 @@ private[fol] trait Syntax {
      * Cached normal form of the expression by [[OLEquivalenceChecker]].
      */
     private[fol] var polarExpr: Option[SimpleExpression] = None
-
-    /**
-     * Cached normal form of the expression by [[OLEquivalenceChecker]].
-     */
-    def getPolarExpr: Option[SimpleExpression] = polarExpr
 
     /**
      * Sort of the expression.

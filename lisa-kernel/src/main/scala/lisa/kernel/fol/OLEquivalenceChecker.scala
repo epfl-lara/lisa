@@ -5,18 +5,17 @@ import scala.collection.mutable
 private[fol] trait OLEquivalenceChecker extends Syntax {
 
   /**
-   * Returns the αβ-normal form of the given epression as a
-   * [[SimpleExpression]].
+   * Returns the internal αβ-normal form of the given expression.
    */
-  def simpleReducedForm(expr: Expression): SimpleExpression = {
+  private[kernel] def simpleReducedForm(expr: Expression): SimpleExpression = {
     simplify(expr.betaNormalForm)
   }
 
   /**
    * Returns the reduced form of the given expression in AIG representation.
    *
-   * Obtain the normal form of type [[SimpleExpression]] using [[simplify]] and [[computeNormalForm]].
-   * Then recover an [[Expression]] using [[fromLocallyNameless]] and [[toExpressionAIG]].
+   * Computes the internal normal form, then converts it back to an
+   * [[Expression]] in AIG representation.
    */
   def reducedForm(expr: Expression): Expression = {
     val bnf = expr.betaNormalForm
@@ -30,8 +29,8 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   /**
    * Returns the reduced form of the given expression in NNF representation.
    *
-   * Obtain the normal form of type [[SimpleExpression]] using [[simplify]] and [[computeNormalForm]].
-   * Then recover an [[Expression]] using [[fromLocallyNameless]] and [[toExpressionNNF]].
+   * Computes the internal normal form, then converts it back to an
+   * [[Expression]] in NNF representation.
    */
   def reducedNNFForm(expr: Expression): Expression = {
     val bnf = expr.betaNormalForm
@@ -41,27 +40,6 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
     val res = toExpressionNNF(fln, true)
     res
   }
-
-  /**
-   * Maps a set of expressions to their reduced forms using [[reducedForm]], then eliminates equivalent expressions.
-   *
-   * @see [[isSame]]
-   * @see [[isSubset]]
-   * @see [[isSameSetL]]
-   * @see [[isSameSetR]]
-   * @see [[contains]]
-   */
-  def reduceSet(s: Set[Expression]): Set[Expression] = {
-    var res: List[Expression] = Nil
-    s.map(reducedForm)
-      .foreach({ f =>
-        if (!res.exists(isSame(f, _))) res = f :: res
-      })
-    res.toSet
-  }
-
-  @deprecated("Use isSame instead", "0.8")
-  def isSameTerm(term1: Expression, term2: Expression): Boolean = isSame(term1, term2)
 
   /**
    * Returns true if the two expressions are equivalent by the rules of the OL equivalence checker.
@@ -86,8 +64,6 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
    *
    * @see [[isSame]]
    * @see [[isSubset]]
-   * @see [[isSameSetL]]
-   * @see [[isSameSetR]]
    * @see [[contains]]
    */
   def isImplying(e1: Expression, e2: Expression): Boolean = {
@@ -105,8 +81,6 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
    *
    * @see [[isSame]]
    * @see [[isSubset]]
-   * @see [[isSameSetL]]
-   * @see [[isSameSetR]]
    * @see [[contains]]
    */
   def isSubset(s1: Set[Expression], s2: Set[Expression]): Boolean = {
@@ -118,48 +92,16 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
    *
    * @see [[isSame]]
    * @see [[isSubset]]
-   * @see [[isSameSetL]]
-   * @see [[isSameSetR]]
    * @see [[contains]]
    */
   def isSameSet(s1: Set[Expression], s2: Set[Expression]): Boolean =
     isSubset(s1, s2) && isSubset(s2, s1)
 
   /**
-   * Returns true if the conjunction of all elements of `s1` is equivalent to the conjunction of all elements of `s2`.
-   *
-   * Useful to compare left-hand sides of sequents.
-   *
-   * @see [[isSame]]
-   * @see [[isSubset]]
-   * @see [[isSameSetL]]
-   * @see [[isSameSetR]]
-   * @see [[contains]]
-   */
-  def isSameSetL(s1: Set[Expression], s2: Set[Expression]): Boolean =
-    isSame(s1.reduceLeft(and(_)(_)), s2.reduceLeft(and(_)(_)))
-
-  /**
-   * Returns true if the disjunction of all elements of `s1` is equivalent to the disjunction of all elements of `s2`.
-   *
-   * Useful to compare right-hand sides of sequents.
-   *
-   * @see [[isSame]]
-   * @see [[isSubset]]
-   * @see [[isSameSetL]]
-   * @see [[isSameSetR]]
-   * @see [[contains]]
-   */
-  def isSameSetR(s1: Set[Expression], s2: Set[Expression]): Boolean =
-    isSame(s1.reduceLeft(or(_)(_)), s2.reduceLeft(or(_)(_)))
-
-  /**
    * Returns true if the set `s` contains an expression equivalent to `f`.
    *
    * @see [[isSame]]
    * @see [[isSubset]]
-   * @see [[isSameSetL]]
-   * @see [[isSameSetR]]
    * @see [[isSameSet]]
    */
   def contains(s: Set[Expression], f: Expression): Boolean = {
@@ -177,7 +119,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
    * - consecutive conjunctions are flattened
    * - double negations are eliminated
    */
-  sealed abstract class SimpleExpression {
+  private[kernel] sealed abstract class SimpleExpression {
 
     /**
      * The sort of the expression.
@@ -200,44 +142,38 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
      */
     // val size : Int
     private[OLEquivalenceChecker] var inverse: Option[SimpleExpression] = None
-    def getInverse = inverse
     private[OLEquivalenceChecker] var NNF_pos: Option[Expression] = None
-    def getNNF_pos = NNF_pos
     private[OLEquivalenceChecker] var NNF_neg: Option[Expression] = None
-    def getNNF_neg = NNF_neg
     private[OLEquivalenceChecker] var formulaAIG: Option[Expression] = None
-    def getFormulaAIG = formulaAIG
     private[OLEquivalenceChecker] var normalForm: Option[SimpleExpression] = None
-    def getNormalForm = normalForm
     private[OLEquivalenceChecker] var namelessForm: Option[SimpleExpression] = None
-    def getNamelessForm = namelessForm
   }
 
   /**
    * Polar version of [[variable]] variable.
    */
-  case class SimpleVariable(id: Identifier, sort: Sort, polarity: Boolean) extends SimpleExpression {
+  private[kernel] case class SimpleVariable(id: Identifier, sort: Sort, polarity: Boolean) extends SimpleExpression {
     val containsFormulas: Boolean = sort == Prop
   }
 
   /**
    * Polar version of [[Variable]] for a bound variable in locally nameless representation.
    */
-  case class SimpleBoundVariable(no: Int, sort: Sort, polarity: Boolean) extends SimpleExpression {
+  private[kernel] case class SimpleBoundVariable(no: Int, sort: Sort, polarity: Boolean) extends SimpleExpression {
     val containsFormulas: Boolean = sort == Prop
   }
 
   /**
    * Polar version of [[Constant]] for a constant.
    */
-  case class SimpleConstant(id: Identifier, sort: Sort, polarity: Boolean) extends SimpleExpression {
+  private[kernel] case class SimpleConstant(id: Identifier, sort: Sort, polarity: Boolean) extends SimpleExpression {
     val containsFormulas: Boolean = sort == Prop
   }
 
   /**
    * Polar version of [[Application]] for an application of a function to an argument.
    */
-  case class SimpleApplication(f: SimpleExpression, arg: SimpleExpression, polarity: Boolean) extends SimpleExpression {
+  private[kernel] case class SimpleApplication(f: SimpleExpression, arg: SimpleExpression, polarity: Boolean) extends SimpleExpression {
     val sort = f.sort match
       case Arrow(from, to) if from == arg.sort => to
       case _ => throw new IllegalArgumentException(s"Application of $f to $arg is not legal")
@@ -247,7 +183,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   /**
    * Polar version of [[Lambda]] for a lambda abstraction.
    */
-  case class SimpleLambda(body: SimpleExpression)(val v: Variable) extends SimpleExpression {
+  private[kernel] case class SimpleLambda(body: SimpleExpression)(val v: Variable) extends SimpleExpression {
     val containsFormulas: Boolean = body.containsFormulas
     val sort = (v.sort -> body.sort)
   }
@@ -255,7 +191,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   /**
    * Polar version of [[And]]```(_)(_)...```.
    */
-  case class SimpleAnd(children: Seq[SimpleExpression], polarity: Boolean) extends SimpleExpression {
+  private[kernel] case class SimpleAnd(children: Seq[SimpleExpression], polarity: Boolean) extends SimpleExpression {
     val containsFormulas: Boolean = true
     val sort = Prop
   }
@@ -263,7 +199,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   /**
    * Polar version of [[Forall]]```Lambda(_, _)``` for a universal quantification.
    */
-  case class SimpleForall(body: SimpleExpression, polarity: Boolean)(val id: Identifier) extends SimpleExpression {
+  private[kernel] case class SimpleForall(body: SimpleExpression, polarity: Boolean)(val id: Identifier) extends SimpleExpression {
     val containsFormulas: Boolean = true
     val sort = Prop
   }
@@ -271,7 +207,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   /**
    * Polar version of [[top]] and [[bot]].
    */
-  case class SimpleLiteral(polarity: Boolean) extends SimpleExpression {
+  private[kernel] case class SimpleLiteral(polarity: Boolean) extends SimpleExpression {
     val containsFormulas: Boolean = true
     val sort = Prop
   }
@@ -279,7 +215,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   /**
    * Polar version of [[Equality]]```(_)(_)``` for an equality.
    */
-  case class SimpleEquality(left: SimpleExpression, right: SimpleExpression, polarity: Boolean) extends SimpleExpression {
+  private[kernel] case class SimpleEquality(left: SimpleExpression, right: SimpleExpression, polarity: Boolean) extends SimpleExpression {
     val containsFormulas: Boolean = true
     val sort = Prop
   }
@@ -287,7 +223,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   /**
    * Returns the negation of `e` in polar form. Use caching.
    */
-  def getInversePolar(e: SimpleExpression): SimpleExpression = e.inverse match
+  private[kernel] def getInversePolar(e: SimpleExpression): SimpleExpression = e.inverse match
     case Some(inverse) => inverse
     case None =>
       val inverse = e match {
@@ -307,7 +243,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   /**
    * Converts back a [[SimpleExpression]] to an [[Expression]] in AIG representation.
    */
-  def toExpressionAIG(e: SimpleExpression): Expression =
+  private[kernel] def toExpressionAIG(e: SimpleExpression): Expression =
     if e.formulaAIG.isDefined then e.formulaAIG.get
     else {
       val r: Expression = e match {
@@ -339,7 +275,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   /**
    * Converts a [[SimpleExpression]] to an [[Expression]] in NNF representation.
    */
-  def toExpressionNNF(e: SimpleExpression, positive: Boolean): Expression = {
+  private[kernel] def toExpressionNNF(e: SimpleExpression, positive: Boolean): Expression = {
     if (positive) {
       if e.NNF_pos.isDefined then return e.NNF_pos.get
       if e.inverse.isDefined && e.inverse.get.NNF_neg.isDefined then return e.inverse.get.NNF_neg.get
@@ -391,7 +327,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
    * - consecutive conjunctions are flattened
    * - double negations are eliminated
    */
-  def polarize(e: Expression, polarity: Boolean): SimpleExpression = {
+  private[kernel] def polarize(e: Expression, polarity: Boolean): SimpleExpression = {
     if (polarity & e.polarExpr.isDefined) {
       e.polarExpr.get
     } else if (!polarity & e.polarExpr.isDefined) {
@@ -448,7 +384,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
    * Replaces all [[SimpleVariable]]s with [[SimpleBoundVariable]]s in `e` using localy nameless (de Bruijn) representation.
    * @see [[fromLocallyNameless]]
    */
-  def toLocallyNameless(e: SimpleExpression): SimpleExpression =
+  private[kernel] def toLocallyNameless(e: SimpleExpression): SimpleExpression =
     e.namelessForm match
       case Some(value) => value
       case None =>
@@ -469,7 +405,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   /**
    * Replaces all [[SimpleVariable]]s with [[SimpleBoundVariable]]s in `e` using localy nameless (de Bruijn) representation.
    */
-  def toLocallyNameless2(e: SimpleExpression, subst: Map[(Identifier, Sort), Int], i: Int): SimpleExpression = e match {
+  private[kernel] def toLocallyNameless2(e: SimpleExpression, subst: Map[(Identifier, Sort), Int], i: Int): SimpleExpression = e match {
     case SimpleAnd(children, polarity) => SimpleAnd(children.map(toLocallyNameless2(_, subst, i)), polarity)
     case sf @ SimpleForall(inner, polarity) => SimpleForall(toLocallyNameless2(inner, subst + ((sf.id, Ind) -> i), i + 1), polarity)(sf.id)
     case e: SimpleLiteral => e
@@ -487,7 +423,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
    * Replaces all [[SimpleBoundVariable]]s with [[SimpleVariable]]s in `e`, reverting localy nameless representation.
    * @see [[toLocallyNameless]]
    */
-  def fromLocallyNameless(e: SimpleExpression, subst: Map[Int, (Identifier, Sort)], i: Int): SimpleExpression = e match {
+  private[kernel] def fromLocallyNameless(e: SimpleExpression, subst: Map[Int, (Identifier, Sort)], i: Int): SimpleExpression = e match {
     case SimpleAnd(children, polarity) => SimpleAnd(children.map(fromLocallyNameless(_, subst, i)), polarity)
     case sf @ SimpleForall(inner, polarity) => SimpleForall(fromLocallyNameless(inner, subst + (i -> (sf.id, Ind)), i + 1), polarity)(sf.id)
     case e: SimpleLiteral => e
@@ -505,7 +441,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   /**
    * Simplifies an [[Expression]] to a [[SimpleExpression]] using [[polarize]] and [[toLocallyNameless]].
    */
-  def simplify(e: Expression): SimpleExpression = toLocallyNameless(polarize(e, true))
+  private[kernel] def simplify(e: Expression): SimpleExpression = toLocallyNameless(polarize(e, true))
 
   //////////////////////
   //// OL Algorithm ////
@@ -514,7 +450,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   /**
    * Computes the OL normal form of `e` modulo Orthologic. Uses caching.
    */
-  def computeNormalForm(e: SimpleExpression): SimpleExpression = {
+  private[kernel] def computeNormalForm(e: SimpleExpression): SimpleExpression = {
     e.normalForm match
       case Some(value) => value
       case None =>
@@ -562,7 +498,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   /**
    * Returns true if the children of `f` contains a direct contradiction.
    */
-  def checkForContradiction(f: SimpleAnd): Boolean = {
+  private[kernel] def checkForContradiction(f: SimpleAnd): Boolean = {
     f match {
       case SimpleAnd(children, false) =>
         children.exists(cc => latticesLEQUnchecked(cc, f))
@@ -588,7 +524,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   /**
    * Reduces a conjunction to an antichain
    */
-  def reduceList(children: Seq[SimpleExpression], polarity: Boolean): List[SimpleExpression] = {
+  private[kernel] def reduceList(children: Seq[SimpleExpression], polarity: Boolean): List[SimpleExpression] = {
     val nonSimplified = SimpleAnd(children, polarity)
     var remaining: Seq[SimpleExpression] = Nil
     def treatChild(i: SimpleExpression): Seq[SimpleExpression] = {
@@ -631,7 +567,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   /**
    * Reduces a conjunction to a simplified form  using [[reduceList]]
    */
-  def reduce(children: Seq[SimpleExpression], polarity: Boolean): SimpleExpression = {
+  private[kernel] def reduce(children: Seq[SimpleExpression], polarity: Boolean): SimpleExpression = {
     val accepted: List[SimpleExpression] = reduceList(children, polarity)
     if (accepted.isEmpty) SimpleLiteral(polarity)
     else if (accepted.size == 1)
@@ -643,7 +579,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   /**
    * Checks if `e1` is less than `e2` by the laws of OL
    */
-  def latticesLEQ(e1: SimpleExpression, e2: SimpleExpression): Boolean = {
+  private[kernel] def latticesLEQ(e1: SimpleExpression, e2: SimpleExpression): Boolean = {
     require(e1.sort == Prop && e2.sort == Prop)
     latticesLEQUnchecked(e1, e2)
   }
@@ -694,7 +630,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   /**
    * Checks if `e1` is equivalent to `e2` by the laws of OL
    */
-  def latticesEQ(e1: SimpleExpression, e2: SimpleExpression): Boolean =
+  private[kernel] def latticesEQ(e1: SimpleExpression, e2: SimpleExpression): Boolean =
     if (e1.uniqueKey == e2.uniqueKey) true
     else if (e1.sort == Prop) latticesLEQ(e1, e2) && latticesLEQ(e2, e1)
     else latticesEQUnchecked(e1, e2)

@@ -8,7 +8,6 @@ object K {
   val Sequent = P.Sequent
   type Theory = P.Theory
   val Theory = P.Theory
-  type MutableTheory = P.MutableTheory
   type Thm = P.Thm
   type ProofError = P.ProofError
   type GeneralError = P.GeneralError
@@ -18,7 +17,6 @@ object K {
   val TheoryMismatch = P.TheoryMismatch
   type Step = P.Step
 
-  val Helpers = P.Helpers
   val Sorry = P.Sorry
   inline def sorry(using theory: Theory)(statement: Sequent): Thm = P.sorry(using theory)(statement)
   val Axiom = P.Axiom
