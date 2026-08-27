@@ -38,6 +38,18 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
 
     assertContains(theorem.statement, tagged)
 
+  test("an inferred basic step retains its requested front statement"):
+    val tagged = TaggedConstant[Ind](K.Identifier("inferred-basic-tag"))
+    val pivot = tagged === tagged
+    val result = tagged === variable[Ind]
+    val first = BasicStep.Sorry(() |- pivot).destruct._1
+    val second = BasicStep.Sorry(pivot |- result).destruct._1
+
+    val theorem = assertValid(BasicStep.Cut(first, second)(() |- result))
+
+    assert(theorem.statement == (() |- result))
+    assertContains(theorem.statement, tagged)
+
   test("a single have retains front subclasses"):
     val tagged = TaggedConstant[Ind](K.Identifier("have-tag"))
     val formula = tagged === tagged
@@ -132,3 +144,9 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
 
     assertContains(definition.statement, body)
     assertContains(definition.statement, bound)
+
+  test("a front theorem rejects an unrelated kernel statement"):
+    val formula = variable[Prop]
+    val kernel = K.sorry(using testLibrary.theory)(K.Sequent(Set.empty, Set(K.top)))
+
+    assertThrows[IllegalArgumentException](Thm(() |- formula, kernel))
