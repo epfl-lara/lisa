@@ -7,7 +7,8 @@ case class ApplicationOnNonFunctionException(term: Term) extends Exception(s"Con
 /**
  * The core simple types of HOL Light
  */
-sealed trait Type
+sealed trait Type:
+  def name: String
 case class TypeVariable(name: String) extends Type
 case class TypeApplication(name: String, args: List[Type]) extends Type
 
@@ -44,6 +45,21 @@ case class Combination(left: Term, right: Term) extends Term:
 case class Abstraction(absVar: Variable, inner: Term) extends Term:
   def tpe: Type =
     FunType(absVar.tpe, inner.tpe)
+
+/**
+  * Construct and destruct equality terms ***unsafely***.
+  * 
+  * Type equality of the LHS and RHS is not checked.
+  */
+object Eq:
+  def apply(left: Term, right: Term): Term =
+    val eq = Constant("=", FunType(left.tpe, FunType(right.tpe, BoolType)))
+    Combination(Combination(eq, left), right)
+
+  def unapply(term: Term): Option[(Term, Term)] =
+    term match
+      case Combination(Combination(Constant("=", FunType(leftTpe, FunType(rightTpe, BoolType))), left), right) => Some((left, right))
+      case _ => None
 
 /**
  * An HOL sequent `Γ |- t`
