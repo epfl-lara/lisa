@@ -494,7 +494,8 @@ private[fol] trait Syntax {
       val newSubst = m - v
       val fv = m.values.flatMap(_.freeVariables).toSet
       if (fv.contains(v)) {
-        val newBound = Variable(freshId(fv.view.map(_.id) ++ m.keys.view.map(_.id), v.id), v.sort)
+        val taken = fv.view.map(_.id) ++ t.freeVariables.view.map(_.id) ++ m.keys.view.map(_.id)
+        val newBound = Variable(freshId(taken, v.id), v.sort)
         Lambda(newBound, substituteVariables(t, newSubst + (v -> newBound)))
       } else Lambda(v, substituteVariables(t, m - v))
   }

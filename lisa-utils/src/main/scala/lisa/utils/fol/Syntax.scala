@@ -571,8 +571,7 @@ trait Syntax {
       lazy val frees = m.values.flatMap(_.freeVars).toSet
       if m.keySet.contains(v) || frees.contains(v) then
         // rename
-        val v1 = v.freshRename(frees)
-        // val v1: Variable[S] = Variable.unsafe(freshId(frees.map(_.id), v.id), v.sort).asInstanceOf
+        val v1 = v.freshRename(frees ++ body.freeVars ++ m.keySet)
         new Abs(v1, body.substituteUnsafe(Map(v -> v1))).substituteUnsafe(m)
       else new Abs(v, body.substituteUnsafe(m))
     override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): Abs[S, T] =

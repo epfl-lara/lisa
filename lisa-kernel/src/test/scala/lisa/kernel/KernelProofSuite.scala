@@ -34,6 +34,21 @@ class KernelProofSuite extends AnyFunSuite:
     assert(px.uniqueNumber == px2.uniqueNumber)
     assert(isSame(Lambda(x, p(x))(y), p(y)))
 
+  test("substitution freshens binders past variables already in their bodies"):
+    val bound = Variable(Identifier("x", 4), Ind)
+    val bodyFree = Variable(Identifier("x", 5), Ind)
+    val source = Variable(Identifier("source"), Ind)
+    val predicate = Constant(Identifier("capture-predicate"), Ind -> (Ind -> Prop))
+    val abstraction = Lambda(bound, predicate(bodyFree)(source))
+
+    val result = substituteVariables(abstraction, Map(source -> bound))
+
+    result match
+      case Lambda(renamed, body) =>
+        assert(renamed.id == Identifier("x", 6))
+        assert(body.freeVariables.contains(bodyFree))
+      case _ => fail(s"Expected a lambda, got $result")
+
   test("hypothesis builds a theorem in the current theory"):
     val p = Constant(Identifier("p"), Prop)
     given theory: Theory = theoryWith(p)
