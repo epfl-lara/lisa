@@ -7,8 +7,16 @@ import lisa.maths.SetTheory.Base.Predef.{_, given}
 import lisa.maths.SetTheory.Relations
 import lisa.maths.SetTheory.Relations.Predef._
 
-import Function.{functionBetween, functionOn, function, app, injective, surjective, bijective, abs}
-import BasicTheorems.{appDefinition, inversion => _, _}
+import Function.functionBetween
+import Function.functionOn
+import Function.function
+import Function.app
+import Function.injective
+import Function.surjective
+import Function.bijective
+import Function.abs
+import BasicTheorems.appDefinition
+import BasicTheorems.{inversion => _, _}
 import Restriction._
 
 /**

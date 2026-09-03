@@ -77,6 +77,16 @@ lazy val sets = Project(
   .settings(commonProjectSettings)
   .settings(scala3ProjectSettings)
   .settings(allowScala2ProjectDependency)
+  .settings(
+    libraryDependencies += "org.apache.commons" % "commons-math3" % "3.6.1",
+    libraryDependencies += "it.unimi.dsi" % "fastutil-core" % "8.5.15"
+  )
+  .settings(
+    // Executable fat-jar for CASC: `sbt lisa-sets/assembly` builds `casc-prover.jar`, run as
+    // `java -jar casc-prover.jar [-t <seconds>] [--strategy <name>] <problem.p>`.
+    // assembly / mainClass := Some("lisa.automation.superposition.CascProver"),
+    // assembly / assemblyJarName := "casc-prover.jar"
+  )
   .dependsOn(kernel, withTests(utils))
 
 lazy val utils = Project(

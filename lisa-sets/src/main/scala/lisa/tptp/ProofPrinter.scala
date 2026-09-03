@@ -17,7 +17,7 @@ import ProofParser._
 object ProofPrinter {
 
   def problemToFile(fileDirectory: String, fileName: String, name: String, axioms: Seq[K.Sequent], conjecture: K.Sequent, source: String): File = {
-    // case class Problem(file: String, domain: String, name: String, status: String, spc: Seq[String], formulas: Seq[AnnotatedStatement])
+    // case class TptpProblem(file: String, domain: String, name: String, status: String, spc: Seq[String], formulas: Seq[AnnotatedStatement])
     val file = new File(fileDirectory + fileName + ".p")
     // val fileName = originFile.split("/").last
     val header =
@@ -65,6 +65,17 @@ object ProofPrinter {
   inline def quoted(s: String): String = if isLowerWord(s) then s else s"'$s'"
 
   /**
+   * A `$n`-prefixed constant — a TPTP numeral parked as an uninterpreted nullary constant by [[KernelParser]]
+   *  (`$n` + `Number.pretty`) — rendered back as a bare TPTP numeral. Integers/rationals reproduce exactly; a real
+   *  or malformed value degrades to a valid escaped atomic word (sound: these numerals are uninterpreted here).
+   */
+  private def numeralTerm(v: String): FOF.Term =
+    scala.util
+      .Try(FOF.NumberTerm(leo.datastructures.TPTP.Integer(BigInt(v.trim))))
+      .orElse(scala.util.Try { val a = v.split("/"); FOF.NumberTerm(leo.datastructures.TPTP.Rational(BigInt(a(0).trim), BigInt(a(1).trim))) })
+      .getOrElse(FOF.AtomicTerm(v, Seq()))
+
+  /**
    * @param term
    * @param bound
    * @param strict if true, the term is printed as-is without any transformation on names
@@ -79,9 +90,18 @@ object ProofPrinter {
         else FOF.Variable(quoted("s" + id))
       case K.Constant(id, K.Ind) =>
         if strict then
-          if id.name(0).isLower && !id.name.contains(" ") then FOF.AtomicTerm(unsanitize(id), Seq())
+          // `KernelParser` parks TPTP distinct objects / numerals as `$d…` / `$n…` uninterpreted nullary
+          // constants (Fix B); render them back to their source `"…"` distinct object / bare numeral.
+          if id.name.startsWith("$d") then FOF.DistinctObject("\"" + unsanitize(id.name.drop(2), 0) + "\"")
+          else if id.name.startsWith("$n") then numeralTerm(unsanitize(id.name.drop(2), 0))
+          else if id.name(0).isLower && !id.name.contains(" ") then FOF.AtomicTerm(unsanitize(id), Seq())
           else FOF.AtomicTerm(quoted(unsanitize(id)), Seq())
         else FOF.AtomicTerm(quoted("c" + id), Seq())
+      // ε is `epsilon(λx.φ)` = `Multiapp(Constant(epsilon), …)`, so it MUST precede the generic application cases
+      // below, or it would be caught (and fail on its λ argument) as an ordinary applied constant.
+      case K.Epsilon(v, f) => // ε-term, printed with leo's term-level epsilon binder `# [x] : (φ)`
+        val x = if strict then unsanitize(v.id) else unsanitize("X" + v.id)
+        FOF.QuantifiedTerm(FOF.Epsilon, Seq(x), formulaToFOFFormula(f, bound + v.id, strict))
       case K.Multiapp(K.Constant(id, typ), args) =>
         if strict then
           if id.name(0).isLower && !id.name.contains(" ") then FOF.AtomicTerm(unsanitize(id), args.map(termToFOFTerm(_, bound, strict)))
@@ -90,7 +110,6 @@ object ProofPrinter {
       case K.Multiapp(K.Variable(id, typ), args) =>
         if strict then FOF.AtomicTerm("`" + unsanitize(id), args.map(termToFOFTerm(_, bound, strict)))
         else FOF.AtomicTerm(quoted(unsanitize("s" + id)), args.map(termToFOFTerm(_, bound)))
-      case K.Epsilon(v, f) => throw new Exception("Epsilon terms are not supported")
       case _ => throw new Exception("The expression is not purely first order:\n" + term.repr)
     }
   }

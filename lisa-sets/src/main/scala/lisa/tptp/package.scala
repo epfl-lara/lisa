@@ -23,7 +23,16 @@ case class AnnotatedFormula(role: String, name: String, formula: K.Expression, a
 
 case class AnnotatedSequent(role: String, name: String, sequent: K.Sequent, annotations: TPTP.Annotations) extends AnnotatedStatement
 
-case class Problem(file: String, domain: String, name: String, status: String, spc: Seq[String], formulas: Seq[AnnotatedStatement]):
+/**
+ * A parsed TPTP problem.
+ *
+ * `distinctObjects` are the kernel constants the problem's distinct objects (`"foo"`) were encoded as, in
+ * first-occurrence order. TPTP gives them their meaning — any two of them denote different things — and that
+ * is a fact about the *problem*, not about any constant's name, so it is recorded here as the parser meets
+ * them rather than recovered downstream from the `$d` prefix the encoding happens to use. A consumer that
+ * wants the distinctness turns these into pairwise disequalities; nothing else can know to.
+ */
+case class TptpProblem(file: String, domain: String, name: String, status: String, spc: Seq[String], formulas: Seq[AnnotatedStatement], distinctObjects: IndexedSeq[K.Expression] = IndexedSeq.empty):
   def conjecture = formulas.find(_.role == "conjecture").getOrElse(throw new Exception("No conjecture found in the problem."))
   def axioms = formulas.filter(_.role == "axiom")
 

@@ -1,10 +1,11 @@
 import lisa.automation.Congruence
 import lisa.automation.Substitution.{Apply => Substitute}
 import lisa.automation.Tableau
+import lisa.automation.Superpose
 
 object Example extends lisa.Main:
   // draft mode; only proofs from the current file are checked
-  draft()
+  //draft()
 
   // first-order variables
   val x = variable[Ind]
@@ -14,7 +15,6 @@ object Example extends lisa.Main:
   val P = variable[Ind >>: Prop]
 
   val form = forall(x, P(x) ==> exists(y, P(y)))
-  println(form.subexpressions.mkString("\n"))
 
   // a first-order function with one argument
   val f = variable[Ind >>: Ind]
@@ -36,11 +36,10 @@ object Example extends lisa.Main:
     *  `|- x ⊆ x`
     */
   val union = Theorem(
-    x subset x
-    // or x ⊆ x is predefined
+    x ⊆ x
   ) {
     have((y ∈ x) ==> (y ∈ x)) by Restate
-    thenHave(∀(y, (y ∈ x) ==> (y ∈ x))) by RightForall
+    have(∀(y, (y ∈ x) ==> (y ∈ x))) by Restate
 
     have(thesis) by Tautology.from(lastStep, subsetAxiom of (x := x, y := x))
   }
@@ -86,5 +85,10 @@ object Example extends lisa.Main:
   // example showing the Tableau tactic to discharge first-order tautologies
   val buveurs = Theorem(exists(x, P(x) ==> forall(y, P(y)))) {
     have(thesis) by Tableau
+  }
+
+    // example showing the Superpose tactic
+  val buveurs2 = Theorem(exists(x, P(x) ==> forall(y, P(y)))) {
+    have(thesis) by Superpose
   }
 

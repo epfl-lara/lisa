@@ -16,9 +16,15 @@ import lisa.utils.prooflib.ProofTacticLib._
 import scala.collection.Set
 
 import F.{∀ => _, _}
-import TypingRules.{TAbs, TApp, TSort, TConvAdv}
+import TypingRules.TAbs
+import TypingRules.TApp
+import TypingRules.TSort
+import TypingRules.TConvAdv
 import TypingHelpers._
-import TypingTheorems.{universeHierarchyPiClosureLeft, universeHierarchyPiClosureRight, subsetOfUniverse, piCovariance}
+import TypingTheorems.universeHierarchyPiClosureLeft
+import TypingTheorems.universeHierarchyPiClosureRight
+import TypingTheorems.subsetOfUniverse
+import TypingTheorems.piCovariance
 
 object Tactics:
   val x, y, z, A, B, C: Variable[Ind] = variable[Ind]

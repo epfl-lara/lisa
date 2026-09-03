@@ -14,6 +14,7 @@ object Quantifiers extends lisa.Main {
   private val x, y, z = variable[Ind]
   private val a, b = variable[Ind]
   private val p = variable[Prop]
+  private val R = variable[Prop] // closed (x-free) operand of the prenex laws; same schema the clausifier uses
   private val P, Q = variable[Ind >>: Prop]
 
   ///////////////////////////////////////////////////////////////////////////
@@ -265,6 +266,80 @@ object Quantifiers extends lisa.Main {
     have(P(x) |- P(x)) by Restate
     thenHave(P(x) |- P(ε(x, P(x)))) by RightEpsilon
     thenHave(thesis) by LeftExists
+  }
+
+  /**
+   * Theorem --- The Hilbert ε-witness satisfies the body iff the existential
+   * holds. This is the equivalence form of [[existsEpsilon]] and is the building
+   * block used by certified Skolemization to bridge `∃x. φ` and `φ[ε(λx.φ)/x]`.
+   */
+  val existsEpsilonIff = Theorem(
+    ∃(x, P(x)) <=> P(ε(x, P(x)))
+  ) {
+    val fwd = have(∃(x, P(x)) ==> P(ε(x, P(x)))) by Tautology.from(existsEpsilon)
+    have(P(ε(x, P(x))) |- P(ε(x, P(x)))) by Hypothesis
+    thenHave(P(ε(x, P(x))) |- ∃(x, P(x))) by RightExists
+    val bwd = thenHave(P(ε(x, P(x))) ==> ∃(x, P(x))) by Restate
+    have(thesis) by Tautology.from(fwd, bwd)
+  }
+
+  /**
+   * Theorem --- Universal instantiation: from `∀x. P(x)` derive `P(y)` for any
+   * witness `y`. Used by certified prenex normalisation to peel off the
+   * universal prefix of an axiom.
+   */
+  val forallInstantiation = Theorem(
+    ∀(x, P(x)) |- P(y)
+  ) {
+    have(P(y) |- P(y)) by Hypothesis
+    thenHave(thesis) by LeftForall
+  }
+
+  // ── Prenex-lifting equivalences ──────────────────────────────────────────
+  // Each states that a universal quantifier commutes with ∧/∨ when the
+  // quantified variable is not free in the *closed* operand. That side-condition
+  // is enforced structurally by making the closed operand the nullary `R : Prop`
+  // (which cannot contain `x`); the quantified operand is `P` of sort Ind→Prop.
+  // A `Q(x)` closed side would instead capture `x` under the ∀ on the right and
+  // make these non-theorems (cf. `existentialConjunctionWithClosedFormula`).
+  // These match, symbol-for-symbol, the schematic import statements the certified
+  // clausifier discharges against them
+  // (`lisa.automation.clausification.Clausification.forall*Statement`, same `P`/`x`/`R`).
+
+  /**
+   * `(∀x. P(x)) ∧ R  ⟺  ∀x. (P(x) ∧ R)`  (`R` is closed in x).
+   */
+  val forallAndLeft = Theorem(
+    ∀(x, P(x)) /\ R <=> ∀(x, P(x) /\ R)
+  ) {
+    have(thesis) by Tableau
+  }
+
+  /**
+   * `R ∧ (∀x. P(x))  ⟺  ∀x. (R ∧ P(x))`  (`R` is closed in x).
+   */
+  val forallAndRight = Theorem(
+    R /\ ∀(x, P(x)) <=> ∀(x, R /\ P(x))
+  ) {
+    have(thesis) by Tableau
+  }
+
+  /**
+   * `(∀x. P(x)) ∨ R  ⟺  ∀x. (P(x) ∨ R)`  (`R` is closed in x).
+   */
+  val forallOrLeft = Theorem(
+    ∀(x, P(x)) \/ R <=> ∀(x, P(x) \/ R)
+  ) {
+    have(thesis) by Tableau
+  }
+
+  /**
+   * `R ∨ (∀x. P(x))  ⟺  ∀x. (R ∨ P(x))`  (`R` is closed in x).
+   */
+  val forallOrRight = Theorem(
+    R \/ ∀(x, P(x)) <=> ∀(x, R \/ P(x))
+  ) {
+    have(thesis) by Tableau
   }
 
 }

@@ -13,7 +13,12 @@ import lisa.utils.fol.FOL._
 import lisa.utils.prooflib.BasicStepTactic._
 import lisa.utils.prooflib.ProofTacticLib.ProofTactic
 
-import SetTheoryLibrary.{have, JUSTIFICATION, thesis, THM, Proof, Theorem}
+import SetTheoryLibrary.have
+import SetTheoryLibrary.JUSTIFICATION
+import SetTheoryLibrary.thesis
+import SetTheoryLibrary.THM
+import SetTheoryLibrary.Proof
+import SetTheoryLibrary.Theorem
 
 object VarsAndFunctions /*extends lisa.Main*/:
 

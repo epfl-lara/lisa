@@ -94,9 +94,8 @@ object Closure extends lisa.Main {
     // Step 2: Uniqueness — any two solutions to φ must be equal
     // Using Q and S as the two distinct solutions; Q_ as bound variable inside minimality
     val unique = have(
-      (R ⊆ Q /\ reflexive(Q)(X) /\ ∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (Q ⊆ Q_)),
-       R ⊆ S /\ reflexive(S)(X) /\ ∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (S ⊆ Q_)))
-      |- (Q === S)
+      (R ⊆ Q /\ reflexive(Q)(X) /\ ∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (Q ⊆ Q_)), R ⊆ S /\ reflexive(S)(X) /\ ∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (S ⊆ Q_)))
+        |- (Q === S)
     ) subproof {
       assume(R ⊆ Q /\ reflexive(Q)(X) /\ ∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (Q ⊆ Q_)))
       assume(R ⊆ S /\ reflexive(S)(X) /\ ∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (S ⊆ Q_)))
@@ -122,7 +121,9 @@ object Closure extends lisa.Main {
       }
       // For uniqueness: any two elements satisfying φ are equal
       // unique gives: (φ(Q), φ(S)) |- Q === S, so generalize over Q and S
-      val allUnique = have(∀(Q, ∀(S, (R ⊆ Q /\ reflexive(Q)(X) /\ ∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (Q ⊆ Q_))) /\ (R ⊆ S /\ reflexive(S)(X) /\ ∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (S ⊆ Q_))) ==> (Q === S)))) subproof {
+      val allUnique = have(
+        ∀(Q, ∀(S, (R ⊆ Q /\ reflexive(Q)(X) /\ ∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (Q ⊆ Q_))) /\ (R ⊆ S /\ reflexive(S)(X) /\ ∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (S ⊆ Q_))) ==> (Q === S)))
+      ) subproof {
         have(thesis) by Generalize(unique)
       }
       have(thesis) by Tautology.from(

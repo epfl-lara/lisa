@@ -90,8 +90,20 @@ object KernelParser {
     term match {
       case CNF.AtomicTerm(f, args) => K.multiapply(mapTerm(f, args.size))(args map convertTermToKernel)
       case CNF.Variable(name) => mapVariable(name)
-      case CNF.DistinctObject(name) => ???
+      // Fix B: a distinct object "..." → a plain nullary constant, `$d`-prefixed to avoid colliding with ordinary
+      // functors (the surrounding quotes are stripped so the two occurrences of the same object share a symbol).
+      case CNF.DistinctObject(name) => distinctObjectConstant(name)
     }
+
+  /**
+   * The kernel constant a distinct object `"name"` is encoded as: a plain nullary constant, `$d`-prefixed so it
+   *  cannot collide with an ordinary functor, with the quotes stripped so two occurrences of the same object
+   *  share a symbol. One definition, so the conversions above and [[distinctObjectsOf]] cannot disagree about
+   *  the encoding — which is why the latter can classify by AST node rather than by testing the prefix back.
+   */
+  private def distinctObjectConstant(name: String)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): K.Expression =
+    val (_, mapTerm, _) = maps
+    mapTerm("$d" + name.stripPrefix("\"").stripSuffix("\""), 0)
 
   /**
    * @param term a tptp term in leo parser
@@ -104,8 +116,10 @@ object KernelParser {
         if (f.head == '$' && args.size == 0 && defctx(f.tail).isDefined) then defctx(f.tail).get
         else K.multiapply(mapTerm(f, args.size))(args map convertTermToKernel)
       case FOF.Variable(name) => mapVariable(name)
-      case FOF.DistinctObject(name) => ???
-      case FOF.NumberTerm(value) => ???
+      // Fix B: distinct objects and numeric literals → plain nullary constants, prefixed `$d` / `$n` so they never
+      // collide with ordinary functors (or each other). No arithmetic/distinctness axioms — sound, just uninterpreted.
+      case FOF.DistinctObject(name) => distinctObjectConstant(name)
+      case FOF.NumberTerm(value) => mapTerm("$n" + value.pretty, 0)
       case FOF.QuantifiedTerm(quantifier, Seq(x), body) => K.epsilon(mapVariable(x), convertToKernel(body))
       case FOF.QuantifiedTerm(_, _, _) => throw Exception("Only epsilon is supported as term quantifier")
     }
@@ -126,7 +140,7 @@ object KernelParser {
 
   }
 
-  private def problemToKernel(problemFile: File, md: ProblemMetadata)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): Problem = {
+  private def problemToKernel(problemFile: File, md: ProblemMetadata)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): TptpProblem = {
     val (mapAtom, mapTerm, mapVariable) = maps
     val file = io.Source.fromFile(problemFile)
     val folder = problemFile.getParentFile
@@ -170,22 +184,65 @@ object KernelParser {
         println("Unknown statement:" + i.pretty)
         throw FileNotAcceptedException("Only FOF formulas are supported", problemFile.getPath)
     }
-    Problem(md.file, md.domain, md.problem, md.status, md.spc, sq)
+    TptpProblem(md.file, md.domain, md.problem, md.status, md.spc, sq, distinctObjectsOf(iformulas))
   }
 
   /**
-   * @param problemFile a file containning a tptp problem
-   * @return a Problem object containing the data of the tptp problem in LISA representation
+   * The distinct objects occurring anywhere in `statements`, as the kernel constants they are encoded as, in
+   *  first-occurrence order.
+   *
+   *  Collected from the parsed TPTP tree, so a distinct object is one the grammar says is one — a
+   *  `DistinctObject` node — rather than one whose encoded name happens to begin with `$d`. Numeric literals
+   *  are deliberately not included: they are encoded the same way, but `1`, `1.0` and `1/1` can denote the
+   *  same number, so asserting them pairwise distinct would be unsound.
    */
-  def problemToKernel(problemFile: File)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): Problem = {
+  private def distinctObjectsOf(
+      statements: Seq[TPTP.AnnotatedFormula]
+  )(using defctx: DefContext, maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): IndexedSeq[K.Expression] =
+    val found = scala.collection.mutable.LinkedHashSet.empty[K.Expression]
+    def cnfTerm(t: CNF.Term): Unit = t match
+      case CNF.AtomicTerm(_, args) => args.foreach(cnfTerm)
+      case CNF.DistinctObject(name) => found += distinctObjectConstant(name)
+      case _ => ()
+    def cnfFormula(f: CNF.Formula): Unit = f.foreach {
+      case CNF.PositiveAtomic(a) => a.args.foreach(cnfTerm)
+      case CNF.NegativeAtomic(a) => a.args.foreach(cnfTerm)
+      case CNF.Equality(l, r) => cnfTerm(l); cnfTerm(r)
+      case CNF.Inequality(l, r) => cnfTerm(l); cnfTerm(r)
+    }
+    def fofTerm(t: FOF.Term): Unit = t match
+      case FOF.AtomicTerm(_, args) => args.foreach(fofTerm)
+      case FOF.DistinctObject(name) => found += distinctObjectConstant(name)
+      case FOF.QuantifiedTerm(_, _, b) => fofFormula(b)
+      case _ => ()
+    def fofFormula(f: FOF.Formula): Unit = f match
+      case FOF.AtomicFormula(_, args) => args.foreach(fofTerm)
+      case FOF.QuantifiedFormula(_, _, b) => fofFormula(b)
+      case FOF.UnaryFormula(_, b) => fofFormula(b)
+      case FOF.BinaryFormula(_, l, r) => fofFormula(l); fofFormula(r)
+      case FOF.Equality(l, r) => fofTerm(l); fofTerm(r)
+      case FOF.Inequality(l, r) => fofTerm(l); fofTerm(r)
+    statements.foreach {
+      case TPTP.FOFAnnotated(_, _, FOF.Logical(f), _, _) => fofFormula(f)
+      case TPTP.FOFAnnotated(_, _, FOF.Sequent(lhs, rhs), _, _) => lhs.foreach(fofFormula); rhs.foreach(fofFormula)
+      case TPTP.CNFAnnotated(_, _, CNF.Logical(f), _, _) => cnfFormula(f)
+      case _ => ()
+    }
+    found.toIndexedSeq
+
+  /**
+   * @param problemFile a file containning a tptp problem
+   * @return a TptpProblem object containing the data of the tptp problem in LISA representation
+   */
+  def problemToKernel(problemFile: File)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): TptpProblem = {
     problemToKernel(problemFile, getProblemInfos(problemFile))
   }
 
   /**
    * @param problemFile a path to a file containing a tptp problem
-   * @return a Problem object containing the data of the tptp problem in LISA representation
+   * @return a TptpProblem object containing the data of the tptp problem in LISA representation
    */
-  def problemToKernel(problemFile: String)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): Problem = {
+  def problemToKernel(problemFile: String)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): TptpProblem = {
     problemToKernel(File(problemFile))
   }
 
@@ -198,7 +255,7 @@ object KernelParser {
    * @param problem a problem, containing a list of annotated formulas from a tptp file
    * @return a sequent with axioms of the problem on the left, and the conjecture on the right
    */
-  def problemToSequent(problem: Problem): K.Sequent = {
+  def problemToSequent(problem: TptpProblem): K.Sequent = {
     if (problem.spc.contains("CNF")) problem.formulas.map(_.asInstanceOf[AnnotatedFormula].formula) |- ()
     else
       problem.formulas.foldLeft[K.Sequent](() |- ())((s, f) =>
@@ -209,15 +266,11 @@ object KernelParser {
   }
 
   def sanitize(s: String) =
-    val pieces = s.split("_")
-    val lead = pieces.init
-    val last = pieces.last
-    (if last.nonEmpty && last.forall(_.isDigit) && last.head != '0' then lead.mkString("$u") + "_" + last
-     else
-       pieces
-         .mkString("$u")
-    )
-      .replace(" ", "$s")
+    // Fix A: fold the whole identifier — numeric suffix included — into the *name*; never keep a trailing
+    // `_<digits>`. The String→Identifier conversion parses such a suffix into `Identifier.no` (an `Int`), which
+    // overflows on big SUMO ids like `c_bcase_3235139646`. `unsanitize` reverses `$u`/`$s` and ignores `no`, so
+    // escaping every `_` as `$u` round-trips just as well while keeping the whole id in the (unbounded) name.
+    s.split("_").mkString("$u").replace(" ", "$s")
 
   def unsanitize(s: String, no: Int): String =
     val r1 = s.replace("$u", "_").replace("$s", " ")
@@ -247,7 +300,7 @@ object KernelParser {
    * @param path the path to the tptp library.
    * @return A sequence of domains, each being a sequence of problems
    */
-  def gatherAllTPTPFormulas(spc: Seq[String], path: String): Seq[Seq[Problem]] = {
+  def gatherAllTPTPFormulas(spc: Seq[String], path: String): Seq[Seq[TptpProblem]] = {
     val d = new File(path)
     val probfiles: Array[File] = if (d.exists) {
       if (d.isDirectory) {
@@ -260,7 +313,7 @@ object KernelParser {
     probfiles.map(d => gatherFormulas(spc, d.getPath)).toSeq
   }
 
-  def gatherFormulas(spc: Seq[String], path: String): Seq[Problem] = {
+  def gatherFormulas(spc: Seq[String], path: String): Seq[TptpProblem] = {
     val d = new File(path)
     val probfiles: Array[File] = if (d.exists) {
       if (d.isDirectory) {
@@ -270,7 +323,7 @@ object KernelParser {
       } else throw new Exception("Specified path is not a directory.")
     } else throw new Exception("Specified path does not exist.")
 
-    val r = probfiles.foldRight(List.empty[Problem])((p, current) => {
+    val r = probfiles.foldRight(List.empty[TptpProblem])((p, current) => {
       val md = getProblemInfos(p)
       if (md.spc.exists(spc.contains)) problemToKernel(p, md)(using (strictMapAtom, strictMapTerm, strictMapVariable)) :: current
       else current

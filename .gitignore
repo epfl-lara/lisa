@@ -46,6 +46,13 @@ scallion/*
 cache/
 *.cache
 
+# Large external problem libraries (downloaded separately)
+TPTP-v*/
+
+# Generated proof dumps (--dump-proofs output)
+proofs/*.proof
+CASC-J*/
+
 # OS-specific
 .DS_Store
 .DS_Store?
@@ -59,6 +66,9 @@ Thumbs.db
 
 # emacs backup files
 *~
+
+# reference provers (read-only, cloned locally)
+othersolvers/
 \#*\#
 .#*
 
