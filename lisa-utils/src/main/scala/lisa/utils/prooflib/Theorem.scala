@@ -80,9 +80,26 @@ final class Theorem(theoremKind: TheoremKind)(using library: Library, output: Ou
   library.theorems.register(this)
 
   private val state = s"  $kind $shortName := $statement"
-  output.output(if errors.isEmpty then OutputManager.GREEN(state) else OutputManager.RED(state))
+  output.output(
+    if errors.isEmpty then 
+      OutputManager.GREEN(state)
+    else if thm.usesSorry then
+      OutputManager.YELLOW(state)
+    else 
+      OutputManager.RED(state)
+  )
+
+  private def errorString(error: ProofError): String =
+    val cwd = new java.io.File(".").getCanonicalPath
+    val strippedFile = error.file.value.stripPrefix(cwd)
+    s"\t$strippedFile:${error.line.value}: ${error.message}"
+
   errors.toSeq
     .sortBy(error => (error.file.value, error.line.value, error.message))
-    .foreach(error => output.output(OutputManager.RED(s"    ${error.file.value}:${error.line.value}: ${error.message}")))
+    .foreach: 
+      case error: SoftError =>
+        output.output(OutputManager.YELLOW(errorString(error)))
+      case error: FatalError =>
+        output.output(OutputManager.RED(errorString(error)))
 
   // TODO: if errors.nonEmpty and strict mode?
