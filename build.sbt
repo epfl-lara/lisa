@@ -84,8 +84,8 @@ lazy val sets = Project(
   .settings(
     // Executable fat-jar for CASC: `sbt lisa-sets/assembly` builds `casc-prover.jar`, run as
     // `java -jar casc-prover.jar [-t <seconds>] [--strategy <name>] <problem.p>`.
-    assembly / mainClass := Some("lisa.automation.superposition.CascProver"),
-    assembly / assemblyJarName := "casc-prover.jar"
+    // assembly / mainClass := Some("lisa.automation.superposition.CascProver"),
+    // assembly / assemblyJarName := "casc-prover.jar"
   )
   .dependsOn(kernel, withTests(utils))
 
