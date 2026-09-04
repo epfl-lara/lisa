@@ -19,6 +19,7 @@ import lisa.utils.prooflib.SubproofM
 import lisa.utils.prooflib.TacticHelpers.failWith
 
 import scala.collection.Set
+import scala.collection.mutable
 
 import F.{∀ => _, _}
 import TypingRules.TAbs
@@ -55,6 +56,20 @@ object Tactics:
   private val p: Variable[Prop] = variable[Prop]
 
   object Typecheck:
+    /** Memoize recursive checks while constructing one typing proof. */
+    private final class Memo:
+      private val inferred = mutable.HashMap.empty[(Set[Long], Long), ProofCarrier[Expr[Ind]]]
+      private val checked = mutable.HashMap.empty[(Set[Long], Long, Long), ProofJudgement]
+
+      private def contextKey(localContext: Set[Expr[Prop]]): Set[Long] =
+        localContext.map(_.underlying.uniqueNumber)
+
+      def infer(localContext: Set[Expr[Prop]], tm: Expr[Ind])(compute: => ProofCarrier[Expr[Ind]]): ProofCarrier[Expr[Ind]] =
+        inferred.getOrElseUpdate((contextKey(localContext), tm.underlying.uniqueNumber), compute)
+
+      def check(localContext: Set[Expr[Prop]], tm: Expr[Ind], ty: Expr[Ind])(compute: => ProofJudgement): ProofJudgement =
+        checked.getOrElseUpdate((contextKey(localContext), tm.underlying.uniqueNumber, ty.underlying.uniqueNumber), compute)
+
     // Helper function: get universe level
     def getDepth(e: Expr[Ind]): Int = e match
       case App(universeOf, inner: Expr[Ind]) => 1 + getDepth(inner)
@@ -83,8 +98,8 @@ object Tactics:
                   case App(cmd, App(tag, v: Expr[Ind])) => universeOfIsUniverse of (x := v)
                   case _ => throw new Exception("Unreachable code: structure validation failed")
               }.toSeq
-              val allFacts = Seq(stmt) ++ lemmaFacts
-              have(stmt.statement.removeAllLeft(toEliminate)) by Tautology.from(allFacts*)
+              have(Discharge(lemmaFacts*)(stmt))
+              thenHave(stmt.statement.removeAllLeft(toEliminate)) by Restate
               thenHave(premises |- tm ∈ ty) by Weakening
             case _ => failWith("Type check can only check type relation(∈)")
         }
@@ -108,10 +123,12 @@ object Tactics:
      */
     private def inferProofM(using lib: SetTheoryLibrary.type, proof: Proof)(
         localContext: Set[Expr[Prop]],
-        tm: Expr[Ind]
+        tm: Expr[Ind],
+        memo: Memo
     ): ProofCarrier[Expr[Ind]] =
-      import lib.*
-      SubproofM {
+      memo.infer(localContext, tm) {
+        import lib.*
+        SubproofM {
         tm match
           /**
            * Function application:
@@ -125,17 +142,21 @@ object Tactics:
            * `resultType` is then threaded out with the TApp justification.
            */
           case Sapp(func: Expr[Ind], tm2: Expr[Ind]) =>
-            inferProofM(using SetTheoryLibrary)(localContext, func).flatMap { (funcType, funcTyping) =>
+            inferProofM(using SetTheoryLibrary)(localContext, func, memo).flatMap { (funcType, funcTyping) =>
               funcType match
                 case SPi(ty1: Expr[Ind], ty2 @ Abs(boundVar: Expr[Ind], typeBody: Expr[Ind])) =>
-                  checkProof(using SetTheoryLibrary)(localContext, tm2, ty1).flatMap { (_, argTyping) =>
+                  checkProofM(using SetTheoryLibrary)(localContext, tm2, ty1, memo).flatMap { (_, argTyping) =>
                     val resultType = typeBody.substitute(boundVar := tm2)
                     val statement = (tm ∈ resultType) ++<< funcTyping.statement ++<< argTyping.statement
-                    val typing = have(statement) by Tautology.from(
-                      funcTyping,
-                      argTyping,
-                      TApp of (e1 := func, e2 := tm2, T1 := ty1, T2 := ty2)
-                    )
+                    val functionTyping = func ∈ funcType
+                    val argumentTyping = tm2 ∈ ty1
+                    val rule = TApp of (e1 := func, e2 := tm2, T1 := ty1, T2 := ty2)
+                    val ruleResult = rule.statement.right.head
+                    val withFunction = have((ruleResult +<< argumentTyping) ++<< funcTyping.statement) by
+                      Cut.withParameters(functionTyping)(funcTyping, rule)
+                    val applied = have((ruleResult ++<< funcTyping.statement) ++<< argTyping.statement) by
+                      Cut.withParameters(argumentTyping)(argTyping, withFunction)
+                    val typing = have(statement) by Restate(applied)
                     ProofJudgement(typing).map(_ => resultType)
                   }
                 case SPi(_, ty2) => failWith(s"Inferred type T2($ty2) is not a lambda expression")
@@ -155,7 +176,7 @@ object Tactics:
            */
           case Sabs(ty: Expr[Ind], Abs(boundVar: Expr[Ind], body: Expr[Ind])) =>
             val newContext = localContext ++ Set(boundVar ∈ ty)
-            inferProofM(using SetTheoryLibrary)(newContext, body).flatMap { (bodyType, bodyTyping) =>
+            inferProofM(using SetTheoryLibrary)(newContext, body, memo).flatMap { (bodyType, bodyTyping) =>
               val resultType = Pi(ty)(λ(boundVar, bodyType))
               val resetBot = bodyTyping.statement -<< (boundVar ∈ ty)
               have((boundVar ∈ ty |- body ∈ bodyType) ++<< bodyTyping.statement) by Weakening(bodyTyping)
@@ -180,7 +201,7 @@ object Tactics:
            */
           case SPi(ty: Expr[Ind], Abs(boundVar: Expr[Ind], body: Expr[Ind])) =>
             val newContext = localContext ++ Set(boundVar ∈ ty)
-            inferProofM(using SetTheoryLibrary)(newContext, body).flatMap { (u2, bodyTyping) =>
+            inferProofM(using SetTheoryLibrary)(newContext, body, memo).flatMap { (u2, bodyTyping) =>
               val (u1, u1Facts, u1Premises) = localContext
                 .collectFirst {
                   case typeOf(s, u) if isSame(s, ty) => (u, Seq(), Set(isUniverse(u), ty ∈ u))
@@ -231,19 +252,24 @@ object Tactics:
                   else have(instance) by InstantiateForall(args*)(tcf.justif)
                 val resultType = tcf.typ.outTyp.substitute(subst*)
                 val typing = tm ∈ resultType
+                def conjuncts(formula: Expr[Prop]): Set[Expr[Prop]] = formula match
+                  case left /\ right => conjuncts(left) union conjuncts(right)
+                  case _ => Set(formula)
                 @annotation.tailrec
                 def antecedents(formula: Expr[Prop], acc: Set[Expr[Prop]] = Set.empty): (Set[Expr[Prop]], Expr[Prop]) =
                   formula match
-                    case premise ==> result => antecedents(result, acc `union` Set(premise))
+                    case premise ==> result => antecedents(result, acc union conjuncts(premise))
                     case result => acc -> result
                 val (requirements, result) = antecedents(instance)
                 if !isSame(result, typing) then failWith(s"Instantiated typing theorem for $tcf concludes $result instead of $typing.")
-                val typingProof = have((localContext ++ requirements) |- typing) by Tautology.from(instantiated)
+                val baseTyping = have(requirements |- typing) by Restate.from(instantiated)
+                val typingProof = have((localContext ++ requirements) |- typing) by Weakening(baseTyping)
                 ProofJudgement(typingProof).map(_ => resultType)
 
               case _ => inferAtomic(localContext, tm)
 
           case _ => inferAtomic(localContext, tm)
+        }
       }
 
     /**
@@ -261,19 +287,28 @@ object Tactics:
           ProofJudgement(typing).map(_ => ty)
         case None =>
           val ty = universeOf(tm)
-          val typing = have(tm ∈ ty) by Tautology.from(TSort of (U := tm))
+          val typing = have(tm ∈ ty) by Restate.from(TSort of (U := tm))
           ProofJudgement(typing).map(_ => ty)
 
     /** Infer the type of the given term (↑), discarding the internal payload. */
     def inferProof(using lib: SetTheoryLibrary.type, proof: Proof)(localContext: Set[Expr[Prop]], tm: Expr[Ind]): ProofJudgement =
-      inferProofM(using lib, proof)(localContext, tm).judgement
+      inferProofM(using lib, proof)(localContext, tm, Memo()).judgement
 
     /**
      * Check the type of the given term(↓)
      */
     def checkProof(using lib: SetTheoryLibrary.type, proof: Proof)(localContext: Set[Expr[Prop]], tm: Expr[Ind], ty: Expr[Ind]): ProofJudgement =
-      import lib.*
-      SubproofM {
+      checkProofM(using lib, proof)(localContext, tm, ty, Memo())
+
+    private def checkProofM(using lib: SetTheoryLibrary.type, proof: Proof)(
+        localContext: Set[Expr[Prop]],
+        tm: Expr[Ind],
+        ty: Expr[Ind],
+        memo: Memo
+    ): ProofJudgement =
+      memo.check(localContext, tm, ty) {
+        import lib.*
+        SubproofM {
         (tm, ty) match
           /**
            * Bidirectional abstraction check:
@@ -292,7 +327,7 @@ object Tactics:
             have(ty1 === ty1prime) by RightRefl.withParameters(ty1 === ty1prime)
             val newContext = localContext ++ Set(newBoundVariable ∈ ty1)
             val newBody2 = body2.substitute((replaceVar, newBoundVariable))
-            checkProof(using SetTheoryLibrary)(newContext, body1, newBody2).flatMap { (_, bodyTyping) =>
+            checkProofM(using SetTheoryLibrary)(newContext, body1, newBody2, memo).flatMap { (_, bodyTyping) =>
               val resetBot = bodyTyping.statement -<< (newBoundVariable ∈ ty1)
               have((newBoundVariable ∈ ty1 |- body1 ∈ newBody2) ++<< bodyTyping.statement) by Weakening(bodyTyping)
               thenHave((newBoundVariable ∈ ty1 ==> body1 ∈ newBody2) ++<< resetBot) by RightImplies
@@ -314,21 +349,19 @@ object Tactics:
            * theorem as justification. Both flow directly into conversion.
            */
           case _ =>
-            inferProofM(using SetTheoryLibrary)(localContext, tm).flatMap { (inferredType, inferredTyping) =>
+            inferProofM(using SetTheoryLibrary)(localContext, tm, memo).flatMap { (inferredType, inferredTyping) =>
               subsetProof(using SetTheoryLibrary)(localContext, inferredType, ty).flatMap { (_, conversion) =>
                 val statement = (tm ∈ ty) ++<< inferredTyping.statement ++<< conversion.statement
-                val typing = have(statement) by Tautology.from(
-                  inferredTyping,
-                  conversion,
-                  TConvAdv of (
-                    e1 := tm,
-                    T := inferredType,
-                    T1 := ty
-                  )
-                )
+                val inferredTypingFormula = tm ∈ inferredType
+                val conversionFormula = inferredType ⊆ ty
+                val rule = TConvAdv of (e1 := tm, T := inferredType, T1 := ty)
+                val withInference = have(((tm ∈ ty) +<< conversionFormula) ++<< inferredTyping.statement) by
+                  Cut.withParameters(inferredTypingFormula)(inferredTyping, rule)
+                val typing = have(statement) by Cut.withParameters(conversionFormula)(conversion, withInference)
                 ProofJudgement(typing)
               }
             }
+        }
       }
 
     // Construct subset proof(ty1 ⊆ ty2) for the given two expressions
