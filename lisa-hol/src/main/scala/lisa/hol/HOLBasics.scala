@@ -63,16 +63,14 @@ object HOLBasics extends lisa.HOL {
   val etaAx = HOLTheorem(hforall(A ->: B) * fun(t, fun(x, t * x) =:= t)):
     assumeAll
     val pred = fun(t, fun(x, t * x) =:= t)
-    val T, e2 = variable[Ind]
-    val e = variable[Ind >>: Ind]
-
-    val beta = have(t :: (A ->: B) |- pred * t === (fun(x, t * x) =:= t)) by
-      Tautology.from(BetaReduction of (T := (A ->: B), e := λ(t, fun(x, t * x) =:= t), e2 := t))
-
-    have(t :: (A ->: B) |- pred * t) by Substitute(beta)(ETA(x, t))
-
-    thenHave((t :: (A ->: B)) ==> (pred * t)) by Restate
-    thenHave(∀(t :: (A ->: B), pred * t)) by RightForall
+    val eta = ETA(x, t)
+    val beta = BETA_CONV(pred * t)
+    val predicateHolds = EQ_MP(SYM(beta), eta)
+    val withoutT = predicateHolds.statement.left.filterNot(isSame(_, t :: (A ->: B)))
+    have(withoutT |- (t :: (A ->: B)) ==> (pred * t)) by
+      RightImplies.withParameters(t :: (A ->: B), pred * t)(predicateHolds)
+    thenHave(withoutT |- ∀(t :: (A ->: B), pred * t)) by
+      RightForall.withParameters((t :: (A ->: B)) ==> pred * t, t)
 
     have(thesis) by Tautology.from(
       lastStep,
