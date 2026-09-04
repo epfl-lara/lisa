@@ -199,6 +199,28 @@ object HOLHelperTheorems extends lisa.Main {
 
     have(thesis) by RightAnd(fwd, bwd)
 
+  val eqFromHol = Theorem((x :: A, y :: A, =:=(A) * x * y === One) |- x === y):
+    val holEquality = =:=(A) * x * y === One
+    val nativeEquality = x === y
+    val holHypothesis = have(holEquality |- holEquality) by Hypothesis.withParameters(holEquality)
+    val nativeHypothesis = have(nativeEquality |- nativeEquality) by Hypothesis.withParameters(nativeEquality)
+    val backward = have((holEquality, holEquality ==> nativeEquality) |- nativeEquality) by
+      LeftImplies.withParameters(holEquality, nativeEquality)(holHypothesis, nativeHypothesis)
+    val aligned = have((holEquality, nativeEquality <=> holEquality) |- nativeEquality) by
+      LeftIff.withParameters(nativeEquality, holEquality)(backward)
+    have(thesis) by Cut.withParameters(nativeEquality <=> holEquality)(eqAlign, aligned)
+
+  val eqToHol = Theorem((x :: A, y :: A, x === y) |- =:=(A) * x * y === One):
+    val holEquality = =:=(A) * x * y === One
+    val nativeEquality = x === y
+    val nativeHypothesis = have(nativeEquality |- nativeEquality) by Hypothesis.withParameters(nativeEquality)
+    val holHypothesis = have(holEquality |- holEquality) by Hypothesis.withParameters(holEquality)
+    val forward = have((nativeEquality, nativeEquality ==> holEquality) |- holEquality) by
+      LeftImplies.withParameters(nativeEquality, holEquality)(nativeHypothesis, holHypothesis)
+    val aligned = have((nativeEquality, nativeEquality <=> holEquality) |- holEquality) by
+      LeftIff.withParameters(nativeEquality, holEquality)(forward)
+    have(thesis) by Cut.withParameters(nativeEquality <=> holEquality)(eqAlign, aligned)
+
   val eqAlignZero = Theorem((x :: A, y :: A) |- (!(x === y)) <=> (=:=(A) * x * y === Zero)):
     assume(x :: A, y :: A)
 
@@ -288,6 +310,15 @@ object HOLHelperTheorems extends lisa.Main {
 
     thenHave(b :: B |- ∃(x, x :: (A ->: B))) by RightExists
     thenHave(∃(b, b :: B) |- ∃(x, x :: (A ->: B))) by LeftExists
+
+  val nonEmptyCodomain = Theorem((f :: (A ->: B), ∃(x, x :: A)) |- ∃(y, y :: B)):
+    val e1, e2, T1 = variable[Ind]
+    val T2 = variable[Ind >>: Ind]
+    val applicationTyping = have((f :: (A ->: B), x :: A) |- f * x :: B) by
+      Weakening(lisa.maths.SetTheory.Types.TypingRules.TApp of (e1 := f, e2 := x, T1 := A, T2 := λ(x, B)))
+    val codomainWitness = have((f :: (A ->: B), x :: A) |- ∃(y, y :: B)) by
+      RightExists.withParameters(y :: B, y, f * x)(applicationTyping)
+    have(thesis) by LeftExists.withParameters(x :: A, x)(codomainWitness)
 
   val nonEmptyTypeExists = Theorem(∃(A, ∃(x, (x :: A)))):
     have(thesis) by RightExists(boolNonEmpty)
