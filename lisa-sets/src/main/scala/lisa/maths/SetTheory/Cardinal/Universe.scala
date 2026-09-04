@@ -81,7 +81,14 @@ object Universe extends lisa.Main:
    * `(a, b) === _pair(a, b)`
    */
   val rawPairEquivalence = Lemma((a, b) === _pair(a, b)) {
-    have((a, b) === unorderedPair(singleton(a), unorderedPair(a, b))) by Congruence.from(Pair.pair.definition of (x := a, y := b))
+    val standardPair: Expr[Ind] = (a, b)
+    val pairDefinition = Pair.pair.definition of (x := a, y := b)
+    val equality(pairConstant, pairBody) = pairDefinition.statement.right.head: @unchecked
+    val pairTerm = variable[Ind]
+    val reflexive = have(standardPair === standardPair) by RightRefl
+    val unfolded = have(pairDefinition.statement.right |- standardPair === unorderedPair(singleton(a), unorderedPair(a, b))) by
+      RightSubstEq.withParameters(Seq(pairConstant -> pairBody), Seq(pairTerm) -> (standardPair === pairTerm))(reflexive)
+    have(Discharge(pairDefinition)(unfolded))
     thenHave(thesis) by Substitute(singleton.definition of (x := a))
   }
 
@@ -142,7 +149,13 @@ object Universe extends lisa.Main:
             assume((a, x) ∈ f)
             assume(∀(y, (a, y) ∈ f ==> (y === x)))
             val pairInf = have((a, x) ∈ f) by Hypothesis
-            val underpairInf = thenHave(_pair(a, x) ∈ f) by Substitute(rawPairEquivalence of (b := x))
+            val standardPair: Expr[Ind] = (a, x)
+            val rawPair = _pair(a, x)
+            val pairEq = rawPairEquivalence of (b := x)
+            val pairMember = variable[Ind]
+            val rewrittenPairInf = have((pairInf.statement.left + pairEq.statement.right.head) |- rawPair ∈ f) by
+              RightSubstEq.withParameters(Seq(standardPair -> rawPair), Seq(pairMember) -> (pairMember ∈ f))(pairInf)
+            val underpairInf = have(Discharge(pairEq)(rewrittenPairInf))
             have(a ∈ A /\ x ∈ U) by Tautology.from(
               pairInf,
               fRelation,
@@ -155,8 +168,14 @@ object Universe extends lisa.Main:
             have((z ∈ U, (_pair(a, z) ∈ f)) |- (z === x)) subproof {
               assume(z ∈ U)
               assume(_pair(a, z) ∈ f)
-              have(_pair(a, z) ∈ f) by Hypothesis
-              thenHave((a, z) ∈ f) by Substitute(rawPairEquivalence of (b := z))
+              val standardPair: Expr[Ind] = (a, z)
+              val rawPair = _pair(a, z)
+              val pairEq = rawPairEquivalence of (b := z)
+              val pairMember = variable[Ind]
+              val standardPairInf = have(standardPair ∈ f |- standardPair ∈ f) by Hypothesis
+              val rewrittenPairInf = have((rawPair ∈ f, pairEq.statement.right.head) |- standardPair ∈ f) by
+                LeftSubstEq.withParameters(Seq(standardPair -> rawPair), Seq(pairMember) -> (pairMember ∈ f))(standardPairInf)
+              have(Discharge(pairEq)(rewrittenPairInf))
               have(z === x) by Tautology.from(lastStep, stdUniq)
             }
             thenHave((z ∈ U /\ (_pair(a, z) ∈ f)) ==> (z === x)) by Restate
