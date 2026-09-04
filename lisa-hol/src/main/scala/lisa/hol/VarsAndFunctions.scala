@@ -11,7 +11,7 @@ import lisa.utils.fol.FOL._
 import lisa.utils.prooflib.BasicStep._
 import lisa.utils.prooflib.Exports.*
 import lisa.utils.prooflib.TacticHelpers.failWith
-import lisa.utils.prooflib.{Library, Proof, ProofJudgement, Subproof, Theorem, Thm}
+import lisa.utils.prooflib.{Discharge, Library, Proof, ProofJudgement, Subproof, Theorem, Thm}
 import lisa.utils.prooflib.BasicStep.Weakening
 
 object VarsAndFunctions /*extends lisa.Main*/:
@@ -347,14 +347,15 @@ object VarsAndFunctions /*extends lisa.Main*/:
     def apply(using proof: Proof)(typ: Expr[Ind]): ProofJudgement = Subproof { ip ?=>
       typ match {
         case ctt: HOLConstantType => have(ctt.nonEmptyThm)
+        case Multiapp(poly: HOLPolymorphicType[?], args) =>
+          val instantiations = poly.freeTypeVars.zip(args).map { case (variable, argument) => variable := argument.asInstanceOf[Expr[Ind]] }
+          have(poly.nonEmptyThm.of(instantiations*))
         case v: Variable[Ind] =>
           val x = Variable.fresh[Ind](Set(v), "x")
-          val ax = assume(exists(x, x ∈ v))
-          have(ax.statement) by Restate
+          assume(exists(x, x ∈ v))
         case a ->: b =>
-          val x = Variable.fresh[Ind](Set(a, b), "x")
-          val s1 = have(TypeNonEmptyProof(b))
-          have(s1.statement.left |- exists(x, x ∈ (a ->: b))) by Tautology.from(s1, nonEmptyFuncSpace of (A := a, B := b))
+          val codomainNonEmpty = have(TypeNonEmptyProof(b))
+          have(Discharge(codomainNonEmpty)(nonEmptyFuncSpace of (A := a, B := b)))
         case _ => throw new IllegalArgumentException("TypeNonEmptyProof can only handle type constants, type variables, and function types.")
       }
     }
