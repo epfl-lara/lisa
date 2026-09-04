@@ -99,7 +99,7 @@ object VarsAndFunctions /*extends lisa.Main*/:
         TypedVariable(id, newtyp).asInstanceOf[Expr[Ind]]
     override def rename(newId: Identifier): TypedVariable = TypedVariable(newId, typ)
   }
-  def typedvar(typ: Expr[Ind])(using name: sourcecode.Name): TypedVariable = TypedVariable(K.Identifier(name.value), typ)
+  def typedvar(typ: Expr[Ind])(using name: sourcecode.FullName): TypedVariable = TypedVariable(K.Identifier(name.value), typ)
   def typedvar(typ: Expr[Ind], id: Identifier): TypedVariable = TypedVariable(id, typ)
 
   class HOLAbstraction(v: TypedVariable, b: Expr[Ind]) extends App[Ind >>: Ind, Ind](abs(v.typ), λ(v, b)) {
