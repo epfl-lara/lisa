@@ -28,6 +28,10 @@ object TypeDefs extends lisa.HOL:
   val y = typedvar(B)
   val r = typedvar(B)
   val a, u, v = variable[Ind]
+  private val absArgument = typedvar(A)
+  private val absResult = typedvar(B)
+  private val repArgument = typedvar(B)
+  private val repResult = typedvar(A)
   private val BNonEmpty = ∃(z, z ∈ B)
   private val boolType = computeType(One)
 
@@ -37,13 +41,13 @@ object TypeDefs extends lisa.HOL:
     (b ∈ B) /\ (((p * a) === holT) <=> (a === b))
 
   private def absValue(a: Expr[Ind]): Expr[Ind] =
-    ε(y, absProperty(a, y))
+    ε(absResult, absProperty(a, absResult))
 
   private def repValue(b: Expr[Ind]): Expr[Ind] =
-    ε(x, b === x)
+    ε(repResult, b === repResult)
 
-  val absFun = fun(x, absValue(x))
-  val repFun = fun(r, repValue(r))
+  val absFun = fun(absArgument, absValue(absArgument))
+  val repFun = fun(repArgument, repValue(repArgument))
 
   private val membershipB = Theorem(z ∈ B <=> (z ∈ A) /\ ((p * z) === holT)):
     have(thesis) by lisa.maths.SetTheory.Base.Comprehension.apply
@@ -52,7 +56,7 @@ object TypeDefs extends lisa.HOL:
     val positive = have((x ∈ A, (p * x) === holT) |- absProperty(x, absValue(x))) subproof:
       have((x ∈ A, (p * x) === holT) |- x ∈ B) by Tautology.from(membershipB of (z := x))
       have((x ∈ A, (p * x) === holT) |- absProperty(x, x)) by Tautology.from(lastStep)
-      thenHave(thesis) by RightEpsilon.withParameters(absProperty(x, y), y, x)
+      thenHave(thesis) by RightEpsilon.withParameters(absProperty(x, absResult), absResult, x)
 
     val negative = have((x ∈ A, !((p * x) === holT), BNonEmpty) |- absProperty(x, absValue(x))) subproof:
       have((x ∈ A, !((p * x) === holT)) |- !(x ∈ B)) by Tautology.from(membershipB of (z := x))
@@ -62,7 +66,7 @@ object TypeDefs extends lisa.HOL:
       have((x ∈ A, !((p * x) === holT), y ∈ B) |- !(x === y)) by Tautology.from(xNotInB, lastStep)
       have((x ∈ A, !((p * x) === holT), y ∈ B) |- absProperty(x, y)) by Tautology.from(lastStep)
       thenHave((x ∈ A, !((p * x) === holT), y ∈ B) |- absProperty(x, absValue(x))) by
-        RightEpsilon.withParameters(absProperty(x, y), y, y)
+        RightEpsilon.withParameters(absProperty(x, absResult), absResult, y)
       thenHave((x ∈ A, !((p * x) === holT), BNonEmpty) |- absProperty(x, absValue(x))) by
         LeftExists.withParameters(y ∈ B, y)
 
@@ -82,7 +86,7 @@ object TypeDefs extends lisa.HOL:
     val T, e2 = variable[Ind]
     val e = variable[Ind >>: Ind]
     val beta = have(absFun * x === absValue(x)) by Tautology.from(
-      BetaReduction of (T := A, e := λ(x, absValue(x)), e2 := x),
+      BetaReduction of (T := A, e := λ(absArgument, absValue(absArgument)), e2 := x),
       xInA
     )
     have(thesis) by Congruence.from(beta, valueEqX)
@@ -91,13 +95,13 @@ object TypeDefs extends lisa.HOL:
     assume(r ∈ B)
 
     have(r === r) by Restate
-    val rEqValue = thenHave(r === repValue(r)) by RightEpsilon.withParameters(r === x, x, r)
+    val rEqValue = thenHave(r === repValue(r)) by RightEpsilon.withParameters(r === repResult, repResult, r)
     val valueEqR = have(repValue(r) === r) by Congruence.from(rEqValue)
 
     val T, e2 = variable[Ind]
     val e = variable[Ind >>: Ind]
     val beta = have(repFun * r === repValue(r)) by Tautology.from(
-      BetaReduction of (T := B, e := λ(r, repValue(r)), e2 := r)
+      BetaReduction of (T := B, e := λ(repArgument, repValue(repArgument)), e2 := r)
     )
     have(thesis) by Congruence.from(beta, valueEqR)
 
@@ -182,18 +186,19 @@ object TypeDefs extends lisa.HOL:
     val choice = have(absProperty(x, absValue(x))) by Tautology.from(absChoiceB, nonEmpty, xInA)
     val valueInB = have(absValue(x) ∈ B) by Tautology.from(choice)
     val absBeta = have(absX === absValue(x)) by Weakening(
-      BetaReduction of (T := A, e := λ(x, absValue(x)), e2 := x)
+      BetaReduction of (T := A, e := λ(absArgument, absValue(absArgument)), e2 := x)
     )
     val absXInB = have(absX ∈ B) by Congruence.from(valueInB, absBeta)
-    val repAbsX = have(roundTrip === absX) by Cut(absXInB, repFixedB of (r := absX))
+    val repAbsX = have(roundTrip === absX) by
+      Cut.withParameters(absX ∈ B)(absXInB, repFixedB of (r := absX))
     val absXInA = have(absX ∈ A) by Tautology.from(membershipB of (z := absX), absXInB)
     val roundTripInA = have(roundTrip ∈ A) by Congruence.from(absXInA, repAbsX)
 
     val forward = have(((p * x) === holT) ==> (roundTrip === x)) subproof:
       val pTrue = assume((p * x) === holT)
       val xInB = have(x ∈ B) by Tautology.from(membershipB of (z := x), xInA, pTrue)
-      val absXIsX = have(absX === x) by Cut(xInB, absFixedB)
-      val repXIsX = have(repFun * x === x) by Cut(xInB, repFixedB of (r := x))
+      val absXIsX = have(absX === x) by Cut.withParameters(x ∈ B)(xInB, absFixedB)
+      val repXIsX = have(repFun * x === x) by Cut.withParameters(x ∈ B)(xInB, repFixedB of (r := x))
       val mappedAbs = have(roundTrip === repFun * x) by Congruence.from(absXIsX)
       have(roundTrip === x) by Congruence.from(mappedAbs, repXIsX)
 
@@ -218,7 +223,7 @@ object TypeDefs extends lisa.HOL:
 
     val aNonEmpty = have(∃(a, a ∈ A)) by RightExists.withParameters(a ∈ A, a, x)(xInA)
     val innerEqualityTyping = have(innerEquality ∈ boolType) by
-      Cut(roundTripInA, equalityTypingB of (u := roundTrip, v := x))
+      Cut.withParameters(roundTrip ∈ A)(roundTripInA, equalityTypingB of (u := roundTrip, v := x))
     val pXTyping = have(HOLProofType(p * x))
     val reversedBooleanEquality = have((innerEquality === One) <=> ((p * x) === One)) by Tautology.from(booleanEquality)
     val termsEqual = have((p * x) === innerEquality) by Tautology.from(
@@ -238,7 +243,7 @@ object TypeDefs extends lisa.HOL:
 
   private val existsP = hexists(A) * p
 
-  private val existsImpliesNonEmptyB = HOLTheorem(existsP |- BNonEmpty):
+  val typeNonEmpty = HOLTheorem(existsP |- BNonEmpty):
     val P = variable[Ind]
     val exists = assume(existsP)
     val nonEmptyA = assume(∃(a, a ∈ A))
@@ -263,7 +268,7 @@ object TypeDefs extends lisa.HOL:
     have(thesis) by Tautology.from(lastStep, boundedExists)
 
   val absTyping = HOLTheorem(existsP |- absFun :: A ->: B):
-    have(thesis) by Cut.withParameters(BNonEmpty)(existsImpliesNonEmptyB, absTypingB)
+    have(thesis) by Cut.withParameters(BNonEmpty)(typeNonEmpty, absTypingB)
 
   val repTyping = HOLTheorem(repFun :: B ->: A):
     have(thesis) by Restate.from(repTypingB)
@@ -272,4 +277,4 @@ object TypeDefs extends lisa.HOL:
     have(thesis) by Restate.from(absThmB)
 
   val repThm = HOLTheorem(existsP |- (p * x) =:= ((repFun * (absFun * x)) =:= x)):
-    have(thesis) by Cut.withParameters(BNonEmpty)(existsImpliesNonEmptyB, repThmB)
+    have(thesis) by Cut.withParameters(BNonEmpty)(typeNonEmpty, repThmB)

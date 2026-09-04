@@ -82,8 +82,9 @@ object Forall extends lisa.HOL {
         EQ_MP(SYM(`P x one`), holTruth)
 
       val cleaned = have(Discharge(holT.justif)(`P x holds`))
-      have(P =:= fun(x, holT) |- (x :: A) ==> P * x) by Restate.from(cleaned)
-      thenHave(P =:= fun(x, holT) |- ∀(x :: A, P * x)) by RightForall
+      val withoutX = cleaned.statement.left.filterNot(isSame(_, x :: A))
+      have(withoutX |- (x :: A) ==> P * x) by RightImplies.withParameters(x :: A, P * x)(cleaned)
+      thenHave(withoutX |- ∀(x :: A, P * x)) by RightForall.withParameters((x :: A) ==> P * x, x)
       thenHave(hforall(A) * P |- ∀(x :: A, P * x)) by Substitute(beta)
       thenHave(thesis) by Weakening
 
