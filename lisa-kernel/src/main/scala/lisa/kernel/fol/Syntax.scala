@@ -17,18 +17,18 @@ private[fol] trait Syntax {
   /**
    * An identifier for a variable or constant symbol.
    *
-   * An identifier must not contain one of the following characters: {{{()[]{}?,;_`}}} and must not contain whitespace.
+   * An identifier must not contain one of the following characters: {{{()[]{}?,;$`}}} and must not contain whitespace.
    *
    * Idiomatic representation is as follows:
-   * - Identifier("x", 0) ~ "x"
-   * - Identifier("x", 1) ~ "x_1"
-   * - Identifier("myvariable", 227) ~ "myvariable_227"
+   * - `Identifier("x", 0)` ~ "x"
+   * - `Identifier("x", 1)` ~ "x$1"
+   * - `Identifier("myvariable", 227)` ~ "myvariable_227"
    *
    * @param name The name of the identifier
    * @param no The index of the identifier. Used to easily compute fresh names.
    */
   sealed case class Identifier(val name: String, val no: Int) {
-    require(no >= 0, "Variable index must be positive")
+    require(no >= 0, "Variable index must be non-negative")
     // require(Identifier.isValidIdentifier(name), "Variable name " + name + " is not valid.")
     override def toString: String = if (no == 0) name else name + Identifier.counterSeparator + no
   }
@@ -53,7 +53,7 @@ private[fol] trait Syntax {
      */
     def apply(name: String, no: Int): Identifier = new Identifier(name, no)
 
-    val counterSeparator: Char = '_'
+    val counterSeparator: Char = '$'
     val delimiter: Char = '`'
     val forbiddenChars: Set[Char] = ("()[]{}?,;" + delimiter + counterSeparator).toSet
 

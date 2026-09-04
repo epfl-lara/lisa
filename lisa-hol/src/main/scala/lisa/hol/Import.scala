@@ -187,7 +187,7 @@ object Import extends lisa.HOL:
         case _ => None
 
   private object NameHandling:
-    private val illegalChars = "}]`)[{(,;?_."
+    private val illegalChars = Identifier.forbiddenChars
     private val replacementMap: collection.MapView[Char, Char] =
       illegalChars.zipWithIndex.toMap.view.mapValues(c => (9312 + c).toChar)
 
