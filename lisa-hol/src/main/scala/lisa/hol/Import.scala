@@ -5,6 +5,8 @@ import lisa.hol.ExtendedHOLSteps._INST_TYPE_RENAME
 import lisa.hol.HOLHelperTheorems._
 import lisa.hol.HOLSteps.HOLProofType
 import lisa.hol.VarsAndFunctions._
+import lisa.hol.basics.Exists.{hexists, hexistsCorrect}
+import lisa.hol.basics.TypeDefs
 import lisa.hol.extractor.ExtractorException
 import lisa.hol.extractor.TheoremRef
 import lisa.hol.extractor._
@@ -13,7 +15,7 @@ import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.utils.K
 import lisa.utils.collection.VecSet
 import lisa.utils.prooflib.BasicStep.Restate
-import lisa.utils.prooflib.{Discharge, FatalCarrierDestructionException, OutputManager, Proof, Subproof, Thm}
+import lisa.utils.prooflib.{Discharge, FatalCarrierDestructionException, OutputManager, Proof, ProofCarrier, Subproof, Thm}
 import lisa.utils.unification.UnificationUtils.RewriteContext
 import lisa.utils.unification.UnificationUtils.matchExpr
 
@@ -32,7 +34,16 @@ object Import extends lisa.HOL:
   case class MalformedConstantInstance(name: String, tpe: Expr[Ind]) extends Exception(s"Malformed instance of constant $name with type $tpe. No matching definition found.") with ImportException
   case class UnknownAxiom(expr: Expr[Ind]) extends Exception(s"Unknown axiom: $expr. No matching HOL Light axiom found.") with ImportException
   case class OutOfOrderException(currentIndex: Long, targetIndex: Long) extends Exception(s"Theorem reference out of order: current index $currentIndex relies on target index $targetIndex.") with ImportException
-  case class FailedPremiseException(currentIdx: Long, premIdx: Long, subproof: Subproof) extends Exception(s"Failed premise $premIdx while reconstructing step $currentIdx. Carrier: $subproof") with ImportException
+  case class FailedPremiseException(currentIdx: Long, premIdx: Long, subproof: ProofCarrier[?]) extends Exception(s"Failed premise $premIdx while reconstructing step $currentIdx. Carrier: $subproof") with ImportException
+  case class StepMismatchException(index: Long, expected: Sequent, actual: Sequent)
+      extends Exception(s"Step $index produced a different sequent.\nExpected: $expected\nActual: $actual")
+      with ImportException
+  case class FailedStepException(index: Long, step: String, errors: Seq[String])
+      extends Exception(s"Step $index ($step) produced proof errors:\n${errors.mkString("\n")}")
+      with ImportException
+  case class FailedTheoremException(index: Long, name: String, errors: Seq[String])
+      extends Exception(s"Theorem $index ($name) produced proof errors:\n${errors.mkString("\n")}")
+      with ImportException
   // type def specific
   case class MalformedTypeDefinition(index: Long, term: h.Term) extends Exception(s"Malformed type definition at index $index: $term") with ImportException
   case class MalformedNonEmptinessThm(index: Long, thm: Thm) extends Exception(s"Malformed non-emptiness theorem at index $index: $thm") with ImportException
@@ -59,8 +70,14 @@ object Import extends lisa.HOL:
         case LoggingMode.Debug =>
           if !cond then throw new AssertionError(s"Debug assertion failed: $msg")
 
+    def ifDebug(using mode: LoggingMode)(task: => Unit): Unit =
+      mode match
+        case LoggingMode.Silent => ()
+        case LoggingMode.Debug => task
+
   import Logging.*
   private var currentLoggingMode: LoggingMode = LoggingMode.Silent
+  private var verifySteps = sys.env.get("LISA_HOL_VERIFY_STEPS").contains("1")
   given LoggingMode = currentLoggingMode
 
   object Transformers:
@@ -99,7 +116,7 @@ object Import extends lisa.HOL:
 
               // expr should be fully applied
               // this is runtime checked wherever used
-              (typeConstant #@@ typeArgs).asInstanceOf
+              (typeConstant #@@ typeArgs).asInstanceOf[Expr[Ind]]
 
     extension (v: h.Variable)
       def toLisaVar: TypedVariable =
@@ -347,6 +364,7 @@ object Import extends lisa.HOL:
       initializeTypes()
 
   private val theoremMap: mutable.Map[Long, Justification] = mutable.Map.empty
+  private var definitionStepsScannedThrough = -1L
 
   type StepCache[T] = mutable.Map[Long, T]
 
@@ -358,6 +376,17 @@ object Import extends lisa.HOL:
         just
       case None =>
         debug(s"Theorem with id $index not found cached. Starting reconstruction.")
+        extractor.getDefinitionsBetween(definitionStepsScannedThrough, index).foreach:
+          case (definitionIndex, definition: h.DEFINITION) =>
+            definitionStepsScannedThrough = definitionIndex
+            try reconstructConstantDefinition(definition)
+            catch case exception: Exception => debug(s"Skipping unusable definition at $definitionIndex: ${exception.getMessage}")
+          case (definitionIndex, definition: h.TYPE_DEFINITION) =>
+            definitionStepsScannedThrough = definitionIndex
+            reconstructTypeDefinition(definitionIndex, definition)
+          case _ => ()
+        definitionStepsScannedThrough = index
+
         // reconstruct the step from the HOL Light proof
         val step = extractor.getTheorem(index)
 
@@ -371,7 +400,7 @@ object Import extends lisa.HOL:
 
           debug(s"Reconstructing theorem #$index.")
 
-          HOLTheorem(using
+          val theorem = HOLTheorem(using
             summon[OutputManager],
             theoremName, // just need to set the right name for better tracking
             sourcecode.Name(sanitizedName),
@@ -380,12 +409,17 @@ object Import extends lisa.HOL:
           )(goal) { proof ?=>
             val stepCache = mutable.Map.empty[Long, Thm]
             HOLProofType.resetCache()
-            val recons = reconstructStep(using extractor, proof, stepCache)(index, step)
+            val recons = reconstructStep(using extractor, proof, stepCache)(index, step.proof)
 
-            have(HOLSteps.Clean.all(recons))
-
+            val cleaned = have(HOLSteps.Clean.all(recons))
             debug(f"[CACHE] Theorem #$index%06d reconstructed with a step cache usage of ${stepCache.size} steps, and ${HOLProofType.cacheSize} typing proofs.")
+            cleaned
           }
+
+          if theorem.errors.nonEmpty then
+            throw FailedTheoremException(index, name, theorem.errors.toSeq.map(_.message))
+
+          theorem.thm
 
         end processGeneric
 
@@ -413,6 +447,46 @@ object Import extends lisa.HOL:
     val lisaTerm = term.toLisaTerm
     Axioms.fromHOL(lisaTerm)
 
+  private def defineHOLConstant(
+      name: String,
+      abstractType: Expr[Ind],
+      typeArgs: Seq[Variable[Ind]],
+      body: Expr[Ind],
+      bodyTyping: Option[Thm] = None
+  ): HOLPolymorphicConstant[?] =
+    // define the underlying constant
+    val definitionTerm = typeArgs.foldRight(body: Expr[?])((variable, inner) => λ(variable, inner))
+    val baseName = summon[sourcecode.Name].value.stripSuffix(".")
+    val cst = DEF(using sourcecode.FullName(s"$baseName.${sanitize(name)}"))(definitionTerm)(using unsafeSortEvidence(definitionTerm.sort))
+    val appliedCst = (cst #@@ typeArgs).asInstanceOf[Expr[Ind]]
+
+    val nonEmptyAssumptions = typeArgs.map(nonEmpty)
+    val conjunction = nonEmptyAssumptions.reduceOption(_ /\ _).getOrElse(⊤)
+
+    // prove the constant's HOL typing
+    val typeCarrier = Subproof:
+      val typedBody = bodyTyping match
+        case Some(typing) => have(HOLSteps.Clean.all(typing))
+        case None =>
+          val openTypes = HOLSteps.Clean.collectInstantiatingConstants(definitionTerm)
+          val (types, justifications) = openTypes.unzip
+          val assumptions = nonEmptyAssumptions ++ types.map(tpe => ∃(x, x ∈ tpe))
+          val inferred = have(assumptions |- body :: abstractType) by Typecheck.prove
+          have(Discharge(justifications*)(inferred))
+
+      val withDefinition = have(typedBody.statement.left |- appliedCst :: abstractType) by Substitute(cst.definition)(typedBody)
+      val implication = have(conjunction ==> (appliedCst :: abstractType)) by Restate.from(withDefinition)
+      typeArgs.foldRight(implication: Thm): (variable, premise) =>
+        have(∀(variable, premise.statement.right.head)) by RightForall(premise)
+
+    // Lift the definition to an HOL constant
+    val typeJustification = typeCarrier.justification.getOrElse:
+      throw new IllegalArgumentException(typeCarrier.errors.map(_.message).mkString("Invalid typing proof: ", "; ", ""))
+    val functionalType = FunctionalClass(typeArgs.map(_ => None), typeArgs, abstractType)
+    val holCst = HOLPolymorphicConstant(cst.id, functionalType, typeJustification)(using unsafeSortEvidence(cst.sort))
+    Constants.register(name, holCst, typeArgs, abstractType, holCst.holDefinition)
+    holCst
+
   private object TDefExtractors:
     import h.{Constant => Cst, Variable => Var, Combination => Comb, FunType, Eq}
 
@@ -422,7 +496,7 @@ object Import extends lisa.HOL:
      * 
      * where `abs: rty -> aty`, and `rep: aty -> rty`.
      * 
-     * `rty` is the type being defined as a subset of `aty`.
+     * `aty` is the type being defined from a subset of `rty`.
      * 
      * returning `(aty, rty, abs, rep, a)`
      */
@@ -442,7 +516,7 @@ object Import extends lisa.HOL:
      * 
      * where `abs: rty -> aty`, and `rep: aty -> rty`.
      * 
-     * `rty` is the type being defined as a subset of `aty`.
+     * `aty` is the type being defined from a subset of `rty`.
      * 
      * returning `(aty, rty, abs, rep, P, r)`
      */
@@ -462,44 +536,30 @@ object Import extends lisa.HOL:
 
     /**
      * Pattern match a theorem as a non-emptiness theorem for a predicate of the form:
-     *   |- P t
-     * 
+     *   Γ |- P t = One
+     *
      * where `P` is a predicate and `t` is a term.
      */
     object NonEmptyThm:
       def unapply(thm: Justification): Option[(Expr[Ind], Expr[Ind])] =
-        val Sequent(left, right) = thm.statement
-        if left.nonEmpty then
-          None
-        else if right.size != 1 then
+        val right = thm.statement.right
+        if right.size != 1 then
           None
         else
           right.head match
-            case p * t => Some((p, t))
+            case equality(applied, `One`) =>
+              applied match
+                case p * t => Some((p, t))
+                case _ => None
             case _ => None
 
   private def reconstructTypeDefinition(using extractor: ExtractorContext, cache: StepCache[Thm] = mutable.Map.empty)(index: Long, step: h.TYPE_DEFINITION): Justification =
-    val h.TYPE_DEFINITION(name, term, just) = step
-
-    // independently resolve the non-emptiness theorem; this may cause some
-    // duplicate work if this type definition was an unnamed one deep inside a
-    // larger proof, and is trivial otherwise.
-    val nonEmptinessCarrier = Subproof: proof ?=>
-      reconstructStep(using extractor, proof, cache)(just, extractor.getTheorem(just))
-
-    val nonEmptinessThm = 
-      nonEmptinessCarrier
-        .justification
-        .getOrElse(throw FailedPremiseException(index, just, nonEmptinessCarrier))
+    val h.TYPE_DEFINITION(_, term, just) = step
 
     import TDefExtractors.*
 
-    val (p, t) = 
-      nonEmptinessThm match
-        case NonEmptyThm(p, t) => (p, t)
-        case _ => throw MalformedNonEmptinessThm(index, nonEmptinessThm)
-
-    val (aty, rty, abs, rep, isAbs) = 
+    // Decode which of the paired abstraction and representation theorems this step requests.
+    val (aty, rty, abs, rep, isAbs) =
       term match
         case AbsTh(aty, rty, abs, rep, _) =>
           (aty, rty, abs, rep, true)
@@ -511,14 +571,128 @@ object Import extends lisa.HOL:
           throw MalformedTypeDefinition(index, term)
 
     val (theType, absThm, repThm) =
-      if Constants.isDefinedType(rty.name) then
-        ???
+      if Constants.isDefinedType(aty.name) then
+        // The first occurrence constructs both theorems; its partner only performs this lookup.
+        val definition = Constants.lookupTypeDefinition(aty.name)
+        definition.defns match
+          case Constants.TypeDefKind.Both(absThm, repThm) => (definition.cst, absThm, repThm)
+          case _ => throw new IllegalStateException(s"Type constant ${aty.name} has incomplete defining theorems.")
       else
-        ???
+        // Recover the HOL witness and the predicate whose inhabited subset defines the type.
+        val nonEmptinessCarrier = Subproof: proof ?=>
+          have(HOLSteps.Clean.all(reconstructStep(using extractor, proof, cache)(just, extractor.getProof(just))))
+        val nonEmptinessThm = nonEmptinessCarrier.justification.getOrElse:
+          throw FailedPremiseException(index, just, nonEmptinessCarrier)
+        val (p, t) = nonEmptinessThm match
+          case NonEmptyThm(p, t) => (p, t)
+          case _ => throw MalformedNonEmptinessThm(index, nonEmptinessThm)
 
-    // register the type globally
-    Constants.registerType(rty.name, theType, Seq.empty, theType.nonEmptinessThm, Constants.TypeDefKind.Both(absThm, repThm))
-    
+        // Translate the type parameters and formulate their local non-emptiness context.
+        val typeArgs = aty match
+          case h.TypeApplication(_, arguments) => arguments.map:
+              case variable: h.TypeVariable => variable.toLisaVar
+              case _ => throw MalformedTypeDefinition(index, term)
+          case h.TypeVariable(_) => throw MalformedTypeDefinition(index, term)
+        val representationType = rty.toLisaType
+        val substitutions = Seq(TypeDefs.A := representationType, TypeDefs.p := p)
+        val existsP = hexists(representationType) * p
+        val localNonEmpty = typeArgs.map(nonEmpty)
+
+        // Type the predicate and convert its concrete witness into HOL existence.
+        val predicateTyping = Subproof:
+          val inferred = have(HOLSteps.Clean.all(HOLProofType(p)))
+          have(localNonEmpty |- p :: (representationType ->: 𝔹)) by Weakening(inferred)
+        .destruct._1
+
+        val existsPThm = Subproof:
+          val witnessVariable = mkTypedVar("w", representationType)
+          val witnessBody = (witnessVariable ∈ representationType) /\ ((p * witnessVariable) === One)
+          val witnessTyping = have(HOLProofType(t))
+          have(((t ∈ representationType) /\ ((p * t) === One)) ++<< nonEmptinessThm.statement ++<< witnessTyping.statement) by
+            RightAnd(witnessTyping, nonEmptinessThm)
+          thenHave(∃(witnessVariable, witnessBody)) by RightExists.withParameters(witnessBody, witnessVariable, t)
+          val correctness = have(HOLSteps.Clean.all(hexistsCorrect.of((substitutions :+ (lisa.hol.basics.Exists.x := witnessVariable))*)))
+          have(existsP) by Tautology.from(lastStep, correctness)
+          val discharged = have(Discharge(predicateTyping)(lastStep))
+          have(localNonEmpty |- existsP) by Weakening(discharged)
+        .destruct._1
+
+        // Define the new carrier as the subset selected by the predicate.
+        val typeBody = TypeDefs.B.substitute(substitutions*).asInstanceOf[Expr[Ind]]
+        val definitionTerm = typeArgs.foldRight(typeBody: Expr[?])((variable, inner) => λ(variable, inner))
+        val baseName = summon[sourcecode.Name].value.stripSuffix(".")
+        val rawType = DEF(using sourcecode.FullName(s"$baseName.${sanitize(aty.name)}"))(definitionTerm)(using unsafeSortEvidence(definitionTerm.sort))
+        val rawDefinedType = (rawType #@@ typeArgs).asInstanceOf[Expr[Ind]]
+
+        // Establish non-emptiness before wrapping the raw constant as an HOL type.
+        val typeNonEmpty = Subproof:
+          val subsetNonEmpty = have(HOLSteps.Clean.all(TypeDefs.typeNonEmpty.of(substitutions*)))
+          val withWitness = have(subsetNonEmpty.statement -<< (existsP === One)) by
+            Cut.withParameters(existsP === One)(existsPThm, subsetNonEmpty)
+          val rewritten = have(withWitness.statement.left |- ∃(TypeDefs.z, TypeDefs.z ∈ rawDefinedType)) by Substitute(rawType.definition)(withWitness)
+          val discharged = have(Discharge(predicateTyping)(rewritten))
+          have(localNonEmpty |- ∃(TypeDefs.z, TypeDefs.z ∈ rawDefinedType)) by Weakening(discharged)
+        .destruct._1
+
+        val theType = HOLPolymorphicType(rawType.id, typeArgs, typeNonEmpty)(using unsafeSortEvidence(rawType.sort)).asInstanceOf[HOLConstantType]
+        val definedType = (theType #@@ typeArgs).asInstanceOf[Expr[Ind]]
+
+        // Specialize the canonical subset abstraction and representation functions.
+        val absBody = TypeDefs.absFun.substitute(substitutions*).asInstanceOf[Expr[Ind]]
+        val repBody = TypeDefs.repFun.substitute(substitutions*).asInstanceOf[Expr[Ind]]
+
+        val absTyping = Subproof:
+          val generic = have(HOLSteps.Clean.all(TypeDefs.absTyping.of(substitutions*)))
+          val local = have(generic.statement -<< (existsP === One)) by
+            Cut.withParameters(existsP === One)(existsPThm, generic)
+          val rewritten = have(local.statement.left |- absBody :: (representationType ->: definedType)) by Substitute(rawType.definition)(local)
+          val discharged = have(Discharge(predicateTyping)(rewritten))
+          have(localNonEmpty |- absBody :: (representationType ->: definedType)) by Weakening(discharged)
+        .destruct._1
+
+        val repTyping = Subproof:
+          val generic = have(HOLSteps.Clean.all(TypeDefs.repTyping.of(substitutions*)))
+          val rewritten = have(generic.statement.left |- repBody :: (definedType ->: representationType)) by Substitute(rawType.definition)(generic)
+          val discharged = have(Discharge(predicateTyping)(rewritten))
+          have(localNonEmpty |- repBody :: (definedType ->: representationType)) by Weakening(discharged)
+        .destruct._1
+
+        // Define and register both functions from their already-proved typings.
+        val absConstant = defineHOLConstant(abs.name, representationType ->: definedType, typeArgs, absBody, Some(absTyping))
+        val repConstant = defineHOLConstant(rep.name, definedType ->: representationType, typeArgs, repBody, Some(repTyping))
+        val appliedAbs = (absConstant #@@ typeArgs).asInstanceOf[Expr[Ind]]
+        val appliedRep = (repConstant #@@ typeArgs).asInstanceOf[Expr[Ind]]
+
+        // State and prove both characteristic theorems while their shared data is available.
+        val absVariable = mkTypedVar("a", definedType)
+        val repVariable = mkTypedVar("r", representationType)
+        val absStatement = appliedAbs * (appliedRep * absVariable) =:= absVariable
+        val repStatement = p * repVariable =:= (appliedRep * (appliedAbs * repVariable) =:= repVariable)
+        val definitions = Seq(absConstant.holDefinition, repConstant.holDefinition, rawType.definition)
+
+        val absThm = Subproof:
+          val generic = have(HOLSteps.Clean.all(TypeDefs.absThm.of((substitutions :+ (TypeDefs.y := absVariable))*)))
+          thenHave(absStatement) by Substitute(definitions*)(generic)
+          val cleaned = have(HOLSteps.Clean.all(lastStep))
+          val discharged = have(Discharge(predicateTyping)(cleaned))
+          have(localNonEmpty |- absStatement) by Weakening(discharged)
+        .destruct._1
+
+        val repThm = Subproof:
+          val generic = have(HOLSteps.Clean.all(TypeDefs.repThm.of((substitutions :+ (TypeDefs.x := repVariable))*)))
+          val withWitness = have(generic.statement -<< (existsP === One)) by
+            Cut.withParameters(existsP === One)(existsPThm, generic)
+          thenHave(repStatement) by Substitute(definitions*)(withWitness)
+          val cleaned = have(HOLSteps.Clean.all(lastStep))
+          val discharged = have(Discharge(predicateTyping)(cleaned))
+          have(localNonEmpty |- repStatement) by Weakening(discharged)
+        .destruct._1
+
+        // Publish the type only after its complete defining pair has been checked.
+        Constants.registerType(aty.name, theType, typeArgs, typeNonEmpty, Constants.TypeDefKind.Both(absThm, repThm))
+        (theType, absThm, repThm)
+
+    // Return the member of the pair represented by this trace step.
     if isAbs then absThm else repThm
 
   private def reconstructConstantDefinition(using extractor: ExtractorContext)(step: h.DEFINITION): Justification =
@@ -531,91 +705,26 @@ object Import extends lisa.HOL:
     term match
       case Definition(name, abstractType, typeArgs, body) =>
         if Constants.isDefinedConstant(name) then
-          // just retrieve the existing definition
           debug(s"Constant $name already defined. Retrieving existing definition.")
-          Constants
-            .lookupConstantDefinition(name)
-            ._2 // discard the free variable data
+          Constants.lookupConstantDefinition(name)._2
         else
-          // actually define the constant, and register it for future lookup
           debug(s"Defining new constant $name with abstract type $abstractType and body $body. Type variables are {${typeArgs.mkString(", ")}}.")
-
-          val definitionTerm =
-            typeArgs.foldRight(body: Expr[?])((v, acc) => λ(v, acc))
-
-          val cleanedName =
-            val baseName = summon[sourcecode.Name].value.stripSuffix(".")
-            val sanitized = sanitize(name)
-            sourcecode.FullName(s"$baseName.$sanitized")
-
-          val cst = DEF(using cleanedName)(definitionTerm)(using unsafeSortEvidence(definitionTerm.sort))
-
-          val nonEmptyAssumptions = typeArgs.map(nonEmpty)
-          val conj = nonEmptyAssumptions.reduceOption(_ /\ _).getOrElse(⊤)
-
-          val appliedCst: Expr[Ind] = (cst #@@ typeArgs).asInstanceOf
-          val baseTyping = appliedCst :: abstractType
-
-          val fullTyping = typeArgs.foldRight(conj ==> baseTyping): (v, inner) =>
-            ∀(v, inner)
-
-          val typeCarrier = Subproof {
-
-            // typechecking does not account for non-emptiness of constant and
-            // function types so we will add and eliminate these manually too.
-            // we need to actually collect the assumptions, so we partially
-            // unfold Clean.allComposites
-            val openTypes = HOLSteps.Clean
-              .collectInstantiatingConstants(definitionTerm)
-
-            val (insts, nonEmptyJustifs) = openTypes.unzip
-            val extraNonEmpty = insts.map(t => ∃(x, x ∈ t))
-
-            val allAssumptions = nonEmptyAssumptions ++ extraNonEmpty
-
-            have(allAssumptions |- body :: abstractType) by Typecheck.prove
-            val conditional = thenHave(allAssumptions |- appliedCst :: abstractType) by Substitute(cst.definition)
-
-            // remove assumptions about non variables
-            val discharged = have(Discharge(nonEmptyJustifs*)(conditional))
-
-            val implication = have(conj ==> baseTyping) by Weakening(discharged)
-
-            typeArgs.foldRight(implication: Thm): (v, premise) =>
-              val prev = premise.statement.right.head // inv: always singleton
-              have(∀(v, prev)) by RightForall(premise)
-          }
-          if !typeCarrier.isValid then
-            throw new IllegalArgumentException(typeCarrier.errors.map(_.message).mkString("Invalid typing proof: ", "; ", ""))
-          val typeJust = typeCarrier.destruct._1
-
-          val funClass = FunctionalClass(
-            inTyp = typeArgs.map(_ => None),
-            args = typeArgs,
-            outTyp = abstractType
-          )
-
-          // lift this to an HOL Constant
-          val holCst =
-            HOLPolymorphicConstant(cst.id, funClass, typeJust)(using unsafeSortEvidence(cst.sort))
-
-          // register this constant and definition
-          Constants.register(name, holCst, typeArgs, abstractType, holCst.holDefinition)
-
-          holCst.holDefinition
+          defineHOLConstant(name, abstractType, typeArgs, body).holDefinition
       case _ =>
         throw InvalidDefinitionException(name, term)
 
   /**
-   * Reconstruct a single proof step from a [[JustifiedTheorem]] within the
-   * given proof context.
+   * Reconstruct a single HOL proof step within the given proof context.
    *
    * @param ctx current proof context
-   * @param step the step to reconstruct, as a [[JustifiedTheorem]]
+   * @param proofStep the step to reconstruct
    */
-  private def reconstructStep(using extractor: ExtractorContext, ctx: Proof, cache: StepCache[Thm])(index: Long, step: JustifiedTheorem): Thm =
-    debug(s"Reconstructing step with statement ${step.statement} and proof type ${step.proof.getClass.getSimpleName}")
+  private def reconstructStep(using extractor: ExtractorContext, ctx: Proof, cache: StepCache[Thm])(index: Long, proofStep: h.ProofStep): Thm =
+    debug(s"Reconstructing step with proof type ${proofStep.getClass.getSimpleName}")
     debug(s"Current cache size: ${cache.size}. Current theorem map size: ${theoremMap.size}.")
+    lazy val errorsBefore = ctx.errors.toSet
+    ifDebug:
+      val _ = errorsBefore
 
     def resolveFact(targetIdx: Long): Thm =
       debug(s"Resolving fact with index $targetIdx")
@@ -634,9 +743,7 @@ object Import extends lisa.HOL:
       else
         debug(s"Fact with id $targetIdx not found cached. Starting reconstruction.")
         // reconstruct steps recursively
-        reconstructStep(targetIdx, extractor.getTheorem(targetIdx))
-
-    val JustifiedTheorem(stmt, proofStep) = step
+        reconstructStep(targetIdx, extractor.getProof(targetIdx))
 
     val result = {
       proofStep match
@@ -679,12 +786,19 @@ object Import extends lisa.HOL:
         case s @ h.TYPE_DEFINITION(name, term, just) => reconstructTypeDefinition(index, s)
     }
 
-    currentLoggingMode match
-      case LoggingMode.Debug =>
-        val expected = stmt.toLisaSequent
-        if result.kernel.statement != expected.underlying then
-          debug(s"[STEP MISMATCH] $index\nExpected: $expected\nActual: ${result.statement}")
-      case LoggingMode.Silent => ()
+    ifDebug:
+      val newErrors = ctx.errors.toSet -- errorsBefore
+      if newErrors.nonEmpty then
+        throw FailedStepException(index, proofStep.getClass.getSimpleName, newErrors.toSeq.map(_.message))
+
+    if currentLoggingMode == LoggingMode.Debug || verifySteps then
+      val expected = withCTX(extractor.getStatement(index).toLisaSequent)
+      val matchesExpected =
+        K.isSameSequent(result.kernel.statement, expected.underlying) ||
+          K.Weakening(using lib.theory)(expected.underlying, result.kernel).isRight
+      if !matchesExpected then
+        if verifySteps then throw StepMismatchException(index, expected, result.statement)
+        else debug(s"[STEP MISMATCH] $index\nExpected: $expected\nActual: ${result.statement}")
 
     cache(index) = result
     result
@@ -740,8 +854,18 @@ object Import extends lisa.HOL:
           OpenExport(writer, header, footer)
           
 
-  def importFromPrefix(prefix: String, limit: Int, outputPath: Option[String] = None, overwrite: Boolean = false): Unit =
-    require(limit > 0, s"Cannot read $limit theoerems. Expected positive theorem limit.")
+  def importFromPrefix(
+      prefix: String,
+      limit: Int,
+      outputPath: Option[String] = None,
+      overwrite: Boolean = false,
+      failFast: Boolean = false,
+      verifyEachStep: Boolean = false,
+      startAt: Int = 0
+  ): Unit =
+    require(limit > 0, s"Cannot read $limit theorems. Expected positive theorem limit.")
+    require(startAt >= 0, s"Cannot start at theorem $startAt. Expected a non-negative index.")
+    verifySteps = verifySteps || verifyEachStep
     val (extractor, names) = JSONParser.initializeFromPrefix(prefix)
 
     Initialization.initializeDefinitions()
@@ -754,8 +878,10 @@ object Import extends lisa.HOL:
       val elapsed = time()
       val progressString = f"Extracted $count theorems so far in $elapsed%.2f seconds."
       val usedSteps = f"Used ${theoremMap.keySet.maxOption.getOrElse(0)} proof steps from HOL Light."
-      val memoryLeft = Runtime.getRuntime.freeMemory() / 1e6
-      val memoryString = f"Memory left: $memoryLeft%.2f MB"
+      val runtime = Runtime.getRuntime
+      val heapUsed = (runtime.totalMemory() - runtime.freeMemory()) / 1e6
+      val heapAvailable = (runtime.maxMemory() - runtime.totalMemory() + runtime.freeMemory()) / 1e6
+      val memoryString = f"Heap used: $heapUsed%.2f MB; available: $heapAvailable%.2f MB."
       println(f"\r[INFO] $progressString $usedSteps $memoryString")
 
     val exporter =
@@ -764,6 +890,7 @@ object Import extends lisa.HOL:
         case None => ExportConfig.dummyWriter
 
     names
+      .drop(startAt)
       .take(limit)
       .zipWithIndex
       .foreach: (ref, count) =>
@@ -774,6 +901,7 @@ object Import extends lisa.HOL:
           if true then // count % 10 == 0 then
             printProgress(count)
         catch e =>
+            if failFast then throw e
             debug(e.getStackTrace.mkString("\n"))
             val errorMessage = e match
               case e: FatalCarrierDestructionException =>
@@ -787,6 +915,7 @@ object Import extends lisa.HOL:
                   | [ERROR] Error message: $errorMessage
                   | """.stripMargin)
 
+    extractor.close()
     println(s"[INFO] Successfully imported ${theoremMap.size} theorems with ${theoremMap.keySet.max} steps in ${time()}s.")
 
   @main
