@@ -7,7 +7,8 @@ import upickle.default
 import upickle.default.{ReadWriter => RW, _}
 import upickle.implicits.key
 
-import java.io.File
+import java.io.{File, RandomAccessFile}
+import java.nio.charset.StandardCharsets
 import scala.collection.mutable
 
 import Parser._
@@ -132,41 +133,149 @@ case class TheoremRef(id: Long, @key("nm") name: String) derives RW
 
 case class JustifiedTheorem(statement: HOLSequent, proof: ProofStep)
 
-final class ExtractorContext(
-    val proofIterator: Iterator[ProofLine],
-    val theoremIterator: Iterator[TheoremStatement]
-):
-  // proofIterator and theoremIterator should be in sync
-  // this is not necessary for an extraction, but is always the case for the ProofTrace output
-  // and allows us to read theorems lazily as we need them
-  // require(proofIterator.length == theoremIterator)
-  // require((0 to proofIterator.length).forall(i => proofIterator(i).id == theoremIterator(i).id))
+private trait ExtractorData extends AutoCloseable:
+  def readTill(idx: Long): Unit
+  def readAll(): Unit
+  def getKnown(idx: Long): JustifiedTheorem
+  def getKnownStatement(idx: Long): HOLSequent
+  def getKnownProof(idx: Long): ProofStep
+  def getKnownDefinition(idx: Long): Option[ProofStep]
+  def knownDefinitionsBetween(fromExclusive: Long, toInclusive: Long): Iterator[(Long, ProofStep)]
+  def knownTheorems: collection.MapView[Long, JustifiedTheorem]
 
-  private var maxRead: Long = -1L // proof indices start at 0
+private final class IteratorExtractorData(
+    proofIterator: Iterator[ProofLine],
+    theoremIterator: Iterator[TheoremStatement]
+) extends ExtractorData:
+  private var maxRead: Long = -1L
   private val stepMap: mutable.Map[Long, JustifiedTheorem] = mutable.Map.empty
+  private val definitions = mutable.ArrayBuffer.empty[(Long, ProofStep)]
 
-  @throws[ExtractorEndedException.type]
   private def readNext(): Unit =
     if !proofIterator.hasNext || !theoremIterator.hasNext then throw ExtractorEndedException
 
     val proofLine = proofIterator.next()
     val theoremRef = theoremIterator.next()
-
-    // require(proofLine.id == theoremRef.id)
-    // require(proofLine.id == maxRead + 1)
-
-    // extract trees from the raw terms/sequents
-    val thm = JustifiedTheorem(
-      theoremRef.sequent.extract,
-      proofLine.step.extract
-    )
+    val proof = proofLine.step.extract
+    val theorem = JustifiedTheorem(theoremRef.sequent.extract, proof)
 
     maxRead = proofLine.id
-    stepMap += proofLine.id -> thm
+    stepMap(proofLine.id) = theorem
+    proof match
+      case _: core.DEFINITION | _: core.TYPE_DEFINITION => definitions += proofLine.id -> proof
+      case _ => ()
 
-  @throws[ExtractorEndedException.type]
-  private def readTill(idx: Long): Unit =
+  def readTill(idx: Long): Unit =
     while maxRead < idx do readNext()
+
+  def readAll(): Unit =
+    while proofIterator.hasNext && theoremIterator.hasNext do readNext()
+
+  def getKnown(idx: Long): JustifiedTheorem = stepMap(idx)
+
+  def getKnownStatement(idx: Long): HOLSequent = getKnown(idx).statement
+
+  def getKnownProof(idx: Long): ProofStep = getKnown(idx).proof
+
+  def getKnownDefinition(idx: Long): Option[ProofStep] =
+    getKnownProof(idx) match
+      case definition: core.DEFINITION => Some(definition)
+      case definition: core.TYPE_DEFINITION => Some(definition)
+      case _ => None
+
+  def knownDefinitionsBetween(fromExclusive: Long, toInclusive: Long): Iterator[(Long, ProofStep)] =
+    definitions.iterator.filter((idx, _) => fromExclusive < idx && idx <= toInclusive)
+
+  def knownTheorems: collection.MapView[Long, JustifiedTheorem] = stepMap.view
+
+  def close(): Unit = ()
+
+private final class FileExtractorData(proofFile: File, theoremFile: File) extends ExtractorData:
+  private val proofs = new RandomAccessFile(proofFile, "r")
+  private val theorems = new RandomAccessFile(theoremFile, "r")
+
+  // Keep compact proof records for fast recursive access, but leave the much
+  // larger intermediate theorem statements on disk until verification needs them.
+  private val proofSteps = mutable.LongMap.empty[RawStep]
+  private val theoremOffsets = mutable.LongMap.empty[Long]
+  private val definitions = mutable.ArrayBuffer.empty[(Long, RawStep)]
+  private var maxRead = -1L
+
+  private def idOf(line: String): Long =
+    val colon = line.indexOf(':', line.indexOf("\"id\"") + 4)
+    var start = colon + 1
+    while line.charAt(start).isWhitespace do start += 1
+    var end = start
+    while end < line.length && line.charAt(end).isDigit do end += 1
+    line.substring(start, end).toLong
+
+  private def readNext(): Unit =
+    val theoremOffset = theorems.getFilePointer
+    val encodedProofLine = proofs.readLine()
+    val theoremLine = theorems.readLine()
+
+    if encodedProofLine == null || theoremLine == null then throw ExtractorEndedException
+
+    val proofLine = read[ProofLine](new String(encodedProofLine.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8), false)
+    val proofId = proofLine.id
+    val theoremId = idOf(theoremLine)
+    if proofId != theoremId then
+      throw new IllegalArgumentException(s"Proof step $proofId is paired with theorem statement $theoremId.")
+
+    maxRead = proofId
+    proofSteps(proofId) = proofLine.step
+    theoremOffsets(proofId) = theoremOffset
+    proofLine.step match
+      case _: DEFINITION | _: TYPE_DEFINITION => definitions += proofId -> proofLine.step
+      case _ => ()
+
+  private def readAt(file: RandomAccessFile, offset: Long): String =
+    val resumeAt = file.getFilePointer
+    try
+      file.seek(offset)
+      val encoded = file.readLine()
+      if encoded == null then throw ExtractorEndedException
+      new String(encoded.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8)
+    finally file.seek(resumeAt)
+
+  def readTill(idx: Long): Unit =
+    while maxRead < idx do readNext()
+
+  def readAll(): Unit =
+    try while true do readNext()
+    catch case ExtractorEndedException => ()
+
+  def getKnown(idx: Long): JustifiedTheorem =
+    JustifiedTheorem(getKnownStatement(idx), getKnownProof(idx))
+
+  def getKnownStatement(idx: Long): HOLSequent =
+    read[TheoremStatement](readAt(theorems, theoremOffsets(idx)), false).sequent.extract
+
+  def getKnownProof(idx: Long): ProofStep = proofSteps(idx).extract
+
+  def getKnownDefinition(idx: Long): Option[ProofStep] =
+    proofSteps(idx) match
+      case definition: DEFINITION => Some(definition.extract)
+      case definition: TYPE_DEFINITION => Some(definition.extract)
+      case _ => None
+
+  def knownDefinitionsBetween(fromExclusive: Long, toInclusive: Long): Iterator[(Long, ProofStep)] =
+    definitions.iterator
+      .filter((idx, _) => fromExclusive < idx && idx <= toInclusive)
+      .map((idx, definition) => idx -> definition.extract)
+
+  def knownTheorems: collection.MapView[Long, JustifiedTheorem] =
+    proofSteps.keysIterator.map(idx => idx -> getKnown(idx)).toMap.view
+
+  def close(): Unit =
+    proofs.close()
+    theorems.close()
+
+final class ExtractorContext private (
+    private val data: ExtractorData
+) extends AutoCloseable:
+  def this(proofIterator: Iterator[ProofLine], theoremIterator: Iterator[TheoremStatement]) =
+    this(new IteratorExtractorData(proofIterator, theoremIterator))
 
   /**
    * Get the theorem statement and proof for the given index, if it exists.
@@ -175,25 +284,51 @@ final class ExtractorContext(
    */
   @throws[NoSuchElementException]
   def getTheorem(idx: Long): JustifiedTheorem =
-    // require(idx >= 0 && idx < proofIterator.length)
+    readAt(idx)(data.getKnown(idx))
 
+  /** Extract only the theorem statement at the given index. */
+  def getStatement(idx: Long): HOLSequent =
+    readAt(idx)(data.getKnownStatement(idx))
+
+  /** Extract only the proof step at the given index. */
+  def getProof(idx: Long): ProofStep =
+    readAt(idx)(data.getKnownProof(idx))
+
+  /** Return a definition at the given index without extracting an ordinary proof step. */
+  def getDefinition(idx: Long): Option[ProofStep] =
+    readAt(idx)(data.getKnownDefinition(idx))
+
+  /** Return every available definition in the requested interval, skipping absent indices. */
+  private[hol] def getDefinitionsBetween(fromExclusive: Long, toInclusive: Long): Seq[(Long, ProofStep)] =
+    require(fromExclusive <= toInclusive, s"Invalid definition interval ($fromExclusive, $toInclusive].")
+    data.readTill(toInclusive)
+    data.knownDefinitionsBetween(fromExclusive, toInclusive).toSeq
+
+  private def readAt[T](idx: Long)(result: => T): T =
     if idx < 0 then throw new NoSuchElementException(s"Negative index: $idx.")
-    try readTill(idx)
+    try data.readTill(idx)
     catch
       case ExtractorEndedException =>
         throw new NoSuchElementException(s"Index $idx out of bounds, no more theorems to read.")
 
-    stepMap(idx)
+    try result
+    catch case _: NoSuchElementException => throw new NoSuchElementException(s"Index $idx does not exist in the trace.")
 
   /**
-   * Exhaustively read the remaining proofs and theorems and returns a map of
+   * Exhaustively read the remaining proofs and theorems and return a map of
    * justifications. The context is not destroyed, but its data is fully
    * contained in the returned map view.
    */
   def toMap: collection.MapView[Long, JustifiedTheorem] =
-    // read all remaining theorems
-    while proofIterator.hasNext && theoremIterator.hasNext do readNext()
-    stepMap.view
+    data.readAll()
+    data.knownTheorems
+
+  /** Close the underlying trace files. */
+  def close(): Unit = data.close()
+
+object ExtractorContext:
+  private[extractor] def fromFiles(proofFile: File, theoremFile: File): ExtractorContext =
+    new ExtractorContext(new FileExtractorData(proofFile, theoremFile))
 
 object JSONParser:
   /**
@@ -253,7 +388,7 @@ object JSONParser:
     else if !thmReader.canRead() then throw new java.io.IOException(s"Theorem file cannot be read: $thmFile")
     else () // ok
 
-    toContext(new java.io.FileReader(proofReader), new java.io.FileReader(thmReader))
+    ExtractorContext.fromFiles(proofReader, thmReader)
 
   /**
    * Generate an iterator of theorem references (index-name pairs) from the
