@@ -11,7 +11,7 @@ class KernelProofSuite extends AnyFunSuite:
     constants.foreach(theory.addSymbol)
     theory
 
-  test("expression constructors are hashconsed"):
+  test("expression constructors preserve configured identity semantics"):
     val x = Variable(Identifier("x"), Ind)
     val x2 = Variable(Identifier("x"), Ind)
     val y = Variable(Identifier("y"), Ind)
@@ -26,13 +26,42 @@ class KernelProofSuite extends AnyFunSuite:
 
     assert(x eq x2)
     assert(p eq p2)
-    assert(px eq px2)
-    assert(l eq l2)
+    if sys.props.get("lisa.hashcons.mode").contains("ids") then
+      assert(!(px eq px2))
+      assert(!(l eq l2))
+    else
+      assert(px eq px2)
+      assert(l eq l2)
     assert(!(x eq y))
     assert(!(pAa eq pBB))
     assert(pAa != pBB)
     assert(px.uniqueNumber == px2.uniqueNumber)
+    assert(l.uniqueNumber == l2.uniqueNumber)
     assert(isSame(Lambda(x, p(x))(y), p(y)))
+
+  test("composite identities survive tree-cache eviction only with canonical IDs"):
+    val limit = sys.props.get("lisa.hashcons.max").flatMap(_.toIntOption).getOrElse(0)
+    if limit > 0 && limit <= 64 then
+      val f = Constant(Identifier("eviction-f"), Ind -> Ind)
+      val x = Variable(Identifier("eviction-x"), Ind)
+      val before = f(x)
+
+      (0 until limit).foreach: index =>
+        f(Variable(Identifier("eviction-filler", index), Ind))
+
+      // First rollover retains the completed generation.
+      val cachesTrees = !sys.props.get("lisa.hashcons.mode").contains("ids")
+      val usesTwoGenerations = !sys.props.get("lisa.hashcons.generations").contains("1")
+      assert((f(x) eq before) == (cachesTrees && usesTwoGenerations))
+
+      (limit until 2 * limit).foreach: index =>
+        f(Variable(Identifier("eviction-filler", index), Ind))
+
+      val after = f(x)
+      val keepsIds = sys.props.get("lisa.hashcons.mode").exists(mode => mode == "ids" || mode == "hybrid")
+
+      assert(!(before eq after))
+      assert((before.uniqueNumber == after.uniqueNumber) == keepsIds)
 
   test("substitution freshens binders past variables already in their bodies"):
     val bound = Variable(Identifier("x", 4), Ind)

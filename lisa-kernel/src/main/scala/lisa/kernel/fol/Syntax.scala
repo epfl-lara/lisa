@@ -168,7 +168,18 @@ private[fol] trait Syntax {
 
   private object ExpressionCache {
     import scala.collection.mutable
-    
+
+    private enum CompositeMode:
+      case BoundedTrees, IdsOnly, BoundedTreesAndIds
+
+    private val compositeMode =
+      sys.props.get("lisa.hashcons.mode").fold(CompositeMode.BoundedTrees) {
+        case "bounded" => CompositeMode.BoundedTrees
+        case "ids" => CompositeMode.IdsOnly
+        case "hybrid" => CompositeMode.BoundedTreesAndIds
+        case mode => throw new IllegalArgumentException(s"Unknown hashcons mode '$mode'. Expected bounded, ids, or hybrid.")
+      }
+
     val enabled: Boolean =
       !sys.props.get("lisa.hashcons").contains("false") &&
       !sys.props.get("lisa.hashcons").contains("0") &&
@@ -180,28 +191,102 @@ private[fol] trait Syntax {
 
     private val variables = mutable.Map.empty[VariableKey, Variable]
     private val constants = mutable.Map.empty[ConstantKey, Constant]
-    private val applications = mutable.LongMap.empty[mutable.LongMap[Application]]
-    private val lambdas = mutable.LongMap.empty[mutable.LongMap[Lambda]]
+    private val applicationIds = mutable.LongMap.empty[mutable.LongMap[Long]]
+    private val lambdaIds = mutable.LongMap.empty[mutable.LongMap[Long]]
+
+    private final class CompositeGeneration:
+      val applications = mutable.LongMap.empty[mutable.LongMap[Application]]
+      val lambdas = mutable.LongMap.empty[mutable.LongMap[Lambda]]
+      var size = 0
+
+      def clear(): Unit =
+        applications.clear()
+        lambdas.clear()
+        size = 0
+
+    // Retain one full generation while filling the other. This approximates
+    // recent-use caching without per-entry bookkeeping or mutation on hits.
+    private val maxCompositeEntries =
+      sys.props.get("lisa.hashcons.max").flatMap(_.toIntOption).filter(_ > 0).getOrElse(1 << 20)
+    private val compositeGenerationCount =
+      sys.props.get("lisa.hashcons.generations").fold(2) {
+        case "1" => 1
+        case "2" => 2
+        case count => throw new IllegalArgumentException(s"Unknown hashcons generation count '$count'. Expected 1 or 2.")
+      }
+    private val compositeGenerations = Array.fill(compositeGenerationCount)(new CompositeGeneration)
+    private var activeGeneration = 0
+
+    private def generationForInsertion(): CompositeGeneration =
+      val active = compositeGenerations(activeGeneration)
+      if active.size < maxCompositeEntries then active
+      else
+        activeGeneration = (activeGeneration + 1) % compositeGenerationCount
+        val next = compositeGenerations(activeGeneration)
+        next.clear()
+        next
+
+    private def findApplication(f: Expression, arg: Expression): Option[Application] =
+      val active = compositeGenerations(activeGeneration).applications.get(f.uniqueNumber).flatMap(_.get(arg.uniqueNumber))
+      if active.nonEmpty || compositeGenerationCount == 1 then active
+      else compositeGenerations(1 - activeGeneration).applications.get(f.uniqueNumber).flatMap(_.get(arg.uniqueNumber))
+
+    private def findLambda(v: Variable, body: Expression): Option[Lambda] =
+      val active = compositeGenerations(activeGeneration).lambdas.get(v.uniqueNumber).flatMap(_.get(body.uniqueNumber))
+      if active.nonEmpty || compositeGenerationCount == 1 then active
+      else compositeGenerations(1 - activeGeneration).lambdas.get(v.uniqueNumber).flatMap(_.get(body.uniqueNumber))
+
+    private def applicationId(f: Expression, arg: Expression): Long =
+      applicationIds
+        .getOrElseUpdate(f.uniqueNumber, mutable.LongMap.empty)
+        .getOrElseUpdate(arg.uniqueNumber, ExpressionCounters.getNewId)
+
+    private def lambdaId(v: Variable, body: Expression): Long =
+      lambdaIds
+        .getOrElseUpdate(v.uniqueNumber, mutable.LongMap.empty)
+        .getOrElseUpdate(body.uniqueNumber, ExpressionCounters.getNewId)
+
+    private def cacheApplication(f: Expression, arg: Expression, id: => Long): Application =
+      findApplication(f, arg) match
+        case Some(application) => application
+        case None =>
+          val generation = generationForInsertion()
+          val application = new Application(f, arg)(id)
+          generation.applications.getOrElseUpdate(f.uniqueNumber, mutable.LongMap.empty)(arg.uniqueNumber) = application
+          generation.size += 1
+          application
+
+    private def cacheLambda(v: Variable, body: Expression, id: => Long): Lambda =
+      findLambda(v, body) match
+        case Some(lambda) => lambda
+        case None =>
+          val generation = generationForInsertion()
+          val lambda = new Lambda(v, body)(id)
+          generation.lambdas.getOrElseUpdate(v.uniqueNumber, mutable.LongMap.empty)(body.uniqueNumber) = lambda
+          generation.size += 1
+          lambda
 
     def variable(id: Identifier, sort: Sort): Variable =
-      if (enabled) variables.getOrElseUpdate(VariableKey(id, sort), new Variable(id, sort))
+      if enabled then variables.getOrElseUpdate(VariableKey(id, sort), new Variable(id, sort))
       else new Variable(id, sort)
 
     def constant(id: Identifier, sort: Sort): Constant =
-      if (enabled) constants.getOrElseUpdate(ConstantKey(id, sort), new Constant(id, sort))
+      if enabled then constants.getOrElseUpdate(ConstantKey(id, sort), new Constant(id, sort))
       else new Constant(id, sort)
 
     def application(f: Expression, arg: Expression): Application =
-      if (!enabled) new Application(f, arg)
-      else
-        val byArgument = applications.getOrElseUpdate(f.uniqueNumber, mutable.LongMap.empty)
-        byArgument.getOrElseUpdate(arg.uniqueNumber, new Application(f, arg))
+      if !enabled then new Application(f, arg)(ExpressionCounters.getNewId)
+      else compositeMode match
+        case CompositeMode.BoundedTrees => cacheApplication(f, arg, ExpressionCounters.getNewId)
+        case CompositeMode.IdsOnly => new Application(f, arg)(applicationId(f, arg))
+        case CompositeMode.BoundedTreesAndIds => cacheApplication(f, arg, applicationId(f, arg))
 
     def lambda(v: Variable, body: Expression): Lambda =
-      if (!enabled) new Lambda(v, body)
-      else
-        val byBody = lambdas.getOrElseUpdate(v.uniqueNumber, mutable.LongMap.empty)
-        byBody.getOrElseUpdate(body.uniqueNumber, new Lambda(v, body))
+      if !enabled then new Lambda(v, body)(ExpressionCounters.getNewId)
+      else compositeMode match
+        case CompositeMode.BoundedTrees => cacheLambda(v, body, ExpressionCounters.getNewId)
+        case CompositeMode.IdsOnly => new Lambda(v, body)(lambdaId(v, body))
+        case CompositeMode.BoundedTreesAndIds => cacheLambda(v, body, lambdaId(v, body))
   }
 
   /**
@@ -215,7 +300,7 @@ private[fol] trait Syntax {
    *
    * Expressions must be well-typed, i.e. the types of the argument in an application must match the type of the function.
    */
-  sealed trait Expression {
+  sealed trait Expression(val uniqueNumber: Long) {
 
     /**
      * Cached normal form of the expression by [[OLEquivalenceChecker]].
@@ -226,11 +311,6 @@ private[fol] trait Syntax {
      * Sort of the expression.
      */
     val sort: Sort
-
-    /**
-     * Unique number of the expression assigned by [[ExpressionCounters]]. Used for efficient reference equality.
-     */
-    val uniqueNumber: Long = ExpressionCounters.getNewId
 
     /**
      * True if the expression contains subexpressions of type `Prop`.
@@ -300,7 +380,7 @@ private[fol] trait Syntax {
    * Logically, variables can be bound by lambda abstractions (and quantifiers) or free.
    * Free variables in theorems can be instantiated by valules of the same sort.
    */
-  case class Variable private[fol] (id: Identifier, sort: Sort) extends Expression {
+  case class Variable private[fol] (id: Identifier, sort: Sort) extends Expression(ExpressionCounters.getNewId) {
     val containsFormulas = sort == Prop
     val freeVariables: Set[Variable] = Set(this)
     val constants: Set[Constant] = Set.empty
@@ -316,7 +396,7 @@ private[fol] trait Syntax {
    *
    * Constants generalize function and predicate symbols of any arity in strict first-order logic.
    */
-  case class Constant private[fol] (id: Identifier, sort: Sort) extends Expression {
+  case class Constant private[fol] (id: Identifier, sort: Sort) extends Expression(ExpressionCounters.getNewId) {
     val containsFormulas = sort == Prop
     val freeVariables: Set[Variable] = Set.empty
     val constants: Set[Constant] = Set(this)
@@ -331,7 +411,7 @@ private[fol] trait Syntax {
    * An application of an expression to an argument, which is a special case of [[Expression]].
    * `f.sort` must be of the form `arg.sort -> _`.
    */
-  case class Application private[fol] (f: Expression, arg: Expression) extends Expression {
+  case class Application private[fol] (f: Expression, arg: Expression)(assignedId: Long) extends Expression(assignedId) {
     val sort = f.sort match
       case Arrow(from, to) if from == arg.sort => to
       case _ => throw new IllegalArgumentException(s"Application of $f to $arg is not legal")
@@ -354,7 +434,7 @@ private[fol] trait Syntax {
    * Example: {{{Application(∀, Lambda(x, Application(P, x)))}}}
    * corresponds to the formula in strict first-order logic ∀x.P(x).
    */
-  case class Lambda private[fol] (v: Variable, body: Expression) extends Expression {
+  case class Lambda private[fol] (v: Variable, body: Expression)(assignedId: Long) extends Expression(assignedId) {
     val containsFormulas = body.containsFormulas
     val sort = (v.sort -> body.sort)
 
