@@ -42,10 +42,10 @@ sealed trait Step:
   type ErrorType <: ProofError
   type Result[+T] = Either[ErrorType, T]
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // Equality and Set Helpers
 ///////////////////////////////////////////////////////////////////////////////
+
 private[proof] object Helpers:
 
   /**
@@ -149,6 +149,7 @@ case object Sorry extends Step:
 def sorry(using theory: Theory)(statement: Sequent): Thm =
   Sorry(statement) match
     case Right(thm) => thm
+
 case object Axiom extends Step:
   type ErrorType = Nothing // Axiom does not throw its own errors
 
@@ -212,7 +213,7 @@ case object Definition extends Step:
 
       val definition = Thm(sequent, this, theory, Set.empty, Set.empty)
 
-      // MUTABLY update the theory
+      // Register the definition in the theory.
       theory.registerDefinition(cst, definition)
 
       Right(definition)

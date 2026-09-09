@@ -31,11 +31,10 @@ final class Theorem(theoremKind: TheoremKind)(using library: Library, output: Ou
     val line: sourcecode.Line,
     val fullName: sourcecode.FullName,
     val name: sourcecode.Name
-)(val Statement: Sequent)(computeProof: Proof ?=> ProofCarrier[?]):
+)(val statement: Sequent)(computeProof: Proof ?=> ProofCarrier[?]):
   val kind: TheoremKind = theoremKind
   val shortName: String =
     fullName.value.split('.').lastOption.getOrElse(name.value)
-  val statement: Sequent = Statement
 
   val judgement: ProofJudgement =
     val underlyingGoal = statement.underlying
@@ -59,7 +58,7 @@ final class Theorem(theoremKind: TheoremKind)(using library: Library, output: Ou
                   _ =>
                     // weakening failed
                     val error = SoftError(
-                      withParams("The proven statement is not the same as the goal and cannot be weakened to it.", "Proven" -> inner.statement, "Goal" -> underlyingGoal),
+                      withParams("The proven statement is not the same as the goal and cannot be weakened to it.", "Proven" -> inner.statement, "Goal" -> statement),
                       file,
                       line
                     )
