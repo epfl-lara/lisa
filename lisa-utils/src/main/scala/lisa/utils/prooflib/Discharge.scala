@@ -11,10 +11,13 @@ object Discharge:
       current.statement.left.find(isSame(_, formula)) match
         case None => Right(current)
         case Some(matchedFormula) =>
-          val conclusion = Sequent((current.statement.left - matchedFormula) ++ discharge.statement.left, current.statement.right)
-          K.Cut(using library.theory)(conclusion.underlying, discharge.kernel, current.kernel, formula.underlying) match
-            case Right(thm) => Right(Thm(conclusion, thm))
-            case Left(err) => Left(SoftError(s"Discharge could not cut premise: $err", file, line))
+          val remaining = current.statement.left.filterNot(isSame(_, matchedFormula))
+          val conclusion = Sequent(remaining ++ discharge.statement.left, current.statement.right)
+          if conclusion == current.statement then Right(current)
+          else
+            K.Cut(using library.theory)(conclusion.underlying, discharge.kernel, current.kernel, formula.underlying) match
+              case Right(thm) => Right(Thm(conclusion, thm))
+              case Left(err) => Left(SoftError(s"Discharge could not cut premise: $err", file, line))
 
   def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(premises: Thm*)(base: Thm): ProofJudgement =
     premises

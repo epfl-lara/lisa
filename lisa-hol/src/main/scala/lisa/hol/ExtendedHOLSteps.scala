@@ -16,7 +16,7 @@ import lisa.hol.HOLSteps.{HOLProofType}
 
 object ExtendedHOLSteps extends lisa._HOL {
 
-  import lisa.hol.HOLHelperTheorems.{One, nonEmptyFuncSpace, assume, eqRefl}
+  import lisa.hol.HOLHelperTheorems.{One, nonEmptyFuncSpace, assume, eqFromHol, eqRefl}
   
   private val A = typevar
   private val B = typevar
@@ -37,15 +37,24 @@ object ExtendedHOLSteps extends lisa._HOL {
   private val q = typedvar(𝔹)
   private val r = typedvar(𝔹)
 
+  /** Discharge a derived typing fact, retaining an explicit variable assignment. */
+  private def dischargeTyping(using proof: Proof)(term: Expr[Ind], from: Thm): Thm =
+    term match
+      case _: TypedVariable => from
+      case _ => have(Discharge(HOLProofType(term))(from))
+
   object _REFL {
-    def apply(using proof: Proof)(t: Expr[Ind]): ProofJudgement = Subproof {
-      // Extract typing context from current proof assumptions
-      val pp = HOLProofType(t)
-      val s1 = have(pp) // t::A
-      val typ = s1.statement.right.head match
-        case _ ∈ typ => typ
-        case _ => failWith(s"Could not compute type of $t")
-      have(Discharge(s1)(eqRefl of (x := t, A := typ)))
+    def apply(using proof: Proof)(t: Expr[Ind]): ProofJudgement = Subproof { ip ?=>
+      t match
+        case variable: TypedVariable =>
+          have(HOLSteps.Clean.all(eqRefl of (x := t, A := variable.typ)))
+        case _ =>
+          val typing = HOLProofType(t)
+          val typ = typing.statement.right.head match
+            case _ ∈ typ => typ
+            case _ => failWith(s"Could not compute type of $t")
+          val reflexivity = have(Discharge(typing)(eqRefl of (x := t, A := typ)))
+          have(HOLSteps.Clean.all(reflexivity))
     }
   }
 
@@ -59,10 +68,18 @@ object ExtendedHOLSteps extends lisa._HOL {
           if isSame(ta, tb) then
             if isSame(aa, ab) then
               ip.assume(s1.left ++ s2.left)
-              val p0 = have(((s :: aa), (ta :: aa), (u :: aa)) |- (holeq(aa) * s * ta)) by Weakening(t1)
-              val r0 = have(((s :: aa), (ta :: aa), (u :: aa), (holeq(aa) * ta * u) === One) |- (holeq(aa) * s * u) === One) by Cut.withParameters(holeq(aa) * s * ta)(p0, HOLHelperTheorems.eqTrans of (x := s, y := ta, z := u, A := aa))
-              val r1 = have(((s :: aa), (ta :: aa), (u :: aa)) |- (holeq(aa) * s * u) === One) by Cut(t2, r0)
-              have(Discharge(HOLProofType(s), HOLProofType(ta), HOLProofType(u))(r1))
+              val firstEquality = (holeq(aa) * s * ta) === One
+              val secondEquality = (holeq(aa) * ta * u) === One
+              val result = (holeq(aa) * s * u) === One
+              val typings = Set(s :: aa, ta :: aa, u :: aa)
+              val transitivity = HOLHelperTheorems.eqTrans of (x := s, y := ta, z := u, A := aa)
+              val r0 = have((s1.left ++ typings + secondEquality) |- result) by
+                Cut.withParameters(firstEquality)(t1, transitivity)
+              val r1 = have((s1.left ++ s2.left ++ typings) |- result) by
+                Cut.withParameters((holeq(aa) * ta * u) === One)(t2, r0)
+              val r2 = dischargeTyping(s, r1)
+              val r3 = dischargeTyping(ta, r2)
+              dischargeTyping(u, r3)
             else failWith(s"Types don't agree: $aa and $ab")
           else failWith(s"Middle elements don't agree: $ta and $tb")
 
@@ -87,13 +104,17 @@ object ExtendedHOLSteps extends lisa._HOL {
           typ1 match {
             case ->:(inner, b) if isSame(typ2, inner) => // this CANNOT use equality because of alpha equivalence
               ip.assume(f1.statement.left ++ f2.statement.left)
-              val s1 = have(
-                (xx :: typ2, yy :: typ2, ff :: typ1, gg :: typ1, holeq(typ1) * ff * gg, holeq(typ2) * xx * yy, ∃(x, x ∈ typ2), ∃(x, x ∈ b)) |-
-                  (holeq(b) * (ff * xx) * (gg * yy))
-              ) by Weakening(HOLSteps.mk_comTHM of (f := ff, g := gg, x := xx, y := yy, A := typ2, B := b))
-              val d1 = have(Discharge(f1)(lastStep))
+              val rule = HOLSteps.mk_comTHM of (f := ff, g := gg, x := xx, y := yy, A := typ2, B := b)
+              val d1 = have(Discharge(f1)(rule))
               val d2 = have(Discharge(f2)(d1))
-              have(Discharge(HOLProofType(xx), HOLProofType(yy), HOLProofType(ff), HOLProofType(gg))(d2))
+              val d3 = dischargeTyping(xx, d2)
+              val yyTyping = HOLProofType(yy)
+              val d4 = yy match
+                case _: TypedVariable => d3
+                case _ => have(Discharge(yyTyping)(d3))
+              val d5 = dischargeTyping(ff, d4)
+              val d6 = dischargeTyping(gg, d5)
+              have(HOLSteps.Clean.all(d6))
             case _ =>
               failWith(s"Types don't agree: fun types are $typ1 and arg types are $typ2")
           }
@@ -118,21 +139,28 @@ object ExtendedHOLSteps extends lisa._HOL {
 
           // Extract context without x for typing proofs
 
-          have((tforall(xta, tt :: typ1), tforall(xta, uu :: typ1)) |- (x :: xTyp) ==> (holeq(typ1) * (tt) * (uu) === One)) by Weakening(prem)
-          val h1 = thenHave((tforall(xta, tt :: typ1), tforall(xta, uu :: typ1)) |- forall(x, (x :: xTyp) ==> (holeq(typ1) * (tt) * (uu) === One))) by RightForall
-          have((tforall(xta, tt :: typ1), tforall(xta, uu :: typ1), tforall(xta, holeq(typ1) * (tt) * (uu) === One)) |- (holeq(xTyp ->: typ1) * lt * lu === One)) by Weakening(
-            HOLSteps.absTHM of (t := λ(x, tt), u := λ(x, uu), A := xTyp, B := typ1)
-          )
-          val h2 = have(Discharge(h1)(lastStep))
-          have(HOLProofType(tt))
-          thenHave(lastStep.statement.left.filterNot(isSame(_, x :: xTyp)) |- (x :: xTyp) ==> (tt :: typ1)) by Weakening
-
-          val h3 = thenHave(lastStep.statement.left |- tforall(xta, tt :: typ1)) by RightForall
-          have(HOLProofType(uu))
-          thenHave(lastStep.statement.left.filterNot(isSame(_, x :: xTyp)) |- (x :: xTyp) ==> (uu :: typ1)) by Weakening
-          val h4 = thenHave(lastStep.statement.left |- tforall(xta, uu :: typ1)) by RightForall
-          val h5 = have(h2.statement -<? (h3.statement.right.head) ++<< h3.statement) by Cut(h3, h2)
-          if h5.statement.left.exists(isSame(_, h4.statement.right.head)) then have(h5.statement -<? (h4.statement.right.head) ++<< h4.statement) by Cut(h4, h5) else h5
+          have((tforall(xta, tt :: typ1), tforall(xta, uu :: typ1)) |- xta ==> (holeq(typ1) * tt * uu === One)) by
+            RightImplies.withParameters(xta, (holeq(typ1) * tt * uu) === One)(prem)
+          val equality = (holeq(typ1) * tt * uu) === One
+          val h1 = thenHave((tforall(xta, tt :: typ1), tforall(xta, uu :: typ1)) |- forall(x, xta ==> equality)) by
+            RightForall.withParameters(xta ==> equality, x)(lastStep)
+          val abstraction = HOLSteps.absTHM of (t := λ(x, tt), u := λ(x, uu), A := xTyp, B := typ1)
+          val h2 = have(Discharge(h1)(abstraction))
+          val ttTyping = HOLProofType(tt)
+          val ttImp = have(ttTyping.statement.left.filterNot(isSame(_, x :: xTyp)) |- xta ==> (tt :: typ1)) by
+            RightImplies.withParameters(xta, tt :: typ1)(ttTyping)
+          val h3 = have(ttImp.statement.left |- tforall(xta, tt :: typ1)) by
+            RightForall.withParameters(xta ==> (tt :: typ1), x)(ttImp)
+          val uuTyping = HOLProofType(uu)
+          val uuImp = have(uuTyping.statement.left.filterNot(isSame(_, x :: xTyp)) |- xta ==> (uu :: typ1)) by
+            RightImplies.withParameters(xta, uu :: typ1)(uuTyping)
+          val h4 = have(uuImp.statement.left |- tforall(xta, uu :: typ1)) by
+            RightForall.withParameters(xta ==> (uu :: typ1), x)(uuImp)
+          val h5 = have(h2.statement -<? h3.statement.right.head ++<< h3.statement) by
+            Cut.withParameters(h3.statement.right.head)(h3, h2)
+          if h5.statement.left.exists(isSame(_, h4.statement.right.head)) then
+            have(h5.statement -<? h4.statement.right.head ++<< h4.statement) by Cut.withParameters(h4.statement.right.head)(h4, h5)
+          else h5
 
         case _ =>
           failWith(s"The fact should be of the form t =:= u")
@@ -147,14 +175,17 @@ object ExtendedHOLSteps extends lisa._HOL {
           val typ2 = computeType(tin)
           val T = variable[Ind]
           val vx = xx
-          val s1 = have((r :: typ1, tforall(vx :: typ1, tt :: typ2)) |- (holeq(typ2) * (fun(vx :: typ1, tt) * r) * tt.substitute(vx := r))) by Weakening(
-            HOLSteps.betaConv of (A := typ1, B := typ2, t := λ(vx, tt), x := r)
-          )
+          val result = holeq(typ2) * (fun(vx :: typ1, tt) * r) * tt.substitute(vx := r)
+          val s1 = have((r :: typ1, tforall(vx :: typ1, tt :: typ2)) |- result) by
+            Weakening(HOLSteps.betaConv of (A := typ1, B := typ2, t := λ(vx, tt), HOLSteps.betaArgument := r))
           // Prove typing for tt: build tforall (may have free variable assumptions)
           val ttPre = HOLProofType(tt)
-          val ttImp = have(ttPre.statement.left.filterNot(isSame(_, vx :: typ1)) |- (vx :: typ1) ==> (tt :: typ2)) by Weakening(ttPre)
-          val ttypForall = have(ttImp.statement.left.filterNot(isSame(_, vx :: typ1)) |- tforall(vx :: typ1, tt :: typ2)) by RightForall(ttImp)
-          have(Discharge(ttypForall, HOLProofType(r))(s1))
+          val ttImp = have(ttPre.statement.left.filterNot(isSame(_, vx :: typ1)) |- (vx :: typ1) ==> (tt :: typ2)) by
+            RightImplies.withParameters(vx :: typ1, tt :: typ2)(ttPre)
+          val ttypForall = have(ttImp.statement.left.filterNot(isSame(_, vx :: typ1)) |- tforall(vx :: typ1, tt :: typ2)) by
+            RightForall.withParameters((vx :: typ1) ==> (tt :: typ2), vx)(ttImp)
+          val bodyTyped = have(Discharge(ttypForall)(s1))
+          dischargeTyping(r, bodyTyped)
         case _ =>
           failWith(s"The Expr[Ind] should be of the form (λx. t) v")
     }
@@ -188,7 +219,7 @@ object ExtendedHOLSteps extends lisa._HOL {
     def apply(using proof: Proof)(t: Expr[Ind]): ProofJudgement = Subproof {
       val typ = computeType(t)
       if typ == 𝔹 then
-        have(t |- t) by Restate
+        have(t |- t) by Hypothesis.withParameters(eqOne(t))
       else failWith(s"Expr[Ind] $t is not a boolean")
     }
 
@@ -204,12 +235,15 @@ object ExtendedHOLSteps extends lisa._HOL {
             case f if isSame(f, eqOne(t)) =>
               val assumptions = eq.statement.left ++ p.statement.left
               val vt = variable[Ind]
-              val hp = have((assumptions + (t :: 𝔹) + (u :: 𝔹)) |- p.statement.right) by Weakening(p)
-              val h1 = have((assumptions + (t :: 𝔹) + (u :: 𝔹)) |- t === u) by Tautology.from(HOLHelperTheorems.eqAlign of (x := t, y := u, A := 𝔹), eq)
-              val hc = have((assumptions + (t :: 𝔹) + (u :: 𝔹) + (t === u)) |- (u === One)) by RightSubstEq.withParameters(List((t, u)), (Seq(vt), vt === One))(hp)
-              val h2 = have((assumptions + (t :: 𝔹) + (u :: 𝔹)) |- (u === One)) by Cut(h1, hc)
-              val pt = have(HOLProofType(t))
-              have(Discharge(pt, HOLProofType(u))(h2))
+              val nativeEquality = t === u
+              val equalityBridge = eqFromHol of (x := t, y := u, A := 𝔹)
+              val h1 = have(Discharge(eq)(equalityBridge))
+              val hc = have((assumptions + (t :: 𝔹) + (u :: 𝔹) + nativeEquality) |- (u === One)) by
+                RightSubstEq.withParameters(List((t, u)), (Seq(vt), vt === One))(p)
+              val h2 = have((assumptions + (t :: 𝔹) + (u :: 𝔹)) |- (u === One)) by Cut.withParameters(nativeEquality)(h1, hc)
+              val h3 = dischargeTyping(t, h2)
+              val h4 = dischargeTyping(u, h3)
+              have(HOLSteps.Clean.all(h4))
 
             case _ =>
               failWith(s"The second premise should prove $t but proves ${p.statement.right}")
@@ -230,13 +264,15 @@ object ExtendedHOLSteps extends lisa._HOL {
       (c1, c2) match
         case (eqOne(p), eqOne(q)) =>
           ip.assume(left1.filterNot(isSame(_, c2)) ++ left2.filterNot(isSame(_, c1)))
-          val qp = have((p :: 𝔹, q :: 𝔹) |- (q === One) ==> (p === One)) by Weakening(t1)
-          val pq = have((p :: 𝔹, q :: 𝔹) |- (p === One) ==> (q === One)) by Weakening(t2)
-          val pivot = have((p :: 𝔹, q :: 𝔹) |- (q === One) <=> (p === One)) by RightAnd(pq, qp)
-          val h0 = have((p :: 𝔹, q :: 𝔹) |- (p === q)) by Cut.withParameters((q === One) <=> (p === One))(pivot, HOLSteps.propExt of (ExtendedHOLSteps.p -> p, ExtendedHOLSteps.q -> q))
-          val h1 = have((p :: 𝔹, q :: 𝔹, p === q) |- (p =:= q === One)) by Weakening(HOLHelperTheorems.eqAlign of (A -> 𝔹, x -> p, y -> q))
-          val h2 = have((p :: 𝔹, q :: 𝔹) |- (p =:= q === One)) by Cut.withParameters(p === q)(h0, h1)
-          have(Discharge(HOLProofType(p), HOLProofType(q))(h2))
+          val qp = have((p :: 𝔹, q :: 𝔹) |- (q === One) ==> (p === One)) by
+            RightImplies.withParameters(q === One, p === One)(t1)
+          val pq = have((p :: 𝔹, q :: 𝔹) |- (p === One) ==> (q === One)) by
+            RightImplies.withParameters(p === One, q === One)(t2)
+          val rule = HOLSteps.deductAntisym of (ExtendedHOLSteps.p := p, ExtendedHOLSteps.q := q)
+          val h1 = have(Discharge(qp, pq)(rule))
+          val h2 = dischargeTyping(p, h1)
+          val h3 = dischargeTyping(q, h2)
+          have(HOLSteps.Clean.all(h3))
 
         case _ =>
           failWith(s"The premises should be of the form p === One and q === One")

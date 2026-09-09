@@ -3,6 +3,9 @@ package lisa.hol
 import lisa.SetTheoryLibrary
 import lisa.hol.HOLHelperTheorems.𝔹
 import lisa.hol.VarsAndFunctions.*
+import lisa.hol.basics.Connectives.hand
+import lisa.hol.basics.Inductive.hOneOne
+import lisa.maths.SetTheory.Functions.Pi.->:
 import lisa.maths.SetTheory.Types.TypingHelpers.*
 import lisa.utils.K
 import lisa.utils.fol.FOL.{_, given}
@@ -60,15 +63,16 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
     assert(retained.typ.eq(replacementType))
     assert(computeType(retained) eq replacementType)
 
-  test("HOL transitivity retains typed constants through inferred basic steps"):
+  test("HOL transitivity preserves typed constants"):
     val left = typedConstant("transitivity-left")
     val middle = typedConstant("transitivity-middle")
     val right = typedConstant("transitivity-right")
     val first = sorry(HOLSequent(Set.empty, left =:= middle))
     val second = sorry(HOLSequent(Set.empty, middle =:= right))
 
+    HOLSteps.HOLProofType.resetCache()
     val result = Proof.withContext:
-      HOLSteps._TRANS(first, second)
+      ExtendedHOLSteps._TRANS(first, second)
 
     assert(result.isValid, result.errors.map(_.message).mkString("\n"))
     val retained = statementDescendants(result.destruct._1.statement).collect { case constant: TypedConstant => constant }.toSeq
@@ -101,3 +105,56 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
       case typ: HOLPolymorphicType[?] => typ.eq(𝔹)
       case _ => false
     })
+
+  test("HOL typing preserves a free same-named variable while freshening a binder"):
+    val typeA = TypeVariable(K.Identifier("typing-shadow-A"))
+    val typeB = TypeVariable(K.Identifier("typing-shadow-B"))
+    val bound = TypedVariable(K.Identifier("x-prime", 1), typeA)
+    val function = TypedVariable(K.Identifier("x-prime", 2), typeA ->: typeB)
+    val argument = TypedVariable(K.Identifier("x", 1), typeA)
+    val otherFunction = TypedVariable(K.Identifier("f", 2), typeA ->: typeB)
+    val predicate = TypedVariable(K.Identifier("P", 3), typeA ->: typeB ->: 𝔹)
+    val source = TypedVariable(K.Identifier("source"), typeA)
+    val body = hand * (predicate * source * (otherFunction * argument)) * (predicate * bound * (function * argument))
+    val term = VarsAndFunctions.fun(bound, body).substitute(source := bound)
+
+    assert(term.freeVars.contains(function))
+
+    val result = Proof.withContext:
+      Subproof:
+        have(HOLSteps.HOLProofType(term))
+
+    assert(result.isValid, result.errors.map(_.message).mkString("\n"))
+
+  test("HOL typing cache distinguishes equal kernel terms with different HOL types"):
+    val typeA = TypeVariable(K.Identifier("typing-cache-A"))
+    val typeB = TypeVariable(K.Identifier("typing-cache-B"))
+    val identifier = K.Identifier("typing-cache-term")
+    val termA = TypedVariable(identifier, typeA)
+    val termB = TypedVariable(identifier, typeB)
+
+    val result = Proof.withContext:
+      HOLSteps.HOLProofType.resetCache()
+      val typingA = HOLSteps.HOLProofType(termA)
+      val typingB = HOLSteps.HOLProofType(termB)
+      Subproof:
+        have(typingA)
+        have(typingB)
+
+    assert(result.isValid, result.errors.map(_.message).mkString("\n"))
+    val typings = result.destruct._1.statement
+    assert(typings.right.exists(isSame(_, termB :: typeB)))
+
+  test("polymorphic typing splits conjunctive requirements"):
+    val typeA = TypeVariable(K.Identifier("typing-conjunction-A"))
+    val typeB = TypeVariable(K.Identifier("typing-conjunction-B"))
+
+    val result = Proof.withContext:
+      Subproof:
+        have(HOLSteps.HOLProofType(hOneOne(typeA)(typeB)))
+
+    assert(result.isValid, result.errors.map(_.message).mkString("\n"))
+    val assumptions = result.destruct._1.statement.left
+    assert(assumptions.exists(isSame(_, nonEmpty(typeA))))
+    assert(assumptions.exists(isSame(_, nonEmpty(typeB))))
+    assert(!assumptions.exists(isSame(_, nonEmpty(typeA) /\ nonEmpty(typeB))))
