@@ -1,9 +1,0 @@
-dataset,problem,config,strategy,verdict,hypotheses,clausify_ms,search_ms,reconstruct_ms,check_ms,given,derived,peak_active,peak_passive,clauses,fresh_symbols,proof_steps,raw_size,shared_size,max_sequent,imports,uses_sorry,contaminated,detail
-starexec,theBenchmark.p,e1a,age-fair,PARSE_ERR,,0.000,,,,,,,,,,,,,,,,false,Exception
-starexec,theBenchmark.p,e1a,balanced,PARSE_ERR,,0.000,,,,,,,,,,,,,,,,false,Exception
-starexec,theBenchmark.p,e1a,equational,PARSE_ERR,,0.000,,,,,,,,,,,,,,,,false,Exception
-starexec,theBenchmark.p,e1a,first-negative,PARSE_ERR,,0.000,,,,,,,,,,,,,,,,false,Exception
-starexec,theBenchmark.p,e1a,occurrence,PARSE_ERR,,0.000,,,,,,,,,,,,,,,,false,Exception
-starexec,theBenchmark.p,e1a,subsumption-light,PARSE_ERR,,0.000,,,,,,,,,,,,,,,,false,Exception
-starexec,theBenchmark.p,e1a,unary-redundancy,PARSE_ERR,,0.000,,,,,,,,,,,,,,,,false,Exception
-starexec,theBenchmark.p,e1a,weight-greedy,PARSE_ERR,,0.000,,,,,,,,,,,,,,,,false,Exception

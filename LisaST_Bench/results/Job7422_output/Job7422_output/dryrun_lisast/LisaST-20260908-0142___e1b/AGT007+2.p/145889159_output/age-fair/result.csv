@@ -1,2 +1,0 @@
-dataset,problem,config,strategy,verdict,hypotheses,clausify_ms,search_ms,reconstruct_ms,check_ms,given,derived,peak_active,peak_passive,clauses,fresh_symbols,proof_steps,raw_size,shared_size,max_sequent,imports,uses_sorry,contaminated,detail
-starexec,theBenchmark.p,e1b,age-fair,REFUTED,922,2854.324,11146.582,107.458,3270.676,4843,190165,3694,182325,728,7,3850,1005532,3136,615,923,false,false,

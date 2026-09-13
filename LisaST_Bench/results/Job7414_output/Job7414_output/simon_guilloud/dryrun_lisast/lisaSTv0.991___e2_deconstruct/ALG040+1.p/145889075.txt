@@ -1,4 +1,0 @@
-0.00/0.01	% LisaST e2/deconstruct: heap 122368m (node has 257490m), budget 175000ms
-2.49/1.08	wrote 1 rows to /export/starexec/sandbox/output/output_files/result.csv
-2.49/1.08	% SZS status GaveUp for theBenchmark.p
-2.49/1.12	EOF

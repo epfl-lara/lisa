@@ -1,2 +1,0 @@
-dataset,problem,config,strategy,verdict,hypotheses,clausify_ms,search_ms,reconstruct_ms,check_ms,given,derived,peak_active,peak_passive,clauses,fresh_symbols,proof_steps,raw_size,shared_size,max_sequent,imports,uses_sorry,contaminated,detail
-starexec,theBenchmark.p,e1b,equational,TIMEOUT,555,615.724,175302.001,,,27678,123352,27589,94575,655,13,,,,,,,false,

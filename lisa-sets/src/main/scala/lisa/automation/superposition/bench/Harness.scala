@@ -34,8 +34,8 @@ import BenchUtil.median
  * proof and checks nothing, so the difference between the two modes is the whole cost of certification. The
  * two clausifiers produce the same clauses, so nothing else varies between them.
  *
- * The three dataset objects ([[Evaluation]], [[FofEvaluation]], [[EqFofEvaluation]]) differ only in the list
- * they draw from. Requires `TPTP` to point at the problem library.
+ * A dataset object such as [[FofEvaluation]] names the list it draws from and nothing else. Requires `TPTP` to
+ * point at the problem library.
  *
  * {{{
  *   [key=value]…       run the benchmark; see [[Config]] for the keys
@@ -74,6 +74,12 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
       maxSize: Int = 50000,
       limit: Int = Int.MaxValue, //  truncate the problem list, for dry runs
       clausifyOnly: Boolean = false, //  clausify and check that derivation, but do not search
+      // Run the kernel check, or stop at the reconstructed proof. Off measures what the certified pipeline
+      // answers rather than what it answers and checks inside one budget: checking is not bounded by
+      // `timeoutMs`, so a proof whose check outlasts the budget left costs its problem a verdict entirely.
+      // A `check=off` row still carries the proof's metrics, but `uses_sorry` is false because nothing
+      // looked, so the soundness counts of such a run mean nothing.
+      check: Boolean = true,
       clausifier: ClausifierOptions = ClausifierOptions(),
       certified: Boolean = true,
       opts: SearchOptions = SearchOptions(maxGiven = 100000),
@@ -118,6 +124,7 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
         case "size" => c.copy(maxSize = value.toInt)
         case "limit" => c.copy(limit = value.toInt)
         case "clausifyOnly" => c.copy(clausifyOnly = flag)
+        case "check" => c.copy(check = flag)
         case "prenex" =>
           c.copy(clausifier = c.clausifier.copy(prenex = value.toLowerCase match
             case "deconstruct" => Prenex.Deconstruct
@@ -201,7 +208,7 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
    * paper measures beyond solved-or-not.
    *
    * '''In-process''', unlike every other entry point here: the harness normally forks a JVM per problem to keep
-   * a runaway one from contaminating its successors, but StarExec already isolates each pair, and the fork
+   * a runaway one from taking resources from its successors, but StarExec already isolates each pair, and the fork
    * would put a second JVM start inside the measured budget and confuse its resource accounting.
    */
   private def runOne(file: String, outDir: String, cfg0: Config): Unit =
@@ -278,7 +285,6 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
 
   /** Run each listed problem, resolved against `root` (the TPTP library unless `root=` said otherwise). */
   private def run(paths: Vector[String], root: File, cfg: Config): Unit =
-    BenchUtil.resetAbandoned() // this run's contamination count starts here
     println(f" ${"PROBLEM"}%-19s ${"HYP"}%4s ${"CJ"}%3s  ${"RESULT"}%-12s ${"clausify"}%10s ${"search"}%9s ${"recon"}%8s ${"check"}%9s ${"given"}%9s")
     val rows = paths.map(rel => (rel, solveRow(new File(root, rel), cfg)))
     cfg.csvOut.foreach(writeCsv(_, rows, cfg))
@@ -296,7 +302,7 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
     "given", "derived", "peak_active", "peak_passive",
     "clauses", "fresh_symbols",
     "proof_steps", "raw_size", "shared_size", "max_sequent", "imports",
-    "uses_sorry", "contaminated", "detail"
+    "uses_sorry", "detail"
   )
 
   /**
@@ -331,7 +337,7 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
           m.map(_.sharedSize.toString).getOrElse(""), m.map(_.maxSequent.toString).getOrElse(""),
           m.map(_.imports.toString).getOrElse(""),
           if m.isDefined then t.usesSorry.toString else "",
-          t.contaminated.toString, t.detail
+          t.detail
         )
         out.println(cells.map(csvCell).mkString(","))
       }
@@ -348,8 +354,6 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
    * Per-problem outcome and where the wall-clock went: `clausifyMs` (everything outside the prover call),
    * `searchMs` (the saturation), `reconstructMs` (building the kernel proof), `checkMs` (the kernel check),
    * plus the loop-scale counters.
-   * `contaminated` marks a row that ran while an abandoned worker was still alive, whose timings and often
-   * whose verdict say more about that thread than about this problem.
    */
   private final case class Timing(
       category: String,
@@ -368,7 +372,6 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
       freshSymbols: Int = -1, //    naming atoms and Skolem symbols in those clauses
       metrics: Option[ProofMetrics] = None, //  present exactly when a proof was built
       usesSorry: Boolean = false,
-      contaminated: Boolean = false,
       detail: String = "",
       // The TSTP derivation, on the uncertified path, which produces one instead of a kernel proof. Not a CSV
       // column: it is many lines of TPTP, and only the single-problem entry point prints it — a batch run
@@ -387,17 +390,13 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
   private def solveRow(f: File, cfg: Config): Timing =
     val name = f.getName
     if !f.exists then { println(f" $name%-19s ${"-- file not found --"}"); return Timing("MISSING") }
-    // Sampled *before* the run: a worker this problem abandons contaminates its successors, not itself. In
-    // fork mode nothing is ever abandoned, since the child is killed, so this stays false throughout.
-    val dirty = BenchUtil.abandonedWorkers > 0
     val (hyps, cj, res0) =
       if BenchUtil.forkEnabled then solveForked(f, cfg)
       else solveLocal(f, cfg, outerTimeout = true)
-    val res = res0.copy(contaminated = dirty, hypotheses = hyps)
-    val mark = if dirty then "!" else " "
+    val res = res0.copy(hypotheses = hyps)
     val h = if hyps < 0 then "?" else hyps.toString
     val detail = if res.detail.isEmpty then "" else s"  (${res.detail})"
-    println(f"$mark$name%-19s $h%4s $cj%3s  ${res.category}%-12s ${res.clausifyMs}%10.1f ${res.searchMs}%9.1f ${res.reconstructMs}%8.1f ${res.checkMs}%9.1f ${res.givenProcessed}%9d$detail")
+    println(f" $name%-19s $h%4s $cj%3s  ${res.category}%-12s ${res.clausifyMs}%10.1f ${res.searchMs}%9.1f ${res.reconstructMs}%8.1f ${res.checkMs}%9.1f ${res.givenProcessed}%9d$detail")
     res
 
   /**
@@ -413,7 +412,12 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
    * parent's `destroyForcibly` is the hard cap and the loop still honours `timeoutMs` cooperatively.
    */
   private def solveChild(file: String, args: Seq[String]): Unit =
-    val (hyps, cj, t) = solveLocal(new File(file), parse(args), outerTimeout = false)
+    // `publish` prints an intermediate row the moment the proof exists, before the kernel check, which has no
+    // deadline of its own. The parent reads the *last* `RESULT` line, so the final row replaces it when the
+    // check finishes; when the check outlasts the budget and the child is killed, the intermediate row is what
+    // survives, and it says the problem was refuted rather than nothing at all.
+    val (hyps, cj, t) = solveLocal(new File(file), parse(args), outerTimeout = false,
+                                   publish = (h, c, p) => println(encodeRow(h, c, p)))
     println(encodeRow(hyps, cj, t))
 
   // Plain `toString`/`toDouble` rather than the `f` interpolator: `%f` formats in the default locale, writing
@@ -466,7 +470,8 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
    * Parse, clausify and solve one problem in this JVM. `outerTimeout` adds the thread-based wall-clock guard,
    * wanted when this *is* the run (`LISA_FORK=0`), redundant in a child whose parent will kill it.
    */
-  private def solveLocal(f: File, cfg0: Config, outerTimeout: Boolean): (Int, String, Timing) =
+  private def solveLocal(f: File, cfg0: Config, outerTimeout: Boolean,
+                         publish: (Int, String, Timing) => Unit = (_, _, _) => ()): (Int, String, Timing) =
     if !f.exists then return (-1, "?", Timing("MISSING"))
     // Catch `Throwable`, not just `NonFatal`: the recursive TPTP parser can `StackOverflowError` on very
     // deeply-nested formulas, which would otherwise kill the whole run.
@@ -493,14 +498,14 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
           (
             hyps,
             cj,
-            try solveOne(cprob, cfg, parsed, f.getName)
+            try solveOne(cprob, cfg, parsed, f.getName, t => publish(hyps, cj, t))
             catch { case e: Throwable => Timing(s"ERROR(${e.getClass.getSimpleName})") }
           )
         else
           (
             hyps,
             cj,
-            withTimeout(cfg.timeoutMs + 5000L)(solveOne(cprob, cfg, parsed, f.getName)) match
+            withTimeout(cfg.timeoutMs + 5000L)(solveOne(cprob, cfg, parsed, f.getName, t => publish(hyps, cj, t))) match
               case Some(Success(t)) => t
               case Some(Failure(e)) => Timing(s"ERROR(${e.getClass.getSimpleName})")
               case None => Timing("HARD_TIMEOUT")
@@ -580,7 +585,8 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
   /**
    * Run the pipeline once, timing each phase and recording the loop-scale stats.
    */
-  private def solveOne(cprob: Problem, cfg: Config, parsed: lisa.tptp.TptpProblem, name: String): Timing =
+  private def solveOne(cprob: Problem, cfg: Config, parsed: lisa.tptp.TptpProblem, name: String,
+                       publish: Timing => Unit = _ => ()): Timing =
     // The uncertified path is a different pipeline, not the certified one with a flag flipped: it builds no
     // kernel proof at all and so has nothing to check. See [[solveUncertified]].
     if !cfg.certified && !cfg.clausifyOnly then return solveUncertified(cprob, cfg, parsed, name)
@@ -633,18 +639,28 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
           if cfg.certified then Prover.preprocessKernel(cprob, cfg.opts)(CertifiedClausifier.certifyClausalGoal(_, prover, cfg.clausifier))
           else UncertifiedClausifier.uncertifyClausal(cprob, p => prover(p, Set.empty))
         val clausifyMs = clausifyMsSoFar
+        // The proof exists and nothing after this point is bounded by `timeoutMs`. Publish what is known now,
+        // under a verdict of its own: `UNCHECKED` is a refutation whose proof was built but never checked, and
+        // must never be counted as a checked one.
+        if cfg.check && !cfg.clausifyOnly then
+          val sNow = stats.get
+          publish(Timing("UNCHECKED", clausifyMs, searchNanos.get / 1e6, reconstructNanos.get / 1e6,
+                         givenProcessed = sNow.givenProcessed, derived = sNow.passiveEnqueued,
+                         peakActive = sNow.peakActive, peakPassive = sNow.peakPassive,
+                         clauses = clauseCount.get, freshSymbols = freshCount.get,
+                         metrics = Some(ProofMetrics.of(proof))))
         val cs = System.nanoTime()
-        val judgement = K.SCProofChecker.checkSCProof(proof)
-        val checkMs = (System.nanoTime() - cs) / 1e6
+        val judgement = if cfg.check then Some(K.SCProofChecker.checkSCProof(proof)) else None
+        val checkMs = if cfg.check then (System.nanoTime() - cs) / 1e6 else 0.0
         val sorry = judgement match
-          case K.SCProofCheckerJudgement.SCValidProof(_, us) => us
+          case Some(K.SCProofCheckerJudgement.SCValidProof(_, us)) => us
           case _ => false
         // In clausify-only mode nothing was proved, so the verdict says so: the proof is the clausification
         // derivation capped by a `Sorry`, and `usesSorry` is true by construction rather than by defect.
         // Anywhere else a `Sorry` makes the proof valid and worthless, so it counts as a bad proof rather than
         // a refutation: validity alone cannot tell a real refutation from a fabricated one.
         val verdict =
-          if !judgement.isValid then "BAD_PROOF"
+          if judgement.exists(!_.isValid) then "BAD_PROOF"
           else if cfg.clausifyOnly then "CLAUSIFIED"
           else if sorry then "BAD_PROOF"
           else "REFUTED"
@@ -652,9 +668,12 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
         // exists but not where, and re-running to find out means reproducing a search that may have taken
         // minutes. So the checker's own message and the step it failed at are carried into the row.
         val detail = judgement match
-          case K.SCProofCheckerJudgement.SCInvalidProof(_, path, message) =>
+          case Some(K.SCProofCheckerJudgement.SCInvalidProof(_, path, message)) =>
             s"step ${path.mkString(".")}: ${message.replace(',', ';').replace('\n', ' ').take(300)}"
-          case _ => if sorry && !cfg.clausifyOnly then "valid only via Sorry" else ""
+          case _ =>
+            if sorry && !cfg.clausifyOnly then "valid only via Sorry"
+            else if !cfg.check then "unchecked"
+            else ""
         Timing(
           verdict,
           clausifyMs, searchNanos.get / 1e6, reconstructNanos.get / 1e6, checkMs,
@@ -749,15 +768,6 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
         s"parse_err=${count(_ == "PARSE_ERR")}  skipped=${count(_ == "SKIPPED")}  " +
         (if count(_ == "CLAUSIFIED") > 0 then s"clausified=${count(_ == "CLAUSIFIED")}  " else "") + s"of $total"
     )
-    // Printed before the numbers, not after: they are the thing being called into question.
-    val warning = BenchUtil.contaminationWarning
-    if warning.nonEmpty then
-      println(warning)
-      println(
-        s"   ${rows.count(_.contaminated)} of $total row${if total == 1 then "" else "s"} ran after that " +
-          "point and are marked `!` above."
-      )
-
     val ran = rows.filter(r => ReachedProver(r.category))
     if ran.nonEmpty then
       val givenTotal = ran.map(_.givenProcessed.toLong).sum // one `Long` sum: an `Int` one overflows on big runs

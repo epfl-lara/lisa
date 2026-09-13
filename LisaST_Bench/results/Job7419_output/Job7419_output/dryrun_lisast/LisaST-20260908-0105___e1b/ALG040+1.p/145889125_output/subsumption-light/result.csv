@@ -1,2 +1,0 @@
-dataset,problem,config,strategy,verdict,hypotheses,clausify_ms,search_ms,reconstruct_ms,check_ms,given,derived,peak_active,peak_passive,clauses,fresh_symbols,proof_steps,raw_size,shared_size,max_sequent,imports,uses_sorry,contaminated,detail
-starexec,theBenchmark.p,e1b,subsumption-light,REFUTED,4,721.893,2779.709,128.796,650.432,981,8780,972,7620,12,2,219,40643,602,388,5,false,false,

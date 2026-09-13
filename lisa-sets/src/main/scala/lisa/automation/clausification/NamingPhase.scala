@@ -218,7 +218,11 @@ private[clausification] object NamingPhase:
     }
 
     require(namedHyps.size == problem.hypotheses.size, "naming must keep the original hypotheses as a prefix: the goal travels as a hypothesis index")
-    val downstream = prover(newProblem, goal)
+    // A definition introduced while naming a goal hypothesis is part of that goal, as it is on the uncertified
+    // path, which attributes every clause to the formula it was clausified from. Hypothesis i's definitions sit
+    // at n + defBase(i) until n + defBase(i + 1) in the downstream problem.
+    val downstreamGoal = goal ++ goal.flatMap(i => (defBase(i) until defBase(i + 1)).map(n + _))
+    val downstream = prover(newProblem, downstreamGoal)
     require(sameImportList(downstream.imports, newProblem.imports ++ libImports), "Downstream imports must match transformed problem imports")
     // Downstream imports: [named_0..named_{n-1}, def_0..def_{Q-1}] ++ lib.
     val recPremises: IndexedSeq[Int] = namedRefs.toIndexedSeq ++ defRefs ++ (0 until L).map(innerLibRef)

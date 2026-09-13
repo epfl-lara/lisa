@@ -1,9 +1,0 @@
-dataset,problem,config,strategy,verdict,hypotheses,clausify_ms,search_ms,reconstruct_ms,check_ms,given,derived,peak_active,peak_passive,clauses,fresh_symbols,proof_steps,raw_size,shared_size,max_sequent,imports,uses_sorry,contaminated,detail
-starexec,theBenchmark.p,e1b,age-fair,REFUTED,922,2854.324,11146.582,107.458,3270.676,4843,190165,3694,182325,728,7,3850,1005532,3136,615,923,false,false,
-starexec,theBenchmark.p,e1b,balanced,TIMEOUT,922,676.753,166323.186,,,41292,6950058,40486,6904706,1022,13,,,,,,,false,
-starexec,theBenchmark.p,e1b,equational,SATURATED,922,1212.627,1041.955,,,680,1310,680,699,653,4,,,,,,,false,
-starexec,theBenchmark.p,e1b,first-negative,SATURATED,922,1070.725,426.922,,,96,109,96,109,109,1,,,,,,,false,
-starexec,theBenchmark.p,e1b,occurrence,TIMEOUT,922,1708.230,166464.910,,,35752,2722327,35532,2595257,667,4,,,,,,,false,
-starexec,theBenchmark.p,e1b,subsumption-light,SATURATED,922,1274.589,1017.699,,,580,1099,580,621,587,2,,,,,,,false,
-starexec,theBenchmark.p,e1b,unary-redundancy,SATURATED,922,1599.652,993.867,,,564,1071,564,619,585,2,,,,,,,false,
-starexec,theBenchmark.p,e1b,weight-greedy,SATURATED,922,1132.245,788.191,,,446,778,446,460,460,2,,,,,,,false,

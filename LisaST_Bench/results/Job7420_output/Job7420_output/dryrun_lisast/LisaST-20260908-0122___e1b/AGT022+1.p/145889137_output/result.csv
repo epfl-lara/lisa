@@ -1,8 +1,0 @@
-dataset,problem,config,strategy,verdict,hypotheses,clausify_ms,search_ms,reconstruct_ms,check_ms,given,derived,peak_active,peak_passive,clauses,fresh_symbols,proof_steps,raw_size,shared_size,max_sequent,imports,uses_sorry,contaminated,detail
-starexec,theBenchmark.p,e1b,balanced,TIMEOUT,555,570.315,168285.631,,,45218,148607,45087,101731,655,13,,,,,,,false,
-starexec,theBenchmark.p,e1b,equational,SATURATED,555,837.618,3659.798,,,916,39671,878,19927,67,0,,,,,,,false,
-starexec,theBenchmark.p,e1b,first-negative,SATURATED,555,766.844,218.640,,,1,1,1,1,1,0,,,,,,,false,
-starexec,theBenchmark.p,e1b,occurrence,SATURATED,555,1319.020,3797.543,,,1088,37336,1087,18614,276,0,,,,,,,false,
-starexec,theBenchmark.p,e1b,subsumption-light,SATURATED,555,865.788,3009.825,,,679,24032,645,7894,59,0,,,,,,,false,
-starexec,theBenchmark.p,e1b,unary-redundancy,SATURATED,555,1312.128,3769.700,,,1080,31277,1005,15877,276,0,,,,,,,false,
-starexec,theBenchmark.p,e1b,weight-greedy,SATURATED,555,744.376,201.277,,,1,1,1,1,1,0,,,,,,,false,

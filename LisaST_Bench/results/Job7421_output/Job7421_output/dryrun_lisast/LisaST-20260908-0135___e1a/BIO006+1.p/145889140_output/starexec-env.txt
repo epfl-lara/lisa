@@ -1,9 +1,0 @@
-HOME=/export/starexec/sandbox
-PWD=/export/starexec/sandbox/solver/bin
-STAREXEC_CPU_LIMIT=1500
-STAREXEC_MAX_MEM=128745
-STAREXEC_MAX_WRITE=600
-STAREXEC_WALLCLOCK_LIMIT=180
-SUDO_COMMAND=/export/starexec/sandbox/solver/bin/runsolver --timestamp --add-eof --cores 0-7 -C 1500 -W 180 -M 163840 -w /export/starexec/sandbox/output/watcher.out -v /export/starexec/sandbox/output/var.out -o /export/starexec/sandbox/output/stdout.txt /export/starexec/sandbox/solver/bin/starexec_run_e1a /export/starexec/sandbox/benchmark/theBenchmark.p /export/starexec/sandbox/output/output_files 
-TMPDIR=/export/starexec/sandbox/tmp
-TPTP=/export/starexec/sandbox/solver/bin

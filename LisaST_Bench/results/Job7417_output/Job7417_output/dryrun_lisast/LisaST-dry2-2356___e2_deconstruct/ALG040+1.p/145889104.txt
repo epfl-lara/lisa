@@ -1,5 +1,0 @@
-0.00/0.01	% LisaST e2/deconstruct: heap 14336m (node has 257490m), budget 175000ms
-0.00/0.10	% LisaST node: Intel(R) Xeon(R) CPU E5-2620 v4 @ 2.10GHz, 8 cores, java openjdk version "21.0.11" 2026-04-21
-0.14/0.16	Error occurred during initialization of VM
-0.14/0.16	Could not allocate compressed class space: 1073741824 bytes
-0.14/0.17	EOF

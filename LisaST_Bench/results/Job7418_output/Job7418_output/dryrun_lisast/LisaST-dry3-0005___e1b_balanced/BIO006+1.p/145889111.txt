@@ -1,5 +1,0 @@
-0.00/0.02	% LisaST e1b/balanced: heap 12288m (node has 257490m), budget 175000ms
-0.00/0.10	% LisaST node: Intel(R) Xeon(R) CPU E5-2620 v4 @ 2.10GHz, 8 cores, java openjdk version "21.0.11" 2026-04-21
-1.22/0.98	wrote 1 rows to /export/starexec/sandbox/output/output_files/result.csv
-1.22/0.98	% SZS status GaveUp for theBenchmark.p
-1.22/1.00	EOF

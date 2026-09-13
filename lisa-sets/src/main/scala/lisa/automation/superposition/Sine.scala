@@ -13,9 +13,17 @@ import scala.collection.mutable
  * @param tolerance a symbol whose generality is within this factor of the least general one in a formula also
  *                  triggers it. `1.0` keeps only the rarest, which is the most aggressive setting.
  * @param depth     rounds of search outward from the goal; `0` is the full closure.
- * @param minAxioms below this many hypotheses, keep everything.
+ * @param minAxioms below this many hypotheses, keep everything. 32 rather than 500, measured: on the CASC 400
+ *                  at 180 s the portfolio solves 207 problems at 32 against 198 at 500 uncertified, and 201
+ *                  against 193 certified (StarExec job 7435). 500 had been silently disabling selection for
+ *                  every problem between the two counts, which is 124 of that set. The gain is not uniform
+ *                  across strategies -- `weight-greedy` and `first-negative`, the two that filter hardest at
+ *                  tolerance 1.5, each solve fewer on their own at 32, because aggressive pruning on a small
+ *                  problem can drop an axiom the proof needed. They stay at the shared floor because what
+ *                  each contributes that no other member covers is still positive, and because no mixed
+ *                  assignment of floors beat uniform 32 on that run.
  */
-final case class SineConfig(tolerance: Double = 3.0, depth: Int = 0, minAxioms: Int = 500)
+final case class SineConfig(tolerance: Double = 3.0, depth: Int = 0, minAxioms: Int = 32)
 
 object Sine:
 

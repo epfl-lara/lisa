@@ -11,16 +11,23 @@ import scala.jdk.StreamConverters._
 import scala.util.Using
 
 /**
- * Builds the benchmark manifests. Run once; the outputs are committed, so reproducing the paper does not
- * require running this — reproducing the *draw* does.
+ * Builds the problem lists that [[ProblemList]] reads, directly into the classpath resources.
  *
  * {{{
  *   sbt "lisa-sets/runMain lisa.automation.superposition.bench.BuildDatasets"
  *   sbt "lisa-sets/runMain lisa.automation.superposition.bench.BuildDatasets seed=7 size=50"
  * }}}
  *
- * It does three things: draws TPTP400 from the library, checks the CASC manifest still resolves, and mirrors
- * both into the classpath resources that [[ProblemList]] reads.
+ * The pool is every problem of the TPTP library whose SPC marks it refutable and first-order. From it this
+ * writes:
+ *
+ *   - `tptp-eligible-fof.txt` and `tptp-eligible-cnf.txt`, the whole pool split by form;
+ *   - `tptp<size>.txt`, a seeded draw of `size` problems from the pool minus the CASC-J13 problems, so that
+ *     the draw and the CASC list are independent halves of a benchmark.
+ *
+ * A list that already exists is left as it is, so the committed lists never change under a rerun and only a
+ * missing one is written; delete a list to rebuild it. The CASC list cannot be rebuilt from the library, being
+ * the competition's own, so it is only checked: every path in it must resolve.
  *
  * @param seed the draw's seed (default 42)
  * @param size how many problems to draw (default 400)
@@ -28,11 +35,9 @@ import scala.util.Using
  */
 object BuildDatasets:
 
-  /** A problem and the header fields the draw and the analysis need. */
+  /** A problem and its Specialist Problem Class. */
   private case class Entry(path: String, spc: String):
-    def form: String = spc.takeWhile(_ != '_') //          FOF or CNF
-    def status: String = spc.split("_").lift(1).getOrElse("") // THM, UNS, CAX
-    def domain: String = path.split("/").lift(1).getOrElse("")
+    def form: String = spc.takeWhile(_ != '_') // FOF or CNF
 
   /** Refutable and first order: all this prover can attempt at all. */
   private val eligibleSpc = "^(FOF_(THM|UNS|CAX)|CNF_UNS)_".r
@@ -47,8 +52,10 @@ object BuildDatasets:
       println("Could not find the repository from the working directory; pass root=<path>.")
       sys.exit(2)
     }
-    val datasets = new File(repo, "LisaST_Bench/datasets")
     val resources = new File(repo, "lisa-sets/src/main/resources/lisa/automation/superposition")
+    if !resources.isDirectory then
+      println(s"no resources directory at $resources")
+      sys.exit(2)
 
     // ── the pool ────────────────────────────────────────────────────────────────────────────────
     val scanned = scan(tptp)
@@ -56,45 +63,35 @@ object BuildDatasets:
     val pool = scanned.filter(e => eligibleSpc.findPrefixOf(e.spc).isDefined)
     println(s"pool: ${describe(pool)} refutable first-order problems")
 
-    // Disjoint from the CASC half, so the two tables are independent samples rather than overlapping ones.
-    val cascFile = new File(datasets, "casc-j13-fof.txt")
+    val cascFile = new File(resources, "casc-j13-fof.txt")
+    if !cascFile.isFile then
+      println(s"no CASC list at $cascFile")
+      sys.exit(2)
     val casc = readLines(cascFile).toSet
-    val eligible = pool.filterNot(e => casc(e.path))
-    println(s"eligible: ${describe(eligible)} after excluding the ${casc.size} CASC problems")
+    // Sorted, so neither the lists nor the draw depend on the order the file system handed the library over.
+    val eligible = pool.sortBy(_.path)
+
+    // ── the whole pool, by form ─────────────────────────────────────────────────────────────────
+    writeIfAbsent(new File(resources, "tptp-eligible-fof.txt"), eligible.filter(_.form == "FOF").map(_.path))
+    writeIfAbsent(new File(resources, "tptp-eligible-cnf.txt"), eligible.filter(_.form == "CNF").map(_.path))
 
     // ── the draw ────────────────────────────────────────────────────────────────────────────────
     //
-    // Sorted first, so the draw does not depend on the order the file system handed the library over, and
-    // then shuffled exactly as [[ProblemList.sample]] shuffles — one notion of "seeded draw" in the project.
-    val ordered = eligible.sortBy(_.path)
-    val drawn = new scala.util.Random(seed).shuffle(ordered).take(size).sortBy(_.path)
-    val manifest = new File(datasets, s"tptp$size.txt")
-    write(manifest, drawn.map(_.path))
-    // A sidecar rather than extra columns in the manifest: `ProblemList` reads one path per line, while the
-    // analysis wants to split results by form (FOF against CNF) and by domain without needing $TPTP.
-    write(
-      new File(datasets, s"tptp$size.csv"),
-      "problem,form,status,spc,domain" +: drawn.map(e => s"${e.path},${e.form},${e.status},${e.spc},${e.domain}")
-    )
-    println(s"wrote $manifest (${describe(drawn)}, seed $seed)")
+    // Shuffled exactly as [[ProblemList.sample]] shuffles, so there is one notion of "seeded draw" in the project.
+    val drawPool = eligible.filterNot(e => casc(e.path))
+    println(s"draw pool: ${describe(drawPool)} after excluding the ${casc.size} CASC problems")
+    val drawn = new scala.util.Random(seed).shuffle(drawPool).take(size).sortBy(_.path)
+    writeIfAbsent(new File(resources, s"tptp$size.txt"), drawn.map(_.path))
 
-    // ── verify the CASC manifest ────────────────────────────────────────────────────────────────
+    // ── verify the CASC list ────────────────────────────────────────────────────────────────────
     //
-    // It cannot be rebuilt from the library, being the competition's own problem list, so it is checked
-    // instead: every path must resolve, or a run silently measures fewer problems than it reports.
+    // Every path must resolve, or a run silently measures fewer problems than it reports.
     val missing = casc.toSeq.sorted.filterNot(p => new File(tptp, p).isFile)
     missing.foreach(p => println(s"  missing: $p"))
     if missing.nonEmpty then
       println(s"${missing.size} CASC problems are not in this TPTP installation")
       sys.exit(1)
-    println(s"verified $cascFile: all ${casc.size} problems present")
-
-    // ── mirror to the classpath ─────────────────────────────────────────────────────────────────
-    //
-    // `ProblemList` loads a manifest as a resource, so a forked child or a jar finds it whatever the working
-    // directory is. The copies under `datasets/` are the ones a reader of the artefact looks at.
-    for f <- Seq(cascFile, manifest) do Files.copy(f.toPath, new File(resources, f.getName).toPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING)
-    println(s"mirrored to $resources")
+    println(s"verified ${cascFile.getName}: all ${casc.size} problems present")
 
   /**
    * Every problem in the library with the Specialist Problem Class from its header: `FOF_THM_RFO_SEQ` is a
@@ -115,7 +112,7 @@ object BuildDatasets:
       spc.map(s => Entry(relative(root.getParent, p), s))
     }
 
-  /** A library-relative path, always with `/`: the manifests are read on every platform. */
+  /** A library-relative path, always with `/`: the lists are read on every platform. */
   private def relative(base: Path, p: Path): String = base.relativize(p).toString.replace('\\', '/')
 
   /** `n (f FOF, c CNF)`, the shape of a set of problems in one phrase. */
@@ -123,15 +120,22 @@ object BuildDatasets:
     val fof = es.count(_.form == "FOF")
     s"${es.size} ($fof FOF, ${es.size - fof} CNF)"
 
-  /** The repository: the nearest enclosing directory holding both `build.sbt` and the artefact. */
+  /** The repository: the nearest enclosing directory holding both `build.sbt` and `lisa-sets`. */
   private def repositoryRoot: Option[File] =
     Iterator
       .iterate(new File(".").getAbsoluteFile.getCanonicalFile)(_.getParentFile)
       .takeWhile(_ != null)
-      .find(d => new File(d, "build.sbt").isFile && new File(d, "LisaST_Bench").isDirectory)
+      .find(d => new File(d, "build.sbt").isFile && new File(d, "lisa-sets").isDirectory)
 
   private def readLines(f: File): Vector[String] =
     Using(Source.fromFile(f))(_.getLines().map(_.trim).filter(_.nonEmpty).toVector).get
 
-  private def write(f: File, lines: Seq[String]): Unit =
-    Using(new PrintWriter(f, "UTF-8"))(w => lines.foreach(w.println)).get
+  /**
+   * Write `lines` to `f` unless it already exists, saying which happened. Each line ends in `\n` rather than the
+   * platform's separator, so a list built on Windows is byte for byte the list built anywhere else.
+   */
+  private def writeIfAbsent(f: File, lines: Seq[String]): Unit =
+    if f.exists then println(s"kept  ${f.getName}: already exists, delete it to rebuild")
+    else
+      Files.writeString(f.toPath, lines.map(_ + "\n").mkString, java.nio.charset.StandardCharsets.UTF_8)
+      println(s"wrote ${f.getName}: ${lines.size} problems")

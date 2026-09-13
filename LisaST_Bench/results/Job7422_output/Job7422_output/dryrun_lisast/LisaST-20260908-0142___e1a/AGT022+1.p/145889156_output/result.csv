@@ -1,9 +1,0 @@
-dataset,problem,config,strategy,verdict,hypotheses,clausify_ms,search_ms,reconstruct_ms,check_ms,given,derived,peak_active,peak_passive,clauses,fresh_symbols,proof_steps,raw_size,shared_size,max_sequent,imports,uses_sorry,contaminated,detail
-starexec,theBenchmark.p,e1a,age-fair,TIMEOUT,555,1228.877,166546.781,,,18354,12231602,14168,12139076,,,,,,,,,false,
-starexec,theBenchmark.p,e1a,balanced,REFUTED,555,280.537,155772.834,,,40224,3048349,33729,2994682,655,,,,,,,,false,
-starexec,theBenchmark.p,e1a,equational,SATURATED,555,565.646,3745.743,,,916,39671,878,19927,,,,,,,,,false,
-starexec,theBenchmark.p,e1a,first-negative,SATURATED,555,546.676,275.164,,,1,1,1,1,,,,,,,,,false,
-starexec,theBenchmark.p,e1a,occurrence,SATURATED,555,986.016,3920.528,,,1088,37336,1087,18614,,,,,,,,,false,
-starexec,theBenchmark.p,e1a,subsumption-light,SATURATED,555,585.469,3074.064,,,679,24032,645,7894,,,,,,,,,false,
-starexec,theBenchmark.p,e1a,unary-redundancy,SATURATED,555,984.631,4051.514,,,1104,34703,1005,19285,,,,,,,,,false,
-starexec,theBenchmark.p,e1a,weight-greedy,SATURATED,555,522.006,297.777,,,1,1,1,1,,,,,,,,,false,

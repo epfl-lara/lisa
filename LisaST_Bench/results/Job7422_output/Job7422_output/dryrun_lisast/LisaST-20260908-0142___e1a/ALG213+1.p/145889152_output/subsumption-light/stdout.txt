@@ -1,2 +1,0 @@
-wrote 1 rows to /export/starexec/sandbox/output/output_files/subsumption-light/result.csv
-% SZS status Timeout for theBenchmark.p

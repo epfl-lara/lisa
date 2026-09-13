@@ -8,9 +8,15 @@
 #
 # `mem` differs by experiment and is not a safety margin — the run scripts size their heaps from it:
 #
-#   e1a, e1b   mem=160 cpu=1500   eight workers in parallel, each pinned to a core and wanting 12 GiB. 128 is
-#                                 the arithmetic minimum, but `runsolver -M` bounds the address space of the
-#                                 whole process tree and a JVM reserves well past its heap, so leave slack.
+#   e1a, e1b   mem=128 cpu=1500   eight workers in parallel, each pinned to a core and wanting 12 GiB. The
+#                                 arithmetic is exact: 128 GiB / 8 = 16 GiB per worker, of which the run script
+#                                 gives 12 GiB to the heap and leaves 4 GiB for everything a JVM reserves
+#                                 outside it. That 4 GiB is where the safety lives, and it is what fixed the
+#                                 "could not allocate compressed class space" death recorded in build.sh.
+#                                 128 is also CASC's own cap on a solver, so the runs sit inside the
+#                                 competition's limit. Jobs 7435, 7437, 7442, 7443 and 7446 used mem=160,
+#                                 which produces identical runs: the per-worker heap cap of 12 GiB binds
+#                                 either way, and the extra 32 GiB of address space was never asked for.
 #                                 The CPU limit must cover eight cores for the wall clock: 8 x 180 s, plus a
 #                                 little. It is a backstop, not the bound; the wall clock is the bound.
 #   everything else  mem=16 cpu=200    single-threaded and pinned to one core, leaving a 12 GiB heap — the

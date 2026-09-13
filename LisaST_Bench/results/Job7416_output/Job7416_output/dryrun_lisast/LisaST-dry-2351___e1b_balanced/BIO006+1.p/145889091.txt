@@ -1,5 +1,0 @@
-0.00/0.02	% LisaST e1b/balanced: heap 122368m (node has 257490m), budget 175000ms
-0.00/0.11	% LisaST node: Intel(R) Xeon(R) CPU E5-2620 v4 @ 2.10GHz, 8 cores, java openjdk version "21.0.11" 2026-04-21
-0.13/0.19	Error occurred during initialization of VM
-0.13/0.19	Could not reserve enough space for 125304832KB object heap
-0.13/0.19	EOF

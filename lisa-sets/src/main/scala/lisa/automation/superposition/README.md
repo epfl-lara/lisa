@@ -422,22 +422,23 @@ named strategies and the command line prover are specific to competition use.
 
 ### 2.11 Benchmarks
 
-[bench/](bench/) holds the measurement harnesses. They are not tests; each has a `main`, and each requires the
-`TPTP` environment variable to point at a problem library.
+[bench/](bench/) holds the measurement harnesses. They are not tests; each has a `main`, and all but `ExperimentReport` require the `TPTP` environment variable to point at a problem library. The problem lists they run on are text files of library-relative paths in `lisa-sets/src/main/resources/lisa/automation/superposition/`, next to the two packaged experiments `portfolio-uncert.conf` and `portfolio-cert.conf`.
 
 | file | subject |
 |---|---|
 | [bench/Harness.scala](bench/Harness.scala) | clausify, refute and kernel-check a dataset; settings are `key=value` arguments |
-| [bench/Evaluation.scala](bench/Evaluation.scala), [bench/FofEvaluation.scala](bench/FofEvaluation.scala), [bench/EqFofEvaluation.scala](bench/EqFofEvaluation.scala) | that harness over the clausal, the equality-free FOF and the equality-bearing FOF datasets |
-| [bench/BaselineBench.scala](bench/BaselineBench.scala) | throughput with no proof built, for comparison with other provers |
-| [bench/StrategyEvaluation.scala](bench/StrategyEvaluation.scala) | the strategies of Section 2.10 against each other |
+| [bench/FofEvaluation.scala](bench/FofEvaluation.scala) | that harness over every refutable first-order FOF problem of the library |
+| [bench/RunExperiment.scala](bench/RunExperiment.scala) | run every configuration of an experiment, a `.conf` file or a packaged one such as `portfolio-cert`, and write one CSV per configuration, a combined CSV, a provenance record and a report |
+| [bench/ExperimentReport.scala](bench/ExperimentReport.scala) | the report over one or more result CSVs: problems solved and time per configuration, coverage, a comparison against a baseline configuration, clausification, checking time and proof validity |
+| [bench/BuildDatasets.scala](bench/BuildDatasets.scala) | build the problem lists from the library into the resources, writing only those that are missing |
+| [bench/ProofMetrics.scala](bench/ProofMetrics.scala) | the size of a reconstructed kernel proof, as the benchmarks report it |
 | [bench/BenchUtil.scala](bench/BenchUtil.scala) | the shared parts, including the problem lists and the seeded sampling |
 
-One point about the results is recorded in `BenchUtil` and repeated here because it invalidates whole runs. A
+One point about the results is recorded here because it invalidates whole runs. A
 problem is solved on its own thread under a time limit, and a thread that does not stop when asked cannot be
 stopped on the Java virtual machine. It continues to consume processor time and memory for the remainder of the
-run, so every problem measured after it is measured on a loaded machine. The harnesses count such threads and
-report the run as contaminated. Running problems on a forked JVM bypass this problem, but has a longr startup time.
+run, so every problem measured after it is measured on a loaded machine. Running one problem per forked JVM
+avoids this entirely, since a child process is killed outright, at the cost of a JVM start per problem.
 
 ### 2.12 Reading order
 

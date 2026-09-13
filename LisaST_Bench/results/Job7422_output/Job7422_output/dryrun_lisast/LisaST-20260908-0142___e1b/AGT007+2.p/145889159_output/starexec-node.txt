@@ -1,9 +1,0 @@
-nproc=8
-affinity=pid 2842846's current affinity list: 0-7
-cores=0 1 2 3 4 5 6 7
-pinning=yes
-cpuset_v2=0-31
-cpu_max_v2=
-mem_max_v2=
-MemTotal=263669900 kB
-ulimit_v=167823360

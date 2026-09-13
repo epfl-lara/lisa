@@ -1,7 +1,6 @@
 package lisa.automation.clausification
 
 import lisa.automation.superposition.TptpCorpus
-import lisa.automation.superposition.bench.EqFofEvaluation
 import lisa.automation.superposition.bench.FofEvaluation
 import lisa.automation.superposition.bench.ProblemList
 import lisa.tptp.AnnotatedFormula
@@ -125,75 +124,6 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
       case K.Lambda(x, b) => K.Lambda(x, go(b))
       case _ => e
     go(e)
-
-  /**
-   * Which problems the check runs on, and where its counts go. Read from the environment so that the same
-   * test serves both `sbt test` and the corpus run the artefact reports:
-   *
-   *   - `CLAUSIFIER_EQUIV_LIST`     a manifest of TPTP-root-relative paths: either a file, or the name of a
-   *                                 packaged list such as `casc-j13-fof.txt`. Unset means the default pair.
-   *   - `CLAUSIFIER_EQUIV_N`        how many problems to draw from it, or `all` (default 20 per list)
-   *   - `CLAUSIFIER_EQUIV_SEED`     the draw's seed (default 42)
-   *   - `CLAUSIFIER_EQUIV_FORMULAS` at most this many formulas per problem, drawn with the same seed (default: all)
-   *   - `CLAUSIFIER_EQUIV_BUDGET_S` stop after this many seconds (default: run to the end of the list)
-   *   - `CLAUSIFIER_EQUIV_OUT`      append the run's counts to this CSV
-   *
-   * The per-problem cap is what puts a large corpus in reach, and it trades depth for breadth deliberately. A
-   * CASC problem carries some 40000 formulas, nearly all of them axioms from files shared across a whole
-   * domain, so checking one exhaustively costs hours and then re-checks those same axioms on the next problem.
-   * Capping spends the time on the 400 distinct conjectures instead.
-   *
-   * Stopping on the budget is not a failure either. The check is a conjunction over formulas, so any subset of
-   * them is a weaker claim of the same kind; the CSV row records how many formulas were checked out of how
-   * many were seen, which is what the paper has to quote rather than "the corpus".
-   */
-  private object Corpus:
-    private def env(key: String): Option[String] = sys.env.get(key).map(_.trim).filter(_.nonEmpty)
-
-    private val listName: Option[String] = env("CLAUSIFIER_EQUIV_LIST")
-    private val n: Int = env("CLAUSIFIER_EQUIV_N").fold(20)(s => if s.equalsIgnoreCase("all") then Int.MaxValue else s.toInt)
-    private val seed: Long = env("CLAUSIFIER_EQUIV_SEED").fold(42L)(_.toLong)
-    private val out: Option[File] = env("CLAUSIFIER_EQUIV_OUT").map(new File(_))
-
-    val budgetMs: Option[Long] = env("CLAUSIFIER_EQUIV_BUDGET_S").map(_.toLong * 1000)
-
-    /**
-     * Largest clause set the clause-set check will compare (default 600).
-     *
-     * Above this the pairing search cannot decide the question: a clause set that big is likely to contain
-     * symmetric clauses, whose canonical strings are ambiguous, and repairing a mispairing among them means
-     * matching every clause at once — quadratic per level, and inconclusive within any budget. Bounding the
-     * input is what lets the check assert equality instead of reporting a caveat. At 600 it decides 46 of 60
-     * TPTP400 problems and skips 9 as too large; the rest are too slow to clausify inside the per-problem budget.
-     */
-    val maxClauses: Int = env("CLAUSIFIER_EQUIV_MAX_CLAUSES").fold(600)(_.toInt)
-
-    /** What was run on, for the report. */
-    val name: String = listName.getOrElse("fof-noeq+fof-eq")
-
-    /** The formulas of one problem to check: all of them, or a seeded draw when a cap is set. */
-    def formulasOf(all: Seq[K.Expression]): Seq[K.Expression] =
-      env("CLAUSIFIER_EQUIV_FORMULAS").map(_.toInt) match
-        case Some(cap) if cap < all.size => new scala.util.Random(seed).shuffle(all).take(cap)
-        case _ => all
-
-    val problems: Vector[String] = listName match
-      case None => FofEvaluation.sample(n, seed) ++ EqFofEvaluation.sample(n, seed)
-      case Some(list) =>
-        // `ProblemList` treats the env var's own value as the override file, so one setting names either a
-        // path on disk or, when it is not a file, a packaged list -- no "is this a path?" test to get wrong.
-        val available = new ProblemList(list, Some("CLAUSIFIER_EQUIV_LIST"))
-        if n >= available.all.size then available.all else available.sample(n, seed)
-
-    /** Append `row` to the CSV, writing `header` first if the file is new. Does nothing when unconfigured. */
-    def record(header: String, row: String): Unit = out.foreach { f =>
-      val fresh = !f.exists() || f.length() == 0
-      val w = new java.io.PrintWriter(new java.io.FileWriter(f, true))
-      try
-        if fresh then w.println(header)
-        w.println(row)
-      finally w.close()
-    }
 
   /**
    * Hypothesis formulas + the negated conjecture, exactly as the clausifier pipeline sees them.
@@ -541,13 +471,11 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
    */
   /**
    * Both paths mark the negated conjecture's clauses as the goal, which is what a strategy's
-   * `nonGoalWeightCoefficient` selects on. This compares how many clauses each marks.
+   * `nonGoalWeightCoefficient` selects on. This compares how many clauses each marks, and they must agree.
    *
-   * They need not agree exactly, and where they differ it is `NamingPhase`: naming the conjecture emits its
-   * definitions as fresh hypotheses appended after the originals, so the certified path does not count them
-   * as goal-derived, whereas the uncertified path attributes each clause to the formula it came from. Marking
-   * fewer clauses only weakens the bias, so what must hold is the direction -- the certified path never
-   * invents a goal clause, and never loses the goal altogether on a problem that has one.
+   * The case to watch is `NamingPhase`: naming inside the conjecture emits definitions as fresh hypotheses
+   * appended after the originals, and they must join the goal, since the uncertified path attributes each
+   * clause, definitions included, to the formula it came from.
    */
   test("certified and uncertified clausifiers mark the same negated conjecture as the goal") {
     val root = TptpCorpus.rootOrCancel("the uncertified/certified goal-clause check")
@@ -601,6 +529,7 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
     info(summary)
     assert(checked > 0, "no problem with a conjecture was checked")
     assert(lost.isEmpty, s"${lost.size} problems lose the goal entirely under certification: ${lost.take(3).mkString(", ")}")
+    assert(fewer.isEmpty, s"${fewer.size} problems mark fewer goal clauses under certification: ${fewer.take(3)}")
     assert(invented.isEmpty, s"${invented.size} problems mark MORE goal clauses under certification, which cannot be right: ${invented.take(3)}")
   }
 
@@ -675,3 +604,133 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
     assert(mismatches.isEmpty, s"${mismatches.size} problems produce a different number of clauses, e.g. ${mismatches.headOption}")
     assert(unpaired.isEmpty, s"${unpaired.size} problems have a clause that does not pair off under a renaming: ${unpaired.take(3).mkString(", ")}")
   }
+
+/**
+ * What the corpus check runs on, and where its counts go.
+ *
+ * Settings are `key=value` arguments. [[ClausifierEquivalence]] is the entry point that sets them; under
+ * `sbt test` none are set and the defaults below give a run short enough for a test suite.
+ *
+ *   - `list`       a manifest of TPTP-root-relative paths: a file, or a packaged list such as
+ *                  `casc-j13-fof.txt`. Unset means the problems of `tptp-eligible-fof.txt` whose formulas
+ *                  sum to at most 1000 nodes.
+ *   - `n`          how many problems to draw from it, or `all` (default 40)
+ *   - `seed`       the draw's seed (default 42)
+ *   - `formulas`   at most this many formulas per problem, drawn with the same seed (default: all)
+ *   - `budget`     stop after this many seconds (default: run to the end of the list)
+ *   - `out`        append the run's counts to this CSV
+ *   - `maxClauses` largest clause set the clause-set check will compare (default 600)
+ *
+ * The per-problem cap is what puts a large corpus in reach, and it trades depth for breadth deliberately. A
+ * CASC problem carries some 40000 formulas, nearly all of them axioms from files shared across a whole
+ * domain, so checking one exhaustively costs hours and then re-checks those same axioms on the next problem.
+ * Capping spends the time on the 400 distinct conjectures instead.
+ *
+ * Stopping on the budget is not a failure either. The check is a conjunction over formulas, so any subset of
+ * them is a weaker claim of the same kind; the CSV row records how many formulas were checked out of how
+ * many were seen, which is what the paper has to quote rather than "the corpus".
+ */
+private[clausification] object Corpus:
+
+  /** Set once, before the suite runs. Empty under `sbt test`. */
+  private var opts: Map[String, String] = Map.empty
+
+  def configure(args: Seq[String]): Unit =
+    opts = args.flatMap(a => a.split("=", 2) match { case Array(k, v) if v.nonEmpty => Some(k -> v.trim); case _ => None }).toMap
+    val known = Set("list", "n", "seed", "formulas", "budget", "out", "maxClauses")
+    opts.keys.filterNot(known).foreach(k => Console.err.println(s"ClausifierEquivalence: unknown setting '$k'"))
+
+  private def opt(key: String): Option[String] = opts.get(key).map(_.trim).filter(_.nonEmpty)
+
+  private def listName: Option[String] = opt("list")
+  private def n: Int = opt("n").fold(40)(s => if s.equalsIgnoreCase("all") then Int.MaxValue else s.toInt)
+  private def seed: Long = opt("seed").fold(42L)(_.toLong)
+  private def out: Option[File] = opt("out").map(new File(_))
+
+  def budgetMs: Option[Long] = opt("budget").map(_.toLong * 1000)
+
+  /**
+   * Largest clause set the clause-set check will compare (default 600).
+   *
+   * Above this the pairing search cannot decide the question: a clause set that big is likely to contain
+   * symmetric clauses, whose canonical strings are ambiguous, and repairing a mispairing among them means
+   * matching every clause at once -- quadratic per level, and inconclusive within any budget. Bounding the
+   * input is what lets the check assert equality instead of reporting a caveat. At 600 it decides 46 of 60
+   * TPTP400 problems and skips 9 as too large; the rest are too slow to clausify inside the per-problem budget.
+   */
+  def maxClauses: Int = opt("maxClauses").fold(600)(_.toInt)
+
+  /** What was run on, for the report. */
+  def name: String = listName.getOrElse("tptp-eligible-fof")
+
+  /** The formulas of one problem to check: all of them, or a seeded draw when a cap is set. */
+  def formulasOf(all: Seq[K.Expression]): Seq[K.Expression] =
+    opt("formulas").map(_.toInt) match
+      case Some(cap) if cap < all.size => new scala.util.Random(seed).shuffle(all).take(cap)
+      case _ => all
+
+  /** Largest problem in the default draw, as the node count summed over all of its formulas. */
+  private val defaultMaxSize = 1000
+
+  /** Computed once, since the three tests share it and the default draw parses what it considers. */
+  lazy val problems: Vector[String] = listName match
+    case None => smallFof(n, seed)
+    case Some(list) =>
+      // `ProblemList` falls back to a packaged list when the name is not a file on disk, so one setting names
+      // either -- no "is this a path?" test to get wrong.
+      val available = new ProblemList(list, None)
+      if n >= available.all.size then available.all else available.sample(n, seed)
+
+  /**
+   * The default draw: the first `n` problems of `tptp-eligible-fof.txt`, in seeded random order, whose formulas
+   * sum to at most [[defaultMaxSize]] nodes. The bound is what keeps the suite short whatever the seed picks.
+   *
+   * Measuring a problem means parsing it, so a problem whose file and included axiom files exceed 256 KB is
+   * passed over unparsed: at a few bytes per node it is far above the bound, and parsing it would cost seconds.
+   * Without the corpus the draw is empty, and the tests cancel on the missing corpus as before.
+   */
+  private def smallFof(n: Int, seed: Long): Vector[String] = TptpCorpus.root match
+    case None => Vector.empty
+    case Some(root) =>
+      val include = """^\s*include\(\s*'([^']+)'""".r
+      def bytes(f: File): Long =
+        val src = scala.io.Source.fromFile(f)(using scala.io.Codec.ISO8859)
+        try f.length + src.getLines().take(400).flatMap(l => include.findFirstMatchIn(l)).map(m => new File(root, m.group(1)).length).sum
+        finally src.close()
+      def small(rel: String): Boolean =
+        val f = new File(root, rel)
+        f.isFile && bytes(f) <= 256 * 1024 && {
+          try
+            val p = problemToKernel(f)(using (strictMapAtom, strictMapTerm, strictMapVariable))
+            val hyps = p.formulas.collect { case a: AnnotatedFormula if axiomLikeRoles.contains(a.role) => K.Sequent(Set.empty, Set(a.formula)) }
+            val conj = p.formulas.collectFirst { case a: AnnotatedFormula if a.role == "conjecture" => K.Sequent(Set.empty, Set(a.formula)) }
+            lisa.automation.Problem(hyps, conj).size <= defaultMaxSize
+          catch case _: Throwable => false // a problem that does not parse is not a small problem
+        }
+      FofEvaluation.sample(Int.MaxValue, seed).iterator.filter(small).take(n).toVector
+
+  /** Append `row` to the CSV, writing `header` first if the file is new. Does nothing when unconfigured. */
+  def record(header: String, row: String): Unit = out.foreach { f =>
+    val fresh = !f.exists() || f.length() == 0
+    val w = new java.io.PrintWriter(new java.io.FileWriter(f, true))
+    try
+      if fresh then w.println(header)
+      w.println(row)
+    finally w.close()
+  }
+
+/**
+ * The corpus run of [[ClausifierEquivalenceTest]], as a program rather than a test.
+ *
+ * {{{
+ *   sbt "lisa-sets/Test/runMain lisa.automation.clausification.ClausifierEquivalence \
+ *        list=casc-j13-fof.txt n=all out=<report.csv>"
+ * }}}
+ *
+ * `sbt test` runs the same three checks with no settings, which is a 20-problem sample. This entry point is
+ * what the paper's figures come from, so its parameters belong in the command that produced them.
+ */
+object ClausifierEquivalence:
+  def main(args: Array[String]): Unit =
+    Corpus.configure(args.toSeq)
+    val status = (new ClausifierEquivalenceTest).execute()

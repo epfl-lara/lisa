@@ -1,4 +1,0 @@
-0.00/0.01	Invalid maximum heap size: -Xmx-512m
-0.00/0.01	Error: Could not create the Java Virtual Machine.
-0.00/0.01	Error: A fatal exception has occurred. Program will exit.
-0.00/0.01	EOF

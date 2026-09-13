@@ -1,2 +1,0 @@
-0.00/0.01	% LisaST e1b/balanced: heap 122368m (node has 257490m), budget 175000ms
-0.00/166.93	EOF

@@ -112,4 +112,32 @@ object Strategy:
   val portfolio: Seq[Strategy] =
     Seq(balanced, weightGreedy, ageFair, occurrence, equational, unaryRedundancy, subsumptionLight, firstNegative)
 
-  def byName(name: String): Option[Strategy] = portfolio.find(_.name == name)
+  /**
+   * The members of [[tuned]] that differ from their counterpart in [[portfolio]] only in `orthologic`. The
+   * name carries the flag, since a strategy is identified by its name in the benchmark harness and in
+   * [[byName]], and the two settings of one strategy are not interchangeable: on CASC-400 they solve the same
+   * number of problems and not the same problems.
+   */
+  val weightGreedyOl = Strategy("weight-greedy-ol", weightGreedy.opts.copy(orthologic = true))
+  val equationalOl = Strategy("equational-ol", equational.opts.copy(orthologic = true))
+  val subsumptionLightOl = Strategy("subsumption-light-ol", subsumptionLight.opts.copy(orthologic = true))
+  val occurrenceNoOl = Strategy("occurrence-no-ol", occurrence.opts.copy(orthologic = false))
+  val unaryRedundancyNoOl = Strategy("unary-redundancy-no-ol", unaryRedundancy.opts.copy(orthologic = false))
+  val firstNegativeNoOl = Strategy("first-negative-no-ol", firstNegative.opts.copy(orthologic = false))
+
+  /**
+   * A portfolio of eight chosen for coverage rather than for individual strength, over the sixteen strategies
+   * obtained by running each of [[portfolio]] with `orthologic` both on and off (experiment E6). It drops
+   * `age-fair` and takes `weight-greedy` twice, at both settings of the flag.
+   *
+   * The eight were selected on the problems they solve on CASC-400, so 212 of 400 is what this set achieves on
+   * the set that chose it, against 207 for [[portfolio]]. It bounds what tuning this one flag is worth there;
+   * it does not predict what it is worth elsewhere, and it is not what the prover ships.
+   */
+  val tuned: Seq[Strategy] =
+    Seq(balanced, weightGreedy, weightGreedyOl, occurrenceNoOl, equationalOl, unaryRedundancyNoOl, subsumptionLightOl, firstNegativeNoOl)
+
+  /** Every strategy this object names, the default portfolio first. Names are unique across the two. */
+  val all: Seq[Strategy] = (portfolio ++ tuned).distinctBy(_.name)
+
+  def byName(name: String): Option[Strategy] = all.find(_.name == name)

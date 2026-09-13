@@ -66,12 +66,20 @@ object Prover:
     Problem(hyps ++ distinctnessAxioms(p.distinctObjects), conj)
 
   /**
-   * `oᵢ ≠ oⱼ` for every pair of `objects`, as the sequent `oᵢ = oⱼ ⊢`. Quadratic in the number of distinct
+   * `oᵢ ≠ oⱼ` for every pair of `objects`, as the sequent `⊢ ¬(oᵢ = oⱼ)`. Quadratic in the number of distinct
    * objects, which is what pairwise distinctness costs; TPTP problems carrying many of them pay for it.
+   *
+   * On the right, not as `oᵢ = oⱼ ⊢`. The two are the same sequent up to one `¬`-right step, but every
+   * clausification phase requires a hypothesis to be `⊢ φ` and rejects a left-hand side outright, so the
+   * left-sided form made any problem with two distinct objects fail before the search began: "hypothesis must
+   * have empty left-hand side; got $d1 === $d2 |-". It went unnoticed because the CASC 400 carry no distinct
+   * objects at all -- they are TPTP's double-quoted strings, which are common in the commonsense-reasoning
+   * and software-verification domains and absent from the competition set. On the TPTP400 draw it cost 11
+   * problems, every one of them before a single inference.
    */
   private def distinctnessAxioms(objects: IndexedSeq[K.Expression]): IndexedSeq[K.Sequent] =
     for i <- objects.indices; j <- (i + 1) until objects.size
-    yield K.Sequent(Set(K.equality(objects(i))(objects(j))), Set.empty)
+    yield K.Sequent(Set.empty, Set(K.neg(K.equality(objects(i))(objects(j)))))
 
   /**
    * The verdict, with no proof of any kind built.
