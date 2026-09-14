@@ -21,17 +21,10 @@ import scala.util.Try
 import Clausification.GeneratedNames
 
 /**
- * Equivalence check between the **uncertified** clausifier ([[lisa.automation.clausification.UncertifiedClausifier]])
- * and the **certified** one ([[CertifiedClausifier]]), on real TPTP input. It establishes two things per input
- * formula: that the two make the *same naming decisions*, the certified named formula being equal to the
- * uncertified one *identically* since both mint their `nm` atoms with the same generator
- * ([[CertifiedClausifier.sameNaming]] is a plain `==`); and that they Skolemize to the same formula up to
- * renaming of the fresh symbols. This is the soundness lever: if the certified (kernel-checked) path names and
- * Skolemizes the same way, its clauses vouch for the uncertified path's.
- *
- * By default it runs a 20 + 20 seeded sample of the equality-free and equality-bearing FOF lists, which keeps
- * `sbt test` short. [[Corpus]] says how the environment scales it up to a whole benchmark corpus without a
- * rebuild, which is how the artefact backs the claim at the size the paper reports it.
+ * Equivalence check between the uncertified clausifier ([[lisa.automation.clausification.UncertifiedClausifier]])
+ * and the certified one ([[CertifiedClausifier]]) on TPTP input: per formula they name identically and Skolemize
+ * alike up to renaming; per problem they produce the same clause set and goal. Runs a small sample by default;
+ * [[Corpus]] configures larger runs.
  *
  * Needs the `TPTP` env var (the directory containing `Problems/`); skipped otherwise.
  */
@@ -139,15 +132,9 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
 
   // ── clause-set equivalence ──────────────────────────────────────────────────────────────────────
   //
-  // The check above compares the two paths formula by formula, which stops short of the clauses: it says
-  // nothing about distribution or about how the matrix is finally split. What the prover actually receives is
-  // the clause set, and E1 compares the two paths on searches driven by it, so that is what has to agree.
+  // The formula-level check stops before distribution and the final split, so the clause sets are compared too.
 
-  /**
-   * The Skolem symbol behind `e`, if it is one. The two paths represent them differently — the certified path
-   * as a schematic [[K.Variable]] named `esk`, the uncertified as a [[K.Constant]] named `sk` — so this is the
-   * one place where the clause sets legitimately differ and the only thing the comparison maps.
-   */
+  /** The Skolem symbol behind `e`, if it is one. Canonical forms number these across the whole clause set. */
   private def skolemId(e: K.Expression): Option[K.Identifier] = e match
     case v: K.Variable if v.id.name == GeneratedNames.skolemFun => Some(v.id)
     case _ => None
@@ -165,22 +152,11 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
     go(e)
 
   /**
-   * One clause as a canonical string, given a naming for Skolem symbols.
-   *
-   * A sequent's sides are `Set`s, so literal order carries no information and cannot be compared directly.
-   * Literals are therefore ordered by their *anonymised* rendering, and only then are variables numbered by
-   * first occurrence in that order — two passes, because numbering variables first would make the numbering
-   * depend on the set's iteration order, which is exactly what is not trustworthy.
+   * One clause as a canonical string, given a naming for Skolem symbols. Literals are sorted by their rendering
+   * with variables anonymised, then variables are numbered by first occurrence, so `Set` order does not matter.
    */
   private def canonicalClause(s: K.Sequent, sk: K.Identifier => String): String =
-    // Clause variables are numbered per clause, by first occurrence. Their absolute numbers are not part of
-    // the clause: a clause is implicitly universally quantified, so `w_196` and `w_88` name the same variable
-    // of the same clause, and the two paths reach a given clause having minted different numbers of variables
-    // before it. What must agree is which positions share a variable, which is what the numbering captures.
-    //
-    // Two passes, because a sequent's sides are `Set`s and literal order carries no information: literals are
-    // ordered by their rendering with variables anonymous (Skolems are already globally numbered by the
-    // caller, which is what makes this order discriminating), and only then are variables numbered.
+    // Variables are numbered per clause: only which positions share a variable is part of the clause.
     val key = (e: K.Expression) => renderLiteral(e, sk, _ => "V")
     val left = s.left.toSeq.sortBy(key)
     val right = s.right.toSeq.sortBy(key)
@@ -194,21 +170,16 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
           case _ => ()
     (left ++ right).foreach(number)
     val vr = (id: K.Identifier) => s"V${nums.getOrElse(id, -1)}"
-    // Sorted *after* numbering, not left in the numbering order. Literals that render alike while anonymous —
-    // three `ssList(V)` in one clause, say — tie in the pass above, and the tie is broken by `Set` iteration
-    // order, differently on each side. The numbering is unaffected (it is driven by the untied literals), so
-    // the two sides produce the same multiset of rendered literals in a different order, and sorting settles it.
+    // Sorted again after numbering: literals that tie while anonymised are left in `Set` order, which differs.
     s"${left.map(renderLiteral(_, sk, vr)).sorted.mkString(",")} |- ${right.map(renderLiteral(_, sk, vr)).sorted.mkString(",")}"
 
-  /**
-   * A clause set as a canonical list of strings: clauses ordered by their Skolem-agnostic form, then Skolem
-   * symbols numbered by first occurrence in that order. Two sets that agree up to a bijection on Skolem
-   * symbols render identically; a set that mints a *different number* of them does not, so the certified
-   * path's fresh-per-occurrence Skolems would show as a mismatch rather than be quietly accepted.
-   */
   /** A canonicalised clause set: each clause's string, the clause itself, and the Skolem numbering used. */
   private final case class Canonical(strings: Seq[String], clauses: Seq[K.Sequent], skolem: Map[K.Identifier, Int])
 
+  /**
+   * A clause set in canonical form: clauses sorted by their Skolem-agnostic string, then Skolem symbols numbered
+   * by first occurrence. Sets equal up to a bijection on Skolem symbols render identically.
+   */
   private def canonicalClauses(cs: Seq[K.Sequent]): Canonical =
     val ordered = cs.sortBy(canonicalClause(_, _ => "SK"))
     val nums = scala.collection.mutable.LinkedHashMap.empty[K.Identifier, Int]
@@ -225,18 +196,6 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
     })
     Canonical(ordered.map(canonicalClause(_, id => s"SK${nums.getOrElse(id, -1)}")), ordered, nums.toMap)
 
-  /**
-   * Whether two clauses are the same clause under a renaming of their variables, with Skolem symbols pinned by
-   * the numbering each set was canonicalised with.
-   *
-   * Searched rather than computed, unlike [[canonicalClause]], which numbers variables by first occurrence in
-   * a fixed literal order and so needs that order to be unambiguous. It is not: two literals with the same
-   * predicate and shape render alike once variables are blanked out — `frontsegP(V)(V)` twice — and the tie
-   * falls to set iteration order, which differs between the two sides. Whichever tied literal is numbered
-   * first decides the numbering, so the same clause can canonicalise two ways. Searching for the bijection
-   * sidesteps the question. Only the clauses left unmatched by the string comparison come here, and they are
-   * few and small, so pairing them off exhaustively costs nothing.
-   */
   /** A bijection between two sets of identifiers, kept in both directions so injectivity is checked. */
   private type Bij = (Map[K.Identifier, K.Identifier], Map[K.Identifier, K.Identifier])
   private val emptyBij: Bij = (Map.empty, Map.empty)
@@ -245,21 +204,15 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
     val (fwd, bwd) = bij
     Option.when(fwd.get(x).forall(_ == y) && bwd.get(y).forall(_ == x))((fwd + (x -> y), bwd + (y -> x)))
 
-  /**
-   * A symbol the clausifier invented, and whether it is shared between clauses.
-   *
-   * Skolem functions and naming atoms are '''global''': a naming atom appears both in the clauses defining it
-   * and in the clause using it, and a Skolem function can be shared likewise, so they must correspond
-   * consistently across the whole clause set. Clause variables are '''local''': a clause is implicitly
-   * universally quantified, so each clause renames independently.
-   */
+  /** An invented symbol shared across clauses (Skolem function or naming atom), renamed consistently. */
   private def globalFresh(e: K.Expression): Option[K.Identifier] = e match
     case v: K.Variable if v.id.name == GeneratedNames.skolemFun || v.id.name == GeneratedNames.namingAtom => Some(v.id)
     case _ => None
 
   /**
-   * Whether `a` and `b` are the same clause under a renaming: local variables by a fresh bijection per clause,
-   * global symbols by `global`, which is threaded across the whole clause set and returned extended.
+   * Every extension of `global` under which `a` and `b` are the same clause, local variables renamed by a fresh
+   * bijection. Searched rather than computed, since literals that tie in [[canonicalClause]]'s order can make one
+   * clause canonicalise two ways.
    */
   private def variantsOf(a: K.Sequent, b: K.Sequent, global: Bij): Iterator[Bij] =
     def matchExpr(x: K.Expression, y: K.Expression, g: Bij, loc: Bij): Option[(Bij, Bij)] =
@@ -273,14 +226,8 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
             case (K.Application(f1, a1), K.Application(f2, a2)) =>
               matchExpr(f1, f2, g, loc).flatMap((g1, l1) => matchExpr(a1, a2, g1, l1))
             case _ => Option.when(x == y)((g, loc))
-    // Each literal of `xs` is tried against every remaining literal of `ys`, extending bijections shared by
-    // both sides of the sequent, so a renaming that suits the left cannot contradict the right.
-    //
-    // Returns *every* matching, not the first. Committing to the first is the obvious way to write this and it
-    // is wrong: the left side is often symmetric — three interchangeable individuals guarded by the same
-    // predicates — so it admits several matchings, and only some of them let the right side match. With an
-    // `Option` here, a clause whose right side is `x=y, x=z, y=z` against `x=y, z=x, z=y` (the same clause,
-    // under `x↦z, y↦x, z↦y`) is reported as having no partner at all.
+    // Both sides of the sequent extend the same bijections. Yields every matching, not the first: a symmetric
+    // left side admits several, and only some of them let the right side match.
     def matchSide(xs: List[K.Expression], ys: List[K.Expression], g: Bij, loc: Bij): Iterator[(Bij, Bij)] =
       xs match
         case Nil => if ys.isEmpty then Iterator((g, loc)) else Iterator.empty
@@ -290,16 +237,14 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
           }
     if a.left.size != b.left.size || a.right.size != b.right.size then Iterator.empty
     else
-      // Every renaming, not the first. `pairOff` chooses partners across the whole set, and each renaming maps
-      // the shared symbols differently; committing to one here would hide the alternatives from that search.
+      // Every renaming, since `pairOff` may need another mapping of the shared symbols.
       matchSide(a.left.toList, b.left.toList, global, emptyBij)
         .flatMap((g, l) => matchSide(a.right.toList, b.right.toList, g, l))
         .map(_._1)
 
   /**
-   * The clauses of `cert` and `uncert` that cannot be paired off, as `(unmatched certified, unmatched
-   * uncertified)`; both empty when the two sets are the same. Clauses whose canonical strings coincide are
-   * matched by string, which settles the bulk of them in one pass; whatever is left is paired by search.
+   * The clauses of `cert` and `uncert` that do not pair off, as `(certified, uncertified)`; both empty when the
+   * sets agree. Clauses are matched by canonical string first, and the rest by search.
    */
   private def unmatchedClauses(cert: Seq[K.Sequent], uncert: Seq[K.Sequent]): (Seq[K.Sequent], Seq[K.Sequent]) =
     val c = canonicalClauses(cert)
@@ -310,20 +255,14 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
       def leftovers(x: Canonical): Seq[K.Sequent] =
         val quota = scala.collection.mutable.HashMap.from(shared)
         x.strings.zip(x.clauses).filterNot { (s, _) => quota.get(s).exists(_ > 0) && { quota(s) -= 1; true } }.map(_._2)
-      // The residue is paired by search rather than by string, threading one bijection on the global symbols
-      // through every pair: matching clause A to clause B fixes which Skolem corresponds to which, and that
-      // constrains every later pair. Backtracks over the choice of partner, since the first partner that fits
-      // in isolation need not be the one that lets the rest fit. `budget` bounds it — this is NP-complete, and
-      // reporting that the search gave up is honest where hanging or claiming agreement would not be.
+      // Backtracking search, threading one bijection on the global symbols through every pair. `budget` bounds
+      // it, since the problem is NP-complete; running out counts as unpaired.
       var budget = 200000
       def pairOff(cs: List[K.Sequent], us: List[K.Sequent], global: Bij): Option[Unit] =
         if cs.isEmpty then Option.when(us.isEmpty)(())
         else if budget <= 0 then None
         else
-          // Take the most constrained clause first, and if it has exactly one possible partner, commit to it
-          // without a choice point. That is what makes this tractable: pairing one clause fixes which Skolems
-          // and naming atoms correspond, which usually forces the next, so the residue collapses in a chain
-          // rather than branching. Only genuinely ambiguous clauses cost a backtrack.
+          // Most constrained clause first: each pairing fixes shared symbols, which usually forces the next.
           val options = cs.map(a => (a, us.filter(b => { budget -= 1; variantsOf(a, b, global).hasNext })))
           val (a, partners) = options.minBy(_._2.size)
           if partners.isEmpty then None
@@ -333,15 +272,9 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
               .nextOption()
       val restC = leftovers(c).toList
       val restU = leftovers(u).toList
-      // A failure here is not a difference between the clause sets, and is reported rather than asserted.
-      // The string pass commits to a pairing, and for a clause with a symmetric twin the string is ambiguous,
-      // so that pairing can be the wrong one — leaving a residue that cannot be matched among itself even
-      // when the full sets correspond exactly. Undoing it means searching over all the clauses at once, which
-      // this algorithm cannot do: the candidate scan alone is quadratic per level, and on a problem with
-      // thousands of clauses it exhausts any budget long before it concludes anything.
-      //
-      // Settling those cases wants a canonical labelling of the shared symbols by colour refinement over the
-      // clause/symbol incidence structure, rather than a greedy pass plus search. That has not been written.
+      // A failure can be a false alarm: the string pass may pair a clause with its symmetric twin, leaving a
+      // residue that does not match although the full sets do. A canonical labelling of the shared symbols
+      // (e.g. by colour refinement) would settle it.
       if pairOff(restC, restU, emptyBij).isDefined then (Nil, Nil) else (restC, restU)
 
   /** The clause set the certified pipeline hands its prover, captured with a `Sorry` back end. */
@@ -355,17 +288,15 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
     val problems = Corpus.problems
     val startedAt = System.currentTimeMillis()
     val deadline = Corpus.budgetMs.map(startedAt + _)
-    var found = 0 // selected problems whose file is actually under `root`
+    var found = 0 // selected problems present under `root`
     var problemsChecked = 0 // ... of those, the ones that parsed
-    var formulasSeen = 0 // formulas the parsed problems contain, before the per-problem cap
+    var formulasSeen = 0 // before the per-problem cap
     var formulasChecked = 0
-    var oversize = 0 // formulas skipped as too big to check in reasonable time
-    var skolemTimeouts = 0 // formulas whose certified ε-Skolemization did not finish in 2s
-    var overBudget = 0 // ... or ran the clausifier out of heap, which is the same fact caught by a different guard
+    var oversize = 0 // formulas skipped as too big
+    var skolemTimeouts = 0 // certified ε-Skolemization over 2s
+    var overBudget = 0 // ... or over the clausifier's heap ceiling
     val skolemFails = scala.collection.mutable.ListBuffer.empty[(String, Option[(K.Expression, K.Expression)])]
-    // Both of these are asserted empty at the end, but collected rather than thrown: a run over a whole corpus
-    // that dies on its first bad formula reports nothing at all -- not the count, not the other problems, not
-    // even how far it got -- which is exactly the information needed to act on the failure.
+    // Collected rather than thrown, so a corpus run reports every failure; asserted empty at the end.
     val namingFails = scala.collection.mutable.ListBuffer.empty[String]
     val errors = scala.collection.mutable.ListBuffer.empty[(String, Throwable)]
     val unparsed = scala.collection.mutable.ListBuffer.empty[(String, Throwable)]
@@ -381,29 +312,25 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
           try Some(problemToKernel(f)(using (strictMapAtom, strictMapTerm, strictMapVariable)))
           catch
             case t: Throwable =>
-              unparsed += ((rel, t)) // named, not just counted: "396 of 400 parsed" invites asking which four
+              unparsed += ((rel, t)) // named in the report, not just counted
               None
         parsedOpt.foreach { parsed =>
           problemsChecked += 1
           val available = inputFormulas(parsed)
           formulasSeen += available.size
-          // The deadline is polled per formula, not only per problem: one CASC problem is some 40000 formulas
-          // and hours of work, so a between-problems poll lets a single problem overrun the budget many times
-          // over -- which it did, before this.
+          // Deadline polled per formula too, since one large problem can take hours.
           val toCheck = Corpus.formulasOf(available).iterator
           while toCheck.hasNext && !deadline.exists(System.currentTimeMillis() >= _) do
             val phi = toCheck.next()
-            if size(phi) > 8000 then oversize += 1 // `findSite` is superlinear, so a giant formula stalls the run
+            if size(phi) > 8000 then oversize += 1 // `findSite` is superlinear
             else
               val t0 = System.nanoTime()
-              // Catch Throwable: over a corpus the clausifier meets formulas that overflow the stack, and one
-              // of those must not take the other 399 problems' results with it.
+              // Catch Throwable: a formula that overflows the stack must not abort the run.
               try
                 // (1) after naming: the certified and uncertified named formulas agree *identically* (same `nm` generator).
                 if !CertifiedClausifier.sameNaming(phi) then namingFails += rel
                 // (2) after Skolem: uncertified (Skolem functions) equals certified (ε-terms, ∀-stripped, ε-abstracted).
-                // Some LCL modal problems build exponentially-large ε-terms (until the certified Skolemization shares
-                // them properly), so run the certified side under a 2s budget and count a timeout as unchecked.
+                // The certified side can blow up on nested-∃ ε-terms, so it runs under a 2s budget.
                 val uncertifiedSk = CertifiedClausifier.uncertifiedNamedNnfSkolem(phi) // linear (Skolem functions), always cheap
                 runWithTimeout(2000) { CertifiedClausifier.stripForall(absEps(CertifiedClausifier.namedNnfSkolemEps(phi))) } match
                   case None => skolemTimeouts += 1; println(f"[timer] TIMEOUT  size=${size(phi)}%6d  $rel")
@@ -411,9 +338,7 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
                     if !isoUpToRenaming(uncertifiedSk, certSk) then skolemFails += ((rel, isoMismatch(uncertifiedSk, certSk)))
                     formulasChecked += 1
               catch
-                // The clausifier's own valve (`Clausification.checkInterrupted`, a heap ceiling) reports the
-                // same fact as the 2s cap: this formula's ε-Skolemization blew up. So it is a skip, like a
-                // timeout, and only counted. Anything else is a bug and has to fail the run.
+                // Hitting the heap ceiling (`Clausification.checkInterrupted`) is a skip; anything else fails.
                 case t @ (_: InterruptedException | _: OutOfMemoryError) =>
                   overBudget += 1
                   println(f"[timer] RESOURCE size=${size(phi)}%6d  $rel: ${t.getMessage}")
@@ -447,8 +372,7 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
     )
 
     assert(found > 0, s"none of the ${problems.size} selected problems exist under $root; is the corpus complete?")
-    // Without this a parser regression would show up only as a quietly smaller check, the divergence assertions
-    // below still passing over whatever survived.
+    // Otherwise a parser regression would just shrink the check.
     assert(problemsChecked * 4 >= found * 3, s"only $problemsChecked of $found problems parsed")
     assert(formulasChecked > 0)
     assert(namingFails.isEmpty, s"${namingFails.size} naming divergences (e.g. ${namingFails.headOption})")
@@ -457,25 +381,8 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
   }
 
   /**
-   * T1: the two clausifiers are the same transformation, compared where it matters — on the clause sets the
-   * prover receives, per problem, up to a bijection on Skolem symbols.
-   *
-   * This is the precondition E1 rests on. The two paths are compared on searches, and a search is driven by
-   * its clause set: if the sets differed, a difference in solved counts would say nothing about the cost of
-   * certification. The formula-level check above is upstream of distribution and of the final clause split,
-   * so it cannot establish this.
-   *
-   * Filtered by clausification '''time''', not by problem size, so that the shapes excluded are the ones that
-   * are genuinely slow rather than the ones that merely look large — a size filter drops exactly the blow-up
-   * cases this is meant to cover. What was skipped is counted and reported.
-   */
-  /**
-   * Both paths mark the negated conjecture's clauses as the goal, which is what a strategy's
-   * `nonGoalWeightCoefficient` selects on. This compares how many clauses each marks, and they must agree.
-   *
-   * The case to watch is `NamingPhase`: naming inside the conjecture emits definitions as fresh hypotheses
-   * appended after the originals, and they must join the goal, since the uncertified path attributes each
-   * clause, definitions included, to the formula it came from.
+   * Both paths mark the same number of clauses as the goal, which `nonGoalWeightCoefficient` selects on. The case
+   * to watch is `NamingPhase`: definitions named inside the conjecture must join the goal.
    */
   test("certified and uncertified clausifiers mark the same negated conjecture as the goal") {
     val root = TptpCorpus.rootOrCancel("the uncertified/certified goal-clause check")
@@ -506,8 +413,7 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
                 problem,
                 (q, g) => { certGoal = g.size; K.SCProof(IndexedSeq(K.Sorry(K.Sequent(Set.empty, Set.empty))), q.imports) }
               )
-              // The uncertified side appends the negated conjecture last, so its clauses are the ones whose
-              // origin is the original hypothesis count -- the same convention `Prover.goalClauses` uses.
+              // The negated conjecture comes last, as in `Prover.goalClauses`.
               val (_, origins) = UncertifiedClausifier.clausalProblemWithOrigins(problem)
               (certGoal, origins.count(_ == hyps.size))
             } match
@@ -533,6 +439,10 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
     assert(invented.isEmpty, s"${invented.size} problems mark MORE goal clauses under certification, which cannot be right: ${invented.take(3)}")
   }
 
+  /**
+   * The clause sets handed to the prover agree per problem, up to renaming of variables and invented symbols.
+   * Problems too slow to clausify or over [[Corpus.maxClauses]] clauses are skipped and counted.
+   */
   test("certified and uncertified clausifiers produce the same clause set for each problem") {
     val root = TptpCorpus.rootOrCancel("the uncertified/certified clause-set check")
     val problems = Corpus.problems
@@ -563,19 +473,12 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
           runWithTimeout(20000) {
             val c = certifiedClauses(problem)
             val u = UncertifiedClausifier.clausalForm(problem).hypotheses
-            // Also whether the two paths emit their clauses in the same order to begin with, compared on the
-            // Skolem-agnostic form so that only the order is in question. If they do, the ambiguity this
-            // comparison works around could instead be removed at the source, by having both keep their
-            // clauses and literals ordered until the clause set is handed over.
+            // Whether the two paths already emit their clauses in the same order, ignoring Skolem names.
             val sameOrder = c.size == u.size && c.map(canonicalClause(_, _ => "SK")) == u.map(canonicalClause(_, _ => "SK"))
             (c.size, u.size, unmatchedClauses(c, u), sameOrder)
           } match
             case None => slow += 1; println(s"[clauses] SLOW $rel")
-            // Too many clauses for the pairing search to decide. Skipped rather than reported as a
-            // difference: on a clause set this size the greedy string pass can mispair a clause with its
-            // symmetric twin, and undoing that means matching every clause at once, which is quadratic per
-            // level and settles nothing within any budget. Bounding the input is what lets the check below be
-            // an assertion of equality rather than a caveat.
+            // Too large for the pairing search to decide (see `Corpus.maxClauses`): skipped, not a difference.
             case Some((nc, nu, _, _)) if nc.max(nu) > Corpus.maxClauses =>
               tooLarge += 1
             case Some((nc, nu, (restC, restU), sameOrder)) =>
@@ -586,8 +489,7 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
                 println(s"[clauses] COUNT DIFFERS $rel  certified=$nc uncertified=$nu")
               else if restC.nonEmpty || restU.nonEmpty then
                 unpaired += rel
-                // Which kind of failure: a clause with no counterpart at all, or counterparts that exist
-                // individually but admit no assignment consistent on the shared symbols.
+                // Clauses with no counterpart at all, as opposed to no consistent assignment of shared symbols.
                 val lonely = restC.count(a => restU.forall(b => !variantsOf(a, b, emptyBij).hasNext))
                 println(s"[clauses] UNPAIRED $rel  ${restC.size} of $nc clauses; $lonely have no counterpart at all")
                 restC.take(2).foreach(c => println(s"[clauses]   only certified:   ${canonicalClause(c, _ => "SK")}"))
@@ -606,10 +508,8 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
   }
 
 /**
- * What the corpus check runs on, and where its counts go.
- *
- * Settings are `key=value` arguments. [[ClausifierEquivalence]] is the entry point that sets them; under
- * `sbt test` none are set and the defaults below give a run short enough for a test suite.
+ * What the corpus check runs on, and where its counts go. Settings are `key=value` arguments passed through
+ * [[ClausifierEquivalence]]; under `sbt test` none are set.
  *
  *   - `list`       a manifest of TPTP-root-relative paths: a file, or a packaged list such as
  *                  `casc-j13-fof.txt`. Unset means the problems of `tptp-eligible-fof.txt` whose formulas
@@ -621,14 +521,7 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
  *   - `out`        append the run's counts to this CSV
  *   - `maxClauses` largest clause set the clause-set check will compare (default 600)
  *
- * The per-problem cap is what puts a large corpus in reach, and it trades depth for breadth deliberately. A
- * CASC problem carries some 40000 formulas, nearly all of them axioms from files shared across a whole
- * domain, so checking one exhaustively costs hours and then re-checks those same axioms on the next problem.
- * Capping spends the time on the 400 distinct conjectures instead.
- *
- * Stopping on the budget is not a failure either. The check is a conjunction over formulas, so any subset of
- * them is a weaker claim of the same kind; the CSV row records how many formulas were checked out of how
- * many were seen, which is what the paper has to quote rather than "the corpus".
+ * Stopping on the budget is not a failure: the CSV records how many of the formulas seen were checked.
  */
 private[clausification] object Corpus:
 
@@ -649,15 +542,7 @@ private[clausification] object Corpus:
 
   def budgetMs: Option[Long] = opt("budget").map(_.toLong * 1000)
 
-  /**
-   * Largest clause set the clause-set check will compare (default 600).
-   *
-   * Above this the pairing search cannot decide the question: a clause set that big is likely to contain
-   * symmetric clauses, whose canonical strings are ambiguous, and repairing a mispairing among them means
-   * matching every clause at once -- quadratic per level, and inconclusive within any budget. Bounding the
-   * input is what lets the check assert equality instead of reporting a caveat. At 600 it decides 46 of 60
-   * TPTP400 problems and skips 9 as too large; the rest are too slow to clausify inside the per-problem budget.
-   */
+  /** Largest clause set the clause-set check compares (default 600); past it pairing is inconclusive. */
   def maxClauses: Int = opt("maxClauses").fold(600)(_.toInt)
 
   /** What was run on, for the report. */
@@ -676,18 +561,13 @@ private[clausification] object Corpus:
   lazy val problems: Vector[String] = listName match
     case None => smallFof(n, seed)
     case Some(list) =>
-      // `ProblemList` falls back to a packaged list when the name is not a file on disk, so one setting names
-      // either -- no "is this a path?" test to get wrong.
+      // `ProblemList` falls back to a packaged list when the name is not a file on disk.
       val available = new ProblemList(list, None)
       if n >= available.all.size then available.all else available.sample(n, seed)
 
   /**
-   * The default draw: the first `n` problems of `tptp-eligible-fof.txt`, in seeded random order, whose formulas
-   * sum to at most [[defaultMaxSize]] nodes. The bound is what keeps the suite short whatever the seed picks.
-   *
-   * Measuring a problem means parsing it, so a problem whose file and included axiom files exceed 256 KB is
-   * passed over unparsed: at a few bytes per node it is far above the bound, and parsing it would cost seconds.
-   * Without the corpus the draw is empty, and the tests cancel on the missing corpus as before.
+   * The default draw: the first `n` problems of `tptp-eligible-fof.txt`, in seeded order, whose formulas sum to
+   * at most [[defaultMaxSize]] nodes. Problems over 256 KB with their includes are skipped without parsing.
    */
   private def smallFof(n: Int, seed: Long): Vector[String] = TptpCorpus.root match
     case None => Vector.empty
@@ -726,9 +606,6 @@ private[clausification] object Corpus:
  *   sbt "lisa-sets/Test/runMain lisa.automation.clausification.ClausifierEquivalence \
  *        list=casc-j13-fof.txt n=all out=<report.csv>"
  * }}}
- *
- * `sbt test` runs the same three checks with no settings, which is a 20-problem sample. This entry point is
- * what the paper's figures come from, so its parameters belong in the command that produced them.
  */
 object ClausifierEquivalence:
   def main(args: Array[String]): Unit =

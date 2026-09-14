@@ -58,7 +58,7 @@ final class ProblemList(val listFileName: String, envVar: Option[String] = None)
     new scala.util.Random(seed).shuffle(all).take(n)
 
 /**
- * What every harness needs and none should own a copy of: the TPTP-root lookup, the interruptible worker with
+ * What every harness needs and none should own a copy of: the TPTP-root lookup, the interruptible worker and
  * running one problem in its own JVM.
  */
 object BenchUtil:
@@ -84,7 +84,7 @@ object BenchUtil:
   /**
    * Run `body` on a daemon thread; return its outcome, or `None` if it doesn't finish within `ms`. On a
    *  timeout the worker is interrupted and given [[interruptGraceMs]] to unwind; one still alive after that
-   *  cannot be stopped at all. That is why the cluster runs one problem per forked JVM instead.
+   *  cannot be stopped at all, hence one forked JVM per problem.
    */
   def withTimeout[T](ms: Long)(body: => T): Option[Try[T]] =
     val box = new AtomicReference[Option[Try[T]]](None)
@@ -118,8 +118,7 @@ object BenchUtil:
      * The single `RESULT\t…` line a child prints, if it got that far. Absent means it died first, killed on
      * timeout, or a fatal error no `catch` inside the child could report.
      */
-    // The last one, not the first: a child may publish an intermediate row before a phase that has no
-    // deadline (reconstruction, then checking), so that a kill leaves the work already done on record.
+    // The last one: a child may print a partial row before phases without a deadline, in case it is killed.
     def resultLine: Option[String] = stdout.filter(_.startsWith(ResultPrefix)).lastOption
 
     /**

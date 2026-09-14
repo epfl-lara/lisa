@@ -29,16 +29,9 @@ object CertifiedClausifier:
     certifyClausalGoal(problem, (p, _) => prover(p), options)
 
   /**
-   * [[certifyClausal]], but telling the prover which clauses came from the negated conjecture.
-   *
-   * A superposition prover selects its next given clause partly by how goal-related the clause is, and every
-   * strategy tunes that with `nonGoalWeightCoefficient`. Without this the certified path ran with an empty
-   * goal set, so those knobs did nothing and it searched differently from the uncertified path — which passes
-   * the same information through `UncertifiedClausifier.clausalProblemWithOrigins`. That is not a cost of
-   * certification but a difference in configuration, and it made the two incomparable.
-   *
-   * The set indexes `problem.hypotheses` of the clausal problem handed to `prover`, and is empty when there is
-   * no conjecture. See [[Clausification.ClausificationProver]] for how it travels down the pipeline.
+   * [[certifyClausal]], but also telling the prover which clauses came from the negated conjecture, as the
+   * uncertified path does. The set indexes the clausal problem's hypotheses and is empty without a conjecture;
+   * see [[Clausification.ClausificationProver]].
    */
   def certifyClausalGoal(problem: Problem, prover: (Problem, Set[Int]) => SCProof, options: ClausifierOptions = ClausifierOptions()): SCProof =
     given ClausifierOptions = options

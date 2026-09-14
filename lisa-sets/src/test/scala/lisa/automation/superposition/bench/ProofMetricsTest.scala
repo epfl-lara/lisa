@@ -5,14 +5,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import lisa.utils.K.*
 
-/**
- * Tests for [[ProofMetrics]], the proof size numbers the benchmarks report.
- *
- * The two size metrics are the point: `rawSize` counts every occurrence of every subformula, `sharedSize`
- * counts each distinct subexpression once, and the gap between them says how much the proof relies on the
- * kernel's hash-consing. The tests below pin the relation between them, the two ends of it, and that both
- * descend into subproofs the way `totalLength` does.
- */
+/** Tests for [[ProofMetrics]]: how the two sizes relate, and that both descend into subproofs. */
 class ProofMetricsTest extends AnyFunSuite:
 
   private val a = Variable(Identifier("a"), Prop)
@@ -24,7 +17,7 @@ class ProofMetricsTest extends AnyFunSuite:
   private val px: Expression = p(x)
 
   test("a one step proof: sizes are the node counts of its conclusion") {
-    // Hypothesis(a ⊢ a): both sides hold the same object, so raw counts it twice and shared once.
+    // Both sides hold the same object.
     val proof = SCProof(IndexedSeq(Hypothesis(a |- a, a)), IndexedSeq.empty)
     val m = ProofMetrics.of(proof)
     assert(m.steps == 1)
@@ -35,7 +28,6 @@ class ProofMetricsTest extends AnyFunSuite:
   }
 
   test("shared never exceeds raw, and they agree when nothing repeats") {
-    // `a ⊢ b`: two distinct atoms, no sharing anywhere, so the two counts coincide.
     val proof = SCProof(IndexedSeq(Weakening(a |- b, -1)), IndexedSeq(a |- b))
     val m = ProofMetrics.of(proof)
     assert(m.rawSize == m.sharedSize, s"no repetition, so the counts should agree: $m")
@@ -43,7 +35,7 @@ class ProofMetricsTest extends AnyFunSuite:
   }
 
   test("a repeated compound subformula is counted once by shared and twice by raw") {
-    // `p(x)` is hash-consed, so the two occurrences are one object.
+    // Hash-consing makes both occurrences one object.
     val both = SCProof(IndexedSeq(Hypothesis(px |- px, px)), IndexedSeq.empty)
     val m = ProofMetrics.of(both)
     assert(m.rawSize == 6, "three nodes on each side")
@@ -63,7 +55,7 @@ class ProofMetricsTest extends AnyFunSuite:
     val flat = ProofMetrics.of(inner)
     val nested = ProofMetrics.of(outer)
     assert(nested.steps == flat.steps + 1, "a subproof counts as its body plus one, as `totalLength` does")
-    // The subproof's own bot repeats the inner conclusion, so raw doubles while shared does not move.
+    // The subproof's conclusion repeats the inner one.
     assert(nested.rawSize == flat.rawSize * 2)
     assert(nested.sharedSize == flat.sharedSize, "the repeat is the same object, so shared is unchanged")
   }

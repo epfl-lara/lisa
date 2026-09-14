@@ -70,9 +70,7 @@ object CascProver:
         Console.err.println(s"parse error: $e")
       case Success(parsed) =>
         // Input formulas as AnnotatedFormula (a cnf clause becomes its disjunction), keeping names/roles.
-        // `clausalProblemWithOrigins`' origins index into `axiomLike ++ [conjecture]`, in that order. Built by
-        // `Tstp.inputFormulas`, which the benchmark harness's uncertified path shares, so the two print the
-        // same derivation for the same problem.
+        // `clausalProblemWithOrigins`' origins index into `axiomLike ++ [conjecture]`, in that order.
         val cprob = Prover.fromTptp(parsed)
         val (inputFormulas, conjecture) = Tstp.inputFormulas(parsed, cprob)
         // SInE and orthologic normalisation are preprocessing phases inside [[Prover]] now. A refutation

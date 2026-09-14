@@ -69,13 +69,7 @@ object Prover:
    * `oᵢ ≠ oⱼ` for every pair of `objects`, as the sequent `⊢ ¬(oᵢ = oⱼ)`. Quadratic in the number of distinct
    * objects, which is what pairwise distinctness costs; TPTP problems carrying many of them pay for it.
    *
-   * On the right, not as `oᵢ = oⱼ ⊢`. The two are the same sequent up to one `¬`-right step, but every
-   * clausification phase requires a hypothesis to be `⊢ φ` and rejects a left-hand side outright, so the
-   * left-sided form made any problem with two distinct objects fail before the search began: "hypothesis must
-   * have empty left-hand side; got $d1 === $d2 |-". It went unnoticed because the CASC 400 carry no distinct
-   * objects at all -- they are TPTP's double-quoted strings, which are common in the commonsense-reasoning
-   * and software-verification domains and absent from the competition set. On the TPTP400 draw it cost 11
-   * problems, every one of them before a single inference.
+   * On the right, not as `oᵢ = oⱼ ⊢`: clausification requires every hypothesis to have an empty left-hand side.
    */
   private def distinctnessAxioms(objects: IndexedSeq[K.Expression]): IndexedSeq[K.Sequent] =
     for i <- objects.indices; j <- (i + 1) until objects.size
@@ -100,8 +94,7 @@ object Prover:
     // be returned from there; it is thrown and caught here, which is the whole extent of the exception.
     try
       Right(preprocessKernel(problem, opts) { p =>
-        // `certifyClausalGoal`, not `certifyClausal`: the goal clauses steer clause selection exactly as they
-        // do in `proveTstp`, so the two entry points search alike and differ only in what they hand back.
+        // The goal clauses steer clause selection, so this searches as `proveTstp` does.
         CertifiedClausifier.certifyClausalGoal(
           p,
           (clausal, goal) =>
@@ -114,13 +107,7 @@ object Prover:
 
   /**
    * SInE selection and orthologic normalisation around a kernel-proof-producing step, each justified in the
-   * proof it returns: SInE by widening the import list back to the caller's hypotheses, orthologic by one
-   * `Restate` per hypothesis.
-   *
-   * Public because [[proveKernel]] is not the only caller that needs it. The benchmark harness runs the same
-   * pipeline with a timer between each phase, so it calls [[lisa.automation.clausification.CertifiedClausifier]]
-   * itself rather than through `proveKernel` — and before this existed it therefore skipped preprocessing
-   * altogether, silently ignoring the `sine` and `orthologic` settings of every strategy it was given.
+   * returned proof. Public for the benchmark harness, which times the phases separately.
    */
   def preprocessKernel(p: Problem, opts: SearchOptions)(next: Problem => K.SCProof): K.SCProof =
     sineKernel(p, opts)(p1 => olKernel(p1, opts)(next))
@@ -128,9 +115,7 @@ object Prover:
   /**
    * A refutation in the form the TSTP printer needs, or the verdict that stopped it.
    *
-   * `onClausified` runs once, between preprocessing-and-clausification and the search. Nothing here needs it;
-   * it is what lets a caller that is measuring the two phases separate them without reproducing this method,
-   * which is otherwise the only way to get a timer between the two calls below.
+   * `onClausified` runs once, between clausification and the search, so a caller can time the two apart.
    */
   def proveTstp(
       problem: Problem,

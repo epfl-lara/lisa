@@ -7,26 +7,20 @@ import scala.io.Source
 import scala.util.Using
 
 /**
- * A readable summary of one or more result CSVs as [[RunExperiment]] writes them: printed, and also written as
- * Markdown when an output file is given. [[RunExperiment]] runs it on its combined CSV when it finishes.
+ * A summary of result CSVs written by [[RunExperiment]], printed and optionally written as Markdown.
  *
  * {{{
  *   sbt "lisa-sets/runMain lisa.automation.superposition.bench.ExperimentReport <results.csv>… [key=value]…"
  * }}}
  *
- * Several files are merged, which is how two runs on the same dataset are compared, an uncertified and a
- * certified portfolio say. Files from different datasets must not be merged, since the same configuration names
- * cover different problems in each.
- *
- * Options:
+ * Several files are merged to compare runs on one dataset; do not merge files from different datasets.
  *
  *   - `out=<file.md>`             also write the report there
- *   - `budget=<ms>`               what an unsolved problem is charged in the total time, default 180000
- *   - `baseline=<configuration>`  add a table comparing every other configuration against that one
- *   - `minHypotheses=<n>`         repeat that comparison on the problems with at least `n` hypotheses
+ *   - `budget=<ms>`               time charged for an unsolved problem, default 180000
+ *   - `baseline=<configuration>`  compare every other configuration against this one
+ *   - `minHypotheses=<n>`         repeat that comparison on problems with at least `n` hypotheses
  *
- * Columns are read by name, so their order does not matter and columns the report does not use are ignored.
- * Nothing is inferred from a configuration's name: what to compare is what the options say.
+ * Columns are read by name.
  */
 object ExperimentReport:
 
@@ -55,9 +49,7 @@ object ExperimentReport:
     say(s"${rows.size} rows, ${problems.size} problems, configurations: ${configs.mkString(", ")}\n")
 
     // ── strategies ──────────────────────────────────────────────────────────────────────────────────────────
-    //
-    // Only where several strategies ran under one configuration. A single-strategy configuration would show one
-    // row equal to itself, which says nothing. The last row is the union: the problems any strategy solved.
+    // Only for configurations with several strategies. The last row is the union over strategies.
     val multiStrategy = configs.filter(c => rows.filter(_.config == c).map(_.strategy).distinct.size > 1)
     if multiStrategy.nonEmpty then
       say("## Strategies\n")
@@ -72,9 +64,7 @@ object ExperimentReport:
         byStrategy.headOption.foreach((s, n) => say(s"\nAny strategy solves $any; the best single one, $s, solves $n.\n"))
 
     // ── solved, and where the time went ─────────────────────────────────────────────────────────────────────
-    //
-    // An unsolved problem is charged the budget. Counting only the time spent on solved problems would reward a
-    // configuration for solving fewer.
+    // An unsolved problem is charged the budget, so solving fewer is not rewarded.
     say("## Solved and time\n")
     say(s"Total time is over every problem, charging an unsolved one the ${budget / 1000} s budget. Phase columns are summed over the configuration's own refutations.\n")
     say("| configuration | solved | unchecked | total time (s) | clausify | search | reconstruct | check |")
@@ -93,9 +83,7 @@ object ExperimentReport:
     say("\n`unchecked` counts problems whose proof was built but whose kernel check did not finish within the budget.\n")
 
     // ── coverage ────────────────────────────────────────────────────────────────────────────────────────────
-    //
-    // Against the problems in the file, not the ones a configuration happens to have rows for. Deriving the
-    // expectation from what arrived makes every configuration complete by construction.
+    // Expected rows come from every problem in the file, not from the rows a configuration has.
     val verdicts = rows.groupBy(_.s("verdict")).view.mapValues(_.size).toMap
     say("## Coverage\n")
     say("| configuration | rows | expected | |")
@@ -114,10 +102,7 @@ object ExperimentReport:
     say("")
 
     // ── near the budget ─────────────────────────────────────────────────────────────────────────────────────
-    //
-    // Under a wall clock the work done before the deadline varies between runs, so a problem solved in the last
-    // tenth of its budget may not be solved next time. The count says whether a difference of a problem or two is
-    // a result or noise.
+    // Such a problem may not be solved on a rerun, so this count tells noise from a real difference.
     say("Solved inside the last tenth of the budget, and so able to move between runs:\n")
     say("| configuration | solved | near the budget |")
     say("|---|---:|---:|")
@@ -145,8 +130,7 @@ object ExperimentReport:
           say(f"| $c | $n | $delta | $attempted | $shared | $ratio |")
         say("\n`attempted` is how many rows arrived: a configuration with fewer lost problems to killed workers, so part of its change is missing attempts rather than failures.\n")
 
-        // Restricted to where the mechanism can act at all, for instance the problems with enough hypotheses for
-        // SInE to filter anything. Below that the two configurations are the same run and only dilute the result.
+        // Only the problems where the compared mechanism can act, e.g. enough hypotheses for SInE to filter.
         for min <- opts.get("minHypotheses").flatMap(_.toIntOption) do
           val big = rows.filter(_.i("hypotheses").exists(_ >= min)).map(_.problem).toSet
           say(s"Restricted to the ${big.size} problems with at least $min hypotheses:\n")
@@ -158,10 +142,7 @@ object ExperimentReport:
           say("")
 
     // ── clausification-only runs ────────────────────────────────────────────────────────────────────────────
-    //
-    // A `clausifyOnly` run does no search, so the tables above are empty for it. What it has is proof sizes and
-    // clausification times, compared over the problems every such configuration got through. Sharing, raw size
-    // over shared size, is how much the proof reuses its own subformulas.
+    // No search, so only proof sizes and times, over the problems every such configuration clausified.
     val clausifyOnly = configs.filter(c => rows.exists(r => r.config == c && r.s("verdict") == "CLAUSIFIED"))
     if clausifyOnly.nonEmpty then
       val done = clausifyOnly.map(c => c -> rows.filter(r => r.config == c && r.s("verdict") == "CLAUSIFIED").map(r => r.problem -> r).toMap).toMap
@@ -183,9 +164,7 @@ object ExperimentReport:
       say("")
 
     // ── how checking time grows with proof size ─────────────────────────────────────────────────────────────
-    //
-    // The slope of log(check time) against log(size): near 1 is a constant cost per unit of proof, above 1 means
-    // checking degrades as proofs grow.
+    // Slope of log(check time) on log(size): above 1, checking degrades as proofs grow.
     val checked = rows.filter(r => r.solved && r.d("check_ms").exists(_ > 0))
     if checked.nonEmpty then
       say("## Checking time against proof size\n")
@@ -235,11 +214,7 @@ object ExperimentReport:
     def strategy: String = s("strategy")
     def solved: Boolean = s("verdict") == "REFUTED"
 
-    /**
-     * The problem's base name, `AGT007+2.p` rather than `Problems/AGT/AGT007+2.p`. A local run records the
-     * manifest's path and a cluster run only the file name; compared as written, one of each would count the
-     * same problems twice.
-     */
+    /** The problem's file name without its directory, since some runs record a full path and others do not. */
     def problem: String =
       val p = s("problem")
       p.substring(math.max(p.lastIndexOf('/'), p.lastIndexOf('\\')) + 1)
@@ -249,16 +224,13 @@ object ExperimentReport:
       for c <- d("clausify_ms"); s <- d("search_ms")
       yield c + s + d("reconstruct_ms").getOrElse(0.0) + d("check_ms").getOrElse(0.0)
 
-  /**
-   * What each problem this configuration solved cost it. With several strategies a problem is solved when the
-   * first of them finishes, so the minimum is what counts.
-   */
+  /** The time of each problem `config` solved: the fastest of its strategies, as the first to finish wins. */
   private def solvedTimes(rows: Vector[Row], config: String): Map[String, Double] =
     rows.filter(r => r.config == config && r.solved)
       .groupBy(_.problem)
       .flatMap { (p, v) => val ts = v.flatMap(_.totalMs); if ts.isEmpty then None else Some(p -> ts.min) }
 
-  /** The problems both configurations solved, and what each spent on exactly those. */
+  /** The problems both configurations solved, and what each spent on them. */
   private def bothSolved(rows: Vector[Row], a: String, b: String): (Int, Double, Double) =
     val ta = solvedTimes(rows, a)
     val tb = solvedTimes(rows, b)
@@ -276,7 +248,7 @@ object ExperimentReport:
         lines.tail.filter(_.trim.nonEmpty).map(l => header.zip(splitCsv(l)).toMap)
     }
 
-  /** One CSV line, honouring quotes: the `detail` column carries messages that can contain commas and quotes. */
+  /** One CSV line, honouring quotes, which the `detail` column needs. */
   private def splitCsv(line: String): Vector[String] =
     val out = Vector.newBuilder[String]
     val cur = new StringBuilder

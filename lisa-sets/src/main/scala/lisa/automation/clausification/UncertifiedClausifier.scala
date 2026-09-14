@@ -40,18 +40,9 @@ object UncertifiedClausifier:
     skolemize(nnf, univs.map((o, r) => (o, r: Expression)).toMap, univs.map((o, r) => (o, Set(r))).toMap, univs, counter)
 
   /**
-   * The formula's top-level universals paired with the fresh clause variable each becomes: its free individual
-   * variables, minus the frozen ones, which are symbols rather than variables and so never clause variables
-   * nor arguments of a Skolem term.
-   *
-   * '''Sorted''', because `freeVariables` is a `Set` whose iteration order is a hash order. These become the
-   * leading arguments of every Skolem function the formula produces, so an unordered prefix makes the Skolem
-   * terms depend on hashing: one run gives `sk(A)(B)` and another `sk(B)(A)`, which the prover sees as
-   * different terms.
-   *
-   * '''α-renamed''' to `w` clause variables, like every binder [[skolemize]] strips. Leaving them as the
-   * input's own names was harmless in isolation but made this path's clauses differ from the certified one's,
-   * which renames throughout, on nothing more than the choice of name.
+   * The formula's free individual variables except the frozen ones, each paired with a fresh `w` clause variable,
+   * as [[skolemize]] renames every binder. Sorted by name, since they lead every Skolem term's arguments and
+   * `freeVariables` iterates in hash order.
    */
   private def topUniversals(nnf: Expression, frozen: Set[Variable], counter: Counter): List[(Variable, Variable)] =
     nnf.freeVariables.toList
@@ -67,20 +58,15 @@ object UncertifiedClausifier:
 
   /**
    * @param counter    numbers the naming atoms `nm`
-   * @param skoCounter numbers the Skolem symbols `sk`
-   *
-   * Two counters, not one. Sharing a counter between the two makes each `nm` number depend on how many Skolem
-   * symbols happen to have been minted before it, so the naming atoms of this path and of the certified one
-   * (which has always counted them separately) diverge on any problem containing an existential — `nm_87` here
-   * against `nm_5` there — for no difference in the naming decisions themselves.
+   * @param skoCounter numbers the Skolem symbols `sk` and clause variables `w`, separately so that `nm` numbers
+   *                   match the certified path's
    */
   def clausify(phi: Expression, threshold: Int, frozen: Set[Variable], counter: Counter, skoCounter: Counter): List[Sequent] =
     val defs = scala.collection.mutable.ListBuffer.empty[Expression]
     val (named, _) = name(phi, 1, threshold, frozen, defs, counter)
     (named :: defs.toList).flatMap { g =>
       val nnf = NnfPhase.toNNF(g, negated = false)
-      // The top-level universals are α-renamed here, exactly as `skolemize` renames each binder it strips, so
-      // they enter as a substitution rather than as the identity mapping they used to be.
+      // The top-level universals enter as a renaming substitution, like the binders `skolemize` strips.
       val univs = topUniversals(nnf, frozen, skoCounter)
       val subst = univs.map((o, r) => (o, r: Expression)).toMap
       val imageFree = univs.map((o, r) => (o, Set(r))).toMap
@@ -118,11 +104,8 @@ object UncertifiedClausifier:
     (Problem(clauses, None, negated(problem)._2 ++ skolemVariables(clauses)), withOrigins.map(_._2))
 
   /**
-   * The Skolem symbols in `clauses`, which the prover must treat as rigid.
-   *
-   * Read back off the clauses rather than threaded out of [[skolemize]]: they are minted deep inside a
-   * recursion whose result is a formula, and a Skolem that reached a clause without reaching this set would be
-   * ∀-closed by the prover — sound-looking and wrong. Scanning cannot miss one.
+   * The Skolem symbols in `clauses`, which the prover must treat as rigid. Read off the clauses so that none
+   * can be missed and wrongly ∀-closed.
    */
   private def skolemVariables(clauses: Seq[Sequent]): Set[Variable] =
     clauses.iterator
@@ -137,8 +120,7 @@ object UncertifiedClausifier:
    */
   def clausalFormWithOrigins(problem: Problem, threshold: Int = DefaultThreshold, orthologic: Boolean = false): IndexedSeq[(Sequent, Int)] =
     val (hyps0, frozen) = negated(problem)
-    // Both start past every input name, so neither can collide; they advance independently thereafter, as the
-    // certified pipeline's naming and Skolem counters do.
+    // Both start past every input name, and advance independently as in the certified pipeline.
     val start = freshCounterStart(hyps0)
     val counter = Counter(start)
     val skoCounter = Counter(start)
@@ -150,9 +132,8 @@ object UncertifiedClausifier:
     }
 
   /**
-   * Where each fresh-name counter must start so that nothing this path mints collides with an input name.
-   * Naming atoms (`nm`) run on one counter and the Skolemization's own fresh names (`sk` functions and `w`
-   * clause variables) on another; both start here, so both clear every input name.
+   * Where the fresh-name counters (`nm`, and `sk`/`w`) must start so that nothing this path mints collides with
+   * an input name.
    */
   private def freshCounterStart(hypotheses: Seq[Sequent]): Int =
     val prefixes = Set(GeneratedNames.clauseVar, GeneratedNames.skolemFun, GeneratedNames.namingAtom)
@@ -243,13 +224,8 @@ object UncertifiedClausifier:
         val bodyFree = f.freeVariables.flatMap(y => imageFree.getOrElse(y, Set(y)))
         val mentioned = univs.collect { case (_, v) if bodyFree.contains(v) => v }
         val skSort = mentioned.foldRight(x.sort)((u, acc) => u.sort -> acc)
-        // A schematic **Variable**, as [[SkolemPhase]] mints, not a `Constant`: the two paths must produce the
-        // same clauses, and this was the last place where they differed in representation rather than in
-        // names. Safe for the reason the certified path relies on -- every one of these is put in the
-        // problem's `frozen` set by [[skolemVariables]], and `Clausal.prepare` makes `frozen` rigid, so a
-        // nullary Skolem (`Ind`-sorted, and so otherwise indistinguishable from a clause variable) is never
-        // universally quantified. Without that freezing this would be unsound, which is why it used to be a
-        // `Constant`.
+        // A schematic Variable, as [[SkolemPhase]] mints. Sound only because [[skolemVariables]] freezes it, so
+        // a nullary Skolem is not taken for a clause variable.
         val skTerm = mentioned.foldLeft(Variable(Identifier(GeneratedNames.skolemFun, counter.next()), skSort): Expression)((acc, u) => acc(u))
         skolemize(g, subst + (x -> skTerm), imageFree + (x -> mentioned.toSet), univs, counter)
       case lit => if subst.isEmpty then lit else substituteVariablesOpti(lit, subst)

@@ -43,8 +43,7 @@ class AdversarialInputTest extends AnyFunSuite:
    * library statements too. `certifyClausal`'s wrapper appends them, so a test calling a phase directly
    * has to do it itself or trip the phase's own import check.
    */
-  // `goal` is ignored: these tests exercise a phase's proof shape, not clause selection, and a stub prover
-  // searches nothing to direct.
+  // `goal` is ignored: a stub prover does no search.
   private def sorryPhaseProver(p: Problem, goal: Set[Int]): ClausificationProof =
     val sc = sorryProver(p)
     ClausificationProof(sc.steps, sc.imports ++ Clausification.libImports)

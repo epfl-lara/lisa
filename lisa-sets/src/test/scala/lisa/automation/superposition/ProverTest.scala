@@ -33,8 +33,7 @@ class ProverTest extends AnyFunSuite:
   private def checkContract(proof: K.SCProof, problem: Problem): Unit =
     K.SCProofChecker.checkSCProof(proof) match
       case K.SCProofCheckerJudgement.SCValidProof(_, usesSorry) =>
-        // `Sorry` proves anything, so a proof leaning on one is valid and worthless. Without this the suite
-        // cannot tell a real refutation from a fabricated one, which is the property under test.
+        // `Sorry` proves anything, so a valid proof using it proves nothing.
         assert(!usesSorry, s"proof is valid only because it uses Sorry:\n${proof.toString}")
       case bad => fail(s"proof is not kernel-valid: $bad\n${proof.toString}")
     val goal = problem.conjecture.getOrElse(K.Sequent(Set.empty, Set.empty))
@@ -91,8 +90,7 @@ class ProverTest extends AnyFunSuite:
   }
 
   test("checkContract rejects a proof that is valid only because it uses Sorry") {
-    // The guard above is the one thing separating a real refutation from a fabricated one, so it is worth
-    // knowing that it can fail. A `Sorry` of the goal is kernel-valid and proves nothing.
+    // A `Sorry` of the goal is kernel-valid and proves nothing.
     val problem = Problem(hypotheses = Seq(hyp(p)), conjecture = Some(hyp(q)))
     val goal = problem.conjecture.get
     val fabricated = K.SCProof(IndexedSeq(K.Sorry(goal)), problem.hypotheses.toIndexedSeq ++ Clausification.libImports)

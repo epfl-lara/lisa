@@ -2,8 +2,8 @@ package lisa.automation.superposition
 package bench
 
 /**
- * The 8017 refutable first-order FOF problems of the TPTP library, those whose `SPC` header is `FOF_THM`,
- * `FOF_UNS` or `FOF_CAX`, as [[BuildDatasets]] selects them. Everything else is [[Harness]].
+ * The 8017 refutable first-order FOF problems of the TPTP library, from [[BuildDatasets]]. Everything else is
+ * [[Harness]].
  */
 object FofEvaluation:
   // The third argument names *this* object, so a forked child re-enters here and reads the same problem list.

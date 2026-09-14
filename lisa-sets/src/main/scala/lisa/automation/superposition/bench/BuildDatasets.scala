@@ -11,27 +11,20 @@ import scala.jdk.StreamConverters._
 import scala.util.Using
 
 /**
- * Builds the problem lists that [[ProblemList]] reads, directly into the classpath resources.
+ * Builds the problem lists that [[ProblemList]] reads, into the classpath resources.
  *
  * {{{
  *   sbt "lisa-sets/runMain lisa.automation.superposition.bench.BuildDatasets"
  *   sbt "lisa-sets/runMain lisa.automation.superposition.bench.BuildDatasets seed=7 size=50"
  * }}}
  *
- * The pool is every problem of the TPTP library whose SPC marks it refutable and first-order. From it this
- * writes:
+ * From the TPTP problems whose SPC is refutable and first-order, writes `tptp-eligible-fof.txt`,
+ * `tptp-eligible-cnf.txt`, and `tptp<size>.txt`, a seeded draw disjoint from the CASC-J13 list. Existing lists are
+ * kept; delete one to rebuild it. The CASC list is only checked for missing problems.
  *
- *   - `tptp-eligible-fof.txt` and `tptp-eligible-cnf.txt`, the whole pool split by form;
- *   - `tptp<size>.txt`, a seeded draw of `size` problems from the pool minus the CASC-J13 problems, so that
- *     the draw and the CASC list are independent halves of a benchmark.
- *
- * A list that already exists is left as it is, so the committed lists never change under a rerun and only a
- * missing one is written; delete a list to rebuild it. The CASC list cannot be rebuilt from the library, being
- * the competition's own, so it is only checked: every path in it must resolve.
- *
- * @param seed the draw's seed (default 42)
- * @param size how many problems to draw (default 400)
- * @param root the repository, if it cannot be found by walking up from the working directory
+ *   - `seed=<n>`    the draw's seed, default 42
+ *   - `size=<n>`    how many problems to draw, default 400
+ *   - `root=<dir>`  the repository, if not found above the working directory
  */
 object BuildDatasets:
 
@@ -39,7 +32,7 @@ object BuildDatasets:
   private case class Entry(path: String, spc: String):
     def form: String = spc.takeWhile(_ != '_') // FOF or CNF
 
-  /** Refutable and first order: all this prover can attempt at all. */
+  /** Refutable and first order: what this prover can attempt. */
   private val eligibleSpc = "^(FOF_(THM|UNS|CAX)|CNF_UNS)_".r
 
   def main(args: Array[String]): Unit =
@@ -68,7 +61,7 @@ object BuildDatasets:
       println(s"no CASC list at $cascFile")
       sys.exit(2)
     val casc = readLines(cascFile).toSet
-    // Sorted, so neither the lists nor the draw depend on the order the file system handed the library over.
+    // Sorted, so the output does not depend on file system order.
     val eligible = pool.sortBy(_.path)
 
     // ── the whole pool, by form ─────────────────────────────────────────────────────────────────
@@ -76,16 +69,14 @@ object BuildDatasets:
     writeIfAbsent(new File(resources, "tptp-eligible-cnf.txt"), eligible.filter(_.form == "CNF").map(_.path))
 
     // ── the draw ────────────────────────────────────────────────────────────────────────────────
-    //
-    // Shuffled exactly as [[ProblemList.sample]] shuffles, so there is one notion of "seeded draw" in the project.
+    // Shuffled as [[ProblemList.sample]] does.
     val drawPool = eligible.filterNot(e => casc(e.path))
     println(s"draw pool: ${describe(drawPool)} after excluding the ${casc.size} CASC problems")
     val drawn = new scala.util.Random(seed).shuffle(drawPool).take(size).sortBy(_.path)
     writeIfAbsent(new File(resources, s"tptp$size.txt"), drawn.map(_.path))
 
     // ── verify the CASC list ────────────────────────────────────────────────────────────────────
-    //
-    // Every path must resolve, or a run silently measures fewer problems than it reports.
+    // A missing path would silently shrink a run.
     val missing = casc.toSeq.sorted.filterNot(p => new File(tptp, p).isFile)
     missing.foreach(p => println(s"  missing: $p"))
     if missing.nonEmpty then
@@ -94,13 +85,8 @@ object BuildDatasets:
     println(s"verified ${cascFile.getName}: all ${casc.size} problems present")
 
   /**
-   * Every problem in the library with the Specialist Problem Class from its header: `FOF_THM_RFO_SEQ` is a
-   * first-order formula problem whose status is Theorem, with equality. Problems without the header — there
-   * are none in a well-formed installation — are dropped.
-   *
-   * The header sits within the first hundred lines or so, after the `Syntax` block, so reading stops there
-   * rather than at the end of a file that may be hundreds of megabytes. Latin-1, because the decoder must not
-   * throw on a stray byte in a comment.
+   * Every library problem with the SPC from its header. Only the first lines are read, since files can be huge,
+   * and as Latin-1 so that a stray byte cannot throw.
    */
   private def scan(tptp: File): Vector[Entry] =
     val root = tptp.toPath.resolve("Problems")
@@ -130,10 +116,7 @@ object BuildDatasets:
   private def readLines(f: File): Vector[String] =
     Using(Source.fromFile(f))(_.getLines().map(_.trim).filter(_.nonEmpty).toVector).get
 
-  /**
-   * Write `lines` to `f` unless it already exists, saying which happened. Each line ends in `\n` rather than the
-   * platform's separator, so a list built on Windows is byte for byte the list built anywhere else.
-   */
+  /** Write `lines` to `f` unless it exists, ending lines in `\n` so the file is the same on every platform. */
   private def writeIfAbsent(f: File, lines: Seq[String]): Unit =
     if f.exists then println(s"kept  ${f.getName}: already exists, delete it to rebuild")
     else

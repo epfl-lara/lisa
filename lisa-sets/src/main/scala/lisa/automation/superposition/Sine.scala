@@ -13,15 +13,7 @@ import scala.collection.mutable
  * @param tolerance a symbol whose generality is within this factor of the least general one in a formula also
  *                  triggers it. `1.0` keeps only the rarest, which is the most aggressive setting.
  * @param depth     rounds of search outward from the goal; `0` is the full closure.
- * @param minAxioms below this many hypotheses, keep everything. 32 rather than 500, measured: on the CASC 400
- *                  at 180 s the portfolio solves 207 problems at 32 against 198 at 500 uncertified, and 201
- *                  against 193 certified (StarExec job 7435). 500 had been silently disabling selection for
- *                  every problem between the two counts, which is 124 of that set. The gain is not uniform
- *                  across strategies -- `weight-greedy` and `first-negative`, the two that filter hardest at
- *                  tolerance 1.5, each solve fewer on their own at 32, because aggressive pruning on a small
- *                  problem can drop an axiom the proof needed. They stay at the shared floor because what
- *                  each contributes that no other member covers is still positive, and because no mixed
- *                  assignment of floors beat uniform 32 on that run.
+ * @param minAxioms below this many hypotheses, keep everything. Also the size floor of the filtering gate.
  */
 final case class SineConfig(tolerance: Double = 3.0, depth: Int = 0, minAxioms: Int = 32)
 
@@ -137,12 +129,8 @@ object Sine:
   def selection(problem: Problem, cfg: SineConfig, p: Params = Params()): Option[Set[Int]] =
     problem.conjecture.flatMap { conj =>
       val a = analyse(problem.hypotheses.toIndexedSeq, conj)
-      // The size floor is `cfg`'s, for the gate as well as for the selection. [[Params]] documents it as "the
-      // single size floor ... so that the gate and the selection cannot disagree", but nothing enforced that:
-      // the probe carried whatever `SineConfig`'s default happened to be, so lowering `cfg.minAxioms` opened
-      // the selection while the gate went on refusing at the default, and the filter never ran. Only the
-      // floor is taken from `cfg` -- how aggressively to prune stays the probe's own, deliberately, so that
-      // every strategy makes the same decision about whether filtering would pay.
+      // The gate uses `cfg`'s size floor so it agrees with the selection; the probe's other settings are kept
+      // so every strategy decides alike whether filtering pays.
       val gate = p.copy(probe = p.probe.copy(minAxioms = cfg.minAxioms))
       Option.when(a.shouldFilter(gate))(a.select(cfg))
     }

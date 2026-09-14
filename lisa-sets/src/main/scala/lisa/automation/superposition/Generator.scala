@@ -96,13 +96,8 @@ final class Generator(bank: TermBank, trail: Trail, active: ActiveSet, opts: Sea
    *  `pos` may be a caller's live subterm-walk stack, so nothing here retains it: [[Superposition.superpose]]
    *  snapshots it, and only for the inferences that fire.
    *
-   *  '''`emit` runs after the trail is restored''', as it does in [[Inference.resolve]] and
-   *  [[Inference.factor]]. The unifier here binds scope 1, and `emit` is the whole downstream pipeline: with
-   *  [[SearchOptions.condensation]] or [[SearchOptions.forwardSimplifyAtGeneration]] on, that reaches
-   *  [[Subsumption]], which treats its target clause as rigid in scope 1 and asserts the scope is unbound.
-   *  Emitting inside the bracket therefore killed the search on any problem where a superposition conclusion
-   *  met either simplification. Safe to defer because [[Superposition.superpose]] instantiates every literal
-   *  it keeps while building `rr`, so the conclusion does not depend on the bindings outliving it.
+   *  `emit` runs after the trail is restored, since simplification ([[Subsumption]]) requires scope 1 unbound.
+   *  The conclusion is already instantiated, so it does not need the bindings.
    */
   private def superposeVerified(fromC: Clause, iFrom: Int, fromSide: Int, intoC: Clause, iInto: Int, pos: IntArrayList): Boolean =
     val l: Term = bank.arg(bank.atomOf(fromC.literals(iFrom)), fromSide)

@@ -81,9 +81,8 @@ object Clausification {
   private[clausification] val schemaR: Variable = Variable(Identifier("R", 0), Prop)
 
   /**
-   * Statements of `lisa.maths.Quantifiers.forall{And,Or}{Left,Right}`, the prenex laws lifting a `∀` one
-   * connective outwards. Imported only by [[Prenex.Rewrite]]; the shipped strategy needs none of them.
-   * `R` is a nullary `Prop` schema, so it cannot contain the bound variable and the laws hold as stated.
+   * The prenex laws `lisa.maths.Quantifiers.forall{And,Or}{Left,Right}`, lifting a `∀` over one connective.
+   * Imported only by [[Prenex.Rewrite]]. `R` is a nullary `Prop`, so it cannot contain the bound variable.
    */
   val forallAndLeftStatement: Sequent = () |- (and(forall(Lambda(vX, schemaP(vX))))(schemaR) <=> forall(Lambda(vX, and(schemaP(vX))(schemaR))))
   val forallAndRightStatement: Sequent = () |- (and(schemaR)(forall(Lambda(vX, schemaP(vX)))) <=> forall(Lambda(vX, and(schemaR)(schemaP(vX)))))
@@ -91,26 +90,21 @@ object Clausification {
   val forallOrRightStatement: Sequent = () |- (or(schemaR)(forall(Lambda(vX, schemaP(vX)))) <=> forall(Lambda(vX, or(schemaR)(schemaP(vX)))))
 
   /**
-   * How [[PrenexPhase]] strips a `∀` that is not at the root. `Deconstruct` walks the formula's tree and
-   * instantiates each quantifier where it stands, in a proof linear in `|φ|` and needing no library statement.
-   * `Rewrite` lifts each quantifier to the root one connective at a time, which is asymptotically smaller but
-   * needs the four prenex laws as imports.
+   * How [[PrenexPhase]] strips a non-root `∀`: `Deconstruct` instantiates it in place (linear in `|φ|`);
+   * `Rewrite` lifts it to the root with the four prenex laws.
    */
   enum Prenex:
     case Deconstruct, Rewrite
 
   /**
-   * How [[DistributePhase]] derives each clause. `Weakening` is one step justified by ortholattice entailment;
-   * `Primitive` takes the formula apart with `LeftAnd`, `LeftOr` and `Hypothesis`. See `DistributePhase`.
+   * How [[DistributePhase]] derives each clause: one `Weakening`, or `LeftAnd`/`LeftOr`/`Hypothesis` steps.
    */
   enum Distribute:
     case Weakening, Primitive
 
   /**
-   * Everything the pipeline can be configured with, in one value, supplied once by
-   * [[CertifiedClausifier.certifyClausal]] and read by the phases as a given. The library import list depends
-   * on it, so a configuration needing no prenex law does not carry four unused imports, and two configurations
-   * are therefore comparable on proof size.
+   * Pipeline configuration, supplied by [[CertifiedClausifier.certifyClausal]] and read by the phases as a given.
+   * It also fixes the library imports, so unused prenex laws are not imported.
    */
   case class ClausifierOptions(
       threshold: Int = 4, //           name a subformula once its CNF estimate exceeds this
@@ -176,18 +170,10 @@ object Clausification {
   /**
    * A phase's continuation: the rest of the pipeline, applied to the problem this phase transformed.
    *
-   * The second argument carries the '''goal''' — the negated conjecture — down to the prover, which biases
-   * clause selection toward it and lets a strategy's `nonGoalWeightCoefficient` mean anything. It is a set of
-   * indices, and what they index changes exactly once, at [[DistributePhase]]:
-   *
-   *   - '''above''' it, indices into `problem.hypotheses`. [[NegatedPhase]] puts the negated conjecture there
-   *     and every phase between forwards the set untouched, which is sound because none of them reorders or
-   *     drops a hypothesis: naming only appends its definitions after the existing ones, and NNF, Skolem and
-   *     prenex map hypotheses one-to-one in order. Each of those phases asserts as much.
-   *   - '''below''' it, indices into the clause list handed to the prover. [[DistributePhase]] emits each
-   *     hypothesis's clauses in turn, so it knows which clauses descend from the goal and translates.
-   *
-   * Empty for a conjecture-free problem, where there is no goal to be directed toward.
+   * The second argument is the goal (the negated conjecture), which the prover uses for clause selection. Above
+   * [[DistributePhase]] it indexes `problem.hypotheses`: [[NegatedPhase]] adds it, [[NamingPhase]] adds the
+   * definitions it appends, and the other phases map hypotheses one-to-one. Below, it indexes the clauses.
+   * Empty when there is no conjecture.
    */
   private[clausification] type ClausificationProver = (Problem, Set[Int]) => ClausificationProof
 

@@ -9,8 +9,8 @@ import scala.sys.process.*
 import scala.util.Using
 
 /**
- * Runs every configuration of one experiment file and writes one CSV per configuration, one combined CSV, and a
- * provenance record, then prints and writes a report over the combined CSV with [[ExperimentReport]].
+ * Runs every configuration of an experiment file, writing one CSV per configuration, a combined CSV, a provenance
+ * record, and an [[ExperimentReport]] over the combined CSV.
  *
  * {{{
  *   sbt "lisa-sets/runMain lisa.automation.superposition.bench.RunExperiment <experiment> [key=value]…"
@@ -20,27 +20,16 @@ import scala.util.Using
  *   ... path/to/my-experiment.conf                an experiment file of your own
  * }}}
  *
- * The experiment is a file path, or the name of a packaged experiment: `portfolio-uncert` and `portfolio-cert` run
- * each strategy of the portfolio alone on the CASC-J13 FOF problems, without and with certification.
+ * `<experiment>` is a file or a packaged name: `portfolio-uncert` and `portfolio-cert` run each portfolio strategy
+ * alone on the CASC-J13 FOF problems, without and with certification. Other `key=value` go to the harness, except:
  *
- * Every `key=value` goes to the harness and overrides the file, except these read here:
+ *   - `results=<dir>`  where the CSVs go; default `results/` beside the experiment's directory
+ *   - `force=on`       re-run configurations whose CSV exists; otherwise they are skipped, so a rerun resumes
+ *   - `baseline=<configuration>`, `minHypotheses=<n>`   passed to the report
  *
- *   - `results=<dir>`  where the CSVs go; default `results/` beside the directory holding the experiment file, or
- *                      in the working directory for a packaged experiment
- *   - `force=on`       re-run configurations whose CSV already exists; by default they are skipped, so an
- *                      interrupted run resumes by being started again
- *   - `baseline=<configuration>`, `minHypotheses=<n>`   given to the report, see [[ExperimentReport]]
- *
- * A configuration that fails does not stop the others; the failures are listed at the end and the exit status
- * is non-zero.
- *
- * One `sbt runMain` for the whole experiment, rather than one per configuration. sbt 2 is client/server, and a
- * second `runMain` in the same shell attaches to the server the first one started, leaking its environment and
- * sometimes hanging. A problem still runs in its own forked JVM, as the harness always does.
- *
- * A `portfolio` line is read and ignored: its strategies run here one after another, which measures each of them
- * but not the portfolio, since they do not share a wall clock. Only a launcher that starts them together, one per
- * core, measures that.
+ * A failed configuration does not stop the others but makes the exit status non-zero. All configurations share
+ * one `runMain`, since a second sbt 2 `runMain` in the same shell can attach to the first one's server and hang.
+ * `portfolio` lines are ignored: the strategies run one after another, which does not measure the portfolio.
  */
 object RunExperiment:
 
@@ -114,7 +103,6 @@ object RunExperiment:
 
         if !ran then failed :+= name
         else
-          // The first configuration contributes the header, the rest only their rows.
           val rows = Using.resource(Source.fromFile(out, "UTF-8"))(_.getLines().toVector)
           if header.isEmpty then
             header = rows.headOption
@@ -127,8 +115,7 @@ object RunExperiment:
     println(s"combined: $combined ($count rows)")
     println(s"recorded: $provenance")
 
-    // The report reads the combined CSV rather than what this run holds in memory, so a fresh run and an old
-    // file are reported the same way. The budget charged for an unsolved problem is the experiment's own.
+    // Reported from the combined CSV, charging an unsolved problem the experiment's own timeout.
     if count > 0 then
       println()
       val reportOpts = Map("budget" -> value("timeout", passthrough).orElse(value("timeout", defaults)).getOrElse("180000"))
@@ -143,11 +130,7 @@ object RunExperiment:
   /** Where the packaged datasets and experiments live on the classpath. */
   private val resourceDir = "/lisa/automation/superposition"
 
-  /**
-   * The experiment an argument refers to: the file at that path if one exists, else the packaged experiment of that
-   * name. Returns its name, its trimmed lines, the directory holding the file (none for a packaged one) and where
-   * it came from, for the provenance record.
-   */
+  /** The experiment file at `arg`, else the packaged one: its name, lines, directory if a file, and source. */
   private def loadExperiment(arg: String): Option[(String, Vector[String], Option[File], String)] =
     val file = new File(arg)
     if file.isFile then
@@ -162,9 +145,8 @@ object RunExperiment:
       }
 
   /**
-   * The problem list a dataset name refers to: a file of that name if one exists, then `datasets/<name>.txt`
-   * beside the experiment directory, then the packaged list of that name on the classpath, copied to a temporary
-   * file since the harness reads a list from disk.
+   * A dataset's problem list: the file `name`, else `datasets/<name>.txt` beside the experiment directory, else
+   * the packaged list, copied to a temporary file.
    */
   private def resolveDataset(name: String, confDir: Option[File]): Option[File] =
     val direct = new File(name)

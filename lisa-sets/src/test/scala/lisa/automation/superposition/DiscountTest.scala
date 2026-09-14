@@ -557,20 +557,8 @@ class DiscountTest extends AnyFunSuite:
   }
 
   /**
-   * A superposition conclusion must reach simplification with the trail restored.
-   *
-   * [[Generator]] used to call `emit` from inside its own unifier bracket. That is invisible while
-   * [[SearchOptions.condensation]] and [[SearchOptions.forwardSimplifyAtGeneration]] are off, since
-   * `Discount.addPassive` then only canonicalises and enqueues; with either on it reaches [[Subsumption]],
-   * which treats its target clause as rigid in scope 1 and asserts that scope carries no bindings. The
-   * superposition unifier had just bound it, so the search died with an `AssertionError`. Six of the first ten
-   * CASC-J13 FOF problems hit it, and it is why two of the eight shipped strategies (both set `condensation`)
-   * could not prove them at all.
-   *
-   * The clause set is built to bind the *into* scope, which is what the assertion is about and what a first
-   * attempt at this test missed: `g(c) = d` is ground, so superposing it into `P(g(y))` binds `y := c` in
-   * scope 1 rather than in the equation's own scope 0. An into-clause that is ground at the superposed
-   * position leaves scope 1 empty and the bug dormant.
+   * A superposition conclusion must reach simplification with the trail restored, as [[Subsumption]] asserts
+   * scope 1 is unbound. `g(c) = d` is ground, so superposing it into `P(g(y))` binds the into scope (`y := c`).
    */
   test("a superposition conclusion is emitted with the trail restored, so simplification can match") {
     def refutes(opts: SearchOptions): Boolean =
@@ -587,8 +575,7 @@ class DiscountTest extends AnyFunSuite:
 
     assert(refutes(SearchOptions()), "the baseline refutation must hold")
     assert(refutes(SearchOptions(forwardSimplifyAtGeneration = true)), "forward simplification at generation must not break the search")
-    // Condensation reaches `Subsumption` by the same route out of `addPassive`, so it is guarded by the same
-    // fix; it needs a larger clause set than this to be reached, hence no separate case here.
+    // Condensation takes the same route to `Subsumption`, but this clause set is too small to reach it.
     assert(refutes(SearchOptions(condensation = true)), "condensation must not break the search")
     assert(refutes(SearchOptions(condensation = true, forwardSimplifyAtGeneration = true)), "nor the two together")
   }

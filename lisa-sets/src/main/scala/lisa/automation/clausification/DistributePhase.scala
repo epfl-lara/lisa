@@ -22,15 +22,13 @@ private[clausification] object DistributePhase:
     val n = hypotheses.size
     val outerImports = hypotheses ++ libImports
 
-    // Layout: for each hypothesis `() ⊢ φ` (import ref -(i+1)), the steps deriving each of its CNF clauses.
-    // Those become the prover's imports; one final `ClausificationSubproof` wraps the prover call, mapping each
-    // clause slot to the step concluding it.
+    // Layout: for each hypothesis `() ⊢ φ` (import ref -(i+1)), the steps deriving its CNF clauses. Those become
+    // the prover's imports; one final `ClausificationSubproof` wraps the prover call, mapping each clause slot to
+    // the step concluding it.
     val steps = scala.collection.mutable.ArrayBuffer.empty[ClausificationProofStep]
     val clauseSeqs = scala.collection.mutable.ArrayBuffer.empty[Sequent]
     val clauseRefs = scala.collection.mutable.ArrayBuffer.empty[Int]
-    // Where the goal stops being a hypothesis index and becomes a set of clause indices: each hypothesis
-    // contributes a run of consecutive clauses below, so a clause descends from the goal exactly when the
-    // hypothesis it came from is in `goal`.
+    // The goal as clause indices: the clauses of the hypotheses in `goal`.
     val goalClauses = scala.collection.mutable.HashSet.empty[Int]
 
     for (i <- 0 until n) {
@@ -74,17 +72,10 @@ private[clausification] object DistributePhase:
         val la = clausesOf(a)
         val lb = clausesOf(b)
         for (ca <- la; cb <- lb) yield Sequent(ca.left ++ cb.left, ca.right ++ cb.right)
-      // `⊤` and `⊥` are absorbed here rather than carried as literals, matching [[UncertifiedClausifier]] so
-      // that the two paths produce the same clause set. Nothing has to be proved to drop a clause: every
-      // clause is an independent `Weakening` from the hypothesis, so emitting fewer of them is always sound,
-      // and the `∨` case propagates the absorption for free -- an empty clause list for one side makes the
-      // product empty, which is exactly `⊤ ∨ b ≡ ⊤`.
-      //
-      // Carrying them instead put a `⊢ ⊤` clause in the set for every `⊤` conjunct, and unioned `⊤` into every
-      // clause of a surrounding `∨`, making those tautologies too: 15 extra clauses on SEU184+2, 18 on
-      // SEU225+2, 8 on GRP622+1.
-      case `top` => Seq.empty //                              a ⊤ conjunct constrains nothing
-      case `bot` => Seq(Sequent(Set.empty, Set.empty)) //     a ⊥ conjunct is the empty clause
+      // `⊤` and `⊥` are absorbed rather than kept as literals, as in [[UncertifiedClausifier]]. Dropping a
+      // clause is sound since each is its own `Weakening`, and the `∨` product propagates `⊤ ∨ b ≡ ⊤`.
+      case `top` => Seq.empty
+      case `bot` => Seq(Sequent(Set.empty, Set.empty)) //     the empty clause
       case lit =>
         require(
           isLeaf(lit),
@@ -98,14 +89,9 @@ private[clausification] object DistributePhase:
   }
 
   /**
-   * The same clauses as [[clausesOf]], but each derived from `φ` with primitive kernel rules instead of one
-   * `Weakening`: `LeftAnd` to lift a child clause through a `∧`, `LeftOr` to join two through a `∨`, and a
-   * `Hypothesis` (plus `LeftNot` for a negative literal) at each leaf. Appends its steps to `steps` and
-   * returns, per clause, its two sides and the index of the step concluding `φ, negative ⊢ positive`.
-   *
-   * Retained only for the comparison in E2. It is what the phase did before the ortholattice argument replaced
-   * it, and it is asymptotically worse: the derivation of a subformula's clause is a premise of every clause of
-   * its sibling, so the step count grows with the product up the `∧`/`∨` tree rather than with the clause count.
+   * The clauses of [[clausesOf]], each derived from `φ` by `LeftAnd`, `LeftOr`, `Hypothesis` and `LeftNot`
+   * instead of one `Weakening`. Appends to `steps` and returns, per clause, its two sides and the step concluding
+   * `φ, negative ⊢ positive`. Step count grows with products up the `∧`/`∨` tree, not with the clause count.
    */
   def byPrimitiveRules(
       phi: Expression,
@@ -131,8 +117,7 @@ private[clausification] object DistributePhase:
       case lit =>
         require(isLeaf(lit), s"byPrimitiveRules: non-literal leaf in the NNF matrix. Got: $lit")
         lit match
-          // A negative literal goes to the left as its atom: `Hypothesis(a ⊢ a)` then one `LeftNot` gives
-          // `¬a, a ⊢`, leaving `¬a` where the enclosing `LeftAnd`/`LeftOr` expect the subformula.
+          // `¬a` goes left as its atom: `a ⊢ a` then `LeftNot` gives `¬a, a ⊢`.
           case Neg(atom) =>
             val hyp = emit(Hypothesis(atom |- atom, atom))
             Seq((Set(atom), Set.empty[Expression], emit(LeftNot(Sequent(Set(lit, atom), Set.empty), hyp, atom))))

@@ -22,16 +22,14 @@ private[clausification] object NegatedPhase:
 
   def certifyNegated(problem: Problem, prover: ClausificationProver, goal: Set[Int] = Set.empty)(using ClausifierOptions): ClausificationProof =
     problem.conjecture match
-      // No conjecture, so nothing to be directed toward: the goal set stays empty rather than being inherited.
+      // No conjecture, so no goal.
       case None => prover(problem, Set.empty)
       case Some(conjecture) =>
         val phi = singleRightFormula(conjecture, "conjecture")
         val freeInd: Set[Variable] = phi.freeVariables.filter(_.sort == Ind)
         val negPhi = neg(phi)
         val transformed = Problem(problem.hypotheses :+ (() |- negPhi), None, problem.frozen ++ freeInd)
-        // This is where the goal enters the pipeline: the negated conjecture is appended, so its index is the
-        // old hypothesis count. Every phase below forwards that index until `DistributePhase` turns it into
-        // the clause indices the prover selects on.
+        // The goal enters here: the index of the appended negated conjecture.
         val downstream = prover(transformed, Set(problem.hypotheses.size))
         require(sameImportList(downstream.imports, transformed.imports ++ libImports), "Downstream imports must match transformed problem imports")
 

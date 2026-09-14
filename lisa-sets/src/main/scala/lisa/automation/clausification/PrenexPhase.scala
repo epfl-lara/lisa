@@ -130,17 +130,12 @@ private[clausification] object PrenexPhase:
     (SCSubproof(SCProof(steps.toIndexedSeq, IndexedSeq(imported)), IndexedSeq(premise)), () |- matrix)
   }
 
-  /**
-   * One connective layer on the path from the root to a `∀`: whether it is a `∧` or a `∨`, whether the
-   * quantifier sits on its left, and what the other operand is.
-   */
+  /** One `∧` or `∨` on the path from the root to a `∀`, the side the `∀` is on, and the other operand. */
   private case class Layer(conj: Boolean, onLeft: Boolean, sibling: Expression)
 
   /**
-   * Rewriting: lift each `∀` to the root one connective at a time, using the four prenex laws, then strip it
-   * there. Only the path from the quantifier to the root is touched, so the cost is the number of quantifiers
-   * times the depth rather than `|phi|`, but it imports four library statements that
-   * [[byDeconstruction]] needs none of.
+   * Lift each `∀` to the root one connective at a time with the four prenex laws, then strip it there. Costs
+   * quantifiers times depth rather than `|phi|`.
    */
   private def byRewriting(imported: Sequent, premise: Int, counter: Counter, nonLibSize: Int): (SCSubproof, Sequent) =
     val phi = singleRightFormula(imported, "imported (prenex source)")
@@ -148,8 +143,7 @@ private[clausification] object PrenexPhase:
     def emit(s: SCProofStep): Int = { steps += s; steps.size - 1 }
     val holes = Counter()
 
-    // The laws are imports 1 to 4 of the inner proof, so `-2` to `-5`; `conj`/`onLeft` picks among them in the
-    // order they are listed in `libImports`.
+    // The laws are inner imports `-2` to `-5`, in `libImports` order.
     def lawRef(l: Layer): Int = -(2 + (if l.conj then 0 else 2) + (if l.onLeft then 0 else 1))
 
     /** The leftmost `∀` in pre-order, with the path of connective layers from the root down to it. */
@@ -173,25 +167,20 @@ private[clausification] object PrenexPhase:
     /** Lift `∀x. body` across the one connective `layer` that encloses it, at `pathToOuter` inside `src`. */
     def lift(srcIdx: Int, src: Expression, pathToOuter: List[Layer], layer: Layer, x: Variable, body: Expression): (Int, Expression) =
       val innerForall = forall(Lambda(x, body))
-      // α-rename the binder away from the sibling before lifting over it: `(∀x. body) ⊕ s` becomes
-      // `∀x'. (body[x:=x'] ⊕ s)` with `x'` fresh for `s`. Reusing `x` would capture a free `x` in `s`, and the
-      // result would not be an instance of the law, which holds only because `R` is a nullary `Prop` schema.
-      // It has to be done here rather than left to the kernel: `InstSchema` substitutes capture-avoidingly, so
-      // it renames anyway, and a hand-built formula that captured would silently disagree with it.
+      // α-rename the binder away from the sibling's free variables, as `InstSchema` would, so the lifted
+      // formula matches the law's instance.
       val (xL, bodyL) =
         if !layer.sibling.freeVariables.contains(x) then (x, body)
         else
           val xf = Variable(freshId(layer.sibling.freeVariables.view.map(_.id) ++ body.freeVariables.view.map(_.id), x.id), x.sort)
           (xf, substituteVariables(body, Map(x -> xf)))
       def join(a: Expression, b: Expression): Expression = if layer.conj then and(a)(b) else or(a)(b)
-      // `lhsIff` must match the node as it stands in `src`, so it keeps the original binder; only the lifted
-      // side uses the renamed one.
+      // `lhsIff` keeps the original binder to match `src`.
       val (lhsIff, rhsIff) =
         if layer.onLeft then (join(innerForall, layer.sibling), forall(Lambda(xL, join(bodyL, layer.sibling))))
         else (join(layer.sibling, innerForall), forall(Lambda(xL, join(layer.sibling, bodyL))))
       val iff = lhsIff <=> rhsIff
-      // `P := λx'. body'` is the quantified side, `R := sibling` the closed one, supplied unwrapped since `R`
-      // is a nullary `Prop`.
+      // `P := λx'. body'`, `R := sibling`.
       val iffIdx = emit(InstSchema(() |- iff, lawRef(layer), Map(schemaP -> Lambda(xL, bodyL), schemaR -> layer.sibling)))
       val lifted = rewriteAt(src, pathToOuter, _ => rhsIff)
       val hole = Variable(Identifier(GeneratedNames.hole, holes.next()), Prop)

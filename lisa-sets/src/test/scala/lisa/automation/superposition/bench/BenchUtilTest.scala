@@ -9,9 +9,7 @@ import scala.util.Success
  * Tests for [[BenchUtil.withTimeout]]'s handling of a worker that overruns its budget.
  *
  * Interruption on the JVM is cooperative, so "we asked it to stop" and "it stopped" are different facts. A
- * worker that ignores the request keeps burning CPU and holding its heap, and nothing can kill it. The
- * contract is therefore: wait a grace period, then give up on it and return, which is why the cluster runs
- * one problem per forked JVM rather than relying on this at all.
+ * worker that ignores the request cannot be killed, so the contract is: wait a grace period, then give up.
  */
 class BenchUtilTest extends AnyFunSuite:
 
@@ -27,7 +25,6 @@ class BenchUtilTest extends AnyFunSuite:
     assert(BenchUtil.withTimeout(30000L)(6 * 7) == Some(Success(42)))
   }
 
-  // Both overruns are `None`: the one that unwound when asked, and the one that did not.
   test("an overrun returns None whether or not the worker stops") {
     val cooperative = BenchUtil.withTimeout(50L)(Thread.sleep(60000L))
     val stubborn = BenchUtil.withTimeout(50L)(spinIgnoringInterrupts(4000L))

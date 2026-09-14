@@ -265,29 +265,10 @@ object KernelParser {
   }
 
   /**
-   * Encode an arbitrary TPTP symbol name as a kernel [[K.Identifier]] name.
-   *
-   * A TPTP single-quoted atom may hold any text whatever — `Axioms/NLP001+0.ax` and `Axioms/BIO001+0.ax` use
-   * whole English glosses as constant names — while [[K.Identifier.isValidIdentifier]] rejects whitespace and
-   * every character of [[K.Identifier.forbiddenChars]] (`()[]{}?,;`, the delimiter and the counter separator).
-   * So each of those is escaped, `$` introducing an escape and therefore being escaped itself:
-   *
-   * {{{
-   *   $    ->  $$
-   *   _    ->  $u
-   *   ' '  ->  $s
-   *   c    ->  $xHHHH     any other forbidden or whitespace character, by UTF-16 code unit
-   * }}}
-   *
-   * `_` and space have short forms only because they are far and away the common cases and the encoded name is
-   * what shows up in kernel output; `$xHHHH` is the general mechanism and would serve for them equally.
-   *
-   * Escaping `_` also keeps the whole identifier inside the *name*: the String→Identifier conversion parses a
-   * trailing `_<digits>` into `Identifier.no`, an `Int` that overflows on large SUMO ids like
-   * `c_bcase_3235139646`.
-   *
-   * Escaping `$` is what makes the encoding injective — without it `a_b` and `a$ub` both encode to `a$ub` — and
-   * it is also what lets [[taggedConstant]] own the bare-`$` prefixes.
+   * Encode a TPTP symbol name, which in a quoted atom may be any text, as a valid [[K.Identifier]] name:
+   * `$` -> `$$`, `_` -> `$u`, space -> `$s`, other forbidden or whitespace characters -> `$xHHHH`.
+   * Escaping `_` keeps a trailing `_<digits>` out of `Identifier.no`, an `Int` that overflows on large SUMO ids.
+   * Escaping `$` makes the encoding injective and leaves bare-`$` prefixes to [[taggedConstant]].
    */
   def sanitize(s: String): String =
     val out = new StringBuilder(s.length)
@@ -301,14 +282,8 @@ object KernelParser {
     out.result()
 
   /**
-   * Inverse of [[sanitize]], exact on anything [[sanitize]] produced.
-   *
-   * Deliberately lenient on anything else: every identifier reaching the TPTP printers passes through here,
-   * including kernel-generated ones (`sk`, `nm`, …) that were never sanitized, so an unrecognised escape yields
-   * a literal `$` rather than an error.
-   *
-   * `no` is ignored, as it always has been: [[sanitize]] escapes `_`, so an encoded name never carries a
-   * counter, and a counter present on a kernel-generated identifier is not part of the source name.
+   * Inverse of [[sanitize]]. Kernel-generated names that were never sanitized also pass through here, so an
+   * unrecognised escape yields a literal `$` rather than an error. `no` is ignored.
    */
   def unsanitize(s: String, no: Int): String =
     val out = new StringBuilder(s.length)
@@ -331,12 +306,8 @@ object KernelParser {
     unsanitize(id.name, id.no)
 
   /**
-   * A parser-internal nullary constant: a bare `$…` tag followed by the '''sanitized''' payload.
-   *
-   * The tag goes outside the encoding on purpose. [[sanitize]] escapes `$` as `$$`, so a bare `$` can only have
-   * come from a tag, and these constants therefore cannot collide with any source symbol — not even a quoted
-   * atom literally named `'$dfoo'`. Readers ([[ProofPrinter]], `Tstp`) accordingly strip the two tag characters
-   * and then [[unsanitize]] the rest.
+   * A parser-internal nullary constant: a bare `$` tag followed by the sanitized payload. Since [[sanitize]]
+   * escapes `$`, it cannot collide with a source symbol. Readers strip the tag and [[unsanitize]] the rest.
    */
   private def taggedConstant(tag: String, payload: String): K.Constant =
     K.Constant(K.Identifier(tag + sanitize(payload)), K.functionType(0))

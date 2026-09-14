@@ -299,11 +299,7 @@ class CertifiedClausificationTest extends AnyFunSuite:
       )
   }
 
-  // The goal set is what makes the certified path search like the uncertified one: a superposition prover
-  // biases clause selection toward the negated conjecture, and every strategy tunes that bias. Before this
-  // existed the certified path passed no goal at all, so the bias was inert and the two paths explored
-  // different orders -- on the CASC-J13 corpus, only 109 of 674 problems solved by both reached the proof at
-  // the same given-clause count.
+  // The goal set lets the prover bias clause selection toward the negated conjecture, as on the uncertified path.
   test("the certified path tells its prover which clauses came from the negated conjecture") {
     val p = K.Variable(K.Identifier("p"), K.predicateType(1))
     val a = K.Variable(K.Identifier("a"), K.Ind)
@@ -317,9 +313,7 @@ class CertifiedClausificationTest extends AnyFunSuite:
 
     assert(goal.nonEmpty, "a problem with a conjecture must hand the prover a non-empty goal set")
     assert(goal.forall(i => i >= 0 && i < clauses.imports.size), s"goal $goal out of range for ${clauses.imports.size} clauses")
-    // Identified by shape rather than by name, because `ScreenPhase` renames as it goes: the negated
-    // conjecture `¬p(b)` clausifies to the one clause with an empty right side, and the hypothesis `⊢ p(a)`
-    // to the one with an empty left. So the goal set must be exactly the negative clause.
+    // Found by shape since `ScreenPhase` renames: `¬p(b)` gives the only clause with an empty right side.
     val negative = clauses.imports.indices.filter(i => clauses.imports(i).right.isEmpty).toSet
     assert(negative.nonEmpty, s"expected the negated conjecture to give a clause with an empty right side, got ${clauses.imports}")
     assert(goal == negative, s"goal set $goal is not the conjecture's clauses $negative (clauses: ${clauses.imports})")
