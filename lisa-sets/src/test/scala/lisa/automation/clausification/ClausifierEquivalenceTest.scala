@@ -134,12 +134,16 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
   //
   // The formula-level check stops before distribution and the final split, so the clause sets are compared too.
 
-  /** The Skolem symbol behind `e`, if it is one. Canonical forms number these across the whole clause set. */
+  /**
+   * The Skolem symbol behind `e`, if it is one. Canonical forms number these across the whole clause set.
+   */
   private def skolemId(e: K.Expression): Option[K.Identifier] = e match
     case v: K.Variable if v.id.name == GeneratedNames.skolemFun => Some(v.id)
     case _ => None
 
-  /** One literal as a string, with Skolem symbols and ordinary variables named by the given functions. */
+  /**
+   * One literal as a string, with Skolem symbols and ordinary variables named by the given functions.
+   */
   private def renderLiteral(e: K.Expression, sk: K.Identifier => String, vr: K.Identifier => String): String =
     def go(e: K.Expression): String = skolemId(e) match
       case Some(id) => sk(id)
@@ -173,7 +177,9 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
     // Sorted again after numbering: literals that tie while anonymised are left in `Set` order, which differs.
     s"${left.map(renderLiteral(_, sk, vr)).sorted.mkString(",")} |- ${right.map(renderLiteral(_, sk, vr)).sorted.mkString(",")}"
 
-  /** A canonicalised clause set: each clause's string, the clause itself, and the Skolem numbering used. */
+  /**
+   * A canonicalised clause set: each clause's string, the clause itself, and the Skolem numbering used.
+   */
   private final case class Canonical(strings: Seq[String], clauses: Seq[K.Sequent], skolem: Map[K.Identifier, Int])
 
   /**
@@ -184,19 +190,23 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
     val ordered = cs.sortBy(canonicalClause(_, _ => "SK"))
     val nums = scala.collection.mutable.LinkedHashMap.empty[K.Identifier, Int]
     // Number by walking the ordered clauses, so the numbering depends only on the canonical order.
-    ordered.foreach(s => (s.left.toSeq ++ s.right.toSeq).sortBy(renderLiteral(_, _ => "SK", _.toString)).foreach { e =>
-      def walk(x: K.Expression): Unit = skolemId(x) match
-        case Some(id) => nums.getOrElseUpdate(id, nums.size)
-        case None =>
-          x match
-            case K.Application(f, a) => walk(f); walk(a)
-            case K.Lambda(_, b) => walk(b)
-            case _ => ()
-      walk(e)
-    })
+    ordered.foreach(s =>
+      (s.left.toSeq ++ s.right.toSeq).sortBy(renderLiteral(_, _ => "SK", _.toString)).foreach { e =>
+        def walk(x: K.Expression): Unit = skolemId(x) match
+          case Some(id) => nums.getOrElseUpdate(id, nums.size)
+          case None =>
+            x match
+              case K.Application(f, a) => walk(f); walk(a)
+              case K.Lambda(_, b) => walk(b)
+              case _ => ()
+        walk(e)
+      }
+    )
     Canonical(ordered.map(canonicalClause(_, id => s"SK${nums.getOrElse(id, -1)}")), ordered, nums.toMap)
 
-  /** A bijection between two sets of identifiers, kept in both directions so injectivity is checked. */
+  /**
+   * A bijection between two sets of identifiers, kept in both directions so injectivity is checked.
+   */
   private type Bij = (Map[K.Identifier, K.Identifier], Map[K.Identifier, K.Identifier])
   private val emptyBij: Bij = (Map.empty, Map.empty)
 
@@ -204,7 +214,9 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
     val (fwd, bwd) = bij
     Option.when(fwd.get(x).forall(_ == y) && bwd.get(y).forall(_ == x))((fwd + (x -> y), bwd + (y -> x)))
 
-  /** An invented symbol shared across clauses (Skolem function or naming atom), renamed consistently. */
+  /**
+   * An invented symbol shared across clauses (Skolem function or naming atom), renamed consistently.
+   */
   private def globalFresh(e: K.Expression): Option[K.Identifier] = e match
     case v: K.Variable if v.id.name == GeneratedNames.skolemFun || v.id.name == GeneratedNames.namingAtom => Some(v.id)
     case _ => None
@@ -277,7 +289,9 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
       // (e.g. by colour refinement) would settle it.
       if pairOff(restC, restU, emptyBij).isDefined then (Nil, Nil) else (restC, restU)
 
-  /** The clause set the certified pipeline hands its prover, captured with a `Sorry` back end. */
+  /**
+   * The clause set the certified pipeline hands its prover, captured with a `Sorry` back end.
+   */
   private def certifiedClauses(p: lisa.automation.Problem): Seq[K.Sequent] =
     var captured: lisa.automation.Problem = null
     CertifiedClausifier.certifyClausal(p, q => { captured = q; K.SCProof(IndexedSeq(K.Sorry(K.Sequent(Set.empty, Set.empty))), q.imports) })
@@ -367,8 +381,23 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
     Corpus.record(
       "list,selected,found,parsed,formulas_seen,formulas,oversize,timeouts,over_heap,errors," +
         "naming_divergences,skolem_divergences,divergent_problems,elapsed_s,stopped_early",
-      Seq(Corpus.name, problems.size, found, problemsChecked, formulasSeen, formulasChecked, oversize, skolemTimeouts, overBudget, errors.size,
-        namingFails.size, skolemFails.size, divergentProblems, elapsedS, stoppedEarly).mkString(",")
+      Seq(
+        Corpus.name,
+        problems.size,
+        found,
+        problemsChecked,
+        formulasSeen,
+        formulasChecked,
+        oversize,
+        skolemTimeouts,
+        overBudget,
+        errors.size,
+        namingFails.size,
+        skolemFails.size,
+        divergentProblems,
+        elapsedS,
+        stoppedEarly
+      ).mkString(",")
     )
 
     assert(found > 0, s"none of the ${problems.size} selected problems exist under $root; is the corpus complete?")
@@ -525,7 +554,9 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
  */
 private[clausification] object Corpus:
 
-  /** Set once, before the suite runs. Empty under `sbt test`. */
+  /**
+   * Set once, before the suite runs. Empty under `sbt test`.
+   */
   private var opts: Map[String, String] = Map.empty
 
   def configure(args: Seq[String]): Unit =
@@ -542,22 +573,32 @@ private[clausification] object Corpus:
 
   def budgetMs: Option[Long] = opt("budget").map(_.toLong * 1000)
 
-  /** Largest clause set the clause-set check compares (default 600); past it pairing is inconclusive. */
+  /**
+   * Largest clause set the clause-set check compares (default 600); past it pairing is inconclusive.
+   */
   def maxClauses: Int = opt("maxClauses").fold(600)(_.toInt)
 
-  /** What was run on, for the report. */
+  /**
+   * What was run on, for the report.
+   */
   def name: String = listName.getOrElse("tptp-eligible-fof")
 
-  /** The formulas of one problem to check: all of them, or a seeded draw when a cap is set. */
+  /**
+   * The formulas of one problem to check: all of them, or a seeded draw when a cap is set.
+   */
   def formulasOf(all: Seq[K.Expression]): Seq[K.Expression] =
     opt("formulas").map(_.toInt) match
       case Some(cap) if cap < all.size => new scala.util.Random(seed).shuffle(all).take(cap)
       case _ => all
 
-  /** Largest problem in the default draw, as the node count summed over all of its formulas. */
+  /**
+   * Largest problem in the default draw, as the node count summed over all of its formulas.
+   */
   private val defaultMaxSize = 1000
 
-  /** Computed once, since the three tests share it and the default draw parses what it considers. */
+  /**
+   * Computed once, since the three tests share it and the default draw parses what it considers.
+   */
   lazy val problems: Vector[String] = listName match
     case None => smallFof(n, seed)
     case Some(list) =>
@@ -589,7 +630,9 @@ private[clausification] object Corpus:
         }
       FofEvaluation.sample(Int.MaxValue, seed).iterator.filter(small).take(n).toVector
 
-  /** Append `row` to the CSV, writing `header` first if the file is new. Does nothing when unconfigured. */
+  /**
+   * Append `row` to the CSV, writing `header` first if the file is new. Does nothing when unconfigured.
+   */
   def record(header: String, row: String): Unit = out.foreach { f =>
     val fresh = !f.exists() || f.length() == 0
     val w = new java.io.PrintWriter(new java.io.FileWriter(f, true))

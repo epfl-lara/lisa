@@ -36,7 +36,9 @@ object ExperimentReport:
       sys.exit(2)
     write(files.map(new File(_)), opts.get("out").map(new File(_)), opts)
 
-  /** The report over `csvs`, printed, and also written to `out` when given. */
+  /**
+   * The report over `csvs`, printed, and also written to `out` when given.
+   */
   def write(csvs: Seq[File], out: Option[File], opts: Map[String, String]): Unit =
     val rows = csvs.flatMap(readCsv).map(Row.apply).toVector
     val budget = opts.get("budget").flatMap(_.toLongOption).getOrElse(180000L)
@@ -79,7 +81,9 @@ object ExperimentReport:
           case _ => budget.toDouble
       }
       def phase(k: String): Double = rs.filter(_.solved).flatMap(_.d(k)).sum / 1000.0
-      say(f"| $c | ${solved.size} | ${unchecked.size} | ${perProblem.sum / 1000.0}%.0f | ${phase("clausify_ms")}%.0f | ${phase("search_ms")}%.0f | ${phase("reconstruct_ms")}%.0f | ${phase("check_ms")}%.0f |")
+      say(
+        f"| $c | ${solved.size} | ${unchecked.size} | ${perProblem.sum / 1000.0}%.0f | ${phase("clausify_ms")}%.0f | ${phase("search_ms")}%.0f | ${phase("reconstruct_ms")}%.0f | ${phase("check_ms")}%.0f |"
+      )
     say("\n`unchecked` counts problems whose proof was built but whose kernel check did not finish within the budget.\n")
 
     // ── coverage ────────────────────────────────────────────────────────────────────────────────────────────
@@ -113,8 +117,7 @@ object ExperimentReport:
 
     // ── against a baseline, when `baseline=` names one ──────────────────────────────────────────────────────
     for base <- opts.get("baseline") do
-      if !configs.contains(base) then
-        Console.err.println(s"baseline '$base' is not one of: ${configs.mkString(", ")}")
+      if !configs.contains(base) then Console.err.println(s"baseline '$base' is not one of: ${configs.mkString(", ")}")
       else
         val others = configs.filterNot(_ == base)
         val baseSolved = solvedTimes(rows, base).size
@@ -214,23 +217,34 @@ object ExperimentReport:
     def strategy: String = s("strategy")
     def solved: Boolean = s("verdict") == "REFUTED"
 
-    /** The problem's file name without its directory, since some runs record a full path and others do not. */
+    /**
+     * The problem's file name without its directory, since some runs record a full path and others do not.
+     */
     def problem: String =
       val p = s("problem")
       p.substring(math.max(p.lastIndexOf('/'), p.lastIndexOf('\\')) + 1)
 
-    /** What the run cost end to end; a phase a configuration does not run is absent, not zero. */
+    /**
+     * What the run cost end to end; a phase a configuration does not run is absent, not zero.
+     */
     def totalMs: Option[Double] =
       for c <- d("clausify_ms"); s <- d("search_ms")
       yield c + s + d("reconstruct_ms").getOrElse(0.0) + d("check_ms").getOrElse(0.0)
 
-  /** The time of each problem `config` solved: the fastest of its strategies, as the first to finish wins. */
+  /**
+   * The time of each problem `config` solved: the fastest of its strategies, as the first to finish wins.
+   */
   private def solvedTimes(rows: Vector[Row], config: String): Map[String, Double] =
-    rows.filter(r => r.config == config && r.solved)
+    rows
+      .filter(r => r.config == config && r.solved)
       .groupBy(_.problem)
-      .flatMap { (p, v) => val ts = v.flatMap(_.totalMs); if ts.isEmpty then None else Some(p -> ts.min) }
+      .flatMap { (p, v) =>
+        val ts = v.flatMap(_.totalMs); if ts.isEmpty then None else Some(p -> ts.min)
+      }
 
-  /** The problems both configurations solved, and what each spent on them. */
+  /**
+   * The problems both configurations solved, and what each spent on them.
+   */
   private def bothSolved(rows: Vector[Row], a: String, b: String): (Int, Double, Double) =
     val ta = solvedTimes(rows, a)
     val tb = solvedTimes(rows, b)
@@ -248,7 +262,9 @@ object ExperimentReport:
         lines.tail.filter(_.trim.nonEmpty).map(l => header.zip(splitCsv(l)).toMap)
     }
 
-  /** One CSV line, honouring quotes, which the `detail` column needs. */
+  /**
+   * One CSV line, honouring quotes, which the `detail` column needs.
+   */
   private def splitCsv(line: String): Vector[String] =
     val out = Vector.newBuilder[String]
     val cur = new StringBuilder
@@ -258,7 +274,8 @@ object ExperimentReport:
       val c = line.charAt(i)
       if quoted then
         if c == '"' then
-          if i + 1 < line.length && line.charAt(i + 1) == '"' then { cur += '"'; i += 1 } else quoted = false
+          if i + 1 < line.length && line.charAt(i + 1) == '"' then { cur += '"'; i += 1 }
+          else quoted = false
         else cur += c
       else if c == '"' then quoted = true
       else if c == ',' then { out += cur.toString; cur.clear() }

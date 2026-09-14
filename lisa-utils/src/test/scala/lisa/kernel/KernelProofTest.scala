@@ -7,19 +7,27 @@ import lisa.kernel.proof.SequentCalculus._
 import org.scalatest.exceptions.TestFailedException
 import org.scalatest.funsuite.AnyFunSuite
 
-/** Checks that the [[KernelProof]] helpers can fail, in particular on a `Sorry` proof the checker accepts. */
+/**
+ * Checks that the [[KernelProof]] helpers can fail, in particular on a `Sorry` proof the checker accepts.
+ */
 class KernelProofTest extends AnyFunSuite:
 
   private val emptySequent = Sequent(Set.empty, Set.empty)
   private val a = Variable(Identifier("a"), Prop)
 
-  /** `⊢` by a single `Sorry`: valid for the checker, but `usesSorry`. */
+  /**
+   * `⊢` by a single `Sorry`: valid for the checker, but `usesSorry`.
+   */
   private val fabricated = SCProof(IndexedSeq(Sorry(emptySequent)), IndexedSeq.empty)
 
-  /** `a ⊢ a` by `Hypothesis`. */
+  /**
+   * `a ⊢ a` by `Hypothesis`.
+   */
   private val genuine = SCProof(IndexedSeq(Hypothesis(Sequent(Set(a), Set(a)), a)), IndexedSeq.empty)
 
-  /** `Hypothesis` whose conclusion lacks the hypothesis. */
+  /**
+   * `Hypothesis` whose conclusion lacks the hypothesis.
+   */
   private val bogus = SCProof(IndexedSeq(Hypothesis(emptySequent, a)), IndexedSeq.empty)
 
   test("the kernel accepts a Sorry proof, so `isValid` alone cannot be the oracle") {

@@ -7,7 +7,6 @@ import lisa.automation.clausification.Clausification.ClausifierOptions
 import lisa.automation.clausification.Clausification.Distribute
 import lisa.automation.clausification.Clausification.GeneratedNames
 import lisa.automation.clausification.Clausification.Prenex
-
 import lisa.automation.clausification.UncertifiedClausifier
 import lisa.tptp.KernelParser.problemToKernel
 import lisa.tptp.KernelParser.strictMapAtom
@@ -193,11 +192,13 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
     // Write a row even when killed from outside by SIGTERM, so unsolved problems keep their counters. SIGKILL
     // cannot be caught.
     val written = new java.util.concurrent.atomic.AtomicBoolean(false)
-    Runtime.getRuntime.addShutdownHook(new Thread(() =>
-      if written.compareAndSet(false, true) then
-        writeCsv(cfg.csvOut.get, Vector((name, Timing("KILLED", detail = "killed before finishing"))), cfg)
-        println(s"% SZS status Timeout for $name")
-    ))
+    Runtime.getRuntime.addShutdownHook(
+      new Thread(() =>
+        if written.compareAndSet(false, true) then
+          writeCsv(cfg.csvOut.get, Vector((name, Timing("KILLED", detail = "killed before finishing"))), cfg)
+          println(s"% SZS status Timeout for $name")
+      )
+    )
 
     val (hyps, cj, res) = solveLocal(f, cfg, outerTimeout = true)
     val timing = res.copy(hypotheses = hyps) // as `solveRow` does
@@ -246,7 +247,9 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
     )
     run(paths, root, cfg)
 
-  /** Run each listed problem, resolved against `root` (the TPTP library unless `root=` said otherwise). */
+  /**
+   * Run each listed problem, resolved against `root` (the TPTP library unless `root=` said otherwise).
+   */
   private def run(paths: Vector[String], root: File, cfg: Config): Unit =
     println(f" ${"PROBLEM"}%-19s ${"HYP"}%4s ${"CJ"}%3s  ${"RESULT"}%-12s ${"clausify"}%10s ${"search"}%9s ${"recon"}%8s ${"check"}%9s ${"given"}%9s")
     val rows = paths.map(rel => (rel, solveRow(new File(root, rel), cfg)))
@@ -259,13 +262,29 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
    * The columns every run writes, whatever it was launched to answer, so that one analysis reads them all.
    */
   private val CsvHeader: Seq[String] = Seq(
-    "dataset", "problem", "config", "strategy", "verdict",
+    "dataset",
+    "problem",
+    "config",
+    "strategy",
+    "verdict",
     "hypotheses",
-    "clausify_ms", "search_ms", "reconstruct_ms", "check_ms",
-    "given", "derived", "peak_active", "peak_passive",
-    "clauses", "fresh_symbols",
-    "proof_steps", "raw_size", "shared_size", "max_sequent", "imports",
-    "uses_sorry", "detail"
+    "clausify_ms",
+    "search_ms",
+    "reconstruct_ms",
+    "check_ms",
+    "given",
+    "derived",
+    "peak_active",
+    "peak_passive",
+    "clauses",
+    "fresh_symbols",
+    "proof_steps",
+    "raw_size",
+    "shared_size",
+    "max_sequent",
+    "imports",
+    "uses_sorry",
+    "detail"
   )
 
   /**
@@ -283,17 +302,28 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
         val reached = ReachedProver(t.category)
         val m = t.metrics
         val cells = Seq(
-          cfg.dataset, rel, cfg.configName, cfg.strategy, t.category,
+          cfg.dataset,
+          rel,
+          cfg.configName,
+          cfg.strategy,
+          t.category,
           opt(t.hypotheses),
-          f"${t.clausifyMs}%.3f", ms(reached, t.searchMs),
+          f"${t.clausifyMs}%.3f",
+          ms(reached, t.searchMs),
           // Only when a kernel proof was built (`metrics` present); the uncertified path builds none.
           if m.isDefined then f"${t.reconstructMs}%.3f" else "",
           if m.isDefined then f"${t.checkMs}%.3f" else "",
           // Empty rather than the default 0 for a problem that never searched.
-          cnt(reached, t.givenProcessed), cnt(reached, t.derived), cnt(reached, t.peakActive), cnt(reached, t.peakPassive),
-          opt(t.clauses), opt(t.freshSymbols),
-          m.map(_.steps.toString).getOrElse(""), m.map(_.rawSize.toString).getOrElse(""),
-          m.map(_.sharedSize.toString).getOrElse(""), m.map(_.maxSequent.toString).getOrElse(""),
+          cnt(reached, t.givenProcessed),
+          cnt(reached, t.derived),
+          cnt(reached, t.peakActive),
+          cnt(reached, t.peakPassive),
+          opt(t.clauses),
+          opt(t.freshSymbols),
+          m.map(_.steps.toString).getOrElse(""),
+          m.map(_.rawSize.toString).getOrElse(""),
+          m.map(_.sharedSize.toString).getOrElse(""),
+          m.map(_.maxSequent.toString).getOrElse(""),
           m.map(_.imports.toString).getOrElse(""),
           if m.isDefined then t.usesSorry.toString else "",
           t.detail
@@ -303,7 +333,9 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
     finally out.close()
     println(s"wrote ${rows.size} rows to $path")
 
-  /** Quote a cell only when it needs it, so the common case stays readable. */
+  /**
+   * Quote a cell only when it needs it, so the common case stays readable.
+   */
   private def csvCell(s: String): String =
     if s.exists(c => c == ',' || c == '"' || c == '\n') then "\"" + s.replace("\"", "\"\"") + "\"" else s
 
@@ -369,8 +401,7 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
   private def solveChild(file: String, args: Seq[String]): Unit =
     // `publish` prints a row before the unbounded kernel check. The parent reads the last `RESULT` line, so that
     // row survives if the child is killed during the check.
-    val (hyps, cj, t) = solveLocal(new File(file), parse(args), outerTimeout = false,
-                                   publish = (h, c, p) => println(encodeRow(h, c, p)))
+    val (hyps, cj, t) = solveLocal(new File(file), parse(args), outerTimeout = false, publish = (h, c, p) => println(encodeRow(h, c, p)))
     println(encodeRow(hyps, cj, t))
 
   // Plain `toString`/`toDouble` rather than the `f` interpolator: `%f` formats in the default locale, writing
@@ -407,21 +438,33 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
             val f = s.split(' ')
             Some(ProofMetrics(f(0).toInt, f(1).toLong, f(2).toLong, f(3).toLong, f(4).toInt))
         // Named arguments, so a field added to `Timing` cannot shift the others. `hypotheses` travels as `p(1)`.
-        (p(1).toInt, p(2), Timing(
-          category = p(0),
-          clausifyMs = p(3).toDouble, searchMs = p(4).toDouble, reconstructMs = p(5).toDouble, checkMs = p(6).toDouble,
-          givenProcessed = p(7).toInt, derived = p(8).toInt, peakActive = p(9).toInt, peakPassive = p(10).toInt,
-          clauses = p(11).toInt, freshSymbols = p(12).toInt,
-          metrics = metrics, usesSorry = p(14).toBoolean, detail = p.lift(15).getOrElse("")
-        ))
+        (
+          p(1).toInt,
+          p(2),
+          Timing(
+            category = p(0),
+            clausifyMs = p(3).toDouble,
+            searchMs = p(4).toDouble,
+            reconstructMs = p(5).toDouble,
+            checkMs = p(6).toDouble,
+            givenProcessed = p(7).toInt,
+            derived = p(8).toInt,
+            peakActive = p(9).toInt,
+            peakPassive = p(10).toInt,
+            clauses = p(11).toInt,
+            freshSymbols = p(12).toInt,
+            metrics = metrics,
+            usesSorry = p(14).toBoolean,
+            detail = p.lift(15).getOrElse("")
+          )
+        )
       }.toOption
 
   /**
    * Parse, clausify and solve one problem in this JVM. `outerTimeout` adds the thread-based wall-clock guard,
    * wanted when this *is* the run (`LISA_FORK=0`), redundant in a child whose parent will kill it.
    */
-  private def solveLocal(f: File, cfg0: Config, outerTimeout: Boolean,
-                         publish: (Int, String, Timing) => Unit = (_, _, _) => ()): (Int, String, Timing) =
+  private def solveLocal(f: File, cfg0: Config, outerTimeout: Boolean, publish: (Int, String, Timing) => Unit = (_, _, _) => ()): (Int, String, Timing) =
     if !f.exists then return (-1, "?", Timing("MISSING"))
     // Catch `Throwable`, not just `NonFatal`: the recursive TPTP parser can `StackOverflowError` on very
     // deeply-nested formulas, which would otherwise kill the whole run.
@@ -491,8 +534,7 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
               val buffer = new java.io.ByteArrayOutputStream()
               val (inputFormulas, conjecture) = Tstp.inputFormulas(parsed, cprob)
               Console.withOut(buffer) {
-                Tstp.printRefutation(name, r.axioms.map(inputFormulas), conjecture, r.clauses, r.success,
-                                     isCnf = parsed.spc.exists(_.contains("CNF")))
+                Tstp.printRefutation(name, r.axioms.map(inputFormulas), conjecture, r.clauses, r.success, isCnf = parsed.spc.exists(_.contains("CNF")))
               }
               buffer.toString
             }
@@ -517,8 +559,7 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
   /**
    * Run the pipeline once, timing each phase and recording the loop-scale stats.
    */
-  private def solveOne(cprob: Problem, cfg: Config, parsed: lisa.tptp.TptpProblem, name: String,
-                       publish: Timing => Unit = _ => ()): Timing =
+  private def solveOne(cprob: Problem, cfg: Config, parsed: lisa.tptp.TptpProblem, name: String, publish: Timing => Unit = _ => ()): Timing =
     // A separate pipeline that builds no kernel proof; see [[solveUncertified]].
     if !cfg.certified && !cfg.clausifyOnly then return solveUncertified(cprob, cfg, parsed, name)
     val searchNanos = new java.util.concurrent.atomic.AtomicLong(0L)
@@ -539,8 +580,14 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
           val prepared = Clausal.prepare(p)
           val ss = System.nanoTime()
           val outcome =
-            try Clausal.refute(prepared.work, cfg.opts.copy(maxMillis = cfg.timeoutMs, onStats = stats.set),
-                               symbolVars = prepared.symbolVars, discharge = prepared.abs.dischargeSubst, goal = goal)
+            try
+              Clausal.refute(
+                prepared.work,
+                cfg.opts.copy(maxMillis = cfg.timeoutMs, onStats = stats.set),
+                symbolVars = prepared.symbolVars,
+                discharge = prepared.abs.dischargeSubst,
+                goal = goal
+              )
             finally searchNanos.addAndGet(System.nanoTime() - ss)
           outcome match
             case s: Clausal.Outcome.Success =>
@@ -565,11 +612,21 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
         // count as a checked refutation.
         if cfg.check && !cfg.clausifyOnly then
           val sNow = stats.get
-          publish(Timing("UNCHECKED", clausifyMs, searchNanos.get / 1e6, reconstructNanos.get / 1e6,
-                         givenProcessed = sNow.givenProcessed, derived = sNow.passiveEnqueued,
-                         peakActive = sNow.peakActive, peakPassive = sNow.peakPassive,
-                         clauses = clauseCount.get, freshSymbols = freshCount.get,
-                         metrics = Some(ProofMetrics.of(proof))))
+          publish(
+            Timing(
+              "UNCHECKED",
+              clausifyMs,
+              searchNanos.get / 1e6,
+              reconstructNanos.get / 1e6,
+              givenProcessed = sNow.givenProcessed,
+              derived = sNow.passiveEnqueued,
+              peakActive = sNow.peakActive,
+              peakPassive = sNow.peakPassive,
+              clauses = clauseCount.get,
+              freshSymbols = freshCount.get,
+              metrics = Some(ProofMetrics.of(proof))
+            )
+          )
         val cs = System.nanoTime()
         val judgement = if cfg.check then Some(K.SCProofChecker.checkSCProof(proof)) else None
         val checkMs = if cfg.check then (System.nanoTime() - cs) / 1e6 else 0.0
@@ -592,8 +649,12 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
             else ""
         Timing(
           verdict,
-          clausifyMs, searchNanos.get / 1e6, reconstructNanos.get / 1e6, checkMs,
-          metrics = Some(ProofMetrics.of(proof)), usesSorry = sorry,
+          clausifyMs,
+          searchNanos.get / 1e6,
+          reconstructNanos.get / 1e6,
+          checkMs,
+          metrics = Some(ProofMetrics.of(proof)),
+          usesSorry = sorry,
           detail = detail
         )
       catch
@@ -621,9 +682,12 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
         case e: Throwable => Timing(s"CLAUSIFY_ERR(${e.getClass.getSimpleName})", clausifyMsSoFar, searchNanos.get / 1e6, reconstructNanos.get / 1e6)
     val s = stats.get
     base.copy(
-      givenProcessed = s.givenProcessed, derived = s.passiveEnqueued,
-      peakActive = s.peakActive, peakPassive = s.peakPassive,
-      clauses = clauseCount.get, freshSymbols = freshCount.get
+      givenProcessed = s.givenProcessed,
+      derived = s.passiveEnqueued,
+      peakActive = s.peakActive,
+      peakPassive = s.peakPassive,
+      clauses = clauseCount.get,
+      freshSymbols = freshCount.get
     )
 
   /**

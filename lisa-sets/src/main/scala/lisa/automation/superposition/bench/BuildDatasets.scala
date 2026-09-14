@@ -28,11 +28,15 @@ import scala.util.Using
  */
 object BuildDatasets:
 
-  /** A problem and its Specialist Problem Class. */
+  /**
+   * A problem and its Specialist Problem Class.
+   */
   private case class Entry(path: String, spc: String):
     def form: String = spc.takeWhile(_ != '_') // FOF or CNF
 
-  /** Refutable and first order: what this prover can attempt. */
+  /**
+   * Refutable and first order: what this prover can attempt.
+   */
   private val eligibleSpc = "^(FOF_(THM|UNS|CAX)|CNF_UNS)_".r
 
   def main(args: Array[String]): Unit =
@@ -98,15 +102,21 @@ object BuildDatasets:
       spc.map(s => Entry(relative(root.getParent, p), s))
     }
 
-  /** A library-relative path, always with `/`: the lists are read on every platform. */
+  /**
+   * A library-relative path, always with `/`: the lists are read on every platform.
+   */
   private def relative(base: Path, p: Path): String = base.relativize(p).toString.replace('\\', '/')
 
-  /** `n (f FOF, c CNF)`, the shape of a set of problems in one phrase. */
+  /**
+   * `n (f FOF, c CNF)`, the shape of a set of problems in one phrase.
+   */
   private def describe(es: Seq[Entry]): String =
     val fof = es.count(_.form == "FOF")
     s"${es.size} ($fof FOF, ${es.size - fof} CNF)"
 
-  /** The repository: the nearest enclosing directory holding both `build.sbt` and `lisa-sets`. */
+  /**
+   * The repository: the nearest enclosing directory holding both `build.sbt` and `lisa-sets`.
+   */
   private def repositoryRoot: Option[File] =
     Iterator
       .iterate(new File(".").getAbsoluteFile.getCanonicalFile)(_.getParentFile)
@@ -116,7 +126,9 @@ object BuildDatasets:
   private def readLines(f: File): Vector[String] =
     Using(Source.fromFile(f))(_.getLines().map(_.trim).filter(_.nonEmpty).toVector).get
 
-  /** Write `lines` to `f` unless it exists, ending lines in `\n` so the file is the same on every platform. */
+  /**
+   * Write `lines` to `f` unless it exists, ending lines in `\n` so the file is the same on every platform.
+   */
   private def writeIfAbsent(f: File, lines: Seq[String]): Unit =
     if f.exists then println(s"kept  ${f.getName}: already exists, delete it to rebuild")
     else

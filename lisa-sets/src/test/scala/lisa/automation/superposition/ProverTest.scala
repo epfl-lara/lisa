@@ -17,7 +17,9 @@ import org.scalatest.funsuite.AnyFunSuite
  */
 class ProverTest extends AnyFunSuite:
 
-  /** The clausifier reads its configuration as a given; these tests exercise the shipped one. */
+  /**
+   * The clausifier reads its configuration as a given; these tests exercise the shipped one.
+   */
   private given Clausification.ClausifierOptions = Clausification.ClausifierOptions()
 
   private val p = Constant(Identifier("p"), Prop)

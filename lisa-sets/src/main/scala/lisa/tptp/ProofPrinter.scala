@@ -63,7 +63,9 @@ object ProofPrinter {
 
   def isLowerWord(s: String): Boolean = s.head.isLower && s.tail.forall(_.isLetterOrDigit)
 
-  /** `s` as a TPTP `atomic_word`: a lower word verbatim, anything else single-quoted with `\` and `'` escaped. */
+  /**
+   * `s` as a TPTP `atomic_word`: a lower word verbatim, anything else single-quoted with `\` and `'` escaped.
+   */
   inline def quoted(s: String): String =
     if isLowerWord(s) then s else "'" + s.replace("\\", "\\\\").replace("'", "\\'") + "'"
 

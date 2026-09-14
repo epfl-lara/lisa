@@ -130,7 +130,9 @@ private[clausification] object PrenexPhase:
     (SCSubproof(SCProof(steps.toIndexedSeq, IndexedSeq(imported)), IndexedSeq(premise)), () |- matrix)
   }
 
-  /** One `∧` or `∨` on the path from the root to a `∀`, the side the `∀` is on, and the other operand. */
+  /**
+   * One `∧` or `∨` on the path from the root to a `∀`, the side the `∀` is on, and the other operand.
+   */
   private case class Layer(conj: Boolean, onLeft: Boolean, sibling: Expression)
 
   /**
@@ -146,25 +148,33 @@ private[clausification] object PrenexPhase:
     // The laws are inner imports `-2` to `-5`, in `libImports` order.
     def lawRef(l: Layer): Int = -(2 + (if l.conj then 0 else 2) + (if l.onLeft then 0 else 1))
 
-    /** The leftmost `∀` in pre-order, with the path of connective layers from the root down to it. */
+    /**
+     * The leftmost `∀` in pre-order, with the path of connective layers from the root down to it.
+     */
     def locate(f: Expression): Option[(List[Layer], Variable, Expression)] = f match
       case Forall(x, body) => Some((Nil, x, body))
       case And(g, h) =>
-        locate(g).map((p, x, b) => (Layer(true, true, h) :: p, x, b))
+        locate(g)
+          .map((p, x, b) => (Layer(true, true, h) :: p, x, b))
           .orElse(locate(h).map((p, x, b) => (Layer(true, false, g) :: p, x, b)))
       case Or(g, h) =>
-        locate(g).map((p, x, b) => (Layer(false, true, h) :: p, x, b))
+        locate(g)
+          .map((p, x, b) => (Layer(false, true, h) :: p, x, b))
           .orElse(locate(h).map((p, x, b) => (Layer(false, false, g) :: p, x, b)))
       case _ => None
 
-    /** `f` with the subformula at `path` replaced by `at` applied to it. */
+    /**
+     * `f` with the subformula at `path` replaced by `at` applied to it.
+     */
     def rewriteAt(f: Expression, path: List[Layer], at: Expression => Expression): Expression = (path, f) match
       case (Nil, _) => at(f)
       case (l :: rest, And(g, h)) if l.conj => if l.onLeft then and(rewriteAt(g, rest, at))(h) else and(g)(rewriteAt(h, rest, at))
       case (l :: rest, Or(g, h)) if !l.conj => if l.onLeft then or(rewriteAt(g, rest, at))(h) else or(g)(rewriteAt(h, rest, at))
       case _ => sys.error(s"prenex path does not match the formula at $f")
 
-    /** Lift `∀x. body` across the one connective `layer` that encloses it, at `pathToOuter` inside `src`. */
+    /**
+     * Lift `∀x. body` across the one connective `layer` that encloses it, at `pathToOuter` inside `src`.
+     */
     def lift(srcIdx: Int, src: Expression, pathToOuter: List[Layer], layer: Layer, x: Variable, body: Expression): (Int, Expression) =
       val innerForall = forall(Lambda(x, body))
       // α-rename the binder away from the sibling's free variables, as `InstSchema` would, so the lifted

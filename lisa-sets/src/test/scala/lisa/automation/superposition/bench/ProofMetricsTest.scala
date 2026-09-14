@@ -1,11 +1,12 @@
 package lisa.automation.superposition
 package bench
 
+import lisa.utils.K._
 import org.scalatest.funsuite.AnyFunSuite
 
-import lisa.utils.K.*
-
-/** Tests for [[ProofMetrics]]: how the two sizes relate, and that both descend into subproofs. */
+/**
+ * Tests for [[ProofMetrics]]: how the two sizes relate, and that both descend into subproofs.
+ */
 class ProofMetricsTest extends AnyFunSuite:
 
   private val a = Variable(Identifier("a"), Prop)
@@ -13,7 +14,9 @@ class ProofMetricsTest extends AnyFunSuite:
   private val x = Variable(Identifier("x"), Ind)
   private val p = Variable(Identifier("p"), Ind >>: Prop)
 
-  /** `p(x)`, an expression of three nodes: the application, `p`, and `x`. */
+  /**
+   * `p(x)`, an expression of three nodes: the application, `p`, and `x`.
+   */
   private val px: Expression = p(x)
 
   test("a one step proof: sizes are the node counts of its conclusion") {

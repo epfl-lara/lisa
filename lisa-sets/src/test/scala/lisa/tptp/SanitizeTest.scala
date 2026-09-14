@@ -12,7 +12,9 @@ class SanitizeTest extends AnyFunSuite:
 
   import KernelParser.{sanitize, unsanitize}
 
-  /** Every character an identifier may not contain, plus the escape character itself. */
+  /**
+   * Every character an identifier may not contain, plus the escape character itself.
+   */
   private val hostile: String = K.Identifier.forbiddenChars.mkString + " \t\n\r $"
 
   private val cases: Seq[String] = Seq(
@@ -20,9 +22,15 @@ class SanitizeTest extends AnyFunSuite:
     "plain",
     "a_b",
     "a$ub", // must not collide with `a_b`
-    "$", "$$", "$u", "$s", "$x0041",
+    "$",
+    "$$",
+    "$u",
+    "$s",
+    "$x0041",
     "c_bcase_3235139646", // the counter suffix must stay in the name
-    "trailing_", "_leading", "__",
+    "trailing_",
+    "_leading",
+    "__",
     hostile,
     "(geology) a depression in Asia; extends from Jordan to Mozambique",
     """Suborganismal \'living\' components of organisms,   including systems, organs, and cells.""",
@@ -61,6 +69,5 @@ class SanitizeTest extends AnyFunSuite:
 
   test("unsanitize passes through an unsanitized kernel name unchanged") {
     // Generated names reach `unsanitize` unencoded: unknown escapes must not throw or drop characters.
-    for s <- Seq("sk", "sk_1", "nm", "epsi", "a$", "$", "$q", "$xZZZZ", "$x00") do
-      assert(unsanitize(s, 0) == s, s"unexpected decode of $s: ${unsanitize(s, 0)}")
+    for s <- Seq("sk", "sk_1", "nm", "epsi", "a$", "$", "$q", "$xZZZZ", "$x00") do assert(unsanitize(s, 0) == s, s"unexpected decode of $s: ${unsanitize(s, 0)}")
   }

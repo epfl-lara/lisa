@@ -130,7 +130,9 @@ object Strategy:
   val tuned: Seq[Strategy] =
     Seq(balanced, weightGreedy, weightGreedyOl, occurrenceNoOl, equationalOl, unaryRedundancyNoOl, subsumptionLightOl, firstNegativeNoOl)
 
-  /** Every strategy this object names, the default portfolio first. Names are unique across the two. */
+  /**
+   * Every strategy this object names, the default portfolio first. Names are unique across the two.
+   */
   val all: Seq[Strategy] = (portfolio ++ tuned).distinctBy(_.name)
 
   def byName(name: String): Option[Strategy] = all.find(_.name == name)

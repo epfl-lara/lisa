@@ -1,8 +1,6 @@
 package lisa.automation.superposition
 package bench
 
-import scala.collection.mutable
-
 import lisa.utils.K.Application
 import lisa.utils.K.Expression
 import lisa.utils.K.Lambda
@@ -10,6 +8,8 @@ import lisa.utils.K.SCProof
 import lisa.utils.K.SCProofStep
 import lisa.utils.K.SCSubproof
 import lisa.utils.K.Sequent
+
+import scala.collection.mutable
 
 /**
  * Size of a reconstructed kernel proof.
@@ -45,8 +45,12 @@ object ProofMetrics:
 
     def visit(bot: Sequent): Unit =
       var here = 0L
-      bot.left.foreach { e => here += rawSizeOf(e); shared += sharedSizeOf(e) }
-      bot.right.foreach { e => here += rawSizeOf(e); shared += sharedSizeOf(e) }
+      bot.left.foreach { e =>
+        here += rawSizeOf(e); shared += sharedSizeOf(e)
+      }
+      bot.right.foreach { e =>
+        here += rawSizeOf(e); shared += sharedSizeOf(e)
+      }
       raw += here
       if here > maxSeq then maxSeq = here
 
@@ -59,7 +63,9 @@ object ProofMetrics:
     walk(proof.steps)
     ProofMetrics(proof.totalLength, raw, shared, maxSeq, proof.imports.length)
 
-  /** Node count of an expression: variables, constants, applications and lambdas each count one. */
+  /**
+   * Node count of an expression: variables, constants, applications and lambdas each count one.
+   */
   def rawSizeOf(e: Expression): Long = e match
     case Application(f, a) => 1L + rawSizeOf(f) + rawSizeOf(a)
     case Lambda(_, body) => 1L + rawSizeOf(body)

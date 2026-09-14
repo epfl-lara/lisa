@@ -5,7 +5,7 @@ import java.io.File
 import java.io.PrintWriter
 import java.nio.file.Files
 import scala.io.Source
-import scala.sys.process.*
+import scala.sys.process._
 import scala.util.Using
 
 /**
@@ -33,7 +33,9 @@ import scala.util.Using
  */
 object RunExperiment:
 
-  /** The harness entry point every configuration goes through, and the class a forked child re-enters. */
+  /**
+   * The harness entry point every configuration goes through, and the class a forked child re-enters.
+   */
   private def harness(args: Seq[String]): Unit = FofEvaluation.main(args.toArray)
 
   def main(args: Array[String]): Unit =
@@ -55,7 +57,8 @@ object RunExperiment:
     val passthrough = rest.filterNot(a => own.exists(k => a.startsWith(k + "=")))
     val force = value("force", rest).exists(v => Set("on", "true", "1").contains(v.toLowerCase))
 
-    val results = value("results", rest).map(new File(_))
+    val results = value("results", rest)
+      .map(new File(_))
       .getOrElse(confDir.map(d => new File(d.getParentFile, "results")).getOrElse(new File("results")))
     results.mkdirs()
 
@@ -127,10 +130,14 @@ object RunExperiment:
       Console.err.println(s"failed configurations: ${failed.mkString(" ")}")
       sys.exit(1)
 
-  /** Where the packaged datasets and experiments live on the classpath. */
+  /**
+   * Where the packaged datasets and experiments live on the classpath.
+   */
   private val resourceDir = "/lisa/automation/superposition"
 
-  /** The experiment file at `arg`, else the packaged one: its name, lines, directory if a file, and source. */
+  /**
+   * The experiment file at `arg`, else the packaged one: its name, lines, directory if a file, and source.
+   */
   private def loadExperiment(arg: String): Option[(String, Vector[String], Option[File], String)] =
     val file = new File(arg)
     if file.isFile then
@@ -162,9 +169,10 @@ object RunExperiment:
         tmp.toFile
       }
 
-  /** What produced these results: when, where, from which revision and against which TPTP, with what settings. */
-  private def writeProvenance(f: File, experiment: String, source: String, lines: Vector[String], defaults: Seq[String],
-                              args: Seq[String], tptp: File): Unit =
+  /**
+   * What produced these results: when, where, from which revision and against which TPTP, with what settings.
+   */
+  private def writeProvenance(f: File, experiment: String, source: String, lines: Vector[String], defaults: Seq[String], args: Seq[String], tptp: File): Unit =
     def quiet(cmd: Seq[String]): Option[String] =
       scala.util.Try(cmd.!!(ProcessLogger(_ => ()))).toOption.map(_.trim).filter(_.nonEmpty)
     val rev = quiet(Seq("git", "rev-parse", "HEAD")).getOrElse("unknown")
