@@ -560,15 +560,24 @@ object Serialization {
    * kernel name, which is stored verbatim in the proof file.
    */
   def thmsFromDataStream(treesDIS: DataInputStream, proofDIS: DataInputStream, theory: RunningTheory, debug: Boolean = false): Seq[(theory.Theorem, SCProof)] = {
-    proofsFromDataStream(treesDIS, proofDIS).map { (name, proof, justifications) =>
+    checkTheorems(proofsFromDataStream(treesDIS, proofDIS), theory, debug)
+  }
+
+  /** Resolve imports and check each decoded theorem before registering it. */
+  private def checkTheorems(theorems: Seq[(String, SCProof, List[String])], theory: RunningTheory, debug: Boolean): Seq[(theory.Theorem, SCProof)] = {
+    theorems.map { (name, proof, justifications) =>
       val justs = justifications.map { j =>
         val nl = j.tail
-        val Array(_, jName) = nl.split("\\$")
+        val Array(_, jName) = nl.split("\\$", 2)
         j(0) match
           case 'a' => theory.getAxiom(jName).get
           case 't' => theory.getTheorem(jName).get
           case 'd' =>
-            val Array(id, no, sort) = jName.split("_")
+            val sortSeparator = jName.lastIndexOf('_')
+            val numberSeparator = jName.lastIndexOf('_', sortSeparator - 1)
+            val id = jName.take(numberSeparator)
+            val no = jName.substring(numberSeparator + 1, sortSeparator)
+            val sort = jName.drop(sortSeparator + 1)
             val cst = Constant(Identifier(id, no.toInt), typeFromString(sort)._1)
             theory.getDefinition(cst).get
       }
@@ -614,23 +623,39 @@ object Serialization {
   /**
    * Same as [[thmsFromFile]] but only returns the first theorem (usually because we know there is only one theorem in the file).
    */
-  def oneThmFromFile(filename: String, theory: RunningTheory): Option[theory.Theorem] = {
+  def oneThmFromFile(filename: String, theory: RunningTheory): Option[theory.Theorem] =
+    oneProofFromFile(filename, theory).map(_._1)
+
+  /** Read and check one cached proof, validating its expected identity before registration. */
+  def oneProofFromFile(
+      filename: String,
+      theory: RunningTheory,
+      expected: Option[(String, Sequent)] = None
+  ): Option[(theory.Theorem, SCProof)] = {
     val treeFile = File(filename + ".trees")
     val proofFile = File(filename + ".proof")
     if treeFile.isFile() && proofFile.isFile() then
       val treesDIS = new DataInputStream(new BufferedInputStream(new FileInputStream(treeFile)))
       val proofDIS = new DataInputStream(new BufferedInputStream(new FileInputStream(proofFile)))
 
-      val thm =
-        try { Some(thmsFromDataStream(treesDIS, proofDIS, theory, false)) }
-        catch {
-          case e: Exception =>
-            println("Error while reading theorems from file: " + filename)
-            None
+      try {
+        val decoded = proofsFromDataStream(treesDIS, proofDIS)
+        require(decoded.nonEmpty && (expected.isEmpty || decoded.size == 1), "Expected one cached theorem")
+        expected.foreach { (name, statement) =>
+          require(decoded.head._1 == name, "Cached theorem name does not match")
+          require(decoded.head._2.conclusion == statement, "Cached theorem statement does not match")
         }
-      treesDIS.close()
-      proofDIS.close()
-      thm.map(_.head._1)
+        Some(checkTheorems(decoded, theory, false).head)
+      }
+      catch {
+        case e: Exception =>
+          println("Error while reading theorems from file: " + filename)
+          None
+      }
+      finally {
+        treesDIS.close()
+        proofDIS.close()
+      }
     else None
   }
 

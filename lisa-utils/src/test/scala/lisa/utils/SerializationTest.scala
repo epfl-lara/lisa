@@ -625,6 +625,25 @@ class SerializationTest extends AnyFunSuite with TestUtils {
     assert(proofsEqual(results.head._2, proof))
   }
 
+  test("Serialization: resolve definitions whose identifiers contain underscores") {
+    val theory = new lisa.kernel.proof.RunningTheory
+    val constant = Constant(Identifier("defined_with_underscores", 3), Prop)
+    val definition = theory.makeDefinition(constant, top, Seq.empty).get
+    val statement = theory.sequentFromJustification(definition)
+    val proof = SCProof(IndexedSeq(Restate(statement, -1)), IndexedSeq(statement))
+    val trees = new ByteArrayOutputStream
+    val steps = new ByteArrayOutputStream
+    thmsToDataStream(new DataOutputStream(trees), new DataOutputStream(steps), theory,
+      List(("test.underscore", proof, List(("test", definition)))))
+    val read = thmsFromDataStream(
+      new DataInputStream(new ByteArrayInputStream(trees.toByteArray)),
+      new DataInputStream(new ByteArrayInputStream(steps.toByteArray)),
+      theory
+    )
+    assert(read.head._1.proposition == statement)
+    assert(lisa.kernel.proof.SCProofChecker.checkSCProof(read.head._2).isValid)
+  }
+
   test("Serialization: RightSubstEq round-trip") {
     val feq = Application(Application(equality, x), y)
     val px = Application(p, x)

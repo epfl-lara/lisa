@@ -555,14 +555,15 @@ trait WithTheorems {
     val goal: F.Sequent = statement
 
     val proof: BaseProof = new BaseProof(this)
-    def kernelProof: Option[K.SCProof] = Some(proof.toSCProof)
-    def highProof: Option[BaseProof] = Some(proof)
+    private var cachedProof: Option[K.SCProof] = None
+    def kernelProof: Option[K.SCProof] = cachedProof.orElse(Some(proof.toSCProof))
+    def highProof: Option[BaseProof] = if cachedProof.isDefined then None else Some(proof)
 
     import lisa.utils.Serialization.*
     val innerJustification: theory.Theorem =
       if library._draft.nonEmpty && library._draft.get.value != file
       then // if the draft option is activated, and the theorem is not in the file where the draft option is given, then we replace the proof by sorry
-        theory.theorem(name, goal.underlying, SCProof(SC.Sorry(goal.underlying)), IndexedSeq.empty) match {
+        theory.theorem(fullName, goal.underlying, SCProof(SC.Sorry(goal.underlying)), IndexedSeq.empty) match {
           case K.Judgement.ValidJustification(just) =>
             just
           case wrongJudgement: K.Judgement.InvalidJustification[?] =>
@@ -575,12 +576,14 @@ trait WithTheorems {
             )
         }
       else if library._withCache then
-        oneThmFromFile("cache/" + name, library.theory) match {
-          case Some(thm) => thm // try to get the theorem from file
+        oneProofFromFile("cache/" + fullName, library.theory, Some(fullName -> goal.underlying)) match {
+          case Some((thm, scp)) =>
+            cachedProof = Some(scp)
+            thm
 
           case None =>
             val (thm, scp, justifs) = prove(computeProof) // if fail, prove it
-            thmsToFile("cache/" + name, theory, List((name, flattenProof(scp), justifs))) // and save it to the file
+            thmsToFile("cache/" + fullName, theory, List((fullName, flattenProof(scp), justifs))) // and save it to the file
             thm
         }
       else prove(computeProof)._1
@@ -603,7 +606,7 @@ trait WithTheorems {
 
       val scp = proof.toSCProof
       val justifs = proof.getImports.map(e => (e._1.owner, e._1.innerJustification))
-      theory.theorem(name, goal.underlying, scp, justifs.map(_._2)) match {
+      theory.theorem(fullName, goal.underlying, scp, justifs.map(_._2)) match {
         case K.Judgement.ValidJustification(just) =>
           (just, scp, justifs)
         case wrongJudgement: K.Judgement.InvalidJustification[?] =>
