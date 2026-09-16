@@ -155,7 +155,9 @@ object Substitution:
           import lib.{have, thenHave, lastStep}
           import BasicStepTactic.{TacticSubproof, Weakening, Cut, LeftSubstEq, RightSubstEq, Restate}
 
-          TacticSubproof:
+          TacticSubproof: ip ?=>
+            // Rewrite the premise's exact context; add ambient assumptions at the final weakening.
+            ip.cleanAssumptions
             val leftRewrites = leftSubsts.get
             val rightRewrites = rightSubsts.get
             val leftRules = leftRewrites.to(VecSet).flatMap(_.rules)
