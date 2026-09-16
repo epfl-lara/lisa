@@ -7,6 +7,8 @@ git diff --exit-code "$base" -- \
   lisa-kernel/src/main/scala/lisa/kernel/proof \
   lisa-utils/src/main/scala/lisa/utils/prooflib/BasicStepTactic.scala \
   lisa-utils/src/main/scala/lisa/utils/prooflib/ProofTacticLib.scala \
+  lisa-utils/src/main/scala/lisa/utils/prooflib/ProofsHelpers.scala \
+  lisa-utils/src/main/scala/lisa/utils/prooflib/Library.scala \
   lisa-utils/src/main/scala/lisa/utils/prooflib/Exports.scala
 for path in \
   lisa-kernel/src/main/scala/lisa/kernel/proof/Theorem.scala \
