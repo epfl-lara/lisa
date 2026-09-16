@@ -129,3 +129,17 @@ lazy val coc = Project(
   .settings(commonProjectSettings)
   .settings(scala3ProjectSettings)
   .dependsOn(root)
+
+lazy val holImport = Project(
+  id = "lisa-hol",
+  base = file("lisa-hol")
+)
+  .settings(commonProjectSettings)
+  .settings(scala3ProjectSettings)
+  .settings(allowScala2ProjectDependency)
+  .settings(
+    libraryDependencies += "com.lihaoyi" %% "upickle" % "4.4.3",
+      libraryDependencies += "com.lihaoyi" %% "fastparse" % "3.1.1",
+      libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "2.4.0" % Test
+  )
+  .dependsOn(sets, utils)
