@@ -12,10 +12,11 @@ import lisa.utils.prooflib._
 trait WithTheorems {
   library: Library =>
 
-  /** Conclude the proof with the declared statement before retaining or serializing it. */
+  /**
+   * Conclude the proof with the declared statement before retaining or serializing it.
+   */
   private def concludeProof(statement: K.Sequent, proof: K.SCProof): K.SCProof =
-    if statement != proof.conclusion && K.isSameSequent(statement, proof.conclusion) then
-      proof.appended(SC.Restate(statement, proof.length - 1))
+    if statement != proof.conclusion && K.isSameSequent(statement, proof.conclusion) then proof.appended(SC.Restate(statement, proof.length - 1))
     else proof
 
   /**
@@ -521,9 +522,15 @@ trait WithTheorems {
      * @param cacheImports Retain frontend imports when caching generated proofs.
      * @return
      */
-    def fromSCProof(using om: OutputManager)(
-        statement: F.Sequent, fullName: String, kind: TheoremKind, getProof: () => K.SCProof,
-        justifs: Seq[theory.Justification], cacheImports: List[JUSTIFICATION] = Nil
+    def fromSCProof(using
+        om: OutputManager
+    )(
+        statement: F.Sequent,
+        fullName: String,
+        kind: TheoremKind,
+        getProof: () => K.SCProof,
+        justifs: Seq[theory.Justification],
+        cacheImports: List[JUSTIFICATION] = Nil
     ): THM =
       import lisa.utils.Serialization.*
       val cached = if library._withCache then oneProofFromFile("cache/" + fullName, theory, Some(fullName -> statement.underlying)) else None

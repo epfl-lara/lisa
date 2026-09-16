@@ -348,25 +348,25 @@ object Serialization {
     var tag = treesDIS.read()
     while tag != -1 do
       val expression = tag match
-          case 0 =>
-            val name = treesDIS.readUTF()
-            val no = treesDIS.readInt()
-            val sort = treesDIS.readUTF()
-            Variable(Identifier(name, no), typeFromString(sort)._1)
-          case 1 =>
-            val name = treesDIS.readUTF()
-            val no = treesDIS.readInt()
-            val sort = treesDIS.readUTF()
-            Constant(Identifier(name, no), typeFromString(sort)._1)
-          case 2 =>
-            val v = exprMap(treesDIS.readInt())
-            val body = exprMap(treesDIS.readInt())
-            Lambda(v.asInstanceOf[Variable], body)
-          case 3 =>
-            val f = exprMap(treesDIS.readInt())
-            val arg = exprMap(treesDIS.readInt())
-            Application(f, arg)
-          case _ => throw new IllegalArgumentException(s"Unknown expression tag: $tag")
+        case 0 =>
+          val name = treesDIS.readUTF()
+          val no = treesDIS.readInt()
+          val sort = treesDIS.readUTF()
+          Variable(Identifier(name, no), typeFromString(sort)._1)
+        case 1 =>
+          val name = treesDIS.readUTF()
+          val no = treesDIS.readInt()
+          val sort = treesDIS.readUTF()
+          Constant(Identifier(name, no), typeFromString(sort)._1)
+        case 2 =>
+          val v = exprMap(treesDIS.readInt())
+          val body = exprMap(treesDIS.readInt())
+          Lambda(v.asInstanceOf[Variable], body)
+        case 3 =>
+          val f = exprMap(treesDIS.readInt())
+          val arg = exprMap(treesDIS.readInt())
+          Application(f, arg)
+        case _ => throw new IllegalArgumentException(s"Unknown expression tag: $tag")
       exprMap(exprMap.size) = expression
       tag = treesDIS.read()
 
@@ -510,9 +510,13 @@ object Serialization {
     checkTheorems(proofsFromDataStream(treesDIS, proofDIS), theory, debug)
   }
 
-  /** Resolve imports and check each decoded theorem before registering it. */
+  /**
+   * Resolve imports and check each decoded theorem before registering it.
+   */
   private def checkTheorems(
-      theorems: Seq[(String, SCProof, List[String])], theory: RunningTheory, debug: Boolean,
+      theorems: Seq[(String, SCProof, List[String])],
+      theory: RunningTheory,
+      debug: Boolean,
       loadTheorem: String => Option[theory.Theorem] = (_: String) => None
   ): Seq[(theory.Theorem, SCProof)] = {
     theorems.map { (name, proof, justifications) =>
@@ -535,7 +539,8 @@ object Serialization {
           // A cached proof skips its body, including references that initialize other Scala objects.
           try Class.forName(owner + "$").getField("MODULE$").get(null)
           catch case _: ClassNotFoundException => () // Generated theorems need not have a Scala owner.
-          lookup().orElse(if j(0) == 't' then loadTheorem(jName) else None)
+          lookup()
+            .orElse(if j(0) == 't' then loadTheorem(jName) else None)
             .getOrElse(throw new IllegalArgumentException(s"Missing cached dependency: $owner: $jName"))
         }
       }
@@ -584,7 +589,9 @@ object Serialization {
   def oneThmFromFile(filename: String, theory: RunningTheory): Option[theory.Theorem] =
     oneProofFromFile(filename, theory).map(_._1)
 
-  /** Read and check one cached theorem; initialize or load its missing dependencies. */
+  /**
+   * Read and check one cached theorem; initialize or load its missing dependencies.
+   */
   def oneProofFromFile(
       filename: String,
       theory: RunningTheory,
@@ -610,13 +617,11 @@ object Serialization {
             read(File(directory, dependency).getPath, Some(dependency), None, pending + decodedName).map(_._1)
           }
           Some(checkTheorems(decoded, theory, false, load).head)
-        }
-        catch {
+        } catch {
           case e: Exception =>
             println(s"Error while reading theorems from file: $base: ${e.getMessage}")
             None
-        }
-        finally {
+        } finally {
           treesDIS.close()
           proofDIS.close()
         }

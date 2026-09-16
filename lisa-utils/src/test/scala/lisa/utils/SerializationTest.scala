@@ -515,8 +515,7 @@ class SerializationTest extends AnyFunSuite with TestUtils {
     val proof = SCProof(IndexedSeq(Restate(statement, -1)), IndexedSeq(statement))
     val trees = new ByteArrayOutputStream
     val steps = new ByteArrayOutputStream
-    thmsToDataStream(new DataOutputStream(trees), new DataOutputStream(steps), theory,
-      List(("test.underscore", proof, List(("test", definition)))))
+    thmsToDataStream(new DataOutputStream(trees), new DataOutputStream(steps), theory, List(("test.underscore", proof, List(("test", definition)))))
     val read = thmsFromDataStream(
       new DataInputStream(new ByteArrayInputStream(trees.toByteArray)),
       new DataInputStream(new ByteArrayInputStream(steps.toByteArray)),

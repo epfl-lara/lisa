@@ -1,11 +1,14 @@
 package lisa.utils.prooflib
 
-import lisa.kernel.proof.{RunningTheory, SCProofChecker}
-import lisa.utils.fol.FOL.{*, given}
-import lisa.utils.prooflib.BasicStepTactic.{Hypothesis, Restate}
+import lisa.kernel.proof.RunningTheory
+import lisa.kernel.proof.SCProofChecker
+import lisa.utils.fol.FOL.{_, given}
+import lisa.utils.prooflib.BasicStepTactic.Hypothesis
+import lisa.utils.prooflib.BasicStepTactic.Restate
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.nio.file.{Files, Path}
+import java.nio.file.Files
+import java.nio.file.Path
 import java.util.UUID
 
 class TheoremCacheSuite extends AnyFunSuite:
@@ -32,8 +35,7 @@ class TheoremCacheSuite extends AnyFunSuite:
     val second = s"$prefix.Second.membership"
     try test(first, second)
     finally
-      for name <- Seq(first, second); extension <- Seq(".proof", ".trees") do
-        Files.deleteIfExists(Path.of("cache", name + extension))
+      for name <- Seq(first, second); extension <- Seq(".proof", ".trees") do Files.deleteIfExists(Path.of("cache", name + extension))
 
   test("same short names keep separate cache files and kernel identities"):
     withNames: (first, second) =>
@@ -98,8 +100,11 @@ class TheoremCacheSuite extends AnyFunSuite:
       val cold = new CachedLibrary
       val goal = (p |- p).underlying
       val child = cold.THM.fromSCProof(
-        p |- p, childName, cold.InternalStatement,
-        () => lisa.kernel.proof.SCProof(lisa.kernel.proof.SequentCalculus.Hypothesis(goal, p.underlying)), Nil
+        p |- p,
+        childName,
+        cold.InternalStatement,
+        () => lisa.kernel.proof.SCProof(lisa.kernel.proof.SequentCalculus.Hypothesis(goal, p.underlying)),
+        Nil
       )
       locally:
         import cold.{*, given}
@@ -116,7 +121,11 @@ class TheoremCacheSuite extends AnyFunSuite:
       assert(SCProofChecker.checkSCProof(parent.kernelProof.get).isValid)
 
       val reloaded = warm.THM.fromSCProof(
-        p |- p, childName, warm.InternalStatement, () => fail("recomputed generated proof"), Nil
+        p |- p,
+        childName,
+        warm.InternalStatement,
+        () => fail("recomputed generated proof"),
+        Nil
       )
       assert(reloaded.kernelProof.get.conclusion == goal)
 
@@ -126,9 +135,12 @@ class TheoremCacheSuite extends AnyFunSuite:
         val axiom = lib.Axiom(using sourcecode.FullName(childName + ".axiom"))(formula)
         val statement = (Sequent(Set.empty, Set(formula))).underlying
         lib.THM.fromSCProof(
-          axiom.statement, childName, lib.InternalStatement,
+          axiom.statement,
+          childName,
+          lib.InternalStatement,
           () => lisa.kernel.proof.SCProof(IndexedSeq(lisa.kernel.proof.SequentCalculus.Restate(statement, -1)), IndexedSeq(statement)),
-          List(axiom.innerJustification), List(axiom)
+          List(axiom.innerJustification),
+          List(axiom)
         )
       val cold = new CachedLibrary
       val dependency = child(cold, p)
@@ -166,11 +178,14 @@ class TheoremCacheSuite extends AnyFunSuite:
       def build(lib: CachedLibrary, formula: Expr[Prop])(onCompute: => Unit): lib.THM =
         val statement = (formula |- formula).underlying
         lib.THM.fromSCProof(
-          formula |- formula, name, lib.InternalStatement,
+          formula |- formula,
+          name,
+          lib.InternalStatement,
           () => {
             onCompute
             lisa.kernel.proof.SCProof(lisa.kernel.proof.SequentCalculus.Hypothesis(statement, formula.underlying))
-          }, Nil
+          },
+          Nil
         )
       build(new CachedLibrary, a)(())
       var computed = false
