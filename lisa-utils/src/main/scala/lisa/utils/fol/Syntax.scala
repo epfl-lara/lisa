@@ -173,6 +173,14 @@ trait Syntax {
    */
   sealed trait Expr[S] extends LisaObject {
 
+    protected final def underlyingEquals(other: Any): Boolean = other match
+      case that: Expr[?] =>
+        (this eq that) || underlying.uniqueNumber == that.underlying.uniqueNumber || underlying == that.underlying
+      case _ => false
+
+    // The SC kernel permits non-interned equal trees; retain its structural hash contract.
+    protected final lazy val underlyingHashCode: Int = underlying.hashCode
+
     /**
      * The sort of the expression
      */
@@ -338,6 +346,9 @@ trait Syntax {
    */
   case class Variable[S: Sort as sortEv](id: K.Identifier) extends Expr[S] {
 
+    override def equals(other: Any): Boolean = underlyingEquals(other)
+    override def hashCode(): Int = underlyingHashCode
+
     /**
      * The runtime sort of the variable
      */
@@ -398,6 +409,8 @@ trait Syntax {
    * Constants are leaf [[Expr]]essions that cannot be bound or instantiated. They are usually user-defined, or fixed by a theory.
    */
   case class Constant[S: Sort as sortEv](id: K.Identifier) extends Expr[S] {
+    override def equals(other: Any): Boolean = underlyingEquals(other)
+    override def hashCode(): Int = underlyingHashCode
     val sort: K.Sort = sortEv.underlying
     private var infix: Boolean = false
     var customPrinter: Option[Seq[Expr[?]] => String] = None
@@ -520,6 +533,8 @@ trait Syntax {
    * The sorts must match: `f.sort` must be of the form `A >>: B` and `arg.sort` must be `A`.
    */
   case class App[S, T](f: Expr[Arrow[S, T]], arg: Expr[S]) extends Expr[T] {
+    override def equals(other: Any): Boolean = underlyingEquals(other)
+    override def hashCode(): Int = underlyingHashCode
     val sort: K.Sort = f.sort match
       case K.Arrow(from, to) if from == arg.sort => to
       case _ => throw new IllegalArgumentException("Sort mismatch. f: " + f.sort + ", arg: " + arg.sort)
@@ -562,14 +577,15 @@ trait Syntax {
    * The sort of the variable must match the sort of the body.
    */
   case class Abs[S, T](v: Variable[S], body: Expr[T]) extends Expr[Arrow[S, T]] {
+    override def equals(other: Any): Boolean = underlyingEquals(other)
+    override def hashCode(): Int = underlyingHashCode
     val sort: K.Sort = K.Arrow(v.sort, body.sort)
     val underlying: K.Lambda = K.Lambda(v.underlying, body.underlying)
     def substituteUnsafe(m: Map[Variable[?], Expr[?]]): Abs[S, T] =
       lazy val frees = m.values.flatMap(_.freeVars).toSet
       if m.keySet.contains(v) || frees.contains(v) then
         // rename
-        val v1 = v.freshRename(frees)
-        // val v1: Variable[S] = Variable.unsafe(freshId(frees.map(_.id), v.id), v.sort).asInstanceOf
+        val v1 = v.freshRename(frees ++ body.freeVars ++ m.keySet)
         new Abs(v1, body.substituteUnsafe(Map(v -> v1))).substituteUnsafe(m)
       else new Abs(v, body.substituteUnsafe(m))
     override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): Abs[S, T] =

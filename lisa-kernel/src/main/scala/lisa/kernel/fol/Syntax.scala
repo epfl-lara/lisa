@@ -167,42 +167,102 @@ private[fol] trait Syntax {
 
   private object ExpressionCache {
     import scala.collection.mutable
-    
+
+    private val mode = sys.props.getOrElse("lisa.hashcons.mode", "hybrid")
+    require(Set("bounded", "ids", "hybrid").contains(mode), s"Unknown hashcons mode '$mode'")
     val enabled: Boolean =
-      !sys.props.get("lisa.hashcons").contains("false") &&
-      !sys.props.get("lisa.hashcons").contains("0") &&
-      !sys.env.get("LISA_HASHCONS").contains("false") &&
-      !sys.env.get("LISA_HASHCONS").contains("0")
+      !sys.props.get("lisa.hashcons").exists(Set("false", "0")) &&
+      !sys.env.get("LISA_HASHCONS").exists(Set("false", "0"))
+    val usesCanonicalIds: Boolean = enabled && mode != "bounded"
 
     private case class VariableKey(id: Identifier, sort: Sort)
     private case class ConstantKey(id: Identifier, sort: Sort)
-    private case class ApplicationKey(f: Long, arg: Long)
-    private case class LambdaKey(v: Long, body: Long)
+    private val variables = mutable.Map.empty[VariableKey, Variable]
+    private val constants = mutable.Map.empty[ConstantKey, Constant]
+    private val applicationIds = mutable.LongMap.empty[mutable.LongMap[Long]]
+    private val lambdaIds = mutable.LongMap.empty[mutable.LongMap[Long]]
 
-    private def cache[K, V]: mutable.Map[K, V] = mutable.Map.empty[K, V]
-    private def getOrCreate[K, V](map: mutable.Map[K, V], key: K, create: => V): V =
-      map.getOrElseUpdate(key, create)
+    private final class Generation {
+      val applications = mutable.LongMap.empty[mutable.LongMap[Application]]
+      val lambdas = mutable.LongMap.empty[mutable.LongMap[Lambda]]
+      var size = 0
+      def clear(): Unit = {
+        applications.clear()
+        lambdas.clear()
+        size = 0
+      }
+    }
 
-    private val variables = cache[VariableKey, Variable]
-    private val constants = cache[ConstantKey, Constant]
-    private val applications = cache[ApplicationKey, Application]
-    private val lambdas = cache[LambdaKey, Lambda]
+    private val maxEntries = sys.props.get("lisa.hashcons.max").flatMap(_.toIntOption).filter(_ > 0).getOrElse(1 << 20)
+    private val generationCount = sys.props.getOrElse("lisa.hashcons.generations", "2").toInt
+    require(generationCount == 1 || generationCount == 2, "Expected one or two hashcons generations")
+    private val generations = Array.fill(generationCount)(new Generation)
+    private var activeGeneration = 0
+
+    // Keep the previous generation alive while filling the current one.
+    private def insertionGeneration(): Generation = {
+      if (generations(activeGeneration).size >= maxEntries) {
+        activeGeneration = (activeGeneration + 1) % generationCount
+        generations(activeGeneration).clear()
+      }
+      generations(activeGeneration)
+    }
+
+    def applicationId(f: Expression, arg: Expression): Long =
+      if (!usesCanonicalIds) ExpressionCounters.getNewId
+      else applicationIds.getOrElseUpdate(f.uniqueNumber, mutable.LongMap.empty)
+        .getOrElseUpdate(arg.uniqueNumber, ExpressionCounters.getNewId)
+
+    def lambdaId(v: Variable, body: Expression): Long =
+      if (!usesCanonicalIds) ExpressionCounters.getNewId
+      else lambdaIds.getOrElseUpdate(v.uniqueNumber, mutable.LongMap.empty)
+        .getOrElseUpdate(body.uniqueNumber, ExpressionCounters.getNewId)
+
+    private def cachedApplication(f: Expression, arg: Expression): Application = {
+      def lookup(generation: Int) = generations(generation).applications.get(f.uniqueNumber).flatMap(_.get(arg.uniqueNumber))
+      lookup(activeGeneration).orElse(if (generationCount == 2) lookup(1 - activeGeneration) else None).getOrElse {
+        val generation = insertionGeneration()
+        val result = new Application(f, arg)
+        generation.applications.getOrElseUpdate(f.uniqueNumber, mutable.LongMap.empty)(arg.uniqueNumber) = result
+        generation.size += 1
+        result
+      }
+    }
+
+    private def cachedLambda(v: Variable, body: Expression): Lambda = {
+      def lookup(generation: Int) = generations(generation).lambdas.get(v.uniqueNumber).flatMap(_.get(body.uniqueNumber))
+      lookup(activeGeneration).orElse(if (generationCount == 2) lookup(1 - activeGeneration) else None).getOrElse {
+        val generation = insertionGeneration()
+        val result = new Lambda(v, body)
+        generation.lambdas.getOrElseUpdate(v.uniqueNumber, mutable.LongMap.empty)(body.uniqueNumber) = result
+        generation.size += 1
+        result
+      }
+    }
 
     def variable(id: Identifier, sort: Sort): Variable =
-      if (enabled) getOrCreate(variables, VariableKey(id, sort), new Variable(id, sort))
+      if (enabled) variables.getOrElseUpdate(VariableKey(id, sort), new Variable(id, sort))
       else new Variable(id, sort)
 
     def constant(id: Identifier, sort: Sort): Constant =
-      if (enabled) getOrCreate(constants, ConstantKey(id, sort), new Constant(id, sort))
+      if (enabled) constants.getOrElseUpdate(ConstantKey(id, sort), new Constant(id, sort))
       else new Constant(id, sort)
 
     def application(f: Expression, arg: Expression): Application =
-      if (enabled) getOrCreate(applications, ApplicationKey(f.uniqueNumber, arg.uniqueNumber), new Application(f, arg))
-      else new Application(f, arg)
+      if (!enabled) new Application(f, arg)
+      else mode match {
+        case "bounded" => cachedApplication(f, arg)
+        case "ids" => new Application(f, arg)
+        case _ => cachedApplication(f, arg)
+      }
 
     def lambda(v: Variable, body: Expression): Lambda =
-      if (enabled) getOrCreate(lambdas, LambdaKey(v.uniqueNumber, body.uniqueNumber), new Lambda(v, body))
-      else new Lambda(v, body)
+      if (!enabled) new Lambda(v, body)
+      else mode match {
+        case "bounded" => cachedLambda(v, body)
+        case "ids" => new Lambda(v, body)
+        case _ => cachedLambda(v, body)
+      }
   }
 
   /**
@@ -236,7 +296,13 @@ private[fol] trait Syntax {
     /**
      * Unique number of the expression assigned by [[ExpressionCounters]]. Used for efficient reference equality.
      */
-    val uniqueNumber: Long = ExpressionCounters.getNewId
+    def uniqueNumber: Long
+
+    private lazy val structuralHashCode: Int = scala.util.hashing.MurmurHash3.productHash(this.asInstanceOf[Product])
+
+    protected final def expressionHashCode: Int =
+      if (ExpressionCache.usesCanonicalIds) java.lang.Long.hashCode(uniqueNumber)
+      else structuralHashCode
 
     /**
      * True if the expression contains subexpressions of type `Prop`.
@@ -307,10 +373,18 @@ private[fol] trait Syntax {
    * Free variables in theorems can be instantiated by valules of the same sort.
    */
   case class Variable private[fol] (id: Identifier, sort: Sort) extends Expression {
+    def copy(id: Identifier = this.id, sort: Sort = this.sort): Variable = Variable(id, sort)
+    val uniqueNumber: Long = ExpressionCounters.getNewId
+    override def equals(other: Any): Boolean = other match {
+      case that: Variable => (this eq that) || uniqueNumber == that.uniqueNumber || (id == that.id && sort == that.sort)
+      case _ => false
+    }
+    override def hashCode(): Int = expressionHashCode
+
     val containsFormulas = sort == Prop
-    def freeVariables: Set[Variable] = Set(this)
-    def constants: Set[Constant] = Set()
-    def allVariables: Set[Variable] = Set(this)
+    lazy val freeVariables: Set[Variable] = Set(this)
+    lazy val constants: Set[Constant] = Set()
+    lazy val allVariables: Set[Variable] = Set(this)
   }
 
   object Variable {
@@ -323,10 +397,18 @@ private[fol] trait Syntax {
    * Constants generalize function and predicate symbols of any arity in strict first-order logic.
    */
   case class Constant private[fol] (id: Identifier, sort: Sort) extends Expression {
+    def copy(id: Identifier = this.id, sort: Sort = this.sort): Constant = Constant(id, sort)
+    val uniqueNumber: Long = ExpressionCounters.getNewId
+    override def equals(other: Any): Boolean = other match {
+      case that: Constant => (this eq that) || uniqueNumber == that.uniqueNumber || (id == that.id && sort == that.sort)
+      case _ => false
+    }
+    override def hashCode(): Int = expressionHashCode
+
     val containsFormulas = sort == Prop
-    def freeVariables: Set[Variable] = Set()
-    def constants: Set[Constant] = Set(this)
-    def allVariables: Set[Variable] = Set()
+    lazy val freeVariables: Set[Variable] = Set()
+    lazy val constants: Set[Constant] = Set(this)
+    lazy val allVariables: Set[Variable] = Set()
   }
 
   object Constant {
@@ -338,13 +420,21 @@ private[fol] trait Syntax {
    * `f.sort` must be of the form `arg.sort -> _`.
    */
   case class Application private[fol] (f: Expression, arg: Expression) extends Expression {
+    val uniqueNumber: Long = ExpressionCache.applicationId(f, arg)
+    def copy(f: Expression = this.f, arg: Expression = this.arg): Application = Application(f, arg)
+    override def equals(other: Any): Boolean = other match {
+      case that: Application => (this eq that) || uniqueNumber == that.uniqueNumber || (f == that.f && arg == that.arg)
+      case _ => false
+    }
+    override def hashCode(): Int = expressionHashCode
+
     private val legalapp = legalApplication(f.sort, arg.sort)
     require(legalapp.isDefined, s"Application of $f to $arg is not legal")
     val sort = legalapp.get
     val containsFormulas = sort == Prop || f.containsFormulas || arg.containsFormulas
-    def freeVariables: Set[Variable] = f.freeVariables union arg.freeVariables
-    def constants: Set[Constant] = f.constants union arg.constants
-    def allVariables: Set[Variable] = f.allVariables union arg.allVariables
+    lazy val freeVariables: Set[Variable] = f.freeVariables union arg.freeVariables
+    lazy val constants: Set[Constant] = f.constants union arg.constants
+    lazy val allVariables: Set[Variable] = f.allVariables union arg.allVariables
   }
 
   object Application {
@@ -361,12 +451,20 @@ private[fol] trait Syntax {
    * corresponds to the formula in strict first-order logic ∀x.P(x).
    */
   case class Lambda private[fol] (v: Variable, body: Expression) extends Expression {
+    val uniqueNumber: Long = ExpressionCache.lambdaId(v, body)
+    def copy(v: Variable = this.v, body: Expression = this.body): Lambda = Lambda(v, body)
+    override def equals(other: Any): Boolean = other match {
+      case that: Lambda => (this eq that) || uniqueNumber == that.uniqueNumber || (v == that.v && body == that.body)
+      case _ => false
+    }
+    override def hashCode(): Int = expressionHashCode
+
     val containsFormulas = body.containsFormulas
     val sort = (v.sort -> body.sort)
 
-    def freeVariables: Set[Variable] = body.freeVariables - v
-    def constants: Set[Constant] = body.constants
-    def allVariables: Set[Variable] = body.allVariables
+    lazy val freeVariables: Set[Variable] = body.freeVariables - v
+    lazy val constants: Set[Constant] = body.constants
+    lazy val allVariables: Set[Variable] = body.allVariables
   }
 
   object Lambda {
@@ -500,7 +598,8 @@ private[fol] trait Syntax {
       val newSubst = m - v
       val fv = m.values.flatMap(_.freeVariables).toSet
       if (fv.contains(v)) {
-        val newBound = Variable(freshId(fv.view.map(_.id) ++ m.keys.view.map(_.id), v.id), v.sort)
+        val taken = fv.view.map(_.id) ++ m.keys.view.map(_.id) ++ t.freeVariables.view.map(_.id)
+        val newBound = Variable(freshId(taken, v.id), v.sort)
         Lambda(newBound, substituteVariables(t, newSubst + (v -> newBound)))
       } else Lambda(v, substituteVariables(t, m - v))
   }
