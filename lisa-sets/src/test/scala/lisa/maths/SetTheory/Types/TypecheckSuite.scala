@@ -27,7 +27,10 @@ class TypecheckSuite extends AnyFunSuite:
     val proof = new BaseProof(anchor.asInstanceOf[THMFromProof])
     given proof.type = proof
     val result = Typecheck.checkProof(context, term, typ)
-    assert(result.isValid)
+    assert(result.isValid, result match
+      case invalid: proof.InvalidProofTactic => invalid.message
+      case _ => "Expected a valid typing derivation"
+    )
     val step = have(result)
     assert(step.statement == expected)
     assert(K.SCProofChecker.checkSCProof(proof.toSCProof).isValid)
@@ -101,3 +104,19 @@ class TypecheckSuite extends AnyFunSuite:
     val step = have(result)
     assert(step.statement == goal)
     assert(K.SCProofChecker.checkSCProof(proof.toSCProof).isValid)
+
+  test("freshen nested binders that shadow a different type assignment"):
+    val term = abs(A)(λ(x, abs(B)(λ(x, x))))
+    check(Set.empty, term, A ->: B ->: B, () |- term ∈ (A ->: B ->: B))
+
+  test("keep free variables in the outer typing context distinct from binders"):
+    val term = abs(A)(λ(x, y))
+    val context = Set(y ∈ family(x))
+    check(context, term, A ->: family(x), context |- term ∈ (A ->: family(x)))
+
+  test("keep function-arrow codomains independent of their hidden binder"):
+    assert((A ->: family(x)).freeVars.contains(x))
+
+  test("freshen a binder that shadows a free variable in its domain"):
+    val term = abs(x)(λ(x, x))
+    check(Set.empty, term, x ->: x, () |- term ∈ (x ->: x))

@@ -50,6 +50,13 @@ object Tactics:
   private val p: Variable[Prop] = variable[Prop]
 
   object Typecheck extends ProofTactic:
+    /** Freshen a binder when its name already occurs in the typing context. */
+    private def openBinder(context: Seq[Expr[?]], binder: Variable[Ind], body: Expr[Ind]): (Variable[Ind], Expr[Ind]) =
+      if context.exists(_.freeVars.contains(binder)) then
+        val fresh = binder.freshRename(context :+ body)
+        fresh -> body.substitute(binder := fresh)
+      else binder -> body
+
     /** Extract a proved conjunct with explicit sequent steps. */
     private def conjunct(using lib: SetTheoryLibrary.type, proof: lib.Proof)(fact: proof.Fact, takeLeft: Boolean): proof.Fact =
       import lib.*
@@ -157,7 +164,8 @@ object Tactics:
               case _ => return proof.InvalidProofTactic(s"$funcInferredType must be a Π-type")
 
           // ∀(x ∈ T1, e(x) ∈ T2(x)) => abs(T1)(e) ∈ Pi(T1)(T2)
-          case Sabs(ty: Expr[Ind], Abs(boundVar: Expr[Ind], body: Expr[Ind])) =>
+          case Sabs(ty: Expr[Ind], Abs(original: Variable[Ind], originalBody: Expr[Ind])) =>
+            val (boundVar, body) = openBinder(localContext.toSeq :+ ty, original, originalBody)
             val newContext = localContext ++ Set(boundVar ∈ ty)
             val bodyProof = inferMemo(using SetTheoryLibrary)(newContext, body, memo)
             if !bodyProof.isValid then return proof.InvalidProofTactic(s"Sabs: Failed to infer the type of the given body($body)")
@@ -174,7 +182,8 @@ object Tactics:
             have(Discharge(quantifiedTyping)(abstraction))
 
           // Π(x: T1).T2 : U, select the relative bigger type as the final product's type
-          case SPi(ty: Expr[Ind], Abs(boundVar: Expr[Ind], body: Expr[Ind])) =>
+          case SPi(ty: Expr[Ind], Abs(original: Variable[Ind], originalBody: Expr[Ind])) =>
+            val (boundVar, body) = openBinder(localContext.toSeq :+ ty, original, originalBody)
             val newContext = localContext ++ Set(boundVar ∈ ty)
             val bodyProof = inferMemo(using SetTheoryLibrary)(newContext, body, memo)
             if !bodyProof.isValid then return proof.InvalidProofTactic(s"SPi: Failed to infer the type of the given body($body)")
@@ -262,9 +271,10 @@ object Tactics:
           // ∀(x ∈ T1, e(x) ∈ T2(x)) => abs(T1)(e) ∈ Pi(T1)(T2)
           case (Sabs(ty1: Expr[Ind], body: Expr[Ind >>: Ind]), SPi(ty1prime: Expr[Ind], ty2: Expr[Ind >>: Ind])) =>
             if !isSame(ty1, ty1prime) then return proof.InvalidProofTactic(s"Abstraction domains differ: $ty1 and $ty1prime")
-            val (newBoundVariable, replaceVar, body1, body2) = (body, ty2) match
+            val (original, replaceVar, originalBody, body2) = (body, ty2) match
               case (Abs(v1, b1), Abs(v2, b2)) => (v1, v2, b1, b2)
               case _ => return proof.InvalidProofTactic(s"Term and Type must be lambda expressions")
+            val (newBoundVariable, body1) = openBinder(localContext.toSeq ++ Seq(ty1, ty2), original, originalBody)
             have(ty1 === ty1prime) by RightRefl.withParameters(ty1 === ty1prime)
             val newContext = localContext ++ Set(newBoundVariable ∈ ty1)
             val newBody2 = body2.substitute((replaceVar, newBoundVariable))
@@ -276,8 +286,9 @@ object Tactics:
               thenHave((newBoundVariable ∈ ty1 ==> body1 ∈ newBody2) ++<< resetBot) by RightImplies
               thenHave((∀(newBoundVariable ∈ ty1, body1 ∈ newBody2)) ++<< resetBot) by RightForall
               val quantifiedTyping = lastStep
-              val abstraction = TAbs of (T1 := ty1, T2 := ty2, e := body)
-              have(Discharge(quantifiedTyping)(abstraction))
+              val abstraction = TAbs of (T1 := ty1, T2 := Abs(newBoundVariable, newBody2), e := Abs(newBoundVariable, body1))
+              val typed = have(Discharge(quantifiedTyping)(abstraction))
+              have((tm ∈ ty) ++<< typed.bot) by Restate.from(typed)
             else return proof.InvalidProofTactic(s"Failed to construct body proof")
 
           // e ∈ T, T === T' -> e ∈ T' for other cases
@@ -308,7 +319,8 @@ object Tactics:
         ip.cleanAssumptions
         (sub, sup) match
           case _ if sub == sup => have(sub ⊆ sup) by Restate.from(reflexivity of (x := sub))
-          case (SPi(d1: Expr[Ind], Abs(v1: Expr[Ind], c1: Expr[Ind])), SPi(d2: Expr[Ind], Abs(v2: Expr[Ind], c2: Expr[Ind]))) =>
+          case (SPi(d1: Expr[Ind], Abs(original: Variable[Ind], originalBody: Expr[Ind])), SPi(d2: Expr[Ind], Abs(v2: Expr[Ind], c2: Expr[Ind]))) =>
+            val (v1, c1) = openBinder(localContext.toSeq ++ Seq(d1, sup), original, originalBody)
             if !isSame(d1, d2) then return proof.InvalidProofTactic(s"Function domains differ: $d1 and $d2")
             val domainEquiv = have(d1 === d2) by RightRefl.withParameters(d1 === d2)
             val c2Replace = c2.substitute((v2, v1))
