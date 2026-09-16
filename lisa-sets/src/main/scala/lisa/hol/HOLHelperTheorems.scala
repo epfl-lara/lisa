@@ -134,9 +134,9 @@ object HOLHelperTheorems extends lisa.Main {
     val e2 = variable[Ind]
     val T = variable[Ind]
 
-    val beta1 = have(fun(y :: A, eqTerm) * y === eqTerm) by Weakening(BetaReduction of (T := A, e2 := y, e := λ(y, eqTerm))) 
-    val beta2 = have(fun(x :: A, fun(y :: A, eqTerm)) * x === fun(y :: A, eqTerm)) by Weakening(BetaReduction of (T := A, e2 := x, e := λ(x, fun(y :: A, eqTerm)))) 
-    
+    val beta1 = have(fun(y :: A, eqTerm) * y === eqTerm) by Weakening(BetaReduction of (T := A, e2 := y, e := λ(y, eqTerm)))
+    val beta2 = have(fun(x :: A, fun(y :: A, eqTerm)) * x === fun(y :: A, eqTerm)) by Weakening(BetaReduction of (T := A, e2 := x, e := λ(x, fun(y :: A, eqTerm))))
+
     have(fun(x :: A, fun(y :: A, eqTerm)) * x * y === fun(x :: A, fun(y :: A, eqTerm)) * x * y) by Restate
     thenHave(fun(x :: A, fun(y :: A, eqTerm)) * x * y === fun(y :: A, eqTerm) * y) by Substitute(beta2)
     thenHave(fun(x :: A, fun(y :: A, eqTerm)) * x * y === eqTerm) by Substitute(beta1)
@@ -166,11 +166,11 @@ object HOLHelperTheorems extends lisa.Main {
         TAbs of (T1 := A, T2 := λ(x, A ->: 𝔹), e := λ(y, fun(x :: A, theEp)))
       )
 
-      // use this to conclude 
+      // use this to conclude
       thenHave(epType |- =:=(A) :: (A ->: (A ->: 𝔹))) by Substitute(=:=.definition)
       have(=:=(A) :: (A ->: (A ->: 𝔹))) by Cut(epProof, lastStep)
       thenHave(thesis) by RightForall
-    
+
     TypedConstantFunctional[Ind >>: Ind](=:=.id, FunctionalClass(List(None), List(A), (A ->: (A ->: 𝔹))), typing_of_eq)
   }
 
@@ -266,7 +266,7 @@ object HOLHelperTheorems extends lisa.Main {
 
     have(=:=(A) * x * y === One) by Restate
     thenHave(thesis) by Substitute(eqSymEq)
-  
+
   val eqTrans = Theorem((x :: A, y :: A, z :: A, =:=(A) * x * y === One, =:=(A) * y * z === One) |- =:=(A) * x * z === One):
     assume(x :: A, y :: A, z :: A, =:=(A) * x * y === One, =:=(A) * y * z === One)
 
@@ -282,7 +282,7 @@ object HOLHelperTheorems extends lisa.Main {
     assume(x :: A, y :: A, f :: A ->: B, =:=(A) * x * y === One)
 
     val `x = y` = have(x === y) by Weakening(eqAlign of (x := x, y := y))
-    
+
     have(f * x === f * x) by Restate
     thenHave(x === y |- f * x === f * y) by RightSubstEq.withParameters(Seq((x, y)), (Seq(y), f * x === f * y))
     val `f x = f y` = have(f * x === f * y) by Cut(`x = y`, lastStep)

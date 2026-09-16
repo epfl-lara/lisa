@@ -48,7 +48,7 @@ case class Abstraction(absVar: Variable, inner: Term) extends Term:
 
 /**
   * Construct and destruct equality terms ***unsafely***.
-  * 
+  *
   * Type equality of the LHS and RHS is not checked.
   */
 object Eq:

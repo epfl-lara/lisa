@@ -171,10 +171,9 @@ object Exists extends lisa.HOL {
         )
 
       val innerFALift0 = have(innerFA0 <=> ∀(x :: A, innerPred0 * x)) subproof:
-        have(thesis) by Tautology.from(
-          hforallCorrect of (P := innerPred0, x := x),
-          have(HOLProofType(innerPred0))
-        )
+        val correctness = hforallCorrect of (P := innerPred0, x := x)
+        val discharged = have(Discharge(HOLProofType(innerPred0))(correctness))
+        have(thesis) by Weakening(discharged)
 
       val innerBeta0 = have(x :: A |- innerPred0 * x === innerImp0) subproof:
         val bc = BETA_CONV(innerPred0 * x)
@@ -304,7 +303,7 @@ object Exists extends lisa.HOL {
         thenHave(thesis) by Substitute(outerBeta)
 
       // outerPred * q <=> (∀(x :: A, P * x ==> q) ==> q) — with q ∈ 𝔹 on left
-      have((q :: 𝔹) |- outerPred * q <=> (∀(x :: A, P * x ==> q) ==> q)) by Tautology.from(outerPredEquiv, outerImpFOL)
+      have((q :: 𝔹) |- outerPred * q <=> (∀(x :: A, P * x ==> q) ==> q)) by Substitute(outerPredEquiv)(outerImpFOL)
       val outerPredFOL = lastStep
 
       // Convert: ∀(q :: 𝔹, ∀(x :: A, P*x ==> q) ==> q) |- ∀(q :: 𝔹, outerPred * q)
