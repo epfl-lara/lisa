@@ -2,52 +2,41 @@ package lisa
 package hol
 package extractor
 
-import lisa.hol.core.*
+import lisa.hol.core._
 import upickle.default
+import upickle.default.{ReadWriter => RW, _}
 import upickle.implicits.key
-import upickle.default.{ReadWriter => RW, *}
-import Parser.*
+
 import java.io.File
 import scala.collection.mutable
+
+import Parser._
 
 sealed trait ExtractorException extends Exception
 case class UnknownProofStepException(name: String) extends ExtractorException
 case class CouldNotParseException(msg: String, next: String) extends Exception(s"Could not parse\n\tMessage: $msg\n\tNext: $next") with ExtractorException
-case object IncompleteParsingException extends ExtractorException
 case object UnreachableCaseException extends ExtractorException
+case object ExtractorEndedException extends Exception("No more proof steps or theorems to read") with ExtractorException
 
-extension [T] (res: ParseResult[T])
+extension [T](res: fastparse.Parsed[T])
   def getDone =
     res match
-      case Success(out, next) if next.atEnd => out
-      case Success(_, _) => throw IncompleteParsingException
-      case NoSuccess(msg, next) => throw CouldNotParseException(msg, next.toString())
-      case _ => throw UnreachableCaseException
+      case fastparse.Parsed.Success(out, _) => out
+      case failure: fastparse.Parsed.Failure =>
+        throw CouldNotParseException(failure.trace().longAggregateMsg, s"offset ${failure.index}")
 
-private def parseTerm(str: String): Term = parse(term, str).getDone
+private def parseTerm(str: String): Term = parseAll(str, term(using _)).getDone
 
-private def parseVar(str: String): Variable = parse(variable, str).getDone
+private def parseVar(str: String): Variable = parseAll(str, variable(using _)).getDone
 
-private def parseInst(insts: List[List[String]]): Map[Variable, Term] = 
-  insts.map { 
-    case List(left, right) => parseVar(left) -> parseTerm(right)
-    case _ => throw UnreachableCaseException
-  }.toMap
+private def parseTypeVar(str: String): TypeVariable = parseAll(str, typeVariable(using _)).getDone
 
-private def parseTypeVar(str: String) = parse(typeVariable, str).getDone
-
-private def parseType(str: String) = parse(typ, str).getDone
-
-private def parseTypeInst(insts: List[List[String]]): Map[TypeVariable, Type] = 
-  insts.map { 
-    case List(left, right) => parseTypeVar(left) -> parseType(right)
-    case _ => throw UnreachableCaseException
-  }.toMap
+private def parseType(str: String): Type = parseAll(str, typ(using _)).getDone
 
 // Structures as used in the HOL Light ProofTrace export
 // Reflects the JSON encoding of proof steps
 
-// map (x |-> t)  
+// map (x |-> t)
 // {"from": "...", "to": "..."}
 case class InstPair(from: String, to: String) derives RW:
   def toTermPair: (Variable, Term) = parseVar(from) -> parseTerm(to)
@@ -56,8 +45,6 @@ case class InstPair(from: String, to: String) derives RW:
 // Use "step" as the ADT tag (instead of "$type")
 @key("step")
 sealed trait RawStep derives RW:
-  private def parseTerm(str: String): Term = parseAll(term, str).getDone
-  
   def extract: ProofStep =
     this match
       case REFL(term) => core.REFL(parseTerm(term))
@@ -95,17 +82,17 @@ case class DEFINITION(term: String, name: String) extends RawStep
 case class TYPE_DEFINITION(pred: Long, term: String, name: String) extends RawStep
 
 /**
-  * A single line in the proof output.
-  * 
-  * @example `{"id": 3, "pr": {...}}`
-  */
+ * A single line in the proof output.
+ *
+ * @example `{"id": 3, "pr": {...}}`
+ */
 case class ProofLine(id: Long, @key("pr") step: RawStep) derives RW
 
 /**
-  * A raw sequent as represented in the JSON output.
-  * 
-  * @example `{"hy": ["p"], "cc": "p"}`
-  */
+ * A raw sequent as represented in the JSON output.
+ *
+ * @example `{"hy": ["p"], "cc": "p"}`
+ */
 case class RawSequent(@key("hy") hypotheses: List[String], @key("cc") conclusion: String) derives RW:
   def extract: HOLSequent =
     HOLSequent(
@@ -114,99 +101,221 @@ case class RawSequent(@key("hy") hypotheses: List[String], @key("cc") conclusion
     )
 
 /**
-  * A theorem statement as represented in the JSON output, with a unique ID and
-  * a sequent. The proof ID corresponds to the proof step of the same ID.
-  * 
-  * @example `{"id": 3, "th": {"hy": ["p"], "cc": "p"}}`
-  */
+ * A theorem statement as represented in the JSON output, with a unique ID and
+ * a sequent. The proof ID corresponds to the proof step of the same ID.
+ *
+ * @example `{"id": 3, "th": {"hy": ["p"], "cc": "p"}}`
+ */
 case class TheoremStatement(id: Long, @key("th") sequent: RawSequent) derives RW
 
 /**
-  * A theorem reference is a name assignment to a unique ID, which coresponds to
-  * the "proof step" of the same ID.
-  */
-case class TheoremRef(id: Long, name: String) derives RW
+ * A theorem reference is a name assignment to a unique ID, which coresponds to
+ * the "proof step" of the same ID.
+ */
+case class TheoremRef(id: Long, @key("nm") name: String) derives RW
 
 case class JustifiedTheorem(statement: HOLSequent, proof: ProofStep)
 
-final class ExtractorContext(
-  val proofIterator: Iterator[ProofLine],
-  val theoremIterator: Iterator[TheoremStatement]
-):
-  // proofIterator and theoremIterator should be in sync
-  // this is not necessary for an extraction, but is always the case for the ProofTrace output
-  // and allows us to read theorems lazily as we need them
-  // require(proofIterator.length == theoremIterator)
-  // require((0 to proofIterator.length).forall(i => proofIterator(i).id == theoremIterator(i).id))
+private trait ExtractorData extends AutoCloseable:
+  def readTill(idx: Long): Unit
+  def readAll(): Unit
+  def getKnown(idx: Long): JustifiedTheorem
+  def getKnownStatement(idx: Long): HOLSequent
+  def getKnownProof(idx: Long): ProofStep
+  def getKnownDefinition(idx: Long): Option[ProofStep]
+  def knownDefinitionsBetween(fromExclusive: Long, toInclusive: Long): Iterator[(Long, ProofStep)]
+  def knownTheorems: collection.MapView[Long, JustifiedTheorem]
 
-  import ExtractorContext.*
-
-  private var maxRead: Long = -1L // proof indices start at 0
+private final class IteratorExtractorData(
+    proofIterator: Iterator[ProofLine],
+    theoremIterator: Iterator[TheoremStatement]
+) extends ExtractorData:
+  private var maxRead: Long = -1L
   private val stepMap: mutable.Map[Long, JustifiedTheorem] = mutable.Map.empty
+  private val definitions = mutable.ArrayBuffer.empty[(Long, ProofStep)]
 
-  @throws[ExtractorEndedException.type]
   private def readNext(): Unit =
-    if !proofIterator.hasNext || !theoremIterator.hasNext then
-      throw ExtractorEndedException
-    
+    if !proofIterator.hasNext || !theoremIterator.hasNext then throw ExtractorEndedException
+
     val proofLine = proofIterator.next()
     val theoremRef = theoremIterator.next()
+    val proof = proofLine.step.extract
+    val theorem = JustifiedTheorem(theoremRef.sequent.extract, proof)
 
-    // require(proofLine.id == theoremRef.id)
-    // require(proofLine.id == maxRead + 1)
+    maxRead = proofLine.id
+    stepMap(proofLine.id) = theorem
+    proof match
+      case _: core.DEFINITION | _: core.TYPE_DEFINITION => definitions += proofLine.id -> proof
+      case _ => ()
 
-    // extract trees from the raw terms/sequents
-    val thm = JustifiedTheorem(
-      theoremRef.sequent.extract,
-      proofLine.step.extract
-    )
-
-    val maxRead = proofLine.id
-    stepMap += proofLine.id -> thm
-
-  @throws[ExtractorEndedException.type]
-  private def readTill(idx: Long): Unit =
+  def readTill(idx: Long): Unit =
     while maxRead < idx do readNext()
+
+  def readAll(): Unit =
+    while proofIterator.hasNext && theoremIterator.hasNext do readNext()
+
+  def getKnown(idx: Long): JustifiedTheorem = stepMap(idx)
+
+  def getKnownStatement(idx: Long): HOLSequent = getKnown(idx).statement
+
+  def getKnownProof(idx: Long): ProofStep = getKnown(idx).proof
+
+  def getKnownDefinition(idx: Long): Option[ProofStep] =
+    getKnownProof(idx) match
+      case definition: core.DEFINITION => Some(definition)
+      case definition: core.TYPE_DEFINITION => Some(definition)
+      case _ => None
+
+  def knownDefinitionsBetween(fromExclusive: Long, toInclusive: Long): Iterator[(Long, ProofStep)] =
+    definitions.iterator.filter((idx, _) => fromExclusive < idx && idx <= toInclusive)
+
+  def knownTheorems: collection.MapView[Long, JustifiedTheorem] = stepMap.view
+
+  def close(): Unit = ()
+
+private final class FileExtractorData(proofFile: File, theoremFile: File) extends ExtractorData:
+  private val proofs = new TraceReader(proofFile)
+  private val theorems = new TraceReader(theoremFile)
+
+  // Keep compact proof records for fast recursive access, but leave the much
+  // larger intermediate theorem statements on disk until verification needs them.
+  private val proofSteps = mutable.LongMap.empty[RawStep]
+  private val theoremOffsets = mutable.LongMap.empty[Long]
+  private val definitions = mutable.ArrayBuffer.empty[(Long, RawStep)]
+  private var maxRead = -1L
+
+  private def idOf(line: String): Long =
+    val colon = line.indexOf(':', line.indexOf("\"id\"") + 4)
+    var start = colon + 1
+    while line.charAt(start).isWhitespace do start += 1
+    var end = start
+    while end < line.length && line.charAt(end).isDigit do end += 1
+    line.substring(start, end).toLong
+
+  private def readNext(): Unit =
+    val theoremOffset = theorems.position
+    val proofText = proofs.readLine().getOrElse(throw ExtractorEndedException)
+    val theoremLine = theorems.readLine().getOrElse(throw ExtractorEndedException)
+
+    val proofLine = read[ProofLine](proofText, false)
+    val proofId = proofLine.id
+    val theoremId = idOf(theoremLine)
+    if proofId != theoremId then
+      throw new IllegalArgumentException(s"Proof step $proofId is paired with theorem statement $theoremId.")
+
+    maxRead = proofId
+    proofSteps(proofId) = proofLine.step
+    theoremOffsets(proofId) = theoremOffset
+    proofLine.step match
+      case _: DEFINITION | _: TYPE_DEFINITION => definitions += proofId -> proofLine.step
+      case _ => ()
+
+  private def readAt(file: TraceReader, offset: Long): String =
+    val resumeAt = file.position
+    try
+      file.seek(offset)
+      file.readLine().getOrElse(throw ExtractorEndedException)
+    finally file.seek(resumeAt)
+
+  def readTill(idx: Long): Unit =
+    while maxRead < idx do readNext()
+
+  def readAll(): Unit =
+    try while true do readNext()
+    catch case ExtractorEndedException => ()
+
+  def getKnown(idx: Long): JustifiedTheorem =
+    JustifiedTheorem(getKnownStatement(idx), getKnownProof(idx))
+
+  def getKnownStatement(idx: Long): HOLSequent =
+    read[TheoremStatement](readAt(theorems, theoremOffsets(idx)), false).sequent.extract
+
+  def getKnownProof(idx: Long): ProofStep = proofSteps(idx).extract
+
+  def getKnownDefinition(idx: Long): Option[ProofStep] =
+    proofSteps(idx) match
+      case definition: DEFINITION => Some(definition.extract)
+      case definition: TYPE_DEFINITION => Some(definition.extract)
+      case _ => None
+
+  def knownDefinitionsBetween(fromExclusive: Long, toInclusive: Long): Iterator[(Long, ProofStep)] =
+    definitions.iterator
+      .filter((idx, _) => fromExclusive < idx && idx <= toInclusive)
+      .map((idx, definition) => idx -> definition.extract)
+
+  def knownTheorems: collection.MapView[Long, JustifiedTheorem] =
+    proofSteps.keysIterator.map(idx => idx -> getKnown(idx)).toMap.view
+
+  def close(): Unit =
+    proofs.close()
+    theorems.close()
+
+final class ExtractorContext private (
+    private val data: ExtractorData
+) extends AutoCloseable:
+  def this(proofIterator: Iterator[ProofLine], theoremIterator: Iterator[TheoremStatement]) =
+    this(new IteratorExtractorData(proofIterator, theoremIterator))
 
   /**
    * Get the theorem statement and proof for the given index, if it exists.
-   * 
+   *
    * @throws NoSuchElementException if the index does not exist
    */
   @throws[NoSuchElementException]
   def getTheorem(idx: Long): JustifiedTheorem =
-    // require(idx >= 0 && idx < proofIterator.length)
+    readAt(idx)(data.getKnown(idx))
 
-    if idx < 0 then 
-      throw new NoSuchElementException(s"Negative index: $idx.")
-    try 
-      readTill(idx)
-    catch 
-      case ExtractorEndedException => 
+  /** Extract only the theorem statement at the given index. */
+  def getStatement(idx: Long): HOLSequent =
+    readAt(idx)(data.getKnownStatement(idx))
+
+  /** Extract only the proof step at the given index. */
+  def getProof(idx: Long): ProofStep =
+    readAt(idx)(data.getKnownProof(idx))
+
+  /** Return a definition at the given index without extracting an ordinary proof step. */
+  def getDefinition(idx: Long): Option[ProofStep] =
+    readAt(idx)(data.getKnownDefinition(idx))
+
+  /** Return every available definition in the requested interval, skipping absent indices. */
+  private[hol] def getDefinitionsBetween(fromExclusive: Long, toInclusive: Long): Seq[(Long, ProofStep)] =
+    require(fromExclusive <= toInclusive, s"Invalid definition interval ($fromExclusive, $toInclusive].")
+    data.readTill(toInclusive)
+    data.knownDefinitionsBetween(fromExclusive, toInclusive).toSeq
+
+  private def readAt[T](idx: Long)(result: => T): T =
+    if idx < 0 then throw new NoSuchElementException(s"Negative index: $idx.")
+    try data.readTill(idx)
+    catch
+      case ExtractorEndedException =>
         throw new NoSuchElementException(s"Index $idx out of bounds, no more theorems to read.")
-    
-    stepMap(idx)
+
+    try result
+    catch case _: NoSuchElementException => throw new NoSuchElementException(s"Index $idx does not exist in the trace.")
 
   /**
-   * Exhaustively read the remaining proofs and theorems and returns a map of
+   * Exhaustively read the remaining proofs and theorems and return a map of
    * justifications. The context is not destroyed, but its data is fully
    * contained in the returned map view.
    */
   def toMap: collection.MapView[Long, JustifiedTheorem] =
-    // read all remaining theorems
-    while proofIterator.hasNext && theoremIterator.hasNext do readNext()
-    stepMap.view
+    data.readAll()
+    data.knownTheorems
+
+  /** Close the underlying trace files. */
+  def close(): Unit = data.close()
 
 object ExtractorContext:
-  case object ExtractorEndedException extends Exception("No more proof steps or theorems to read")
+  private[extractor] def fromFiles(proofFile: File, theoremFile: File): ExtractorContext =
+    new ExtractorContext(new FileExtractorData(proofFile, theoremFile))
 
-object JSONParser: 
+object JSONParser:
   /**
    * Read a list of items from the given source interpreted as NDJSON, using the
    * given reader to parse each item.
    *
-   * If the file is not newline delimited (or data contains newlines :scared:), 
-   * this will fail, and the lower-level uJSON API may be used instead. 
+   * If the file is not newline delimited (or data contains newlines :scared:),
+   * this will fail, and the lower-level uJSON API may be used instead.
    */
   private def readIterated[T](src: java.io.Reader, reader: String => T): Iterator[T] =
     val buffered = new java.io.BufferedReader(src)
@@ -252,18 +361,13 @@ object JSONParser:
     val proofReader = new java.io.File(proofFile)
     val thmReader = new java.io.File(thmFile)
 
-    if !proofReader.exists() then
-      throw new java.io.FileNotFoundException(s"Proof file not found: $proofFile")
-    else if !proofReader.canRead() then
-      throw new java.io.IOException(s"Proof file cannot be read: $proofFile")
-    else if !thmReader.exists() then
-      throw new java.io.FileNotFoundException(s"Theorem file not found: $thmFile")
-    else if !thmReader.canRead() then
-      throw new java.io.IOException(s"Theorem file cannot be read: $thmFile")
-    else
-      () // ok
+    if !proofReader.exists() then throw new java.io.FileNotFoundException(s"Proof file not found: $proofFile")
+    else if !proofReader.canRead() then throw new java.io.IOException(s"Proof file cannot be read: $proofFile")
+    else if !thmReader.exists() then throw new java.io.FileNotFoundException(s"Theorem file not found: $thmFile")
+    else if !thmReader.canRead() then throw new java.io.IOException(s"Theorem file cannot be read: $thmFile")
+    else () // ok
 
-    toContext(new java.io.FileReader(proofReader), new java.io.FileReader(thmReader))
+    ExtractorContext.fromFiles(proofReader, thmReader)
 
   /**
    * Generate an iterator of theorem references (index-name pairs) from the
@@ -280,20 +384,42 @@ object JSONParser:
   def namesIterator(file: String): Iterator[TheoremRef] =
     val reader = new java.io.File(file)
 
-    if !reader.exists() then
-      throw new java.io.FileNotFoundException(s"Theorem reference file not found: $file")
-    else if !reader.canRead() then
-      throw new java.io.IOException(s"Theorem reference file cannot be read: $file")
-    else
-      () // ok
+    if !reader.exists() then throw new java.io.FileNotFoundException(s"Theorem reference file not found: $file")
+    else if !reader.canRead() then throw new java.io.IOException(s"Theorem reference file cannot be read: $file")
+    else () // ok
 
     readIterated[TheoremRef](new java.io.FileReader(reader))
+
+  /**
+   * Given a file prefix, generate an extractor context and an iterator of
+   * theorem references. The files are expected to be in the ProofTrace export
+   * format, with the proof steps in `<prefix>.proofs`, the theorem statements
+   * in `<prefix>.theorems`, and the theorem references in `<prefix>.names`.
+   *
+   * @param filePrefix the prefix path of files to read from
+   * @return an [[ExtractorContext]] to retrieve theorems and proofs, and an
+   * iterator of named theorems.
+   *
+   * @throws java.io.FileNotFoundException if any of the files do not exist
+   * @throws java.io.IOException if any of the files cannot be read
+   */
+  @throws[java.io.FileNotFoundException]
+  @throws[java.io.IOException]
+  def initializeFromPrefix(filePrefix: String): (ExtractorContext, Iterator[TheoremRef]) =
+    val proofFile = s"$filePrefix.proofs"
+    val thmFile = s"$filePrefix.theorems"
+    val namesFile = s"$filePrefix.names"
+
+    val context = toContext(proofFile, thmFile)
+    val names = namesIterator(namesFile)
+
+    (context, names)
 
   /**
    * Given a proof file, a theorem file, and a theorem reference file, generate
    * an iterator of theorem name and actual-theorem pairs. The theorem is a
    * sequent paired with a proof step.
-   * 
+   *
    * @throws java.io.FileNotFoundException if any file does not exist
    * @throws java.io.IOException if any file cannot be read
    * @throws ExtractorException if the proof steps cannot be parsed, or if the proof tree is malformed
@@ -305,7 +431,7 @@ object JSONParser:
     val context = toContext(proofFile, thmFile)
     val names = namesIterator(namesFile)
 
-    names.map: 
-      case TheoremRef(id, name) => 
+    names.map:
+      case TheoremRef(id, name) =>
         val thm = context.getTheorem(id)
         name -> thm
