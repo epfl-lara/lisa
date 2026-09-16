@@ -171,7 +171,11 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
    * - consecutive conjunctions are flattened
    * - double negations are eliminated
    */
-  sealed abstract class SimpleExpression {
+  sealed abstract class SimpleExpression extends Product {
+
+    // Equal normalized trees need equal hashes, independently of their cached keys.
+    private lazy val cachedHashCode: Int = scala.util.hashing.MurmurHash3.productHash(this)
+    final override def hashCode(): Int = cachedHashCode
 
     /**
      * The sort of the expression.
