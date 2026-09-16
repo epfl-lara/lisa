@@ -109,7 +109,13 @@ object Tactics:
                   case Abs(v, body) => (v, body)
                   case _ => return proof.InvalidProofTactic(s"Inferred type T2($ty2) is not a lambda expression")
                 val statement = (tm ∈ typeBody.substitute((boundVar, tm2))) ++<< h1.bot ++<< h2.bot
-                have(statement) by Tautology.from(h1, h2, TApp of (e1 := func, e2 := tm2, T1 := ty1, T2 := ty2))
+                val rule = TApp of (e1 := func, e2 := tm2, T1 := ty1, T2 := ty2)
+                val ruleResult = rule.statement.right.head
+                val withFunction = have((ruleResult +<< (tm2 ∈ ty1)) ++<< h1.bot) by
+                  Cut.withParameters(func ∈ funcInferredType)(h1, rule)
+                val applied = have((ruleResult ++<< h1.bot) ++<< h2.bot) by
+                  Cut.withParameters(tm2 ∈ ty1)(h2, withFunction)
+                have(statement) by Restate.from(applied)
               case _ => (None, proof.InvalidProofTactic(s"$funcInferredType must be a Π-type"))
 
           // ∀(x ∈ T1, e(x) ∈ T2(x)) => abs(T1)(e) ∈ Pi(T1)(T2)
@@ -125,9 +131,9 @@ object Tactics:
             have((boundVar ∈ ty |- body ∈ bodyInferredType) ++<< h1.bot) by Weakening(h1)
             thenHave((boundVar ∈ ty ==> body ∈ bodyInferredType) ++<< resetBot) by RightImplies
             thenHave((∀(boundVar ∈ ty, body ∈ bodyInferredType)) ++<< resetBot) by RightForall
-            thenHave((tm ∈ Pi(ty)(λ(boundVar, bodyInferredType))) ++<< resetBot) by Tautology.fromLastStep(
-              TAbs of (T1 := ty, T2 := Abs(boundVar, bodyInferredType), e := Abs(boundVar, body))
-            )
+            val quantifiedTyping = lastStep
+            val abstraction = TAbs of (T1 := ty, T2 := Abs(boundVar, bodyInferredType), e := Abs(boundVar, body))
+            have(Discharge(quantifiedTyping)(abstraction))
 
           // Π(x: T1).T2 : U, select the relative bigger type as the final product's type
           case SPi(ty: Expr[Ind], Abs(boundVar: Expr[Ind], body: Expr[Ind])) =>
@@ -171,30 +177,31 @@ object Tactics:
                 val subst = (tcf.typ.args zip args).map((v, a) => (v := a))
                 val resultType = tcf.typ.outTyp.substitute(subst*)
                 val typing = tm ∈ resultType
-                val hyp = have((localContext ++ Set(tm ∈ resultType)) |- tm ∈ resultType) by Restate
-                // collect and preserve assumptions about types
-                val justif =
-                  val instantiated = tcf.justif.of(args*)
-                  instantiated.statement.right.headOption match
-                    case Some(a ==> b) if isSame(b, typing) => 
-                      // keep any assumptions introduced by the justification
-                      have((a |- b) ++<< instantiated.statement) by Weakening(instantiated)
-                    case _ =>
-                      // either simple or unknown form; in any case, attempt to discharge normally
-                      instantiated
-                have(Discharge(justif)(hyp))
+                val instantiated = tcf.justif.of(args*)
+                def conjuncts(formula: Expr[Prop]): Set[Expr[Prop]] = formula match
+                  case left /\ right => conjuncts(left) union conjuncts(right)
+                  case _ => Set(formula)
+                @annotation.tailrec
+                def antecedents(formula: Expr[Prop], acc: Set[Expr[Prop]] = Set.empty): (Set[Expr[Prop]], Expr[Prop]) =
+                  formula match
+                    case premise ==> result => antecedents(result, acc union conjuncts(premise))
+                    case result => acc -> result
+                val (requirements, result) = antecedents(instantiated.statement.right.head)
+                if !isSame(result, typing) then return proof.InvalidProofTactic(s"Instantiated typing theorem for $tcf concludes $result instead of $typing.")
+                val baseTyping = have(requirements |- typing) by Restate.from(instantiated)
+                have((localContext ++ requirements) |- typing) by Weakening(baseTyping)
 
               case _ =>
-                val tyOpt: Option[Expr[Ind]] = localContext.collectFirst { case typeOf(t1, t2) if t1 == tm => t2 }
+                val tyOpt: Option[Expr[Ind]] = localContext.collectFirst { case typeOf(t1, t2) if isSame(t1, tm) => t2 }
                 tyOpt match
                   case Some(ty) => have(tm ∈ ty |- tm ∈ ty) by Hypothesis
-                  case None => have(tm ∈ universeOf(tm)) by Tautology.from(TSort of (U := tm))
+                  case None => have(tm ∈ universeOf(tm)) by Restate.from(TSort of (U := tm))
 
           case _ =>
-            val tyOpt: Option[Expr[Ind]] = localContext.collectFirst { case typeOf(t1, t2) if t1 == tm => t2 }
+            val tyOpt: Option[Expr[Ind]] = localContext.collectFirst { case typeOf(t1, t2) if isSame(t1, tm) => t2 }
             tyOpt match
               case Some(ty) => have(tm ∈ ty |- tm ∈ ty) by Hypothesis
-              case None => have(tm ∈ universeOf(tm)) by Tautology.from(TSort of (U := tm))
+              case None => have(tm ∈ universeOf(tm)) by Restate.from(TSort of (U := tm))
       }
 
     /**
@@ -202,8 +209,8 @@ object Tactics:
      */
     def checkProof(using lib: SetTheoryLibrary.type, proof: lib.Proof)(localContext: Set[Expr[Prop]], tm: Expr[Ind], ty: Expr[Ind]): proof.ProofTacticJudgement =
       import lib.*
-      // println("Check term's type: " + tm.toString() + " ∈ " + ty.toString())
-      TacticSubproof {
+      TacticSubproof { ip ?=>
+        ip.cleanAssumptions
         (tm, ty) match
           // ∀(x ∈ T1, e(x) ∈ T2(x)) => abs(T1)(e) ∈ Pi(T1)(T2)
           case (Sabs(ty1: Expr[Ind], body: Expr[Ind >>: Ind]), SPi(ty1prime: Expr[Ind], ty2: Expr[Ind >>: Ind])) =>
@@ -220,9 +227,9 @@ object Tactics:
               have((newBoundVariable ∈ ty1 |- body1 ∈ newBody2) ++<< h1.bot) by Weakening(h1)
               thenHave((newBoundVariable ∈ ty1 ==> body1 ∈ newBody2) ++<< resetBot) by RightImplies
               thenHave((∀(newBoundVariable ∈ ty1, body1 ∈ newBody2)) ++<< resetBot) by RightForall
-              thenHave((tm ∈ ty) ++<< resetBot) by Tautology.fromLastStep(
-                TAbs of (T1 := ty1, T2 := ty2, e := body)
-              )
+              val quantifiedTyping = lastStep
+              val abstraction = TAbs of (T1 := ty1, T2 := ty2, e := body)
+              have(Discharge(quantifiedTyping)(abstraction))
             else return proof.InvalidProofTactic(s"Failed to construct body proof")
 
           // e ∈ T, T === T' -> e ∈ T' for other cases
@@ -233,19 +240,17 @@ object Tactics:
             val inferredType = h1.bot.right.head match
               case typeOf(tm, ty) => ty
               case _ => return proof.InvalidProofTactic(s"Failed to extract the inferred type from valid proof")
-            val convProof = subsetProof(using SetTheoryLibrary)(localContext, inferredType, ty)
-            if !convProof.isValid then return proof.InvalidProofTactic(s"Failed to construct the equivalence proof for $inferredType and $ty")
-            val h2 = have(convProof)
-            val statement = (tm ∈ ty) ++<< h1.bot ++<< h2.bot
-            have(statement) by Tautology.from(
-              h1,
-              h2,
-              TConvAdv of (
-                e1 := tm,
-                T := inferredType,
-                T1 := ty
-              )
-            )
+            if isSame(inferredType, ty) then
+              have((tm ∈ ty) ++<< h1.bot) by Restate.from(h1)
+            else
+              val convProof = subsetProof(using SetTheoryLibrary)(localContext, inferredType, ty)
+              if !convProof.isValid then return proof.InvalidProofTactic(s"Failed to construct the equivalence proof for $inferredType and $ty")
+              val h2 = have(convProof)
+              val statement = (tm ∈ ty) ++<< h1.bot ++<< h2.bot
+              val rule = TConvAdv of (e1 := tm, T := inferredType, T1 := ty)
+              val withInference = have(((tm ∈ ty) +<< (inferredType ⊆ ty)) ++<< h1.bot) by
+                Cut.withParameters(tm ∈ inferredType)(h1, rule)
+              have(statement) by Cut.withParameters(inferredType ⊆ ty)(h2, withInference)
       }
 
     // Construct subset proof(ty1 ⊆ ty2) for the given two expressions
@@ -254,6 +259,7 @@ object Tactics:
       // println("Trying to construct subsetProof for: " + sub.toString() + " ⊆ " + sup.toString())
       TacticSubproof {
         (sub, sup) match
+          case _ if sub == sup => have(sub ⊆ sup) by Restate.from(reflexivity of (x := sub))
           case (SPi(d1: Expr[Ind], Abs(v1: Expr[Ind], c1: Expr[Ind])), SPi(d2: Expr[Ind], Abs(v2: Expr[Ind], c2: Expr[Ind]))) =>
             val domainEquiv = have(d1 === d2) by RightRefl.withParameters(d1 === d2)
             val c2Replace = c2.substitute((v1, v2))
