@@ -555,3 +555,27 @@ class DiscountTest extends AnyFunSuite:
     )
     for (name, expected, b) <- cases do assert(verdict(b) == expected, s"expected $expected on: $name")
   }
+
+  /**
+   * A superposition conclusion must reach simplification with the trail restored, as [[Subsumption]] asserts
+   * scope 1 is unbound. `g(c) = d` is ground, so superposing it into `P(g(y))` binds the into scope (`y := c`).
+   */
+  test("a superposition conclusion is emitted with the trail restored, so simplification can match") {
+    def refutes(opts: SearchOptions): Boolean =
+      val fx = new Fix; import fx.*
+      val P = pred("P", 1); val Q = pred("Q", 1); val g = fn("g", 1)
+      val c = const("c"); val d = const("d"); val y = v(0)
+      val cs = Seq(
+        clause(pos(mkEq(app(g, c), d))), //                      g(c) = d
+        clause(pos(app(P, app(g, y))), pos(app(Q, y))), //       P(g(y)) ∨ Q(y)
+        clause(neg(app(P, d))), //                               ¬P(d)
+        clause(neg(app(Q, c))) //                                ¬Q(c)
+      )
+      discount(cs, opts).saturate().isInstanceOf[Discount.Result.Refutation]
+
+    assert(refutes(SearchOptions()), "the baseline refutation must hold")
+    assert(refutes(SearchOptions(forwardSimplifyAtGeneration = true)), "forward simplification at generation must not break the search")
+    // Condensation takes the same route to `Subsumption`, but this clause set is too small to reach it.
+    assert(refutes(SearchOptions(condensation = true)), "condensation must not break the search")
+    assert(refutes(SearchOptions(condensation = true, forwardSimplifyAtGeneration = true)), "nor the two together")
+  }

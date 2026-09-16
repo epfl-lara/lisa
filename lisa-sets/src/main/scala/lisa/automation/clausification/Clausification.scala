@@ -25,7 +25,6 @@ object Clausification {
     val clauseVar = "w" // both clausifiers:       the fresh variable each stripped ∀ is instantiated with
     val epsAbs = "epsi" // Clausal:                ε-abstraction function schema var lifting ε-terms
     val etaVar = "etaZ" // Clausification:         fresh var for η-expansion, avoiding capture when `∀ P` becomes `∀(λz. P(z))`
-    val uncertifiedSkolem = "sk" // UncertifiedClausifier:  Skolem function Constant (not the certified `esk`)
     // Input screening ([[ScreenPhase]]): the three namespaces every free input variable is renamed into,
     // by the sort a symbol ultimately returns. Screening counters start at 1.
     val inputVar = "v" // Ind:                    the clause variables of the input
@@ -79,11 +78,53 @@ object Clausification {
    */
   val existsEpsilonIffStatement: Sequent = () |- (exists(vX, schemaP(vX)) <=> schemaP(epsilon(vX, schemaP(vX))))
 
+  private[clausification] val schemaR: Variable = Variable(Identifier("R", 0), Prop)
+
+  /**
+   * The prenex laws `lisa.maths.Quantifiers.forall{And,Or}{Left,Right}`, lifting a `∀` over one connective.
+   * Imported only by [[Prenex.Rewrite]]. `R` is a nullary `Prop`, so it cannot contain the bound variable.
+   */
+  val forallAndLeftStatement: Sequent = () |- (and(forall(Lambda(vX, schemaP(vX))))(schemaR) <=> forall(Lambda(vX, and(schemaP(vX))(schemaR))))
+  val forallAndRightStatement: Sequent = () |- (and(schemaR)(forall(Lambda(vX, schemaP(vX)))) <=> forall(Lambda(vX, and(schemaR)(schemaP(vX)))))
+  val forallOrLeftStatement: Sequent = () |- (or(forall(Lambda(vX, schemaP(vX))))(schemaR) <=> forall(Lambda(vX, or(schemaP(vX))(schemaR))))
+  val forallOrRightStatement: Sequent = () |- (or(schemaR)(forall(Lambda(vX, schemaP(vX)))) <=> forall(Lambda(vX, or(schemaR)(schemaP(vX)))))
+
+  /**
+   * How [[PrenexPhase]] strips a non-root `∀`: `Deconstruct` instantiates it in place (linear in `|φ|`);
+   * `Rewrite` lifts it to the root with the four prenex laws.
+   */
+  enum Prenex:
+    case Deconstruct, Rewrite
+
+  /**
+   * How [[DistributePhase]] derives each clause: one `Weakening`, or `LeftAnd`/`LeftOr`/`Hypothesis` steps.
+   */
+  enum Distribute:
+    case Weakening, Primitive
+
+  /**
+   * Pipeline configuration, supplied by [[CertifiedClausifier.certifyClausal]] and read by the phases as a given.
+   * It also fixes the library imports, so unused prenex laws are not imported.
+   */
+  case class ClausifierOptions(
+      threshold: Int = 4, //           name a subformula once its CNF estimate exceeds this
+      prenex: Prenex = Prenex.Deconstruct,
+      distribute: Distribute = Distribute.Weakening
+  ):
+    def libStatements: IndexedSeq[Sequent] = prenex match
+      case Prenex.Deconstruct => IndexedSeq(existsEpsilonIffStatement)
+      case Prenex.Rewrite =>
+        IndexedSeq(existsEpsilonIffStatement, forallAndLeftStatement, forallAndRightStatement, forallOrLeftStatement, forallOrRightStatement)
+
   /**
    * Library imports threaded to every clausification proof, in fixed order.
    */
-  val libImports: IndexedSeq[Sequent] = IndexedSeq(existsEpsilonIffStatement)
+  def libImports(using o: ClausifierOptions): IndexedSeq[Sequent] = o.libStatements
   private[clausification] val libExistsEpsilonIffIdx: Int = 0
+  private[clausification] val libForallAndLeftIdx: Int = 1
+  private[clausification] val libForallAndRightIdx: Int = 2
+  private[clausification] val libForallOrLeftIdx: Int = 3
+  private[clausification] val libForallOrRightIdx: Int = 4
 
   private[clausification] def singleRightFormula(sequent: Sequent, what: String): Expression = {
     require(sequent.left.isEmpty, s"$what must have empty left-hand side, got ${sequent.repr}")
@@ -123,9 +164,18 @@ object Clausification {
   /**
    * References into outer imports for the library imports, in their fixed order.
    */
-  private[clausification] def libRefs(nonLibSize: Int): IndexedSeq[Int] = libImports.indices.map(libRef(nonLibSize, _)).toIndexedSeq
+  private[clausification] def libRefs(nonLibSize: Int)(using ClausifierOptions): IndexedSeq[Int] =
+    libImports.indices.map(libRef(nonLibSize, _)).toIndexedSeq
 
-  private[clausification] type ClausificationProver = Problem => ClausificationProof
+  /**
+   * A phase's continuation: the rest of the pipeline, applied to the problem this phase transformed.
+   *
+   * The second argument is the goal (the negated conjecture), which the prover uses for clause selection. Above
+   * [[DistributePhase]] it indexes `problem.hypotheses`: [[NegatedPhase]] adds it, [[NamingPhase]] adds the
+   * definitions it appends, and the other phases map hypotheses one-to-one. Below, it indexes the clauses.
+   * Empty when there is no conjecture.
+   */
+  private[clausification] type ClausificationProver = (Problem, Set[Int]) => ClausificationProof
 
   /**
    * Expand η-reduced quantifier bodies: rewrite `∀(f)` / `∃(f)` to

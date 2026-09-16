@@ -20,15 +20,17 @@ import Clausification._
  */
 private[clausification] object NegatedPhase:
 
-  def certifyNegated(problem: Problem, prover: ClausificationProver): ClausificationProof =
+  def certifyNegated(problem: Problem, prover: ClausificationProver, goal: Set[Int] = Set.empty)(using ClausifierOptions): ClausificationProof =
     problem.conjecture match
-      case None => prover(problem)
+      // No conjecture, so no goal.
+      case None => prover(problem, Set.empty)
       case Some(conjecture) =>
         val phi = singleRightFormula(conjecture, "conjecture")
         val freeInd: Set[Variable] = phi.freeVariables.filter(_.sort == Ind)
         val negPhi = neg(phi)
         val transformed = Problem(problem.hypotheses :+ (() |- negPhi), None, problem.frozen ++ freeInd)
-        val downstream = prover(transformed)
+        // The goal enters here: the index of the appended negated conjecture.
+        val downstream = prover(transformed, Set(problem.hypotheses.size))
         require(sameImportList(downstream.imports, transformed.imports ++ libImports), "Downstream imports must match transformed problem imports")
 
         // `csub` lifts `negPhi` to its LHS and carries the prover's conclusion otherwise unchanged, so for the

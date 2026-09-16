@@ -66,12 +66,14 @@ object Prover:
     Problem(hyps ++ distinctnessAxioms(p.distinctObjects), conj)
 
   /**
-   * `oᵢ ≠ oⱼ` for every pair of `objects`, as the sequent `oᵢ = oⱼ ⊢`. Quadratic in the number of distinct
+   * `oᵢ ≠ oⱼ` for every pair of `objects`, as the sequent `⊢ ¬(oᵢ = oⱼ)`. Quadratic in the number of distinct
    * objects, which is what pairwise distinctness costs; TPTP problems carrying many of them pay for it.
+   *
+   * On the right, not as `oᵢ = oⱼ ⊢`: clausification requires every hypothesis to have an empty left-hand side.
    */
   private def distinctnessAxioms(objects: IndexedSeq[K.Expression]): IndexedSeq[K.Sequent] =
     for i <- objects.indices; j <- (i + 1) until objects.size
-    yield K.Sequent(Set(K.equality(objects(i))(objects(j))), Set.empty)
+    yield K.Sequent(Set.empty, Set(K.neg(K.equality(objects(i))(objects(j)))))
 
   /**
    * The verdict, with no proof of any kind built.
@@ -91,26 +93,39 @@ object Prover:
     // `certifyClausal` calls the prover from *inside* the clausification pipeline, so a non-refutation cannot
     // be returned from there; it is thrown and caught here, which is the whole extent of the exception.
     try
-      Right(sineKernel(problem, opts) { p1 =>
-        olKernel(p1, opts) { p2 =>
-          CertifiedClausifier.certifyClausal(
-            p2,
-            clausal =>
-              Clausal.prove(clausal, opts) match
-                case Right(proof) => proof
-                case Left(outcome) => throw new NotRefuted(outcome)
-          )
-        }
+      Right(preprocessKernel(problem, opts) { p =>
+        // The goal clauses steer clause selection, so this searches as `proveTstp` does.
+        CertifiedClausifier.certifyClausalGoal(
+          p,
+          (clausal, goal) =>
+            Clausal.prove(clausal, opts, goal) match
+              case Right(proof) => proof
+              case Left(outcome) => throw new NotRefuted(outcome)
+        )
       })
     catch case nr: NotRefuted => Left(nr.outcome)
 
   /**
-   * A refutation in the form the TSTP printer needs, or the verdict that stopped it.
+   * SInE selection and orthologic normalisation around a kernel-proof-producing step, each justified in the
+   * returned proof. Public for the benchmark harness, which times the phases separately.
    */
-  def proveTstp(problem: Problem, opts: SearchOptions = SearchOptions()): Either[Clausal.Outcome, TstpRefutation] =
+  def preprocessKernel(p: Problem, opts: SearchOptions)(next: Problem => K.SCProof): K.SCProof =
+    sineKernel(p, opts)(p1 => olKernel(p1, opts)(next))
+
+  /**
+   * A refutation in the form the TSTP printer needs, or the verdict that stopped it.
+   *
+   * `onClausified` runs once, between clausification and the search, so a caller can time the two apart.
+   */
+  def proveTstp(
+      problem: Problem,
+      opts: SearchOptions = SearchOptions(),
+      onClausified: () => Unit = () => ()
+  ): Either[Clausal.Outcome, TstpRefutation] =
     sineTstp(problem, opts) { p1 =>
       olTstp(p1, opts) { p2 =>
         val (clausal, origins) = UncertifiedClausifier.clausalProblemWithOrigins(p2)
+        onClausified()
         Clausal.solve(clausal, opts, goalClauses(p2, origins)) match
           case success: Clausal.Outcome.Success =>
             Right(TstpRefutation(clausal.hypotheses.toIndexedSeq.zip(origins), success, p2.hypotheses.indices.toIndexedSeq))

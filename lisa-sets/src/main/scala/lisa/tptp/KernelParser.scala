@@ -101,9 +101,8 @@ object KernelParser {
    *  share a symbol. One definition, so the conversions above and [[distinctObjectsOf]] cannot disagree about
    *  the encoding — which is why the latter can classify by AST node rather than by testing the prefix back.
    */
-  private def distinctObjectConstant(name: String)(using maps: ((String, Int) => K.Expression, (String, Int) => K.Expression, String => K.Variable)): K.Expression =
-    val (_, mapTerm, _) = maps
-    mapTerm("$d" + name.stripPrefix("\"").stripSuffix("\""), 0)
+  private def distinctObjectConstant(name: String): K.Expression =
+    taggedConstant("$d", name.stripPrefix("\"").stripSuffix("\""))
 
   /**
    * @param term a tptp term in leo parser
@@ -119,7 +118,7 @@ object KernelParser {
       // Fix B: distinct objects and numeric literals → plain nullary constants, prefixed `$d` / `$n` so they never
       // collide with ordinary functors (or each other). No arithmetic/distinctness axioms — sound, just uninterpreted.
       case FOF.DistinctObject(name) => distinctObjectConstant(name)
-      case FOF.NumberTerm(value) => mapTerm("$n" + value.pretty, 0)
+      case FOF.NumberTerm(value) => taggedConstant("$n", value.pretty)
       case FOF.QuantifiedTerm(quantifier, Seq(x), body) => K.epsilon(mapVariable(x), convertToKernel(body))
       case FOF.QuantifiedTerm(_, _, _) => throw Exception("Only epsilon is supported as term quantifier")
     }
@@ -265,19 +264,53 @@ object KernelParser {
       )
   }
 
-  def sanitize(s: String) =
-    // Fix A: fold the whole identifier — numeric suffix included — into the *name*; never keep a trailing
-    // `_<digits>`. The String→Identifier conversion parses such a suffix into `Identifier.no` (an `Int`), which
-    // overflows on big SUMO ids like `c_bcase_3235139646`. `unsanitize` reverses `$u`/`$s` and ignores `no`, so
-    // escaping every `_` as `$u` round-trips just as well while keeping the whole id in the (unbounded) name.
-    s.split("_").mkString("$u").replace(" ", "$s")
+  /**
+   * Encode a TPTP symbol name, which in a quoted atom may be any text, as a valid [[K.Identifier]] name:
+   * `$` -> `$$`, `_` -> `$u`, space -> `$s`, other forbidden or whitespace characters -> `$xHHHH`.
+   * Escaping `_` keeps a trailing `_<digits>` out of `Identifier.no`, an `Int` that overflows on large SUMO ids.
+   * Escaping `$` makes the encoding injective and leaves bare-`$` prefixes to [[taggedConstant]].
+   */
+  def sanitize(s: String): String =
+    val out = new StringBuilder(s.length)
+    s.foreach {
+      case '$' => out ++= "$$"
+      case '_' => out ++= "$u"
+      case ' ' => out ++= "$s"
+      case c if K.Identifier.forbiddenChars.contains(c) || c.isWhitespace => out ++= f"$$x${c.toInt}%04X"
+      case c => out += c
+    }
+    out.result()
 
+  /**
+   * Inverse of [[sanitize]]. Kernel-generated names that were never sanitized also pass through here, so an
+   * unrecognised escape yields a literal `$` rather than an error. `no` is ignored.
+   */
   def unsanitize(s: String, no: Int): String =
-    val r1 = s.replace("$u", "_").replace("$s", " ")
-    // if r1.contains(" ") then s"'$r1'" else r1
-    r1
+    val out = new StringBuilder(s.length)
+    var i = 0
+    def hexAt(j: Int): Boolean = j + 4 <= s.length && (j until j + 4).forall(k => Character.digit(s(k), 16) >= 0)
+    while i < s.length do
+      if s(i) == '$' && i + 1 < s.length then
+        s(i + 1) match
+          case '$' => out += '$'; i += 2
+          case 'u' => out += '_'; i += 2
+          case 's' => out += ' '; i += 2
+          case 'x' if hexAt(i + 2) => out += Integer.parseInt(s.substring(i + 2, i + 6), 16).toChar; i += 6
+          case _ => out += '$'; i += 1
+      else
+        out += s(i)
+        i += 1
+    out.result()
+
   def unsanitize(id: K.Identifier): String =
     unsanitize(id.name, id.no)
+
+  /**
+   * A parser-internal nullary constant: a bare `$` tag followed by the sanitized payload. Since [[sanitize]]
+   * escapes `$`, it cannot collide with a source symbol. Readers strip the tag and [[unsanitize]] the rest.
+   */
+  private def taggedConstant(tag: String, payload: String): K.Constant =
+    K.Constant(K.Identifier(tag + sanitize(payload)), K.functionType(0))
 
   val strictMapAtom: ((String, Int) => K.Expression) = (f, n) =>
     val kind = f.head

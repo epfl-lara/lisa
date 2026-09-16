@@ -12,7 +12,7 @@ import Clausification._
  */
 private[clausification] object ScreenPhase:
 
-  def certifyScreen(problem: Problem, prover: ClausificationProver): ClausificationProof =
+  def certifyScreen(problem: Problem, prover: ClausificationProver, goal: Set[Int] = Set.empty)(using ClausifierOptions): ClausificationProof =
     val renaming: Map[Variable, Variable] = screeningRenaming(problem)
     val sigma: Map[Variable, Expression] = renaming.map((v, w) => v -> (w: Expression))
     val sigmaInv: Map[Variable, Expression] = renaming.map((v, w) => w -> (v: Expression))
@@ -22,10 +22,10 @@ private[clausification] object ScreenPhase:
     val screenedConj: Option[Sequent] = problem.conjecture.map(screen)
     // Pass through only when *neither* half does anything. `renaming.isEmpty` alone is not enough: an
     // already-screened problem can still carry η-reduced quantifiers, and skipping the phase would leave them.
-    if renaming.isEmpty && screenedHyps == problem.hypotheses && screenedConj == problem.conjecture then prover(problem)
+    if renaming.isEmpty && screenedHyps == problem.hypotheses && screenedConj == problem.conjecture then prover(problem, goal)
     else
       val transformed = Problem(screenedHyps, screenedConj, problem.frozen.map(v => renaming.getOrElse(v, v)))
-      val downstream = prover(transformed)
+      val downstream = prover(transformed, goal)
       require(sameImportList(downstream.imports, transformed.imports ++ libImports), "Downstream imports must match transformed problem imports")
 
       // One step per hypothesis, deducting its screened form with instantiation (or `Restate` if there is no renaming)

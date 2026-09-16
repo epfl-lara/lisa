@@ -147,7 +147,8 @@ private[clausification] object NamingPhase:
    *  (possibly quantified) subformulas via [[nameOne]] and delegates definition clausification to the
    *  downstream phases; each definition is discharged latest-first (see [[NamingSupport.proveQuantifiedReflIff]]).
    */
-  def certifyNaming(problem: Problem, prover: ClausificationProver, threshold: Int): ClausificationProof =
+  def certifyNaming(problem: Problem, prover: ClausificationProver, goal: Set[Int] = Set.empty)(using o: ClausifierOptions): ClausificationProof =
+    val threshold = o.threshold
     require(problem.conjecture.isEmpty, "certifyNaming expects a conjecture-free problem")
     val counter = Counter()
     val n = problem.hypotheses.size
@@ -216,7 +217,11 @@ private[clausification] object NamingPhase:
         innerSteps.size - 1
     }
 
-    val downstream = prover(newProblem)
+    require(namedHyps.size == problem.hypotheses.size, "naming must keep the original hypotheses as a prefix: the goal travels as a hypothesis index")
+    // Definitions from naming a goal hypothesis join the goal; hypothesis i's sit at n + defBase(i) until
+    // n + defBase(i + 1).
+    val downstreamGoal = goal ++ goal.flatMap(i => (defBase(i) until defBase(i + 1)).map(n + _))
+    val downstream = prover(newProblem, downstreamGoal)
     require(sameImportList(downstream.imports, newProblem.imports ++ libImports), "Downstream imports must match transformed problem imports")
     // Downstream imports: [named_0..named_{n-1}, def_0..def_{Q-1}] ++ lib.
     val recPremises: IndexedSeq[Int] = namedRefs.toIndexedSeq ++ defRefs ++ (0 until L).map(innerLibRef)

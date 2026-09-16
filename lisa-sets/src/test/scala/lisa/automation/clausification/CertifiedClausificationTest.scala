@@ -299,6 +299,38 @@ class CertifiedClausificationTest extends AnyFunSuite:
       )
   }
 
+  // The goal set lets the prover bias clause selection toward the negated conjecture, as on the uncertified path.
+  test("the certified path tells its prover which clauses came from the negated conjecture") {
+    val p = K.Variable(K.Identifier("p"), K.predicateType(1))
+    val a = K.Variable(K.Identifier("a"), K.Ind)
+    val b = K.Variable(K.Identifier("b"), K.Ind)
+    // One hypothesis, one conjecture, each a single literal, so each yields exactly one clause.
+    val problem = Problem(Seq(K.Sequent(Set.empty, Set(p(a)))), Some(K.Sequent(Set.empty, Set(p(b)))))
+
+    var clauses: Problem = null
+    var goal: Set[Int] = null
+    CertifiedClausifier.certifyClausalGoal(problem, (q, g) => { clauses = q; goal = g; sorryProver(q) })
+
+    assert(goal.nonEmpty, "a problem with a conjecture must hand the prover a non-empty goal set")
+    assert(goal.forall(i => i >= 0 && i < clauses.imports.size), s"goal $goal out of range for ${clauses.imports.size} clauses")
+    // Found by shape since `ScreenPhase` renames: `¬p(b)` gives the only clause with an empty right side.
+    val negative = clauses.imports.indices.filter(i => clauses.imports(i).right.isEmpty).toSet
+    assert(negative.nonEmpty, s"expected the negated conjecture to give a clause with an empty right side, got ${clauses.imports}")
+    assert(goal == negative, s"goal set $goal is not the conjecture's clauses $negative (clauses: ${clauses.imports})")
+  }
+
+  test("a conjecture-free problem has an empty goal set, since there is nothing to be directed toward") {
+    val p = K.Variable(K.Identifier("p"), K.predicateType(1))
+    val a = K.Variable(K.Identifier("a"), K.Ind)
+    var goal: Set[Int] = null
+    // Both hypotheses `⊢ φ`, as the pipeline requires; the second is `⊢ ¬p(a)`, not `p(a) ⊢`.
+    CertifiedClausifier.certifyClausalGoal(
+      Problem(Seq(K.Sequent(Set.empty, Set(p(a))), K.Sequent(Set.empty, Set(K.neg(p(a))))), None),
+      (q, g) => { goal = g; sorryProver(q) }
+    )
+    assert(goal.isEmpty, s"expected no goal clauses without a conjecture, got $goal")
+  }
+
   /**
    * The clause set `certifyClausal` actually hands its prover, with the prover stubbed out.
    */

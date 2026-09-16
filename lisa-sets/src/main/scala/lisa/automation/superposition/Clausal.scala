@@ -309,7 +309,7 @@ object Clausal:
    *
    * The `Restate` is what bridges the two forms, which differ only propositionally (see [[toWorkingSequent]]).
    */
-  private def composeProof(base: K.SCProof, orig: IndexedSeq[K.Sequent]): K.SCProof =
+  private[superposition] def composeProof(base: K.SCProof, orig: IndexedSeq[K.Sequent]): K.SCProof =
     // Slot of each working clause, first occurrence winning (duplicate inputs are equal sequents, so either
     // would do). Built once, so composition is linear rather than a structural `Sequent` scan per import.
     val slotOf = mutable.HashMap.empty[K.Sequent, Int]
@@ -333,8 +333,8 @@ object Clausal:
    *  free variable (definitional naming atoms `nm…` and any Lisa predicate/function variable; clause
    *  variables are `Ind`).
    */
-  private final case class Prepared(abs: Abstraction, orig: IndexedSeq[K.Sequent], work: IndexedSeq[K.Sequent], symbolVars: Set[K.Variable])
-  private def prepare(problem: Problem): Prepared =
+  private[superposition] final case class Prepared(abs: Abstraction, orig: IndexedSeq[K.Sequent], work: IndexedSeq[K.Sequent], symbolVars: Set[K.Variable])
+  private[superposition] def prepare(problem: Problem): Prepared =
     val abs = new Abstraction
     val orig: IndexedSeq[K.Sequent] = problem.imports //               clausifier clauses (contract import list)
     val absSeqs: IndexedSeq[K.Sequent] = orig.map(o => abstractSequent(abs, o))

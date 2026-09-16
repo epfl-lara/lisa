@@ -15,6 +15,8 @@ import org.scalatest.funsuite.AnyFunSuite
  */
 class PrenexPhaseTest extends AnyFunSuite:
 
+  private given Clausification.ClausifierOptions = Clausification.ClausifierOptions()
+
   private val Pc = Constant(Identifier("Pc", 0), Ind >>: Prop)
   private val Qc = Constant(Identifier("Qc", 0), Ind >>: Prop)
   private val zv = Variable(Identifier("z", 0), Ind)
@@ -26,7 +28,7 @@ class PrenexPhaseTest extends AnyFunSuite:
    */
   private def prenex(phi: Expression): (SCProof, Expression) =
     val ax = () |- phi
-    val (sub, matrixAx) = PrenexPhase.provePrenex(ax, -1, Clausification.Counter())
+    val (sub, matrixAx) = PrenexPhase.provePrenex(ax, -1, Clausification.Counter(), nonLibSize = 1)
     (SCProof(IndexedSeq(sub), IndexedSeq(ax) ++ Clausification.libImports), matrixAx.right.head)
 
   test("a ∀ whose sibling mentions the binder free is stripped without capturing it") {

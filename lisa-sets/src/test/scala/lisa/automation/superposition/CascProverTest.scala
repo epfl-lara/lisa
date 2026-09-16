@@ -227,7 +227,7 @@ class CascProverTest extends AnyFunSuite:
     // tptp4X cannot see this: the collapsed output is perfectly well-formed TPTP.
     val out = run("-t", "20", problemFile("twoskolem.p", twoSkolems).getPath)
     assert(out.contains("SZS status Unsatisfiable"), s"got:\n$out")
-    val sks = generatedSymbols(out, "sk")
+    val sks = generatedSymbols(out, "esk")
     assert(sks.size >= 2, s"two distinct Skolem constants collapsed into ${sks.mkString("{", ",", "}")}:\n$out")
   }
 

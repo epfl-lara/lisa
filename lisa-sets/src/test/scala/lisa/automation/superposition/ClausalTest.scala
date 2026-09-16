@@ -2,7 +2,6 @@ package lisa.automation.superposition
 
 import lisa.automation.Problem
 import lisa.automation.clausification.CertifiedClausifier
-import lisa.automation.superposition.bench.EqFofEvaluation
 import lisa.automation.superposition.bench.FofEvaluation
 import lisa.kernel.KernelProof
 import lisa.utils.K
@@ -137,25 +136,15 @@ class ClausalTest extends AnyFunSuite:
   // --- the certifyClausal prover adapter (Clausal.prove): ε-free and ε-bearing, end to end ---
 
   test("FofEvaluation.sample: reproducible seeded 100-problem draw from the FOF dataset") {
-    assert(FofEvaluation.allProblems.size == 944) //           the full FOF theorem list (CSR/SUMO excluded)
+    assert(FofEvaluation.allProblems.size == 8017) //          every refutable first-order FOF problem
     val s = FofEvaluation.sample() //                          defaults: n = 100, seed = 42
     assert(s.size == 100)
     assert(s.toSet.size == 100) //                             distinct
     assert(s == FofEvaluation.sample(100, 42)) //              deterministic for a fixed seed
     assert(s != FofEvaluation.sample(100, 7)) //               a different seed gives a different draw
     assert(s.forall(_.startsWith("Problems/"))) //             TPTP-root-relative paths
-    assert(FofEvaluation.sample(2000, 42).size == 944) //      n larger than the list returns all of it
-  }
-
-  test("EqFofEvaluation.sample: reproducible seeded draw from the equality-bearing FOF dataset") {
-    assert(EqFofEvaluation.allProblems.size == 5589) //        FOF_THM_{RFO,EPR}_{SEQ,PEQ}, CSR excluded, .p only
-    val s = EqFofEvaluation.sample() //                        defaults: n = 100, seed = 42
-    assert(s.size == 100 && s.toSet.size == 100) //            distinct
-    assert(s == EqFofEvaluation.sample(100, 42)) //            deterministic for a fixed seed
-    assert(s != EqFofEvaluation.sample(100, 7)) //             a different seed gives a different draw
-    assert(s.forall(_.startsWith("Problems/"))) //             TPTP-root-relative paths
-    assert(EqFofEvaluation.sample(9999, 42).size == 5589) //   n larger than the list returns all of it
-    assert(EqFofEvaluation.allProblems.forall(p => !p.startsWith("Problems/CSR/") && p.endsWith(".p"))) // CSR excluded, .p only
+    assert(FofEvaluation.sample(9999, 42).size == 8017) //     n larger than the list returns all of it
+    assert(FofEvaluation.allProblems.forall(_.endsWith(".p"))) // problem files only
   }
 
   test("import composition maps each used clause to its own slot, even with duplicate clauses") {

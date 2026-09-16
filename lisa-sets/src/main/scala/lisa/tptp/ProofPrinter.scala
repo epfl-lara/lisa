@@ -62,7 +62,12 @@ object ProofPrinter {
   }
 
   def isLowerWord(s: String): Boolean = s.head.isLower && s.tail.forall(_.isLetterOrDigit)
-  inline def quoted(s: String): String = if isLowerWord(s) then s else s"'$s'"
+
+  /**
+   * `s` as a TPTP `atomic_word`: a lower word verbatim, anything else single-quoted with `\` and `'` escaped.
+   */
+  inline def quoted(s: String): String =
+    if isLowerWord(s) then s else "'" + s.replace("\\", "\\\\").replace("'", "\\'") + "'"
 
   /**
    * A `$n`-prefixed constant — a TPTP numeral parked as an uninterpreted nullary constant by [[KernelParser]]

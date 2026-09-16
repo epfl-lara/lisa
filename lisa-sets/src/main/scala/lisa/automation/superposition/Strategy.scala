@@ -112,4 +112,27 @@ object Strategy:
   val portfolio: Seq[Strategy] =
     Seq(balanced, weightGreedy, ageFair, occurrence, equational, unaryRedundancy, subsumptionLight, firstNegative)
 
-  def byName(name: String): Option[Strategy] = portfolio.find(_.name == name)
+  /**
+   * The members of [[tuned]] that differ from their counterpart in [[portfolio]] only in `orthologic`. The
+   * name carries the flag, since [[byName]] identifies a strategy by its name.
+   */
+  val weightGreedyOl = Strategy("weight-greedy-ol", weightGreedy.opts.copy(orthologic = true))
+  val equationalOl = Strategy("equational-ol", equational.opts.copy(orthologic = true))
+  val subsumptionLightOl = Strategy("subsumption-light-ol", subsumptionLight.opts.copy(orthologic = true))
+  val occurrenceNoOl = Strategy("occurrence-no-ol", occurrence.opts.copy(orthologic = false))
+  val unaryRedundancyNoOl = Strategy("unary-redundancy-no-ol", unaryRedundancy.opts.copy(orthologic = false))
+  val firstNegativeNoOl = Strategy("first-negative-no-ol", firstNegative.opts.copy(orthologic = false))
+
+  /**
+   * Eight strategies chosen for coverage among [[portfolio]] with `orthologic` on and off. Tuned on CASC
+   * problems, so not the shipped portfolio.
+   */
+  val tuned: Seq[Strategy] =
+    Seq(balanced, weightGreedy, weightGreedyOl, occurrenceNoOl, equationalOl, unaryRedundancyNoOl, subsumptionLightOl, firstNegativeNoOl)
+
+  /**
+   * Every strategy this object names, the default portfolio first. Names are unique across the two.
+   */
+  val all: Seq[Strategy] = (portfolio ++ tuned).distinctBy(_.name)
+
+  def byName(name: String): Option[Strategy] = all.find(_.name == name)

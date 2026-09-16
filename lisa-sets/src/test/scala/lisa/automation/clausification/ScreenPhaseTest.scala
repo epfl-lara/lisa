@@ -35,6 +35,8 @@ import org.scalatest.funsuite.AnyFunSuite
  */
 class ScreenPhaseTest extends AnyFunSuite:
 
+  private given Clausification.ClausifierOptions = Clausification.ClausifierOptions()
+
   private val y = Variable(Identifier("y"), Ind)
   private val z = Variable(Identifier("z"), Ind)
   private val u = Variable(Identifier("u"), Ind)

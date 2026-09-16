@@ -13,9 +13,9 @@ import scala.collection.mutable
  * @param tolerance a symbol whose generality is within this factor of the least general one in a formula also
  *                  triggers it. `1.0` keeps only the rarest, which is the most aggressive setting.
  * @param depth     rounds of search outward from the goal; `0` is the full closure.
- * @param minAxioms below this many hypotheses, keep everything.
+ * @param minAxioms below this many hypotheses, keep everything. Also the size floor of the filtering gate.
  */
-final case class SineConfig(tolerance: Double = 3.0, depth: Int = 0, minAxioms: Int = 500)
+final case class SineConfig(tolerance: Double = 3.0, depth: Int = 0, minAxioms: Int = 32)
 
 object Sine:
 
@@ -129,5 +129,8 @@ object Sine:
   def selection(problem: Problem, cfg: SineConfig, p: Params = Params()): Option[Set[Int]] =
     problem.conjecture.flatMap { conj =>
       val a = analyse(problem.hypotheses.toIndexedSeq, conj)
-      Option.when(a.shouldFilter(p))(a.select(cfg))
+      // The gate uses `cfg`'s size floor so it agrees with the selection; the probe's other settings are kept
+      // so every strategy decides alike whether filtering pays.
+      val gate = p.copy(probe = p.probe.copy(minAxioms = cfg.minAxioms))
+      Option.when(a.shouldFilter(gate))(a.select(cfg))
     }

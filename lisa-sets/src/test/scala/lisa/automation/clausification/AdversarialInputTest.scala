@@ -24,6 +24,11 @@ import org.scalatest.funsuite.AnyFunSuite
  */
 class AdversarialInputTest extends AnyFunSuite:
 
+  /**
+   * The phases read their configuration as a given; these tests exercise the shipped one.
+   */
+  private given Clausification.ClausifierOptions = Clausification.ClausifierOptions()
+
   private val a = Variable(Identifier("a"), Prop)
   private val b = Variable(Identifier("b"), Prop)
   private val x = Variable(Identifier("x"), Ind)
@@ -40,7 +45,8 @@ class AdversarialInputTest extends AnyFunSuite:
    * library statements too. `certifyClausal`'s wrapper appends them, so a test calling a phase directly
    * has to do it itself or trip the phase's own import check.
    */
-  private def sorryPhaseProver(p: Problem): ClausificationProof =
+  // `goal` is ignored: a stub prover does no search.
+  private def sorryPhaseProver(p: Problem, goal: Set[Int]): ClausificationProof =
     val sc = sorryProver(p)
     ClausificationProof(sc.steps, sc.imports ++ Clausification.libImports)
 

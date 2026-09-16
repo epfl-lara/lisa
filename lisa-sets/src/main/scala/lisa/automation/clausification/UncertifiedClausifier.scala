@@ -36,7 +36,19 @@ object UncertifiedClausifier:
    * The uncertified Skolemization of an NNF formula (∃ → Skolem functions, ∀ stripped).
    */
   private[clausification] def skolemizeNnf(nnf: Expression, counter: Counter): Expression =
-    skolemize(nnf, Map.empty, Map.empty, nnf.freeVariables.iterator.filter(_.sort == Ind).map(v => (v, v)).toList, counter)
+    val univs = topUniversals(nnf, Set.empty, counter)
+    skolemize(nnf, univs.map((o, r) => (o, r: Expression)).toMap, univs.map((o, r) => (o, Set(r))).toMap, univs, counter)
+
+  /**
+   * The formula's free individual variables except the frozen ones, each paired with a fresh `w` clause variable,
+   * as [[skolemize]] renames every binder. Sorted by name, since they lead every Skolem term's arguments and
+   * `freeVariables` iterates in hash order.
+   */
+  private def topUniversals(nnf: Expression, frozen: Set[Variable], counter: Counter): List[(Variable, Variable)] =
+    nnf.freeVariables.toList
+      .filter(v => v.sort == Ind && !frozen.contains(v))
+      .sortBy(v => (v.id.name, v.id.no))
+      .map(v => (v, Variable(Identifier(GeneratedNames.clauseVar, counter.next()), v.sort)))
 
   /**
    * The named formula (naming step) put through NNF and Skolemization.
@@ -44,15 +56,21 @@ object UncertifiedClausifier:
   private[clausification] def namedNnfSkolem(phi: Expression, threshold: Int): Expression =
     skolemizeNnf(NnfPhase.toNNF(namedFormula(phi, threshold, Counter()), negated = false), Counter())
 
-  def clausify(phi: Expression, threshold: Int, frozen: Set[Variable], counter: Counter): List[Sequent] =
+  /**
+   * @param counter    numbers the naming atoms `nm`
+   * @param skoCounter numbers the Skolem symbols `sk` and clause variables `w`, separately so that `nm` numbers
+   *                   match the certified path's
+   */
+  def clausify(phi: Expression, threshold: Int, frozen: Set[Variable], counter: Counter, skoCounter: Counter): List[Sequent] =
     val defs = scala.collection.mutable.ListBuffer.empty[Expression]
     val (named, _) = name(phi, 1, threshold, frozen, defs, counter)
     (named :: defs.toList).flatMap { g =>
       val nnf = NnfPhase.toNNF(g, negated = false)
-      // Free Ind vars are the top-level universals, except the frozen ones, which are constants and so no
-      // Skolem term's arguments. They aren't α-renamed, so orig = renamed.
-      val univs = nnf.freeVariables.iterator.filter(v => v.sort == Ind && !frozen.contains(v)).map(v => (v, v)).toList
-      toClauses(skolemize(nnf, Map.empty, Map.empty, univs, counter))
+      // The top-level universals enter as a renaming substitution, like the binders `skolemize` strips.
+      val univs = topUniversals(nnf, frozen, skoCounter)
+      val subst = univs.map((o, r) => (o, r: Expression)).toMap
+      val imageFree = univs.map((o, r) => (o, Set(r))).toMap
+      toClauses(skolemize(nnf, subst, imageFree, univs, skoCounter))
     }
 
   /**
@@ -82,7 +100,19 @@ object UncertifiedClausifier:
    */
   def clausalProblemWithOrigins(problem: Problem, threshold: Int = DefaultThreshold, orthologic: Boolean = false): (Problem, IndexedSeq[Int]) =
     val withOrigins = clausalFormWithOrigins(problem, threshold, orthologic)
-    (Problem(withOrigins.map(_._1).toList, None, negated(problem)._2), withOrigins.map(_._2))
+    val clauses = withOrigins.map(_._1).toList
+    (Problem(clauses, None, negated(problem)._2 ++ skolemVariables(clauses)), withOrigins.map(_._2))
+
+  /**
+   * The Skolem symbols in `clauses`, which the prover must treat as rigid. Read off the clauses so that none
+   * can be missed and wrongly ∀-closed.
+   */
+  private def skolemVariables(clauses: Seq[Sequent]): Set[Variable] =
+    clauses.iterator
+      .flatMap(s => s.left.iterator ++ s.right.iterator)
+      .flatMap(_.freeVariables)
+      .filter(_.id.name == GeneratedNames.skolemFun)
+      .toSet
 
   /**
    * Pairs each clause with the index of the source formula it was clausified from:
@@ -90,21 +120,23 @@ object UncertifiedClausifier:
    */
   def clausalFormWithOrigins(problem: Problem, threshold: Int = DefaultThreshold, orthologic: Boolean = false): IndexedSeq[(Sequent, Int)] =
     val (hyps0, frozen) = negated(problem)
-    val counter = Counter(freshCounterStart(hyps0))
+    // Both start past every input name, and advance independently as in the certified pipeline.
+    val start = freshCounterStart(hyps0)
+    val counter = Counter(start)
+    val skoCounter = Counter(start)
     hyps0.zipWithIndex.flatMap { (h, origin) =>
       val f0 = singleRightFormula(h, "hypothesis")
       // η-expand after the orthologic step, because `reducedNNFForm` produces an eta-contracted formula
       val f = etaExpandQuantifiers(if orthologic then reducedNNFForm(f0) else f0)
-      clausify(f, threshold, frozen, counter).map(clause => (clause, origin))
+      clausify(f, threshold, frozen, counter, skoCounter).map(clause => (clause, origin))
     }
 
   /**
-   * Where the shared fresh-name counter must start so that nothing this path mints collides with an input name.
-   * The three generated kinds (`w` clause variables, `sk` Skolem functions, `nm` naming atoms) share one
-   * counter.
+   * Where the fresh-name counters (`nm`, and `sk`/`w`) must start so that nothing this path mints collides with
+   * an input name.
    */
   private def freshCounterStart(hypotheses: Seq[Sequent]): Int =
-    val prefixes = Set(GeneratedNames.clauseVar, GeneratedNames.uncertifiedSkolem, GeneratedNames.namingAtom)
+    val prefixes = Set(GeneratedNames.clauseVar, GeneratedNames.skolemFun, GeneratedNames.namingAtom)
     var maxNo = -1
     def note(id: Identifier): Unit = if prefixes(id.name) && id.no > maxNo then maxNo = id.no
     def scan(e: Expression): Unit = e match
@@ -192,9 +224,9 @@ object UncertifiedClausifier:
         val bodyFree = f.freeVariables.flatMap(y => imageFree.getOrElse(y, Set(y)))
         val mentioned = univs.collect { case (_, v) if bodyFree.contains(v) => v }
         val skSort = mentioned.foldRight(x.sort)((u, acc) => u.sort -> acc)
-        // A **Constant** (function symbol), NOT a Variable: a *nullary* Skolem has result sort `Ind`, so as a
-        // Variable it would be mistaken for a clause variable (universally quantified), which is unsound.
-        val skTerm = mentioned.foldLeft(Constant(Identifier(GeneratedNames.uncertifiedSkolem, counter.next()), skSort): Expression)((acc, u) => acc(u))
+        // A schematic Variable, as [[SkolemPhase]] mints. Sound only because [[skolemVariables]] freezes it, so
+        // a nullary Skolem is not taken for a clause variable.
+        val skTerm = mentioned.foldLeft(Variable(Identifier(GeneratedNames.skolemFun, counter.next()), skSort): Expression)((acc, u) => acc(u))
         skolemize(g, subst + (x -> skTerm), imageFree + (x -> mentioned.toSet), univs, counter)
       case lit => if subst.isEmpty then lit else substituteVariablesOpti(lit, subst)
 

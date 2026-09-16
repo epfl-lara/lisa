@@ -1,13 +1,10 @@
 package lisa.automation.superposition
 
 import lisa.tptp.AnnotatedFormula
-import lisa.tptp.AnnotatedStatement
-import lisa.tptp.KernelParser.axiomLikeRoles
 import lisa.tptp.KernelParser.problemToKernel
 import lisa.tptp.KernelParser.strictMapAtom
 import lisa.tptp.KernelParser.strictMapTerm
 import lisa.tptp.KernelParser.strictMapVariable
-import lisa.utils.K
 
 import java.io.File
 import scala.util.Failure
@@ -74,21 +71,8 @@ object CascProver:
       case Success(parsed) =>
         // Input formulas as AnnotatedFormula (a cnf clause becomes its disjunction), keeping names/roles.
         // `clausalProblemWithOrigins`' origins index into `axiomLike ++ [conjecture]`, in that order.
-        val axiomLike0: IndexedSeq[AnnotatedFormula] = parsed.formulas.collect {
-          case s: AnnotatedStatement if axiomLikeRoles.contains(s.role) => s.toFormula
-        }.toIndexedSeq
-        val conjecture: Option[AnnotatedFormula] = parsed.formulas.collectFirst {
-          case s: AnnotatedStatement if s.role == "conjecture" => s.toFormula
-        }
         val cprob = Prover.fromTptp(parsed)
-        // `fromTptp` appends one hypothesis per pair of distinct objects, past the parsed formulas. The
-        // derivation cites every clause's origin by name, so those get names here — they are the only
-        // hypotheses with no input formula behind them.
-        val generated: IndexedSeq[AnnotatedFormula] =
-          cprob.hypotheses.toIndexedSeq.drop(axiomLike0.size).zipWithIndex.map { (s, k) =>
-            AnnotatedFormula("axiom", s"distinct_$k", K.multior(s.left.toSeq.map(e => K.neg(e)) ++ s.right.toSeq), None)
-          }
-        val inputFormulas: IndexedSeq[AnnotatedFormula] = axiomLike0 ++ generated
+        val (inputFormulas, conjecture) = Tstp.inputFormulas(parsed, cprob)
         // SInE and orthologic normalisation are preprocessing phases inside [[Prover]] now. A refutation
         // reports which axioms SInE kept, so the derivation's leaves still name the survivors.
         Try(Prover.proveTstp(cprob, cli.strategy.opts.copy(maxMillis = budgetMillis))) match

@@ -26,7 +26,9 @@ class SinePolicyTest extends AnyFunSuite:
     ((chain ++ noise).map(h => () |- h), () |- goal)
 
   test("gate 1: below the axiom floor ⇒ do not filter (even if very prunable)") {
-    val (h, c) = sparse(200) // 202 axioms < default floor 500
+    // Sized from the configured floor, so the case stays below it if the default changes.
+    val (h, c) = sparse(SineConfig().minAxioms - 5) // three short of the floor
+    assert(h.size < SineConfig().minAxioms, s"the fixture must sit below the floor, got ${h.size}")
     assert(!gates(h, c))
   }
 

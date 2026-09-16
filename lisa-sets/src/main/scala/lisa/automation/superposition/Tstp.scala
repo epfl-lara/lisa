@@ -19,6 +19,24 @@ import lisa.utils.K
 object Tstp:
 
   /**
+   * The input formulas a derivation's leaves may cite, in the order [[Prover.TstpRefutation.axioms]] indexes,
+   * and the conjecture if there is one. Names the distinctness hypotheses [[Prover.fromTptp]] appends.
+   */
+  def inputFormulas(parsed: lisa.tptp.TptpProblem, problem: lisa.automation.Problem): (IndexedSeq[AnnotatedFormula], Option[AnnotatedFormula]) =
+    import lisa.tptp.AnnotatedStatement
+    val axiomLike: IndexedSeq[AnnotatedFormula] = parsed.formulas.collect {
+      case s: AnnotatedStatement if lisa.tptp.KernelParser.axiomLikeRoles.contains(s.role) => s.toFormula
+    }.toIndexedSeq
+    val conjecture: Option[AnnotatedFormula] = parsed.formulas.collectFirst {
+      case s: AnnotatedStatement if s.role == "conjecture" => s.toFormula
+    }
+    val generated: IndexedSeq[AnnotatedFormula] =
+      problem.hypotheses.toIndexedSeq.drop(axiomLike.size).zipWithIndex.map { (s, k) =>
+        AnnotatedFormula("axiom", s"distinct_$k", K.multior(s.left.toSeq.map(e => K.neg(e)) ++ s.right.toSeq), None)
+      }
+    (axiomLike ++ generated, conjecture)
+
+  /**
    * A first-order input formula as a TPTP `fof` body, via the shared [[lisa.tptp.ProofPrinter]] (`strict` =
    *  real un-sanitized names). [[Syntax]] below renders `cnf` clause bodies instead, which need dense `X<n>`
    *  variables and `!=` literals that the FOF printer is not meant to produce.
@@ -208,7 +226,9 @@ object Tstp:
       // Only an `Ind`-sorted variable is a TPTP variable; a `Variable` at any other sort is a *symbol* here (the
       // definitional naming atoms, and `ScreenPhase`'s `usr…` predicate variables). Printing those with `vname`
       // gives invalid TPTP when applied (`X0(X1)`) and a silently *weaker* clause when nullary.
+      // Skolem functions are the exception: a nullary one is an `Ind`-sorted variable but must print as a symbol.
       def symbol(head: Expression): String = head match
+        case v: Variable if v.id.name == lisa.automation.clausification.Clausification.GeneratedNames.skolemFun => functorOf(v.id)
         case v: Variable if v.sort == Ind => vname(v)
         case v: Variable => functorOf(v.id)
         case c: Constant => functorOf(c.id)

@@ -19,7 +19,7 @@ private[clausification] object SkolemPhase:
    * witness `ε(λx.φ)` replaced by a fresh Skolem-function schema variable `F(x̄)`), so ε-terms never nest and never blow
    * up. Each step's fresh `F` carries a *defining equality* `∀x̄. ε(λx.φ) = F(x̄)` as an assumption.
    */
-  def certifySkolem(problem: Problem, prover: ClausificationProver): ClausificationProof =
+  def certifySkolem(problem: Problem, prover: ClausificationProver, goal: Set[Int] = Set.empty)(using ClausifierOptions): ClausificationProof =
     require(problem.conjecture.isEmpty, "certifySkolem expects a conjecture-free problem (consumed by certifyNegated)")
     val counter = Counter()
     val n = problem.hypotheses.size
@@ -81,7 +81,8 @@ private[clausification] object SkolemPhase:
         skoRefs += prevRef
         jBase += hd.steps.size
 
-    val downstream = prover(newProblem)
+    require(newProblem.hypotheses.size == problem.hypotheses.size, "Skolemisation must map hypotheses one-to-one: the goal travels as a hypothesis index")
+    val downstream = prover(newProblem, goal)
     require(sameImportList(downstream.imports, newProblem.imports ++ libImports), "Downstream imports must match transformed problem imports")
     val recPremises: IndexedSeq[Int] = skoRefs.toIndexedSeq ++ (0 until L).map(innerLibRef)
     innerSteps += ClausificationSubproof(downstream, recPremises)

@@ -11,7 +11,7 @@ import Clausification._
  */
 private[clausification] object NnfPhase:
 
-  def certifyNnf(problem: Problem, prover: ClausificationProver): ClausificationProof = {
+  def certifyNnf(problem: Problem, prover: ClausificationProver, goal: Set[Int] = Set.empty)(using ClausifierOptions): ClausificationProof = {
     require(
       problem.hypotheses.forall(h => h.left.isEmpty && h.right.size == 1),
       s"certifyNnf expects each hypothesis to have an empty left-hand side and a single formula on the " +
@@ -19,7 +19,8 @@ private[clausification] object NnfPhase:
     )
     val transformedHyps = problem.hypotheses.map(h => () |- toNNF(h.right.head, negated = false))
     val transformed = Problem(transformedHyps, None, problem.frozen)
-    val downstream = prover(transformed)
+    require(transformedHyps.size == problem.hypotheses.size, "NNF must map hypotheses one-to-one: the goal travels as a hypothesis index")
+    val downstream = prover(transformed, goal)
     require(sameImportList(downstream.imports, transformed.imports ++ libImports), "Downstream imports must match transformed problem imports")
 
     val restateSteps: IndexedSeq[ClausificationProofStep] =

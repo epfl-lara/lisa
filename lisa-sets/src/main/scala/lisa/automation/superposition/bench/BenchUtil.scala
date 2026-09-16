@@ -2,7 +2,6 @@ package lisa.automation.superposition
 package bench
 
 import java.io.File
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import scala.util.Try
 import scala.util.Using
@@ -14,7 +13,7 @@ import scala.util.Using
  * The lists ship as classpath resources rather than beside the sources, so that they are found however the
  * harness is launched, including from a forked child whose working directory is not the repository root.
  *
- * @param listFileName the generated list, e.g. `tptp-clausal-fo-noeq-uns.txt`
+ * @param listFileName the generated list, e.g. `tptp-eligible-fof.txt`
  * @param envVar       optional environment variable naming a file to use instead of the packaged resource
  */
 final class ProblemList(val listFileName: String, envVar: Option[String] = None):
@@ -59,8 +58,8 @@ final class ProblemList(val listFileName: String, envVar: Option[String] = None)
     new scala.util.Random(seed).shuffle(all).take(n)
 
 /**
- * What every harness needs and none should own a copy of: the TPTP-root lookup, the interruptible worker with
- * its abandoned-worker accounting, and running one problem in its own JVM.
+ * What every harness needs and none should own a copy of: the TPTP-root lookup, the interruptible worker and
+ * running one problem in its own JVM.
  */
 object BenchUtil:
 
@@ -70,7 +69,9 @@ object BenchUtil:
    */
   def tptpRootOrExplain(): Option[File] =
     val root = sys.env.get("TPTP").map(new File(_)).filter(_.isDirectory)
-    if root.isEmpty then println("Set the TPTP environment variable to the TPTP root (the directory containing Problems/).")
+    if root.isEmpty then
+      println("Set the TPTP environment variable to the TPTP root (the directory containing Problems/).")
+      println("The library is at https://tptp.org/TPTP/Distribution/TPTP-v9.3.1.tgz")
     root
 
   /**
@@ -80,32 +81,10 @@ object BenchUtil:
    */
   private val interruptGraceMs: Long = 2000L
 
-  private val abandoned = new AtomicInteger(0)
-
-  /**
-   * Workers that ignored their interrupt and were still running when [[withTimeout]] gave up. Everything
-   * measured after the first is suspect, since such a worker holds its processor time and its heap for the
-   * rest of the run. A thread cannot be killed on the JVM, so the harnesses report this rather than hide it.
-   */
-  def abandonedWorkers: Int = abandoned.get
-
-  def resetAbandoned(): Unit = abandoned.set(0)
-
-  /**
-   * A one-line warning naming the contamination, or `""` when the run was clean.
-   */
-  def contaminationWarning: String =
-    val n = abandonedWorkers
-    if n == 0 then ""
-    else
-      s"!! $n worker${if n == 1 then "" else "s"} ignored the interrupt and kept running. Every result after " +
-        "the first is suspect: that thread holds CPU and heap for the rest of the run. Re-run the affected " +
-        "problems on their own before believing any of these numbers."
-
   /**
    * Run `body` on a daemon thread; return its outcome, or `None` if it doesn't finish within `ms`. On a
    *  timeout the worker is interrupted and given [[interruptGraceMs]] to unwind; one still alive after that
-   *  cannot be stopped at all, and is counted in [[abandonedWorkers]] for the harness to report.
+   *  cannot be stopped at all, hence one forked JVM per problem.
    */
   def withTimeout[T](ms: Long)(body: => T): Option[Try[T]] =
     val box = new AtomicReference[Option[Try[T]]](None)
@@ -115,7 +94,6 @@ object BenchUtil:
     else
       th.interrupt()
       th.join(interruptGraceMs) // give the cooperative poll points a chance to fire
-      if th.isAlive then abandoned.incrementAndGet()
       // `None` even if the worker unwound in the grace period and stored a `Failure(InterruptedException)`:
       // the budget was exceeded, and returning that would reclassify every `HARD_TIMEOUT` as an `ERROR`.
       None
@@ -140,7 +118,8 @@ object BenchUtil:
      * The single `RESULT\t…` line a child prints, if it got that far. Absent means it died first, killed on
      * timeout, or a fatal error no `catch` inside the child could report.
      */
-    def resultLine: Option[String] = stdout.find(_.startsWith(ResultPrefix))
+    // The last one: a child may print a partial row before phases without a deadline, in case it is killed.
+    def resultLine: Option[String] = stdout.filter(_.startsWith(ResultPrefix)).lastOption
 
     /**
      * Why a child that printed no result died, for the harness's row. Empty when we killed it, since the row's

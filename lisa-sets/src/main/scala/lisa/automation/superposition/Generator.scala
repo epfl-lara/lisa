@@ -95,18 +95,19 @@ final class Generator(bank: TermBank, trail: Trail, active: ActiveSet, opts: Sea
    *
    *  `pos` may be a caller's live subterm-walk stack, so nothing here retains it: [[Superposition.superpose]]
    *  snapshots it, and only for the inferences that fire.
+   *
+   *  `emit` runs after the trail is restored, since simplification ([[Subsumption]]) requires scope 1 unbound.
+   *  The conclusion is already instantiated, so it does not need the bindings.
    */
   private def superposeVerified(fromC: Clause, iFrom: Int, fromSide: Int, intoC: Clause, iInto: Int, pos: IntArrayList): Boolean =
     val l: Term = bank.arg(bank.atomOf(fromC.literals(iFrom)), fromSide)
     val u: Term = Superposition.subtermAt(bank, bank.atomOf(intoC.literals(iInto)), pos)
     val saved: Int = trail.save()
-    var stop = false
-    if trail.unify(l, 0, u, 1) then
-      Superposition.superpose(bank, trail, fromC, iFrom, fromSide, intoC, iInto, pos) match
-        case Some(rr) => stop = emit(rr)
-        case None => ()
+    val result: Option[Clause] =
+      if trail.unify(l, 0, u, 1) then Superposition.superpose(bank, trail, fromC, iFrom, fromSide, intoC, iInto, pos)
+      else None
     trail.restore(saved)
-    stop
+    result.exists(emit)
 
   // --- factoring and the unary equality rules -------------------------------------------------------------
 
