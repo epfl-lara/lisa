@@ -20,14 +20,14 @@ object Closure extends lisa.Main {
 
   private val x, y = variable[Ind]
   private val X = variable[Ind]
-  private val R, Q, Q_, S = variable[Ind]
+  private val R, Q, T, S = variable[Ind]
   private val P = variable[Ind >>: Prop]
 
   /**
    * Definition --- The closure of `R` with regards to `P` is the smallest relation
    * `Q ⊇ R` that has property `P`.
    */
-  val closure = DEF(λ(R, λ(P, ε(Q, R ⊆ Q /\ P(Q) /\ (∀(Q_, P(Q_) /\ (R ⊆ Q_) ==> Q ⊆ Q_))))))
+  val closure = DEF(λ(R, λ(P, ε(Q, R ⊆ Q /\ P(Q) /\ (∀(T, P(T) /\ (R ⊆ T) ==> Q ⊆ T))))))
 
   /**
    * Reflexive closure --- The reflexive closure of a relation `R` on `X` is
@@ -71,75 +71,80 @@ object Closure extends lisa.Main {
     // After unfolding closure.definition and reflexiveClosure.definition
 
     // Step 1: R ∪ Δ(X) satisfies the minimality condition
-    val satisfies = have(R ⊆ (R ∪ Δ(X)) /\ reflexive(R ∪ Δ(X))(X) /\ ∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> ((R ∪ Δ(X)) ⊆ Q_))) subproof {
+    val satisfies = have(R ⊆ (R ∪ Δ(X)) /\ reflexive(R ∪ Δ(X))(X) /\ ∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> ((R ∪ Δ(X)) ⊆ T))) subproof {
       val rSubset = have(R ⊆ (R ∪ Δ(X))) by Tautology.from(Union.leftSubset of (x := R, y := Δ(X)))
       val reflex = have(reflexive(R ∪ Δ(X))(X)) subproof {
         val rcIsReflex = have(reflexive(reflexiveClosure(R)(X))(X)) by Restate.from(reflexiveClosureIsReflexive)
         have(thesis) by Congruence.from(rcIsReflex, reflexiveClosure.definition of (R := R, X := X))
       }
-      val minimal = have(∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> ((R ∪ Δ(X)) ⊆ Q_))) subproof {
-        assume(reflexive(Q_)(X))
-        assume(R ⊆ Q_)
-        val deltaSubQ = have(Δ(X) ⊆ Q_) by Tautology.from(
-          IdentityRelation.subset of (R := Q_)
+      val minimal = have(∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> ((R ∪ Δ(X)) ⊆ T))) subproof {
+        // `T` must stay free of assumptions here, so the hypotheses are carried
+        // explicitly and discharged before generalizing.
+        val deltaSubT = have(reflexive(T)(X) |- Δ(X) ⊆ T) by Tautology.from(
+          IdentityRelation.subset of (R := T)
         )
-        have(thesis) by Tautology.from(
-          deltaSubQ,
-          Union.leftUnionSubset of (x := R, y := Δ(X), z := Q_)
+        have((reflexive(T)(X), R ⊆ T) |- (R ∪ Δ(X)) ⊆ T) by Tautology.from(
+          deltaSubT,
+          Union.leftUnionSubset of (x := R, y := Δ(X), z := T)
         )
+        thenHave(reflexive(T)(X) /\ (R ⊆ T) ==> ((R ∪ Δ(X)) ⊆ T)) by Restate
+        thenHave(thesis) by RightForall
       }
       have(thesis) by Tautology.from(rSubset, reflex, minimal)
     }
 
     // Step 2: Uniqueness — any two solutions to φ must be equal
-    // Using Q and S as the two distinct solutions; Q_ as bound variable inside minimality
+    // Using Q and S as the two distinct solutions; T as bound variable inside minimality
     val unique = have(
-      (R ⊆ Q /\ reflexive(Q)(X) /\ ∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (Q ⊆ Q_)), R ⊆ S /\ reflexive(S)(X) /\ ∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (S ⊆ Q_)))
+      (R ⊆ Q /\ reflexive(Q)(X) /\ ∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (Q ⊆ T)), R ⊆ S /\ reflexive(S)(X) /\ ∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (S ⊆ T)))
         |- (Q === S)
     ) subproof {
-      assume(R ⊆ Q /\ reflexive(Q)(X) /\ ∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (Q ⊆ Q_)))
-      assume(R ⊆ S /\ reflexive(S)(X) /\ ∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (S ⊆ Q_)))
+      assume(R ⊆ Q /\ reflexive(Q)(X) /\ ∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (Q ⊆ T)))
+      assume(R ⊆ S /\ reflexive(S)(X) /\ ∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (S ⊆ T)))
       // Q ⊆ S from Q's minimality applied to S
       val qSubS = have(Q ⊆ S) subproof {
-        have(∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (Q ⊆ Q_))) by Tautology
-        thenHave(reflexive(S)(X) /\ (R ⊆ S) ==> (Q ⊆ S)) by InstantiateForall(S)
-        have(thesis) by Tautology
+        have(∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (Q ⊆ T))) by Tautology
+        val instantiated = thenHave(reflexive(S)(X) /\ (R ⊆ S) ==> (Q ⊆ S)) by InstantiateForall(S)
+        have(thesis) by Tautology.from(instantiated)
       }
       // S ⊆ Q from S's minimality applied to Q
       val sSubQ = have(S ⊆ Q) subproof {
-        have(∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (S ⊆ Q_))) by Tautology
-        thenHave(reflexive(Q)(X) /\ (R ⊆ Q) ==> (S ⊆ Q)) by InstantiateForall(Q)
-        have(thesis) by Tautology
+        have(∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (S ⊆ T))) by Tautology
+        val instantiated = thenHave(reflexive(Q)(X) /\ (R ⊆ Q) ==> (S ⊆ Q)) by InstantiateForall(Q)
+        have(thesis) by Tautology.from(instantiated)
       }
       have(thesis) by Tautology.from(qSubS, sSubQ, Subset.doubleInclusion of (x := Q, y := S))
     }
 
     // Step 3: ∃!(Q, φ(Q))
-    val existsOne = have(∃!(Q, R ⊆ Q /\ reflexive(Q)(X) /\ ∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (Q ⊆ Q_)))) subproof {
-      val exWitness = have(∃(Q, R ⊆ Q /\ reflexive(Q)(X) /\ ∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (Q ⊆ Q_)))) subproof {
+    val existsOne = have(∃!(Q, R ⊆ Q /\ reflexive(Q)(X) /\ ∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (Q ⊆ T)))) subproof {
+      val exWitness = have(∃(Q, R ⊆ Q /\ reflexive(Q)(X) /\ ∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (Q ⊆ T)))) subproof {
         have(thesis) by RightExists(satisfies)
       }
-      // For uniqueness: any two elements satisfying φ are equal
-      // unique gives: (φ(Q), φ(S)) |- Q === S, so generalize over Q and S
+      // For uniqueness: any two elements satisfying φ are equal.
+      // `unique` gives (φ(Q), φ(S)) |- Q === S; the hypotheses must be discharged
+      // into the implication before Q and S can be generalized.
       val allUnique = have(
-        ∀(Q, ∀(S, (R ⊆ Q /\ reflexive(Q)(X) /\ ∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (Q ⊆ Q_))) /\ (R ⊆ S /\ reflexive(S)(X) /\ ∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (S ⊆ Q_))) ==> (Q === S)))
+        ∀(Q, ∀(S, (R ⊆ Q /\ reflexive(Q)(X) /\ ∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (Q ⊆ T))) /\ (R ⊆ S /\ reflexive(S)(X) /\ ∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (S ⊆ T))) ==> (Q === S)))
       ) subproof {
-        have(thesis) by Generalize(unique)
+        have((R ⊆ Q /\ reflexive(Q)(X) /\ ∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (Q ⊆ T))) /\ (R ⊆ S /\ reflexive(S)(X) /\ ∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (S ⊆ T))) ==> (Q === S)) by Restate.from(unique)
+        thenHave(∀(S, (R ⊆ Q /\ reflexive(Q)(X) /\ ∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (Q ⊆ T))) /\ (R ⊆ S /\ reflexive(S)(X) /\ ∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (S ⊆ T))) ==> (Q === S))) by RightForall
+        thenHave(thesis) by RightForall
       }
       have(thesis) by Tautology.from(
         exWitness,
         allUnique,
-        Quantifiers.existsOneAlternativeDefinition of (P := λ(Q, R ⊆ Q /\ reflexive(Q)(X) /\ ∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (Q ⊆ Q_))))
+        Quantifiers.existsOneAlternativeDefinition of (P := λ(Q, R ⊆ Q /\ reflexive(Q)(X) /\ ∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (Q ⊆ T))))
       )
     }
 
     // Step 4: since φ(R ∪ Δ(X)) and ∃!(Q, φ(Q)), we have R ∪ Δ(X) === ε(Q, φ(Q))
-    val epsilonEq = have((R ∪ Δ(X)) === ε(Q, R ⊆ Q /\ reflexive(Q)(X) /\ ∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (Q ⊆ Q_)))) subproof {
-      have((R ∪ Δ(X)) === ε(Q, R ⊆ Q /\ reflexive(Q)(X) /\ ∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (Q ⊆ Q_)))) by Tautology.from(
+    val epsilonEq = have((R ∪ Δ(X)) === ε(Q, R ⊆ Q /\ reflexive(Q)(X) /\ ∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (Q ⊆ T)))) subproof {
+      have((R ∪ Δ(X)) === ε(Q, R ⊆ Q /\ reflexive(Q)(X) /\ ∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (Q ⊆ T)))) by Tautology.from(
         existsOne,
         satisfies,
         Quantifiers.existsOneEpsilonUniqueness of (
-          P := λ(Q, R ⊆ Q /\ reflexive(Q)(X) /\ ∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (Q ⊆ Q_))),
+          P := λ(Q, R ⊆ Q /\ reflexive(Q)(X) /\ ∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (Q ⊆ T))),
           y := (R ∪ Δ(X))
         )
       )
@@ -147,10 +152,17 @@ object Closure extends lisa.Main {
 
     // Step 5: rewrite using definitions
     // reflexiveClosure(R)(X) = R ∪ Δ(X) and closure(R)(λ(R, reflexive(R)(X))) = ε(Q, ...)
+    // Instantiating `closure.definition` at `P := λ(R, reflexive(R)(X))` leaves the
+    // applications unreduced; Congruence compares terms syntactically, so the
+    // instance is beta-reduced here to match the shape of `epsilonEq`.
+    val closureDef = have(
+      closure(R)(λ(R, reflexive(R)(X))) === ε(Q, R ⊆ Q /\ reflexive(Q)(X) /\ ∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (Q ⊆ T)))
+    ) by Restate.from(closure.definition of (R := R, P := λ(R, reflexive(R)(X))))
+
     have(thesis) by Congruence.from(
       epsilonEq,
       reflexiveClosure.definition of (R := R, X := X),
-      closure.definition of (R := R, P := λ(R, reflexive(R)(X)))
+      closureDef
     )
   }
 
