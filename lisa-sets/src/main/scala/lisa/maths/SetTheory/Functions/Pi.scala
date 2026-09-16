@@ -58,7 +58,7 @@ object Pi extends lisa.Main {
    */
   extension (a: Expr[Ind]) {
     infix def ->:(b: Expr[Ind]): Expr[Ind] =
-      Pi(a)(λ(x, b))
+      Pi(a)(λ(x.freshRename(Seq(b)), b))
   }
   object `->:`:
     def unapply(e: Expr[?]): Option[(Expr[Ind], Expr[Ind])] =
