@@ -27,7 +27,7 @@ import lisa.utils.prooflib.SimpleDeducedSteps.*
  * and re-exported here.
  */
 object HOLBasics extends lisa.HOL {
-  
+
   val lib = lisa.SetTheoryLibrary
 
   val A = typevar
@@ -154,7 +154,7 @@ object HOLBasics extends lisa.HOL {
       have((x :: A) /\ (P * x === One) |- (x :: A) /\ (P * x === One)) by Hypothesis
       have((x :: A) /\ (P * x === One) |- ∃(x, (x :: A) /\ (P * x === One))) by RightExists(lastStep)
       val witness = have((P :: (A ->: 𝔹), (x :: A) /\ (P * x === One)) |- ∃(x, (x :: A) /\ (P * x === One))) by Weakening(lastStep)
-      
+
       val T = variable[Ind]
       val e = variable[Ind >>: Ind]
       val e2 = variable[Ind]

@@ -508,7 +508,7 @@ object HOLSteps extends lisa._HOL {
         case _ =>
           return proof.InvalidProofTactic(s"The Expr[Ind] should be of the form (λx. t) x")
     }
-  } 
+  }
 
 
   // λ(x, t*x) === t
@@ -675,49 +675,76 @@ object HOLSteps extends lisa._HOL {
 
   object HOLProofType extends ProofTactic {
 
-    private val cache: mutable.Map[Long, lib.JUSTIFICATION] = mutable.Map.empty  
+    private case class CacheKey(term: Long, variableTypes: Vector[Long])
+    private val cache = mutable.HashMap.empty[CacheKey, lib.JUSTIFICATION]
+    private var nextProof = 0L
 
-    inline def code[S: Sort](t: Expr[S]): Long = t.underlying.uniqueNumber
+    private def code[S: Sort](t: Expr[S]): CacheKey =
+      val variableTypes = Vector.newBuilder[Long]
+      def collect(expression: Expr[?]): Unit = expression match
+        case variable: TypedVariable => variableTypes += variable.typ.underlying.uniqueNumber
+        case App(function, argument) =>
+          collect(function)
+          collect(argument)
+        case Abs(variable, body) =>
+          collect(variable)
+          collect(body)
+        case _ => ()
+      collect(t)
+      CacheKey(t.underlying.uniqueNumber, variableTypes.result())
 
     def cacheSize = cache.size
     def resetCache() = cache.clear()
 
     given om: OutputManager = new OutputManager {
-      def finishOutput(exception: Exception): Nothing = {
-        print(s"\n[${Console.RED}ERROR${Console.RESET}] ${exception.getMessage}\n")
-        exception.printStackTrace()
-        sys.exit(1)
-      }
-      // dummy output, we don't really want to track all the 
-      // typing theorems we produce here
-      val stringWriter: java.io.Writer = new java.io.Writer {
-        def write(cbuf: Array[Char], off: Int, len: Int): Unit = ()
-        def flush(): Unit = ()
-        def close(): Unit = ()
-      }
+      def finishOutput(exception: Exception): Nothing = throw exception
+      val stringWriter: java.io.Writer = java.io.Writer.nullWriter()
     }
 
-    def apply2(t: Expr[Ind]): lib.JUSTIFICATION =
-      cache.get(code(t)) match
+    // Supply the old builder's required owner without adding a proof dependency.
+    private lazy val owner = Theorem(using om, sourcecode.FullName("HOLProofType.owner"))(⊤) {
+      have(⊤) by Restate
+    }
+
+    /** Infer and register exactly the cleaned sequent, without extra assumptions. */
+    private def infer(context: Set[Expr[Prop]], t: Expr[Ind]): lib.JUSTIFICATION =
+      val proof = new lib.BaseProof(owner.asInstanceOf[lib.THMFromProof])
+      given proof.type = proof
+      val typed = have(Typecheck.inferProof(context, t))
+      val cleaned = have(Clean.all(typed))
+      val scProof = proof.toSCProof
+      val name = s"lisa.hol.HOLProofType.proof$nextProof"
+      nextProof += 1
+      lib.THM.fromSCProof(using om)(
+        cleaned.statement, name, lib.InternalStatement,
+        () => scProof, proof.justifications.map(_.innerJustification)
+      )
+
+    def apply2(using proof: Proof)(t: Expr[Ind]): lib.JUSTIFICATION =
+      val key = code(t)
+      cache.get(key) match
         case Some(justif) => justif
         case None =>
-          val typing = t :: computeType(t)
-          val contextAssigns: Set[Expr[Prop]] = getContext(t)
-          val just =
-            try
-              val th = Theorem(contextAssigns |- typing) {
-                val s1 = have(Typecheck.inferProof(contextAssigns, t)) 
-                val s2 = have(Clean.all(s1))
-                have(thesis) by Weakening(s2)
-              }
-              th
-            catch
-              case e: Exception =>
-                throw LisaHOLException("Failed to compute and prove typing for term " + t + ": " + e.getMessage())
-          cache.put(code(t), just)
-          just
+          // Constants supply their own type-parameter requirements. Annotations
+          // alone must not introduce unrelated non-emptiness hypotheses.
+          val context = getContext(t).collect {
+            case assignment @ TypeAssign(_, _) => assignment
+          }
+          try
+            val just = infer(context, t)
+            cache.put(key, just)
+            just
+          catch
+            case canonical: Exception =>
+              val localContext = context ++ proof.getAssumptions
+              if localContext.size == context.size then
+                throw LisaHOLException(s"Failed to compute and prove typing for term $t: ${canonical.getMessage}")
+              // This derivation depends on the caller's assumptions: never cache it.
+              try infer(localContext.toSet, t)
+              catch case local: Exception =>
+                throw LisaHOLException(s"Failed to compute and prove typing for term $t: ${local.getMessage}")
 
-    def apply(t: Expr[Ind]): lib.JUSTIFICATION =
+    def apply(using proof: Proof)(t: Expr[Ind]): lib.JUSTIFICATION =
       t match
         case tc: TypedConstant =>
           tc.justif

@@ -12,6 +12,8 @@ import lisa.utils.UserLisaException
 import lisa.utils.fol.FOL._
 import lisa.utils.prooflib.BasicStepTactic._
 import lisa.utils.prooflib.ProofTacticLib.ProofTactic
+import lisa.utils.prooflib.OutputManager
+import lisa.utils.prooflib.SimpleDeducedSteps.Discharge
 import scala.collection.mutable
 
 import SetTheoryLibrary.{have, JUSTIFICATION, thesis, THM, Proof, Theorem}
@@ -41,7 +43,7 @@ object VarsAndFunctions /*extends lisa.Main*/:
   def typevar(using name: sourcecode.Name): TypeVariable = TypeVariable(K.Identifier(name.value))
 
   class HOLPolymorphicType[S: Sort](id: Identifier, val freeTypeVars: Seq[TypeVariable], val nonEmptyThm: JUSTIFICATION) extends Constant[S](id)
-  
+
   type HOLConstantType = HOLPolymorphicType[Ind]
   object HOLConstantType:
     def apply(id: Identifier, nonEmptyThm: JUSTIFICATION): HOLConstantType =
@@ -51,7 +53,7 @@ object VarsAndFunctions /*extends lisa.Main*/:
       else None
 
   class HOLConstant(id: Identifier, override val typ: Expr[Ind], val thm: JUSTIFICATION) extends TypedConstant(id, typ, thm):
-    val holDefinition = 
+    val holDefinition =
       val theDefinition = this.definition
       // we extract the definition body, and replace the raw constant by this lifted class
       val left = this
@@ -59,7 +61,7 @@ object VarsAndFunctions /*extends lisa.Main*/:
         case ===(l, r) => r
         case _ => throw new IllegalArgumentException("Theorem " + thm + " used to define constant " + id + " must be an equality.")
 
-      Theorem(holeq(typ) * left * right) {
+      Theorem(using summon[OutputManager], sourcecode.FullName(s"lisa.hol.definition.${id.name}_${id.no}"))(holeq(typ) * left * right) {
         val s1 = lib.have((left :: typ) |- holeq(typ) * left * left) by Weakening(eqRefl of (A := typ, x := left, y := left))
         val s2 = lib.have(holeq(typ) * left * left) by Cut(thm, s1)
         val s3 = lib.have(left === right |- holeq(typ) * left * right) by RightSubstEq.withParameters(Seq((left, right)), (Seq(x), holeq(typ) * left * x))(s2)
@@ -68,13 +70,13 @@ object VarsAndFunctions /*extends lisa.Main*/:
   class HOLPolymorphicConstant[S: Sort](id: Identifier, override val typ: FunctionalClass, override val justif: JUSTIFICATION) extends TypedConstantFunctional[S](id, typ, justif):
     /**
      * The definition of the constant as an HOL theorem.
-     * 
+     *
      * ```
      *    freeTypeVars.map(nonEmpty) |- F(freeTypeVars) =:= body
      * ```
      * FIXME: currently does not account for type classes!
      */
-    val holDefinition =  
+    val holDefinition =
       val theDefinition = this.definition
       // we extract the definition body, and replace the raw constant by this lifted class
       val left = (this #@@ typ.args).asInstanceOf[Expr[Ind]]
@@ -83,7 +85,7 @@ object VarsAndFunctions /*extends lisa.Main*/:
         case _ => throw new IllegalArgumentException("Theorem " + justif + " used to define constant " + id + " must be an equality.")
       val nonEmpties = typ.args.map(nonEmpty).toSet
       val otyp = typ.outTyp
-      Theorem(nonEmpties |- (holeq(otyp) * left * right)) {
+      Theorem(using summon[OutputManager], sourcecode.FullName(s"lisa.hol.definition.${id.name}_${id.no}"))(nonEmpties |- (holeq(otyp) * left * right)) {
         val typeJustif = have(nonEmpties |- (left :: otyp)) by Weakening(justif.of(typ.args*))
         val s1 = lib.have((left :: otyp) |- holeq(otyp) * left * left) by Restate.from(eqRefl of (A := otyp, x := left, y := left))
         val s2 = lib.have(nonEmpties |- holeq(otyp) * left * left) by Cut(typeJustif, s1)
@@ -346,14 +348,17 @@ object VarsAndFunctions /*extends lisa.Main*/:
     def apply(using proof: Proof)(typ: Expr[Ind]): proof.ProofTacticJudgement = TacticSubproof { ip ?=>
       typ match {
         case ctt: HOLConstantType => have(ctt.nonEmptyThm)
+        case Multiapp(poly: HOLPolymorphicType[?], args) =>
+          val instantiations = poly.freeTypeVars.zip(args).map { case (variable, argument) => variable := argument.asInstanceOf[Expr[Ind]] }
+          val instantiated = poly.nonEmptyThm.of(instantiations*)
+          have(instantiated.statement) by Restate.from(instantiated)
         case v: Variable[Ind] =>
           val x = Variable.fresh[Ind](Set(v), "x")
           val ax = assume(exists(x, x ∈ v))
           have(ax.statement) by Restate
         case a ->: b =>
-          val x = Variable.fresh[Ind](Set(a, b), "x")
-          val s1 = have(TypeNonEmptyProof(b))
-          have(s1.statement.left |- exists(x, x ∈ (a ->: b))) by Tautology.from(s1, nonEmptyFuncSpace of (A := a, B := b))
+          val codomainNonEmpty = have(TypeNonEmptyProof(b))
+          have(Discharge(codomainNonEmpty)(nonEmptyFuncSpace of (A := a, B := b)))
         case _ => throw new IllegalArgumentException("TypeNonEmptyProof can only handle type constants, type variables, and function types.")
       }
     }
