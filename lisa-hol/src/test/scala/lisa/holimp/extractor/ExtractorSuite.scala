@@ -68,4 +68,71 @@ class ExtractorSuite extends AnyFunSuite:
     finally
       Files.deleteIfExists(proofFile)
       Files.deleteIfExists(theoremFile)
+  private def withFiles(proofs: String, statements: String)(check: ExtractorContext => Unit): Unit =
+    val proofFile = Files.createTempFile("lisa-hol-reader", ".proofs")
+    val theoremFile = Files.createTempFile("lisa-hol-reader", ".theorems")
+    try
+      Files.writeString(proofFile, proofs, StandardCharsets.UTF_8)
+      Files.writeString(theoremFile, statements, StandardCharsets.UTF_8)
+      val context = JSONParser.toContext(proofFile.toString, theoremFile.toString)
+      try check(context)
+      finally context.close()
+    finally
+      Files.deleteIfExists(proofFile)
+      Files.deleteIfExists(theoremFile)
+
+  test("random UTF-8 statement lookups preserve the sequential scan across sparse IDs"):
+    val entries = Seq(0L -> "α😀", 7L -> "β", 15L -> "終")
+    val proofs = entries.map: (id, name) =>
+      upickle.default.write(ProofLine(id, extractor.REFL(s"v($name)(c[bool][])")))
+    val statements = entries.map: (id, name) =>
+      upickle.default.write(TheoremStatement(id, RawSequent(Nil, s"v($name)(c[bool][])")))
+
+    // Use CRLF and omit the final terminator to exercise exact saved offsets.
+    withFiles(proofs.mkString("\r\n"), statements.mkString("\r\n")): context =>
+      for (id, name) <- entries do
+        assert(context.getProof(id) == core.REFL(Variable(name, BoolType)))
+        assert(context.getStatement(0).concl == Variable("α😀", BoolType))
+        assert(context.getStatement(id).concl == Variable(name, BoolType))
+      assertThrows[NoSuchElementException](context.getProof(8))
+      assertThrows[NoSuchElementException](context.getProof(16))
+      assert(context.getStatement(7).concl == Variable("β", BoolType))
+
+  test("reject mismatched proof and statement IDs during scanning"):
+    val proofs = upickle.default.write(ProofLine(0, extractor.REFL("v(p)(c[bool][])")))
+    val statements = upickle.default.write(TheoremStatement(1, RawSequent(Nil, "v(p)(c[bool][])")))
+    withFiles(proofs, statements): context =>
+      val error = intercept[IllegalArgumentException](context.getProof(0))
+      assert(error.getMessage.contains("Proof step 0 is paired with theorem statement 1"))
+
+  test("alternate long UTF-8 line scans and older statement lookups with every line ending"):
+    val entries = Seq(0L -> "α😀", 7L -> "λ".repeat(70000), 15L -> "終", 20L -> "last")
+    def join(lines: Seq[String]): String =
+      lines.zip(Seq("\r", "\r\n", "\n", "")).map((line, ending) => line + ending).mkString
+    val proofs = entries.map: (id, name) =>
+      upickle.default.write(ProofLine(id, extractor.REFL(s"v($name)(c[bool][])")))
+    val statements = entries.map: (id, name) =>
+      upickle.default.write(TheoremStatement(id, RawSequent(Nil, s"v($name)(c[bool][])")))
+
+    withFiles(join(proofs), join(statements)): context =>
+      for (id, name) <- entries do
+        assert(context.getProof(id) == core.REFL(Variable(name, BoolType)))
+        assert(context.getStatement(0).concl == Variable("α😀", BoolType))
+        assert(context.getStatement(id).concl == Variable(name, BoolType))
+      assertThrows[NoSuchElementException](context.getProof(21))
+      assert(context.getStatement(7).concl == Variable(entries(1)._2, BoolType))
+      assert(context.getProof(20) == core.REFL(Variable("last", BoolType)))
+
+  test("report EOF for empty trace files"):
+    withFiles("", ""): context =>
+      assertThrows[NoSuchElementException](context.getProof(0))
+      assertThrows[NoSuchElementException](context.getStatement(0))
+
+  test("defer parsing intermediate statements until they are requested"):
+    val proofs = upickle.default.write(ProofLine(0, extractor.REFL("v(p)(c[bool][])")))
+    val statements = upickle.default.write(TheoremStatement(0, RawSequent(Nil, "not a term")))
+    withFiles(proofs, statements): context =>
+      assert(context.getProof(0) == core.REFL(Variable("p", BoolType)))
+      assertThrows[CouldNotParseException](context.getStatement(0))
+
 end ExtractorSuite

@@ -7,8 +7,7 @@ import upickle.default
 import upickle.default.{ReadWriter => RW, _}
 import upickle.implicits.key
 
-import java.io.{File, RandomAccessFile}
-import java.nio.charset.StandardCharsets
+import java.io.File
 import scala.collection.mutable
 
 import Parser._
@@ -191,8 +190,8 @@ private final class IteratorExtractorData(
   def close(): Unit = ()
 
 private final class FileExtractorData(proofFile: File, theoremFile: File) extends ExtractorData:
-  private val proofs = new RandomAccessFile(proofFile, "r")
-  private val theorems = new RandomAccessFile(theoremFile, "r")
+  private val proofs = new TraceReader(proofFile)
+  private val theorems = new TraceReader(theoremFile)
 
   // Keep compact proof records for fast recursive access, but leave the much
   // larger intermediate theorem statements on disk until verification needs them.
@@ -210,13 +209,11 @@ private final class FileExtractorData(proofFile: File, theoremFile: File) extend
     line.substring(start, end).toLong
 
   private def readNext(): Unit =
-    val theoremOffset = theorems.getFilePointer
-    val encodedProofLine = proofs.readLine()
-    val theoremLine = theorems.readLine()
+    val theoremOffset = theorems.position
+    val proofText = proofs.readLine().getOrElse(throw ExtractorEndedException)
+    val theoremLine = theorems.readLine().getOrElse(throw ExtractorEndedException)
 
-    if encodedProofLine == null || theoremLine == null then throw ExtractorEndedException
-
-    val proofLine = read[ProofLine](new String(encodedProofLine.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8), false)
+    val proofLine = read[ProofLine](proofText, false)
     val proofId = proofLine.id
     val theoremId = idOf(theoremLine)
     if proofId != theoremId then
@@ -229,13 +226,11 @@ private final class FileExtractorData(proofFile: File, theoremFile: File) extend
       case _: DEFINITION | _: TYPE_DEFINITION => definitions += proofId -> proofLine.step
       case _ => ()
 
-  private def readAt(file: RandomAccessFile, offset: Long): String =
-    val resumeAt = file.getFilePointer
+  private def readAt(file: TraceReader, offset: Long): String =
+    val resumeAt = file.position
     try
       file.seek(offset)
-      val encoded = file.readLine()
-      if encoded == null then throw ExtractorEndedException
-      new String(encoded.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8)
+      file.readLine().getOrElse(throw ExtractorEndedException)
     finally file.seek(resumeAt)
 
   def readTill(idx: Long): Unit =
