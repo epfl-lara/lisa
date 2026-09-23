@@ -15,7 +15,7 @@ import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.utils.K
 import lisa.utils.collection.VecSet
 import lisa.utils.prooflib.BasicStep.Restate
-import lisa.utils.prooflib.{Discharge, FatalCarrierDestructionException, OutputManager, Proof, ProofCarrier, Subproof, Thm}
+import lisa.utils.prooflib.{Discharge, FatalCarrierDestructionException, OutputManager, Proof, ProofCarrier, ProofJudgement, Subproof, Thm}
 import lisa.utils.unification.UnificationUtils.RewriteContext
 import lisa.utils.unification.UnificationUtils.matchExpr
 
@@ -363,89 +363,70 @@ object Import extends lisa.HOL:
       initializeConstants()
       initializeTypes()
 
-  private val theoremMap: mutable.Map[Long, Justification] = mutable.Map.empty
-  private var definitionStepsScannedThrough = -1L
+  private lazy val initializedDefinitions: Unit = Initialization.initializeDefinitions()
 
-  type StepCache[T] = mutable.Map[Long, T]
+  /** Reconstruct each reachable step once and share its judgement throughout an import. */
+  private[hol] final class StepStore(using extractor: ExtractorContext):
+    private val steps = mutable.Map.empty[Long, ProofJudgement]
+    private var definitionsThrough = -1L
 
-  private def reconstructTheorem(using extractor: ExtractorContext)(ref: TheoremRef): Justification =
-    val TheoremRef(index, name) = ref
-    theoremMap.get(index) match
-      case Some(just) =>
-        debug(s"Theorem with id $index found cached.")
-        just
-      case None =>
-        debug(s"Theorem with id $index not found cached. Starting reconstruction.")
-        extractor.getDefinitionsBetween(definitionStepsScannedThrough, index).foreach:
-          case (definitionIndex, definition: h.DEFINITION) =>
-            definitionStepsScannedThrough = definitionIndex
-            try reconstructConstantDefinition(definition)
-            catch case exception: Exception => debug(s"Skipping unusable definition at $definitionIndex: ${exception.getMessage}")
-          case (definitionIndex, definition: h.TYPE_DEFINITION) =>
-            definitionStepsScannedThrough = definitionIndex
-            reconstructTypeDefinition(definitionIndex, definition)
-          case _ => ()
-        definitionStepsScannedThrough = index
+    initializedDefinitions
 
-        // reconstruct the step from the HOL Light proof
-        val step = extractor.getTheorem(index)
+    /** Count the reconstructed steps, including unnamed dependencies and definitions. */
+    def size: Int = steps.size
 
-        def processGeneric(step: JustifiedTheorem): Justification =
-          val goal = step.statement.toLisaSequent
+    /** Retrieve a step, reconstructing its dependencies and preceding definitions as needed. */
+    def apply(index: Long): ProofJudgement =
+      steps.get(index) match
+        case Some(judgement) => judgement
+        case None =>
+          defineThrough(index)
+          steps.getOrElseUpdate(index, reconstruct(index, extractor.getProof(index)))
 
-          // give the theorem a custom qualified name
-          val sanitizedName = sanitize(name)
-          val baseName = summon[sourcecode.Name].value.stripSuffix(".")
-          val theoremName = sourcecode.FullName(s"$baseName.$sanitizedName")
+    /** Require a strictly earlier premise and retrieve its shared judgement. */
+    def premise(index: Long, target: Long): ProofJudgement =
+      if target >= index then throw OutOfOrderException(index, target)
+      apply(target)
 
-          debug(s"Reconstructing theorem #$index.")
+    private def reconstruct(index: Long, step: h.ProofStep): ProofJudgement =
+      // Keep local assumptions and errors within this step. Cached errors travel with its judgement.
+      Subproof:
+        reconstructStep(using extractor, summon[Proof], this)(index, step)
 
-          val theorem = HOLTheorem(using
-            summon[OutputManager],
-            theoremName, // just need to set the right name for better tracking
-            sourcecode.Name(sanitizedName),
-            summon[sourcecode.Line],
-            summon[sourcecode.File]
-          )(goal) { proof ?=>
-            val stepCache = mutable.Map.empty[Long, Thm]
-            HOLProofType.resetCache()
-            val recons = reconstructStep(using extractor, proof, stepCache)(index, step.proof)
+    private def defineThrough(index: Long): Unit =
+      if index > definitionsThrough then
+        extractor.getDefinitionsBetween(definitionsThrough, index).foreach: (definitionIndex, definition) =>
+          definitionsThrough = definitionIndex
+          definition match
+            case _: h.DEFINITION =>
+              // Some exported constant definitions are unusable; demand for that step must still fail.
+              try steps.getOrElseUpdate(definitionIndex, reconstruct(definitionIndex, definition))
+              catch case exception: Exception => debug(s"Skipping unusable definition at $definitionIndex: ${exception.getMessage}")
+            case _: h.TYPE_DEFINITION =>
+              steps.getOrElseUpdate(definitionIndex, reconstruct(definitionIndex, definition))
+            case _ => ()
+        definitionsThrough = index
 
-            val cleaned = have(HOLSteps.Clean.all(recons))
-            debug(f"[CACHE] Theorem #$index%06d reconstructed with a step cache usage of ${stepCache.size} steps, and ${HOLProofType.cacheSize} typing proofs.")
-            cleaned
-          }
+    /** Check and register a name for an already reconstructed step. */
+    def theorem(ref: TheoremRef): Justification =
+      val TheoremRef(index, name) = ref
+      HOLProofType.resetCache()
+      val judgement = apply(index)
+      val goal = extractor.getStatement(index).toLisaSequent
+      val sanitizedName = sanitize(name)
+      val theorem = HOLTheorem(using
+        summon[OutputManager],
+        sourcecode.FullName(s"Import.$sanitizedName"),
+        sourcecode.Name(sanitizedName),
+        summon[sourcecode.Line],
+        summon[sourcecode.File]
+      )(goal):
+        have(HOLSteps.Clean.all(have(judgement)))
 
-          if theorem.errors.nonEmpty then
-            throw FailedTheoremException(index, name, theorem.errors.toSeq.map(_.message))
+      if theorem.errors.nonEmpty then
+        throw FailedTheoremException(index, name, theorem.errors.toSeq.map(_.message))
 
-          theorem.thm
-
-        end processGeneric
-
-        val reconstructed =
-          step.proof match
-            case s: h.AXIOM =>
-              // recover a matching axiom
-              reconstructAxiom(s)
-            case s: h.DEFINITION =>
-              // deal with it as a definition
-              // where not all symbols are defined yet
-              reconstructConstantDefinition(s)
-            case s: h.TYPE_DEFINITION =>
-              reconstructTypeDefinition(index, s)
-            case _ =>
-              // any other step should become a theorem
-              processGeneric(step)
-
-        theoremMap(index) = reconstructed
-
-        reconstructed
-
-  private def reconstructAxiom(using extractor: ExtractorContext)(step: h.AXIOM): Justification =
-    val h.AXIOM(term) = step
-    val lisaTerm = term.toLisaTerm
-    Axioms.fromHOL(lisaTerm)
+      theorem.thm
 
   private def defineHOLConstant(
       name: String,
@@ -553,8 +534,9 @@ object Import extends lisa.HOL:
                 case _ => None
             case _ => None
 
-  private def reconstructTypeDefinition(using extractor: ExtractorContext, cache: StepCache[Thm] = mutable.Map.empty)(index: Long, step: h.TYPE_DEFINITION): Justification =
+  private def reconstructTypeDefinition(using store: StepStore)(index: Long, step: h.TYPE_DEFINITION): Justification =
     val h.TYPE_DEFINITION(_, term, just) = step
+    if just >= index then throw OutOfOrderException(index, just)
 
     import TDefExtractors.*
 
@@ -580,7 +562,9 @@ object Import extends lisa.HOL:
       else
         // Recover the HOL witness and the predicate whose inhabited subset defines the type.
         val nonEmptinessCarrier = Subproof: proof ?=>
-          have(HOLSteps.Clean.all(reconstructStep(using extractor, proof, cache)(just, extractor.getProof(just))))
+          have(HOLSteps.Clean.all(have(store.premise(index, just))))
+        if !nonEmptinessCarrier.isValid then
+          throw FailedPremiseException(index, just, nonEmptinessCarrier)
         val nonEmptinessThm = nonEmptinessCarrier.justification.getOrElse:
           throw FailedPremiseException(index, just, nonEmptinessCarrier)
         val (p, t) = nonEmptinessThm match
@@ -719,31 +703,12 @@ object Import extends lisa.HOL:
    * @param ctx current proof context
    * @param proofStep the step to reconstruct
    */
-  private def reconstructStep(using extractor: ExtractorContext, ctx: Proof, cache: StepCache[Thm])(index: Long, proofStep: h.ProofStep): Thm =
+  private def reconstructStep(using extractor: ExtractorContext, ctx: Proof, store: StepStore)(index: Long, proofStep: h.ProofStep): Thm =
     debug(s"Reconstructing step with proof type ${proofStep.getClass.getSimpleName}")
-    debug(s"Current cache size: ${cache.size}. Current theorem map size: ${theoremMap.size}.")
-    lazy val errorsBefore = ctx.errors.toSet
-    ifDebug:
-      val _ = errorsBefore
+    debug(s"Reconstructed steps: ${store.size}.")
 
     def resolveFact(targetIdx: Long): Thm =
-      debug(s"Resolving fact with index $targetIdx")
-
-      if targetIdx >= index then
-        throw OutOfOrderException(index, targetIdx)
-
-      // is this a named theorem?
-      // if not, start reconstructing its tree of dependencies recursively
-      if theoremMap.contains(targetIdx) then
-        debug(s"Fact with id $targetIdx found in theorem map.")
-        theoremMap(targetIdx)
-      else if cache.contains(targetIdx) then
-        debug(s"Fact with id $targetIdx found in step cache.")
-        cache(targetIdx)
-      else
-        debug(s"Fact with id $targetIdx not found cached. Starting reconstruction.")
-        // reconstruct steps recursively
-        reconstructStep(targetIdx, extractor.getProof(targetIdx))
+      have(store.premise(index, targetIdx))
 
     val result = {
       proofStep match
@@ -787,7 +752,7 @@ object Import extends lisa.HOL:
     }
 
     ifDebug:
-      val newErrors = ctx.errors.toSet -- errorsBefore
+      val newErrors = ctx.errors.toSet
       if newErrors.nonEmpty then
         throw FailedStepException(index, proofStep.getClass.getSimpleName, newErrors.toSeq.map(_.message))
 
@@ -797,10 +762,8 @@ object Import extends lisa.HOL:
         K.isSameSequent(result.kernel.statement, expected.underlying) ||
           K.Weakening(using lib.theory)(expected.underlying, result.kernel).isRight
       if !matchesExpected then
-        if verifySteps then throw StepMismatchException(index, expected, result.statement)
-        else debug(s"[STEP MISMATCH] $index\nExpected: $expected\nActual: ${result.statement}")
+        throw StepMismatchException(index, expected, result.statement)
 
-    cache(index) = result
     result
 
   end reconstructStep
@@ -854,6 +817,7 @@ object Import extends lisa.HOL:
           OpenExport(writer, header, footer)
           
 
+  /** Reconstruct the requested names using one store shared by all their dependencies. */
   def importFromPrefix(
       prefix: String,
       limit: Int,
@@ -868,16 +832,16 @@ object Import extends lisa.HOL:
     verifySteps = verifySteps || verifyEachStep
     val (extractor, names) = JSONParser.initializeFromPrefix(prefix)
 
-    Initialization.initializeDefinitions()
-
-    // System.gc()
+    val store = new StepStore(using extractor)
+    var imported = 0
+    var maxStep = 0L
 
     val startTime = System.currentTimeMillis()
     def time() = (System.currentTimeMillis() - startTime) / 1000d
     def printProgress(count: Int) =
       val elapsed = time()
       val progressString = f"Extracted $count theorems so far in $elapsed%.2f seconds."
-      val usedSteps = f"Used ${theoremMap.keySet.maxOption.getOrElse(0)} proof steps from HOL Light."
+      val usedSteps = s"Reconstructed ${store.size} HOL proof steps through index $maxStep."
       val runtime = Runtime.getRuntime
       val heapUsed = (runtime.totalMemory() - runtime.freeMemory()) / 1e6
       val heapAvailable = (runtime.maxMemory() - runtime.totalMemory() + runtime.freeMemory()) / 1e6
@@ -889,17 +853,15 @@ object Import extends lisa.HOL:
         case Some(path) => ExportConfig.initialize(path, overwrite)
         case None => ExportConfig.dummyWriter
 
-    names
-      .drop(startAt)
-      .take(limit)
-      .zipWithIndex
-      .foreach: (ref, count) =>
+    try
+      names.drop(startAt).take(limit).foreach: ref =>
         try
           debug(s"Importing theorem ${ref.name} with id ${ref.id}")
 
-          reconstructTheorem(using extractor)(ref)
-          if true then // count % 10 == 0 then
-            printProgress(count)
+          store.theorem(ref)
+          imported += 1
+          maxStep = maxStep.max(ref.id)
+          printProgress(imported)
         catch e =>
             if failFast then throw e
             debug(e.getStackTrace.mkString("\n"))
@@ -910,13 +872,15 @@ object Import extends lisa.HOL:
                   .mkString("\n")
               case _ => e.getMessage
             print(f"""
-                  | [INFO] Extracted $count theorems so far in ${time()}%.2f.
+                  | [INFO] Extracted $imported theorems so far in ${time()}%.2f.
                   | [ERROR] Encountered an error while reconstructing further.
                   | [ERROR] Error message: $errorMessage
                   | """.stripMargin)
 
-    extractor.close()
-    println(s"[INFO] Successfully imported ${theoremMap.size} theorems with ${theoremMap.keySet.max} steps in ${time()}s.")
+    finally
+      extractor.close()
+      exporter.close()
+    println(s"[INFO] Successfully imported $imported theorems with ${store.size} reconstructed steps through index $maxStep in ${time()}s.")
 
   @main
   def importMain(prefix: String, logMode: String, theoremCount: Int, output: Boolean, outputFile: String, overwrite: Boolean) =
@@ -929,9 +893,6 @@ object Import extends lisa.HOL:
       case _ => throw new IllegalArgumentException(s"Invalid logging mode: $logMode. Expected '--silent' or '--debug'.")
 
     importFromPrefix(prefix, theoremCount, if output then Some(outputFile) else None, overwrite)
-    // val innersizes = theoremMap.values.collect{case (t: Theorem) => t.kernelProof.get.totalLength}
-    // val constantJustSizes = Constants.
-    // println(s"Total inner proof size: $innersizes")
 
     // dump your own heap
     // to heap-timestamp
@@ -944,8 +905,5 @@ object Import extends lisa.HOL:
       .dumpHeap(heapDumpPath, true)
 
     println(s"Dumped heap.")
-
-    // make sure we still own the theorems at this point
-    println(s"Used ${theoremMap.keySet.max} proof steps from HOL Light.")
 
 end Import
