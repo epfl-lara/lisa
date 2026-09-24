@@ -257,7 +257,7 @@ object UnificationUtils:
      */
     def source(using lib: Library, file: sourcecode.File, line: sourcecode.Line): Thm =
       val form = toFormula
-      BasicStep.Hypothesis(form |- form).destruct._1
+      BasicStep.Hypothesis(form |- form).thm
 
     /**
      * Reduce this rewrite rule to a formula representing the equivalence.

@@ -60,13 +60,13 @@ object InstantiateForall extends SequentTactic, PremiseSequentTactic, DerivedFro
         val p0 = BasicStep.Hypothesis(instance |- instance)
         if !p0.isValid then p0
         else
-          val p1 = BasicStep.LeftForall.withParameters(body, x, t)(p0.destruct._1.kernel)(bridge)
+          val p1 = BasicStep.LeftForall.withParameters(body, x, t)(p0.kernel)(bridge)
           if !p1.isValid then p1
           else
             val cutTarget = Sequent(premise.left, (premise.right - formula) + instance)
-            val p2 = BasicStep.Cut.withParameters(formula)(premise.kernel, p1.destruct._1.kernel)(cutTarget)
+            val p2 = BasicStep.Cut.withParameters(formula)(premise.kernel, p1.kernel)(cutTarget)
             if !p2.isValid || cutTarget == target then p2
-            else BasicStep.Weakening(target, p2.destruct._1.kernel)
+            else BasicStep.Weakening(target, p2.kernel)
 
   private def forallFormulas(statement: Sequent): Set[Expr[Prop]] =
     statement.right.collect { case f @ forall(_, _) => f }
@@ -136,7 +136,7 @@ object InstantiateForall extends SequentTactic, PremiseSequentTactic, DerivedFro
           .map(formula => instantiateOnce(target, current, formula, term))
           .find(_.isValid) match
           case Some(judgement) =>
-            current = judgement.destruct._1
+            current = judgement.thm
             currentFormula = None
           case None =>
             failure = Some(invalid(conclusion, "Could not instantiate the requested universal formula."))

@@ -21,7 +21,7 @@ class SimpleDerivedStepsSuite extends AnyFunSuite:
   private val G = variable[Ind >>: Ind]
 
   private def sorry(using Library)(statement: Sequent): Thm =
-    BasicStep.Sorry(statement).destruct._1
+    BasicStep.Sorry(statement).thm
 
   private def assertValid(judgement: ProofJudgement): Unit =
     assert(judgement.isValid, judgement.errors.map(_.message).mkString("\n"))
@@ -67,7 +67,7 @@ class SimpleDerivedStepsSuite extends AnyFunSuite:
     val premise = sorry((Q(a), R(a)(b)) |- P(b))
     val judgement = Discharge(available)(premise)
     assertValid(judgement)
-    assert(judgement.destruct._1.statement == ((P(a), R(a)(b)) |- P(b)))
+    assert(judgement.thm.statement == ((P(a), R(a)(b)) |- P(b)))
 
   test("Discharge rejects non-singleton right premises"):
     val badAvailable = sorry(P(a) |- (Q(a), Q(b)))

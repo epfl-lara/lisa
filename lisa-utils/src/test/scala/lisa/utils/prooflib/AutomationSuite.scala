@@ -23,7 +23,7 @@ class AutomationSuite extends AnyFunSuite:
   private val R = variable[Ind >>: Ind >>: Prop]
 
   private def sorry(using Library)(statement: Sequent): Thm =
-    BasicStep.Sorry(statement).destruct._1
+    BasicStep.Sorry(statement).thm
 
   private def assertValid(judgement: ProofJudgement): Unit =
     assert(judgement.isValid, judgement.errors.map(_.message).mkString("\n"))

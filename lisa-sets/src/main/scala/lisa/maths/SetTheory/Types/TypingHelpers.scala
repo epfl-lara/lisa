@@ -220,7 +220,7 @@ object TypingHelpers:
       val proof = lisa.utils.prooflib.Proof.withGoal(using lisa.SetTheoryLibrary)(statement)
       // have(expression :: typ) by TypeChecker.prove
       // thenHave(thesis) by lisa.automation.Substitution.ApplyRules(getShortDefinition(cst).get) //TODO
-      proof.pure(()).destruct._1
+      proof.pure(()).thm
     val typedLabel: TypedConstant = TypedConstant(cst.id, typ, typingJudgement)
 
   }
