@@ -365,22 +365,28 @@ object Import extends lisa.HOL:
   private lazy val initializedDefinitions: Unit = Initialization.initializeDefinitions()
 
   /** Reconstruct each reachable step once and share its judgement throughout an import. */
-  private[hol] final class StepStore(using extractor: ExtractorContext):
+  private[hol] final class StepStore(val statistics: ImportStatistics = new ImportStatistics)(using extractor: ExtractorContext):
     private val steps = mutable.Map.empty[Long, ProofJudgement]
     private var definitionsThrough = -1L
+    private var hits = 0L
 
     initializedDefinitions
 
     /** Count the reconstructed steps, including unnamed dependencies and definitions. */
     def size: Int = steps.size
 
+    /** Count lookups that reused a reconstructed judgement. */
+    def cacheHits: Long = hits
+
     /** Retrieve a step, reconstructing its dependencies and preceding definitions as needed. */
     def apply(index: Long): ProofJudgement =
       steps.get(index) match
-        case Some(judgement) => judgement
+        case Some(judgement) =>
+          hits += 1
+          judgement
         case None =>
           defineThrough(index)
-          steps.getOrElseUpdate(index, reconstruct(index, extractor.getProof(index)))
+          steps.getOrElseUpdate(index, reconstruct(index, statistics.measure("read", index)(extractor.getProof(index))))
 
     /** Require a strictly earlier premise and retrieve its shared judgement. */
     def premise(index: Long, target: Long): ProofJudgement =
@@ -389,17 +395,18 @@ object Import extends lisa.HOL:
 
     private def reconstruct(index: Long, step: h.ProofStep): ProofJudgement =
       // Keep local assumptions and errors within this step. Cached errors travel with its judgement.
-      try
-        Subproof:
-          reconstructStep(using extractor, summon[Proof], this)(index, step)
-      catch
-        case error: FatalCarrierDestructionException =>
-          val errors = (error.carrier.errors + error.carrier.fatalError).toSeq.map(e => s"${e.file}:${e.line}: ${e.message}")
-          throw FailedStepException(index, step.getClass.getSimpleName, errors).initCause(error)
+      statistics.measure(step.getClass.getSimpleName, index):
+        try
+          Subproof:
+            reconstructStep(using extractor, summon[Proof], this)(index, step)
+        catch
+          case error: FatalCarrierDestructionException =>
+            val errors = (error.carrier.errors + error.carrier.fatalError).toSeq.map(e => s"${e.file}:${e.line}: ${e.message}")
+            throw FailedStepException(index, step.getClass.getSimpleName, errors).initCause(error)
 
     private def defineThrough(index: Long): Unit =
       if index > definitionsThrough then
-        extractor.getDefinitionsBetween(definitionsThrough, index).foreach: (definitionIndex, definition) =>
+        statistics.measure("read", index)(extractor.getDefinitionsBetween(definitionsThrough, index)).foreach: (definitionIndex, definition) =>
           definitionsThrough = definitionIndex
           definition match
             case _: h.DEFINITION =>
@@ -416,7 +423,12 @@ object Import extends lisa.HOL:
       val TheoremRef(index, name) = ref
       HOLProofType.resetCache()
       val judgement = apply(index)
-      val goal = extractor.getStatement(index).toLisaSequent
+      statistics.measure("named", index):
+        register(ref, judgement)
+
+    private def register(ref: TheoremRef, judgement: ProofJudgement): Justification =
+      val TheoremRef(index, name) = ref
+      val goal = statistics.measure("read", index)(extractor.getStatement(index)).toLisaSequent
       val sanitizedName = sanitize(name)
       val theorem = HOLTheorem(using
         summon[OutputManager],
@@ -836,7 +848,9 @@ object Import extends lisa.HOL:
       elapsedNanos: Long,
       totalSteps: Int,
       totalElapsedNanos: Long,
-      succeeded: Boolean
+      succeeded: Boolean,
+      resources: ImportStatistics.Sample = ImportStatistics.Sample(-1, -1, 0),
+      cacheHits: Long = 0
   ):
     def elapsedSeconds: Double = elapsedNanos / 1e9
     def totalSeconds: Double = totalElapsedNanos / 1e9
@@ -860,7 +874,12 @@ object Import extends lisa.HOL:
     require(startAt >= 0, s"Cannot start at theorem $startAt. Expected a non-negative index.")
     val (extractor, names) = JSONParser.initializeFromPrefix(prefix)
 
-    val store = new StepStore(using extractor)
+    val statisticsPath = sys.props.get("lisa.hol.stats").orElse(sys.env.get("LISA_HOL_STATS")).map(java.nio.file.Path.of(_))
+    val statistics = try new ImportStatistics(statisticsPath) catch
+      case error: Exception =>
+        extractor.close()
+        throw error
+    val store = new StepStore(statistics)(using extractor)
     val timings = mutable.ArrayBuffer.empty[TheoremTiming]
     var imported = 0
     var maxStep = 0L
@@ -877,7 +896,12 @@ object Import extends lisa.HOL:
       val heapUsed = (runtime.totalMemory() - runtime.freeMemory()) / 1e6
       val heapAvailable = (runtime.maxMemory() - runtime.totalMemory() + runtime.freeMemory()) / 1e6
       val memoryString = f"Heap used: $heapUsed%.2f MB; available: $heapAvailable%.2f MB."
-      println(s"\r[INFO] $progressString $usedSteps $rates $memoryString")
+      val resources = timing.resources
+      val cpu = if resources.cpuNanos < 0 then "n/a" else f"${resources.cpuNanos / 1e9}%.3f s"
+      val allocation = if resources.allocatedBytes < 0 then "n/a" else f"${resources.allocatedBytes / 1e6}%.1f MB"
+      val perStep = if resources.allocatedBytes < 0 || timing.steps == 0 then "n/a" else f"${resources.allocatedBytes / 1024d / timing.steps}%.1f KiB/step"
+      val resourceString = s"Last theorem: CPU $cpu; allocated $allocation ($perStep); GC ${resources.gcMillis} ms; reused ${timing.cacheHits} steps."
+      println(s"\r[INFO] $progressString $usedSteps $rates $memoryString $resourceString")
 
     val exporter =
       outputPath match
@@ -887,6 +911,8 @@ object Import extends lisa.HOL:
     try
       names.drop(startAt).take(limit).foreach: ref =>
         val stepsBefore = store.size
+        val hitsBefore = store.cacheHits
+        val resourcesBefore = ImportStatistics.sample()
         val theoremStart = System.nanoTime()
         var succeeded = false
         try
@@ -913,13 +939,17 @@ object Import extends lisa.HOL:
         finally
           // Retain only scalar measurements and the name, never the proof or its context.
           val finished = System.nanoTime()
-          val timing = TheoremTiming(ref, store.size - stepsBefore, finished - theoremStart, store.size, finished - startTime, succeeded)
+          val resources = ImportStatistics.sample() - resourcesBefore
+          val timing = TheoremTiming(ref, store.size - stepsBefore, finished - theoremStart, store.size, finished - startTime, succeeded, resources, store.cacheHits - hitsBefore)
           timings += timing
+          statistics.finish(ref.id, ref.name)
           printProgress(timing)
 
     finally
-      extractor.close()
-      exporter.close()
+      try extractor.close()
+      finally
+        try exporter.close()
+        finally statistics.close()
     println(s"[INFO] Successfully imported $imported theorems with ${store.size} reconstructed steps through index $maxStep in ${time()}s.")
     timings.toVector
 

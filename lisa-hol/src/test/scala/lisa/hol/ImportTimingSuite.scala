@@ -52,11 +52,16 @@ class ImportTimingSuite extends AnyFunSuite:
       val timings = Console.withOut(output)(Import.importFromPrefix(prefix, 3, failFast = true))
       assert(timings.map(_.steps) == Vector(3, 1, 0))
       assert(timings.map(_.totalSteps) == Vector(3, 4, 4))
+      assert(timings.map(_.cacheHits) == Vector(0, 2, 1))
       assert(timings.map(_.theorem.id) == Vector(3L, 7L, 3L))
       assert(timings.forall(_.succeeded))
+      assert(timings.forall(t => t.resources.cpuNanos >= -1 && t.resources.allocatedBytes >= -1 && t.resources.gcMillis >= 0))
       assert(timings.forall(t => t.elapsedNanos >= 0 && t.totalElapsedNanos >= t.elapsedNanos))
       assert(timings.sliding(2).forall(pair => pair(1).totalElapsedNanos >= pair(0).totalElapsedNanos + pair(1).elapsedNanos))
       assert(output.toString.contains("Total:"))
+      assert(output.toString.contains("KiB/step"))
+      assert(output.toString.contains("GC "))
+      assert(output.toString.contains("reused 1 steps"))
       assert(output.toString.contains("Last theorem timing_shared_alias (#3): OK; 0 steps"))
 
   test("include failed work without charging it to the next theorem"):
