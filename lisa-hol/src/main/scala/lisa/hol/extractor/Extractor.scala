@@ -15,37 +15,23 @@ import Parser._
 sealed trait ExtractorException extends Exception
 case class UnknownProofStepException(name: String) extends ExtractorException
 case class CouldNotParseException(msg: String, next: String) extends Exception(s"Could not parse\n\tMessage: $msg\n\tNext: $next") with ExtractorException
-case object IncompleteParsingException extends ExtractorException
 case object UnreachableCaseException extends ExtractorException
 case object ExtractorEndedException extends Exception("No more proof steps or theorems to read") with ExtractorException
 
-extension [T](res: ParseResult[T])
+extension [T](res: fastparse.Parsed[T])
   def getDone =
     res match
-      case Success(out, next) if next.atEnd => out
-      case Success(_, _) => throw IncompleteParsingException
-      case NoSuccess(msg, next) => throw CouldNotParseException(msg, next.toString())
-      case _ => throw UnreachableCaseException
+      case fastparse.Parsed.Success(out, _) => out
+      case failure: fastparse.Parsed.Failure =>
+        throw CouldNotParseException(failure.trace().longAggregateMsg, s"offset ${failure.index}")
 
-private def parseTerm(str: String): Term = parse(term, str).getDone
+private def parseTerm(str: String): Term = parseAll(str, term(using _)).getDone
 
-private def parseVar(str: String): Variable = parse(variable, str).getDone
+private def parseVar(str: String): Variable = parseAll(str, variable(using _)).getDone
 
-private def parseInst(insts: List[List[String]]): Map[Variable, Term] =
-  insts.map {
-    case List(left, right) => parseVar(left) -> parseTerm(right)
-    case _ => throw UnreachableCaseException
-  }.toMap
+private def parseTypeVar(str: String): TypeVariable = parseAll(str, typeVariable(using _)).getDone
 
-private def parseTypeVar(str: String) = parse(typeVariable, str).getDone
-
-private def parseType(str: String) = parse(typ, str).getDone
-
-private def parseTypeInst(insts: List[List[String]]): Map[TypeVariable, Type] =
-  insts.map {
-    case List(left, right) => parseTypeVar(left) -> parseType(right)
-    case _ => throw UnreachableCaseException
-  }.toMap
+private def parseType(str: String): Type = parseAll(str, typ(using _)).getDone
 
 // Structures as used in the HOL Light ProofTrace export
 // Reflects the JSON encoding of proof steps
@@ -59,8 +45,6 @@ case class InstPair(from: String, to: String) derives RW:
 // Use "step" as the ADT tag (instead of "$type")
 @key("step")
 sealed trait RawStep derives RW:
-  private def parseTerm(str: String): Term = parseAll(term, str).getDone
-
   def extract: ProofStep =
     this match
       case REFL(term) => core.REFL(parseTerm(term))

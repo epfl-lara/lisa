@@ -10,4 +10,4 @@ val str =
   "C(C(c(=)(c[fun][[c[bool][]][c[fun][[c[bool][]][c[bool][]]]]]))(c(T)(c[bool][])))(C(C(c(=)(c[fun][[c[fun][[c[bool][]][c[bool][]]]][c[fun][[c[fun][[c[bool][]][c[bool][]]]][c[bool][]]]]]))(A(v(p)(c[bool][]))(v(p)(c[bool][]))))(A(v(p)(c[bool][]))(v(p)(c[bool][]))))"
 
 @main def main =
-  println(parse(term, str).getDone.pretty)
+  println(parseAll(str, term(using _)).getDone.pretty)

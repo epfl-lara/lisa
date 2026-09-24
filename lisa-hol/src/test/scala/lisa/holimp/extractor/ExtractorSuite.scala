@@ -106,7 +106,7 @@ class ExtractorSuite extends AnyFunSuite:
       assert(error.getMessage.contains("Proof step 0 is paired with theorem statement 1"))
 
   test("alternate long UTF-8 line scans and older statement lookups with every line ending"):
-    val entries = Seq(0L -> "α😀", 7L -> "λ".repeat(70000), 15L -> "終", 20L -> "last")
+    val entries = Seq(0L -> "α😀", 7L -> ("λ" * 70000), 15L -> "終", 20L -> "last")
     def join(lines: Seq[String]): String =
       lines.zip(Seq("\r", "\r\n", "\n", "")).map((line, ending) => line + ending).mkString
     val proofs = entries.map: (id, name) =>

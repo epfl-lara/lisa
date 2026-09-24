@@ -1,45 +1,37 @@
-package lisa
-package hol
-package core
+package lisa.hol.core
 
-import scala.util.parsing.combinator._
+import fastparse.*
+import fastparse.NoWhitespace.*
 
-/**
- * A parser for the core HOL Light terms in ProofTrace export syntax.
- */
-object Parser extends RegexParsers:
+/** Parse HOL Light terms and types in ProofTrace export syntax. */
+object Parser:
+  private def whitespace[$: P]: P[Unit] = P(CharsWhileIn(" \t\r\n\f\u000b", 0))
 
-  def typ: Parser[Type] = typeVariable ||| typeApplication
-  def term: Parser[Term] = variable ||| constant ||| combination ||| abstraction
+  // Delimiters terminate identifiers; spaces and Unicode inside names are significant.
+  private def identifier[$: P]: P[String] = P(CharsWhile(c => c != '(' && c != ')' && c != '[' && c != ']').!)
 
-  private type Identifier = String
+  def typ[$: P]: P[Type] = P(typeVariable | typeApplication)
+  def term[$: P]: P[Term] = P(variable | constant | combination | abstraction)
 
-  private def isParen(c: Char): Boolean =
-    c match
-      case '(' | ')' | '[' | ']' => true
-      case _ => false
+  // Commit after each distinct prefix: the remaining input belongs to that constructor.
+  def variable[$: P]: P[Variable] =
+    P(whitespace ~ "v(" ~/ identifier ~ ")(" ~ typ ~ whitespace ~ ")").map((name, tpe) => Variable(name, tpe))
+  def constant[$: P]: P[Constant] =
+    P(whitespace ~ "c(" ~/ identifier ~ ")(" ~ typ ~ whitespace ~ ")").map((name, tpe) => Constant(name, tpe))
+  def combination[$: P]: P[Combination] =
+    P(whitespace ~ "C(" ~/ term ~ whitespace ~ ")(" ~ term ~ whitespace ~ ")").map((left, right) => Combination(left, right))
+  def abstraction[$: P]: P[Abstraction] =
+    P(whitespace ~ "A(" ~/ variable ~ whitespace ~ ")(" ~ term ~ whitespace ~ ")").map((variable, body) => Abstraction(variable, body))
 
-  private def char: Parser[Char] = acceptIf(!isParen(_))(el => s"Unexpected: $el")
-  private def identifier: Parser[Identifier] = rep1(char) ^^ { _.mkString }
+  def typeVariable[$: P]: P[TypeVariable] =
+    P(whitespace ~ "v[" ~/ identifier ~ "]").map(TypeVariable.apply)
+  def typeApplication[$: P]: P[TypeApplication] =
+    P(whitespace ~ "c[" ~/ identifier ~ "][" ~ typeArg.rep ~ whitespace ~ "]").map((name, args) => TypeApplication(name, args.toList))
+  private def typeArg[$: P]: P[Type] = P(whitespace ~ "[" ~/ typ ~ whitespace ~ "]")
 
-  ///// Term parsers
-  // term := variable | constant | combination | abstraction
-  // variable := v(identifier)(type)
-  // constant := c(identifier)(type)
-  // combination := C(term)(term)
-  // abstraction := A(variable)(term)
-  def variable: Parser[Variable] = "v(" ~ identifier ~ ")(" ~ typ ~ ")" ^^ { case _ ~ id ~ _ ~ tp ~ _ => Variable(id, tp) }
-  def constant: Parser[Constant] = "c(" ~ identifier ~ ")(" ~ typ ~ ")" ^^ { case _ ~ id ~ _ ~ tp ~ _ => Constant(id, tp) }
-  def combination: Parser[Combination] = "C(" ~ term ~ ")(" ~ term ~ ")" ^^ { case _ ~ t1 ~ _ ~ t2 ~ _ => Combination(t1, t2) }
-  def abstraction: Parser[Abstraction] = "A(" ~ variable ~ ")(" ~ term ~ ")" ^^ { case _ ~ v ~ _ ~ tm ~ _ => Abstraction(v, tm) }
-
-  ///// Type parsers
-  // type := typeVariable | typeApplication
-  // typeVariable := v[identifier]
-  // typeApplication := c[identifier][typeArg*]
-  // typeArg := [type]
-  def typeVariable: Parser[TypeVariable] = "v[" ~ identifier ~ "]" ^^ { case _ ~ id ~ _ => TypeVariable(id) }
-  def typeApplication: Parser[TypeApplication] = "c[" ~ identifier ~ "][" ~ rep(typeArg) ~ "]" ^^ { case _ ~ id ~ _ ~ args ~ _ => TypeApplication(id, args) }
-  private def typeArg: Parser[Type] = "[" ~ typ ~ "]" ^^ { case _ ~ tp ~ _ => tp }
-
-end Parser
+  /** Parse the complete input, allowing trailing whitespace but rejecting trailing tokens. */
+  def parseAll[T](input: String, parser: P[?] => P[T]): Parsed[T] =
+    fastparse.parse(input, context =>
+      given P[?] = context
+      P(parser(context) ~ whitespace ~ End)
+    )
