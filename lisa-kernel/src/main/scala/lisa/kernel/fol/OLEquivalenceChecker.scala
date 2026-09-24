@@ -119,7 +119,12 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
    * - consecutive conjunctions are flattened
    * - double negations are eliminated
    */
-  private[kernel] sealed abstract class SimpleExpression {
+  private[kernel] sealed abstract class SimpleExpression extends Product {
+
+    // Equal trees can have different unique keys. Cache their structural hash instead.
+    private lazy val cachedHashCode: Int = scala.util.hashing.MurmurHash3.productHash(this)
+
+    final override def hashCode(): Int = cachedHashCode
 
     /**
      * The sort of the expression.
