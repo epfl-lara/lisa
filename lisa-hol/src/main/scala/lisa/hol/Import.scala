@@ -77,7 +77,6 @@ object Import extends lisa.HOL:
 
   import Logging.*
   private var currentLoggingMode: LoggingMode = LoggingMode.Silent
-  private var verifySteps = sys.env.get("LISA_HOL_VERIFY_STEPS").contains("1")
   given LoggingMode = currentLoggingMode
 
   object Transformers:
@@ -769,7 +768,7 @@ object Import extends lisa.HOL:
       if newErrors.nonEmpty then
         throw FailedStepException(index, proofStep.getClass.getSimpleName, newErrors.toSeq.map(_.message))
 
-    if currentLoggingMode == LoggingMode.Debug || verifySteps then
+    ifDebug:
       val expected = withCTX(extractor.getStatement(index).toLisaSequent)
       val matchesExpected =
         K.isSameSequent(result.kernel.statement, expected.underlying) ||
@@ -855,12 +854,10 @@ object Import extends lisa.HOL:
       outputPath: Option[String] = None,
       overwrite: Boolean = false,
       failFast: Boolean = false,
-      verifyEachStep: Boolean = false,
       startAt: Int = 0
   ): Vector[TheoremTiming] =
     require(limit > 0, s"Cannot read $limit theorems. Expected positive theorem limit.")
     require(startAt >= 0, s"Cannot start at theorem $startAt. Expected a non-negative index.")
-    verifySteps = verifySteps || verifyEachStep
     val (extractor, names) = JSONParser.initializeFromPrefix(prefix)
 
     val store = new StepStore(using extractor)
