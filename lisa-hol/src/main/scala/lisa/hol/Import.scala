@@ -592,11 +592,17 @@ object Import extends lisa.HOL:
           val witnessVariable = mkTypedVar("w", representationType)
           val witnessBody = (witnessVariable ∈ representationType) /\ ((p * witnessVariable) === One)
           val witnessTyping = have(HOLProofType(t))
-          have(((t ∈ representationType) /\ ((p * t) === One)) ++<< nonEmptinessThm.statement ++<< witnessTyping.statement) by
+          val typedWitness = have(((t ∈ representationType) /\ ((p * t) === One)) ++<< nonEmptinessThm.statement ++<< witnessTyping.statement) by
             RightAnd(witnessTyping, nonEmptinessThm)
-          thenHave(∃(witnessVariable, witnessBody)) by RightExists.withParameters(witnessBody, witnessVariable, t)
-          val correctness = have(HOLSteps.Clean.all(hexistsCorrect.of((substitutions :+ (lisa.hol.basics.Exists.x := witnessVariable))*)))
-          have(existsP) by Tautology.from(lastStep, correctness)
+          val existence = ∃(witnessVariable, witnessBody)
+          val witness = have(typedWitness.left |- existence) by RightExists.withParameters(witnessBody, witnessVariable, t)(typedWitness)
+          val correctness = have(HOLSteps.Clean.all(hexistsCorrect.of(
+            lisa.hol.basics.Exists.A := representationType,
+            lisa.hol.basics.Exists.P := p,
+            lisa.hol.basics.Exists.x := witnessVariable
+          )))
+          val implication = have((correctness.left + existence) |- existsP) by Weakening(correctness)
+          have((witness.left ++ correctness.left) |- existsP) by Cut.withParameters(existence)(witness, implication)
           val discharged = have(Discharge(predicateTyping)(lastStep))
           have(localNonEmpty |- existsP) by Weakening(discharged)
         .thm
@@ -611,7 +617,7 @@ object Import extends lisa.HOL:
         // Establish non-emptiness before wrapping the raw constant as an HOL type.
         val typeNonEmpty = Subproof:
           val subsetNonEmpty = have(HOLSteps.Clean.all(TypeDefs.typeNonEmpty.of(substitutions*)))
-          val withWitness = have(subsetNonEmpty.statement -<< (existsP === One)) by
+          val withWitness = have((subsetNonEmpty.statement -<< (existsP === One)) ++<< existsPThm.statement) by
             Cut.withParameters(existsP === One)(existsPThm, subsetNonEmpty)
           val rewritten = have(withWitness.statement.left |- ∃(TypeDefs.z, TypeDefs.z ∈ rawDefinedType)) by Substitute(rawType.definition)(withWitness)
           val discharged = have(Discharge(predicateTyping)(rewritten))
@@ -627,7 +633,7 @@ object Import extends lisa.HOL:
 
         val absTyping = Subproof:
           val generic = have(HOLSteps.Clean.all(TypeDefs.absTyping.of(substitutions*)))
-          val local = have(generic.statement -<< (existsP === One)) by
+          val local = have((generic.statement -<< (existsP === One)) ++<< existsPThm.statement) by
             Cut.withParameters(existsP === One)(existsPThm, generic)
           val rewritten = have(local.statement.left |- absBody :: (representationType ->: definedType)) by Substitute(rawType.definition)(local)
           val discharged = have(Discharge(predicateTyping)(rewritten))
@@ -652,24 +658,26 @@ object Import extends lisa.HOL:
         val repVariable = mkTypedVar("r", representationType)
         val absStatement = appliedAbs * (appliedRep * absVariable) =:= absVariable
         val repStatement = p * repVariable =:= (appliedRep * (appliedAbs * repVariable) =:= repVariable)
-        val definitions = Seq(absConstant.holDefinition, repConstant.holDefinition, rawType.definition)
+        val definitions = Seq(absConstant.definition, repConstant.definition, rawType.definition)
+        val absContext = localNonEmpty.toSet + (absVariable :: definedType)
+        val repContext = localNonEmpty.toSet + (repVariable :: representationType)
 
         val absThm = Subproof:
           val generic = have(HOLSteps.Clean.all(TypeDefs.absThm.of((substitutions :+ (TypeDefs.y := absVariable))*)))
-          thenHave(absStatement) by Substitute(definitions*)(generic)
+          have((absContext ++ predicateTyping.right) |- absStatement) by Substitute(definitions*)(generic)
           val cleaned = have(HOLSteps.Clean.all(lastStep))
           val discharged = have(Discharge(predicateTyping)(cleaned))
-          have(localNonEmpty |- absStatement) by Weakening(discharged)
+          have(absContext |- absStatement) by Weakening(discharged)
         .thm
 
         val repThm = Subproof:
           val generic = have(HOLSteps.Clean.all(TypeDefs.repThm.of((substitutions :+ (TypeDefs.x := repVariable))*)))
-          val withWitness = have(generic.statement -<< (existsP === One)) by
+          val withWitness = have((generic.statement -<< (existsP === One)) ++<< existsPThm.statement) by
             Cut.withParameters(existsP === One)(existsPThm, generic)
-          thenHave(repStatement) by Substitute(definitions*)(withWitness)
+          have((repContext ++ predicateTyping.right) |- repStatement) by Substitute(definitions*)(withWitness)
           val cleaned = have(HOLSteps.Clean.all(lastStep))
           val discharged = have(Discharge(predicateTyping)(cleaned))
-          have(localNonEmpty |- repStatement) by Weakening(discharged)
+          have(repContext |- repStatement) by Weakening(discharged)
         .thm
 
         // Publish the type only after its complete defining pair has been checked.

@@ -154,7 +154,7 @@ object BasicStep:
         .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent): ProofJudgement =
-      Tautology(using file, line)(using library)(conclusion)
+      RestateTrue(using file, line)(using library)(conclusion)
 
     def from(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(premise: K.Thm)(conclusion: Sequent): ProofJudgement =
       apply(using file, line)(using library)(conclusion, premise)

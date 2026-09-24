@@ -79,3 +79,44 @@ class ImportSuite extends AnyFunSuite:
       assertThrows[Import.FailedTheoremException](store.theorem(TheoremRef(2, "store_invalid")))
       assert(store(0).isValid)
     finally context.close()
+
+  for
+    absFirst <- Seq(true, false)
+    polymorphic <- Seq(false, true)
+  do
+    test(s"type definitions check both theorems and their lookups (abs first: $absFirst, polymorphic: $polymorphic)"):
+      val bool = "c[bool][]"
+      val name = s"store_type_${absFirst}_$polymorphic"
+      val typ = if polymorphic then s"c[$name][[v[A]]]" else s"c[$name][]"
+      def fun(from: String, to: String): String = s"c[fun][[$from][$to]]"
+      def app(f: String, x: String): String = s"C($f)($x)"
+      def equal(typ: String, x: String, y: String): String =
+        app(app(s"c(=)(${fun(typ, fun(typ, bool))})", x), y)
+      val representation = if polymorphic then fun("v[A]", "v[A]") else bool
+      val witness = if polymorphic then "A(v(v)(v[A]))(v(v)(v[A]))" else s"c(T)($bool)"
+      val a = s"v(a)($typ)"
+      val r = s"v(r)($representation)"
+      val abs = s"c(${name}_abs)(${fun(representation, typ)})"
+      val rep = s"c(${name}_rep)(${fun(typ, representation)})"
+      val absStatement = equal(typ, app(abs, app(rep, a)), a)
+      val repStatement = equal(bool, equal(representation, witness, r), equal(representation, app(rep, app(abs, r)), r))
+      val (first, second) = if absFirst then (absStatement, repStatement) else (repStatement, absStatement)
+      val proofs = Iterator(
+        ProofLine(0, REFL(witness)),
+        ProofLine(1, TYPE_DEFINITION(0, first, name)),
+        ProofLine(2, TYPE_DEFINITION(0, second, name))
+      )
+      val statements = Iterator(
+        TheoremStatement(0, RawSequent(Nil, equal(representation, witness, witness))),
+        TheoremStatement(1, RawSequent(Nil, first)),
+        TheoremStatement(2, RawSequent(Nil, second))
+      )
+      given context: ExtractorContext = new ExtractorContext(proofs, statements)
+      try
+        val store = new Import.StepStore
+        for id <- Seq(1L, 2L) do
+          val theorem = store.theorem(TheoremRef(id, s"${name}_$id"))
+          assert(store(id).isValid)
+          assert(!theorem.usesSorry)
+          assert(store(id) eq store(id))
+      finally context.close()

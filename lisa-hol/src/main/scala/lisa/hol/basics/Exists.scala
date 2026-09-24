@@ -296,14 +296,11 @@ object Exists extends lisa.HOL {
       have((q :: 𝔹) |- outerImp <=> (allInner ==> q)) by Substitute(innerFAEquiv)(outerImpLift)
       val outerImpFOL = lastStep
 
-      // outerPred * q <=> outerImp
-      val outerPredEquiv = have(q :: 𝔹 |- outerPred * q <=> outerImp) subproof:
-        have(q :: 𝔹 |- outerImp <=> outerImp) by Restate
-        thenHave(thesis) by Substitute(outerBeta)
-
-      // outerPred * q <=> (∀(x :: A, P * x ==> q) ==> q) — with q ∈ 𝔹 on left
-      have((q :: 𝔹) |- outerPred * q <=> (∀(x :: A, P * x ==> q) ==> q)) by Tautology.from(outerPredEquiv, outerImpFOL)
-      val outerPredFOL = lastStep
+      // Replace only the outer implication term using its beta equality.
+      val outerPredFOL = have((q :: 𝔹) |- outerPred * q <=> (allInner ==> q)) subproof:
+        have((q :: 𝔹, outerPred * q === outerImp) |- outerPred * q <=> (allInner ==> q)) by
+          RightSubstEq.withParameters(Seq((outerImp, outerPred * q)), (Seq(x), (x === One) <=> (allInner ==> q)))(outerImpFOL)
+        have(thesis) by Cut.withParameters(outerPred * q === outerImp)(outerBeta, lastStep)
 
       // Convert: ∀(q :: 𝔹, ∀(x :: A, P*x ==> q) ==> q) |- ∀(q :: 𝔹, outerPred * q)
       val allOuter = ∀(q :: 𝔹, ∀(x :: A, P * x ==> q) ==> q)
