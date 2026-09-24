@@ -817,7 +817,25 @@ object Import extends lisa.HOL:
           OpenExport(writer, header, footer)
           
 
-  /** Reconstruct the requested names using one store shared by all their dependencies. */
+  /** Record new work for one named theorem, including reading, reconstruction, and checking. */
+  final case class TheoremTiming(
+      theorem: TheoremRef,
+      steps: Int,
+      elapsedNanos: Long,
+      totalSteps: Int,
+      totalElapsedNanos: Long,
+      succeeded: Boolean
+  ):
+    def elapsedSeconds: Double = elapsedNanos / 1e9
+    def totalSeconds: Double = totalElapsedNanos / 1e9
+
+    /** Compute throughput for this attempt; count shared dependencies only on their first reconstruction. */
+    def stepsPerSecond: Double = if elapsedNanos == 0 then 0d else steps / elapsedSeconds
+
+    /** Compute cumulative throughput, including time spent reporting earlier attempts. */
+    def totalStepsPerSecond: Double = if totalElapsedNanos == 0 then 0d else totalSteps / totalSeconds
+
+  /** Reconstruct the requested names and return immutable timings for every attempted theorem. */
   def importFromPrefix(
       prefix: String,
       limit: Int,
@@ -826,27 +844,30 @@ object Import extends lisa.HOL:
       failFast: Boolean = false,
       verifyEachStep: Boolean = false,
       startAt: Int = 0
-  ): Unit =
+  ): Vector[TheoremTiming] =
     require(limit > 0, s"Cannot read $limit theorems. Expected positive theorem limit.")
     require(startAt >= 0, s"Cannot start at theorem $startAt. Expected a non-negative index.")
     verifySteps = verifySteps || verifyEachStep
     val (extractor, names) = JSONParser.initializeFromPrefix(prefix)
 
     val store = new StepStore(using extractor)
+    val timings = mutable.ArrayBuffer.empty[TheoremTiming]
     var imported = 0
     var maxStep = 0L
 
-    val startTime = System.currentTimeMillis()
-    def time() = (System.currentTimeMillis() - startTime) / 1000d
-    def printProgress(count: Int) =
-      val elapsed = time()
-      val progressString = f"Extracted $count theorems so far in $elapsed%.2f seconds."
-      val usedSteps = s"Reconstructed ${store.size} HOL proof steps through index $maxStep."
+    val startTime = System.nanoTime()
+    def time() = (System.nanoTime() - startTime) / 1e9
+    def printProgress(timing: TheoremTiming) =
+      val progressString = f"Extracted $imported theorems so far in ${timing.totalSeconds}%.2f seconds."
+      val usedSteps = s"Reconstructed ${timing.totalSteps} HOL proof steps through index $maxStep."
+      val status = if timing.succeeded then "OK" else "FAILED"
+      val lastTheorem = s"Last theorem ${timing.theorem.name} (#${timing.theorem.id}): $status;"
+      val rates = f"Total: ${timing.totalStepsPerSecond}%.2f steps/s. $lastTheorem ${timing.steps} steps in ${timing.elapsedSeconds}%.6f seconds (${timing.stepsPerSecond}%.2f steps/s)."
       val runtime = Runtime.getRuntime
       val heapUsed = (runtime.totalMemory() - runtime.freeMemory()) / 1e6
       val heapAvailable = (runtime.maxMemory() - runtime.totalMemory() + runtime.freeMemory()) / 1e6
       val memoryString = f"Heap used: $heapUsed%.2f MB; available: $heapAvailable%.2f MB."
-      println(f"\r[INFO] $progressString $usedSteps $memoryString")
+      println(s"\r[INFO] $progressString $usedSteps $rates $memoryString")
 
     val exporter =
       outputPath match
@@ -855,13 +876,16 @@ object Import extends lisa.HOL:
 
     try
       names.drop(startAt).take(limit).foreach: ref =>
+        val stepsBefore = store.size
+        val theoremStart = System.nanoTime()
+        var succeeded = false
         try
           debug(s"Importing theorem ${ref.name} with id ${ref.id}")
 
           store.theorem(ref)
           imported += 1
           maxStep = maxStep.max(ref.id)
-          printProgress(imported)
+          succeeded = true
         catch e =>
             if failFast then throw e
             debug(e.getStackTrace.mkString("\n"))
@@ -876,11 +900,18 @@ object Import extends lisa.HOL:
                   | [ERROR] Encountered an error while reconstructing further.
                   | [ERROR] Error message: $errorMessage
                   | """.stripMargin)
+        finally
+          // Retain only scalar measurements and the name, never the proof or its context.
+          val finished = System.nanoTime()
+          val timing = TheoremTiming(ref, store.size - stepsBefore, finished - theoremStart, store.size, finished - startTime, succeeded)
+          timings += timing
+          printProgress(timing)
 
     finally
       extractor.close()
       exporter.close()
     println(s"[INFO] Successfully imported $imported theorems with ${store.size} reconstructed steps through index $maxStep in ${time()}s.")
+    timings.toVector
 
   @main
   def importMain(prefix: String, logMode: String, theoremCount: Int, output: Boolean, outputFile: String, overwrite: Boolean) =
