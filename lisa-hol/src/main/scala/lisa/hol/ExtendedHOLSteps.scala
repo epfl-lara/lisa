@@ -108,10 +108,7 @@ object ExtendedHOLSteps extends lisa._HOL {
               val d1 = have(Discharge(f1)(rule))
               val d2 = have(Discharge(f2)(d1))
               val d3 = dischargeTyping(xx, d2)
-              val yyTyping = HOLProofType(yy)
-              val d4 = yy match
-                case _: TypedVariable => d3
-                case _ => have(Discharge(yyTyping)(d3))
+              val d4 = dischargeTyping(yy, d3)
               val d5 = dischargeTyping(ff, d4)
               val d6 = dischargeTyping(gg, d5)
               have(HOLSteps.Clean.all(d6))

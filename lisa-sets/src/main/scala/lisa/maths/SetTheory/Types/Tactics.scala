@@ -363,31 +363,36 @@ object Tactics:
            *     ------------------------------------------------------------ TConvAdv
            *                   Γ₁, Γ₂ |- tm ∈ expectedType
            *
-           * `inferProofM` supplies `inferredType` as payload and its typing
-           * theorem as justification. Both flow directly into conversion.
+           * Reuse the inferred typing when its type matches; restate equivalent
+           * types and construct a conversion only for a genuine inclusion.
            */
           case _ =>
             inferProofM(using SetTheoryLibrary)(localContext, tm, memo).flatMap { (inferredType, inferredTyping) =>
-              subsetProof(using SetTheoryLibrary)(localContext, inferredType, ty).flatMap { (_, conversion) =>
-                val statement = (tm ∈ ty) ++<< inferredTyping.statement ++<< conversion.statement
-                val inferredTypingFormula = tm ∈ inferredType
-                val conversionFormula = inferredType ⊆ ty
-                val rule = TConvAdv of (e1 := tm, T := inferredType, T1 := ty)
-                val withInference = have(((tm ∈ ty) +<< conversionFormula) ++<< inferredTyping.statement) by
-                  Cut.withParameters(inferredTypingFormula)(inferredTyping, rule)
-                val typing = have(statement) by Cut.withParameters(conversionFormula)(conversion, withInference)
+              if inferredType == ty then ProofJudgement(inferredTyping)
+              else if isSame(inferredType, ty) then
+                val typing = have((tm ∈ ty) ++<< inferredTyping.statement) by Restate.from(inferredTyping)
                 ProofJudgement(typing)
-              }
+              else
+                subsetProof(using SetTheoryLibrary)(localContext, inferredType, ty).flatMap { (_, conversion) =>
+                  val statement = (tm ∈ ty) ++<< inferredTyping.statement ++<< conversion.statement
+                  val inferredTypingFormula = tm ∈ inferredType
+                  val conversionFormula = inferredType ⊆ ty
+                  val rule = TConvAdv of (e1 := tm, T := inferredType, T1 := ty)
+                  val withInference = have(((tm ∈ ty) +<< conversionFormula) ++<< inferredTyping.statement) by
+                    Cut.withParameters(inferredTypingFormula)(inferredTyping, rule)
+                  val typing = have(statement) by Cut.withParameters(conversionFormula)(conversion, withInference)
+                  ProofJudgement(typing)
+                }
             }
         }
       }
 
-    // Construct subset proof(ty1 ⊆ ty2) for the given two expressions
+    /** Prove type inclusion, handling reflexivity before dependent covariance. */
     def subsetProof(using lib: SetTheoryLibrary.type, proof: Proof)(localContext: Set[Expr[Prop]], sub: Expr[Ind], sup: Expr[Ind]): ProofJudgement =
       import lib.*
-      // println("Trying to construct subsetProof for: " + sub.toString() + " ⊆ " + sup.toString())
       Subproof {
         (sub, sup) match
+          case _ if sub == sup => have(reflexivity of (x := sub))
           case (SPi(d1: Expr[Ind], Abs(v1: Expr[Ind], c1: Expr[Ind])), SPi(d2: Expr[Ind], Abs(v2: Expr[Ind], c2: Expr[Ind]))) =>
             val domainEquiv = have(d1 === d2) by RightRefl.withParameters(d1 === d2)
             val c2Replace = c2.substitute((v1, v2))
@@ -407,7 +412,6 @@ object Tactics:
             if (dSub > dSup) then failWith(s"Depth mismatch: $sub (d=$dSub) cannot be subset of $sup (d=$dSup)")
             else if (dSub == dSup) then
               if (localContext.contains(sub ⊆ sup)) then have(sub ⊆ sup |- sub ⊆ sup) by Hypothesis
-              else if (sub == sup) then have(reflexivity of (x := sub))
               else
                 val equality = have(sub === sup) by RightRefl.withParameters(sub === sup)
                 val reflexive = have(reflexivity of (x := sub))
