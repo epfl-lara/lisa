@@ -104,7 +104,7 @@ object Substitute extends SequentTactic, DerivedFromPremises:
       val removed = current.statement -<? formula
       val next = removed.copy(left = removed.left ++ source.left)
       val judgement = BasicStep.Cut.withParameters(formula)(source.kernel, current.kernel)(next)
-      if judgement.isValid then current = judgement.destruct._1
+      if judgement.isValid then current = judgement.thm
       else failure = Some(judgement)
     failure.getOrElse:
       val restated = BasicStep.Restate(conclusion, current.kernel)
@@ -182,14 +182,14 @@ object Substitute extends SequentTactic, DerivedFromPremises:
     if !s1.isValid then s1
     else
       // left rewrites
-      val s2 = BasicStep.Restate(andAllOrTrue(preLeft) |- premise.right, s1.destruct._1.kernel)
-      val s3 = if s2.isValid then BasicStep.Weakening(leftFormulas + andAllOrTrue(preLeft) |- premise.right, s2.destruct._1.kernel) else s2
+      val s2 = BasicStep.Restate(andAllOrTrue(preLeft) |- premise.right, s1.kernel)
+      val s3 = if s2.isValid then BasicStep.Weakening(leftFormulas + andAllOrTrue(preLeft) |- premise.right, s2.kernel) else s2
       val s4 =
-        if s3.isValid then BasicStep.LeftSubstEq.withParameters(leftRules.map(r => r.l -> r.r), leftVars -> leftLambda)(s3.destruct._1.kernel)(leftTarget)
+        if s3.isValid then BasicStep.LeftSubstEq.withParameters(leftRules.map(r => r.l -> r.r), leftVars -> leftLambda)(s3.kernel)(leftTarget)
         else s3
       if !s4.isValid then firstInvalid(conclusion, s2, s3, s4)
       else
-        val leftThm = s4.destruct._1
+        val leftThm = s4.thm
 
         // right rewrites
         val rightFormulas = rightRules.map(_.toFormula).toSet
@@ -202,18 +202,18 @@ object Substitute extends SequentTactic, DerivedFromPremises:
         val rightTarget = rightFormulas ++ leftThm.left |- orAllOrFalse(postRight)
 
         val r1 = BasicStep.Restate(rightStart, leftThm.kernel)
-        val r2 = if r1.isValid then BasicStep.Weakening(rightFormulas ++ leftThm.left |- orAllOrFalse(preRight), r1.destruct._1.kernel) else r1
+        val r2 = if r1.isValid then BasicStep.Weakening(rightFormulas ++ leftThm.left |- orAllOrFalse(preRight), r1.kernel) else r1
         val r3 =
-          if r2.isValid then BasicStep.RightSubstEq.withParameters(rightRules.map(r => r.l -> r.r), rightVars -> rightLambda)(r2.destruct._1.kernel)(rightTarget)
+          if r2.isValid then BasicStep.RightSubstEq.withParameters(rightRules.map(r => r.l -> r.r), rightVars -> rightLambda)(r2.kernel)(rightTarget)
           else r2
         if !r3.isValid then firstInvalid(conclusion, r1, r2, r3)
         else
           // rewrite to destruct sequent
           val postRewrite = postLeft ++ leftFormulas ++ rightFormulas |- postRight
-          val restated = BasicStep.Restate(postRewrite, r3.destruct._1.kernel)
+          val restated = BasicStep.Restate(postRewrite, r3.kernel)
           if !restated.isValid then restated
           // discharge assumptions
-          else cutDischarges(conclusion, restated.destruct._1, discharges)
+          else cutDischarges(conclusion, restated.thm, discharges)
 
   protected def prove(using file: File, line: Line)(using library: Library)(conclusion: Sequent, premises: Seq[Thm]): ProofJudgement =
     premises match

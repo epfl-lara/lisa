@@ -13,7 +13,7 @@ class HornSuite extends AnyFunSuite:
   private val d = variable[Prop]
 
   private def sorry(statement: Sequent): Thm =
-    BasicStep.Sorry(statement).destruct._1
+    BasicStep.Sorry(statement).thm
 
   private def assertValid(judgement: ProofJudgement): Unit =
     assert(judgement.isValid, judgement.errors.map(_.message).mkString("\n"))

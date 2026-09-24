@@ -63,7 +63,7 @@ object VarsAndFunctions /*extends lisa.Main*/:
         val s2 = have(holeq(typ) * left * left) by Cut(thm, s1)
         val s3 = have(left === right |- holeq(typ) * left * right) by RightSubstEq.withParameters(Seq((left, right)), (Seq(x), holeq(typ) * left * x))(s2)
         have(holeq(typ) * left * right) by Cut(theDefinition, s3)
-      }.destruct._1
+      }.thm
   class HOLPolymorphicConstant[S: Sort](id: Identifier, override val typ: FunctionalClass, override val justif: Thm) extends TypedConstantFunctional[S](id, typ, justif):
     /**
      * The definition of the constant as an HOL theorem.
@@ -88,7 +88,7 @@ object VarsAndFunctions /*extends lisa.Main*/:
         val s2 = have(nonEmpties |- holeq(otyp) * left * left) by Cut(typeJustif, s1)
         val s3 = have((nonEmpties, left === right) |- holeq(otyp) * left * right) by RightSubstEq.withParameters(Seq((left, right)), (Seq(x), holeq(otyp) * left * x))(s2)
         have(nonEmpties |- holeq(otyp) * left * right) by Cut(theDefinition, s3)
-      }.destruct._1
+      }.thm
 
   class TypedVariable(id: Identifier, val typ: Expr[Ind]) extends Variable[Ind](id) {
     override def toString: String = s"${id.name}:${typ}"

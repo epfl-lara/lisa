@@ -17,7 +17,7 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
   private given testLibrary: Library = SetTheoryLibrary
 
   private def sorry(statement: Sequent): Thm =
-    BasicStep.Sorry(statement).destruct._1
+    BasicStep.Sorry(statement).thm
 
   private def descendants(expression: Expr[?]): Iterator[Expr[?]] =
     Iterator.single(expression) ++ (expression match
@@ -75,7 +75,7 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
       ExtendedHOLSteps._TRANS(first, second)
 
     assert(result.isValid, result.errors.map(_.message).mkString("\n"))
-    val retained = statementDescendants(result.destruct._1.statement).collect { case constant: TypedConstant => constant }.toSeq
+    val retained = statementDescendants(result.thm.statement).collect { case constant: TypedConstant => constant }.toSeq
     val retainedLeft = retained.find(_.eq(left)).get
     val retainedRight = retained.find(_.eq(right)).get
     assert(computeType(retainedLeft) eq 𝔹)
@@ -97,7 +97,7 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
       HOLSteps._INST_TYPE(Seq(originalType -> 𝔹), premise)
 
     assert(result.isValid, result.errors.map(_.message).mkString("\n"))
-    val theorem = result.destruct._1
+    val theorem = result.thm
     val retainedVariables = statementDescendants(theorem.statement).collect { case variable: TypedVariable => variable }.toSeq
     assert(retainedVariables.nonEmpty)
     assert(retainedVariables.forall(variable => isSame(variable.typ, 𝔹)))
@@ -142,7 +142,7 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
         have(typingB)
 
     assert(result.isValid, result.errors.map(_.message).mkString("\n"))
-    val typings = result.destruct._1.statement
+    val typings = result.thm.statement
     assert(typings.right.exists(isSame(_, termB :: typeB)))
 
   test("polymorphic typing splits conjunctive requirements"):
@@ -154,7 +154,7 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
         have(HOLSteps.HOLProofType(hOneOne(typeA)(typeB)))
 
     assert(result.isValid, result.errors.map(_.message).mkString("\n"))
-    val assumptions = result.destruct._1.statement.left
+    val assumptions = result.thm.statement.left
     assert(assumptions.exists(isSame(_, nonEmpty(typeA))))
     assert(assumptions.exists(isSame(_, nonEmpty(typeB))))
     assert(!assumptions.exists(isSame(_, nonEmpty(typeA) /\ nonEmpty(typeB))))

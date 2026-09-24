@@ -314,7 +314,7 @@ object ProofHelpers:
      */
     infix def of(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(insts: SubstPair*): Thm =
       val conclusion = thm.frontStatement.substitute(insts*)
-      BasicStep.InstSchema(using file, line)(using library)(insts*)(thm)(conclusion).destruct._1
+      BasicStep.InstSchema(using file, line)(using library)(insts*)(thm)(conclusion).thm
 
   extension (thm: Thm)
     /**
@@ -322,7 +322,7 @@ object ProofHelpers:
      */
     infix def of(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(insts: SubstPair*): Thm =
       val conclusion = thm.statement.substitute(insts*)
-      BasicStep.InstSchema(using file, line)(using library)(insts*)(thm.kernel)(conclusion).destruct._1
+      BasicStep.InstSchema(using file, line)(using library)(insts*)(thm.kernel)(conclusion).thm
 
   extension (theorem: Theorem)
     /**

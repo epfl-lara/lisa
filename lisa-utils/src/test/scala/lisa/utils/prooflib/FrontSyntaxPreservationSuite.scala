@@ -28,7 +28,7 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
 
   private def assertValid(judgement: ProofJudgement): Thm =
     assert(judgement.isValid, judgement.errors.map(_.message).mkString("\n"))
-    judgement.destruct._1
+    judgement.thm
 
   test("front expressions use their kernel identity for equality and hashing"):
     val x = Variable[Ind](K.Identifier("identity-x"))
@@ -62,8 +62,8 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
     val tagged = TaggedConstant[Ind](K.Identifier("inferred-basic-tag"))
     val pivot = tagged === tagged
     val result = tagged === variable[Ind]
-    val first = BasicStep.Sorry(() |- pivot).destruct._1
-    val second = BasicStep.Sorry(pivot |- result).destruct._1
+    val first = BasicStep.Sorry(() |- pivot).thm
+    val second = BasicStep.Sorry(pivot |- result).thm
 
     val theorem = assertValid(BasicStep.Cut(first, second)(() |- result))
 
@@ -124,7 +124,7 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
     val predicate = TaggedConstant[Ind >>: Prop](K.Identifier("instance-predicate"))
     val variable = TaggedVariable(K.Identifier("instance-variable"))
     val argument = TaggedConstant[Ind](K.Identifier("instance-argument"))
-    val schema = BasicStep.Sorry(() |- predicate(variable)).destruct._1
+    val schema = BasicStep.Sorry(() |- predicate(variable)).thm
 
     val instance = schema.of(variable := argument)
 

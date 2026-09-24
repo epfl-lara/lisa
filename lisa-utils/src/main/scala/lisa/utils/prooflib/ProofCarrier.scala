@@ -51,6 +51,18 @@ trait ProofCarrier[+T]:
    */
   def judgement: ProofJudgement
 
+  /** Extract the front theorem, using Sorry when a soft carrier has no justification.
+   *
+   * @throws FatalCarrierDestructionException if this carrier holds a fatal error.
+   */
+  inline def thm(using file: sourcecode.File, line: sourcecode.Line): Thm = destruct._1
+
+  /** Extract the kernel theorem, using Sorry when a soft carrier has no justification.
+   *
+   * @throws FatalCarrierDestructionException if this carrier holds a fatal error.
+   */
+  final def kernel(using file: sourcecode.File, line: sourcecode.Line): K.Thm = thm.kernel
+
   /**
    * The carrier's theorem and payload, using a sorry theorem when no
    * justification was produced. 

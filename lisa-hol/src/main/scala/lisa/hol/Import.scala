@@ -586,7 +586,7 @@ object Import extends lisa.HOL:
         val predicateTyping = Subproof:
           val inferred = have(HOLSteps.Clean.all(HOLProofType(p)))
           have(localNonEmpty |- p :: (representationType ->: 𝔹)) by Weakening(inferred)
-        .destruct._1
+        .thm
 
         val existsPThm = Subproof:
           val witnessVariable = mkTypedVar("w", representationType)
@@ -599,7 +599,7 @@ object Import extends lisa.HOL:
           have(existsP) by Tautology.from(lastStep, correctness)
           val discharged = have(Discharge(predicateTyping)(lastStep))
           have(localNonEmpty |- existsP) by Weakening(discharged)
-        .destruct._1
+        .thm
 
         // Define the new carrier as the subset selected by the predicate.
         val typeBody = TypeDefs.B.substitute(substitutions*).asInstanceOf[Expr[Ind]]
@@ -616,7 +616,7 @@ object Import extends lisa.HOL:
           val rewritten = have(withWitness.statement.left |- ∃(TypeDefs.z, TypeDefs.z ∈ rawDefinedType)) by Substitute(rawType.definition)(withWitness)
           val discharged = have(Discharge(predicateTyping)(rewritten))
           have(localNonEmpty |- ∃(TypeDefs.z, TypeDefs.z ∈ rawDefinedType)) by Weakening(discharged)
-        .destruct._1
+        .thm
 
         val theType = HOLPolymorphicType(rawType.id, typeArgs, typeNonEmpty)(using unsafeSortEvidence(rawType.sort)).asInstanceOf[HOLConstantType]
         val definedType = (theType #@@ typeArgs).asInstanceOf[Expr[Ind]]
@@ -632,14 +632,14 @@ object Import extends lisa.HOL:
           val rewritten = have(local.statement.left |- absBody :: (representationType ->: definedType)) by Substitute(rawType.definition)(local)
           val discharged = have(Discharge(predicateTyping)(rewritten))
           have(localNonEmpty |- absBody :: (representationType ->: definedType)) by Weakening(discharged)
-        .destruct._1
+        .thm
 
         val repTyping = Subproof:
           val generic = have(HOLSteps.Clean.all(TypeDefs.repTyping.of(substitutions*)))
           val rewritten = have(generic.statement.left |- repBody :: (definedType ->: representationType)) by Substitute(rawType.definition)(generic)
           val discharged = have(Discharge(predicateTyping)(rewritten))
           have(localNonEmpty |- repBody :: (definedType ->: representationType)) by Weakening(discharged)
-        .destruct._1
+        .thm
 
         // Define and register both functions from their already-proved typings.
         val absConstant = defineHOLConstant(abs.name, representationType ->: definedType, typeArgs, absBody, Some(absTyping))
@@ -660,7 +660,7 @@ object Import extends lisa.HOL:
           val cleaned = have(HOLSteps.Clean.all(lastStep))
           val discharged = have(Discharge(predicateTyping)(cleaned))
           have(localNonEmpty |- absStatement) by Weakening(discharged)
-        .destruct._1
+        .thm
 
         val repThm = Subproof:
           val generic = have(HOLSteps.Clean.all(TypeDefs.repThm.of((substitutions :+ (TypeDefs.x := repVariable))*)))
@@ -670,7 +670,7 @@ object Import extends lisa.HOL:
           val cleaned = have(HOLSteps.Clean.all(lastStep))
           val discharged = have(Discharge(predicateTyping)(cleaned))
           have(localNonEmpty |- repStatement) by Weakening(discharged)
-        .destruct._1
+        .thm
 
         // Publish the type only after its complete defining pair has been checked.
         Constants.registerType(aty.name, theType, typeArgs, typeNonEmpty, Constants.TypeDefKind.Both(absThm, repThm))

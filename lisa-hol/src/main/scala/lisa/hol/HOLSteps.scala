@@ -523,7 +523,7 @@ object HOLSteps extends lisa._HOL {
           case fatal: lisa.utils.prooflib.FatalCarrier => fatal.errors.map(_.message) + fatal.fatalError.message
           case _ => carrier.errors.map(_.message)
         throw LisaHOLException(messages.mkString("; "))
-      carrier.destruct._1
+      carrier.thm
 
     def apply2(using proof: Proof)(t: Expr[Ind]): Thm =
       val cacheKey = code(t)
