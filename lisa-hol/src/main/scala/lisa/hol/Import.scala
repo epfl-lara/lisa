@@ -390,8 +390,13 @@ object Import extends lisa.HOL:
 
     private def reconstruct(index: Long, step: h.ProofStep): ProofJudgement =
       // Keep local assumptions and errors within this step. Cached errors travel with its judgement.
-      Subproof:
-        reconstructStep(using extractor, summon[Proof], this)(index, step)
+      try
+        Subproof:
+          reconstructStep(using extractor, summon[Proof], this)(index, step)
+      catch
+        case error: FatalCarrierDestructionException =>
+          val errors = (error.carrier.errors + error.carrier.fatalError).toSeq.map(e => s"${e.file}:${e.line}: ${e.message}")
+          throw FailedStepException(index, step.getClass.getSimpleName, errors).initCause(error)
 
     private def defineThrough(index: Long): Unit =
       if index > definitionsThrough then
