@@ -171,7 +171,7 @@ private[fol] trait Syntax {
       case BoundedTrees, IdsOnly, BoundedTreesAndIds
 
     private val compositeMode =
-      sys.props.get("lisa.hashcons.mode").fold(CompositeMode.BoundedTrees) {
+      sys.props.get("lisa.hashcons.mode").fold(CompositeMode.BoundedTreesAndIds) {
         case "bounded" => CompositeMode.BoundedTrees
         case "ids" => CompositeMode.IdsOnly
         case "hybrid" => CompositeMode.BoundedTreesAndIds
@@ -183,6 +183,9 @@ private[fol] trait Syntax {
       !sys.props.get("lisa.hashcons").contains("0") &&
       !sys.env.get("LISA_HASHCONS").contains("false") &&
       !sys.env.get("LISA_HASHCONS").contains("0")
+
+    val usesCanonicalIds: Boolean =
+      enabled && compositeMode != CompositeMode.BoundedTrees
 
     private case class VariableKey(id: Identifier, sort: Sort)
     private case class ConstantKey(id: Identifier, sort: Sort)
@@ -300,6 +303,12 @@ private[fol] trait Syntax {
    */
   sealed trait Expression(val uniqueNumber: Long) {
 
+    // Canonical IDs make hashing constant-time. Equality still checks structure
+    // when IDs differ, so explicit comparisons do not depend on canonicalization.
+    protected final def expressionHashCode: Int =
+      if ExpressionCache.usesCanonicalIds then java.lang.Long.hashCode(uniqueNumber)
+      else scala.util.hashing.MurmurHash3.productHash(this.asInstanceOf[Product])
+
     /**
      * Cached normal form of the expression by [[OLEquivalenceChecker]].
      */
@@ -378,6 +387,12 @@ private[fol] trait Syntax {
    * Free variables in theorems can be instantiated by valules of the same sort.
    */
   case class Variable private[fol] (id: Identifier, sort: Sort) extends Expression(ExpressionCounters.getNewId) {
+    override def equals(other: Any): Boolean = other match
+      case that: Variable =>
+        (this eq that) || uniqueNumber == that.uniqueNumber || (id == that.id && sort == that.sort)
+      case _ => false
+    override def hashCode(): Int = expressionHashCode
+
     val containsFormulas = sort == Prop
     val freeVariables: Set[Variable] = Set(this)
     val constants: Set[Constant] = Set.empty
@@ -394,6 +409,12 @@ private[fol] trait Syntax {
    * Constants generalize function and predicate symbols of any arity in strict first-order logic.
    */
   case class Constant private[fol] (id: Identifier, sort: Sort) extends Expression(ExpressionCounters.getNewId) {
+    override def equals(other: Any): Boolean = other match
+      case that: Constant =>
+        (this eq that) || uniqueNumber == that.uniqueNumber || (id == that.id && sort == that.sort)
+      case _ => false
+    override def hashCode(): Int = expressionHashCode
+
     val containsFormulas = sort == Prop
     val freeVariables: Set[Variable] = Set.empty
     val constants: Set[Constant] = Set(this)
@@ -409,6 +430,12 @@ private[fol] trait Syntax {
    * `f.sort` must be of the form `arg.sort -> _`.
    */
   case class Application private[fol] (f: Expression, arg: Expression)(assignedId: Long) extends Expression(assignedId) {
+    override def equals(other: Any): Boolean = other match
+      case that: Application =>
+        (this eq that) || uniqueNumber == that.uniqueNumber || (f == that.f && arg == that.arg)
+      case _ => false
+    override def hashCode(): Int = expressionHashCode
+
     val sort = f.sort match
       case Arrow(from, to) if from == arg.sort => to
       case _ => throw new IllegalArgumentException(s"Application of $f to $arg is not legal")
@@ -432,6 +459,12 @@ private[fol] trait Syntax {
    * corresponds to the formula in strict first-order logic ∀x.P(x).
    */
   case class Lambda private[fol] (v: Variable, body: Expression)(assignedId: Long) extends Expression(assignedId) {
+    override def equals(other: Any): Boolean = other match
+      case that: Lambda =>
+        (this eq that) || uniqueNumber == that.uniqueNumber || (v == that.v && body == that.body)
+      case _ => false
+    override def hashCode(): Int = expressionHashCode
+
     val containsFormulas = body.containsFormulas
     val sort = (v.sort -> body.sort)
 
