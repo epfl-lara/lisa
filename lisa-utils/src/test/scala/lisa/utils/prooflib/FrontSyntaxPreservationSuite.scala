@@ -30,6 +30,26 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
     assert(judgement.isValid, judgement.errors.map(_.message).mkString("\n"))
     judgement.destruct._1
 
+  test("front expressions use their kernel identity for equality and hashing"):
+    val x = Variable[Ind](K.Identifier("identity-x"))
+    val x2 = Variable[Ind](K.Identifier("identity-x"))
+    val p = Constant[Ind >>: Prop](K.Identifier("identity-P"))
+    val p2 = Constant[Ind >>: Prop](K.Identifier("identity-P"))
+    val px = p(x)
+    val px2 = p2(x2)
+    val abstraction = Abs(x, px)
+    val abstraction2 = Abs(x2, px2)
+    val tagged = TaggedConstant[Ind](K.Identifier("identity-tagged"))
+    val plain = Constant[Ind](K.Identifier("identity-tagged"))
+
+    Seq((x, x2), (p, p2), (px, px2), (abstraction, abstraction2)).foreach: (first, second) =>
+      assert(first == second)
+      assert(first.hashCode == second.hashCode)
+      assert(Set(first).contains(second))
+    assert(tagged == plain)
+    assert(plain == tagged)
+    assert(tagged.hashCode == plain.hashCode)
+
   test("a basic step retains front subclasses"):
     val tagged = TaggedConstant[Ind](K.Identifier("basic-tag"))
     val formula = tagged === tagged

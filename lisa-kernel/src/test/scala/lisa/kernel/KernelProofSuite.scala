@@ -6,6 +6,11 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class KernelProofSuite extends AnyFunSuite:
 
+  private val hashconsMode = sys.props.getOrElse("lisa.hashcons.mode", "hybrid")
+  private val hashconsEnabled =
+    !sys.props.get("lisa.hashcons").exists(value => value == "false" || value == "0") &&
+      !sys.env.get("LISA_HASHCONS").exists(value => value == "false" || value == "0")
+
   private def theoryWith(constants: Constant*): Theory =
     val theory = Theory.empty
     constants.foreach(theory.addSymbol)
@@ -24,9 +29,9 @@ class KernelProofSuite extends AnyFunSuite:
     val l = Lambda(x, px)
     val l2 = Lambda(x2, px2)
 
-    assert(x eq x2)
-    assert(p eq p2)
-    if sys.props.get("lisa.hashcons.mode").contains("ids") then
+    assert((x eq x2) == hashconsEnabled)
+    assert((p eq p2) == hashconsEnabled)
+    if !hashconsEnabled || hashconsMode == "ids" then
       assert(!(px eq px2))
       assert(!(l eq l2))
     else
@@ -35,8 +40,8 @@ class KernelProofSuite extends AnyFunSuite:
     assert(!(x eq y))
     assert(!(pAa eq pBB))
     assert(pAa != pBB)
-    assert(px.uniqueNumber == px2.uniqueNumber)
-    assert(l.uniqueNumber == l2.uniqueNumber)
+    assert((px.uniqueNumber == px2.uniqueNumber) == hashconsEnabled)
+    assert((l.uniqueNumber == l2.uniqueNumber) == hashconsEnabled)
     assert(isSame(Lambda(x, p(x))(y), p(y)))
 
   test("composite identities survive tree-cache eviction only with canonical IDs"):
@@ -50,7 +55,7 @@ class KernelProofSuite extends AnyFunSuite:
         f(Variable(Identifier("eviction-filler", index), Ind))
 
       // First rollover retains the completed generation.
-      val cachesTrees = !sys.props.get("lisa.hashcons.mode").contains("ids")
+      val cachesTrees = hashconsEnabled && hashconsMode != "ids"
       val usesTwoGenerations = !sys.props.get("lisa.hashcons.generations").contains("1")
       assert((f(x) eq before) == (cachesTrees && usesTwoGenerations))
 
@@ -58,10 +63,13 @@ class KernelProofSuite extends AnyFunSuite:
         f(Variable(Identifier("eviction-filler", index), Ind))
 
       val after = f(x)
-      val keepsIds = sys.props.get("lisa.hashcons.mode").exists(mode => mode == "ids" || mode == "hybrid")
+      val keepsIds = hashconsEnabled && (hashconsMode == "ids" || hashconsMode == "hybrid")
 
       assert(!(before eq after))
       assert((before.uniqueNumber == after.uniqueNumber) == keepsIds)
+      assert(before == after)
+      assert(before.hashCode == after.hashCode)
+      assert(Set(before).contains(after))
 
   test("substitution freshens binders past variables already in their bodies"):
     val bound = Variable(Identifier("x", 4), Ind)

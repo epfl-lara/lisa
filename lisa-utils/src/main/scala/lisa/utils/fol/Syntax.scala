@@ -172,6 +172,13 @@ trait Syntax {
    */
   sealed trait Expr[S] extends LisaObject {
 
+    protected final def underlyingEquals(other: Any): Boolean = other match
+      case that: Expr[?] =>
+        (this eq that) || underlying.uniqueNumber == that.underlying.uniqueNumber || underlying == that.underlying
+      case _ => false
+
+    protected final def underlyingHashCode: Int = underlying.hashCode
+
     /**
      * The sort of the expression
      */
@@ -338,6 +345,9 @@ trait Syntax {
    */
   case class Variable[S: Sort as sortEv](id: K.Identifier) extends Expr[S] {
 
+    override def equals(other: Any): Boolean = underlyingEquals(other)
+    override def hashCode(): Int = underlyingHashCode
+
     /**
      * The runtime sort of the variable
      */
@@ -398,6 +408,9 @@ trait Syntax {
    * Constants are leaf [[Expr]]essions that cannot be bound or instantiated. They are usually user-defined, or fixed by a theory.
    */
   case class Constant[S: Sort as sortEv](id: K.Identifier) extends Expr[S] {
+    override def equals(other: Any): Boolean = underlyingEquals(other)
+    override def hashCode(): Int = underlyingHashCode
+
     val sort: K.Sort = sortEv.underlying
     private var infix: Boolean = false
     var customPrinter: Option[Seq[Expr[?]] => String] = None
@@ -523,6 +536,9 @@ trait Syntax {
    * The sorts must match: `f.sort` must be of the form `A >>: B` and `arg.sort` must be `A`.
    */
   case class App[S, T](f: Expr[Arrow[S, T]], arg: Expr[S]) extends Expr[T] {
+    override def equals(other: Any): Boolean = underlyingEquals(other)
+    override def hashCode(): Int = underlyingHashCode
+
     val sort: K.Sort = f.sort match
       case K.Arrow(from, to) if from == arg.sort => to
       case _ => throw new IllegalArgumentException("Sort mismatch. f: " + f.sort + ", arg: " + arg.sort)
@@ -565,6 +581,9 @@ trait Syntax {
    * The sort of the variable must match the sort of the body.
    */
   case class Abs[S, T](v: Variable[S], body: Expr[T]) extends Expr[Arrow[S, T]] {
+    override def equals(other: Any): Boolean = underlyingEquals(other)
+    override def hashCode(): Int = underlyingHashCode
+
     val sort: K.Sort = K.Arrow(v.sort, body.sort)
     val underlying: K.Lambda = K.Lambda(v.underlying, body.underlying)
     def substituteUnsafe(m: Map[Variable[?], Expr[?]]): Abs[S, T] =
