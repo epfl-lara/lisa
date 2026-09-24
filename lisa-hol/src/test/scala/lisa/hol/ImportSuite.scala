@@ -8,6 +8,18 @@ class ImportSuite extends AnyFunSuite:
   private val q = "v(store_q)(c[bool][])"
   private val equality = s"C(C(c(=)(c[fun][[c[bool][]][c[fun][[c[bool][]][c[bool][]]]]]))($p))($p)"
 
+  test("fatal step errors report the trace ID and preserve their cause"):
+    val wrongType = "v(store_f)(c[fun][[c[bool][]][c[bool][]]])"
+    val proofs = Iterator(ProofLine(0, REFL(p)), ProofLine(1, INST(0, List(InstPair(p, wrongType)))))
+    val statements = (0L to 1L).iterator.map(id => TheoremStatement(id, RawSequent(Nil, equality)))
+    given context: ExtractorContext = new ExtractorContext(proofs, statements)
+    try
+      val error = intercept[Import.FailedStepException](new Import.StepStore().apply(1))
+      assert(error.index == 1 && error.step == "INST")
+      assert(error.getMessage.contains("Type mismatch in instantiation"))
+      assert(error.getCause.isInstanceOf[lisa.utils.prooflib.FatalCarrierDestructionException])
+    finally context.close()
+
   private def withStore[A](lastConclusion: String = p)(run: Import.StepStore => A): A =
     val proofs = Iterator(
       ProofLine(0, REFL(p)),

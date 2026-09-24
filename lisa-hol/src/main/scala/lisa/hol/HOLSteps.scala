@@ -456,11 +456,12 @@ object HOLSteps extends lisa._HOL {
     def apply(using proof: Proof)(inst: Seq[(Variable[Ind], Expr[Ind])], prem: Thm): ProofJudgement = Subproof { ip ?=>
       val k = prem.of(inst.map(_ := _)*)
       val fv = prem.statement.freeVars
-      val violating = inst.collectFirst {
-        case (v: TypedVariable, t) if fv.contains(v) && (v.asInstanceOf[TypedVariable].typ != computeType(t)) => (v, t)
-      }
+      // Instantiation can rename the unused binders in function types.
+      val violating = inst.iterator.collect {
+        case (v: TypedVariable, t) if fv.contains(v) => (v, t, computeType(t))
+      }.find { case (v, _, typ) => v.typ != typ && !isSame(v.typ, typ) }
       violating match
-        case Some((v, t)) => failWith(s"Type mismatch in instantiation: ${v} has type ${v.typ} but term ${t} has type ${computeType(t)}")
+        case Some((v, t, typ)) => failWith(s"Type mismatch in instantiation: ${v} has type ${v.typ} but term ${t} has type $typ")
         case None => ()
       val instWithProofs = inst.flatMap: (v, t) =>
         t match

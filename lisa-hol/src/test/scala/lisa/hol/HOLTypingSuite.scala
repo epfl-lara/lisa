@@ -35,3 +35,35 @@ class HOLTypingSuite extends AnyFunSuite:
 
       val theorem = checked(result)
       assert(isSameSequent(theorem.statement, Set(function :: (𝔹 ->: 𝔹), argument :: 𝔹) |- ((function * term =:= function * term) === One)))
+
+  test("term instantiation accepts alpha-equivalent function types"):
+    val bound = variable[Ind](K.Identifier("hol-inst-type-binder"))
+    val renamedType = Pi(𝔹)(λ(bound, 𝔹))
+    val replacement = TypedVariable(K.Identifier("hol-inst-replacement"), renamedType)
+    assert(function.typ != replacement.typ)
+    assert(isSame(function.typ, replacement.typ))
+
+    val result = Proof.withContext:
+      val premise = checked(ExtendedHOLSteps._REFL(function))
+      HOLSteps._INST(Seq(function -> replacement), premise)
+    val theorem = checked(result)
+    assert(isSameSequent(theorem.statement, replacement :: renamedType |- ((replacement =:= replacement) === One)))
+
+  test("term instantiation rejects genuinely different types"):
+    val result = Proof.withContext:
+      val premise = checked(ExtendedHOLSteps._REFL(function))
+      HOLSteps._INST(Seq(function -> argument), premise)
+    assert(!result.isValid)
+
+  test("equivalent types still discharge a composite replacement's typing"):
+    val bound = variable[Ind](K.Identifier("hol-inst-composite-binder"))
+    val renamedType = Pi(𝔹)(λ(bound, 𝔹))
+    val source = TypedVariable(K.Identifier("hol-inst-composite-source"), renamedType)
+    val replacement = HOLAbstraction(argument, argument)
+    assert(source.typ != computeType(replacement))
+    assert(isSame(source.typ, computeType(replacement)))
+    val result = Proof.withContext:
+      val premise = checked(ExtendedHOLSteps._REFL(source))
+      HOLSteps._INST(Seq(source -> replacement), premise)
+    val theorem = checked(result)
+    assert(isSameSequent(theorem.statement, () |- ((replacement =:= replacement) === One)))
