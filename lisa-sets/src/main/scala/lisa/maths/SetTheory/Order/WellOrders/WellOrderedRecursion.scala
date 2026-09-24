@@ -738,10 +738,13 @@ object WellOrderedRecursion extends lisa.Main {
           ∃(z ∈ initialSegment(x)(A)(<), g === G_(z))
         ) |- ∀(x ∈ (dom(f) ∩ dom(g)), f(x) === g(x))
       ) by LeftExists
-      thenHave((f ∈ S, g ∈ S) |- ∀(x ∈ (dom(f) ∩ dom(g)), f(x) === g(x))) by Substitute(
-        `f ∈ S`,
-        `f ∈ S` of (f := g)
-      )
+      val coherent = lastStep
+      val memberF = have(f ∈ S |- ∃(y ∈ initialSegment(x)(A)(<), f === G_(y))) by Weakening(`f ∈ S`)
+      val memberG = have(g ∈ S |- ∃(z ∈ initialSegment(x)(A)(<), g === G_(z))) by Weakening(`f ∈ S` of (f := g))
+      have((f ∈ S, ∃(z ∈ initialSegment(x)(A)(<), g === G_(z))) |- ∀(x ∈ (dom(f) ∩ dom(g)), f(x) === g(x))) by
+        Cut.withParameters(∃(y ∈ initialSegment(x)(A)(<), f === G_(y)))(memberF, coherent)
+      have((f ∈ S, g ∈ S) |- ∀(x ∈ (dom(f) ∩ dom(g)), f(x) === g(x))) by
+        Cut.withParameters(∃(z ∈ initialSegment(x)(A)(<), g === G_(z)))(memberG, lastStep)
       thenHave(f ∈ S |- (g ∈ S) ==> ∀(x ∈ (dom(f) ∩ dom(g)), f(x) === g(x))) by Restate
       thenHave(f ∈ S |- ∀(g ∈ S, ∀(x ∈ (dom(f) ∩ dom(g)), f(x) === g(x)))) by RightForall
       thenHave(f ∈ S ==> ∀(g ∈ S, ∀(x ∈ (dom(f) ∩ dom(g)), f(x) === g(x)))) by Restate

@@ -78,15 +78,13 @@ object Closure extends lisa.Main {
         have(thesis) by Congruence.from(rcIsReflex, reflexiveClosure.definition of (R := R, X := X))
       }
       val minimal = have(∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> ((R ∪ Δ(X)) ⊆ Q_))) subproof {
-        assume(reflexive(Q_)(X))
-        assume(R ⊆ Q_)
-        val deltaSubQ = have(Δ(X) ⊆ Q_) by Tautology.from(
-          IdentityRelation.subset of (R := Q_)
-        )
-        have(thesis) by Tautology.from(
+        val deltaSubQ = have(reflexive(Q_)(X) |- Δ(X) ⊆ Q_) by Weakening(IdentityRelation.subset of (R := Q_))
+        have((reflexive(Q_)(X), R ⊆ Q_) |- (R ∪ Δ(X)) ⊆ Q_) by Horn.from(
           deltaSubQ,
           Union.leftUnionSubset of (x := R, y := Δ(X), z := Q_)
         )
+        thenHave(reflexive(Q_)(X) /\ (R ⊆ Q_) ==> ((R ∪ Δ(X)) ⊆ Q_)) by Restate
+        thenHave(thesis) by RightForall
       }
       have(thesis) by Tautology.from(rSubset, reflex, minimal)
     }
@@ -103,13 +101,13 @@ object Closure extends lisa.Main {
       val qSubS = have(Q ⊆ S) subproof {
         have(∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (Q ⊆ Q_))) by Tautology
         thenHave(reflexive(S)(X) /\ (R ⊆ S) ==> (Q ⊆ S)) by InstantiateForall(S)
-        have(thesis) by Tautology
+        thenHave(thesis) by Weakening
       }
       // S ⊆ Q from S's minimality applied to Q
       val sSubQ = have(S ⊆ Q) subproof {
         have(∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (S ⊆ Q_))) by Tautology
         thenHave(reflexive(Q)(X) /\ (R ⊆ Q) ==> (S ⊆ Q)) by InstantiateForall(Q)
-        have(thesis) by Tautology
+        thenHave(thesis) by Weakening
       }
       have(thesis) by Tautology.from(qSubS, sSubQ, Subset.doubleInclusion of (x := Q, y := S))
     }
@@ -124,7 +122,11 @@ object Closure extends lisa.Main {
       val allUnique = have(
         ∀(Q, ∀(S, (R ⊆ Q /\ reflexive(Q)(X) /\ ∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (Q ⊆ Q_))) /\ (R ⊆ S /\ reflexive(S)(X) /\ ∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (S ⊆ Q_))) ==> (Q === S)))
       ) subproof {
-        have(thesis) by Generalize(unique)
+        have(
+          (R ⊆ Q /\ reflexive(Q)(X) /\ ∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (Q ⊆ Q_))) /\
+            (R ⊆ S /\ reflexive(S)(X) /\ ∀(Q_, reflexive(Q_)(X) /\ (R ⊆ Q_) ==> (S ⊆ Q_))) ==> (Q === S)
+        ) by Restate.from(unique)
+        thenHave(thesis) by Generalize
       }
       have(thesis) by Tautology.from(
         exWitness,
@@ -147,11 +149,10 @@ object Closure extends lisa.Main {
 
     // Step 5: rewrite using definitions
     // reflexiveClosure(R)(X) = R ∪ Δ(X) and closure(R)(λ(R, reflexive(R)(X))) = ε(Q, ...)
-    have(thesis) by Congruence.from(
-      epsilonEq,
+    have(thesis) by Substitute(
       reflexiveClosure.definition of (R := R, X := X),
       closure.definition of (R := R, P := λ(R, reflexive(R)(X)))
-    )
+    )(epsilonEq)
   }
 
   /**

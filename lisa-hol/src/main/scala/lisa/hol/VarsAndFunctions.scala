@@ -83,7 +83,9 @@ object VarsAndFunctions /*extends lisa.Main*/:
       val nonEmpties = typ.args.map(nonEmpty).toSet
       val otyp = typ.outTyp
       Subproof {
-        val typeJustif = have(nonEmpties |- (left :: otyp)) by InstantiateForall(typ.args*)(justif)
+        val typeJustif =
+          if typ.args.isEmpty then justif
+          else have(nonEmpties |- (left :: otyp)) by InstantiateForall(typ.args*)(justif)
         val s1 = have((left :: otyp) |- holeq(otyp) * left * left) by Restate.from(eqRefl of (A := otyp, x := left, y := left))
         val s2 = have(nonEmpties |- holeq(otyp) * left * left) by Cut(typeJustif, s1)
         val s3 = have((nonEmpties, left === right) |- holeq(otyp) * left * right) by RightSubstEq.withParameters(Seq((left, right)), (Seq(x), holeq(otyp) * left * x))(s2)
