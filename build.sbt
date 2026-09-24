@@ -116,7 +116,8 @@ lazy val holImport = Project(
   .settings(
     commonSettings3 ++ Seq(
       libraryDependencies += "com.lihaoyi" %% "upickle" % "4.4.3",
-      libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "2.4.0"
+      libraryDependencies += "com.lihaoyi" %% "fastparse" % "3.1.1",
+      libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "2.4.0" % Test
     )
   )
   .dependsOn(sets, utils)
