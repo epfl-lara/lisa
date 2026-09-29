@@ -189,7 +189,7 @@ case object Definition extends Step:
   case class DefinitionSortMismatch(expected: Sort, actual: Sort, exp: Expression) extends DefinitionError
 
   def apply(using theory: Theory)(cst: Constant, vars: Seq[Variable], exp: Expression): Result[Thm] = 
-    if theory.defines(cst) then
+    if theory.getSymbol(cst.id).nonEmpty then
       Left(AlreadyDefined(cst))
     else if !theory.contains(exp) then
       Left(ExpressionNotInTheory(exp))
