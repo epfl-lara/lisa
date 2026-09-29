@@ -544,7 +544,11 @@ trait Syntax {
       case _ => throw new IllegalArgumentException("Sort mismatch. f: " + f.sort + ", arg: " + arg.sort)
 
     val underlying: K.Application = K.Application(f.underlying, arg.underlying)
-    def substituteUnsafe(m: Map[Variable[?], Expr[?]]): App[S, T] = App[S, T](f.substituteUnsafe(m), arg.substituteUnsafe(m))
+    def substituteUnsafe(m: Map[Variable[?], Expr[?]]): App[S, T] =
+      val newF = f.substituteUnsafe(m)
+      val newArg = arg.substituteUnsafe(m)
+      // check if we can keep the old tree
+      if (newF eq f) && (newArg eq arg) then this else App[S, T](newF, newArg)
     override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): App[S, T] =
       super.substituteWithCheck(m).asInstanceOf[App[S, T]]
     override def substitute(pairs: SubstPair*): App[S, T] =
@@ -587,12 +591,14 @@ trait Syntax {
     val sort: K.Sort = K.Arrow(v.sort, body.sort)
     val underlying: K.Lambda = K.Lambda(v.underlying, body.underlying)
     def substituteUnsafe(m: Map[Variable[?], Expr[?]]): Abs[S, T] =
-      lazy val frees = m.values.flatMap(_.freeVars).toSet
-      if m.keySet.contains(v) || frees.contains(v) then
+      if m.contains(v) || m.valuesIterator.exists(_.underlying.freeVariables.contains(v.underlying)) then
         // rename
+        val frees = m.values.flatMap(_.freeVars)
         val v1 = v.freshRename(frees ++ body.freeVars ++ m.keySet)
-        new Abs(v1, body.substituteUnsafe(Map(v -> v1))).substituteUnsafe(m)
-      else new Abs(v, body.substituteUnsafe(m))
+        Abs(v1, body.substituteUnsafe(Map(v -> v1))).substituteUnsafe(m)
+      else
+        val newBody = body.substituteUnsafe(m)
+        if newBody eq body then this else Abs(v, newBody)
     override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): Abs[S, T] =
       super.substituteWithCheck(m).asInstanceOf[Abs[S, T]]
     override def substitute(pairs: SubstPair*): Abs[S, T] =
