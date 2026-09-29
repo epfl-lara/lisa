@@ -30,6 +30,12 @@ trait Sequents extends Predef {
     def freeTermVars: Set[Variable[Ind]] = left.flatMap(_.freeTermVars) ++ right.flatMap(_.freeTermVars)
     def constants: Set[Constant[?]] = left.flatMap(_.constants) ++ right.flatMap(_.constants)
 
+    /** Test whether a variable occurs free on either side using cached kernel free-variable sets. */
+    def hasFree[S: Sort](v: Variable[S]): Boolean =
+      val target = v.underlying
+      right.exists(_.underlying.freeVariables.contains(target)) ||
+        left.exists(_.underlying.freeVariables.contains(target))
+
     /**
      * Add a formula to the left side of the sequent.
      */
