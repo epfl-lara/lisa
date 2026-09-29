@@ -402,7 +402,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
           case s: SimpleBoundVariable => throw new Exception("This case should be unreachable. Can't call toLocallyNameless on a bound variable")
           case e: SimpleConstant => e
           case SimpleApplication(arg1, arg2, polarity) => SimpleApplication(toLocallyNameless(arg1), toLocallyNameless(arg2), polarity)
-          case SimpleLambda(x, inner) => SimpleLambda(x, toLocallyNameless2(inner, Map((x.id, Ind) -> 0), 1))
+          case SimpleLambda(x, inner) => SimpleLambda(x, toLocallyNameless2(inner, Map((x.id, x.sort) -> 0), 1))
         }
         e.namelessForm = Some(r)
         r
