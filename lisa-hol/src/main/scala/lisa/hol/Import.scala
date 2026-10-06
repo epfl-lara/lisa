@@ -635,7 +635,9 @@ object Import extends lisa.HOL:
           have((witness.statement.left ++ correctness.statement.left) |- existsP) by
             Cut.withParameters(∃(witnessVariable, witnessBody))(witness, implication)
           val discharged = have(Discharge(predicateTyping)(lastStep))
-          have(localNonEmpty |- existsP) by Weakening(discharged)
+          // Remove the witness's now-unused typing assumptions.
+          val cleaned = have(HOLSteps.Clean.all(discharged))
+          have(localNonEmpty |- existsP) by Weakening(cleaned)
 
         // Define the new carrier as the subset selected by the predicate.
         val typeBody = TypeDefs.B.substitute(substitutions*).asInstanceOf[Expr[Ind]]
