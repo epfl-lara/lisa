@@ -98,12 +98,52 @@ class ExtractorSuite extends AnyFunSuite:
       assertThrows[NoSuchElementException](context.getProof(16))
       assert(context.getStatement(7).concl == Variable("β", BoolType))
 
-  test("reject mismatched proof and statement IDs during scanning"):
+  test("defer missing statements until requested; exhaustive validation rejects mismatched IDs"):
     val proofs = upickle.default.write(ProofLine(0, extractor.REFL("v(p)(c[bool][])")))
     val statements = upickle.default.write(TheoremStatement(1, RawSequent(Nil, "v(p)(c[bool][])")))
     withFiles(proofs, statements): context =>
-      val error = intercept[IllegalArgumentException](context.getProof(0))
+      assert(context.getProof(0) == core.REFL(Variable("p", BoolType)))
+      assert(context.statistics.statementBytes == 0)
+      assertThrows[NoSuchElementException](context.getStatement(0))
+      val error = intercept[IllegalArgumentException](context.toMap)
       assert(error.getMessage.contains("Proof step 0 is paired with theorem statement 1"))
+
+  test("alternate long UTF-8 line scans and older statement lookups with every line ending"):
+    val entries = Seq(0L -> "α😀", 7L -> ("λ" * 70000), 15L -> "終", 20L -> "last")
+    def join(lines: Seq[String]): String =
+      lines.zip(Seq("\r", "\r\n", "\n", "")).map((line, ending) => line + ending).mkString
+    val proofs = entries.map: (id, name) =>
+      upickle.default.write(ProofLine(id, extractor.REFL(s"v($name)(c[bool][])")))
+    val statements = entries.map: (id, name) =>
+      upickle.default.write(TheoremStatement(id, RawSequent(Nil, s"v($name)(c[bool][])")))
+
+    withFiles(join(proofs), join(statements)): context =>
+      for (id, name) <- entries do
+        assert(context.getProof(id) == core.REFL(Variable(name, BoolType)))
+        assert(context.getStatement(0).concl == Variable("α😀", BoolType))
+        assert(context.getStatement(id).concl == Variable(name, BoolType))
+      assertThrows[NoSuchElementException](context.getProof(21))
+      assert(context.getStatement(7).concl == Variable(entries(1)._2, BoolType))
+      assert(context.getProof(20) == core.REFL(Variable("last", BoolType)))
+
+  test("report EOF for empty trace files"):
+    withFiles("", ""): context =>
+      assertThrows[NoSuchElementException](context.getProof(0))
+      assertThrows[NoSuchElementException](context.getStatement(0))
+      assert(context.getDefinitionsBetween(-1, Long.MaxValue).isEmpty)
+
+  test("definition intervals may end beyond EOF for both context implementations"):
+    val proof = ProofLine(3, extractor.DEFINITION("v(p)(c[bool][])", "P"))
+    val statement = TheoremStatement(3, RawSequent(Nil, "v(p)(c[bool][])"))
+    def check(context: ExtractorContext): Unit =
+      assert(context.getDefinitionsBetween(-1, 100).map(_._1) == Seq(3))
+      assert(context.getDefinitionsBetween(3, 100).isEmpty)
+      assertThrows[NoSuchElementException](context.getProof(100))
+      assertThrows[IllegalArgumentException](context.getDefinitionsBetween(100, 3))
+    withFiles(upickle.default.write(proof), upickle.default.write(statement))(check)
+    val eager = new ExtractorContext(Iterator(proof), Iterator(statement))
+    try check(eager)
+    finally eager.close()
 
   test("defer parsing intermediate statements until they are requested"):
     val proofs = upickle.default.write(ProofLine(0, extractor.REFL("v(p)(c[bool][])")))
@@ -111,5 +151,86 @@ class ExtractorSuite extends AnyFunSuite:
     withFiles(proofs, statements): context =>
       assert(context.getProof(0) == core.REFL(Variable("p", BoolType)))
       assertThrows[CouldNotParseException](context.getStatement(0))
+
+  test("skim ordinary proof payloads without parsing them or reading any statements"):
+    val proofs = """{"id":0,"pr":{"step":"REFL","term": invalid JSON}}
+                   |{"id":9,"pr":{"step":"REFL","term":"v(p)(c[bool][])"}}""".stripMargin
+    withFiles(proofs, "not even a statement header"): context =>
+      assert(context.getDefinitionsBetween(-1, 9).isEmpty)
+      assert(context.statistics.proofHeaders == 2)
+      assert(context.statistics.proofRecords == 0)
+      assert(context.statistics.statementBytes == 0)
+      assert(context.getProof(9) == core.REFL(Variable("p", BoolType)))
+      assert(context.statistics.proofRecords == 1)
+      assertThrows[Exception](context.getProof(0))
+      assertThrows[IllegalArgumentException](context.getStatement(9))
+
+  test("definitions are discovered in order without parsing unused ordinary terms"):
+    val term = "v(p)(c[bool][])"
+    val lines = Seq(ProofLine(2, extractor.REFL("invalid")), ProofLine(7, extractor.DEFINITION(term, "P")),
+      ProofLine(12, extractor.TYPE_DEFINITION(7, term, "T")), ProofLine(99, extractor.REFL(term)))
+    withFiles(lines.map(upickle.default.write(_)).mkString("\n"), ""): context =>
+      assert(context.getDefinitionsBetween(-1, 8).map(_._1) == Seq(7))
+      assert(context.getDefinitionsBetween(8, 99).map(_._1) == Seq(12))
+      assert(context.getDefinitionsBetween(-1, 99).map(_._1) == Seq(7, 12))
+      assert(context.statistics.statementBytes == 0)
+      assertThrows[CouldNotParseException](context.getProof(2))
+
+  test("reject malformed definition payloads before returning a definition interval"):
+    withFiles("""{"id":0,"pr":{"step":"DEFINITION","term":"invalid","name":"P"}}""", ""): context =>
+      assertThrows[CouldNotParseException](context.getDefinitionsBetween(-1, 0))
+
+  test("reject duplicate and descending proof IDs even when their payloads are unused"):
+    for ids <- Seq(Seq(1L, 1L), Seq(2L, 1L)) do
+      val lines = ids.map(id => upickle.default.write(ProofLine(id, extractor.REFL("invalid")))).mkString("\n")
+      withFiles(lines, ""): context =>
+        assertThrows[IllegalArgumentException](context.getDefinitionsBetween(-1, 10))
+        // A failed scan must not be recoverable by advancing past the bad header.
+        assertThrows[IllegalArgumentException](context.getProof(1))
+
+  test("reject truncated, overflowing, reordered, and unknown proof headers"):
+    val lines = Seq(
+      "", "{", "{\"id\":", "{\"id\":-1,\"pr\":{\"step\":\"REFL\",",
+      "{\"id\":9223372036854775808,\"pr\":{\"step\":\"REFL\",",
+      "{\"pr\":{\"step\":\"REFL\"},\"id\":0}",
+      "{\"id\":0,\"pr\":{\"step\":\"FUTURE_RULE\",\"term\":\"x\"}}"
+    )
+    for line <- lines.tail do
+      withFiles(line, "")(context => assertThrows[IllegalArgumentException](context.getDefinitionsBetween(-1, 0)))
+
+  test("exhaustive validation detects unmatched tails and malformed unused payloads"):
+    val proof = upickle.default.write(ProofLine(0, extractor.REFL("v(p)(c[bool][])")))
+    val statement = upickle.default.write(TheoremStatement(0, RawSequent(Nil, "v(p)(c[bool][])")))
+    withFiles(proof, "")(context => assertThrows[IllegalArgumentException](context.toMap))
+    withFiles("", statement)(context => assertThrows[IllegalArgumentException](context.toMap))
+    withFiles(proof, statement + "\n" + statement)(context => assertThrows[IllegalArgumentException](context.toMap))
+    withFiles(proof.replace("v(p)(c[bool][])", "invalid"), statement)(context => assertThrows[CouldNotParseException](context.toMap))
+
+  test("seek sparse variable-length records across blocks and compare with eager extraction"):
+    val entries = (0 until 2300).map(i => (i.toLong * 13, s"v(x$i${"λ" * (i % 71)})(c[bool][])"))
+    val proofs = entries.map((id, term) => ProofLine(id, extractor.REFL(term)))
+    val statements = entries.map((id, term) => TheoremStatement(id, RawSequent(Nil, term)))
+    def lines[A: upickle.default.Writer](entries: Seq[A]): String =
+      entries.zipWithIndex.map((entry, i) => upickle.default.write(entry) + Seq("\n", "\r", "\r\n")(i % 3)).mkString
+    withFiles(lines(proofs), lines(statements)): context =>
+      val eager = new ExtractorContext(proofs.iterator, statements.iterator)
+      val expected = eager.toMap.toMap
+      val random = new scala.util.Random(42)
+      for (id, _) <- random.shuffle(entries).take(160) ++ entries.take(2) ++ entries.takeRight(2) do
+        assert(context.getTheorem(id) == expected(id))
+      assertThrows[NoSuchElementException](context.getProof(1))
+      assertThrows[NoSuchElementException](context.getStatement(Long.MaxValue))
+      assert(context.toMap.toMap == expected)
+
+  test("preserve exact IDs above double precision and at Long.MaxValue"):
+    val ids = Seq(9007199254740992L, 9007199254740993L, Long.MaxValue)
+    val proofs = ids.map(id => upickle.default.write(ProofLine(id, extractor.REFL("v(p)(c[bool][])")))).mkString("\n")
+    val statements = ids.map(id => upickle.default.write(TheoremStatement(id, RawSequent(Nil, "v(p)(c[bool][])")))).mkString("\n")
+    // Test both uPickle's quoted Long encoding and HOL's decimal encoding.
+    def decimal(text: String): String = "\"id\":\"([0-9]+)\"".r.replaceAllIn(text, "\"id\":$1")
+    for (ps, ts) <- Seq(proofs -> statements, decimal(proofs) -> decimal(statements)) do
+      withFiles(ps, ts): context =>
+        ids.reverse.foreach(id => assert(context.getTheorem(id).proof == core.REFL(Variable("p", BoolType))))
+        assertThrows[NoSuchElementException](context.getProof(ids.head - 1))
 
 end ExtractorSuite

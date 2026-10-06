@@ -5,6 +5,44 @@ import java.nio.file.Files
 import org.scalatest.funsuite.AnyFunSuite
 
 class TraceReaderSuite extends AnyFunSuite:
+  test("align arbitrary byte positions without decoding partial UTF-8 or splitting CRLF"):
+    val text = "α😀\r\nβ\r終\nlast"
+    val bytes = text.getBytes(UTF_8)
+    val starts = Seq(0L, "α😀\r\n".getBytes(UTF_8).length.toLong, "α😀\r\nβ\r".getBytes(UTF_8).length.toLong,
+      "α😀\r\nβ\r終\n".getBytes(UTF_8).length.toLong, bytes.length.toLong)
+    val path = Files.createTempFile("lisa-trace-seek", ".json")
+    try
+      Files.write(path, bytes)
+      for size <- 1 to 9 do
+        val reader = new TraceReader(path.toFile, size)
+        try
+          for position <- 0 to bytes.length do
+            reader.seekLine(position)
+            assert(reader.position == starts.find(_ >= position).get, s"buffer=$size, byte=$position")
+          reader.seek(0)
+          reader.skipLine()
+          assert(reader.readLine().contains("β"))
+          reader.skipLine()
+          assert(reader.readLine().contains("last"))
+        finally reader.close()
+    finally Files.deleteIfExists(path)
+
+  test("keep the offset cache bounded while sparse anchors cover a large scan"):
+    val path = Files.createTempFile("lisa-proof-index", ".proofs")
+    try
+      Files.writeString(path, (0 until 1000).map(i => s"""{"id":${i * 7},"pr":{"step":"REFL","term":"ignored"}}""").mkString("\n"))
+      val index = new ProofIndex(path.toFile, blockSize = 16, cachedBlocks = 2)
+      try
+        index.through(Long.MaxValue)
+        assert(index.records == 1000)
+        assert(index.anchorCount == 63)
+        for id <- Seq(0L, 3500L, 693L, 6993L) do
+          assert(index.offset(id) >= 0)
+          assert(index.cachedOffsets <= 48)
+        assertThrows[NoSuchElementException](index.offset(1))
+      finally index.close()
+    finally Files.deleteIfExists(path)
+
   test("preserve byte positions across UTF-8 characters and every line ending"):
     val lines = Seq("" -> "\n", "α😀" -> "\r\n", "longer line" -> "\r", "終" -> "\n", "last" -> "")
     val text = lines.map((line, ending) => line + ending).mkString
