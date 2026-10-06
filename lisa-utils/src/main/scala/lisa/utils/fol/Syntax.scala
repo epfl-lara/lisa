@@ -230,12 +230,16 @@ trait Syntax {
     /**
      * String representation of the expression, with potential arguments. Can be updated.
      */
-    var mkString: Seq[Expr[?]] => String = defaultMkString
+    private var customMkString: Option[Seq[Expr[?]] => String] = None
+    def mkString: Seq[Expr[?]] => String = customMkString.getOrElse(defaultMkString)
+    def mkString_=(printer: Seq[Expr[?]] => String): Unit = customMkString = Some(printer)
 
     /**
      * String representation of the expression, with potential arguments, encapsulated by parenthesis if necessary. Can be updated.
      */
-    var mkStringSeparated: Seq[Expr[?]] => String = defaultMkStringSeparated
+    private var customMkStringSeparated: Option[Seq[Expr[?]] => String] = None
+    def mkStringSeparated: Seq[Expr[?]] => String = customMkStringSeparated.getOrElse(defaultMkStringSeparated)
+    def mkStringSeparated_=(printer: Seq[Expr[?]] => String): Unit = customMkStringSeparated = Some(printer)
 
     /**
      * Construct an unsafe application. If the sorts don't match, will throw an exception.
@@ -540,7 +544,11 @@ trait Syntax {
       case _ => throw new IllegalArgumentException("Sort mismatch. f: " + f.sort + ", arg: " + arg.sort)
 
     val underlying: K.Application = K.Application(f.underlying, arg.underlying)
-    def substituteUnsafe(m: Map[Variable[?], Expr[?]]): App[S, T] = App[S, T](f.substituteUnsafe(m), arg.substituteUnsafe(m))
+    def substituteUnsafe(m: Map[Variable[?], Expr[?]]): App[S, T] =
+      val newF = f.substituteUnsafe(m)
+      val newArg = arg.substituteUnsafe(m)
+      // Preserve annotation changes even when the erased expressions are equal.
+      if (newF eq f) && (newArg eq arg) then this else App[S, T](newF, newArg)
     override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): App[S, T] =
       super.substituteWithCheck(m).asInstanceOf[App[S, T]]
     override def substitute(pairs: SubstPair*): App[S, T] =
@@ -582,12 +590,15 @@ trait Syntax {
     val sort: K.Sort = K.Arrow(v.sort, body.sort)
     val underlying: K.Lambda = K.Lambda(v.underlying, body.underlying)
     def substituteUnsafe(m: Map[Variable[?], Expr[?]]): Abs[S, T] =
-      lazy val frees = m.values.flatMap(_.freeVars).toSet
-      if m.keySet.contains(v) || frees.contains(v) then
-        // rename
-        val v1 = v.freshRename(frees ++ body.freeVars ++ m.keySet)
+      if m.contains(v) || m.valuesIterator.exists(_.underlying.freeVariables.contains(v.underlying)) then
+        // Freshness needs identifiers, not rebuilt frontend variable sets.
+        val taken = m.values.toSeq.flatMap(_.underlying.freeVariables.map(_.id)) ++
+          body.underlying.freeVariables.view.map(_.id) ++ m.keys.view.map(_.id)
+        val v1 = v.rename(K.freshId(taken, v.id))
         new Abs(v1, body.substituteUnsafe(Map(v -> v1))).substituteUnsafe(m)
-      else new Abs(v, body.substituteUnsafe(m))
+      else
+        val newBody = body.substituteUnsafe(m)
+        if newBody eq body then this else new Abs(v, newBody)
     override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): Abs[S, T] =
       super.substituteWithCheck(m).asInstanceOf[Abs[S, T]]
     override def substitute(pairs: SubstPair*): Abs[S, T] =
