@@ -632,15 +632,14 @@ object HOLSteps extends lisa._HOL {
     def apply(using proof: Proof)(inst: Seq[(Variable[Ind], Expr[Ind])], prem: proof.Fact): proof.ProofTacticJudgement = TacticSubproof { ip ?=>
       val k = prem.of(inst.map(_ := _)*)
       val h0 = have(k.statement) by Restate.from(k) // to avoid laststep failing
-      val fv = prem.statement.freeVars
-      val violating = inst.collectFirst {
-        case (v: TypedVariable, t) if fv.contains(v) && (v.asInstanceOf[TypedVariable].typ != computeType(t)) => (v, t)
-      }
+      val violating = inst.iterator.collect { case (v: TypedVariable, t) if prem.statement.hasFree(v) =>
+        (v, t, computeType(t))
+      }.find { case (v, _, typ) => v.typ != typ && !isSame(v.typ, typ) }
       violating match
-        case Some((v, t)) => return proof.InvalidProofTactic(s"Type mismatch in instantiation: ${v} has type ${v.typ} but term ${t} has type ${computeType(t)}")
+        case Some((v, t, typ)) => return proof.InvalidProofTactic(s"Type mismatch in instantiation: ${v} has type ${v.typ} but term ${t} has type $typ")
         case None => ()
       val instWithProofs = inst.flatMap((v, t) =>
-        if !fv.contains(v) then None // no need to discharge if the variable isn't free in the statement
+        if !prem.statement.hasFree(v) then None // no need to discharge if the variable isn't free in the statement
         else
           val typProof = have(HOLProofType(t))
           Some((v, t, typProof))
@@ -655,12 +654,11 @@ object HOLSteps extends lisa._HOL {
   object _INST_TYPE extends ProofTactic {
 
     def apply(using proof: Proof)(inst: Seq[(Variable[Ind], Expr[Ind])], prem: proof.Fact): proof.ProofTacticJudgement = TacticSubproof { ip ?=>
-      val fv = prem.statement.freeVars
       val k = prem.of(inst.map(_ := _)*)
       val h0 = have(k.statement) by Restate.from(k) // to avoid laststep failing
 
       val instWithProofs = inst.flatMap((v, t) =>
-        if !fv.contains(v) then None // no need to discharge if the variable isn't free in the statement
+        if !prem.statement.hasFree(v) then None // no need to discharge if the variable isn't free in the statement
         else
           val typProof = have(TypeNonEmptyProof(t))
           Some((v, t, typProof))
@@ -772,7 +770,7 @@ object HOLSteps extends lisa._HOL {
           throw LisaHOLException(s"Mismatched typing assumption $ta while cleaning ${prem.statement}.")
         case _ => ()
 
-      if (prem.statement -<< ta).freeVars.contains(v) then return proof.InvalidProofTactic(s"The variable ${v} is used in the sequent and its type assignment cannot be eliminated")
+      if (prem.statement -<< ta).hasFree(v) then return proof.InvalidProofTactic(s"The variable ${v} is used in the sequent and its type assignment cannot be eliminated")
 
       val p1 = have(TypeNonEmptyProof(ta.typ))
       val p2 = have(prem.statement -<? ta +<? F.exists(v, ta)) by LeftExists.withParameters(ta, v)(prem)
@@ -783,7 +781,7 @@ object HOLSteps extends lisa._HOL {
       ip.cleanAssumptions
       val statement = prem.statement
       val vars = statement.left.collectFirst[TypeAssign[Variable[Ind]]] {
-        case f @ ((v: Variable[Ind] @unchecked) ∈ (typ: Expr[Ind])) if !(statement -<< f).freeVars.contains(v) => (v :: typ)
+        case f @ ((v: Variable[Ind] @unchecked) ∈ (typ: Expr[Ind])) if !(statement -<< f).hasFree(v) => (v :: typ)
       }
       if vars.nonEmpty then
         val h = have(Clean.variable(vars.head)(prem))
@@ -846,7 +844,7 @@ object HOLSteps extends lisa._HOL {
         case f @ NonEmpty(x, y, tv: Variable[Ind]) if isSame(x, y) =>
           val witness = statement.left.collectFirst:
             case TypeAssign(v: Variable[Ind], typ) if isSame(typ, tv) => v :: typ
-          if witness.nonEmpty || !(statement -<? f).freeVars.contains(tv) then Some((f, x, tv, witness))
+          if witness.nonEmpty || !(statement -<? f).hasFree(tv) then Some((f, x, tv, witness))
           else None
         case _ => None
       .nextOption()
