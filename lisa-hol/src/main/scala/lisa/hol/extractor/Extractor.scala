@@ -117,6 +117,7 @@ case class TheoremRef(id: Long, @key("nm") name: String) derives RW
 case class JustifiedTheorem(statement: HOLSequent, proof: ProofStep)
 
 private trait ExtractorData extends AutoCloseable:
+  def statistics: ReaderStatistics = ReaderStatistics()
   def readTill(idx: Long): Unit
   def readAll(): Unit
   def getKnown(idx: Long): JustifiedTheorem
@@ -135,10 +136,13 @@ private final class IteratorExtractorData(
   private val definitions = mutable.ArrayBuffer.empty[(Long, ProofStep)]
 
   private def readNext(): Unit =
-    if !proofIterator.hasNext || !theoremIterator.hasNext then throw ExtractorEndedException
+    require(proofIterator.hasNext == theoremIterator.hasNext, "Proof and statement traces have different lengths.")
+    if !proofIterator.hasNext then throw ExtractorEndedException
 
     val proofLine = proofIterator.next()
     val theoremRef = theoremIterator.next()
+    require(proofLine.id > maxRead, s"Non-increasing proof ID ${proofLine.id} after $maxRead.")
+    require(proofLine.id == theoremRef.id, s"Proof step ${proofLine.id} is paired with theorem statement ${theoremRef.id}.")
     val proof = proofLine.step.extract
     val theorem = JustifiedTheorem(theoremRef.sequent.extract, proof)
 
@@ -152,7 +156,7 @@ private final class IteratorExtractorData(
     while maxRead < idx do readNext()
 
   def readAll(): Unit =
-    while proofIterator.hasNext && theoremIterator.hasNext do readNext()
+    while proofIterator.hasNext || theoremIterator.hasNext do readNext()
 
   def getKnown(idx: Long): JustifiedTheorem = stepMap(idx)
 
@@ -173,86 +177,82 @@ private final class IteratorExtractorData(
 
   def close(): Unit = ()
 
+/** Report buffered file reads separately from parsed records. */
+final case class ReaderStatistics(proofHeaders: Long = 0, proofRecords: Long = 0, statementRecords: Long = 0, proofBytes: Long = 0, statementBytes: Long = 0):
+  def -(previous: ReaderStatistics): ReaderStatistics = ReaderStatistics(
+    proofHeaders - previous.proofHeaders, proofRecords - previous.proofRecords, statementRecords - previous.statementRecords,
+    proofBytes - previous.proofBytes, statementBytes - previous.statementBytes
+  )
+
 private final class FileExtractorData(proofFile: File, theoremFile: File) extends ExtractorData:
+  private val index = new ProofIndex(proofFile)
   private val proofs = new TraceReader(proofFile)
-  private val theorems = new TraceReader(theoremFile)
+  private val theorems = try new TraceReader(theoremFile) catch
+    case error: Exception =>
+      index.close()
+      proofs.close()
+      throw error
+  private var proofRecords = 0L
+  private var statementRecords = 0L
 
-  // Keep compact proof records for fast recursive access, but leave the much
-  // larger intermediate theorem statements on disk until verification needs them.
-  private val proofSteps = mutable.LongMap.empty[RawStep]
-  private val theoremOffsets = mutable.LongMap.empty[Long]
-  private val definitions = mutable.ArrayBuffer.empty[(Long, RawStep)]
-  private var maxRead = -1L
+  override def statistics: ReaderStatistics =
+    ReaderStatistics(index.records, proofRecords, statementRecords, index.bytesRead + proofs.bytesRead, theorems.bytesRead)
 
-  private def idOf(line: String): Long =
-    val colon = line.indexOf(':', line.indexOf("\"id\"") + 4)
-    var start = colon + 1
-    while line.charAt(start).isWhitespace do start += 1
-    var end = start
-    while end < line.length && line.charAt(end).isDigit do end += 1
-    line.substring(start, end).toLong
+  private def proofAt(id: Long, offset: Long): RawStep =
+    proofs.seek(offset)
+    val line = read[ProofLine](proofs.readLine().getOrElse(throw ExtractorEndedException), false)
+    require(line.id == id, s"Expected proof $id, found ${line.id}.")
+    proofRecords += 1
+    line.step
 
-  private def readNext(): Unit =
-    val theoremOffset = theorems.position
-    val proofText = proofs.readLine().getOrElse(throw ExtractorEndedException)
-    val theoremLine = theorems.readLine().getOrElse(throw ExtractorEndedException)
+  def readTill(idx: Long): Unit = index.through(idx)
 
-    val proofLine = read[ProofLine](proofText, false)
-    val proofId = proofLine.id
-    val theoremId = idOf(theoremLine)
-    if proofId != theoremId then
-      throw new IllegalArgumentException(s"Proof step $proofId is paired with theorem statement $theoremId.")
-
-    maxRead = proofId
-    proofSteps(proofId) = proofLine.step
-    theoremOffsets(proofId) = theoremOffset
-    proofLine.step match
-      case _: DEFINITION | _: TYPE_DEFINITION => definitions += proofId -> proofLine.step
-      case _ => ()
-
-  private def readAt(file: TraceReader, offset: Long): String =
-    val resumeAt = file.position
-    try
-      file.seek(offset)
-      file.readLine().getOrElse(throw ExtractorEndedException)
-    finally file.seek(resumeAt)
-
-  def readTill(idx: Long): Unit =
-    while maxRead < idx do readNext()
-
+  /** Check both complete ID sequences, including unmatched tails. */
   def readAll(): Unit =
-    try while true do readNext()
-    catch case ExtractorEndedException => ()
+    theorems.seek(0)
+    index.allIds.foreach: id =>
+      val header = TraceHeader.read(theorems, false).getOrElse(throw new IllegalArgumentException(s"Missing statement for proof $id."))
+      require(header.id == id, s"Proof step $id is paired with theorem statement ${header.id}.")
+      theorems.skipLine()
+    require(theorems.peekByte < 0, "Statement trace has records without proofs.")
 
-  def getKnown(idx: Long): JustifiedTheorem =
-    JustifiedTheorem(getKnownStatement(idx), getKnownProof(idx))
+  def getKnown(idx: Long): JustifiedTheorem = JustifiedTheorem(getKnownStatement(idx), getKnownProof(idx))
 
   def getKnownStatement(idx: Long): HOLSequent =
-    read[TheoremStatement](readAt(theorems, theoremOffsets(idx)), false).sequent.extract
+    // Require the proof ID too, but do not demand unused statements during proof reconstruction.
+    index.offset(idx)
+    theorems.seek(StatementSearch.offset(theorems, idx))
+    val line = read[TheoremStatement](theorems.readLine().getOrElse(throw ExtractorEndedException), false)
+    require(line.id == idx, s"Expected statement $idx, found ${line.id}.")
+    statementRecords += 1
+    line.sequent.extract
 
-  def getKnownProof(idx: Long): ProofStep = proofSteps(idx).extract
+  def getKnownProof(idx: Long): ProofStep = proofAt(idx, index.offset(idx)).extract
 
   def getKnownDefinition(idx: Long): Option[ProofStep] =
-    proofSteps(idx) match
+    proofAt(idx, index.offset(idx)) match
       case definition: DEFINITION => Some(definition.extract)
       case definition: TYPE_DEFINITION => Some(definition.extract)
       case _ => None
 
   def knownDefinitionsBetween(fromExclusive: Long, toInclusive: Long): Iterator[(Long, ProofStep)] =
-    definitions.iterator
-      .filter((idx, _) => fromExclusive < idx && idx <= toInclusive)
-      .map((idx, definition) => idx -> definition.extract)
+    index.definitionOffsets(fromExclusive, toInclusive).map: (id, offset) =>
+      id -> proofAt(id, offset).extract
 
   def knownTheorems: collection.MapView[Long, JustifiedTheorem] =
-    proofSteps.keysIterator.map(idx => idx -> getKnown(idx)).toMap.view
+    index.allIds.map(id => id -> getKnown(id)).toMap.view
 
   def close(): Unit =
-    proofs.close()
-    theorems.close()
+    try index.close()
+    finally
+      try proofs.close()
+      finally theorems.close()
 
 final class ExtractorContext private (
     private val data: ExtractorData
 ) extends AutoCloseable:
+  /** Snapshot file-reader counters; iterator-backed contexts report zero. */
+  def statistics: ReaderStatistics = data.statistics
   def this(proofIterator: Iterator[ProofLine], theoremIterator: Iterator[TheoremStatement]) =
     this(new IteratorExtractorData(proofIterator, theoremIterator))
 
@@ -280,7 +280,8 @@ final class ExtractorContext private (
   /** Return every available definition in the requested interval, skipping absent indices. */
   private[hol] def getDefinitionsBetween(fromExclusive: Long, toInclusive: Long): Seq[(Long, ProofStep)] =
     require(fromExclusive <= toInclusive, s"Invalid definition interval ($fromExclusive, $toInclusive].")
-    data.readTill(toInclusive)
+    try data.readTill(toInclusive)
+    catch case ExtractorEndedException => () // An interval need not end at an existing record.
     data.knownDefinitionsBetween(fromExclusive, toInclusive).toSeq
 
   private def readAt[T](idx: Long)(result: => T): T =
@@ -347,10 +348,12 @@ object JSONParser:
    *
    * The files are expected to be in the ProofTrace export format.
    *
-   * The proof file should contain uniquely indexed proof steps.
+   * Keep both files sorted by unique non-negative IDs, with one JSON record per line.
+   * Preserve the export's leading `id`, then `pr.step` or `th` fields.
+   * Do not modify either file while the context is open.
    *
-   * The theorem file should contain uniquely indexed theorem statements (HOL
-   * sequents).
+   * Defer payload parsing and statement lookup until requested. Use `toMap` to
+   * validate complete pairing and payloads on small traces.
    *
    * @throws java.io.FileNotFoundException if either file does not exist
    * @throws java.io.IOException if either file cannot be read
