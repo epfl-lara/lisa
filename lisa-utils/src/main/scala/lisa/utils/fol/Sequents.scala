@@ -25,7 +25,7 @@ trait Sequents extends Predef {
     /**
      * The underlying kernel sequent.
      */
-    def underlying: lisa.kernel.proof.SequentCalculus.Sequent = K.Sequent(left.map(_.underlying), right.map(_.underlying))
+    lazy val underlying: lisa.kernel.proof.SequentCalculus.Sequent = K.Sequent(left.map(_.underlying), right.map(_.underlying))
 
     def substituteUnsafe(m: Map[Variable[?], Expr[?]]): Sequent = Sequent(left.map(_.substituteUnsafe(m)), right.map(_.substituteUnsafe(m)))
     override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): Sequent =
@@ -34,6 +34,11 @@ trait Sequents extends Predef {
       super.substitute(pairs*).asInstanceOf[Sequent]
 
     def freeVars: Set[Variable[?]] = left.flatMap(_.freeVars) ++ right.flatMap(_.freeVars)
+    /** Test free occurrence using cached kernel supports without building a sequent-wide set. */
+    def hasFree[S: Sort](v: Variable[S]): Boolean =
+      val target = v.underlying
+      right.exists(_.underlying.freeVariables.contains(target)) ||
+        left.exists(_.underlying.freeVariables.contains(target))
     def freeTermVars: Set[Variable[Ind]] = left.flatMap(_.freeTermVars) ++ right.flatMap(_.freeTermVars)
     def constants: Set[Constant[?]] = left.flatMap(_.constants) ++ right.flatMap(_.constants)
 
