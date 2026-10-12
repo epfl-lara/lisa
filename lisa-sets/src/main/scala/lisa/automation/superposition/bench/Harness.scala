@@ -39,7 +39,12 @@ import BenchUtil.median
  *   sample [n] [seed]  print the drawn paths, so another prover can run the same set
  *   files <listfile>   run an explicit list of TPTP-relative paths, with no sampling
  *   verify <rel>…      clausify one problem both ways and report the checker's verdict in full
+ *   one <problem> <dir> [key=value]…  one problem, writing its CSV row and any proof into `dir` (StarExec)
+ *   check <dir>…       kernel-check the serialized proofs in each directory or its subdirectories
  * }}}
+ *
+ * With `proof=<format>` (see [[ProofFormat]]) each refutation is written under fixed names: into `dir` for
+ * `one`, and into `<proofDir>/<problem>/` otherwise, `proofDir` defaulting to the CSV's name with `-proofs`.
  *
  * @param childMainClass the object whose `main` a forked child re-enters, so that it reads the same list
  */
@@ -89,13 +94,35 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
       tstpOut: Boolean = false,
       // Count `timeoutMs` from JVM start rather than from the search. Set only where one JVM handles one problem.
       wallBudget: Boolean = false,
+      // The format refutations are written in, and where: `proofDir` itself, or one subdirectory per problem.
+      proof: ProofFormat = ProofFormat.NoProof,
+      proofDir: Option[String] = None,
+      proofPerProblem: Boolean = true,
       raw: Seq[String] = Nil
   ):
     def mode: String = if certified then "certified" else "uncertified"
 
+    /** The directory a refutation of problem file `name` is written to, if any. */
+    def proofTarget(name: String): Option[File] =
+      if proof == ProofFormat.NoProof then None
+      else
+        val dir = new File(proofDir.getOrElse("proofs"))
+        Some(if proofPerProblem then new File(dir, name.stripSuffix(".p")) else dir)
+
+    /** This configuration, or an error if its proof format cannot be produced by its pipeline. */
+    def validated: Config =
+      if proof.fromKernel && (!certified || clausifyOnly) then sys.error(s"proof=${proof.name} needs mode=cert and a search")
+      if proof == ProofFormat.CascTstp && certified then sys.error("proof=casc-tstp needs mode=uncert")
+      this
+
+    /** The default proof directory of a list run: beside its CSV. */
+    def withListProofDir: Config =
+      if proof == ProofFormat.NoProof || proofDir.isDefined then this
+      else copy(proofDir = Some(csvOut.fold("proofs")(_.stripSuffix(".csv") + "-proofs")))
+
   /**
    * Parse `key=value` arguments. Recognised keys: `seed`, `n`, `timeout`, `given`, `size`, `mode` (`cert` or
-   * `uncert`), and any search flag named by [[withFlag]], each taking `on`/`off`.
+   * `uncert`), `proof` and `proofDir`, and any search flag named by [[withFlag]], each taking `on`/`off`.
    */
   private def parse(args: Seq[String]): Config =
     args.foldLeft(Config(raw = args)) { (c, arg) =>
@@ -142,6 +169,8 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
         case "dataset" => c.copy(dataset = value)
         case "config" => c.copy(configName = value)
         case "out" => c.copy(csvOut = Some(value))
+        case "proof" => c.copy(proof = ProofFormat.parse(value))
+        case "proofDir" => c.copy(proofDir = Some(value))
         case _ => c.copy(opts = withFlag(c.opts, key, flag))
     }
 
@@ -172,9 +201,33 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
     case "sample" +: rest =>
       sample(rest.lift(0).map(_.toInt).getOrElse(100), rest.lift(1).map(_.toLong).getOrElse(42L)).foreach(println)
     case "verify" +: rest => rest.foreach(verifyOne)
-    case "one" +: file +: outDir +: rest => runOne(file, outDir, parse(rest))
-    case "files" +: list +: rest => runFiles(list, parse(rest))
-    case rest => benchmark(parse(rest))
+    case "check" +: dirs => checkProofs(dirs)
+    case "one" +: file +: outDir +: rest => runOne(file, outDir, parse(rest).validated)
+    case "files" +: list +: rest => runFiles(list, parse(rest).validated.withListProofDir)
+    case rest => benchmark(parse(rest).validated.withListProofDir)
+
+  /**
+   * Kernel-check the serialized proofs in each directory, or in its subdirectories for a list run, and print one
+   * verdict per proof.
+   */
+  private def checkProofs(dirs: Seq[String]): Unit =
+    val found = dirs.map(new File(_)).flatMap { d =>
+      if ProofExport.hasSerialized(d) then Seq(d)
+      else Option(d.listFiles()).toSeq.flatten.filter(ProofExport.hasSerialized).sortBy(_.getName)
+    }
+    if found.isEmpty then println("no serialized proof found")
+    var valid = 0
+    for d <- found do
+      val verdict =
+        try
+          val (name, proof) = ProofExport.readSerialized(d)
+          K.SCProofChecker.checkSCProof(proof) match
+            case K.SCProofCheckerJudgement.SCValidProof(_, true) => s"VALID_WITH_SORRY  $name"
+            case K.SCProofCheckerJudgement.SCValidProof(_, false) => valid += 1; s"VALID  $name"
+            case K.SCProofCheckerJudgement.SCInvalidProof(_, path, message) => s"INVALID  $name: step ${path.mkString(".")}: $message"
+        catch case e: Throwable => s"UNREADABLE  ${e.getClass.getSimpleName}: ${e.getMessage}"
+      println(s"$d  $verdict")
+    println(s"$valid of ${found.size} proofs valid")
 
   /**
    * One problem, for a cluster that schedules problems itself (StarExec): writes the CSV row into `outDir` and
@@ -185,7 +238,14 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
     val f = new File(file)
     val out = new File(outDir)
     out.mkdirs()
-    val cfg = cfg0.copy(maxSize = Int.MaxValue, csvOut = Some(new File(out, "result.csv").getPath), tstpOut = true, wallBudget = true)
+    val cfg = cfg0.copy(
+      maxSize = Int.MaxValue,
+      csvOut = Some(new File(out, "result.csv").getPath),
+      tstpOut = true,
+      wallBudget = true,
+      proofDir = Some(out.getPath),
+      proofPerProblem = false
+    )
     // StarExec names every benchmark `theBenchmark.p`, so `problem=` carries the real name when given.
     val name = if cfg.problemName.nonEmpty then cfg.problemName else f.getName
 
@@ -391,7 +451,9 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
    * on timeout or died on a fatal error, and the two are distinguishable.
    */
   private def solveForked(f: File, cfg: Config): (Int, String, Timing) =
-    val outcome = BenchUtil.runForked(childMainClass, Seq("solve1", f.getPath) ++ cfg.raw, cfg.timeoutMs + 5000L)
+    // The child re-parses `raw`, so the proof directory derived here is passed explicitly; a later key wins.
+    val args = Seq("solve1", f.getPath) ++ cfg.raw ++ cfg.proofDir.map("proofDir=" + _)
+    val outcome = BenchUtil.runForked(childMainClass, args, cfg.timeoutMs + 5000L)
     outcome.resultLine.flatMap(decodeRow).getOrElse((-1, "?", Timing(if outcome.timedOut then "HARD_TIMEOUT" else "PROVER_CRASH", detail = outcome.crashDetail)))
 
   /**
@@ -503,6 +565,18 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
   private final class NonRefutation(val outcome: Clausal.Outcome) extends RuntimeException
 
   /**
+   * Run `write` on the proof directory of problem `name`, when proofs are wanted. A failure to write leaves the
+   * verdict unchanged and is returned as the row's detail.
+   */
+  private def writeProof(cfg: Config, name: String)(write: File => Unit): String =
+    cfg.proofTarget(name).fold("") { dir =>
+      try { write(dir); "" }
+      catch
+        case ie: InterruptedException => throw ie
+        case e: Throwable => s"proof not written: ${e.getClass.getSimpleName}"
+    }
+
+  /**
    * A throw from the prover closure, kept distinct from a clausification throw so that it is categorised
    * `BAD_PROOF` rather than `CLAUSIFY_ERR`.
    */
@@ -530,7 +604,7 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
         result match
           case Right(r) =>
             // Captured, since the caller prints the SZS status line before it.
-            val tstp = Option.when(cfg.tstpOut) {
+            val tstp = Option.when(cfg.tstpOut || cfg.proof == ProofFormat.CascTstp) {
               val buffer = new java.io.ByteArrayOutputStream()
               val (inputFormulas, conjecture) = Tstp.inputFormulas(parsed, cprob)
               Console.withOut(buffer) {
@@ -538,7 +612,8 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
               }
               buffer.toString
             }
-            Timing("REFUTED", clausifyMs, searchMs, clauses = r.clauses.size, tstp = tstp)
+            val written = writeProof(cfg, name)(dir => tstp.foreach(ProofExport.writeTstp(_, dir)))
+            Timing("REFUTED", clausifyMs, searchMs, clauses = r.clauses.size, detail = written, tstp = tstp.filter(_ => cfg.tstpOut))
           case Left(Clausal.Outcome.Saturated) => Timing("SATURATED", clausifyMs, searchMs)
           case Left(Clausal.Outcome.Timeout) => Timing("TIMEOUT", clausifyMs, searchMs)
           case Left(_) => Timing("UNKNOWN", clausifyMs, searchMs)
@@ -608,6 +683,8 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
           if cfg.certified then Prover.preprocessKernel(cprob, cfg.opts)(CertifiedClausifier.certifyClausalGoal(_, prover, cfg.clausifier))
           else UncertifiedClausifier.uncertifyClausal(cprob, p => prover(p, Set.empty))
         val clausifyMs = clausifyMsSoFar
+        // Written before the check, so a check that outlasts the budget still leaves the proof behind.
+        val written = if cfg.clausifyOnly then "" else writeProof(cfg, name)(ProofExport.writeKernel(cfg.proof, name, proof, _))
         // Nothing after this is bounded by `timeoutMs`, so publish the proof now as `UNCHECKED`, which must never
         // count as a checked refutation.
         if cfg.check && !cfg.clausifyOnly then
@@ -646,7 +723,7 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
           case _ =>
             if sorry && !cfg.clausifyOnly then "valid only via Sorry"
             else if !cfg.check then "unchecked"
-            else ""
+            else written
         Timing(
           verdict,
           clausifyMs,
