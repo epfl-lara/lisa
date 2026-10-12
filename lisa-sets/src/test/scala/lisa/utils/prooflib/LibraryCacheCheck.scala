@@ -1,11 +1,15 @@
 package lisa.utils.prooflib
 
-import java.nio.file.{Files, Path}
-import scala.jdk.CollectionConverters.*
 import lisa.SetTheoryLibrary
 import lisa.kernel.proof.SCProofChecker
 
-/** Verify cold generation and real reuse in separate JVMs and an isolated directory. */
+import java.nio.file.Files
+import java.nio.file.Path
+import scala.jdk.CollectionConverters._
+
+/**
+ * Verify cold generation and real reuse in separate JVMs and an isolated directory.
+ */
 object LibraryCacheCheck:
   private given OutputManager = new OutputManager:
     val stringWriter = new java.io.StringWriter
@@ -16,9 +20,12 @@ object LibraryCacheCheck:
     if !Files.exists(directory) then Map.empty
     else
       val entries = Files.list(directory)
-      try entries.iterator.asScala.filter(Files.isRegularFile(_)).map: path =>
-        path.getFileName.toString -> (Files.size(path), Files.getLastModifiedTime(path))
-      .toMap
+      try
+        entries.iterator.asScala
+          .filter(Files.isRegularFile(_))
+          .map: path =>
+            path.getFileName.toString -> (Files.size(path), Files.getLastModifiedTime(path))
+          .toMap
       finally entries.close()
 
   def main(args: Array[String]): Unit =

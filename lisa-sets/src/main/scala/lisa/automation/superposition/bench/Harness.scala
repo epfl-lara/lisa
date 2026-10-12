@@ -102,20 +102,26 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
   ):
     def mode: String = if certified then "certified" else "uncertified"
 
-    /** The directory a refutation of problem file `name` is written to, if any. */
+    /**
+     * The directory a refutation of problem file `name` is written to, if any.
+     */
     def proofTarget(name: String): Option[File] =
       if proof == ProofFormat.NoProof then None
       else
         val dir = new File(proofDir.getOrElse("proofs"))
         Some(if proofPerProblem then new File(dir, name.stripSuffix(".p")) else dir)
 
-    /** This configuration, or an error if its proof format cannot be produced by its pipeline. */
+    /**
+     * This configuration, or an error if its proof format cannot be produced by its pipeline.
+     */
     def validated: Config =
       if proof.fromKernel && (!certified || clausifyOnly) then sys.error(s"proof=${proof.name} needs mode=cert and a search")
       if proof == ProofFormat.CascTstp && certified then sys.error("proof=casc-tstp needs mode=uncert")
       this
 
-    /** The default proof directory of a list run: beside its CSV. */
+    /**
+     * The default proof directory of a list run: beside its CSV.
+     */
     def withListProofDir: Config =
       if proof == ProofFormat.NoProof || proofDir.isDefined then this
       else copy(proofDir = Some(csvOut.fold("proofs")(_.stripSuffix(".csv") + "-proofs")))
