@@ -434,6 +434,8 @@ named strategies and the command line prover are specific to competition use.
 | [bench/ProofMetrics.scala](bench/ProofMetrics.scala) | the size of a reconstructed kernel proof, as the benchmarks report it |
 | [bench/BenchUtil.scala](bench/BenchUtil.scala) | the shared parts, including the problem lists and the seeded sampling |
 
+With `proof=<format>`, the harness also writes each refutation to a file, in one of the formats of [ProofExport.scala](ProofExport.scala): `casc-tstp` (the prover's TSTP derivation, uncertified pipeline) or `serialized` (the kernel proof, certified pipeline); `lisa-tstp` and `sc-tptp` are not implemented yet. The harness's `check` command kernel-checks serialized proofs.
+
 One point about the results is recorded here because it invalidates whole runs. A
 problem is solved on its own thread under a time limit, and a thread that does not stop when asked cannot be
 stopped on the Java virtual machine. It continues to consume processor time and memory for the remainder of the

@@ -27,6 +27,9 @@ import scala.util.Using
  *   - `force=on`       re-run configurations whose CSV exists; otherwise they are skipped, so a rerun resumes
  *   - `baseline=<configuration>`, `minHypotheses=<n>`   passed to the report
  *
+ * With the harness's `proof=<format>`, each refutation is written to
+ * `<results>/<tag>-<configuration>-proofs/<problem>/`.
+ *
  * A failed configuration does not stop the others but makes the exit status non-zero. All configurations share
  * one `runMain`, since a second sbt 2 `runMain` in the same shell can attach to the first one's server and hang.
  * `portfolio` lines are ignored: the strategies run one after another, which does not measure the portfolio.

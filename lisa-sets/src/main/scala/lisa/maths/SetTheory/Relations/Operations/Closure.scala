@@ -127,8 +127,12 @@ object Closure extends lisa.Main {
       val allUnique = have(
         ∀(Q, ∀(S, (R ⊆ Q /\ reflexive(Q)(X) /\ ∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (Q ⊆ T))) /\ (R ⊆ S /\ reflexive(S)(X) /\ ∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (S ⊆ T))) ==> (Q === S)))
       ) subproof {
-        have((R ⊆ Q /\ reflexive(Q)(X) /\ ∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (Q ⊆ T))) /\ (R ⊆ S /\ reflexive(S)(X) /\ ∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (S ⊆ T))) ==> (Q === S)) by Restate.from(unique)
-        thenHave(∀(S, (R ⊆ Q /\ reflexive(Q)(X) /\ ∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (Q ⊆ T))) /\ (R ⊆ S /\ reflexive(S)(X) /\ ∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (S ⊆ T))) ==> (Q === S))) by RightForall
+        have((R ⊆ Q /\ reflexive(Q)(X) /\ ∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (Q ⊆ T))) /\ (R ⊆ S /\ reflexive(S)(X) /\ ∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (S ⊆ T))) ==> (Q === S)) by Restate.from(
+          unique
+        )
+        thenHave(
+          ∀(S, (R ⊆ Q /\ reflexive(Q)(X) /\ ∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (Q ⊆ T))) /\ (R ⊆ S /\ reflexive(S)(X) /\ ∀(T, reflexive(T)(X) /\ (R ⊆ T) ==> (S ⊆ T))) ==> (Q === S))
+        ) by RightForall
         thenHave(thesis) by RightForall
       }
       have(thesis) by Tautology.from(
