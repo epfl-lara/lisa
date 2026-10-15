@@ -60,3 +60,32 @@ class ProofCarrierSuite extends AnyFunSuite:
     assert(next.thm.kernel.usesSorry)
     assert(next.kernel eq next.justification.get.kernel)
     assert(!next.isValid)
+
+  test("preserve every carrier field when adding no errors"):
+    val theorem = BasicStep.Restate(p |- p).thm
+    val carriers = Seq(
+      SoftCarrier(Set.empty[ProofError], theorem.statement, Some(theorem), 42),
+      SoftCarrier(Set(error), p |- q, None, 17)
+    )
+    for carrier <- carriers; empty <- Seq(List.empty[ProofError], Set.empty[ProofError], Vector.empty[ProofError]) do
+      val next = carrier.withErrors(empty)
+      assert(next.errors == carrier.errors)
+      assert(next.statement == carrier.statement)
+      assert(next.justification == carrier.justification)
+      assert(next.payload == carrier.payload)
+      assert(next.isValid == carrier.isValid)
+
+  test("accumulate distinct errors without mutating the original carrier"):
+    val extra = SoftError("another failure", summon[sourcecode.File], summon[sourcecode.Line])
+    val carrier = SoftCarrier(Set[ProofError](error), p |- q, None, 42)
+    val next = carrier.withErrors(List(extra, error, extra))
+    assert(carrier.errors == Set(error))
+    assert(next.errors == Set(error, extra))
+    assert(next.statement == carrier.statement && next.payload == 42)
+    assert(next.justification.isEmpty && !next.isValid)
+
+  test("retain the fatal error when appending an empty or nonempty collection"):
+    val fatal = FatalError("fatal step", summon[sourcecode.File], summon[sourcecode.Line])
+    val carrier = FatalCarrier(fatal, Set.empty)
+    assert(carrier.withErrors(Vector.empty) == carrier)
+    assert(carrier.withErrors(List(error)) == FatalCarrier(fatal, Set(error)))

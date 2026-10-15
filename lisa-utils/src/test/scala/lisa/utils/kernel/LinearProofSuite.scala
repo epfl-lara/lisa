@@ -21,6 +21,18 @@ class LinearProofSuite extends AnyFunSuite:
     assert(LinearProof(Array(Restate(statement, 0)), Array.empty).check == Left(ForwardReferenceError(0)))
     assert(LinearProof(Array(Restate(statement, -1)), Array.empty).check == Left(InvalidImportError(-1)))
 
+  test("resolve imports within each check and retain their dependencies across steps"):
+    val imported = Sequent(Set.empty, Set(p))
+    val proof = LinearProof(Array(Restate(imported, -1), Restate(imported, 0)), Array(imported))
+    val first = K.Theory.empty
+    val second = K.Theory.empty
+    val firstResult = proof.check(using first).toOption.get
+    val secondResult = proof.check(using second).toOption.get
+    assert(firstResult.theory eq first)
+    assert(secondResult.theory eq second)
+    assert(firstResult.assumptions == Set(imported))
+    assert(secondResult.assumptions == Set(imported))
+
   test("kernel errors retain step index"):
     val invalid = Sequent(Set.empty, Set(p))
     val result = LinearProof(Array(Hypothesis(invalid, p), Sorry(statement)), Array.empty).check
