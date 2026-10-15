@@ -385,6 +385,14 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
     }
   }
 
+  /** Retain an application when both transformed children are unchanged. */
+  private def reuseApplication(e: SimpleApplication, f: SimpleExpression, arg: SimpleExpression): SimpleExpression =
+    if (e.f eq f) && (e.arg eq arg) then e else SimpleApplication(f, arg, e.polarity)
+
+  /** Retain an abstraction when its transformed body is unchanged. */
+  private def reuseLambda(e: SimpleLambda, body: SimpleExpression): SimpleExpression =
+    if e.body eq body then e else SimpleLambda(e.v, body)
+
   /**
    * Replaces all [[SimpleVariable]]s with [[SimpleBoundVariable]]s in `e` using localy nameless (de Bruijn) representation.
    * @see [[fromLocallyNameless]]
@@ -401,8 +409,8 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
           case v: SimpleVariable => v
           case s: SimpleBoundVariable => throw new Exception("This case should be unreachable. Can't call toLocallyNameless on a bound variable")
           case e: SimpleConstant => e
-          case SimpleApplication(arg1, arg2, polarity) => SimpleApplication(toLocallyNameless(arg1), toLocallyNameless(arg2), polarity)
-          case SimpleLambda(x, inner) => SimpleLambda(x, toLocallyNameless2(inner, Map((x.id, x.sort) -> 0), 1))
+          case e: SimpleApplication => reuseApplication(e, toLocallyNameless(e.f), toLocallyNameless(e.arg))
+          case e: SimpleLambda => reuseLambda(e, toLocallyNameless2(e.body, Map((e.v.id, e.v.sort) -> 0), 1))
         }
         e.namelessForm = Some(r)
         r
@@ -420,8 +428,8 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
       else v
     case s: SimpleBoundVariable => throw new Exception("This case should be unreachable. Can't call toLocallyNameless on a bound variable")
     case e: SimpleConstant => e
-    case SimpleApplication(arg1, arg2, polarity) => SimpleApplication(toLocallyNameless2(arg1, subst, i), toLocallyNameless2(arg2, subst, i), polarity)
-    case SimpleLambda(x, inner) => SimpleLambda(x, toLocallyNameless2(inner, subst + ((x.id, x.sort) -> i), i + 1))
+    case e: SimpleApplication => reuseApplication(e, toLocallyNameless2(e.f, subst, i), toLocallyNameless2(e.arg, subst, i))
+    case e: SimpleLambda => reuseLambda(e, toLocallyNameless2(e.body, subst + ((e.v.id, e.v.sort) -> i), i + 1))
   }
 
   /**
@@ -439,8 +447,8 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
       else throw new Exception("This case should be unreachable, error")
     case v: SimpleVariable => v
     case e: SimpleConstant => e
-    case SimpleApplication(arg1, arg2, polarity) => SimpleApplication(fromLocallyNameless(arg1, subst, i), fromLocallyNameless(arg2, subst, i), polarity)
-    case SimpleLambda(x, inner) => SimpleLambda(x, fromLocallyNameless(inner, subst + (i -> (x.id, x.sort)), i + 1))
+    case e: SimpleApplication => reuseApplication(e, fromLocallyNameless(e.f, subst, i), fromLocallyNameless(e.arg, subst, i))
+    case e: SimpleLambda => reuseLambda(e, fromLocallyNameless(e.body, subst + (i -> (e.v.id, e.v.sort)), i + 1))
   }
 
   /**
@@ -468,7 +476,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
             case _ => simp
           }
 
-        case SimpleApplication(f, arg, true) => SimpleApplication(computeNormalForm(f), computeNormalForm(arg), true)
+        case e: SimpleApplication if e.polarity => reuseApplication(e, computeNormalForm(e.f), computeNormalForm(e.arg))
 
         case SimpleBoundVariable(no, sort, true) => e
 
@@ -489,7 +497,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
           else if (inner == SimpleLiteral(false)) SimpleLiteral(false)
           else SimpleForall(id, inner, true)
 
-        case SimpleLambda(v, body) => SimpleLambda(v, computeNormalForm(body))
+        case e: SimpleLambda => reuseLambda(e, computeNormalForm(e.body))
 
         case SimpleLiteral(polarity) => e
 
