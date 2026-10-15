@@ -25,9 +25,10 @@ case class LinearProof(
     else
       var idx = 0
       val checked = new Array[Thm](steps.length)
+      val resolvedImports = importThms
 
       while idx < steps.length do
-        checkOne(steps(idx), idx, checked, importThms) match
+        checkOne(steps(idx), idx, checked, resolvedImports) match
           case Left(error) => return Left(error)
           case Right(thm) => checked(idx) = thm
 
