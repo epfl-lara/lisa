@@ -1,90 +1,60 @@
-import lisa.automation.Congruence
-import lisa.automation.Substitution.{Apply => Substitute}
-import lisa.automation.Tableau
 
 object Example extends lisa.Main:
-  // draft mode; only proofs from the current file are checked
-  draft()
-
-  // first-order variables
+  // First-order variables and a unary predicate.
   val x = variable[Ind]
   val y = variable[Ind]
-
-  // a predicate with one argument
   val P = variable[Ind >>: Prop]
 
-  val form = forall(x, P(x) ==> exists(y, P(y)))
-  println(form.subexpressions.mkString("\n"))
+  // Formulas are Scala values: they can be inspected and transformed.
+  val formula = ∀(x, P(x) ==> ∃(y, P(y)))
+  println(formula.subexpressions.mkString("\n"))
 
-  // a first-order function with one argument
+  // A unary first-order function.
   val f = variable[Ind >>: Ind]
 
-  // we can use scala extensions to define custom syntax
-  extension (x: Expr[Ind])
-    inline infix def subset(y: Expr[Ind]): Expr[Prop] = App(App(⊆, x), y)
+  // Scala extensions can provide local mathematical notation.
+  extension (left: Expr[Ind]) inline infix def subset(right: Expr[Ind]): Expr[Prop] = App(App(⊆, left), right)
 
-  // a simple proof with Lisa's DSL
-  val fixedPointDoubleApplication = Theorem(∀(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x)))) {
-    val a1 = assume(∀(x, P(x) ==> P(f(x))))
-    have(thesis) by Tautology.from(a1 of x, a1 of f(x))
-  }
+  // Assumptions are facts. Quantified facts can be instantiated explicitly;
+  // `Tautology` then combines the resulting implications propositionally.
+  val fixedPointDoubleApplication = Theorem(∀(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x)))):
+    val closure = assume(∀(x, P(x) ==> P(f(x))))
+    val closureAtX = have(P(x) ==> P(f(x))) by InstantiateForall(x)(closure)
+    val closureAtFx = have(P(f(x)) ==> P(f(f(x)))) by InstantiateForall(f(x))(closure)
+    have(thesis) by Tautology.from(closureAtX, closureAtFx)
 
-  // Example of set theoretic development
   /**
-    * Theorem --- a set is a subset of itself.
-    * 
-    *  `|- x ⊆ x`
-    */
-  val union = Theorem(
-    x subset x
-    // or x ⊆ x is predefined
-  ) {
+   * Every set is a subset of itself: `⊢ x ⊆ x`.
+   */
+  val subsetReflexivity = Theorem(x ⊆ x):
     have((y ∈ x) ==> (y ∈ x)) by Restate
     thenHave(∀(y, (y ∈ x) ==> (y ∈ x))) by RightForall
-
     have(thesis) by Tautology.from(lastStep, subsetAxiom of (x := x, y := x))
-  }
 
   /**
-   * Theorem --- The empty set is a subset of every set.
-   * 
-   *   `|- ∅ ⊆ x`
+   * The empty set is a subset of every set: `⊢ ∅ ⊆ x`.
    */
-  val leftEmpty = Theorem(∅ ⊆ x): // braceless syntax is also fine!
+  val emptySetSubset = Theorem(∅ ⊆ x):
     have((y ∈ ∅) ==> (y ∈ x)) by Weakening(emptySetAxiom of (x := y))
     thenHave(∀(y, (y ∈ ∅) ==> (y ∈ x))) by RightForall
-    
     have(thesis) by Tautology.from(lastStep, subsetAxiom of (x := ∅, y := x))
-  
-  /**
-   * Theorem --- If a set has an element, then it is not the empty set.
-   * 
-   *   `y ∈ x ⊢ ! x = ∅`
-   */
-  val setWithElementNonEmpty = Theorem(
-    (y ∈ x) |- x =/= ∅
-  ) {
-    have((x === ∅) |- !(y ∈ x)) by Substitute(x === ∅)(emptySetAxiom of (x := y))
-    // this statement is `Restate` equivalent to the result, so we are done!
-  }
 
   /**
-   * Theorem --- the power set of any set is non-empty.
-   * 
-   *  `|- 𝒫(x) =/= ∅`
+   * A set containing an element is not empty: `y ∈ x ⊢ x ≠ ∅`.
    */
-  val powerSetNonEmpty = Theorem(
-    𝒫(x) =/= ∅
-  ) {
+  val setWithElementNonEmpty = Theorem((y ∈ x) |- x =/= ∅):
+    have((x === ∅) |- !(y ∈ x)) by Substitute(x === ∅)(emptySetAxiom of (x := y))
+
+  /**
+   * The power set of any set is non-empty: `⊢ 𝒫(x) ≠ ∅`.
+   */
+  val powerSetNonEmpty = Theorem(𝒫(x) =/= ∅):
     have(thesis) by Tautology.from(
       setWithElementNonEmpty of (y := ∅, x := 𝒫(x)),
       powerSetAxiom of (x := ∅, y := x),
-      leftEmpty
+      emptySetSubset
     )
-  }
 
-  // example showing the Tableau tactic to discharge first-order tautologies
-  val buveurs = Theorem(exists(x, P(x) ==> forall(y, P(y)))) {
+  // `Tableau` handles first-order reasoning, including quantifiers.
+  val drinkersParadox = Theorem(∃(x, P(x) ==> ∀(y, P(y)))):
     have(thesis) by Tableau
-  }
-
