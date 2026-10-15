@@ -98,7 +98,7 @@ object VarsAndFunctions /*extends lisa.Main*/:
       if m.contains(this) then m(this).asInstanceOf[Expr[Ind]]
       else
         val newtyp = typ.substituteUnsafe(m)
-        TypedVariable(id, newtyp).asInstanceOf[Expr[Ind]]
+        if newtyp eq typ then this else TypedVariable(id, newtyp)
     override def rename(newId: Identifier): TypedVariable = TypedVariable(newId, typ)
   }
   def typedvar(typ: Expr[Ind])(using name: sourcecode.Name): TypedVariable = TypedVariable(K.Identifier(name.value), typ)
