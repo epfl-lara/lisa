@@ -46,6 +46,34 @@ class TypecheckSuite extends AnyFunSuite:
     val theorem = assertChecked(result, x ∈ A |- x ∈ A)
     assert(theorem.kernel.rule == K.Hypothesis)
 
+  test("application typing composes explicit dependent typings and carries the result type"):
+    val family = variable[Ind >>: Ind](K.Identifier("application-test-family"))
+    val typ = Pi(A)(λ(y, family(y)))
+    val functionTyping = BasicStep.Hypothesis(f ∈ typ |- f ∈ typ).thm
+    val argumentTyping = BasicStep.Hypothesis(x ∈ A |- x ∈ A).thm
+    val result = Proof.withContext(using SetTheoryLibrary):
+      Typecheck.applicationProof(f, x, typ)(functionTyping, argumentTyping)
+    assertChecked(result, (f ∈ typ, x ∈ A) |- app(f)(x) ∈ family(x))
+    assert(result.destruct._2 == family(x))
+
+  test("application typing rejects unrelated function or argument proofs"):
+    val typ = A ->: B
+    val functionTyping = BasicStep.Hypothesis(f ∈ typ |- f ∈ typ).thm
+    val argumentTyping = BasicStep.Hypothesis(x ∈ A |- x ∈ A).thm
+    val wrongFunction = BasicStep.Hypothesis(y ∈ typ |- y ∈ typ).thm
+    val wrongArgument = BasicStep.Hypothesis(x ∈ C |- x ∈ C).thm
+    for (fun, arg) <- Seq(wrongFunction -> argumentTyping, functionTyping -> wrongArgument) do
+      val result = Proof.withContext(using SetTheoryLibrary):
+        Typecheck.applicationProof(f, x, typ)(fun, arg)
+      assert(!result.isValid)
+
+  test("application typing retains hole dependencies"):
+    val typ = A ->: B
+    val result = Proof.withContext(using SetTheoryLibrary):
+      Typecheck.applicationProof(f, x, typ)(sorry(() |- f ∈ typ), sorry(() |- x ∈ A))
+    assertTyping(result, app(f)(x) ∈ B)
+    assert(result.thm.kernel.usesSorry)
+
   test("checking an exact dependent function type does not build a covariance proof"):
     val family = variable[Ind >>: Ind](K.Identifier("typecheck-test-family"))
     val typ = Pi(A)(λ(x, family(x)))

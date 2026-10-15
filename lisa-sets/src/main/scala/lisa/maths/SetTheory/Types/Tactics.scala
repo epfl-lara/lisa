@@ -114,6 +114,57 @@ object Tactics:
     def apply(using lib: SetTheoryLibrary.type, proof: Proof)(bot: F.Sequent): ProofJudgement =
       prove(bot)
 
+    /** Derive application typing from proved function and argument typings; return the result type. */
+    def applicationProof(using lib: SetTheoryLibrary.type, proof: Proof)(
+        function: Expr[Ind],
+        argument: Expr[Ind],
+        functionType: Expr[Ind]
+    )(functionTyping: Thm, argumentTyping: Thm): ProofCarrier[Expr[Ind]] = SubproofM {
+      import lib.*
+      functionType match
+        case SPi(domain: Expr[Ind], codomain @ Abs(bound: Expr[Ind], body: Expr[Ind])) =>
+          // Substitute frontend annotations even when the erased codomain is independent.
+          val resultType = body.substitute(bound := argument)
+          val statement = (app(function)(argument) ∈ resultType) ++<< functionTyping.statement ++<< argumentTyping.statement
+          val functionFormula = function ∈ functionType
+          val argumentFormula = argument ∈ domain
+          val rule = TApp of (e1 := function, e2 := argument, T1 := domain, T2 := codomain)
+          val conclusion = rule.statement.right.head
+          val withFunction = have((conclusion +<< argumentFormula) ++<< functionTyping.statement) by
+            Cut.withParameters(functionFormula)(functionTyping, rule)
+          val applied = have((conclusion ++<< functionTyping.statement) ++<< argumentTyping.statement) by
+            Cut.withParameters(argumentFormula)(argumentTyping, withFunction)
+          val typing = have(statement) by Restate(applied)
+          ProofJudgement(typing).map(_ => resultType)
+        case _ => failWith(s"Expected a Π-type with a lambda codomain, got $functionType.")
+    }
+
+    /** Derive abstraction typing from a proved body typing; return the dependent product type. */
+    def abstractionProof(using lib: SetTheoryLibrary.type, proof: Proof)(
+        bound: Variable[Ind],
+        domain: Expr[Ind],
+        body: Expr[Ind],
+        bodyType: Expr[Ind]
+    )(bodyTyping: Thm): ProofCarrier[Expr[Ind]] = SubproofM {
+      import lib.*
+      val resultType = Pi(domain)(λ(bound, bodyType))
+
+      // Shared body proofs can carry alpha-equivalent copies of the binder's typing.
+      val assumption = bound ∈ domain
+      val conclusion = body ∈ bodyType
+      val resetBot = bodyTyping.statement -<? assumption
+      val weakened = have((assumption |- conclusion) ++<< bodyTyping.statement) by Weakening(bodyTyping)
+      val implication = have((assumption ==> conclusion) ++<< resetBot) by
+        RightImplies.withParameters(assumption, conclusion)(weakened)
+      have((∀(bound ∈ domain, body ∈ bodyType)) ++<< resetBot) by
+        RightForall.withParameters(assumption ==> conclusion, bound)(implication)
+      val quantifiedTyping = lastStep
+
+      val abstraction = TAbs of (T1 := domain, T2 := Abs(bound, bodyType), e := Abs(bound, body))
+      val typing = have(Discharge(quantifiedTyping)(abstraction))
+      ProofJudgement(typing).map(_ => resultType)
+    }
+
     /**
      * Infer a type for `tm` and prove the corresponding typing judgement.
      *
@@ -151,20 +202,9 @@ object Tactics:
           case Sapp(func: Expr[Ind], tm2: Expr[Ind]) =>
             inferProofM(using SetTheoryLibrary)(localContext, func, memo).flatMap { (funcType, funcTyping) =>
               funcType match
-                case SPi(ty1: Expr[Ind], ty2 @ Abs(boundVar: Expr[Ind], typeBody: Expr[Ind])) =>
+                case SPi(ty1: Expr[Ind], _: Abs[?, ?]) =>
                   checkProofM(using SetTheoryLibrary)(localContext, tm2, ty1, memo).flatMap { (_, argTyping) =>
-                    val resultType = typeBody.substitute(boundVar := tm2)
-                    val statement = (tm ∈ resultType) ++<< funcTyping.statement ++<< argTyping.statement
-                    val functionTyping = func ∈ funcType
-                    val argumentTyping = tm2 ∈ ty1
-                    val rule = TApp of (e1 := func, e2 := tm2, T1 := ty1, T2 := ty2)
-                    val ruleResult = rule.statement.right.head
-                    val withFunction = have((ruleResult +<< argumentTyping) ++<< funcTyping.statement) by
-                      Cut.withParameters(functionTyping)(funcTyping, rule)
-                    val applied = have((ruleResult ++<< funcTyping.statement) ++<< argTyping.statement) by
-                      Cut.withParameters(argumentTyping)(argTyping, withFunction)
-                    val typing = have(statement) by Restate(applied)
-                    ProofJudgement(typing).map(_ => resultType)
+                    applicationProof(func, tm2, funcType)(funcTyping, argTyping)
                   }
                 case SPi(_, ty2) => failWith(s"Inferred type T2($ty2) is not a lambda expression")
                 case _ => failWith(s"$funcType must be a Π-type")
@@ -181,18 +221,10 @@ object Tactics:
            * needed. The temporary binder assumption is discharged before the
            * abstraction type and proof are returned together.
            */
-          case Sabs(ty: Expr[Ind], Abs(boundVar: Expr[Ind], body: Expr[Ind])) =>
+          case Sabs(ty: Expr[Ind], Abs(boundVar: Variable[Ind], body: Expr[Ind])) =>
             val newContext = localContext ++ Set(boundVar ∈ ty)
             inferProofM(using SetTheoryLibrary)(newContext, body, memo).flatMap { (bodyType, bodyTyping) =>
-              val resultType = Pi(ty)(λ(boundVar, bodyType))
-              val resetBot = bodyTyping.statement -<< (boundVar ∈ ty)
-              have((boundVar ∈ ty |- body ∈ bodyType) ++<< bodyTyping.statement) by Weakening(bodyTyping)
-              thenHave((boundVar ∈ ty ==> body ∈ bodyType) ++<< resetBot) by RightImplies
-              thenHave((∀(boundVar ∈ ty, body ∈ bodyType)) ++<< resetBot) by RightForall
-              val quantifiedTyping = lastStep
-              val abstraction = TAbs of (T1 := ty, T2 := Abs(boundVar, bodyType), e := Abs(boundVar, body))
-              val typing = have(Discharge(quantifiedTyping)(abstraction))
-              ProofJudgement(typing).map(_ => resultType)
+              abstractionProof(boundVar, ty, body, bodyType)(bodyTyping)
             }
 
           /**
