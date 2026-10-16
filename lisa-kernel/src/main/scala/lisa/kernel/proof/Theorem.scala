@@ -85,8 +85,11 @@ import Helpers.*
 
 private def theorem(using theory: Theory, rule: Step)(statement: Sequent, premises: Iterable[Thm] = Nil, axioms: Set[Sequent] = Set.empty, usesSorry: Boolean = false): Either[GeneralError, Thm] =
   val sorry = usesSorry || premises.exists(_.usesSorry)
-  val allAxioms = premises.foldLeft(axioms)(_ `union` _.axioms)
-  val allAssumptions = premises.foldLeft(Set.empty[Sequent])(_ `union` _.assumptions)
+  // Share the first immutable dependency set instead of rebuilding it from empty.
+  val allAxioms = premises.foldLeft(axioms): (acc, premise) =>
+    if acc.isEmpty then premise.axioms else acc union premise.axioms
+  val allAssumptions = premises.foldLeft(Set.empty[Sequent]): (acc, premise) =>
+    if acc.isEmpty then premise.assumptions else acc union premise.assumptions
   
   // the last check for any theorem, its premises must be from the same theory context
   val violatingPremise = premises.find(prem => !(theory eq prem.theory))
