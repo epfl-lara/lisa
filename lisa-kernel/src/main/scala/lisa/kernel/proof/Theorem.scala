@@ -672,7 +672,8 @@ case object Weakening extends Step:
   case class NotImplying(premise: Thm, statement: Sequent) extends WeakeningError
 
   def apply(using theory: Theory)(statement: Sequent, premise: Thm): Result[Thm] =
-    if isImplyingSequent(premise.statement, statement) then theorem(statement, Seq(premise))
+    val syntactic = premise.left.subsetOf(statement.left) && premise.right.subsetOf(statement.right)
+    if syntactic || isImplyingSequent(premise.statement, statement) then theorem(statement, Seq(premise))
     else Left(NotImplying(premise, statement))
 
 /**
