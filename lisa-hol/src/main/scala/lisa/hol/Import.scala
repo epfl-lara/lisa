@@ -84,7 +84,7 @@ object Import extends lisa.HOL:
     private val types = BoundedCache.fifo[h.Type, Expr[Ind]](sys.props.get("lisa.hol.typeCache").fold(4096)(_.toInt))
     private val constants = BoundedCache.fifo[h.Constant, Expr[Ind]](sys.props.get("lisa.hol.constantCache").fold(4096)(_.toInt))
 
-    /** Release converted objects at named-theorem boundaries and import exit. */
+    // clear at each named theorem and when the import finishes
     private[hol] def resetConversionCache(): Unit =
       types.clear()
       constants.clear()
@@ -378,7 +378,7 @@ object Import extends lisa.HOL:
 
   private lazy val initializedDefinitions: Unit = Initialization.initializeDefinitions()
 
-  /** Retain named steps and definitions; recheck evicted unnamed dependencies on demand. */
+  /** Reconstruct reachable steps and share their judgements; keep named steps and definitions across evictions. */
   private[hol] final class StepStore(
       val statistics: ImportStatistics = new ImportStatistics,
       capacity: Int = sys.props.get("lisa.hol.stepCache").fold(750000)(_.toInt),
@@ -400,7 +400,7 @@ object Import extends lisa.HOL:
 
     initializedDefinitions
 
-    /** Count completed reconstructions, including repeated work after eviction. */
+    /** Count the reconstructed steps, including repeated work after eviction. */
     def size: Int = computed
 
     /** Count retained results, including permanently pinned steps. */
@@ -425,7 +425,7 @@ object Import extends lisa.HOL:
         case None => unbounded(index) = judgement
       judgement
 
-    /** Retrieve a retained step or recheck it from its proof record. */
+    /** Retrieve a step, reconstructing its dependencies and preceding definitions as needed. */
     def apply(index: Long): ProofJudgement =
       lookup(index) match
         case Some(judgement) =>
@@ -437,16 +437,18 @@ object Import extends lisa.HOL:
             val step = statistics.measure("read", index)(extractor.getProof(index))
             remember(index, step, reconstruct(index, step))
 
-    /** Keep the current rule's premises available even when another dependency evicts them. */
+    /** Require a strictly earlier premise and retrieve its shared judgement. */
     def premise(index: Long, target: Long): ProofJudgement =
       if target >= index then throw OutOfOrderException(index, target)
       active.headOption.flatMap(_.get(target)).getOrElse(apply(target))
 
     private def reconstruct(index: Long, step: h.ProofStep): ProofJudgement =
+      // keep the premises available even if another dependency evicts them
       val inputs = step.dependencies.distinct.iterator.map(id => id -> premise(index, id)).toMap
       active = inputs :: active
       try
         statistics.measureRule(step.getClass.getSimpleName, index, inputs.valuesIterator.map(_.kernel).toSeq, retainedSize):
+          // Keep local assumptions and errors within this step. Cached errors travel with its judgement.
           try
             Subproof:
               reconstructStep(using extractor, summon[Proof], this)(index, step)
@@ -471,9 +473,10 @@ object Import extends lisa.HOL:
               case _ => ()
         definitionsThrough = index
 
-    /** Pin the original judgement, then check and register its named form. */
+    /** Check and register a name for an already reconstructed step. */
     def theorem(ref: TheoremRef): Justification =
       val TheoremRef(index, name) = ref
+      // named theorems must survive cache eviction
       pinnedIds += index
       steps.fold(unbounded.remove(index))(_.remove(index)).foreach(judgement => pinned(index) = judgement)
       HOLProofType.resetCache()
@@ -914,7 +917,7 @@ object Import extends lisa.HOL:
     def elapsedSeconds: Double = elapsedNanos / 1e9
     def totalSeconds: Double = totalElapsedNanos / 1e9
 
-    /** Compute throughput for this attempt; count shared dependencies only on their first reconstruction. */
+    /** Compute throughput for this attempt, including steps reconstructed after eviction. */
     def stepsPerSecond: Double = if elapsedNanos == 0 then 0d else steps / elapsedSeconds
 
     /** Compute cumulative throughput, including time spent reporting earlier attempts. */
@@ -1017,10 +1020,7 @@ object Import extends lisa.HOL:
     finally
       HOLProofType.resetCache()
       Transformers.resetConversionCache()
-      try extractor.close()
-      finally
-        try exporter.close()
-        finally statistics.close()
+      closeAll(List(extractor, exporter, statistics))
     println(s"[INFO] Successfully imported $imported theorems with ${store.size} reconstructed steps through index $maxStep in ${time()}s.")
     timings.toVector
 
