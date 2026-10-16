@@ -2,8 +2,26 @@ package lisa.hol
 
 import lisa.hol.extractor.*
 import org.scalatest.funsuite.AnyFunSuite
+import java.nio.file.Files
 
 class ImportSuite extends AnyFunSuite:
+  private def withContext[A](fileBacked: Boolean, proofs: Seq[ProofLine], statements: Seq[TheoremStatement])(run: ExtractorContext => A): A =
+    val directory = Files.createTempDirectory("lisa-import-context")
+    val proofFile = directory.resolve("trace.proofs")
+    val statementFile = directory.resolve("trace.theorems")
+    try
+      val context = if fileBacked then
+        Files.writeString(proofFile, proofs.map(upickle.default.write(_)).mkString("\n"))
+        Files.writeString(statementFile, statements.map(upickle.default.write(_)).mkString("\n"))
+        JSONParser.toContext(proofFile.toString, statementFile.toString)
+      else new ExtractorContext(proofs.iterator, statements.iterator)
+      try run(context)
+      finally context.close()
+    finally
+      Files.deleteIfExists(proofFile)
+      Files.deleteIfExists(statementFile)
+      Files.deleteIfExists(directory)
+
   private val p = "v(store_p)(c[bool][])"
   private val q = "v(store_q)(c[bool][])"
   private val equality = s"C(C(c(=)(c[fun][[c[bool][]][c[fun][[c[bool][]][c[bool][]]]]]))($p))($p)"
@@ -19,6 +37,34 @@ class ImportSuite extends AnyFunSuite:
       assert(error.getMessage.contains("Type mismatch in instantiation"))
       assert(error.getCause.isInstanceOf[lisa.utils.prooflib.FatalCarrierDestructionException])
     finally context.close()
+
+  test("lazy file imports reject missing and forward premises and mismatched named targets"):
+    val statements = Seq(0L, 7L).map(id => TheoremStatement(id, RawSequent(Nil, equality)))
+    withContext(true, Seq(ProofLine(0, REFL(p)), ProofLine(7, TRANS(3, 0))), statements): context =>
+      given ExtractorContext = context
+      assertThrows[NoSuchElementException](new Import.StepStore().apply(7))
+    withContext(true, Seq(ProofLine(0, TRANS(7, 7)), ProofLine(7, REFL(p))), statements): context =>
+      given ExtractorContext = context
+      assertThrows[Import.OutOfOrderException](new Import.StepStore().apply(0))
+    withContext(true, Seq(ProofLine(0, REFL(p))), Seq(TheoremStatement(0, RawSequent(Nil, q)))): context =>
+      given ExtractorContext = context
+      assertThrows[Import.FailedTheoremException](new Import.StepStore().theorem(TheoremRef(0, "lazy_mismatch")))
+
+  test("register an implicitly used constant from its proof record alone"):
+    val name = "lazy_implicit_constant"
+    val constant = s"c($name)(c[bool][])"
+    val truth = "c(T)(c[bool][])"
+    def equal(left: String, right: String): String =
+      s"C(C(c(=)(c[fun][[c[bool][]][c[fun][[c[bool][]][c[bool][]]]]]))($left))($right)"
+    val proofs = Seq(ProofLine(0, DEFINITION(equal(constant, truth), name)), ProofLine(7, REFL(constant)))
+    val statements = Seq(TheoremStatement(0, RawSequent(Nil, "not a term")), TheoremStatement(7, RawSequent(Nil, equal(constant, constant))))
+    withContext(true, proofs, statements): context =>
+      given ExtractorContext = context
+      val store = new Import.StepStore
+      assert(!store.theorem(TheoremRef(7, "lazy_constant_use")).usesSorry)
+      assert(store(0).isValid)
+      assert(context.statistics.statementRecords == 1)
+      assertThrows[CouldNotParseException](context.getStatement(0))
 
   private def withStore[A](lastConclusion: String = p)(run: Import.StepStore => A): A =
     val proofs = Iterator(
@@ -95,10 +141,11 @@ class ImportSuite extends AnyFunSuite:
   for
     absFirst <- Seq(true, false)
     polymorphic <- Seq(false, true)
+    fileBacked <- Seq(false, true)
   do
-    test(s"type definitions check both theorems and their lookups (abs first: $absFirst, polymorphic: $polymorphic)"):
+    test(s"type definitions precede implicit uses (abs first: $absFirst, polymorphic: $polymorphic, file: $fileBacked)"):
       val bool = "c[bool][]"
-      val name = s"store_type_${absFirst}_$polymorphic"
+      val name = s"store_type_${absFirst}_${polymorphic}_$fileBacked"
       val typ = if polymorphic then s"c[$name][[v[A]]]" else s"c[$name][]"
       def fun(from: String, to: String): String = s"c[fun][[$from][$to]]"
       def app(f: String, x: String): String = s"C($f)($x)"
@@ -113,22 +160,26 @@ class ImportSuite extends AnyFunSuite:
       val absStatement = equal(typ, app(abs, app(rep, a)), a)
       val repStatement = equal(bool, equal(representation, witness, r), equal(representation, app(rep, app(abs, r)), r))
       val (first, second) = if absFirst then (absStatement, repStatement) else (repStatement, absStatement)
-      val proofs = Iterator(
+      val proofs = Seq(
         ProofLine(0, REFL(witness)),
         ProofLine(1, TYPE_DEFINITION(0, first, name)),
-        ProofLine(2, TYPE_DEFINITION(0, second, name))
+        ProofLine(2, TYPE_DEFINITION(0, second, name)),
+        ProofLine(7, REFL(a))
       )
-      val statements = Iterator(
+      val statements = Seq(
         TheoremStatement(0, RawSequent(Nil, equal(representation, witness, witness))),
         TheoremStatement(1, RawSequent(Nil, first)),
-        TheoremStatement(2, RawSequent(Nil, second))
+        TheoremStatement(2, RawSequent(Nil, second)),
+        TheoremStatement(7, RawSequent(Nil, equal(typ, a, a)))
       )
-      given context: ExtractorContext = new ExtractorContext(proofs, statements)
-      try
+      withContext(fileBacked, proofs, statements): context =>
+        given ExtractorContext = context
         val store = new Import.StepStore
+        // This REFL has no explicit dependency on either defining theorem.
+        assert(!store.theorem(TheoremRef(7, s"${name}_use")).usesSorry)
+        if fileBacked then assert(context.statistics.statementRecords == 1)
         for id <- Seq(1L, 2L) do
           val theorem = store.theorem(TheoremRef(id, s"${name}_$id"))
           assert(store(id).isValid)
           assert(!theorem.usesSorry)
           assert(store(id) eq store(id))
-      finally context.close()
