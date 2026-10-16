@@ -18,7 +18,7 @@ import lisa.utils.K
 
 import F.{_, given}
 import Singleton.singleton
-import HOLHelperTheorems.{nonEmptyCodomain, nonEmptyTypeExists, nonEmptyFuncSpace, eqAlign, eqRefl, eqToHol, eqTrans, eqSym}
+import HOLHelperTheorems.{nonEmptyCodomain, nonEmptyTypeExists, nonEmptyFuncSpace, eqAlign, eqRefl, eqFromHol, eqToHol, eqTrans, eqSym}
 
 /**
  * Here we define and implement all the basic steps from HOL Light
@@ -136,6 +136,18 @@ object HOLSteps extends lisa._HOL {
 
     have(thesis) by Tautology.from(j4, i3, h4)
 
+  }
+
+  /** Transport a true Boolean through HOL equality without re-inferring its type. */
+  val eqMp = Theorem((p === One, q :: 𝔹, (holeq(𝔹) * p * q) === One) |- (q === One)) {
+    val vt = variable[Ind]
+    val sourceTyping = have(p === One |- (p :: 𝔹)) by
+      RightSubstEq.withParameters(Seq((One, p)), (Seq(vt), vt :: 𝔹))(One.justif)
+    val equality = have(Discharge(sourceTyping)(eqFromHol of (x := p, y := q, A := 𝔹)))
+    val source = have(p === One |- (p === One)) by Hypothesis
+    val transported = have((p === One, p === q) |- (q === One)) by
+      RightSubstEq.withParameters(Seq((p, q)), (Seq(vt), vt === One))(source)
+    have(thesis) by Cut.withParameters(p === q)(equality, transported)
   }
 
   val deductAntisym = Theorem(
