@@ -10,7 +10,9 @@ case class ApplicationOnNonFunctionException(term: Term) extends Exception(s"Con
 sealed trait Type:
   def name: String
 case class TypeVariable(name: String) extends Type
-case class TypeApplication(name: String, args: List[Type]) extends Type
+case class TypeApplication(name: String, args: List[Type]) extends Type:
+  private val cachedHashCode = scala.util.hashing.MurmurHash3.productHash(this)
+  override def hashCode(): Int = cachedHashCode
 
 /**
  * The boolean type
