@@ -398,7 +398,7 @@ object Import extends lisa.HOL:
 
     private def reconstruct(index: Long, step: h.ProofStep): ProofJudgement =
       // Keep local assumptions and errors within this step. Cached errors travel with its judgement.
-      statistics.measure(step.getClass.getSimpleName, index):
+      statistics.measureRule(step.getClass.getSimpleName, index, step.dependencies.toSeq.map(id => steps(id).kernel), steps.size):
         try
           Subproof:
             reconstructStep(using extractor, summon[Proof], this)(index, step)
@@ -881,7 +881,11 @@ object Import extends lisa.HOL:
     val (extractor, names) = JSONParser.initializeFromPrefix(prefix)
 
     val statisticsPath = sys.props.get("lisa.hol.stats").orElse(sys.env.get("LISA_HOL_STATS")).map(java.nio.file.Path.of(_))
-    val statistics = try new ImportStatistics(statisticsPath) catch
+    val stepStatisticsPath = sys.props.get("lisa.hol.steps").map(java.nio.file.Path.of(_))
+    val statistics = try new ImportStatistics(statisticsPath, stepStatisticsPath,
+      sys.props.get("lisa.hol.steps.minBytes").fold(0L)(_.toLong),
+      sys.props.get("lisa.hol.steps.fromTheorem").fold(0L)(_.toLong),
+      sys.props.get("lisa.hol.steps.rules").fold(StepStatistics.rules)(_.split(",").iterator.map(_.trim).filter(_.nonEmpty).toSet)) catch
       case error: Exception =>
         extractor.close()
         throw error
@@ -919,6 +923,7 @@ object Import extends lisa.HOL:
 
     try
       names.drop(startAt).take(limit).foreach: ref =>
+        statistics.begin(ref.id)
         val stepsBefore = store.size
         val hitsBefore = store.cacheHits
         val resourcesBefore = ImportStatistics.sample()
