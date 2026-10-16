@@ -16,7 +16,7 @@ import lisa.hol.HOLSteps.{HOLProofType}
 
 object ExtendedHOLSteps extends lisa._HOL {
 
-  import lisa.hol.HOLHelperTheorems.{One, nonEmptyFuncSpace, assume, eqFromHol, eqRefl}
+  import lisa.hol.HOLHelperTheorems.{One, nonEmptyFuncSpace, assume, eqRefl}
   
   private val A = typevar
   private val B = typevar
@@ -230,17 +230,9 @@ object ExtendedHOLSteps extends lisa._HOL {
           if p.statement.right.size != 1 then failWith(s"The second premise should prove $t but proves ${p.statement.right}")
           p.statement.right.head match
             case f if isSame(f, eqOne(t)) =>
-              val assumptions = eq.statement.left ++ p.statement.left
-              val vt = variable[Ind]
-              val nativeEquality = t === u
-              val equalityBridge = eqFromHol of (x := t, y := u, A := 𝔹)
-              val h1 = have(Discharge(eq)(equalityBridge))
-              val hc = have((assumptions + (t :: 𝔹) + (u :: 𝔹) + nativeEquality) |- (u === One)) by
-                RightSubstEq.withParameters(List((t, u)), (Seq(vt), vt === One))(p)
-              val h2 = have((assumptions + (t :: 𝔹) + (u :: 𝔹)) |- (u === One)) by Cut.withParameters(nativeEquality)(h1, hc)
-              val h3 = dischargeTyping(t, h2)
-              val h4 = dischargeTyping(u, h3)
-              have(HOLSteps.Clean.all(h4))
+              val rule = HOLSteps.eqMp of (ExtendedHOLSteps.p := t, q := u)
+              val result = have(Discharge(eq, p)(rule))
+              have(HOLSteps.Clean.all(dischargeTyping(u, result)))
 
             case _ =>
               failWith(s"The second premise should prove $t but proves ${p.statement.right}")
