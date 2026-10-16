@@ -576,7 +576,7 @@ object HOLSteps extends lisa._HOL {
           throw LisaHOLException(s"Mismatched typing assumption $ta while cleaning ${prem.statement}.")
         case _ => ()
 
-      if (prem.statement -<< ta).freeVars.contains(v) then failWith(s"The variable ${v} is used in the sequent and its type assignment cannot be eliminated")
+      if (prem.statement -<< ta).hasFree(v) then failWith(s"The variable ${v} is used in the sequent and its type assignment cannot be eliminated")
 
       val p1 = have(TypeNonEmptyProof(ta.typ))
       val p2 = have(prem.statement -<? ta +<? F.exists(v, ta)) by LeftExists.withParameters(ta, v)(prem)
@@ -586,7 +586,7 @@ object HOLSteps extends lisa._HOL {
     def allVariables(using proof: Proof)(prem: Thm): ProofJudgement = Subproof { ip ?=>
       val statement = prem.statement
       val vars = statement.left.collectFirst[TypeAssign[Variable[Ind]]] {
-        case f @ ((v: Variable[Ind] @unchecked) ∈ (typ: Expr[Ind])) if !(statement -<< f).freeVars.contains(v) => (v :: typ)
+        case f @ ((v: Variable[Ind] @unchecked) ∈ (typ: Expr[Ind])) if !(statement -<< f).hasFree(v) => (v :: typ)
       }
       if vars.nonEmpty then
         val h = have(Clean.variable(vars.head)(prem))
@@ -644,7 +644,7 @@ object HOLSteps extends lisa._HOL {
         case f @ NonEmpty(x, y, tv: Variable[Ind]) if isSame(x, y) =>
           val witness = statement.left.collectFirst:
             case TypeAssign(v: Variable[Ind], typ) if isSame(typ, tv) => v :: typ
-          if witness.nonEmpty || !(statement -<? f).freeVars.contains(tv) then Some((f, x, tv, witness))
+          if witness.nonEmpty || !(statement -<? f).hasFree(tv) then Some((f, x, tv, witness))
           else None
         case _ => None
       .nextOption()
