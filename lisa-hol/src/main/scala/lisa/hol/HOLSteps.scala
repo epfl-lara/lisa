@@ -510,9 +510,35 @@ object HOLSteps extends lisa._HOL {
     def cacheSize = cache.size
     def resetCache() = cache.clear()
 
-    private def infer(contextAssigns: Set[Expr[Prop]], t: Expr[Ind]): Thm =
+    /** Reuse canonical subterm typings for non-dependent applications. */
+    private def application(using proof: Proof)(t: Expr[Ind]): Option[ProofJudgement] = t match
+      case Sapp(function: Expr[Ind], argument: Expr[Ind]) =>
+        val functionTyping = apply(function)
+        functionTyping.statement.right.head match
+          case _ ∈ (functionType @ SPi(domain: Expr[Ind], Abs(bound: Variable[Ind], codomain: Expr[Ind])))
+              if !codomain.underlying.freeVariables.contains(bound.underlying) =>
+            val argumentTyping = apply(argument)
+            argumentTyping.statement.right.head match
+              case _ ∈ argumentType if isSame(argumentType, domain) =>
+                Some(Typecheck.applicationProof(function, argument, functionType)(functionTyping, argumentTyping).judgement)
+              case _ => None
+          case _ => None
+      case _ => None
+
+    /** Reuse body typing for HOL abstractions whose annotated binder matches the domain. */
+    private def abstraction(using proof: Proof)(t: Expr[Ind]): Option[ProofJudgement] = t match
+      case Sabs(domain: Expr[Ind], Abs(bound: TypedVariable, body: Expr[Ind])) if isSame(bound.typ, domain) =>
+        val bodyTyping = apply(body)
+        bodyTyping.statement.right.head match
+          case _ ∈ bodyType if !bodyType.underlying.freeVariables.contains(bound.underlying) =>
+            Some(Typecheck.abstractionProof(bound, domain, body, bodyType)(bodyTyping).judgement)
+          case _ => None
+      case _ => None
+
+    private def infer(contextAssigns: => Set[Expr[Prop]], t: Expr[Ind], reuse: Boolean = true): Thm =
       val carrier = Subproof {
-        val inferred = Typecheck.inferProof(contextAssigns, t)
+        val reused = if reuse then application(t).orElse(abstraction(t)) else None
+        val inferred = reused.getOrElse(Typecheck.inferProof(contextAssigns, t))
         if !inferred.isValid then failWith(inferred)
         val s1 = have(inferred)
         val cleaned = Clean.all(s1)
@@ -534,7 +560,8 @@ object HOLSteps extends lisa._HOL {
           // Typed constants carry their own type-parameter requirements. Supplying every
           // type variable found inside a typed variable's annotation weakens the result
           // with unrelated non-emptiness assumptions that cannot always be discharged.
-          val contextAssigns = getContext(t).collect:
+          // Reused typings already carry their canonical assumptions.
+          lazy val contextAssigns = getContext(t).collect:
             case assignment: TypeAssign[?] => assignment.asInstanceOf[Expr[Prop]]
           try
             val just = infer(contextAssigns, t)
@@ -544,7 +571,7 @@ object HOLSteps extends lisa._HOL {
             case canonical: Exception =>
               val localContext = contextAssigns ++ proof.assumptions
               if localContext.size == contextAssigns.size then throw LisaHOLException("Failed to compute and prove typing for term " + t + ": " + canonical.getMessage())
-              try infer(localContext.toSet, t)
+              try infer(localContext.toSet, t, reuse = false)
               catch
                 case local: Exception =>
                   throw LisaHOLException("Failed to compute and prove typing for term " + t + ": " + local.getMessage())
