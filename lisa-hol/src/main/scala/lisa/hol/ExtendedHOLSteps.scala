@@ -278,37 +278,15 @@ object ExtendedHOLSteps extends lisa._HOL {
   }
 
   object _INST_TYPE_RENAME {
-    def allTypedVars(e: Expr[?]): Set[(TypedVariable, Expr[Ind])] = e match
-      case v: TypedVariable => Set((v, v.typ))
-      case App(func, arg) => allTypedVars(func) ++ allTypedVars(arg)
-      case Abs(v: TypedVariable, body) =>
-        allTypedVars(body) + ((v, v.typ): (TypedVariable, Expr[Ind]))
-      case Abs(v, body) => allTypedVars(v) ++ allTypedVars(body)
-      case _ => Set.empty
-
+    /** Restore canonical free-variable identifiers without merging bound scopes. */
     def variableTypesNames(using proof: Proof)(prem: Thm): ProofJudgement = Subproof { ip ?=>
-      val allvars = prem.statement.left.flatMap(allTypedVars) ++ prem.statement.right.flatMap(allTypedVars)
-      val varsToChange: Map[Variable[Ind], TypedVariable] =
-        allvars.iterator
-          .map((v, typ) => v -> mkTypedVar(v.id.name, typ))
+      // Type substitution can identify previously distinct HOL variables. Bound
+      // variables must stay scoped; schema substitution avoids capturing free ones.
+      val renamings = prem.statement.freeVars.iterator.collect { case v: TypedVariable => v }
+          .map(v => v -> mkTypedVar(v.id.name, v.typ))
           .collect { case (v, target) if v.id != target.id => v -> target }
-          .toMap
-
-      def changeVarInExpr[A](e: Expr[A]): Expr[A] = e match
-        case v: Variable[?] =>
-          varsToChange.get(v.asInstanceOf[Variable[Ind]]).getOrElse(v).asInstanceOf[Variable[A]]
-        case Abs(v: Variable[?], body) =>
-          val targetVar = varsToChange.get(v.asInstanceOf[Variable[Ind]]).getOrElse(v)
-          val targetBody = changeVarInExpr(body)
-          if (targetVar eq v) && (targetBody eq body) then e else Abs(targetVar, targetBody).asInstanceOf[Expr[A]]
-        case App(func, arg) =>
-          val targetFunc = changeVarInExpr(func)
-          val targetArg = changeVarInExpr(arg)
-          if (targetFunc eq func) && (targetArg eq arg) then e else App(targetFunc, targetArg)
-        case cst: Constant[A] => cst
-      val targetSequent = prem.statement.left.map(changeVarInExpr) |- prem.statement.right.map(changeVarInExpr)
-      val instPrem = prem.of((varsToChange.map { case (from, to) => from := to }).toSeq*)
-      have(targetSequent) by Restate.from(instPrem)
+          .map((from, to) => from := to).toSeq
+      if renamings.isEmpty then prem else prem.of(renamings*)
     }
 
     def apply(using proof: Proof)(inst: Seq[(Variable[Ind], Expr[Ind])], prem: Thm): ProofJudgement = Subproof { ip ?=>
