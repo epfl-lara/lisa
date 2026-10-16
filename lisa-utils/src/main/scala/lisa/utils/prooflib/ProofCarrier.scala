@@ -141,7 +141,7 @@ final case class SoftCarrier[+T](
     copy(errors = errors + error)
 
   def withErrors(extraErrors: Iterable[ProofError]): SoftCarrier[T] =
-    copy(errors = errors ++ extraErrors)
+    if extraErrors.isEmpty then this else copy(errors = errors ++ extraErrors)
 
   def withJustification(using file: sourcecode.File, line: sourcecode.Line)(just: Thm): SoftCarrier[T] =
     copy(justification = Some(just))

@@ -69,6 +69,7 @@ class ProofCarrierSuite extends AnyFunSuite:
     )
     for carrier <- carriers; empty <- Seq(List.empty[ProofError], Set.empty[ProofError], Vector.empty[ProofError]) do
       val next = carrier.withErrors(empty)
+      assert(next eq carrier)
       assert(next.errors == carrier.errors)
       assert(next.statement == carrier.statement)
       assert(next.justification == carrier.justification)
