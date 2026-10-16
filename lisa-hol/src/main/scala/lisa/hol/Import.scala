@@ -14,6 +14,7 @@ import lisa.hol.{core => h}
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.utils.K
 import lisa.utils.collection.VecSet
+import lisa.utils.collection.BoundedCache
 import lisa.utils.prooflib.BasicStep.Restate
 import lisa.utils.prooflib.{Discharge, FatalCarrierDestructionException, OutputManager, Proof, ProofCarrier, ProofJudgement, Subproof, Thm}
 import lisa.utils.unification.UnificationUtils.RewriteContext
@@ -367,63 +368,104 @@ object Import extends lisa.HOL:
 
   private lazy val initializedDefinitions: Unit = Initialization.initializeDefinitions()
 
-  /** Reconstruct each reachable step once and share its judgement throughout an import. */
-  private[hol] final class StepStore(val statistics: ImportStatistics = new ImportStatistics)(using extractor: ExtractorContext):
-    private val steps = mutable.Map.empty[Long, ProofJudgement]
+  /** Retain named steps and definitions; recheck evicted unnamed dependencies on demand. */
+  private[hol] final class StepStore(
+      val statistics: ImportStatistics = new ImportStatistics,
+      capacity: Int = sys.props.get("lisa.hol.stepCache").fold(750000)(_.toInt),
+      namedSteps: Set[Long] = Set.empty,
+      generations: Int = sys.props.get("lisa.hol.stepCache.generations").fold(2)(_.toInt)
+  )(using extractor: ExtractorContext):
+    require(capacity >= 0, "Step-cache capacity must be non-negative; zero means unbounded.")
+    require(generations >= 0, "Step-cache generation count must be non-negative; zero means FIFO.")
+    private val unbounded = mutable.Map.empty[Long, ProofJudgement]
+    private val steps = Option.when(capacity > 0):
+      if generations == 0 then BoundedCache.fifo[Long, ProofJudgement](capacity)
+      else BoundedCache.generational[Long, ProofJudgement](capacity, generations)
+    private val pinned = mutable.Map.empty[Long, ProofJudgement]
+    private val pinnedIds = mutable.Set.from(namedSteps)
+    private var active = List.empty[Map[Long, ProofJudgement]]
     private var definitionsThrough = -1L
     private var hits = 0L
+    private var computed = 0
 
     initializedDefinitions
 
-    /** Count the reconstructed steps, including unnamed dependencies and definitions. */
-    def size: Int = steps.size
+    /** Count completed reconstructions, including repeated work after eviction. */
+    def size: Int = computed
+
+    /** Count retained results, including permanently pinned steps. */
+    def retainedSize: Int = steps.fold(unbounded.size)(_.size) + pinned.size
+    def pinnedSize: Int = pinned.size
+    def evictions: Long = steps.fold(0L)(_.evictions)
 
     /** Count lookups that reused a reconstructed judgement. */
     def cacheHits: Long = hits
 
-    /** Retrieve a step, reconstructing its dependencies and preceding definitions as needed. */
+    private def lookup(index: Long): Option[ProofJudgement] =
+      pinned.get(index).orElse(steps.fold(unbounded.get(index))(_.get(index)))
+
+    private def remember(index: Long, step: h.ProofStep, judgement: ProofJudgement): ProofJudgement =
+      computed += 1
+      val definition = step match
+        case _: h.DEFINITION | _: h.TYPE_DEFINITION => true
+        case _ => false
+      if definition || pinnedIds(index) then pinned(index) = judgement
+      else steps match
+        case Some(cache) => cache.put(index, judgement)
+        case None => unbounded(index) = judgement
+      judgement
+
+    /** Retrieve a retained step or recheck it from its proof record. */
     def apply(index: Long): ProofJudgement =
-      steps.get(index) match
+      lookup(index) match
         case Some(judgement) =>
           hits += 1
           judgement
         case None =>
           defineThrough(index)
-          steps.getOrElseUpdate(index, reconstruct(index, statistics.measure("read", index)(extractor.getProof(index))))
+          lookup(index).getOrElse:
+            val step = statistics.measure("read", index)(extractor.getProof(index))
+            remember(index, step, reconstruct(index, step))
 
-    /** Require a strictly earlier premise and retrieve its shared judgement. */
+    /** Keep the current rule's premises available even when another dependency evicts them. */
     def premise(index: Long, target: Long): ProofJudgement =
       if target >= index then throw OutOfOrderException(index, target)
-      apply(target)
+      active.headOption.flatMap(_.get(target)).getOrElse(apply(target))
 
     private def reconstruct(index: Long, step: h.ProofStep): ProofJudgement =
-      // Keep local assumptions and errors within this step. Cached errors travel with its judgement.
-      statistics.measureRule(step.getClass.getSimpleName, index, step.dependencies.toSeq.map(id => steps(id).kernel), steps.size):
-        try
-          Subproof:
-            reconstructStep(using extractor, summon[Proof], this)(index, step)
-        catch
-          case error: FatalCarrierDestructionException =>
-            val errors = (error.carrier.errors + error.carrier.fatalError).toSeq.map(e => s"${e.file}:${e.line}: ${e.message}")
-            throw FailedStepException(index, step.getClass.getSimpleName, errors).initCause(error)
+      val inputs = step.dependencies.distinct.iterator.map(id => id -> premise(index, id)).toMap
+      active = inputs :: active
+      try
+        statistics.measureRule(step.getClass.getSimpleName, index, inputs.valuesIterator.map(_.kernel).toSeq, retainedSize):
+          try
+            Subproof:
+              reconstructStep(using extractor, summon[Proof], this)(index, step)
+          catch
+            case error: FatalCarrierDestructionException =>
+              val errors = (error.carrier.errors + error.carrier.fatalError).toSeq.map(e => s"${e.file}:${e.line}: ${e.message}")
+              throw FailedStepException(index, step.getClass.getSimpleName, errors).initCause(error)
+      finally active = active.tail
 
     private def defineThrough(index: Long): Unit =
       if index > definitionsThrough then
         statistics.measure("read", index)(extractor.getDefinitionsBetween(definitionsThrough, index)).foreach: (definitionIndex, definition) =>
           definitionsThrough = definitionIndex
-          definition match
-            case _: h.DEFINITION =>
-              // Some exported constant definitions are unusable; demand for that step must still fail.
-              try steps.getOrElseUpdate(definitionIndex, reconstruct(definitionIndex, definition))
-              catch case exception: Exception => debug(s"Skipping unusable definition at $definitionIndex: ${exception.getMessage}")
-            case _: h.TYPE_DEFINITION =>
-              steps.getOrElseUpdate(definitionIndex, reconstruct(definitionIndex, definition))
-            case _ => ()
+          if lookup(definitionIndex).isEmpty then
+            definition match
+              case _: h.DEFINITION =>
+                // Some exported constant definitions are unusable; demand for that step must still fail.
+                try remember(definitionIndex, definition, reconstruct(definitionIndex, definition))
+                catch case exception: Exception => debug(s"Skipping unusable definition at $definitionIndex: ${exception.getMessage}")
+              case _: h.TYPE_DEFINITION =>
+                remember(definitionIndex, definition, reconstruct(definitionIndex, definition))
+              case _ => ()
         definitionsThrough = index
 
-    /** Check and register a name for an already reconstructed step. */
+    /** Pin the original judgement, then check and register its named form. */
     def theorem(ref: TheoremRef): Justification =
       val TheoremRef(index, name) = ref
+      pinnedIds += index
+      steps.fold(unbounded.remove(index))(_.remove(index)).foreach(judgement => pinned(index) = judgement)
       HOLProofType.resetCache()
       val judgement = apply(index)
       statistics.measure("named", index):
