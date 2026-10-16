@@ -138,4 +138,4 @@ private[hol] final class ImportStatistics(
     stepWriter.foreach(_.flush())
 
   /** Close the optional CSV output. */
-  def close(): Unit = try writer.foreach(_.close()) finally stepWriter.foreach(_.close())
+  def close(): Unit = closeAll(writer.toList ++ stepWriter.toList)
