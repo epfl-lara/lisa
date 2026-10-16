@@ -130,3 +130,73 @@ class KernelProofSuite extends AnyFunSuite:
     val result = Definition.apply(using theory)(c, Seq.empty, a)
 
     assert(result.left.exists(_.isInstanceOf[Definition.ExpressionNotInTheory]))
+
+  test("definition rejects self-reference and forward references without registering a symbol"):
+    given theory: Theory = Theory.empty
+    val c = Constant(Identifier("recursive-definition"), Prop)
+    val d = Constant(Identifier("forward-definition"), Prop)
+
+    assert(Definition(c, Seq.empty, neg(c)).isLeft)
+    assert(Definition(c, Seq.empty, d).isLeft)
+    assert(theory.getSymbol(c.id).isEmpty)
+    assert(theory.getDefinition(c).isEmpty)
+
+  test("declaring a symbol precludes defining it, including recursive definitions"):
+    given theory: Theory = Theory.empty
+    val c = Constant(Identifier("declared-definition"), Prop)
+    theory.addSymbol(c)
+
+    assert(Definition(c, Seq.empty, neg(c)) == Left(Definition.AlreadyDefined(c)))
+    assert(Definition(c, Seq.empty, top) == Left(Definition.AlreadyDefined(c)))
+    assert(theory.getDefinition(c).isEmpty)
+
+  test("definition rejects occupied names even at a different sort"):
+    given theory: Theory = Theory.empty
+    val original = Constant(Identifier("occupied-definition"), Ind)
+    val replacement = Constant(original.id, Prop)
+    theory.addSymbol(original)
+
+    assert(Definition(replacement, Seq.empty, top) == Left(Definition.AlreadyDefined(replacement)))
+    assert(theory.getSymbol(original.id).contains(original))
+
+  test("definitions can depend on earlier definitions and declared primitives"):
+    given theory: Theory = Theory.empty
+    val primitive = Constant(Identifier("definition-primitive"), Prop)
+    val first = Constant(Identifier("definition-first"), Prop)
+    val second = Constant(Identifier("definition-second"), Prop)
+    theory.addSymbol(primitive)
+
+    assert(Definition(first, Seq.empty, neg(primitive)).isRight)
+    assert(Definition(second, Seq.empty, neg(first)).isRight)
+    assert(Definition(first, Seq.empty, second) == Left(Definition.AlreadyDefined(first)))
+
+  test("higher-sort alpha-renaming preserves same-named free individuals"):
+    val bound = Variable(Identifier("sorted-binder"), Ind -> Ind)
+    val renamed = Variable(Identifier("renamed-binder"), Ind -> Ind)
+    val free = Variable(bound.id, Ind)
+    val otherFree = Variable(renamed.id, Ind)
+
+    assert(isSame(Lambda(bound, bound(free)), Lambda(renamed, renamed(free))))
+    assert(isSame(Lambda(bound, free), Lambda(renamed, free)))
+    assert(!isSame(Lambda(bound, free), Lambda(renamed, otherFree)))
+
+    given theory: Theory = Theory.empty
+    val p = Variable(Identifier("observe-abstraction"), ((Ind -> Ind) -> Ind) -> Prop)
+    val left = p(Lambda(bound, free))
+    val right = p(Lambda(renamed, otherFree))
+    val premise = Hypothesis(Sequent(Set(left), Set(left)), left).toOption.get
+    assert(Restate(Sequent(Set(left), Set(right)), premise).isLeft)
+
+  test("reconstructed variables remain visible to quantifier freshness checks"):
+    given theory: Theory = Theory.empty
+    val x = Variable(Identifier("freshness-x"), Ind)
+    val p = Variable(Identifier("freshness-p"), Ind -> Prop)
+    val variables = x +: (1 to 6).map(i => Variable(Identifier("freshness-filler", i), Ind))
+    val formula = variables.map(p(_)).reduce(and(_)(_))
+    val reconstructed = Variable(Identifier("freshness-x"), Ind)
+    val premise = Hypothesis(Sequent(Set(formula), Set(formula)), formula).toOption.get
+
+    assert(x == reconstructed)
+    assert(x.hashCode == reconstructed.hashCode)
+    assert(formula.freeVariables.contains(reconstructed))
+    assert(RightForall(Sequent(Set(formula), Set(forall(Lambda(reconstructed, formula)))), premise, formula, reconstructed).isLeft)
