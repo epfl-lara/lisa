@@ -946,6 +946,7 @@ object Import extends lisa.HOL:
           printProgress(timing)
 
     finally
+      HOLProofType.resetCache()
       try extractor.close()
       finally
         try exporter.close()
