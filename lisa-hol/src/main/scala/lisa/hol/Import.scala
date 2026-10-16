@@ -81,6 +81,16 @@ object Import extends lisa.HOL:
   given LoggingMode = currentLoggingMode
 
   object Transformers:
+    private val types = BoundedCache.fifo[h.Type, Expr[Ind]](sys.props.get("lisa.hol.typeCache").fold(4096)(_.toInt))
+    private val constants = BoundedCache.fifo[h.Constant, Expr[Ind]](sys.props.get("lisa.hol.constantCache").fold(4096)(_.toInt))
+
+    /** Release converted objects at named-theorem boundaries and import exit. */
+    private[hol] def resetConversionCache(): Unit =
+      types.clear()
+      constants.clear()
+
+    private[hol] def conversionCacheSize: Int = types.size + constants.size
+
     private val typeNumbers = mutable.Map.empty[K.Expression, Int]
     private var nextTypeNumber = 1
 
@@ -102,7 +112,7 @@ object Import extends lisa.HOL:
       TypedVariable(K.Identifier(name, typeNumber(tpe)), tpe)
 
     extension (typ: h.Type)
-      def toLisaType: Expr[Ind] =
+      def toLisaType: Expr[Ind] = types.getOrElseUpdate(typ):
         typ match
           case h.BoolType => 𝔹
           case h.FunType(in, out) => in.toLisaType ->: out.toLisaType
@@ -135,7 +145,7 @@ object Import extends lisa.HOL:
       def toLisaTerm: Expr[Ind] =
         term match
           case v @ h.Variable(_, _) => v.toLisaVar
-          case h.Constant(name, tpe) => Constants.lookupTypedConstant(name, tpe.toLisaType)
+          case c @ h.Constant(name, tpe) => constants.getOrElseUpdate(c)(Constants.lookupTypedConstant(name, tpe.toLisaType))
           case h.Combination(left, right) => left.toLisaTerm @@ right.toLisaTerm
           case h.Abstraction(absVar, inner) =>
             fun(absVar.toLisaVar, inner.toLisaTerm)
@@ -467,6 +477,7 @@ object Import extends lisa.HOL:
       pinnedIds += index
       steps.fold(unbounded.remove(index))(_.remove(index)).foreach(judgement => pinned(index) = judgement)
       HOLProofType.resetCache()
+      Transformers.resetConversionCache()
       val judgement = apply(index)
       statistics.measure("named", index):
         register(ref, judgement)
@@ -1005,6 +1016,7 @@ object Import extends lisa.HOL:
 
     finally
       HOLProofType.resetCache()
+      Transformers.resetConversionCache()
       try extractor.close()
       finally
         try exporter.close()
