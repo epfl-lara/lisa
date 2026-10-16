@@ -83,6 +83,9 @@ object Import extends lisa.HOL:
     private val typeNumbers = mutable.Map.empty[K.Expression, Int]
     private var nextTypeNumber = 1
 
+    /** Count distinct HOL types retained by the variable-identifier registry. */
+    private[hol] def typeCount: Int = typeNumbers.size
+
     private def typeNumber(tpe: Expr[Ind]): Int =
       typeNumbers.getOrElseUpdate(
         tpe.underlying, {
@@ -850,7 +853,10 @@ object Import extends lisa.HOL:
       totalElapsedNanos: Long,
       succeeded: Boolean,
       resources: ImportStatistics.Sample = ImportStatistics.Sample(-1, -1, 0),
-      cacheHits: Long = 0
+      cacheHits: Long = 0,
+      reader: ReaderStatistics = ReaderStatistics(),
+      typingCacheEntries: Int = 0,
+      distinctTypes: Int = 0
   ):
     def elapsedSeconds: Double = elapsedNanos / 1e9
     def totalSeconds: Double = totalElapsedNanos / 1e9
@@ -901,7 +907,10 @@ object Import extends lisa.HOL:
       val allocation = if resources.allocatedBytes < 0 then "n/a" else f"${resources.allocatedBytes / 1e6}%.1f MB"
       val perStep = if resources.allocatedBytes < 0 || timing.steps == 0 then "n/a" else f"${resources.allocatedBytes / 1024d / timing.steps}%.1f KiB/step"
       val resourceString = s"Last theorem: CPU $cpu; allocated $allocation ($perStep); GC ${resources.gcMillis} ms; reused ${timing.cacheHits} steps."
-      println(s"\r[INFO] $progressString $usedSteps $rates $memoryString $resourceString")
+      val reader = timing.reader
+      val readString = f"Reader: ${reader.proofHeaders} headers; ${reader.proofRecords} proofs, ${reader.statementRecords} statements parsed; ${(reader.proofBytes + reader.statementBytes) / 1e6}%.2f MB fetched."
+      val cacheString = s"Caches: ${timing.typingCacheEntries} typing results this theorem; ${timing.distinctTypes} distinct HOL types."
+      println(s"\r[INFO] $progressString $usedSteps $rates $memoryString $resourceString $readString $cacheString")
 
     val exporter =
       outputPath match
@@ -913,6 +922,7 @@ object Import extends lisa.HOL:
         val stepsBefore = store.size
         val hitsBefore = store.cacheHits
         val resourcesBefore = ImportStatistics.sample()
+        val readerBefore = extractor.statistics
         val theoremStart = System.nanoTime()
         var succeeded = false
         try
@@ -940,7 +950,8 @@ object Import extends lisa.HOL:
           // Retain only scalar measurements and the name, never the proof or its context.
           val finished = System.nanoTime()
           val resources = ImportStatistics.sample() - resourcesBefore
-          val timing = TheoremTiming(ref, store.size - stepsBefore, finished - theoremStart, store.size, finished - startTime, succeeded, resources, store.cacheHits - hitsBefore)
+          val timing = TheoremTiming(ref, store.size - stepsBefore, finished - theoremStart, store.size, finished - startTime, succeeded, resources, store.cacheHits - hitsBefore,
+            extractor.statistics - readerBefore, HOLProofType.cacheSize, Transformers.typeCount)
           timings += timing
           statistics.finish(ref.id, ref.name)
           printProgress(timing)

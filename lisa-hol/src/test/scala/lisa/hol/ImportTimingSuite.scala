@@ -55,6 +55,9 @@ class ImportTimingSuite extends AnyFunSuite:
       assert(timings.map(_.steps) == Vector(3, 1, 0))
       assert(timings.map(_.totalSteps) == Vector(3, 4, 4))
       assert(timings.map(_.cacheHits) == Vector(0, 2, 1))
+      assert(timings.map(_.reader.proofHeaders) == Vector(3, 1, 0))
+      assert(timings.map(_.reader.proofRecords) == Vector(3, 1, 0))
+      assert(timings.map(_.reader.statementRecords) == Vector(1, 1, 1))
       assert(timings.map(_.theorem.id) == Vector(3L, 7L, 3L))
       assert(timings.forall(_.succeeded))
       assert(timings.forall(t => t.resources.cpuNanos >= -1 && t.resources.allocatedBytes >= -1 && t.resources.gcMillis >= 0))
@@ -88,9 +91,11 @@ class ImportTimingSuite extends AnyFunSuite:
       assert(timings.head.steps == 3)
       assert(timings.head.totalSteps == 3)
 
-  test("release typing caches after successful imports"):
+  test("record populated typing caches and release them after successful imports"):
     withTrace("cache_success", composite = true): prefix =>
       val timings = Console.withOut(new ByteArrayOutputStream)(Import.importFromPrefix(prefix, 1, failFast = true))
+      assert(timings.head.typingCacheEntries > 0)
+      assert(timings.head.distinctTypes > 0)
       assert(HOLSteps.HOLProofType.cacheSize == 0)
 
   test("release typing caches after failed imports"):
