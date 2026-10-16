@@ -10,16 +10,18 @@ class ImportTimingSuite extends AnyFunSuite:
   private val q = "v(timing_q)(c[bool][])"
   private val equality = s"C(C(c(=)(c[fun][[c[bool][]][c[fun][[c[bool][]][c[bool][]]]]]))($p))($p)"
 
-  private def withTrace[A](label: String, mismatch: Boolean = false)(run: String => A): A =
+  private def withTrace[A](label: String, mismatch: Boolean = false, composite: Boolean = false)(run: String => A): A =
     val directory = Files.createTempDirectory("lisa-import-timing")
     val prefix = directory.resolve("trace").toString
     val paths = Seq("proofs", "theorems", "names").map(suffix => Path.of(s"$prefix.$suffix"))
-    val proofs = Seq(ProofLine(0, REFL(p)), ProofLine(1, ASSUME(p)), ProofLine(3, EQ_MP(0, 1)), ProofLine(7, EQ_MP(0, 1)))
+    val term = if composite then equality else p
+    val reflexivity = if composite then s"C(C(c(=)(c[fun][[c[bool][]][c[fun][[c[bool][]][c[bool][]]]]]))($term))($term)" else equality
+    val proofs = Seq(ProofLine(0, REFL(term)), ProofLine(1, ASSUME(term)), ProofLine(3, EQ_MP(0, 1)), ProofLine(7, EQ_MP(0, 1)))
     val statements = Seq(
-      TheoremStatement(0, RawSequent(Nil, equality)),
-      TheoremStatement(1, RawSequent(List(p), p)),
-      TheoremStatement(3, RawSequent(List(p), p)),
-      TheoremStatement(7, RawSequent(List(p), if mismatch then q else p))
+      TheoremStatement(0, RawSequent(Nil, reflexivity)),
+      TheoremStatement(1, RawSequent(List(term), term)),
+      TheoremStatement(3, RawSequent(List(term), term)),
+      TheoremStatement(7, RawSequent(List(term), if mismatch then q else term))
     )
     val names = Seq(TheoremRef(3, s"timing_${label}_first"), TheoremRef(7, s"timing_${label}_second"), TheoremRef(3, s"timing_${label}_alias"))
     try
@@ -85,3 +87,14 @@ class ImportTimingSuite extends AnyFunSuite:
       assert(timings.head.theorem.id == 7)
       assert(timings.head.steps == 3)
       assert(timings.head.totalSteps == 3)
+
+  test("release typing caches after successful imports"):
+    withTrace("cache_success", composite = true): prefix =>
+      val timings = Console.withOut(new ByteArrayOutputStream)(Import.importFromPrefix(prefix, 1, failFast = true))
+      assert(HOLSteps.HOLProofType.cacheSize == 0)
+
+  test("release typing caches after failed imports"):
+    withTrace("cache_failure", mismatch = true, composite = true): prefix =>
+      Console.withOut(new ByteArrayOutputStream):
+        assertThrows[Import.FailedTheoremException](Import.importFromPrefix(prefix, 2, failFast = true))
+      assert(HOLSteps.HOLProofType.cacheSize == 0)
