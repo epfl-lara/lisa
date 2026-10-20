@@ -343,25 +343,34 @@ private[fol] trait Syntax {
       case _ => None
     }
 
+    /** Test beta-eta normality from the syntax and cached child flags. */
+    val isBetaNormal: Boolean = this match {
+      case Application(_: Lambda, _) => false
+      case Application(f, arg) => f.isBetaNormal && arg.isBetaNormal
+      case Lambda(v, Application(f, arg)) if v == arg && !f.freeVariables.contains(v) => false
+      case Lambda(_, inner) => inner.isBetaNormal
+      case _ => true
+    }
+
     /**
-     * The beta-normal form of the expression and if it is in beta-normal form.
+     * The beta-eta normal form of the expression. Retain this instance when already normal.
      */
-    val (betaNormalForm: Expression, isBetaNormal: Boolean) = this match {
+    val betaNormalForm: Expression = this match {
       case Application(f, arg) => {
         val f1 = f.betaNormalForm
         val a2 = arg.betaNormalForm
         f1 match {
           case Lambda(v, body) => {
-            (substituteVariables(body, Map(v -> a2)).betaNormalForm, false)
+            substituteVariables(body, Map(v -> a2)).betaNormalForm
           }
-          case _ if f.isBetaNormal && arg.isBetaNormal => (this, true)
-          case _ => (Application(f1, a2), false)
+          case _ if f.isBetaNormal && arg.isBetaNormal => this
+          case _ => Application(f1, a2)
         }
       }
-      case Lambda(v, Application(f, arg)) if v == arg && !f.freeVariables.contains(v) => (f.betaNormalForm, false)
-      case Lambda(v, inner) if inner.isBetaNormal => (this, true)
-      case Lambda(v, inner) => (Lambda(v, inner.betaNormalForm), false)
-      case _ => (this, true)
+      case Lambda(v, Application(f, arg)) if v == arg && !f.freeVariables.contains(v) => f.betaNormalForm
+      case Lambda(v, inner) if inner.isBetaNormal => this
+      case Lambda(v, inner) => Lambda(v, inner.betaNormalForm)
+      case _ => this
     }
 
     /**
