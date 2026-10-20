@@ -467,24 +467,25 @@ object HOLSteps extends lisa._HOL {
   object _INST {
     def apply(using proof: Proof)(inst: Seq[(Variable[Ind], Expr[Ind])], prem: Thm): ProofJudgement = Subproof { ip ?=>
       val k = prem.of(inst.map(_ := _)*)
-      val fv = prem.statement.freeVars
-      // Instantiation can rename the unused binders in function types.
-      val violating = inst.iterator.collect {
-        case (v: TypedVariable, t) if fv.contains(v) => (v, t, computeType(t))
-      }.find { case (v, _, typ) => v.typ != typ && !isSame(v.typ, typ) }
-      violating match
-        case Some((v, t, typ)) => failWith(s"Type mismatch in instantiation: ${v} has type ${v.typ} but term ${t} has type $typ")
-        case None => ()
-      val instWithProofs = inst.flatMap: (v, t) =>
-        t match
+      val typings = inst.flatMap: (v, t) =>
+        val typing = t match
           // Instantiation intentionally retains a typed variable's assignment.
           case _: TypedVariable => None
-          case _ =>
-            val typing = HOLProofType(t)
-            Some((v, t, typing))
-      val result = instWithProofs.foldLeft(k: Thm) { case (h, (v, t, typProof)) =>
-        have(Discharge(typProof)(h))
-      }
+          case _ => Some(HOLProofType(t))
+        v match
+          case source: TypedVariable if prem.statement.hasFree(source) =>
+            val typ = t match
+              case variable: TypedVariable => variable.typ
+              case _ => typing.get.statement.right.head match
+                case term ∈ typ if term == t => typ
+                case _ => failWith(s"Could not compute type of $t")
+            // Instantiation can rename the unused binders in function types.
+            if source.typ != typ && !isSame(source.typ, typ) then
+              failWith(s"Type mismatch in instantiation: ${source} has type ${source.typ} but term ${t} has type $typ")
+          case _ => ()
+        typing
+      val result = typings.foldLeft(k: Thm): (h, typing) =>
+        have(Discharge(typing)(h))
       have(Clean.all(result))
     }
   }
