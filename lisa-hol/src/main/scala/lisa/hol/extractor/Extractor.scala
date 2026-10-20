@@ -22,6 +22,11 @@ case object UnreachableCaseException extends ExtractorException
 case object ExtractorEndedException extends Exception("No more proof steps or theorems to read") with ExtractorException
 
 extension [T](res: fastparse.Parsed[T])
+  /**
+   * Return the parsed value or report its syntax error.
+   * @throws CouldNotParseException if parsing failed
+   */
+  @throws[CouldNotParseException]
   def getDone: T =
     res match
       case fastparse.Parsed.Success(out, _) => out
@@ -40,8 +45,18 @@ private def parseType(str: String): Type = parseAll(str, typ(using _)).getDone
  * Decode a term or type substitution from its source and replacement strings.
  */
 case class InstPair(from: String, to: String) derives RW:
+  /**
+   * Decode a variable-to-term substitution.
+   * @throws CouldNotParseException if either string has invalid HOL syntax
+   */
+  @throws[CouldNotParseException]
   def toTermPair: (Variable, Term) = parseVar(from) -> parseTerm(to)
 
+  /**
+   * Decode a type-variable substitution.
+   * @throws CouldNotParseException if either string has invalid HOL syntax
+   */
+  @throws[CouldNotParseException]
   def toTypePair: (TypeVariable, Type) = parseTypeVar(from) -> parseType(to)
 
 /**
@@ -49,6 +64,11 @@ case class InstPair(from: String, to: String) derives RW:
  */
 @key("step")
 sealed trait RawStep derives RW:
+  /**
+   * Decode the rule parameters without validating its premises or conclusion.
+   * @throws CouldNotParseException if a term or type has invalid HOL syntax
+   */
+  @throws[CouldNotParseException]
   def extract: ProofStep =
     this match
       case REFL(term) => core.REFL(parseTerm(term))
@@ -94,6 +114,11 @@ case class ProofLine(id: Long, @key("pr") step: RawStep) derives RW
  * @example `{"hy": ["p"], "cc": "p"}`
  */
 case class RawSequent(@key("hy") hypotheses: List[String], @key("cc") conclusion: String) derives RW:
+  /**
+   * Decode the hypotheses and conclusion.
+   * @throws CouldNotParseException if a term has invalid HOL syntax
+   */
+  @throws[CouldNotParseException]
   def extract: HOLSequent =
     HOLSequent(
       hypotheses.map(parseTerm),
@@ -118,6 +143,9 @@ case class JustifiedTheorem(statement: HOLSequent, proof: ProofStep)
 private trait ExtractorData extends AutoCloseable:
   def statistics: ReaderStatistics = ReaderStatistics()
 
+  /**
+   * Advance through the requested ID or EOF, validating records as they are encountered.
+   */
   def readTill(idx: Long): Unit
   def readAll(): Unit
   def getKnown(idx: Long): JustifiedTheorem
@@ -207,7 +235,9 @@ private final class FileExtractorData(proofFile: File, theoremFile: File) extend
 
   def readTill(idx: Long): Unit = index.through(idx)
 
-  /** Check both complete ID sequences, including unmatched tails. */
+  /**
+   * Check both complete ID sequences, including unmatched tails.
+   */
   def readAll(): Unit =
     theorems.seek(0)
     index.allIds.foreach: id =>
@@ -256,33 +286,104 @@ final class ExtractorContext private (
     private val data: ExtractorData,
     private val names: Option[AutoCloseable] = None
 ) extends AutoCloseable:
-  /** Snapshot file-reader counters; iterator-backed contexts report zero. */
+  /**
+   * Snapshot file-reader counters; iterator-backed contexts report zero.
+   */
   def statistics: ReaderStatistics = data.statistics
   def this(proofIterator: Iterator[ProofLine], theoremIterator: Iterator[TheoremStatement]) =
     this(new IteratorExtractorData(proofIterator, theoremIterator))
 
   /**
-   * Get the theorem statement and proof for the given index, if it exists.
+   * Extract the theorem statement and proof for the given index.
    *
-   * @throws NoSuchElementException if the index does not exist
+   * @throws NoSuchElementException if the index is negative or its proof or statement is missing
+   * @throws IllegalArgumentException if trace headers, ordering, or proof/statement pairing are invalid
+   * @throws ujson.ParsingFailedException if a JSON record is malformed or incomplete
+   * @throws upickle.core.AbortException if a JSON record does not match the trace schema
+   * @throws ExtractorException if a term or type cannot be decoded
+   * @throws java.io.IOException if reading fails
    */
   @throws[NoSuchElementException]
+  @throws[IllegalArgumentException]
+  @throws[ujson.ParsingFailedException]
+  @throws[upickle.core.AbortException]
+  @throws[ExtractorException]
+  @throws[java.io.IOException]
   def getTheorem(idx: Long): JustifiedTheorem =
     readAt(idx)(data.getKnown(idx))
 
-  /** Extract only the theorem statement at the given index. */
+  /**
+   * Extract only the theorem statement at the given index.
+   *
+   * @throws NoSuchElementException if the index is negative or its proof or statement is missing
+   * @throws IllegalArgumentException if trace headers, ordering, or proof/statement pairing are invalid
+   * @throws ujson.ParsingFailedException if a JSON record is malformed or incomplete
+   * @throws upickle.core.AbortException if a JSON record does not match the trace schema
+   * @throws ExtractorException if a term or type cannot be decoded
+   * @throws java.io.IOException if reading fails
+   */
+  @throws[NoSuchElementException]
+  @throws[IllegalArgumentException]
+  @throws[ujson.ParsingFailedException]
+  @throws[upickle.core.AbortException]
+  @throws[ExtractorException]
+  @throws[java.io.IOException]
   def getStatement(idx: Long): HOLSequent =
     readAt(idx)(data.getKnownStatement(idx))
 
-  /** Extract only the proof step at the given index. */
+  /**
+   * Extract only the proof step at the given index.
+   *
+   * @throws NoSuchElementException if the index is negative or its proof is missing
+   * @throws IllegalArgumentException if trace headers, ordering, or proof/statement pairing are invalid
+   * @throws ujson.ParsingFailedException if a JSON record is malformed or incomplete
+   * @throws upickle.core.AbortException if a JSON record does not match the trace schema
+   * @throws ExtractorException if a term or type cannot be decoded
+   * @throws java.io.IOException if reading fails
+   */
+  @throws[NoSuchElementException]
+  @throws[IllegalArgumentException]
+  @throws[ujson.ParsingFailedException]
+  @throws[upickle.core.AbortException]
+  @throws[ExtractorException]
+  @throws[java.io.IOException]
   def getProof(idx: Long): ProofStep =
     readAt(idx)(data.getKnownProof(idx))
 
-  /** Return a definition at the given index without extracting an ordinary proof step. */
+  /**
+   * Return a definition at the given index without extracting an ordinary proof step.
+   * Return None for an existing non-definition step.
+   *
+   * @throws NoSuchElementException if the index is negative or its proof is missing
+   * @throws IllegalArgumentException if trace headers, ordering, or proof/statement pairing are invalid
+   * @throws ujson.ParsingFailedException if a JSON record is malformed or incomplete
+   * @throws upickle.core.AbortException if a JSON record does not match the trace schema
+   * @throws ExtractorException if a term or type cannot be decoded
+   * @throws java.io.IOException if reading fails
+   */
+  @throws[NoSuchElementException]
+  @throws[IllegalArgumentException]
+  @throws[ujson.ParsingFailedException]
+  @throws[upickle.core.AbortException]
+  @throws[ExtractorException]
+  @throws[java.io.IOException]
   def getDefinition(idx: Long): Option[ProofStep] =
     readAt(idx)(data.getKnownDefinition(idx))
 
-  /** Return every available definition in the requested interval, skipping absent indices. */
+  /**
+   * Return every available definition in the requested interval, skipping absent indices.
+   *
+   * @throws IllegalArgumentException if the interval or trace structure is invalid
+   * @throws ujson.ParsingFailedException if a JSON record is malformed or incomplete
+   * @throws upickle.core.AbortException if a JSON record does not match the trace schema
+   * @throws ExtractorException if a term or type cannot be decoded
+   * @throws java.io.IOException if reading fails
+   */
+  @throws[IllegalArgumentException]
+  @throws[ujson.ParsingFailedException]
+  @throws[upickle.core.AbortException]
+  @throws[ExtractorException]
+  @throws[java.io.IOException]
   private[hol] def getDefinitionsBetween(fromExclusive: Long, toInclusive: Long): Seq[(Long, ProofStep)] =
     require(fromExclusive <= toInclusive, s"Invalid definition interval ($fromExclusive, $toInclusive].")
     data.readTill(toInclusive)
@@ -294,10 +395,19 @@ final class ExtractorContext private (
     result
 
   /**
-   * Exhaustively read the remaining proofs and theorems and return a map of
-   * justifications. The context is not destroyed, but its data is fully
-   * contained in the returned map view.
+   * Validate and materialize all paired proof and statement records. Leave the context open.
+   *
+   * @throws IllegalArgumentException if trace headers, ordering, or proof/statement pairing are invalid
+   * @throws ujson.ParsingFailedException if a JSON record is malformed or incomplete
+   * @throws upickle.core.AbortException if a JSON record does not match the trace schema
+   * @throws ExtractorException if a term or type cannot be decoded
+   * @throws java.io.IOException if reading fails
    */
+  @throws[IllegalArgumentException]
+  @throws[ujson.ParsingFailedException]
+  @throws[upickle.core.AbortException]
+  @throws[ExtractorException]
+  @throws[java.io.IOException]
   def toMap: collection.MapView[Long, JustifiedTheorem] =
     data.readAll()
     data.knownTheorems
@@ -305,7 +415,11 @@ final class ExtractorContext private (
   private[extractor] def withNames(reader: AutoCloseable): ExtractorContext =
     new ExtractorContext(data, Some(reader))
 
-  /** Close the underlying trace files. */
+  /**
+   * Close the trace files and any names reader owned by this context.
+   * @throws java.io.IOException if closing an owned reader fails
+   */
+  @throws[java.io.IOException]
   def close(): Unit = names match
     case Some(reader) => Using.resources(data, reader)((_, _) => ())
     case None => data.close()
@@ -356,9 +470,8 @@ object JSONParser:
     catch case NonFatal(error) => Using.resource(context)(_ => throw error)
 
   /**
-   * Generate an extractor context from the given proof and theorem readers.
-   *
-   * The contents are expected to be in the ProofTrace export format.
+   * Extract paired ProofTrace records from caller-owned readers. Leave their lifetime to the caller.
+   * Defer reading and decoding failures until the returned context is accessed.
    */
   def toContext(proofSrc: java.io.Reader, thmSrc: java.io.Reader): ExtractorContext =
     new ExtractorContext(
@@ -367,16 +480,8 @@ object JSONParser:
     )
 
   /**
-   * Generate an extractor context from the given proof and theorem files.
+   * Open a lazy, file-backed ProofTrace context.
    *
-   * The files are expected to be in the ProofTrace export format.
-   *
-   * Keep both files sorted by unique non-negative IDs, with one JSON record per line.
-   * Preserve the export's leading `id`, then `pr.step` or `th` fields.
-   * Do not modify either file while the context is open.
-   *
-   * Defer payload parsing and statement lookup until requested. Use `toMap` to
-   * validate complete pairing and payloads on small traces.
    *
    * @throws java.io.FileNotFoundException if either file does not exist
    * @throws java.io.IOException if either file cannot be read
@@ -387,25 +492,24 @@ object JSONParser:
     ExtractorContext.fromFiles(readableFile(proofFile, "Proof"), readableFile(thmFile, "Theorem"))
 
   /**
-   * Generate an iterator of theorem references (index-name pairs) from the
-   * given file.
-   *
-   * The file is expected to be in the ProofTrace export format, containing a
-   * list of theorem references (ID-name pairs).
+   * Read UTF-8 theorem names and IDs.
    *
    * @throws java.io.FileNotFoundException if the file does not exist
-   * @throws java.io.IOException if the file cannot be read
+   * @throws java.io.IOException if opening, reading, or closing the file fails
+   * @throws ujson.ParsingFailedException if a JSON record is malformed or incomplete during iteration
+   * @throws upickle.core.AbortException if a names record does not match the trace schema during iteration
    */
   @throws[java.io.FileNotFoundException]
   @throws[java.io.IOException]
+  @throws[ujson.ParsingFailedException]
+  @throws[upickle.core.AbortException]
   def namesIterator(file: String): Iterator[TheoremRef] =
     openNames(file)._2
 
   /**
-   * Given a file prefix, generate an extractor context and an iterator of
-   * theorem references. The files are expected to be in the ProofTrace export
-   * format, with the proof steps in `<prefix>.proofs`, the theorem statements
-   * in `<prefix>.theorems`, and the theorem references in `<prefix>.names`.
+   * Open `<prefix>.proofs`, `<prefix>.theorems`, and `<prefix>.names`.
+   * Generate an extraction context with ownership of these streams.
+   * Record validation is performed lazily.
    *
    * @param filePrefix the prefix path of files to read from
    * @return an [[ExtractorContext]] to retrieve theorems and proofs, and an
@@ -420,16 +524,23 @@ object JSONParser:
     openNamedContext(s"$filePrefix.proofs", s"$filePrefix.theorems", s"$filePrefix.names")
 
   /**
-   * Given a proof file, a theorem file, and a theorem reference file, generate
-   * an iterator of theorem name and actual-theorem pairs. The theorem is a
-   * sequent paired with a proof step.
+   * Extract named theorem/proof pairs. Close all files on exhaustion or a decoding failure.
+   * Records are decoded lazily, and processing can fail during later iteration.
    *
    * @throws java.io.FileNotFoundException if any file does not exist
-   * @throws java.io.IOException if any file cannot be read
-   * @throws ExtractorException if the proof steps cannot be parsed, or if the proof tree is malformed
+   * @throws java.io.IOException if opening, reading, or closing a file fails
+   * @throws NoSuchElementException if a named theorem's proof or statement is missing
+   * @throws IllegalArgumentException if trace headers, ordering, or proof/statement pairing are invalid
+   * @throws ujson.ParsingFailedException if a JSON record is malformed or incomplete
+   * @throws upickle.core.AbortException if a JSON record does not match the trace schema
+   * @throws ExtractorException if a term or type cannot be decoded
    */
   @throws[java.io.FileNotFoundException]
   @throws[java.io.IOException]
+  @throws[NoSuchElementException]
+  @throws[IllegalArgumentException]
+  @throws[ujson.ParsingFailedException]
+  @throws[upickle.core.AbortException]
   @throws[ExtractorException]
   def theoremIterator(proofFile: String, thmFile: String, namesFile: String): Iterator[(String, JustifiedTheorem)] =
     val (context, names) = openNamedContext(proofFile, thmFile, namesFile)
