@@ -56,6 +56,7 @@ trait WithTheorems {
 
     private val steps = mutable.ArrayBuffer.empty[ProofStep]
     private val imports = mutable.ArrayBuffer.empty[(OutsideFact, F.Sequent)]
+    private lazy val justificationIndices = mutable.HashMap.empty[JUSTIFICATION, Int]
     private var instantiatedFacts: List[(InstantiatedFact, Int)] = Nil
     private var assumptions: List[F.Expr[F.Prop]] = assump
     private var eliminations: List[(F.Expr[F.Prop], (Int, F.Sequent) => List[K.SCProofStep])] = Nil
@@ -220,6 +221,12 @@ trait WithTheorems {
             addInstantiatedFact(instFact)
             (instFact.result, steps.size - 1)
         }
+      case justification: JUSTIFICATION =>
+        val index = justificationIndices.getOrElseUpdate(justification, {
+          addImport(justification, justification.statement)
+          -imports.size
+        })
+        (justification.statement, index)
       case of: OutsideFact @unchecked =>
         val r = imports.reverseIterator.indexWhere(of == _._1)
         if (r != -1) {
@@ -243,13 +250,7 @@ trait WithTheorems {
         }
       case ds: ProofStep => ds.bot
       case instfact: InstantiatedFact => instfact.result
-      case of: OutsideFact @unchecked =>
-        val r = imports.find(of == _._1)
-        if (r.nonEmpty) {
-          r.get._2
-        } else {
-          sequentOfOutsideFact(of)
-        }
+      case of: OutsideFact @unchecked => sequentOfOutsideFact(of)
     }
 
     def sequentOfOutsideFact(of: OutsideFact): F.Sequent
