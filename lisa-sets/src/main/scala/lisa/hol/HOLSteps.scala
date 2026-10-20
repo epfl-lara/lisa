@@ -638,26 +638,36 @@ object HOLSteps extends lisa._HOL {
   }
 
   object _INST extends ProofTactic {
-    def apply(using proof: Proof)(inst: Seq[(Variable[Ind], Expr[Ind])], prem: proof.Fact): proof.ProofTacticJudgement = TacticSubproof { ip ?=>
-      val k = prem.of(inst.map(_ := _)*)
-      val h0 = have(k.statement) by Restate.from(k) // to avoid laststep failing
-      val violating = inst.iterator.collect { case (v: TypedVariable, t) if prem.statement.hasFree(v) =>
-        (v, t, computeType(t))
-      }.find { case (v, _, typ) => v.typ != typ && !isSame(v.typ, typ) }
-      violating match
-        case Some((v, t, typ)) => return proof.InvalidProofTactic(s"Type mismatch in instantiation: ${v} has type ${v.typ} but term ${t} has type $typ")
-        case None => ()
-      val instWithProofs = inst.flatMap((v, t) =>
-        if !prem.statement.hasFree(v) then None // no need to discharge if the variable isn't free in the statement
-        else
-          val typProof = HOLProofType(t)
-          Some((v, t, typProof))
-      )
-      instWithProofs.foldLeft(h0: ip.Fact) { case (h, (v, t, typProof)) =>
-        have(Discharge(typProof)(h))
-      }
-      have(Clean.all(lastStep))
-    }
+    def apply(using proof: Proof)(inst: Seq[(Variable[Ind], Expr[Ind])], prem: proof.Fact): proof.ProofTacticJudgement =
+      scala.util.boundary:
+        TacticSubproof { ip ?=>
+          val k = prem.of(inst.map(_ := _)*)
+          val h0 = have(k.statement) by Restate.from(k) // to avoid laststep failing
+          val typings = inst.flatMap((v, t) =>
+            if !prem.statement.hasFree(v) then None // no need to discharge if the variable isn't free in the statement
+            else
+              val typing = t match
+                // Instantiation intentionally retains a typed variable's assignment.
+                case _: TypedVariable => None
+                case _ => Some(HOLProofType(t))
+              v match
+                case source: TypedVariable =>
+                  val typ = t match
+                    case variable: TypedVariable => variable.typ
+                    case _ => typing.get.statement.right.head match
+                      case term ∈ typ if term == t => typ
+                      case _ => scala.util.boundary.break(proof.InvalidProofTactic(s"Could not compute type of $t"))
+                  // Instantiation can rename the unused binders in function types.
+                  if source.typ != typ && !isSame(source.typ, typ) then
+                    scala.util.boundary.break(proof.InvalidProofTactic(s"Type mismatch in instantiation: ${source} has type ${source.typ} but term ${t} has type $typ"))
+                case _ => ()
+              typing
+          )
+          typings.foldLeft(h0: ip.Fact) { (h, typing) =>
+            have(Discharge(typing)(h))
+          }
+          have(Clean.all(lastStep))
+        }
   }
 
   object _INST_TYPE extends ProofTactic {
