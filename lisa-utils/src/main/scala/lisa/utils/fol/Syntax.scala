@@ -596,13 +596,14 @@ trait Syntax {
     val underlying: K.Lambda = K.Lambda(v.underlying, body.underlying)
     def substituteUnsafe(m: Map[Variable[?], Expr[?]]): Abs[S, T] =
       if m.contains(v) || m.valuesIterator.exists(_.underlying.freeVariables.contains(v.underlying)) then
-        // rename
-        val frees = m.values.flatMap(_.freeVars)
-        val v1 = v.freshRename(frees ++ body.freeVars ++ m.keySet)
-        Abs(v1, body.substituteUnsafe(Map(v -> v1))).substituteUnsafe(m)
+        // rename to fresh
+        val taken = m.values.flatMap(_.underlying.freeVariables.map(_.id)) ++
+          body.underlying.freeVariables.view.map(_.id) ++ m.keys.view.map(_.id)
+        val v1 = v.rename(K.freshId(taken, v.id))
+        new Abs(v1, body.substituteUnsafe(Map(v -> v1))).substituteUnsafe(m)
       else
         val newBody = body.substituteUnsafe(m)
-        if newBody eq body then this else Abs(v, newBody)
+        if newBody eq body then this else new Abs(v, newBody)
     override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): Abs[S, T] =
       super.substituteWithCheck(m).asInstanceOf[Abs[S, T]]
     override def substitute(pairs: SubstPair*): Abs[S, T] =
