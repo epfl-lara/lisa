@@ -14,11 +14,10 @@ import lisa.utils.prooflib._
 trait WithTheorems {
   library: Library =>
 
-  /**
-   * Conclude the proof with the declared statement before retaining or serializing it.
-   */
+  /** Conclude the proof with the declared statement before checking or serializing it. */
   private def concludeProof(statement: K.Sequent, proof: K.SCProof): K.SCProof =
-    if statement != proof.conclusion && K.isSameSequent(statement, proof.conclusion) then proof.appended(SC.Restate(statement, proof.length - 1))
+    if statement != proof.conclusion && K.isSameSequent(statement, proof.conclusion) then
+      proof.appended(SC.Restate(statement, proof.length - 1))
     else proof
 
   /**
@@ -527,29 +526,23 @@ trait WithTheorems {
      * @param kind The kind of theorem (Theorem, Lemma, Corollary)
      * @param getProof The kernel proof.
      * @param justifs low level justifications used to justify the proof's imports
-     * @param cacheImports Retain frontend imports when caching generated proofs.
+     * @param cacheImports Supply frontend owners for imports when writing the binary cache.
      * @return
      */
-    def fromSCProof(using
-        om: OutputManager
-    )(
-        statement: F.Sequent,
-        fullName: String,
-        kind: TheoremKind,
-        getProof: () => K.SCProof,
-        justifs: Seq[theory.Justification],
-        cacheImports: List[JUSTIFICATION] = Nil
+    def fromSCProof(using om: OutputManager)(
+        statement: F.Sequent, fullName: String, kind: TheoremKind, getProof: () => K.SCProof,
+        justifs: Seq[theory.Justification], cacheImports: Seq[JUSTIFICATION] = Seq.empty
     ): THM =
       import lisa.utils.Serialization.*
       val cached = if library._withCache then oneProofFromFile("cache/" + fullName, theory, Some(fullName -> statement.underlying)) else None
-      val (theorem, proof) = cached.getOrElse {
+      val (theorem, proof, imports) = cached.getOrElse {
         val proof = concludeProof(statement.underlying, getProof())
         theory.theorem(fullName, statement.underlying, proof, justifs) match {
           case K.Judgement.ValidJustification(just) =>
             if library._withCache then
               require(cacheImports.map(_.innerJustification) == justifs, "Supply frontend imports for cached generated proofs")
-              thmsToFile("cache/" + fullName, theory, List((fullName, flattenProof(proof), cacheImports.map(j => (j.owner, j.innerJustification)))))
-            (just, proof)
+              thmsToFile("cache/" + fullName, theory, List((fullName, flattenProof(proof), cacheImports.iterator.map(j => (j.owner, j.innerJustification)).toList)))
+            (just, proof, justifs.toList)
           case wrongJudgement: K.Judgement.InvalidJustification[?] =>
             om.lisaThrow(
               LisaException.InvalidKernelJustificationComputation(
@@ -610,7 +603,7 @@ trait WithTheorems {
         }
       else if library._withCache then
         oneProofFromFile("cache/" + fullName, library.theory, Some(fullName -> goal.underlying)) match {
-          case Some((thm, scp)) =>
+          case Some((thm, scp, _)) =>
             cachedProof = Some(scp)
             thm
 

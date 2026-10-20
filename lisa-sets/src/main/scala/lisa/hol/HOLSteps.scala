@@ -727,7 +727,7 @@ object HOLSteps extends lisa._HOL {
       nextProof += 1
       lib.THM.fromSCProof(using om)(
         cleaned.statement, name, lib.InternalStatement,
-        () => scProof, proof.justifications.map(_.innerJustification)
+        () => scProof, proof.justifications.map(_.innerJustification), proof.justifications
       )
 
     def apply2(using proof: Proof)(t: Expr[Ind]): lib.JUSTIFICATION =

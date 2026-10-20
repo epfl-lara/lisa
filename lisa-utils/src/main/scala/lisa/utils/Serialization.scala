@@ -559,18 +559,14 @@ object Serialization {
    * kernel name, which is stored verbatim in the proof file.
    */
   def thmsFromDataStream(treesDIS: DataInputStream, proofDIS: DataInputStream, theory: RunningTheory, debug: Boolean = false): Seq[(theory.Theorem, SCProof)] = {
-    checkTheorems(proofsFromDataStream(treesDIS, proofDIS), theory, debug)
+    checkTheorems(proofsFromDataStream(treesDIS, proofDIS), theory, debug).map((theorem, proof, _) => (theorem, proof))
   }
 
-  /**
-   * Resolve imports and check each decoded theorem before registering it.
-   */
+  /** Resolve imports and check each decoded theorem before registering it. */
   private def checkTheorems(
-      theorems: Seq[(String, SCProof, List[String])],
-      theory: RunningTheory,
-      debug: Boolean,
+      theorems: Seq[(String, SCProof, List[String])], theory: RunningTheory, debug: Boolean,
       loadTheorem: String => Option[theory.Theorem] = (_: String) => None
-  ): Seq[(theory.Theorem, SCProof)] = {
+  ): Seq[(theory.Theorem, SCProof, List[theory.Justification])] = {
     theorems.map { (name, proof, justifications) =>
       val justs = justifications.map { j =>
         val Array(owner, jName) = j.tail.split("\\$", 2)
@@ -591,15 +587,14 @@ object Serialization {
           // A cached proof skips its body, including references that initialize other Scala objects.
           try Class.forName(owner + "$").getField("MODULE$").get(null)
           catch case _: ClassNotFoundException => () // Generated theorems need not have a Scala owner.
-          lookup()
-            .orElse(if j(0) == 't' then loadTheorem(jName) else None)
+          lookup().orElse(if j(0) == 't' then loadTheorem(jName) else None)
             .getOrElse(throw new IllegalArgumentException(s"Missing cached dependency: $owner: $jName"))
         }
       }
       val verdict =
         if debug then theory.makeTheorem(name + "_test", proof.conclusion, proof, justs)
         else theory.makeTheorem(name, proof.conclusion, proof, justs)
-      (verdict.get, proof)
+      (verdict.get, proof, justs)
     }
 
   }
@@ -641,16 +636,14 @@ object Serialization {
   def oneThmFromFile(filename: String, theory: RunningTheory): Option[theory.Theorem] =
     oneProofFromFile(filename, theory).map(_._1)
 
-  /**
-   * Read and check one cached theorem; initialize or load its missing dependencies.
-   */
+  /** Read and check one cached theorem, returning its certificate and resolved imports. */
   def oneProofFromFile(
       filename: String,
       theory: RunningTheory,
       expected: Option[(String, Sequent)] = None
-  ): Option[(theory.Theorem, SCProof)] = {
+  ): Option[(theory.Theorem, SCProof, List[theory.Justification])] = {
     val directory = File(filename).getAbsoluteFile.getParentFile
-    def read(base: String, name: Option[String], statement: Option[Sequent], pending: Set[String]): Option[(theory.Theorem, SCProof)] = {
+    def read(base: String, name: Option[String], statement: Option[Sequent], pending: Set[String]): Option[(theory.Theorem, SCProof, List[theory.Justification])] = {
       val treeFile = File(base + ".trees")
       val proofFile = File(base + ".proof")
       if treeFile.isFile() && proofFile.isFile() then
@@ -669,11 +662,13 @@ object Serialization {
             read(File(directory, dependency).getPath, Some(dependency), None, pending + decodedName).map(_._1)
           }
           Some(checkTheorems(decoded, theory, false, load).head)
-        } catch {
+        }
+        catch {
           case e: Exception =>
             println(s"Error while reading theorems from file: $base: ${e.getMessage}")
             None
-        } finally {
+        }
+        finally {
           treesDIS.close()
           proofDIS.close()
         }
