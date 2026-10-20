@@ -1,101 +1,132 @@
 package lisa.hol.extractor
 
-import java.io.{ByteArrayOutputStream, File, RandomAccessFile}
-import java.nio.charset.StandardCharsets.UTF_8
+import java.io.{ByteArrayOutputStream, File}
+import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
+import java.nio.charset.{Charset, StandardCharsets}
+import java.nio.file.StandardOpenOption.READ
+import scala.util.Using
+import scala.util.control.NonFatal
 
-/** Read buffered UTF-8 lines while retaining exact byte offsets for random access. */
+/**
+ * Read and skip lines by byte offset, decoding UTF-8 only when a line is requested.
+ */
 private[extractor] final class TraceReader(path: File, bufferSize: Int = 64 * 1024) extends AutoCloseable:
   require(bufferSize > 0)
 
-  private val file = new RandomAccessFile(path, "r")
-  private val buffer = new Array[Byte](bufferSize)
-  private var next = 0
-  private var limit = 0
-  private var offset = 0L
+  private val file = FileChannel.open(path.toPath, READ)
+  private val buffer = ByteBuffer.allocate(bufferSize)
+  buffer.limit(0)
+  private var bufferStart = 0L
   private var readBytes = 0L
 
-  /** Count bytes fetched into the buffer, including read-ahead and rereads. */
+  // Traces are immutable while open, so the file size also determines EOF.
+  val length: Long = file.size()
+
+  /**
+   * Count bytes fetched into the buffer, including read-ahead and rereads.
+   */
   def bytesRead: Long = readBytes
 
-  def length: Long = file.length()
+  /**
+   * Return the byte offset of the next unread byte.
+   */
+  def position: Long = bufferStart + buffer.position()
 
-  /** Return the byte offset of the next unread character. */
-  def position: Long = offset
-
-  /** Resume at a byte offset, reusing buffered bytes when possible. */
+  /**
+   * Resume at a byte offset, reusing buffered bytes when possible.
+   */
   def seek(position: Long): Unit =
     require(position >= 0 && position <= length, s"Invalid trace offset: $position")
-    val start = offset - next
-    if limit >= 0 && position >= start && position < start + limit then
-      next = (position - start).toInt
-      offset = position
+    if position >= bufferStart && position <= bufferStart + buffer.limit() then buffer.position((position - bufferStart).toInt)
     else
-      file.seek(position)
-      offset = position
-      next = 0
-      limit = 0
+      bufferStart = position
+      buffer.limit(0)
 
   private def hasByte: Boolean =
-    if next == limit then
-      limit = file.read(buffer)
-      if limit > 0 then readBytes += limit
-      next = 0
-    next < limit
+    if !buffer.hasRemaining && position < length then
+      bufferStart = position
+      buffer.clear()
+      val count = file.read(buffer, bufferStart)
+      buffer.flip()
+      if count > 0 then readBytes += count
+    buffer.hasRemaining
 
-  private[extractor] def peekByte: Int = if hasByte then buffer(next) & 0xff else -1
+  private[extractor] def peekByte: Int = if hasByte then buffer.get(buffer.position()) & 0xff else -1
 
   private[extractor] def readByte(): Int =
-    val value = peekByte
-    if value >= 0 then
-      next += 1
-      offset += 1
-    value
+    if hasByte then buffer.get() & 0xff else -1
 
-  /** Skip the remaining line without decoding or retaining its payload. */
+  /**
+   * Consume at most the requested bytes, stopping before the line terminator.
+   */
+  private def consumeLine(output: Option[ByteArrayOutputStream], maxBytes: Long = Long.MaxValue): Unit =
+    var remaining = maxBytes
+    while remaining > 0 && hasByte do
+      val start = buffer.position()
+      val limit = start + math.min(remaining, buffer.remaining().toLong).toInt
+      var end = start
+      while end < limit && buffer.get(end) != '\n' && buffer.get(end) != '\r' do end += 1
+      output.foreach(_.write(buffer.array(), start, end - start))
+      buffer.position(end)
+      remaining -= end - start
+      if end < limit then return
+
+  private def collectLine(maxBytes: Long, charset: Charset): String =
+    val output = new ByteArrayOutputStream
+    consumeLine(Some(output), maxBytes)
+    output.toString(charset)
+
+  private def skipTerminator(): Unit =
+    if readByte() == '\r' && peekByte == '\n' then readByte()
+
+  /**
+   * Skip the remaining line without decoding or retaining its payload.
+   */
   def skipLine(): Unit =
-    var ended = false
-    while !ended && hasByte do
-      val start = next
-      while next < limit && buffer(next) != '\n' && buffer(next) != '\r' do next += 1
-      offset += next - start
-      if next < limit then
-        val separator = readByte()
-        if separator == '\r' && peekByte == '\n' then readByte()
-        ended = true
+    consumeLine(None)
+    skipTerminator()
 
-  /** Seek to the first complete line beginning at or after a byte offset. */
+  /**
+   * Read an ASCII header fragment, leaving any line terminator unconsumed.
+   */
+  private[extractor] def readPrefix(maxBytes: Int): String =
+    require(maxBytes > 0)
+    collectLine(maxBytes, StandardCharsets.US_ASCII)
+
+  /**
+   * Seek to the first complete line beginning at or after a byte offset.
+   */
   def seekLine(position: Long): Unit =
+    require(position >= 0 && position <= length, s"Invalid trace offset: $position")
     if position == 0 then seek(0)
     else
       seek(position - 1)
       readByte() match
-        case 10 => ()
-        case 13 => if peekByte == '\n' then readByte()
+        case '\n' => ()
+        case '\r' => if peekByte == '\n' then readByte()
         case _ => skipLine()
 
-  /** Read a line without its LF, CRLF, or CR terminator; return None at EOF. */
+  /**
+   * Read a line without its LF, CRLF, or CR terminator; return None at EOF.
+   */
   def readLine(): Option[String] =
     if !hasByte then None
     else
-      val line = new ByteArrayOutputStream
-      var ended = false
-      while !ended && hasByte do
-        val start = next
-        while next < limit && buffer(next) != '\n' && buffer(next) != '\r' do next += 1
-        line.write(buffer, start, next - start)
-        offset += next - start
+      val line = collectLine(Long.MaxValue, StandardCharsets.UTF_8)
+      skipTerminator()
+      Some(line)
 
-        // Consume the terminator, including a CRLF split across buffer fills.
-        if next < limit then
-          val separator = buffer(next)
-          next += 1
-          offset += 1
-          if separator == '\r' && hasByte && buffer(next) == '\n' then
-            next += 1
-            offset += 1
-          ended = true
-
-      Some(line.toString(UTF_8))
-
-  /** Close the underlying file. */
+  /**
+   * Close the underlying file.
+   */
   def close(): Unit = file.close()
+
+private[extractor] object TraceReader:
+  /**
+   * Open two readers; close the first if opening the second fails.
+   */
+  def openPair(first: File, second: File): (TraceReader, TraceReader) =
+    val reader = new TraceReader(first)
+    try reader -> new TraceReader(second)
+    catch case NonFatal(error) => Using.resource(reader)(_ => throw error)
