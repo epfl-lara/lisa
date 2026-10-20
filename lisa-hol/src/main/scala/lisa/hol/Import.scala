@@ -374,42 +374,71 @@ object Import extends lisa.HOL:
     def theorem(ref: TheoremRef): Justification
 
   /** Share checked SC theorems, never proof-local fact indices, across trace steps. */
-  private[hol] final class StepStore(val statistics: ImportStatistics = new ImportStatistics)(using extractor: ExtractorContext, mode: LoggingMode = LoggingMode.Silent) extends ProofStore:
-    private val steps = mutable.HashMap.empty[Long, Justification]
+  private[hol] final class StepStore(
+      val statistics: ImportStatistics = new ImportStatistics,
+      capacity: Int = sys.props.get("lisa.hol.stepCache").fold(750000)(_.toInt),
+      namedSteps: Set[Long] = Set.empty,
+      generations: Int = sys.props.get("lisa.hol.stepCache.generations").fold(2)(_.toInt)
+  )(using extractor: ExtractorContext, mode: LoggingMode = LoggingMode.Silent) extends ProofStore:
+    require(capacity >= 0 && generations >= 0, "Step-cache capacity and generation count must be non-negative.")
+    private val unbounded = mutable.HashMap.empty[Long, Justification]
+    private val steps = Option.when(capacity > 0):
+      if generations == 0 then BoundedCache.fifo[Long, Justification](capacity)
+      else BoundedCache.generational[Long, Justification](capacity, generations)
+    private val pinned = mutable.HashMap.empty[Long, Justification]
+    private val pinnedIds = mutable.Set.from(namedSteps)
+    private var active = List.empty[Map[Long, Justification]]
     private var definitionsThrough = -1L
+    private var computed = 0
     private var hits = 0L
     private var typingEntries = 0
 
     initializedDefinitions
 
-    /** Count the stored steps, including unnamed premises and definitions. */
-    def size: Int = steps.size
-    def retainedSize: Int = steps.size
-    def pinnedSize: Int = 0
-    def evictions: Long = 0L
+    /** Count checked reconstructions, including repeated work after eviction. */
+    def size: Int = computed
+    def retainedSize: Int = steps.fold(unbounded.size)(_.size) + pinned.size
+    def pinnedSize: Int = pinned.size
+    def evictions: Long = steps.fold(0L)(_.evictions)
     def cacheHits: Long = hits
     override def typingCacheSize: Int = typingEntries
-    override def localCacheSize: Int = 0
-    override def lemmaCacheSize: Int = 0
-    override def lemmaCacheHits: Long = 0L
+
+    private def lookup(index: Long): Option[Justification] =
+      pinned.get(index).orElse(steps.fold(unbounded.get(index))(_.get(index)))
+
+    private def remember(index: Long, step: h.ProofStep, result: Justification): Justification =
+      computed += 1
+      val definition = step match
+        case _: h.DEFINITION | _: h.TYPE_DEFINITION => true
+        case _ => false
+      if definition || pinnedIds(index) then pinned(index) = result
+      else steps match
+        case Some(cache) => cache.put(index, result)
+        case None => unbounded(index) = result
+      result
 
     /** Retrieve a checked step and construct any missing dependencies. */
     def apply(index: Long): Justification =
-      steps.get(index) match
+      lookup(index) match
         case Some(step) =>
           hits += 1
           step
         case None =>
           defineThrough(index)
-          steps.getOrElseUpdate(index, reconstruct(index, statistics.measure("read", index)(extractor.getProof(index))))
+          lookup(index).getOrElse:
+            val step = statistics.measure("read", index)(extractor.getProof(index))
+            remember(index, step, reconstruct(index, step))
 
     /** Require an earlier premise and retrieve its checked proof. */
     def premise(index: Long, target: Long): Justification =
       require(target < index, s"Step $index references non-earlier premise $target")
-      apply(target)
+      active.headOption.flatMap(_.get(target)).getOrElse(apply(target))
 
     private def reconstruct(index: Long, step: h.ProofStep): Justification =
-      statistics.measure(step.getClass.getSimpleName, index):
+      // Keep active premises alive across cache rotations.
+      val inputs = step.dependencies.distinct.iterator.map(id => id -> premise(index, id)).toMap
+      active = inputs :: active
+      try statistics.measure(step.getClass.getSimpleName, index):
         step match
           case axiom: h.AXIOM => reconstructAxiom(axiom)
           case definition: h.DEFINITION => reconstructConstantDefinition(definition)
@@ -425,30 +454,35 @@ object Import extends lisa.HOL:
                     throw new IllegalArgumentException(s"Step $index (${step.getClass.getSimpleName}) proves ${cleaned.statement}, expected $goal")
                 typingEntries += HOLProofType.cacheSize
                 cleaned.statement
+      finally active = active.tail
 
     private def defineThrough(index: Long): Unit =
       if index > definitionsThrough then
         statistics.measure("read", index)(extractor.getDefinitionsBetween(definitionsThrough, index)).foreach: (definitionIndex, definition) =>
           definitionsThrough = definitionIndex
-          definition match
-            case _: h.DEFINITION =>
-              try steps.getOrElseUpdate(definitionIndex, reconstruct(definitionIndex, definition))
-              catch case exception: Exception => debug(s"Skipping unusable definition at $definitionIndex: ${exception.getMessage}")
-            case _: h.TYPE_DEFINITION =>
-              steps.getOrElseUpdate(definitionIndex, reconstruct(definitionIndex, definition))
-            case _ => ()
+          if lookup(definitionIndex).isEmpty then
+            definition match
+              case _: h.DEFINITION =>
+                try remember(definitionIndex, definition, reconstruct(definitionIndex, definition))
+                catch case exception: Exception => debug(s"Skipping unusable definition at $definitionIndex: ${exception.getMessage}")
+              case _: h.TYPE_DEFINITION =>
+                remember(definitionIndex, definition, reconstruct(definitionIndex, definition))
+              case _ => ()
         definitionsThrough = index
 
     /** Check the exported statement and register its public theorem name. */
     def theorem(ref: TheoremRef): Justification =
+      pinnedIds += ref.id
+      steps.fold(unbounded.remove(ref.id))(_.remove(ref.id)).foreach(result => pinned(ref.id) = result)
       typingEntries = 0
       Transformers.resetConversionCache()
       val result = apply(ref.id)
-      val goal = statistics.measure("read", ref.id)(extractor.getStatement(ref.id)).toLisaSequent
-      HOLTheorem(using summon[OutputManager], sourcecode.FullName(s"Import.${sanitize(ref.name)}"), summon[sourcecode.Line], summon[sourcecode.File])(goal):
-        val cleaned = have(HOLSteps.Clean.all(result))
-        have(thesis) by Weakening(cleaned)
-        typingEntries += HOLProofType.cacheSize
+      statistics.measure("named", ref.id):
+        val goal = statistics.measure("read", ref.id)(extractor.getStatement(ref.id)).toLisaSequent
+        HOLTheorem(using summon[OutputManager], sourcecode.FullName(s"Import.${sanitize(ref.name)}"), summon[sourcecode.Line], summon[sourcecode.File])(goal):
+          val cleaned = have(HOLSteps.Clean.all(result))
+          have(thesis) by Weakening(cleaned)
+          typingEntries += HOLProofType.cacheSize
 
   /** Share named results, definitions, and selected checked lemmas between theorem-local proofs. */
   private[hol] final class LocalStepStore(
