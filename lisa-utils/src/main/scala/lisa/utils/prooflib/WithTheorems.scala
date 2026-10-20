@@ -103,14 +103,20 @@ trait WithTheorems {
     }
     private object ProofStep { // TODO
       def newProofStep(judgement: ValidProofTactic): ProofStep = {
-        val ps = ProofStep(
-          judgement,
-          SC.SCSubproof(
-            K.SCProof(judgement.scps.toIndexedSeq, judgement.imports.map(f => sequentOfFact(f).underlying).toIndexedSeq),
-            judgement.imports.map(sequentAndIntOfFact(_)._2)
-          ),
-          steps.size
-        )
+        // Resolving instantiated facts can add steps before this one.
+        val imports = judgement.imports.iterator.map(sequentAndIntOfFact).toVector
+        val offset = steps.size
+        val scps = judgement.scps match {
+          case Seq(step) =>
+            if step.premises.isEmpty then step
+            else mapStepPremises(step, i => if i < 0 then imports(-(i + 1))._2 else Math.addExact(offset, i))
+          case _ =>
+            SC.SCSubproof(
+              K.SCProof(judgement.scps.toIndexedSeq, imports.map(_._1.underlying)),
+              imports.map(_._2)
+            )
+        }
+        val ps = ProofStep(judgement, scps, offset)
         addStep(ps)
         ps
 

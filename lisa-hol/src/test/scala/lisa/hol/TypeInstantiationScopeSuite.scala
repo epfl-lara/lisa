@@ -21,10 +21,10 @@ class TypeInstantiationScopeSuite extends AnyFunSuite:
     import SetTheoryLibrary.{BaseProof, THMFromProof}
     val proof = new BaseProof(Owner.theorem.asInstanceOf[THMFromProof])
     given proof.type = proof
-    // Supply an open premise only to the tactic fixture, never register it as a theorem.
+    // Admit the fixture's premise locally; never register it as a theorem.
     val premise = proof.newProofStep(proof.ValidProofTactic(
-      statement, Seq(K.Restate(statement.underlying, -1)), Seq()
-    )(using Restate))
+      statement, Seq(K.Sorry(statement.underlying)), Seq()
+    )(using Sorry))
     ExtendedHOLSteps._INST_TYPE_RENAME(substitutions, premise) match
       case valid: proof.ValidProofTactic =>
         val imports = valid.imports.map(proof.sequentOfFact(_).underlying).toIndexedSeq
