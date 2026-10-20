@@ -365,6 +365,7 @@ object Import extends lisa.HOL:
     private val steps = mutable.HashMap.empty[Long, Justification]
     private var definitionsThrough = -1L
     private var hits = 0L
+    private var typingEntries = 0
 
     initializedDefinitions
 
@@ -374,7 +375,7 @@ object Import extends lisa.HOL:
     def pinnedSize: Int = 0
     def evictions: Long = 0L
     def cacheHits: Long = hits
-    def typingCacheSize: Int = HOLProofType.cacheSize
+    def typingCacheSize: Int = typingEntries
     def localCacheSize: Int = 0
     def lemmaCacheSize: Int = 0
     def lemmaCacheHits: Long = 0L
@@ -410,6 +411,7 @@ object Import extends lisa.HOL:
                   val goal = withCTX(extractor.getStatement(index).toLisaSequent)
                   if !Weakening(cleaned)(goal).isValid then
                     throw new IllegalArgumentException(s"Step $index (${step.getClass.getSimpleName}) proves ${cleaned.statement}, expected $goal")
+                typingEntries += HOLProofType.cacheSize
                 cleaned.statement
 
     private def defineThrough(index: Long): Unit =
@@ -427,13 +429,14 @@ object Import extends lisa.HOL:
 
     /** Check the exported statement and register its public theorem name. */
     def theorem(ref: TheoremRef): Justification =
-      HOLProofType.resetCache()
+      typingEntries = 0
       Transformers.resetConversionCache()
       val result = apply(ref.id)
       val goal = statistics.measure("read", ref.id)(extractor.getStatement(ref.id)).toLisaSequent
       HOLTheorem(using summon[OutputManager], sourcecode.FullName(s"Import.${sanitize(ref.name)}"), summon[sourcecode.Line], summon[sourcecode.File])(goal):
         val cleaned = have(HOLSteps.Clean.all(result))
         have(thesis) by Weakening(cleaned)
+        typingEntries += HOLProofType.cacheSize
 
   private def reconstructAxiom(using extractor: ExtractorContext)(step: h.AXIOM): Justification =
     val h.AXIOM(term) = step
@@ -610,7 +613,7 @@ object Import extends lisa.HOL:
         val existsPThm = typeTheorem("existsP")(localNonEmpty |- existsP):
           val witnessVariable = mkTypedVar("w", representationType)
           val witnessBody = (witnessVariable ∈ representationType) /\ ((p * witnessVariable) === One)
-          val witnessTyping = have(HOLProofType(t))
+          val witnessTyping = HOLProofType(t)
           have(((t ∈ representationType) /\ ((p * t) === One)) ++<< nonEmptinessThm.statement ++<< witnessTyping.statement) by
             RightAnd(witnessTyping, nonEmptinessThm)
           val witness = thenHave(lastStep.statement.left |- ∃(witnessVariable, witnessBody)) by RightExists.withParameters(witnessBody, witnessVariable, t)
@@ -887,7 +890,6 @@ object Import extends lisa.HOL:
       println(s"[INFO] Successfully imported $count theorems with ${store.size} reconstructed steps in ${(System.nanoTime() - startTime) / 1e9}s.")
       timings.result()
     finally
-      HOLProofType.resetCache()
       Transformers.resetConversionCache()
       closeAll(List(exporter, statistics, extractor))
 

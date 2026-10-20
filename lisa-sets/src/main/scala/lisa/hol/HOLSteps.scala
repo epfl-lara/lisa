@@ -12,8 +12,6 @@ import lisa.utils.fol.{FOL => F}
 import lisa.utils.prooflib.BasicStepTactic._
 import lisa.utils.prooflib.ProofTacticLib._
 import lisa.utils.prooflib.SimpleDeducedSteps._
-import scala.collection.mutable
-import lisa.utils.prooflib.OutputManager
 
 import F.{_, given}
 import Singleton.singleton
@@ -237,7 +235,7 @@ object HOLSteps extends lisa._HOL {
       thenHave(thesis) by RightForall
     }
 
-    val absTyped = have(HOLProofType(abs(A)(lam)))
+    val absTyped = HOLProofType(abs(A)(lam))
 
     have(thesis) by Tautology.from(
       funcUnique of (f := abs(A)(lam), g := f, A := A, B := B),
@@ -250,7 +248,7 @@ object HOLSteps extends lisa._HOL {
     assume(f :: (A ->: B), nonEmpty(A), nonEmpty(B))
 
     val lam = abs(A)(λ(x, f * x))
-    val absT = have(HOLProofType(lam))
+    val absT = HOLProofType(lam)
     have(thesis) by Tautology.from(
       etaConvEq,
       absT,
@@ -266,7 +264,7 @@ object HOLSteps extends lisa._HOL {
 
     assumeAll
 
-    val p0 = have(HOLProofType(f * x))
+    val p0 = HOLProofType(f * x)
     val p1 = have(f * x :: B |- f * x =:= f * x) by Tautology.from(eqRefl of (HOLSteps.x := f * x, A := B))
     val s1 = have(f * x =:= f * x) by Cut(p0, p1)
     val s2 = have((f :: typ1, g :: typ1) |- (f === g)) by Tautology.from(eqAlign of (HOLSteps.x := f, HOLSteps.y := g, A := typ1))
@@ -292,8 +290,7 @@ object HOLSteps extends lisa._HOL {
   object _REFL extends ProofTactic {
     def apply(using proof: Proof)(t: Expr[Ind]): proof.ProofTacticJudgement = TacticSubproof {
       // Extract typing context from current proof assumptions
-      val pp = HOLProofType(t)
-      val s1 = have(pp) // t::A
+      val s1 = HOLProofType(t) // t::A
       val typ = s1.statement.right.head match
         case _ ∈ typ => typ
         case _ => return proof.InvalidProofTactic(s"Could not compute type of $t")
@@ -322,9 +319,9 @@ object HOLSteps extends lisa._HOL {
               val p0 = have(((s :: aa), (ta :: aa), (u :: aa)) |- (holeq(aa) * s * ta)) by Weakening(t1)
               val r0 = have(((s :: aa), (ta :: aa), (u :: aa), (holeq(aa) * ta * u) === One) |- (holeq(aa) * s * u) === One) by Cut.withParameters(holeq(aa) * s * ta)(p0, eqTrans of (x := s, y := ta, z := u, A := aa))
               val r1 = have(((s :: aa), (ta :: aa), (u :: aa)) |- (holeq(aa) * s * u) === One) by Cut(t2, r0)
-              val r2 = have(Discharge(have(HOLProofType(s)))(r1))
-              val r3 = have(Discharge(have(HOLProofType(ta)))(r2))
-              val r4 = have(Discharge(have(HOLProofType(u)))(r3))
+              val r2 = have(Discharge(HOLProofType(s))(r1))
+              val r3 = have(Discharge(HOLProofType(ta))(r2))
+              val r4 = have(Discharge(HOLProofType(u))(r3))
               have(Clean.all(r4))
             else return proof.InvalidProofTactic(s"Types don't agree: $aa and $ab")
           else return proof.InvalidProofTactic(s"Middle elements don't agree: $ta and $tb")
@@ -397,10 +394,10 @@ object HOLSteps extends lisa._HOL {
               val s1 = have((xx :: typ2, yy :: typ2, ff :: typ1, gg :: typ1, ff =:= gg, xx =:= yy, ∃(x, x ∈ typ2), ∃(x, x ∈ b)) |- (ff * xx =:= gg * yy)) by Weakening(mk_comTHM of (f := ff, g := gg, x := xx, y := yy, A := typ2, B := b))
               val d1 = have(Discharge(f1)(lastStep))
               val d2 = have(Discharge(f2)(d1))
-              val d3 = have(Discharge(have(HOLProofType(xx)))(d2))
-              val d4 = have(Discharge(have(HOLProofType(yy)))(d3))
-              val d5 = have(Discharge(have(HOLProofType(ff)))(d4))
-              val d6 = have(Discharge(have(HOLProofType(gg)))(d5))
+              val d3 = have(Discharge(HOLProofType(xx))(d2))
+              val d4 = have(Discharge(HOLProofType(yy))(d3))
+              val d5 = have(Discharge(HOLProofType(ff))(d4))
+              val d6 = have(Discharge(HOLProofType(gg))(d5))
               have(Clean.all(d6))
 
             case _ =>
@@ -440,11 +437,11 @@ object HOLSteps extends lisa._HOL {
             absTHM of (t := λ(x, tt), u := λ(x, uu), A := xTyp, B := typ1)
           )
           val h2 = have(Discharge(h1)(lastStep))
-          have(HOLProofType(tt))
+          HOLProofType(tt)
           thenHave(lastStep.statement.left.filterNot(isSame(_, x :: xTyp)) |- (x :: xTyp) ==> (tt :: typ1)) by Weakening
 
           val h3 = thenHave(lastStep.statement.left |- tforall(xta, tt :: typ1)) by RightForall
-          have(HOLProofType(uu))
+          HOLProofType(uu)
           thenHave(lastStep.statement.left.filterNot(isSame(_, x :: xTyp)) |- (x :: xTyp) ==> (uu :: typ1)) by Weakening
           val h4 = thenHave(lastStep.statement.left |- tforall(xta, uu :: typ1)) by RightForall
           val h5 = have(h2.statement -<? (h3.statement.right.head) ++<< h3.statement) by Cut(h3, h2)
@@ -477,7 +474,7 @@ object HOLSteps extends lisa._HOL {
           val ttImp = have(ttPre.statement.left.filterNot(isSame(_, vx :: typ1)) |- (vx :: typ1) ==> (tt :: typ2)) by Weakening(ttPre)
           val ttypForall = have(ttImp.statement.left.filterNot(isSame(_, vx :: typ1)) |- tforall(vx :: typ1, tt :: typ2)) by RightForall(ttImp)
           val h1 = have(Discharge(ttypForall)(s1))
-          val h2 = have(Discharge(have(HOLProofType(r)))(h1))
+          val h2 = have(Discharge(HOLProofType(r))(h1))
           have(Clean.all(h2))
         case _ =>
           return proof.InvalidProofTactic(s"The Expr[Ind] should be of the form (λx. t) v")
@@ -510,8 +507,8 @@ object HOLSteps extends lisa._HOL {
           ctx._1.foreach(a => assume(a))
           ctx._2.foreach(a => assume(a))
           val bt = have((r::r.typ) |- ((l*r =:= l.body) === One)) by Restate.from(s1)
-          val ptlr = have(HOLProofType(l*r))
-          val ptlb = have(HOLProofType(l.body))
+          val ptlr = HOLProofType(l*r)
+          val ptlb = HOLProofType(l.body)
           val bth = have((r::r.typ, l*r :: l.defin.outType, l.body :: l.defin.outType) |- (l*r === l.body)) by Substitute(
             eqCorrect of (HOLSteps.x := l*r, HOLSteps.y := l.body, A := l.defin.outType)
           )(bt)
@@ -539,8 +536,8 @@ object HOLSteps extends lisa._HOL {
         funcUnique of (f := lxtx, g := t, A := x.typ, B := lxtx.defin.outType),
         lastStep
       )
-      val r2 = have((t::lxtx.typ) |- (lxtx === t)) by Cut(have(HOLProofType(lxtx)), r1)
-      have((lxtx === t)) by Cut(have(HOLProofType(t)), r2)
+      val r2 = have((t::lxtx.typ) |- (lxtx === t)) by Cut(HOLProofType(lxtx), r1)
+      have((lxtx === t)) by Cut(HOLProofType(t), r2)
     }
   }
 
@@ -552,7 +549,7 @@ object HOLSteps extends lisa._HOL {
 
       if t.freeVars.contains(x) then return proof.InvalidProofTactic(s"Variable $x is free in the Expr[Ind] $t")
       val lxtx = λ(x, t * x)
-      val ttype_step = have(HOLProofType(t))
+      val ttype_step = HOLProofType(t)
       val restype = computeType(t * x)
       val ttype = x.typ ->: restype
       val s1 = have((t :: ttype, x :: x.typ, ∃(x, x :: x.typ), ∃(x, x :: restype)) |- holeq(ttype) * (fun(x :: x.typ, t * x)) * t) by Weakening(etaConv of (HOLSteps.x := x, f := t, A := x.typ, B := restype))
@@ -595,9 +592,9 @@ object HOLSteps extends lisa._HOL {
               val h1 = have((assumptions + (t :: 𝔹) + (u :: 𝔹)) |- t === u) by Tautology.from(eqAlign of (x := t, y := u, A := 𝔹), eq)
               val hc = have((assumptions + (t :: 𝔹) + (u :: 𝔹) + (t === u)) |- (u === One)) by RightSubstEq.withParameters(List((t, u)), (Seq(vt), vt === One))(hp)
               val h2 = have((assumptions + (t :: 𝔹) + (u :: 𝔹)) |- (u === One)) by Cut(h1, hc)
-              val pt = have(HOLProofType(t))
+              val pt = HOLProofType(t)
               val h3 = have(Discharge(pt)(h2))
-              val h4 = have(Discharge(have(HOLProofType(u)))(h3))
+              val h4 = have(Discharge(HOLProofType(u))(h3))
               have(Clean.all(h4))
 
             case _ =>
@@ -630,8 +627,8 @@ object HOLSteps extends lisa._HOL {
           val h0 = have((p :: 𝔹, q :: 𝔹) |- (p === q)) by Cut.withParameters((q === One) <=> (p === One))(pivot, propExt of (HOLSteps.p -> p, HOLSteps.q -> q))
           val h1 = have((p :: 𝔹, q :: 𝔹, p === q) |- (p =:= q === One)) by Weakening(eqAlign of (A -> 𝔹, x -> p, y -> q))
           val h2 = have((p :: 𝔹, q :: 𝔹) |- (p =:= q === One)) by Cut.withParameters(p === q)(h0, h1)
-          val h3 = have(Discharge(have(HOLProofType(p)))(h2))
-          val h4 = have(Discharge(have(HOLProofType(q)))(h3))
+          val h3 = have(Discharge(HOLProofType(p))(h2))
+          val h4 = have(Discharge(HOLProofType(q))(h3))
           have(Clean.all(h4))
 
         case _ =>
@@ -653,7 +650,7 @@ object HOLSteps extends lisa._HOL {
       val instWithProofs = inst.flatMap((v, t) =>
         if !prem.statement.hasFree(v) then None // no need to discharge if the variable isn't free in the statement
         else
-          val typProof = have(HOLProofType(t))
+          val typProof = HOLProofType(t)
           Some((v, t, typProof))
       )
       instWithProofs.foldLeft(h0: ip.Fact) { case (h, (v, t, typProof)) =>
@@ -686,8 +683,6 @@ object HOLSteps extends lisa._HOL {
   object HOLProofType extends ProofTactic {
 
     private case class CacheKey(term: Long, variableTypes: Vector[Long])
-    private val cache = mutable.HashMap.empty[CacheKey, lib.JUSTIFICATION]
-    private var nextProof = 0L
 
     private def code[S: Sort](t: Expr[S]): CacheKey =
       val variableTypes = Vector.newBuilder[Long]
@@ -703,63 +698,76 @@ object HOLSteps extends lisa._HOL {
       collect(t)
       CacheKey(t.underlying.uniqueNumber, variableTypes.result())
 
-    def cacheSize = cache.size
-    def resetCache() = cache.clear()
+    def cacheSize(using proof: Proof): Int = proof.cachedRootStepCount
 
-    given om: OutputManager = new OutputManager {
-      def finishOutput(exception: Exception): Nothing = throw exception
-      val stringWriter: java.io.Writer = java.io.Writer.nullWriter()
-    }
+    private def application(using proof: Proof)(t: Expr[Ind]): Option[proof.ProofTacticJudgement] = t match
+      case Sapp(function: Expr[Ind], argument: Expr[Ind]) =>
+        val functionTyping = canonical(function)
+        functionTyping.statement.right.head match
+          case _ ∈ (functionType @ SPi(domain: Expr[Ind], Abs(bound: Variable[Ind], codomain: Expr[Ind])))
+              if !codomain.underlying.freeVariables.contains(bound.underlying) =>
+            val argumentTyping = canonical(argument)
+            argumentTyping.statement.right.head match
+              case _ ∈ argumentType if isSame(argumentType, domain) =>
+                Some(Typecheck.applicationProof(function, argument, functionType)(functionTyping, argumentTyping))
+              case _ => None
+          case _ => None
+      case _ => None
 
-    // Supply the old builder's required owner without adding a proof dependency.
-    private lazy val owner = Theorem(using om, sourcecode.FullName("HOLProofType.owner"))(⊤) {
-      have(⊤) by Restate
-    }
+    private def abstraction(using proof: Proof)(t: Expr[Ind]): Option[proof.ProofTacticJudgement] = t match
+      case Sabs(domain: Expr[Ind], Abs(bound: TypedVariable, body: Expr[Ind])) if isSame(bound.typ, domain) =>
+        val bodyTyping = canonical(body)
+        bodyTyping.statement.right.head match
+          case _ ∈ bodyType if !bodyType.underlying.freeVariables.contains(bound.underlying) =>
+            Some(Typecheck.abstractionProof(bound, domain, body, bodyType)(bodyTyping))
+          case _ => None
+      case _ => None
 
-    /** Infer and register exactly the cleaned sequent, without extra assumptions. */
-    private def infer(context: Set[Expr[Prop]], t: Expr[Ind]): lib.JUSTIFICATION =
-      val proof = new lib.BaseProof(owner.asInstanceOf[lib.THMFromProof])
-      given proof.type = proof
-      val typed = have(Typecheck.inferProof(context, t))
-      val cleaned = have(Clean.all(typed))
-      val scProof = proof.toSCProof
-      val name = s"lisa.hol.HOLProofType.proof$nextProof"
-      nextProof += 1
-      lib.THM.fromSCProof(using om)(
-        cleaned.statement, name, lib.InternalStatement,
-        () => scProof, proof.justifications.map(_.innerJustification), proof.justifications
-      )
+    /** Infer a cleaned typing step without inheriting the enclosing assumptions. */
+    private def infer(using proof: Proof)(context: => Set[Expr[Prop]], t: Expr[Ind], reuse: Boolean = true): proof.ProofStep =
+      val result = TacticSubproof { ip ?=>
+        ip.cleanAssumptions
+        val reused = if reuse then application(t).orElse(abstraction(t)) else None
+        val typed = have(reused.getOrElse(Typecheck.inferProof(context, t)))
+        have(Clean.all(typed))
+      }
+      result.validate(summon[sourcecode.Line], summon[sourcecode.File])
 
-    def apply2(using proof: Proof)(t: Expr[Ind]): lib.JUSTIFICATION =
-      val key = code(t)
-      cache.get(key) match
-        case Some(justif) => justif
-        case None =>
-          // Constants supply their own type-parameter requirements. Annotations
-          // alone must not introduce unrelated non-emptiness hypotheses.
-          val context = getContext(t).collect {
-            case assignment @ TypeAssign(_, _) => assignment
-          }
-          try
-            val just = infer(context, t)
-            cache.put(key, just)
-            just
-          catch
-            case canonical: Exception =>
-              val localContext = context ++ proof.getAssumptions
-              if localContext.size == context.size then
-                throw LisaHOLException(s"Failed to compute and prove typing for term $t: ${canonical.getMessage}")
-              // This derivation depends on the caller's assumptions: never cache it.
-              try infer(localContext.toSet, t)
-              catch case local: Exception =>
-                throw LisaHOLException(s"Failed to compute and prove typing for term $t: ${local.getMessage}")
+    // Constants supply their own type-parameter requirements. Annotations
+    // alone must not introduce unrelated non-emptiness hypotheses.
+    private def context(t: Expr[Ind]): Set[Expr[Prop]] =
+      getContext(t).collect { case assignment @ TypeAssign(_, _) => assignment }
 
-    def apply(using proof: Proof)(t: Expr[Ind]): lib.JUSTIFICATION =
-      t match
-        case tc: TypedConstant =>
-          tc.justif
-        case _ =>
-          apply2(t)
+    // Subterm reuse must not fall back to the caller's assumptions.
+    private def canonical(using proof: Proof)(t: Expr[Ind]): proof.Fact = t match
+      case tc: TypedConstant => proof.asOutsideFact(tc.justif)
+      case _ => proof.cachedRootStep((this, code(t))): root =>
+        infer(using root)(context(t), t)
+
+    private def localStep(using proof: Proof)(fact: proof.Fact): proof.ProofStep = fact match
+      case step: proof.ProofStep => step
+      case _ =>
+        val statement = proof.sequentOfFact(fact)
+        proof.newProofStep(proof.ValidProofTactic(statement, Seq(SC.Restate(statement.underlying, -1)), Seq(fact)))
+
+    /**
+     * Prove typing in the current proof, sharing canonical derivations within its root proof.
+     *
+     * @throws LisaHOLException if typing cannot be derived from the term or the local assumptions
+     */
+    def apply(using proof: Proof)(t: Expr[Ind]): proof.ProofStep =
+      try localStep(canonical(t))
+      catch
+        case error: Exception =>
+          val assignments = context(t)
+          val localContext = assignments ++ proof.getAssumptions
+          if localContext.size == assignments.size then
+            throw LisaHOLException(s"Failed to compute and prove typing for term $t: ${error.getMessage}")
+          // This derivation depends on the caller's assumptions: never cache it.
+          try infer(localContext.toSet, t, reuse = false)
+          catch case local: Exception =>
+            throw LisaHOLException(s"Failed to compute and prove typing for term $t: ${local.getMessage}")
+
   }
 
   object Clean {

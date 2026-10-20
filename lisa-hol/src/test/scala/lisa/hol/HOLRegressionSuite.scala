@@ -6,6 +6,16 @@ import lisa.utils.K
 import org.scalatest.funsuite.AnyFunSuite
 
 class HOLRegressionSuite extends AnyFunSuite:
+  private def checkTyping(proof: lisa.SetTheoryLibrary.BaseProof)(typing: proof.Fact): Unit =
+    import lisa.SetTheoryLibrary.*
+    given proof.type = proof
+    have(typing)
+    assert(K.SCProofChecker.checkSCProof(proof.toSCProof) match
+      case K.SCProofCheckerJudgement.SCValidProof(_, usesSorry) => !usesSorry
+      case _ => false)
+    assert(proof.justifications.forall(justification => !justification.withSorry))
+    assert(!proof.justifications.exists(_.fullName.startsWith("lisa.hol.HOLProofType.")))
+
   private object Proofs extends lisa.HOL:
     val A, B = typevar
     val x = typedvar(A)
@@ -75,13 +85,12 @@ class HOLRegressionSuite extends AnyFunSuite:
     given proof.type = proof
     val first = TypedVariable(K.Identifier("cache-variable"), Proofs.A)
     val second = TypedVariable(K.Identifier("cache-variable"), Proofs.B)
-    HOLSteps.HOLProofType.resetCache()
     val firstTyping = HOLSteps.HOLProofType(first)
     val secondTyping = HOLSteps.HOLProofType(second)
     assert(firstTyping.statement.right != secondTyping.statement.right)
     assert(HOLSteps.HOLProofType.cacheSize == 2)
-    assert(theory.getTheorem(firstTyping.innerJustification.asInstanceOf[theory.Theorem].name).get.proposition == firstTyping.statement.underlying)
-    assert(theory.getTheorem(secondTyping.innerJustification.asInstanceOf[theory.Theorem].name).get.proposition == secondTyping.statement.underlying)
+    checkTyping(proof)(firstTyping)
+    checkTyping(proof)(secondTyping)
 
   test("keep canonical typing free of annotation-only non-emptiness premises"):
     import lisa.SetTheoryLibrary.*
@@ -89,7 +98,7 @@ class HOLRegressionSuite extends AnyFunSuite:
     given proof.type = proof
     val typing = HOLSteps.HOLProofType(Proofs.x)
     assert(typing.statement.left == typing.statement.right)
-    Proofs.check(typing.asInstanceOf[THM])
+    checkTyping(proof)(typing)
 
   test("retry local typing without caching its assumptions"):
     import lisa.SetTheoryLibrary.*
@@ -101,13 +110,14 @@ class HOLRegressionSuite extends AnyFunSuite:
     val proof = new BaseProof(Proofs.reflexivity.asInstanceOf[THMFromProof])
     given proof.type = proof
     context.foreach(proof.addAssumption)
-    HOLSteps.HOLProofType.resetCache()
     val typing = HOLSteps.HOLProofType(f * x)
     assert(typing.statement.left == context)
-    assert(HOLSteps.HOLProofType.cacheSize == 0)
-    Proofs.check(typing.asInstanceOf[THM])
+    // Canonical subterm proofs may remain; the local-context application must not.
+    val canonicalEntries = HOLSteps.HOLProofType.cacheSize
+    checkTyping(proof)(typing)
     proof.cleanAssumptions
     assertThrows[LisaHOLException](HOLSteps.HOLProofType(f * x))
+    assert(HOLSteps.HOLProofType.cacheSize == canonicalEntries)
 
   test("use the constructor's requirements, not every free type's non-emptiness"):
     import lisa.SetTheoryLibrary.*
@@ -115,7 +125,7 @@ class HOLRegressionSuite extends AnyFunSuite:
     given proof.type = proof
     val typing = HOLSteps.HOLProofType(Proofs.totalConstant(Proofs.A))
     assert(typing.statement.left.isEmpty)
-    Proofs.check(typing.asInstanceOf[THM])
+    checkTyping(proof)(typing)
 
   test("check both subset type-definition theorems"):
     Proofs.check(basics.TypeDefs.typeNonEmpty)

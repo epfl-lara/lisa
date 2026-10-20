@@ -88,8 +88,8 @@ object Exists extends lisa.HOL {
       have(thesis) by Tautology.from(
         betaRed,
         eqAlign of (A := 𝔹, x := hexists(A) * P, y := body),
-        have(HOLProofType(hexists(A) * P)),
-        have(HOLProofType(body))
+        HOLProofType(hexists(A) * P),
+        HOLProofType(body)
       )
 
     // Correctness lemmas for the HOL connectives
@@ -99,13 +99,13 @@ object Exists extends lisa.HOL {
     val innerImpLift = have((x :: A, q :: 𝔹) |- innerImp <=> (P * x ==> q)) subproof:
       have(thesis) by Tautology.from(
         himpCorrect of (p := P * x, q := q),
-        have(HOLProofType(P * x)),
-        have(HOLProofType(q))
+        HOLProofType(P * x),
+        HOLProofType(q)
       )
 
     // hforall(A) * innerPred <=> ∀(x :: A, innerPred * x)
     val innerFALift = have(q :: 𝔹 |- innerFA <=> ∀(x :: A, innerPred * x)) subproof:
-      val typing = have(HOLProofType(innerPred))
+      val typing = HOLProofType(innerPred)
       val correctness = have((innerPred :: (A ->: 𝔹), nonEmpty(A)) |- innerFA <=> ∀(x :: A, innerPred * x)) by Weakening(hforallCorrect of (P := innerPred, x := x))
       have(thesis) by Cut.withParameters(innerPred :: (A ->: 𝔹))(typing, correctness)
 
@@ -113,13 +113,13 @@ object Exists extends lisa.HOL {
     val outerImpLift = have(q :: 𝔹 |- outerImp <=> (innerFA ==> q)) subproof:
       have(thesis) by Tautology.from(
         himpCorrect of (p := innerFA, q := q),
-        have(HOLProofType(innerFA)),
-        have(HOLProofType(q))
+        HOLProofType(innerFA),
+        HOLProofType(q)
       )
 
     // hforall(𝔹) * outerPred <=> ∀(q :: 𝔹, outerPred * q)
     val outerFALift = have(body <=> ∀(q :: 𝔹, outerPred * q)) subproof:
-      val typing = have(HOLProofType(outerPred))
+      val typing = HOLProofType(outerPred)
       have(thesis) by Tautology.from(
         hforallCorrect of (A := 𝔹, P := outerPred, x := q),
         typing,
@@ -132,8 +132,8 @@ object Exists extends lisa.HOL {
       have(thesis) by Tautology.from(
         bc,
         eqAlign of (A := 𝔹, x := outerPred * q, y := outerImp),
-        have(HOLProofType(outerPred * q)),
-        have(HOLProofType(outerImp))
+        HOLProofType(outerPred * q),
+        HOLProofType(outerImp)
       )
 
     val innerBeta = have((x :: A, q :: 𝔹) |- innerPred * x === innerImp) subproof:
@@ -141,8 +141,8 @@ object Exists extends lisa.HOL {
       have(thesis) by Tautology.from(
         bc,
         eqAlign of (A := 𝔹, x := innerPred * x, y := innerImp),
-        have(HOLProofType(innerPred * x)),
-        have(HOLProofType(innerImp))
+        HOLProofType(innerPred * x),
+        HOLProofType(innerImp)
       )
 
     // Forward direction: hexists(A) * P |- ∃(x :: A, P * x)
@@ -159,14 +159,14 @@ object Exists extends lisa.HOL {
         have(thesis) by Tautology.from(
           bc,
           eqAlign of (A := 𝔹, x := outerPred * Zero, y := outerImp0),
-          have(HOLProofType(outerPred * Zero)),
-          have(HOLProofType(outerImp0))
+          HOLProofType(outerPred * Zero),
+          HOLProofType(outerImp0)
         )
 
       val outerImpLift0 = have(outerImp0 <=> (innerFA0 ==> Zero)) subproof:
         have(thesis) by Tautology.from(
           himpCorrect of (p := innerFA0, q := Zero),
-          have(HOLProofType(innerFA0)),
+          HOLProofType(innerFA0),
           Zero.justif
         )
 
@@ -180,14 +180,14 @@ object Exists extends lisa.HOL {
         have(thesis) by Tautology.from(
           bc,
           eqAlign of (A := 𝔹, x := innerPred0 * x, y := innerImp0),
-          have(HOLProofType(innerPred0 * x)),
-          have(HOLProofType(innerImp0))
+          HOLProofType(innerPred0 * x),
+          HOLProofType(innerImp0)
         )
 
       val innerImpLift0 = have(x :: A |- innerImp0 <=> (P * x ==> Zero)) subproof:
         have(thesis) by Tautology.from(
           himpCorrect of (p := P * x, q := Zero),
-          have(HOLProofType(P * x)),
+          HOLProofType(P * x),
           Zero.justif
         )
 

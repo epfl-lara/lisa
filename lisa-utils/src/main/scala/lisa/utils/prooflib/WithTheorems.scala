@@ -77,6 +77,15 @@ trait WithTheorems {
     def owningTheorem: THM
 
     /**
+     * Build an assumption-independent step once in the root proof and import it into subproofs.
+     * Include the tactic identity in the key to keep different tactics' entries separate.
+     */
+    def cachedRootStep(key: Any)(build: (proof: Proof) => proof.ProofStep): Fact
+
+    /** Return the number of cached steps in the root proof. */
+    def cachedRootStepCount: Int
+
+    /**
      * A proof step, containing a high level ProofTactic and the corresponding K.SCProofStep. If the tactic produce more than one
      * step, they must be encapsulated in a subproof. Usually constructed with [[ValidProofTactic.validate]]
      *
@@ -307,6 +316,11 @@ trait WithTheorems {
       type OutsideFact = parent.Fact
       override inline def asOutsideFact(j: JUSTIFICATION): OutsideFact = parent.asOutsideFact(j)
 
+      def cachedRootStep(key: Any)(build: (proof: Proof) => proof.ProofStep): Fact =
+        parent.cachedRootStep(key)(build)
+
+      def cachedRootStepCount: Int = parent.cachedRootStepCount
+
       override def sequentOfOutsideFact(of: parent.Fact): F.Sequent = of match {
         case j: JUSTIFICATION => j.statement
         case ds: Proof#ProofStep => ds.bot
@@ -362,6 +376,13 @@ trait WithTheorems {
   sealed class BaseProof(val owningTheorem: THMFromProof, val possibleGoal: Option[F.Sequent]) extends Proof(Nil) {
 
     def this(owningTheorem: THMFromProof) = this(owningTheorem, Some(owningTheorem.statement))
+
+    private lazy val cachedSteps = mutable.HashMap.empty[Any, ProofStep]
+
+    def cachedRootStep(key: Any)(build: (proof: Proof) => proof.ProofStep): ProofStep =
+      cachedSteps.getOrElseUpdate(key, build(this))
+
+    def cachedRootStepCount: Int = cachedSteps.size
 
     /**
      * Return the declared goal.

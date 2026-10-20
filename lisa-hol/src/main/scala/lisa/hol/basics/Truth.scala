@@ -44,8 +44,8 @@ object Truth extends lisa.HOL {
           prem.statement.left.foreach(ip.addAssumption(_))
           val s1 = have((t :: typ, u :: typ, t =:= u) |- u =:= t) by Weakening(eqSym of (A := typ, x := t, y := u))
           val s2 = have(Discharge(prem)(s1))
-          val s3 = have(Discharge(have(HOLProofType(t)))(s2))
-          val s4 = have(Discharge(have(HOLProofType(u)))(s3))
+          val s3 = have(Discharge(HOLProofType(t))(s2))
+          val s4 = have(Discharge(HOLProofType(u))(s3))
           have(Clean.all(s4))
 
         case _ =>
