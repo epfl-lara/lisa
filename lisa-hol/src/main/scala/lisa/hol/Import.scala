@@ -360,11 +360,6 @@ object Import extends lisa.HOL:
     val stringWriter: java.io.Writer = java.io.Writer.nullWriter()
     def finishOutput(exception: Exception): Nothing = throw exception
 
-  // The old builder requires an owning theorem. This checked tautology supplies
-  // that owner only; no step imports it or relies on its declared goal.
-  private lazy val stepOwner = Theorem(using stepOutput, sourcecode.FullName("Import.stepOwner"))(⊤):
-    have(⊤) by Restate
-
   /** Share checked SC theorems, never proof-local fact indices, across trace steps. */
   private[hol] final class StepStore(val statistics: ImportStatistics = new ImportStatistics)(using extractor: ExtractorContext, mode: LoggingMode = LoggingMode.Silent):
     private val steps = mutable.HashMap.empty[Long, Justification]
@@ -399,27 +394,23 @@ object Import extends lisa.HOL:
       require(target < index, s"Step $index references non-earlier premise $target")
       apply(target)
 
-    private def reconstruct(index: Long, step: h.ProofStep): Justification = statistics.measure(step.getClass.getSimpleName, index):
+    private def reconstruct(index: Long, step: h.ProofStep): Justification =
       given StepStore = this
-      step match
-        case axiom: h.AXIOM => reconstructAxiom(axiom)
-        case definition: h.DEFINITION => reconstructConstantDefinition(definition)
-        case definition: h.TYPE_DEFINITION => reconstructTypeDefinition(index, definition)
-        case _ =>
-          val proof = new lib.BaseProof(stepOwner.asInstanceOf[lib.THMFromProof])
-          given proof.type = proof
-          val result = reconstructStep(using extractor, proof, this)(index, step)
-          val cleaned = have(HOLSteps.Clean.all(result))
-          ifDebug:
-            val goal = withCTX(extractor.getStatement(index).toLisaSequent)
-            val checked = Weakening(cleaned)(goal)
-            if !checked.isValid then
-              throw new IllegalArgumentException(s"Step $index (${step.getClass.getSimpleName}) proves ${cleaned.statement}, expected $goal")
-          val scProof = proof.toSCProof
-          lib.THM.fromSCProof(using stepOutput)(
-            cleaned.statement, s"Import.step$index", lib.InternalStatement,
-            () => scProof, proof.justifications.map(_.innerJustification)
-          )
+      statistics.measure(step.getClass.getSimpleName, index):
+        step match
+          case axiom: h.AXIOM => reconstructAxiom(axiom)
+          case definition: h.DEFINITION => reconstructConstantDefinition(definition)
+          case definition: h.TYPE_DEFINITION => reconstructTypeDefinition(index, definition)
+          case _ =>
+            statistics.measure("SC_CHECK", index):
+              InternalStatement.infer(using stepOutput, sourcecode.FullName(s"Import.step$index"), summon[sourcecode.Line], summon[sourcecode.File]): proof ?=>
+                val result = reconstructStep(using extractor, proof, this)(index, step)
+                val cleaned = have(HOLSteps.Clean.all(result))
+                ifDebug:
+                  val goal = withCTX(extractor.getStatement(index).toLisaSequent)
+                  if !Weakening(cleaned)(goal).isValid then
+                    throw new IllegalArgumentException(s"Step $index (${step.getClass.getSimpleName}) proves ${cleaned.statement}, expected $goal")
+                cleaned.statement
 
     private def defineThrough(index: Long): Unit =
       if index > definitionsThrough then

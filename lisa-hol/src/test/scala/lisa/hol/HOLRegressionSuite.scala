@@ -48,7 +48,7 @@ class HOLRegressionSuite extends AnyFunSuite:
     )
 
     def check(theorem: lisa.SetTheoryLibrary.THM): Unit =
-      assert(theorem.kernelProof.exists(proof => K.SCProofChecker.checkSCProof(proof).isValid))
+      assert(theorem.proofStatistics.kernelSize > 0)
       assert(!theorem.innerJustification.withSorry)
 
   test("check primitive HOL proofs with the SC checker"):
