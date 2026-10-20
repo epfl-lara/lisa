@@ -328,24 +328,22 @@ private[fol] trait Syntax {
       case _ => None
     }
 
-    /**
-     * The beta-eta normal form of the expression.
-     * Which algorithm is used is controlled by [[BetaNormMode.useNbe]].
-     */
+    /** Compute the beta-eta normal form and whether the expression is already normal. */
     lazy val (betaNormalForm: Expression, isBetaNormal: Boolean) = this match {
       case Application(f, arg) =>
         f.betaNormalForm match {
           case Lambda(x, body) => (substituteVariables(body, Map(x -> arg)).betaNormalForm, false)
-          case nf              => 
-            if (f.isBetaNormal && arg.isBetaNormal) (this, true)
-            else (Application(nf, arg.betaNormalForm), false)
+          case nf =>
+            val normalizedArg = arg.betaNormalForm
+            val normalized = if ((nf eq f) && (normalizedArg eq arg)) this else Application(nf, normalizedArg)
+            (normalized, f.isBetaNormal && arg.isBetaNormal)
         }
       case Lambda(x, body) =>
         val nb = body.betaNormalForm
         nb match {
           case Application(g, y: Variable) if y == x && !g.freeVariables.contains(x) => (g, false)
           case _ if body.isBetaNormal => (this, true)
-          case _                                                                     => (Lambda(x, nb), false)
+          case _ => (Lambda(x, nb), false)
         }
       case _ => (this, true)
   }
