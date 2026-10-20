@@ -13,11 +13,13 @@ object ProofPrinter {
 
   private def prettyProofLines(printedProof: Library#Proof, error: Option[(IndexedSeq[Int], String)]): Seq[String] = {
     def computeMaxNumberingLengths(proof: Library#Proof, level: Int, result: IndexedSeq[Int]): IndexedSeq[Int] = {
+      val steps = proof.getSteps
+      val imports = proof.getImports
       val resultWithCurrent = result.updated(
         level,
-        (Seq((proof.getSteps.size - 1).toString.length, result(level)) ++ (if (proof.getImports.nonEmpty) Seq((-proof.getImports.size).toString.length) else Seq.empty)).max
+        (Seq((steps.size - 1).toString.length, result(level)) ++ (if (imports.nonEmpty) Seq((-imports.size).toString.length) else Seq.empty)).max
       )
-      proof.getSteps
+      steps
         .collect { case ps: proof.ProofStep if ps.tactic.isInstanceOf[SUBPROOF] => ps.tactic.asInstanceOf[SUBPROOF] }
         .foldLeft(resultWithCurrent)((acc, sp) => computeMaxNumberingLengths(sp.iProof, level + 1, if (acc.size <= level + 1) acc :+ 0 else acc))
     }
