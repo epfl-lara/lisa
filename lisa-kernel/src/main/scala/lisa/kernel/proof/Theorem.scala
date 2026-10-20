@@ -64,11 +64,19 @@ private[proof] object Helpers:
       set.contains(formula) || set.exists(expEq(_, formula))
 
     inline def subsetOfEq(target: Set[Expression]): Boolean =
-      set.forall(target.map(simpleReducedForm).containsSimple)
+      set.subsetOf(target) ||
+        set.forall(target.map(simpleReducedForm).containsSimple)
 
     inline def containedExcept(target: Set[Expression], exception: Expression): Boolean =
-      val simplifiedTarget = target.map(simpleReducedForm)
-      set.forall(formula => simplifiedTarget.containsSimple(formula) || expEq(formula, exception))
+      lazy val simplifiedTarget = target.map(simpleReducedForm)
+      set.forall(formula =>
+        // fast checks
+        target.contains(formula) ||
+        formula == exception ||
+        // weakened checks
+        simplifiedTarget.containsSimple(formula) ||
+        expEq(formula, exception)
+      )
 
     inline def containedExceptEither(target: Set[Expression], exception1: Expression, exception2: Expression): Boolean =
       set.forall(formula => target.contains(formula) || expEq(formula, exception1) || expEq(formula, exception2))
