@@ -366,29 +366,40 @@ object Import extends lisa.HOL:
     have(⊤) by Restate
 
   /** Share checked SC theorems, never proof-local fact indices, across trace steps. */
-  private[hol] final class StepStore(using extractor: ExtractorContext, mode: LoggingMode = LoggingMode.Silent):
+  private[hol] final class StepStore(val statistics: ImportStatistics = new ImportStatistics)(using extractor: ExtractorContext, mode: LoggingMode = LoggingMode.Silent):
     private val steps = mutable.HashMap.empty[Long, Justification]
     private var definitionsThrough = -1L
+    private var hits = 0L
 
     initializedDefinitions
 
     /** Count the stored steps, including unnamed premises and definitions. */
     def size: Int = steps.size
+    def retainedSize: Int = steps.size
+    def pinnedSize: Int = 0
+    def evictions: Long = 0L
+    def cacheHits: Long = hits
+    def typingCacheSize: Int = HOLProofType.cacheSize
+    def localCacheSize: Int = 0
+    def lemmaCacheSize: Int = 0
+    def lemmaCacheHits: Long = 0L
 
     /** Retrieve a checked step and construct any missing dependencies. */
     def apply(index: Long): Justification =
       steps.get(index) match
-        case Some(step) => step
+        case Some(step) =>
+          hits += 1
+          step
         case None =>
           defineThrough(index)
-          steps.getOrElseUpdate(index, reconstruct(index, extractor.getProof(index)))
+          steps.getOrElseUpdate(index, reconstruct(index, statistics.measure("read", index)(extractor.getProof(index))))
 
     /** Require an earlier premise and retrieve its checked proof. */
     def premise(index: Long, target: Long): Justification =
       require(target < index, s"Step $index references non-earlier premise $target")
       apply(target)
 
-    private def reconstruct(index: Long, step: h.ProofStep): Justification =
+    private def reconstruct(index: Long, step: h.ProofStep): Justification = statistics.measure(step.getClass.getSimpleName, index):
       given StepStore = this
       step match
         case axiom: h.AXIOM => reconstructAxiom(axiom)
@@ -412,7 +423,7 @@ object Import extends lisa.HOL:
 
     private def defineThrough(index: Long): Unit =
       if index > definitionsThrough then
-        extractor.getDefinitionsBetween(definitionsThrough, index).foreach: (definitionIndex, definition) =>
+        statistics.measure("read", index)(extractor.getDefinitionsBetween(definitionsThrough, index)).foreach: (definitionIndex, definition) =>
           definitionsThrough = definitionIndex
           definition match
             case _: h.DEFINITION =>
@@ -428,7 +439,7 @@ object Import extends lisa.HOL:
       HOLProofType.resetCache()
       Transformers.resetConversionCache()
       val result = apply(ref.id)
-      val goal = extractor.getStatement(ref.id).toLisaSequent
+      val goal = statistics.measure("read", ref.id)(extractor.getStatement(ref.id)).toLisaSequent
       HOLTheorem(using summon[OutputManager], sourcecode.FullName(s"Import.${sanitize(ref.name)}"), summon[sourcecode.Line], summon[sourcecode.File])(goal):
         val cleaned = have(HOLSteps.Clean.all(result))
         have(thesis) by Weakening(cleaned)
@@ -815,40 +826,79 @@ object Import extends lisa.HOL:
           OpenExport(writer, header, footer)
 
 
+  /** Record reconstructed work and resource use for one named theorem. */
+  final case class TheoremTiming(
+      theorem: TheoremRef, steps: Int, elapsedNanos: Long, totalSteps: Int,
+      totalElapsedNanos: Long, succeeded: Boolean, resources: ImportStatistics.Sample,
+      cacheHits: Long, retainedSteps: Int, pinnedSteps: Int, evictions: Long,
+      reader: ReaderStatistics, typingCacheEntries: Int, localCacheEntries: Int
+  ):
+    def elapsedSeconds: Double = elapsedNanos / 1e9
+    def totalSeconds: Double = totalElapsedNanos / 1e9
+    def stepsPerSecond: Double = if elapsedNanos == 0 then 0d else steps / elapsedSeconds
+    def totalStepsPerSecond: Double = if totalElapsedNanos == 0 then 0d else totalSteps / totalSeconds
+
   /** Import a range of names and reconstruct their shared dependencies. */
-  def importFromPrefix(prefix: String, limit: Int, outputPath: Option[String] = None, overwrite: Boolean = false, startAt: Int = 0): Unit =
+  def importFromPrefix(prefix: String, limit: Int, outputPath: Option[String] = None, overwrite: Boolean = false, startAt: Int = 0): Vector[TheoremTiming] =
     require(limit > 0, s"Cannot read $limit theorems. Expected positive theorem limit.")
     require(startAt >= 0, s"Cannot start at negative theorem index $startAt.")
     val (extractor, names) = JSONParser.initializeFromPrefix(prefix)
-
-    val startTime = System.currentTimeMillis()
-    def time() = (System.currentTimeMillis() - startTime) / 1000d
-    def printProgress(count: Int, steps: Int) =
-      val elapsed = time()
-      val progressString = f"Extracted $count theorems so far in $elapsed%.2f seconds."
-      val usedSteps = f"Used $steps proof steps from HOL Light."
-      val memoryLeft = Runtime.getRuntime.freeMemory() / 1e6
-      val memoryString = f"Memory left: $memoryLeft%.2f MB"
-      println(f"\r[INFO] $progressString $usedSteps $memoryString")
+    val statistics = try
+      val path = sys.props.get("lisa.hol.stats").orElse(sys.env.get("LISA_HOL_STATS")).map(java.nio.file.Path.of(_))
+      new ImportStatistics(path)
+    catch
+      case error: Exception =>
+        extractor.close()
+        throw error
+    val exporter = try outputPath match
+      case Some(path) => ExportConfig.initialize(path, overwrite)
+      case None => ExportConfig.dummyWriter
+    catch
+      case error: Exception =>
+        closeAll(List(extractor, statistics))
+        throw error
 
     try
-      val exporter = outputPath match
-        case Some(path) => ExportConfig.initialize(path, overwrite)
-        case None => ExportConfig.dummyWriter
-      try
-        val store = new StepStore(using extractor, currentLoggingMode)
-        var count = 0
-        names.drop(startAt).take(limit).foreach: ref =>
+      val store = new StepStore(statistics)(using extractor, currentLoggingMode)
+      val timings = Vector.newBuilder[TheoremTiming]
+      val startTime = System.nanoTime()
+      var count = 0
+      names.drop(startAt).take(limit).foreach: ref =>
+        val stepsBefore = store.size
+        val hitsBefore = store.cacheHits
+        val resourcesBefore = ImportStatistics.sample()
+        val readerBefore = extractor.statistics
+        val started = System.nanoTime()
+        var succeeded = false
+        try
           debug(s"Importing theorem ${ref.name} with id ${ref.id}")
           store.theorem(ref)
           count += 1
-          printProgress(count, store.size)
-        println(s"[INFO] Successfully imported $count theorems with ${store.size} steps in ${time()}s.")
-      finally exporter.close()
+          succeeded = true
+        finally
+          val finished = System.nanoTime()
+          val timing = TheoremTiming(ref, store.size - stepsBefore, finished - started, store.size,
+            finished - startTime, succeeded, ImportStatistics.sample() - resourcesBefore,
+            store.cacheHits - hitsBefore, store.retainedSize, store.pinnedSize, store.evictions,
+            extractor.statistics - readerBefore, store.typingCacheSize, store.localCacheSize)
+          timings += timing
+          statistics.finish(ref.id, ref.name)
+          val runtime = Runtime.getRuntime
+          val heap = (runtime.totalMemory() - runtime.freeMemory()) / 1e6
+          val status = if succeeded then "OK" else "FAILED"
+          val cpu = timing.resources.cpuNanos / 1e9
+          val allocated = timing.resources.allocatedBytes / 1e6
+          println(f"\r[INFO] Extracted $count theorems in ${timing.totalSeconds}%.2f seconds. Reconstructed ${timing.totalSteps} HOL steps; total ${timing.totalStepsPerSecond}%.2f steps/s. " +
+            f"Last theorem ${ref.name} (#${ref.id}): $status; ${timing.steps} steps in ${timing.elapsedSeconds}%.6f seconds (${timing.stepsPerSecond}%.2f steps/s). CPU $cpu%.3f s; allocated $allocated%.1f MB; GC ${timing.resources.gcMillis} ms; heap $heap%.2f MB. " +
+            s"Cache: ${timing.retainedSteps} retained, ${timing.pinnedSteps} pinned, ${timing.evictions} evictions; ${timing.cacheHits} hits. " +
+            s"Reader: ${timing.reader.proofHeaders} headers, ${timing.reader.proofRecords} proofs, ${timing.reader.statementRecords} statements parsed. Typing cache: ${timing.typingCacheEntries}; local step cache: ${timing.localCacheEntries}. " +
+            s"Lemma cache: ${store.lemmaCacheSize} checked, ${store.lemmaCacheHits} total hits.")
+      println(s"[INFO] Successfully imported $count theorems with ${store.size} reconstructed steps in ${(System.nanoTime() - startTime) / 1e9}s.")
+      timings.result()
     finally
-      extractor.close()
       HOLProofType.resetCache()
       Transformers.resetConversionCache()
+      closeAll(List(exporter, statistics, extractor))
 
   @main
   def importMain(prefix: String, logMode: String, theoremCount: Int, output: Boolean, outputFile: String, overwrite: Boolean) =

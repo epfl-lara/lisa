@@ -151,7 +151,7 @@ class HOLRegressionSuite extends AnyFunSuite:
       Iterator(ProofLine(4, ASSUME("v(step-store-p)(c[bool][])"))),
       Iterator(TheoremStatement(4, RawSequent(Nil, "v(step-store-q)(c[bool][])")))
     )
-    val store = new Import.StepStore(using summon[ExtractorContext], Import.Logging.LoggingMode.Debug)
+    val store = new Import.StepStore()(using summon[ExtractorContext], Import.Logging.LoggingMode.Debug)
     intercept[Exception](store(4))
     assert(store.size == 0)
 
@@ -172,7 +172,7 @@ class HOLRegressionSuite extends AnyFunSuite:
         TheoremStatement(12, RawSequent(Nil, reflexive(s"C($f)($r)", "v[A]")))
       )
     )
-    val store = new Import.StepStore(using summon[ExtractorContext], Import.Logging.LoggingMode.Debug)
+    val store = new Import.StepStore()(using summon[ExtractorContext], Import.Logging.LoggingMode.Debug)
     val result = store(12)
     assert(!result.statement.left.contains(nonEmpty(Proofs.B)))
     Proofs.check(result.asInstanceOf[lisa.SetTheoryLibrary.THM])
