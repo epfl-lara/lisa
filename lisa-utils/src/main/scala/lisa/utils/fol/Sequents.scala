@@ -18,7 +18,7 @@ trait Sequents extends Predef {
     /**
      * The underlying kernel sequent.
      */
-    def underlying: K.Sequent = K.Sequent(left.map(_.underlying), right.map(_.underlying))
+    lazy val underlying: K.Sequent = K.Sequent(left.map(_.underlying), right.map(_.underlying))
 
     def substituteUnsafe(m: Map[Variable[?], Expr[?]]): Sequent = Sequent(left.map(_.substituteUnsafe(m)), right.map(_.substituteUnsafe(m)))
     override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): Sequent =
