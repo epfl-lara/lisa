@@ -277,8 +277,8 @@ object Inductive extends lisa.HOL {
         )
       thenHave((x :: ind, ∃(x, x :: ind)) |- (y :: ind) ==> (p1 * y)) by Weakening
       thenHave((x :: ind, ∃(x, x :: ind)) |- ∀(y :: ind, p1 * y)) by RightForall
-      thenHave((x :: ind, ∃(x, x :: ind), p1 :: ind ->: 𝔹) |- hforall(ind) * p1) by Substitute(hforallCorrect)
-      val forall1 = have((x :: ind, ∃(x, x :: ind)) |- hforall(ind) * p1) by Cut(HOLProofType(p1), lastStep)
+      val conditional = thenHave((x :: ind, ∃(x, x :: ind), p1 :: ind ->: 𝔹) |- hforall(ind) * p1) by Substitute(hforallCorrect)
+      val forall1 = have((x :: ind, ∃(x, x :: ind)) |- hforall(ind) * p1) by Cut(HOLProofType(p1), conditional)
       val inner2 =
         // (\x. hforall(ind) * fun(y, himp * ((succ * x) =:= (succ * y)) * (x =:= y))) * x
         EQ_MP(
@@ -360,7 +360,7 @@ object Inductive extends lisa.HOL {
     val forallLift = have(hforall(ind) * outerPred <=> ∀(y :: ind, outerPred * y)) subproof:
       have(thesis) by Tautology.from(
         hforallCorrect of (A := ind, P := outerPred, x := y),
-        have(HOLProofType(outerPred)),
+        HOLProofType(outerPred),
         ind.nonEmptyThm
       )
 
@@ -369,7 +369,7 @@ object Inductive extends lisa.HOL {
     val innerExLift = have(y :: ind |- hexists(ind) * innerExPred <=> ∃(x :: ind, innerExPred * x)) subproof:
       have(thesis) by Tautology.from(
         hexistsCorrect of (A := ind, P := innerExPred, x := x),
-        have(HOLProofType(innerExPred)),
+        HOLProofType(innerExPred),
         ind.nonEmptyThm
       )
 
@@ -379,8 +379,8 @@ object Inductive extends lisa.HOL {
       have(thesis) by Tautology.from(
         bc,
         eqAlign of (A := 𝔹, x := innerExPred * x, y := y =:= (succ * x)),
-        have(HOLProofType(innerExPred * x)),
-        have(HOLProofType(y =:= (succ * x)))
+        HOLProofType(innerExPred * x),
+        HOLProofType(y =:= (succ * x))
       )
 
     // outerPred * y === hexists(ind) * innerExPred by beta reduction
@@ -389,22 +389,22 @@ object Inductive extends lisa.HOL {
       have(thesis) by Tautology.from(
         bc,
         eqAlign of (A := 𝔹, x := outerPred * y, y := hexists(ind) * innerExPred),
-        have(HOLProofType(outerPred * y)),
-        have(HOLProofType(hexists(ind) * innerExPred))
+        HOLProofType(outerPred * y),
+        HOLProofType(hexists(ind) * innerExPred)
       )
 
     // Step 5c: outerPred * y <=> ∃(x :: ind, y === succ * x)
     val outerPredFOL = have(y :: ind |- outerPred * y <=> ∃(x :: ind, y === (succ * x))) subproof:
       val eqAlignInst = have((x :: ind, y :: ind) |- (y =:= (succ * x) === One) <=> (y === (succ * x))) subproof:
-        have(((y :: ind, (succ * x) :: ind) |- (y =:= (succ * x) === One) <=> (y === (succ * x)))) by Weakening(eqAlign of (A := ind, x := y, y := succ * x))
-        have(Discharge(HOLProofType(y), HOLProofType(succ * x))(lastStep))
+        val conditional = have(((y :: ind, (succ * x) :: ind) |- (y =:= (succ * x) === One) <=> (y === (succ * x)))) by Weakening(eqAlign of (A := ind, x := y, y := succ * x))
+        have(Discharge(HOLProofType(y), HOLProofType(succ * x))(conditional))
 
       val innerEquiv = have((x :: ind, y :: ind) |- (innerExPred * x) <=> (y === (succ * x))) subproof:
         have((x :: ind, y :: ind) |- (y =:= (succ * x)) <=> (y === (succ * x))) by Tautology.from(
           eqAlignInst,
           boolBivalence of (x := y =:= (succ * x)),
           boolZeroXorOne of (x := y =:= (succ * x)),
-          have(HOLProofType(y =:= (succ * x)))
+          HOLProofType(y =:= (succ * x))
         )
         thenHave(thesis) by Substitute(innerExBeta)
 
@@ -470,13 +470,13 @@ object Inductive extends lisa.HOL {
       have(hnot * onto === One) by Tautology.from(
         lastStep,
         hnotCorrect of (p := onto),
-        have(HOLProofType(onto))
+        HOLProofType(onto)
       )
       have(hnot * onto) by Tautology.from(
         lastStep,
         boolBivalence of (x := hnot * onto),
         boolZeroXorOne of (x := hnot * onto),
-        have(HOLProofType(hnot * onto))
+        HOLProofType(hnot * onto)
       )
 
   val holeqBetaReduced = HOLTheorem(

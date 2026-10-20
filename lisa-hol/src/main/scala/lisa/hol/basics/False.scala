@@ -52,14 +52,14 @@ object False extends lisa.HOL {
       val beta = have((Zero :: 𝔹) |- (fun(p, p) * Zero === Zero)) subproof:
         BETA_CONV(fun(p, p) * Zero)
         val conditional = thenHave(((fun(p, p) * Zero) :: 𝔹, Zero :: 𝔹) |- fun(p, p) * Zero === Zero) by Substitute(eqAlign)
-        have(Discharge(have(HOLProofType(fun(p, p) * Zero)))(conditional))
+        have(Discharge(HOLProofType(fun(p, p) * Zero))(conditional))
       have(!(Zero === One)) by Weakening(`0 != 1`)
       thenHave((Zero :: 𝔹) |- !(fun(p, p) * Zero === One)) by Substitute(beta)
       have((Zero :: 𝔹) /\ !(fun(p, p) * Zero === One)) by Tautology.from(Zero.justif, lastStep)
       thenHave(∃(p :: 𝔹, !(fun(p, p) * p))) by RightExists
 
     val conditional = thenHave((∃(p, p :: 𝔹), fun(p, p) :: (𝔹 ->: 𝔹), hforall(𝔹) * fun(p, p)) |- ()) by Substitute(hforallCorrect)
-    have(Discharge(𝔹.nonEmptyThm, have(HOLProofType(fun(p, p))))(conditional))
+    have(Discharge(𝔹.nonEmptyThm, HOLProofType(fun(p, p)))(conditional))
     thenHave(holF |- ()) by Substitute(holF.definition)
     have(thesis) by Tautology.from(boolZeroXorOne of (x := holF), holF.justif, lastStep)
 

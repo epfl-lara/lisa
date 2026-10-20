@@ -99,8 +99,8 @@ object Connectives extends lisa.HOL {
         )
       have(lp * p * q === inner) by Tautology.from(
         betaLp,
-        have(HOLProofType(lp * p * q)),
-        have(HOLProofType(inner)),
+        HOLProofType(lp * p * q),
+        HOLProofType(inner),
         eqAlign of (A := 𝔹, x := lp * p * q, y := inner)
       )
       thenHave(hand === lp |- hand * p * q === inner) by RightSubstEq.withParameters(Seq((lp, hand)), (Seq(x), x * p * q === inner))
@@ -132,7 +132,7 @@ object Connectives extends lisa.HOL {
         val `p is true` = have(p) subproof:
           // project appliedEq onto first argument
           val proj1Eq =
-            have(Discharge(have(HOLProofType(proj1)))(appliedEq of (f := proj1)))
+            have(Discharge(HOLProofType(proj1))(appliedEq of (f := proj1)))
           // T =:= p
           val tEq = TRANS(
             SYM(
@@ -146,7 +146,7 @@ object Connectives extends lisa.HOL {
         val `q is true` = have(q) subproof:
           // project appliedEq onto second argument
           val proj2Eq =
-            have(Discharge(have(HOLProofType(proj2)))(appliedEq of (f := proj2)))
+            have(Discharge(HOLProofType(proj2))(appliedEq of (f := proj2)))
           // T =:= q
           val tEq = TRANS(
             SYM(
@@ -167,7 +167,7 @@ object Connectives extends lisa.HOL {
       val rfl = have(fun(f, f * holT * holT) :: (𝔹 ->: 𝔹 ->: 𝔹) ->: 𝔹 |- fun(f, f * holT * holT) =:= fun(f, f * holT * holT)) by Tautology.from(
         HOLHelperTheorems.eqRefl of (A := (𝔹 ->: 𝔹 ->: 𝔹) ->: 𝔹, x := fun(f, f * holT * holT))
       )
-      have(fun(f, f * holT * holT) =:= fun(f, f * holT * holT)) by Cut(have(HOLProofType(fun(f, f * holT * holT))), rfl)
+      have(fun(f, f * holT * holT) =:= fun(f, f * holT * holT)) by Cut(HOLProofType(fun(f, f * holT * holT)), rfl)
       thenHave((p === holT, q === holT) |- fun(f, f * p * q) =:= fun(f, f * holT * holT)) by RightSubstEq.withParameters(
         Seq(holT -> p, holT -> q),
         (Seq(p, q), fun(f, f * p * q) =:= fun(f, f * holT * holT))
@@ -209,7 +209,7 @@ object Connectives extends lisa.HOL {
     assumeAll
 
     val apq = hand * p * q
-    val apqtyping = have(HOLProofType(apq))
+    val apqtyping = HOLProofType(apq)
 
     val beta = have(
       (himp * p * q) === ((hand * p * q) =:= p)
@@ -227,8 +227,8 @@ object Connectives extends lisa.HOL {
         )
       have(lp * p * q === inner) by Tautology.from(
         betaLp,
-        have(HOLProofType(lp * p * q)),
-        have(HOLProofType(inner)),
+        HOLProofType(lp * p * q),
+        HOLProofType(inner),
         eqAlign of (A := 𝔹, x := lp * p * q, y := inner)
       )
       thenHave(thesis) by Substitute(himp.definition)
@@ -291,8 +291,8 @@ object Connectives extends lisa.HOL {
       have(hnot === fun(p, himp * p * holF)) by Weakening(hnot.definition)
       have(hnot =:= fun(p, himp * p * holF)) by Tautology.from(
         lastStep,
-        have(HOLProofType(hnot)),
-        have(HOLProofType(fun(p, himp * p * holF))),
+        HOLProofType(hnot),
+        HOLProofType(fun(p, himp * p * holF)),
         eqAlign of (A := (𝔹 ->: 𝔹), x := hnot, y := fun(p, himp * p * holF))
       )
 
@@ -307,8 +307,8 @@ object Connectives extends lisa.HOL {
         )
       have(hnot * p === himp * p * holF) by Tautology.from(
         betaConv,
-        have(HOLProofType(hnot * p)),
-        have(HOLProofType(himp * p * holF)),
+        HOLProofType(hnot * p),
+        HOLProofType(himp * p * holF),
         eqAlign of (A := 𝔹, x := hnot * p, y := himp * p * holF)
       )
 

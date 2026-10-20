@@ -225,7 +225,7 @@ object TypeDefs extends lisa.HOL:
     val aNonEmpty = have(∃(a, a ∈ A)) by RightExists.withParameters(a ∈ A, a, x)(xInA)
     val innerEqualityTyping = have(innerEquality ∈ boolType) by
       Cut.withParameters(roundTrip ∈ A)(roundTripInA, equalityTypingB of (u := roundTrip, v := x))
-    val pXTyping = have(HOLProofType(p * x))
+    val pXTyping = HOLProofType(p * x)
     val reversedBooleanEquality = have((innerEquality === One) <=> ((p * x) === One)) by Tautology.from(booleanEquality)
     val termsEqual = have((p * x) === innerEquality) by Tautology.from(
       pXTyping,

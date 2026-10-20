@@ -75,7 +75,7 @@ object HOLBasics extends lisa.HOL {
     have(thesis) by Tautology.from(
       lastStep,
       hforallCorrect of (A := (A ->: B), P := pred, x := t),
-      have(HOLProofType(pred)),
+      HOLProofType(pred),
       nonEmptyFuncSpace of (A := A, B := B)
     )
 
@@ -104,15 +104,15 @@ object HOLBasics extends lisa.HOL {
       have(thesis) by Tautology.from(
         bc,
         eqAlign of (A := 𝔹, x := pred * succ, y := hand * (hOneOne(ind)(ind) * succ) * (hnot * (hOnto(ind)(ind) * succ))),
-        have(HOLProofType(pred * succ)),
-        have(HOLProofType(hand * (hOneOne(ind)(ind) * succ) * (hnot * (hOnto(ind)(ind) * succ))))
+        HOLProofType(pred * succ),
+        HOLProofType(hand * (hOneOne(ind)(ind) * succ) * (hnot * (hOnto(ind)(ind) * succ)))
       )
 
     // Combine succOneOne and succNotOnto
     val conjunct = have(hand * (hOneOne(ind)(ind) * succ) * (hnot * (hOnto(ind)(ind) * succ)) === One) by Tautology.from(
       handCorrect of (p := hOneOne(ind)(ind) * succ, q := hnot * (hOnto(ind)(ind) * succ)),
-      have(HOLProofType(hOneOne(ind)(ind) * succ)),
-      have(HOLProofType(hnot * (hOnto(ind)(ind) * succ))),
+      HOLProofType(hOneOne(ind)(ind) * succ),
+      HOLProofType(hnot * (hOnto(ind)(ind) * succ)),
       succOneOne,
       succNotOnto
     )
@@ -125,7 +125,7 @@ object HOLBasics extends lisa.HOL {
     have(thesis) by Tautology.from(
       lastStep,
       hexistsCorrect of (A := (ind ->: ind), P := pred, x := fi),
-      have(HOLProofType(pred)),
+      HOLProofType(pred),
       nonEmptyFuncSpace of (A := ind, B := ind)
     )
 
@@ -169,8 +169,8 @@ object HOLBasics extends lisa.HOL {
       have(thesis) by Tautology.from(
         core,
         himpCorrect of (p := P * x, q := P * (hselect(A) * P)),
-        have(HOLProofType(P * x)),
-        have(HOLProofType(P * (hselect(A) * P)))
+        HOLProofType(P * x),
+        HOLProofType(P * (hselect(A) * P))
       )
 
     // Beta reduce innerPred * x
@@ -179,8 +179,8 @@ object HOLBasics extends lisa.HOL {
       have(thesis) by Tautology.from(
         bc,
         eqAlign of (A := 𝔹, x := innerPred * x, y := himp * (P * x) * (P * (hselect(A) * P))),
-        have(HOLProofType(innerPred * x)),
-        have(HOLProofType(himp * (P * x) * (P * (hselect(A) * P))))
+        HOLProofType(innerPred * x),
+        HOLProofType(himp * (P * x) * (P * (hselect(A) * P)))
       )
 
     // innerPred * x holds for all x :: A
@@ -191,7 +191,7 @@ object HOLBasics extends lisa.HOL {
     val innerForall = have((P :: (A ->: 𝔹)) |- hforall(A) * innerPred) by Tautology.from(
       lastStep,
       hforallCorrect of (A := A, P := innerPred, x := x),
-      have(HOLProofType(innerPred))
+      HOLProofType(innerPred)
     )
 
     val outerBeta = have(P :: (A ->: 𝔹) |- outerPred * P === (hforall(A) * innerPred)) subproof:
@@ -199,8 +199,8 @@ object HOLBasics extends lisa.HOL {
       have(thesis) by Tautology.from(
         bc,
         eqAlign of (A := 𝔹, x := outerPred * P, y := hforall(A) * innerPred),
-        have(HOLProofType(outerPred * P)),
-        have(HOLProofType(hforall(A) * innerPred))
+        HOLProofType(outerPred * P),
+        HOLProofType(hforall(A) * innerPred)
       )
 
     have((P :: (A ->: 𝔹)) |- outerPred * P) by Substitute(outerBeta)(innerForall)
@@ -210,7 +210,7 @@ object HOLBasics extends lisa.HOL {
     have(thesis) by Tautology.from(
       lastStep,
       hforallCorrect of (A := (A ->: 𝔹), P := outerPred, x := P),
-      have(HOLProofType(outerPred)),
+      HOLProofType(outerPred),
       nonEmptyFuncSpace of (A := A, B := 𝔹),
       𝔹.nonEmptyThm
     )

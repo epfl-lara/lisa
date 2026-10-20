@@ -67,8 +67,8 @@ object Forall extends lisa.HOL {
       have(thesis) by Tautology.from(
         heq,
         eqAlign of (A := 𝔹, x := hforall(A) * P, y := P =:= fun(x, holT)),
-        have(HOLProofType(hforall(A) * P)),
-        have(HOLProofType(P =:= fun(x, holT)))
+        HOLProofType(hforall(A) * P),
+        HOLProofType(P =:= fun(x, holT))
       )
 
     val fwd = have((hforall(A) * P) ==> ∀(x :: A, P * x)) subproof: ip ?=>
@@ -94,7 +94,7 @@ object Forall extends lisa.HOL {
       val all = assume(∀(x :: A, P * x))
       val instantiated = have((x :: A) ==> P * x) by InstantiateForall(x)(all)
       val `P x holds` = have(x :: A |- P * x) by Restate.from(instantiated)
-      val `P x one` = have(x :: A |- P * x =:= One) by Tautology.from(`P x holds`, One.justif, have(HOLProofType(P * x)), eqAlign of (A := 𝔹, x := P * x, y := One))
+      val `P x one` = have(x :: A |- P * x =:= One) by Tautology.from(`P x holds`, One.justif, HOLProofType(P * x), eqAlign of (A := 𝔹, x := P * x, y := One))
       val `P x T` = have(x :: A |- P * x =:= holT) by Substitute(holTruth)(`P x one`)
       val Peq = have(
         Clean.all( // P =:= fun(x, holT)
