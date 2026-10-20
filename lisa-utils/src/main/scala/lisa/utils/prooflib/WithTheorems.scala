@@ -359,10 +359,15 @@ trait WithTheorems {
   /**
    * Top-level instance of [[Proof]] directly proving a theorem
    */
-  sealed class BaseProof(val owningTheorem: THMFromProof) extends Proof(Nil) {
+  sealed class BaseProof(val owningTheorem: THMFromProof, val possibleGoal: Option[F.Sequent]) extends Proof(Nil) {
 
-    val goal: F.Sequent = owningTheorem.goal
-    val possibleGoal: Option[F.Sequent] = Some(goal)
+    def this(owningTheorem: THMFromProof) = this(owningTheorem, Some(owningTheorem.statement))
+
+    /**
+     * Return the declared goal.
+     * @throws NoSuchElementException if no goal was declared
+     */
+    def goal: F.Sequent = possibleGoal.getOrElse(throw new NoSuchElementException("The proof has no declared goal."))
     type OutsideFact = JUSTIFICATION
     override inline def asOutsideFact(j: JUSTIFICATION): OutsideFact = j
 
@@ -370,7 +375,7 @@ trait WithTheorems {
 
     def justifications: IndexedSeq[JUSTIFICATION] = importedFacts
 
-    def sorryDependencies = justifications.iterator.filter(_.withSorry).toList
+    def sorryDependencies: List[JUSTIFICATION] = justifications.iterator.filter(_.withSorry).toList
 
   }
 
@@ -458,28 +463,25 @@ trait WithTheorems {
 
   }
 
-  /**
-   * A proven, reusable statement. A justification corresponding to [[K.Theorem]].
-   */
+  /** Count kernel proof steps, including steps and subproof containers at every depth. */
+  final case class ProofStatistics(kernelSize: Int)
+
+  private def sorryDependenciesOf(imports: Iterable[theory.Justification]): List[theory.Theorem] =
+    imports.collect { case theorem: theory.Theorem if theorem.withSorry => theorem }.toList
+
+  /** A checked, reusable statement with construction metadata, but no retained proof. */
   sealed abstract class THM extends JUSTIFICATION {
     val kind: TheoremKind
     def repr: String =
       s"  ${kind.kind2} ${name} := ${statement}${if (withSorry) " (!! Relies on Sorry)" else ""}"
 
-    /**
-     * The underlying Kernel proof [[K.SCProof]], if it is still available. Proofs are not kept in memory for efficiency.
-     */
-    def kernelProof: Option[K.SCProof]
-
-    /**
-     * The high level [[Proof]], if one was used to obtain the theorem. If the theorem was not produced by such high level proof but directly by a low level one, this is None.
-     */
-    def highProof: Option[BaseProof]
+    /** Summarize the certificate checked during construction. */
+    val proofStatistics: ProofStatistics
+    /** Report whether construction read the theorem from its binary cache. */
+    val wasCached: Boolean
+    /** Record directly imported theorems that depend on an admitted step. */
+    val sorryDependencies: List[theory.Theorem]
     val innerJustification: theory.Theorem
-    def sorryDependencies: List[JUSTIFICATION] = highProof match {
-      case Some(p) => p.sorryDependencies
-      case None => Nil
-    }
 
     /**
      * A pretty representation of the goal of the theorem
@@ -502,20 +504,33 @@ trait WithTheorems {
      * @return
      */
     def apply(using om: OutputManager)(statement: F.Sequent, fullName: String, line: Int, file: String, kind: TheoremKind)(computeProof: Proof ?=> Unit) =
-      THMFromProof(statement, fullName, line, file, kind)(computeProof)
+      // Keep the callback constructor-only by adapting the contextual API here.
+      THMFromProof(Some(statement), fullName, line, file, kind)(proof => {
+        computeProof(using proof)
+        statement
+      })
+
+    /** Infer a named theorem's statement from its proof construction. */
+    private[prooflib] def infer(using om: OutputManager)(fullName: String, line: Int, file: String, kind: TheoremKind)(computeProof: Proof ?=> F.Sequent): THM =
+      THMFromProof(None, fullName, line, file, kind)(proof => computeProof(using proof))
 
     /**
-     * Constructs a "high level" theorem from an existing theorem in the
+     * Wrap a checked kernel theorem with its construction metadata.
      *
      * @param om The output manager, available in any file extending [[lisa.utils.BasicMain]]
      * @param statement The statement of the theorem
      * @param fullName The full name of the theorem, including the path/package.
      * @param kind The kind of theorem (Theorem, Lemma, Corollary)
      * @param innerThm The inner theorem, coming from the kernel
-     * @param getProof If available, a way to compute the Kernel proof again.
+     * @param proofStatistics Statistics of the checked certificate
+     * @param wasCached Whether the certificate was read from the binary cache
+     * @param sorryDependencies Direct imported theorem dependencies that rely on Sorry
      */
-    def fromKernel(using om: OutputManager)(statement: F.Sequent, fullName: String, kind: TheoremKind, innerThm: theory.Theorem, getProof: () => Option[K.SCProof]) =
-      THMFromKernel(statement, fullName, kind, innerThm, getProof)
+    def fromKernel(using om: OutputManager)(
+        statement: F.Sequent, fullName: String, kind: TheoremKind, innerThm: theory.Theorem,
+        proofStatistics: ProofStatistics, wasCached: Boolean, sorryDependencies: List[theory.Theorem]
+    ) =
+      THMFromKernel(statement, fullName, kind, innerThm, proofStatistics, wasCached, sorryDependencies)
 
     /**
      * Construct a theorem (both in the kernel and high level) from a proof.
@@ -553,7 +568,7 @@ trait WithTheorems {
             )
         }
       }
-      fromKernel(statement, fullName, kind, theorem, () => Some(proof))
+      fromKernel(statement, fullName, kind, theorem, ProofStatistics(proof.totalLength), cached.isDefined, sorryDependenciesOf(imports))
 
   }
 
@@ -561,67 +576,59 @@ trait WithTheorems {
    * A theorem that was produced from a kernel theorem and not from a high level proof. See [[THM.fromKernel]].
    * Those are typically theorems imported from another tool, or from serialization.
    */
-  class THMFromKernel(using om: OutputManager)(val statement: F.Sequent, val fullName: String, val kind: TheoremKind, innerThm: theory.Theorem, getProof: () => Option[K.SCProof]) extends THM {
+  class THMFromKernel(using om: OutputManager)(
+      val statement: F.Sequent, val fullName: String, val kind: TheoremKind, innerThm: theory.Theorem,
+      val proofStatistics: ProofStatistics, val wasCached: Boolean, val sorryDependencies: List[theory.Theorem]
+  ) extends THM {
 
     val innerJustification: theory.Theorem = innerThm
     assert(innerThm.name == fullName)
-    def kernelProof: Option[K.SCProof] = getProof()
-    def highProof: Option[BaseProof] = None
 
     val goal: F.Sequent = statement
 
   }
 
-  /**
-   * A theorem that was produced from a high level proof. See [[THM.apply]].
-   * Typical way to construct a theorem in the library, but serialization for example will produce a [[THMFromKernel]].
-   */
-  class THMFromProof(using om: OutputManager)(val statement: F.Sequent, val fullName: String, line: Int, file: String, val kind: TheoremKind)(computeProof: Proof ?=> Unit) extends THM {
+  /** Construct and check a theorem without retaining its builder or proof callback. */
+  class THMFromProof(using @scala.annotation.constructorOnly om: OutputManager)(private val declaredStatement: Option[F.Sequent], val fullName: String, line: Int, file: String, val kind: TheoremKind)(@scala.annotation.constructorOnly computeProof: Proof => F.Sequent) extends THM {
 
-    val goal: F.Sequent = statement
-
-    val proof: BaseProof = new BaseProof(this)
-    private var cachedProof: Option[K.SCProof] = None
-    def kernelProof: Option[K.SCProof] = cachedProof.orElse(Some(proof.toSCProof))
-    def highProof: Option[BaseProof] = if cachedProof.isDefined then None else Some(proof)
+    override def prettyGoal: String = declaredStatement.fold(s"Inferred conclusion of $fullName")(_.toString)
 
     import lisa.utils.Serialization.*
-    val innerJustification: theory.Theorem =
-      if library._draft.nonEmpty && library._draft.get.value != file
+    val (innerJustification, statement, proofStatistics, sorryDependencies, wasCached) =
+      if declaredStatement.nonEmpty && library._draft.nonEmpty && library._draft.get.value != file
       then // if the draft option is activated, and the theorem is not in the file where the draft option is given, then we replace the proof by sorry
+        val goal = declaredStatement.get
         theory.theorem(fullName, goal.underlying, SCProof(SC.Sorry(goal.underlying)), IndexedSeq.empty) match {
           case K.Judgement.ValidJustification(just) =>
-            just
+            (just, goal, ProofStatistics(1), Nil, false)
           case wrongJudgement: K.Judgement.InvalidJustification[?] =>
             om.lisaThrow(
               LisaException.InvalidKernelJustificationComputation(
                 "The final proof was rejected by LISA's logical kernel. This may be due to a faulty proof computation or lack of verification by a proof tactic.",
                 wrongJudgement,
-                Some(proof)
+                None
               )
             )
         }
-      else if library._withCache then
-        oneProofFromFile("cache/" + fullName, library.theory, Some(fullName -> goal.underlying)) match {
-          case Some((thm, scp, _)) =>
-            cachedProof = Some(scp)
-            thm
-
+      else
+        // Inferred statements must be constructed before a cache can be checked against them.
+        val loaded = if library._withCache then declaredStatement.flatMap(goal => oneProofFromFile("cache/" + fullName, theory, Some(fullName -> goal.underlying))) else None
+        loaded match
+          case Some((theorem, certificate, imports)) =>
+            (theorem, declaredStatement.get, ProofStatistics(certificate.totalLength), sorryDependenciesOf(imports), true)
           case None =>
-            val (thm, scp, justifs) = prove(computeProof) // if fail, prove it
-            thmsToFile("cache/" + fullName, theory, List((fullName, flattenProof(scp), justifs))) // and save it to the file
-            thm
-        }
-      else prove(computeProof)._1
+            val (theorem, conclusion, statistics, dependencies) = prove(computeProof)
+            (theorem, conclusion, statistics, dependencies, false)
 
     library.last = Some(this)
 
     /**
      * Construct the kernel theorem from the high level proof
      */
-    private def prove(computeProof: Proof ?=> Unit): (theory.Theorem, SCProof, List[(String, theory.Justification)]) = {
-      try {
-        computeProof(using proof)
+    private def prove(computeProof: Proof => F.Sequent)(using om: OutputManager): (theory.Theorem, F.Sequent, ProofStatistics, List[theory.Theorem]) = {
+      val proof = new BaseProof(this, declaredStatement)
+      val conclusion = try {
+        computeProof(proof)
       } catch {
         case e: UserLisaException =>
           om.lisaThrow(e)
@@ -630,11 +637,13 @@ trait WithTheorems {
       if (proof.length == 0)
       then om.lisaThrow(new UnimplementedProof(this))
 
-      val scp = concludeProof(goal.underlying, proof.toSCProof)
-      val justifs = proof.getImports.iterator.map(e => (e._1.owner, e._1.innerJustification)).toList
-      theory.theorem(fullName, goal.underlying, scp, justifs.map(_._2)) match {
+      val scp = concludeProof(conclusion.underlying, proof.toSCProof)
+      val justifs = proof.justifications
+      theory.theorem(fullName, conclusion.underlying, scp, justifs.map(_.innerJustification)) match {
         case K.Judgement.ValidJustification(just) =>
-          (just, scp, justifs)
+          if library._withCache then
+            thmsToFile("cache/" + fullName, theory, List((fullName, flattenProof(scp), justifs.iterator.map(j => (j.owner, j.innerJustification)).toList)))
+          (just, conclusion, ProofStatistics(scp.totalLength), sorryDependenciesOf(justifs.map(_.innerJustification)))
         case wrongJudgement: K.Judgement.InvalidJustification[?] =>
           om.lisaThrow(
             LisaException.InvalidKernelJustificationComputation(
@@ -657,7 +666,7 @@ trait WithTheorems {
     def apply(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(statement: F.Sequent)(computeProof: Proof ?=> Unit): THM = {
       val s = library.contextHypotheses.getOrElse(file, Set.empty).foldLeft(statement)(_ +<< _)
       val thm = THM(s, name.value, line.value, file.value, this)(computeProof)
-      show(thm)
+      if this != InternalStatement then show(thm)
       thm
     }
 
@@ -681,6 +690,12 @@ trait WithTheorems {
   /**
    * Internal statements are internally produced theorems, for example as intermediate step in definitions.
    */
-  object InternalStatement extends TheoremKind { val kind2: String = "Internal, automatically produced" }
+  object InternalStatement extends TheoremKind {
+    val kind2: String = "Internal, automatically produced"
+
+    /** Infer a named internal theorem's conclusion from its body; do not use `thesis` in that body. */
+    def infer(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(computeProof: Proof ?=> F.Sequent): THM =
+      THM.infer(name.value, line.value, file.value, this)(computeProof)
+  }
 
 }

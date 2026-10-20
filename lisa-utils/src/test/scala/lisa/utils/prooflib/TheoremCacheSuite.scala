@@ -48,10 +48,9 @@ class TheoremCacheSuite extends AnyFunSuite:
       val b = theorem(warm, second, q)(fail("recomputed second cached proof"))
       assert(a.statement == (p |- p))
       assert(b.statement == (q |- q))
-      assert(a.highProof.isEmpty)
-      assert(b.highProof.isEmpty)
-      assert(SCProofChecker.checkSCProof(a.kernelProof.get).isValid)
-      assert(SCProofChecker.checkSCProof(b.kernelProof.get).isValid)
+      assert(a.wasCached && b.wasCached)
+      assert(a.proofStatistics.kernelSize > 0 && b.proofStatistics.kernelSize > 0)
+      assert(!a.withSorry && !b.withSorry)
 
   test("a changed statement rejects the stale cache and computes its own proof"):
     withNames: (name, _) =>
@@ -62,7 +61,7 @@ class TheoremCacheSuite extends AnyFunSuite:
       assert(computed)
       assert(changed.statement == (q |- q))
       assert(warm.theory.getTheorem(name).get.proposition == changed.statement.underlying)
-      assert(changed.highProof.nonEmpty)
+      assert(!changed.wasCached)
 
   test("a cache with the wrong name is rejected before registration"):
     withNames: (first, second) =>
