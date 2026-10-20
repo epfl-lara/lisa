@@ -1,5 +1,7 @@
 package lisa.utils.prooflib
 
+import scala.collection.mutable
+
 import lisa.kernel.proof.RunningTheory
 import lisa.utils.KernelHelpers._
 import lisa.utils.LisaException
@@ -52,8 +54,8 @@ trait WithTheorems {
 
     val library: WithTheorems.this.type = WithTheorems.this
 
-    private var steps: List[ProofStep] = Nil
-    private var imports: List[(OutsideFact, F.Sequent)] = Nil
+    private val steps = mutable.ArrayBuffer.empty[ProofStep]
+    private val imports = mutable.ArrayBuffer.empty[(OutsideFact, F.Sequent)]
     private var instantiatedFacts: List[(InstantiatedFact, Int)] = Nil
     private var assumptions: List[F.Expr[F.Prop]] = assump
     private var eliminations: List[(F.Expr[F.Prop], (Int, F.Sequent) => List[K.SCProofStep])] = Nil
@@ -91,7 +93,7 @@ trait WithTheorems {
             K.SCProof(judgement.scps.toIndexedSeq, judgement.imports.map(f => sequentOfFact(f).underlying).toIndexedSeq),
             judgement.imports.map(sequentAndIntOfFact(_)._2)
           ),
-          steps.length
+          steps.size
         )
         addStep(ps)
         ps
@@ -105,15 +107,17 @@ trait WithTheorems {
     def newProofStep(judgement: ValidProofTactic): ProofStep =
       ProofStep.newProofStep(judgement)
 
-    private def addStep(ds: ProofStep): Unit = steps = ds :: steps
+    private def addStep(ds: ProofStep): Unit = {
+      steps.addOne(ds)
+    }
     private def addImport(imp: OutsideFact, seq: F.Sequent): Unit = {
-      imports = (imp, seq) :: imports
+      imports.addOne((imp, seq))
     }
 
     private def addInstantiatedFact(instFact: InstantiatedFact): Unit = {
       val step = ValidProofTactic(instFact.result, instFact.proof, Seq(instFact.fact))(using F.SequentInstantiationRule)
       newProofStep(step)
-      instantiatedFacts = (instFact, steps.length - 1) :: instantiatedFacts
+      instantiatedFacts = (instFact, steps.size - 1) :: instantiatedFacts
     }
 
     /**
@@ -146,15 +150,18 @@ trait WithTheorems {
 
     /**
      * Favour using getSequent when applicable.
-     * @return The list of ValidatedSteps (containing a high level ProofTactic and the corresponding K.SCProofStep).
+     * @return An immutable snapshot of validated steps in proof order.
      */
-    def getSteps: List[ProofStep] = steps.reverse
+    def getSteps: IndexedSeq[ProofStep] = steps.toVector
 
     /**
      * Favour using getSequent when applicable.
-     * @return The list of Imports validated in the formula, with their original justification.
+     * @return An immutable snapshot of imports in their original index order.
      */
-    def getImports: List[(OutsideFact, F.Sequent)] = imports.reverse
+    def getImports: IndexedSeq[(OutsideFact, F.Sequent)] = imports.toVector
+
+    /** Return imported facts in their original index order. */
+    def importedFacts: IndexedSeq[OutsideFact] = imports.iterator.map(_._1).toVector
 
     /**
      * @return The list of formulas that are assumed for the reminder of the proof.
@@ -171,19 +178,19 @@ trait WithTheorems {
      * @return
      */
     def toSCProof: K.SCProof = {
-      val finalSteps = eliminations.foldLeft[(List[SC.SCProofStep], F.Sequent)]((steps.map(_.scps), steps.head.bot)) { (cumul_bot, f_elim) =>
-        val (cumul, bot) = cumul_bot
-        val (f, elim) = f_elim
-        val i = cumul.size
-        val elimSteps = elim(i - 1, bot)
-        (elimSteps.foldLeft(cumul)((cumul2, step) => step :: cumul2), bot -<< f)
+      var bot = steps.last.bot
+      val finalSteps = new scala.collection.immutable.VectorBuilder[SC.SCProofStep]
+      finalSteps.sizeHint(steps.size)
+      steps.foreach(step => finalSteps.addOne(step.scps))
+      eliminations.foreach { (f, elim) =>
+        elim(finalSteps.size - 1, bot).foreach(finalSteps.addOne)
+        bot = bot -<< f
       }
-
-      val r = K.SCProof(finalSteps._1.reverse.toIndexedSeq, getImports.map(of => of._2.underlying).toIndexedSeq)
-      r
+      K.SCProof(finalSteps.result(), imports.iterator.map(_._2.underlying).toVector)
     }
 
-    def currentSCProof: K.SCProof = K.SCProof(steps.map(_.scps).reverse.toIndexedSeq, getImports.map(of => of._2.underlying).toIndexedSeq)
+    def currentSCProof: K.SCProof =
+      K.SCProof(steps.iterator.map(_.scps).toVector, imports.iterator.map(_._2.underlying).toVector)
 
     /**
      * For a fact, returns the sequent that the fact proove and the position of the fact in the proof.
@@ -195,12 +202,12 @@ trait WithTheorems {
       case i: Int =>
         (
           if (i >= 0)
-            if (i >= steps.length) throw new IndexOutOfBoundsException(s"index $i is out of bounds of the steps Seq")
-            else steps(steps.length - i - 1).bot
+            if (i >= steps.size) throw new IndexOutOfBoundsException(s"index $i is out of bounds of the steps Seq")
+            else steps(i).bot
           else {
             val i2 = -(i + 1)
-            if (i2 >= imports.length) throw new IndexOutOfBoundsException(s"index $i is out of bounds of the imports Seq")
-            else imports(imports.length + i)._2
+            if (i2 >= imports.size) throw new IndexOutOfBoundsException(s"index $i is out of bounds of the imports Seq")
+            else imports(-i - 1)._2
           },
           i
         )
@@ -211,28 +218,28 @@ trait WithTheorems {
           case Some(value) => (instFact.result, value._2)
           case None =>
             addInstantiatedFact(instFact)
-            (instFact.result, steps.length - 1)
+            (instFact.result, steps.size - 1)
         }
       case of: OutsideFact @unchecked =>
-        val r = imports.indexWhere(of == _._1)
+        val r = imports.reverseIterator.indexWhere(of == _._1)
         if (r != -1) {
-          (imports(r)._2, r - imports.length)
+          (imports(imports.size - r - 1)._2, r - imports.size)
         } else {
           val r2 = sequentOfOutsideFact(of)
           addImport(of, r2)
-          (r2, -imports.length)
+          (r2, -imports.size)
         }
     }
 
     def sequentOfFact(fact: Fact): F.Sequent = fact match {
       case i: Int =>
         if (i >= 0)
-          if (i >= steps.length) throw new IndexOutOfBoundsException(s"index $i is out of bounds of the steps Seq")
-          else steps(steps.length - i - 1).bot
+          if (i >= steps.size) throw new IndexOutOfBoundsException(s"index $i is out of bounds of the steps Seq")
+          else steps(i).bot
         else {
           val i2 = -(i + 1)
-          if (i2 >= imports.length) throw new IndexOutOfBoundsException(s"index $i is out of bounds of the imports Seq")
-          else imports(imports.length + i)._2
+          if (i2 >= imports.size) throw new IndexOutOfBoundsException(s"index $i is out of bounds of the imports Seq")
+          else imports(-i - 1)._2
         }
       case ds: ProofStep => ds.bot
       case instfact: InstantiatedFact => instfact.result
@@ -254,7 +261,7 @@ trait WithTheorems {
      *
      * @throws java.util.NoSuchElementException if the proof has no steps yet
      */
-    def mostRecentStep: ProofStep = steps.headOption.getOrElse {
+    def mostRecentStep: ProofStep = steps.lastOption.getOrElse {
       throw new NoSuchElementException("mostRecentStep called on empty proof.")
     }
 
@@ -264,7 +271,7 @@ trait WithTheorems {
      *
      * @return
      */
-    def length: Int = steps.length
+    def length: Int = steps.size
 
     /**
      * The set of symbols that can't be instantiated because they are free in an assumption.
@@ -354,9 +361,9 @@ trait WithTheorems {
 
     override def sequentOfOutsideFact(j: JUSTIFICATION): F.Sequent = j.statement
 
-    def justifications: List[JUSTIFICATION] = getImports.map(_._1)
+    def justifications: IndexedSeq[JUSTIFICATION] = importedFacts
 
-    def sorryDependencies = justifications.filter(_.withSorry)
+    def sorryDependencies = justifications.iterator.filter(_.withSorry).toList
 
   }
 
@@ -605,7 +612,7 @@ trait WithTheorems {
       then om.lisaThrow(new UnimplementedProof(this))
 
       val scp = proof.toSCProof
-      val justifs = proof.getImports.map(e => (e._1.owner, e._1.innerJustification))
+      val justifs = proof.getImports.iterator.map(e => (e._1.owner, e._1.innerJustification)).toList
       theory.theorem(fullName, goal.underlying, scp, justifs.map(_._2)) match {
         case K.Judgement.ValidJustification(just) =>
           (just, scp, justifs)

@@ -1380,7 +1380,7 @@ object BasicStepTactic {
     val botK: Option[K.Sequent] = statement map (_.underlying)
     val scproof: Option[K.SCProof] = if (iProof.length == 0) then None else Some(iProof.toSCProof)
 
-    val premises: Seq[proof.Fact] = iProof.getImports.map(of => of._1)
+    val premises: Seq[proof.Fact] = iProof.importedFacts
     def judgement: proof.ProofTacticJudgement = {
       if (iProof.length == 0)
         proof.InvalidProofTactic(s"Subproof is empty.")
