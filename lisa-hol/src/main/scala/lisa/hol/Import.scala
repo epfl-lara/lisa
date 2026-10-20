@@ -22,6 +22,7 @@ import lisa.utils.unification.UnificationUtils.RewriteContext
 import lisa.utils.unification.UnificationUtils.matchExpr
 
 import scala.collection.mutable
+import scala.jdk.CollectionConverters.*
 
 object Import extends lisa.HOL:
   val lib: lisa.SetTheoryLibrary.type = lisa.SetTheoryLibrary
@@ -360,8 +361,20 @@ object Import extends lisa.HOL:
     val stringWriter: java.io.Writer = java.io.Writer.nullWriter()
     def finishOutput(exception: Exception): Nothing = throw exception
 
+  private[hol] trait ProofStore:
+    def size: Int
+    def retainedSize: Int
+    def pinnedSize: Int
+    def evictions: Long
+    def cacheHits: Long
+    def typingCacheSize: Int = 0
+    def localCacheSize: Int = 0
+    def lemmaCacheSize: Int = 0
+    def lemmaCacheHits: Long = 0L
+    def theorem(ref: TheoremRef): Justification
+
   /** Share checked SC theorems, never proof-local fact indices, across trace steps. */
-  private[hol] final class StepStore(val statistics: ImportStatistics = new ImportStatistics)(using extractor: ExtractorContext, mode: LoggingMode = LoggingMode.Silent):
+  private[hol] final class StepStore(val statistics: ImportStatistics = new ImportStatistics)(using extractor: ExtractorContext, mode: LoggingMode = LoggingMode.Silent) extends ProofStore:
     private val steps = mutable.HashMap.empty[Long, Justification]
     private var definitionsThrough = -1L
     private var hits = 0L
@@ -375,10 +388,10 @@ object Import extends lisa.HOL:
     def pinnedSize: Int = 0
     def evictions: Long = 0L
     def cacheHits: Long = hits
-    def typingCacheSize: Int = typingEntries
-    def localCacheSize: Int = 0
-    def lemmaCacheSize: Int = 0
-    def lemmaCacheHits: Long = 0L
+    override def typingCacheSize: Int = typingEntries
+    override def localCacheSize: Int = 0
+    override def lemmaCacheSize: Int = 0
+    override def lemmaCacheHits: Long = 0L
 
     /** Retrieve a checked step and construct any missing dependencies. */
     def apply(index: Long): Justification =
@@ -396,16 +409,15 @@ object Import extends lisa.HOL:
       apply(target)
 
     private def reconstruct(index: Long, step: h.ProofStep): Justification =
-      given StepStore = this
       statistics.measure(step.getClass.getSimpleName, index):
         step match
           case axiom: h.AXIOM => reconstructAxiom(axiom)
           case definition: h.DEFINITION => reconstructConstantDefinition(definition)
-          case definition: h.TYPE_DEFINITION => reconstructTypeDefinition(index, definition)
+          case definition: h.TYPE_DEFINITION => reconstructTypeDefinition(index, definition)(target => premise(index, target))
           case _ =>
             statistics.measure("SC_CHECK", index):
               InternalStatement.infer(using stepOutput, sourcecode.FullName(s"Import.step$index"), summon[sourcecode.Line], summon[sourcecode.File]): proof ?=>
-                val result = reconstructStep(using extractor, proof, this)(index, step)
+                val result = reconstructStep(using extractor, proof)(index, step)(target => premise(index, target))
                 val cleaned = have(HOLSteps.Clean.all(result))
                 ifDebug:
                   val goal = withCTX(extractor.getStatement(index).toLisaSequent)
@@ -437,6 +449,130 @@ object Import extends lisa.HOL:
         val cleaned = have(HOLSteps.Clean.all(result))
         have(thesis) by Weakening(cleaned)
         typingEntries += HOLProofType.cacheSize
+
+  /** Share named results, definitions, and selected checked lemmas between theorem-local proofs. */
+  private[hol] final class LocalStepStore(
+      val statistics: ImportStatistics = new ImportStatistics,
+      lemmaSteps: Set[Long] = Set.empty
+  )(
+      using extractor: ExtractorContext, mode: LoggingMode = LoggingMode.Silent
+  ) extends ProofStore:
+    private val known = mutable.HashMap.empty[Long, Justification]
+    private var definitionsThrough = -1L
+    private var computed = 0
+    private var hits = 0L
+    private var lastLocalSize = 0
+    private var lemmas = 0
+    private var lemmaHits = 0L
+    private var typingEntries = 0
+
+    initializedDefinitions
+
+    def size: Int = computed
+    def retainedSize: Int = known.size
+    def pinnedSize: Int = known.size
+    def evictions: Long = 0L
+    def cacheHits: Long = hits
+    override def localCacheSize: Int = lastLocalSize
+    override def lemmaCacheSize: Int = lemmas
+    override def lemmaCacheHits: Long = lemmaHits
+    override def typingCacheSize: Int = typingEntries
+
+    private final class LocalProof[P <: lib.Proof](val proof: P, root: Long):
+      private val steps = mutable.HashMap.empty[Long, proof.ProofStep]
+      given proof.type = proof
+
+      def apply(index: Long): proof.Fact =
+        known.get(index) match
+          case Some(result) =>
+            hits += 1
+            if lemmaSteps(index) then lemmaHits += 1
+            proof.asOutsideFact(result)
+          case None if index != root && lemmaSteps(index) =>
+            proof.asOutsideFact(lemma(index))
+          case None => steps.get(index) match
+            case Some(result) =>
+              hits += 1
+              result
+            case None =>
+              val step = statistics.measure("read", index)(extractor.getProof(index))
+              val inputs = step.dependencies.distinct.iterator.map: target =>
+                require(target < index, s"Step $index references non-earlier premise $target")
+                target -> apply(target)
+              .toMap
+              val result = statistics.measure(step.getClass.getSimpleName, index):
+                step match
+                  case _: h.DEFINITION | _: h.TYPE_DEFINITION =>
+                    throw new IllegalStateException(s"Definition $index was not initialized before reconstruction")
+                  case _ =>
+                    val reconstructed = reconstructStep(using extractor, proof)(index, step)(inputs.apply)
+                    val cleaned = have(HOLSteps.Clean.all(reconstructed))
+                    ifDebug:
+                      val goal = withCTX(extractor.getStatement(index).toLisaSequent)
+                      val checked = Weakening(cleaned)(goal)
+                      if !checked.isValid then
+                        throw new IllegalArgumentException(s"Step $index (${step.getClass.getSimpleName}) proves ${cleaned.statement}, expected $goal")
+                    cleaned
+              steps(index) = result
+              computed += 1
+              lastLocalSize = steps.size
+              result
+
+    // Give selected roots and type witnesses their own checked theorem identity.
+    private def checked(index: Long, name: String): Justification =
+      statistics.measure("SC_CHECK", index):
+        InternalStatement.infer(using stepOutput, sourcecode.FullName(name), summon[sourcecode.Line], summon[sourcecode.File]): proof ?=>
+          val local = new LocalProof[proof.type](proof, index)
+          val result = have(using summon[sourcecode.Line], summon[sourcecode.File])(using proof)(local(index))
+          typingEntries += HOLProofType.cacheSize
+          result.statement
+
+    private def lemma(index: Long): Justification = known.getOrElseUpdate(index, {
+      val result = checked(index, s"Import.lemma_$index")
+      lemmas += 1
+      result
+    })
+
+    // Type definitions also require a checked external witness, even when the
+    // witness was not selected for permanent lemma caching.
+    private def witness(index: Long): Justification =
+      if lemmaSteps(index) then lemma(index)
+      else known.getOrElse(index, checked(index, s"Import.typeWitness$index"))
+
+    private def defineThrough(index: Long): Unit =
+      if index > definitionsThrough then
+        statistics.measure("read", index)(extractor.getDefinitionsBetween(definitionsThrough, index)).foreach: (definitionIndex, definition) =>
+          definitionsThrough = definitionIndex
+          def register(): Unit =
+            val result = statistics.measure(definition.getClass.getSimpleName, definitionIndex):
+              definition match
+                case constant: h.DEFINITION => reconstructConstantDefinition(constant)
+                case typ: h.TYPE_DEFINITION => reconstructTypeDefinition(definitionIndex, typ)(witness)
+                case _ => throw new IllegalStateException(s"Expected a definition at $definitionIndex")
+            known(definitionIndex) = result
+            computed += 1
+          if !known.contains(definitionIndex) then definition match
+            case _: h.DEFINITION =>
+              try register()
+              catch case exception: Exception => debug(s"Skipping unusable definition at $definitionIndex: ${exception.getMessage}")
+            case _ => register()
+        definitionsThrough = index
+
+    def theorem(ref: TheoremRef): Justification =
+      typingEntries = 0
+      Transformers.resetConversionCache()
+      lastLocalSize = 0
+      defineThrough(ref.id)
+      val goal = statistics.measure("read", ref.id)(extractor.getStatement(ref.id)).toLisaSequent
+      val result = statistics.measure("named", ref.id):
+        HOLTheorem(using summon[OutputManager], sourcecode.FullName(s"Import.${sanitize(ref.name)}"), summon[sourcecode.Line], summon[sourcecode.File])(goal): proof ?=>
+          val local = new LocalProof[proof.type](proof, ref.id)
+          val reconstructed = local(ref.id)
+          val cleaned = have(HOLSteps.Clean.all(reconstructed))
+          have(thesis) by Weakening(cleaned)
+          typingEntries += HOLProofType.cacheSize
+      known(ref.id) = result
+      result
 
   private def reconstructAxiom(using extractor: ExtractorContext)(step: h.AXIOM): Justification =
     val h.AXIOM(term) = step
@@ -558,7 +694,7 @@ object Import extends lisa.HOL:
     Constants.register(name, holCst, typeArgs, abstractType, holCst.holDefinition)
     holCst
 
-  private def reconstructTypeDefinition(using extractor: ExtractorContext, store: StepStore)(index: Long, step: h.TYPE_DEFINITION): Justification =
+  private def reconstructTypeDefinition(using extractor: ExtractorContext)(index: Long, step: h.TYPE_DEFINITION)(resolve: Long => Justification): Justification =
     val h.TYPE_DEFINITION(_, term, just) = step
     require(just < index, s"Step $index references non-earlier premise $just")
 
@@ -585,7 +721,7 @@ object Import extends lisa.HOL:
           case _ => throw new IllegalStateException(s"Type constant ${aty.name} has incomplete defining theorems.")
       else
         // Recover the HOL witness and the predicate whose inhabited subset defines the type.
-        val nonEmptinessThm = store.premise(index, just)
+        val nonEmptinessThm = resolve(just)
         val (p, t) = nonEmptinessThm match
           case NonEmptyThm(p, t) => (p, t)
           case _ => throw MalformedNonEmptinessThm(index, nonEmptinessThm)
@@ -721,10 +857,9 @@ object Import extends lisa.HOL:
       case _ =>
         throw InvalidDefinitionException(name, term)
 
-  /** Reconstruct a trace step using checked premises from the shared store. */
-  private def reconstructStep(using extractor: ExtractorContext, ctx: lib.Proof, store: StepStore)(index: Long, proofStep: h.ProofStep): ctx.Fact =
+  /** Reconstruct a trace step from premises resolved in the current proof. */
+  private def reconstructStep(using extractor: ExtractorContext, ctx: lib.Proof)(index: Long, proofStep: h.ProofStep)(resolveFact: Long => ctx.Fact): ctx.Fact =
     debug(s"Reconstructing step $index: ${proofStep.getClass.getSimpleName}")
-    def resolveFact(target: Long): ctx.Fact = store.premise(index, target)
 
     val result = {
       proofStep match
@@ -764,7 +899,7 @@ object Import extends lisa.HOL:
           have(ExtendedHOLSteps._INST_TYPE_RENAME(lisaInst.toSeq, fromFact))
         case h.AXIOM(term) => Axioms.fromHOL(term.toLisaTerm)
         case s @ h.DEFINITION(name, term) => reconstructConstantDefinition(s)
-        case s @ h.TYPE_DEFINITION(name, term, just) => reconstructTypeDefinition(index, s)
+        case _: h.TYPE_DEFINITION => throw new IllegalStateException(s"Type definition $index must be initialized before reconstruction")
     }
 
     result
@@ -853,7 +988,18 @@ object Import extends lisa.HOL:
         throw error
 
     try
-      val store = new StepStore(statistics)(using extractor, currentLoggingMode)
+      val cacheMode = sys.props.getOrElse("lisa.hol.proofCache", "registered")
+      val store: ProofStore = cacheMode match
+        case "registered" => new StepStore(statistics)(using extractor, currentLoggingMode)
+        case "local" => new LocalStepStore(statistics)(using extractor, currentLoggingMode)
+        case "filtered" =>
+          val path = java.nio.file.Path.of(sys.props.getOrElse("lisa.hol.lemmas", throw new IllegalArgumentException("Filtered caching requires -Dlisa.hol.lemmas=<ID file>")))
+          val selected = java.nio.file.Files.readAllLines(path).asScala.iterator.map(_.toLong).toSet
+          require(selected.forall(_ >= 0), "Lemma IDs must be nonnegative")
+          println(s"[INFO] Selected ${selected.size} lemma IDs from $path")
+          new LocalStepStore(statistics, selected)(using extractor, currentLoggingMode)
+        case _ => throw new IllegalArgumentException(s"Unknown HOL proof-cache mode: $cacheMode. Expected registered, local, or filtered.")
+      println(s"[INFO] Proof cache: $cacheMode")
       val timings = Vector.newBuilder[TheoremTiming]
       val startTime = System.nanoTime()
       var count = 0
