@@ -228,12 +228,16 @@ trait Syntax {
     /**
      * String representation of the expression, with potential arguments. Can be updated.
      */
-    var mkString: Seq[Expr[?]] => String = defaultMkString
+    private var customMkString: Option[Seq[Expr[?]] => String] = None
+    def mkString: Seq[Expr[?]] => String = customMkString.getOrElse(defaultMkString)
+    def mkString_=(printer: Seq[Expr[?]] => String): Unit = customMkString = Some(printer)
 
     /**
      * String representation of the expression, with potential arguments, encapsulated by parenthesis if necessary. Can be updated.
      */
-    var mkStringSeparated: Seq[Expr[?]] => String = defaultMkStringSeparated
+    private var customMkStringSeparated: Option[Seq[Expr[?]] => String] = None
+    def mkStringSeparated: Seq[Expr[?]] => String = customMkStringSeparated.getOrElse(defaultMkStringSeparated)
+    def mkStringSeparated_=(printer: Seq[Expr[?]] => String): Unit = customMkStringSeparated = Some(printer)
 
     /**
      * Construct an unsafe application. If the sorts don't match, will throw an exception.
