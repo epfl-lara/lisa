@@ -123,6 +123,45 @@ object Tactics:
           case _ => return proof.InvalidProofTactic("Type check can only check type relation(∈)")
       }
 
+    /** Derive application typing from proved function and argument typings. */
+    def applicationProof(using lib: SetTheoryLibrary.type, proof: lib.Proof)(
+        function: Expr[Ind], argument: Expr[Ind], functionType: Expr[Ind]
+    )(functionTyping: proof.Fact, argumentTyping: proof.Fact): proof.ProofTacticJudgement =
+      import lib.*
+      TacticSubproof:
+        functionType match
+          case SPi(domain: Expr[Ind], codomain @ Abs(bound: Variable[Ind], body: Expr[Ind])) =>
+            val resultType = body.substitute(bound := argument)
+            val statement = (app(function)(argument) ∈ resultType) ++<< functionTyping.statement ++<< argumentTyping.statement
+            val functionFormula = function ∈ functionType
+            val argumentFormula = argument ∈ domain
+            val rule = TApp of (e1 := function, e2 := argument, T1 := domain, T2 := codomain)
+            val conclusion = rule.statement.right.head
+            val withFunction = have((conclusion +<< argumentFormula) ++<< functionTyping.statement) by
+              Cut.withParameters(functionFormula)(functionTyping, rule)
+            val applied = have((conclusion ++<< functionTyping.statement) ++<< argumentTyping.statement) by
+              Cut.withParameters(argumentFormula)(argumentTyping, withFunction)
+            have(statement) by Restate.from(applied)
+          case _ => return proof.InvalidProofTactic(s"Expected a Π-type with a lambda codomain, got $functionType")
+
+    /** Derive abstraction typing from a proved body typing. */
+    def abstractionProof(using lib: SetTheoryLibrary.type, proof: lib.Proof)(
+        bound: Variable[Ind], domain: Expr[Ind], body: Expr[Ind], bodyType: Expr[Ind]
+    )(bodyTyping: proof.Fact): proof.ProofTacticJudgement =
+      import lib.*
+      TacticSubproof:
+        val assumption = bound ∈ domain
+        val conclusion = body ∈ bodyType
+        // Remove alpha-equivalent copies of the binder's typing as well.
+        val resetBot = bodyTyping.statement -<? assumption
+        val weakened = have((assumption |- conclusion) ++<< bodyTyping.statement) by Weakening(bodyTyping)
+        val implication = have((assumption ==> conclusion) ++<< resetBot) by
+          RightImplies.withParameters(assumption, conclusion)(weakened)
+        val quantified = have((∀(bound ∈ domain, body ∈ bodyType)) ++<< resetBot) by
+          RightForall.withParameters(assumption ==> conclusion, bound)(implication)
+        val abstraction = TAbs of (T1 := domain, T2 := Abs(bound, bodyType), e := Abs(bound, body))
+        have(Discharge(quantified)(abstraction))
+
     /**
      * Infer the type of the given term(↑)
      */
@@ -150,17 +189,7 @@ object Tactics:
                 val typeLevelProof = checkMemo(using SetTheoryLibrary)(localContext, tm2, ty1, memo)
                 if !typeLevelProof.isValid then return proof.InvalidProofTactic(s"Failed to construct the proof of $tm2 ∈ $ty1")
                 val h2 = have(typeLevelProof)
-                val (boundVar, typeBody) = ty2 match
-                  case Abs(v, body) => (v, body)
-                  case _ => return proof.InvalidProofTactic(s"Inferred type T2($ty2) is not a lambda expression")
-                val statement = (tm ∈ typeBody.substitute((boundVar, tm2))) ++<< h1.bot ++<< h2.bot
-                val rule = TApp of (e1 := func, e2 := tm2, T1 := ty1, T2 := ty2)
-                val ruleResult = rule.statement.right.head
-                val withFunction = have((ruleResult +<< (tm2 ∈ ty1)) ++<< h1.bot) by
-                  Cut.withParameters(func ∈ funcInferredType)(h1, rule)
-                val applied = have((ruleResult ++<< h1.bot) ++<< h2.bot) by
-                  Cut.withParameters(tm2 ∈ ty1)(h2, withFunction)
-                have(statement) by Restate.from(applied)
+                have(applicationProof(func, tm2, funcInferredType)(h1, h2))
               case _ => return proof.InvalidProofTactic(s"$funcInferredType must be a Π-type")
 
           // ∀(x ∈ T1, e(x) ∈ T2(x)) => abs(T1)(e) ∈ Pi(T1)(T2)
@@ -173,13 +202,7 @@ object Tactics:
             val bodyInferredType = h1.bot.right.head match
               case typeOf(tm, ty) => ty
               case _ => return proof.InvalidProofTactic(s"Sabs: Failed to extract the inferred type from valid proof")
-            val resetBot = h1.bot -<< (boundVar ∈ ty)
-            have((boundVar ∈ ty |- body ∈ bodyInferredType) ++<< h1.bot) by Weakening(h1)
-            thenHave((boundVar ∈ ty ==> body ∈ bodyInferredType) ++<< resetBot) by RightImplies
-            thenHave((∀(boundVar ∈ ty, body ∈ bodyInferredType)) ++<< resetBot) by RightForall
-            val quantifiedTyping = lastStep
-            val abstraction = TAbs of (T1 := ty, T2 := Abs(boundVar, bodyInferredType), e := Abs(boundVar, body))
-            have(Discharge(quantifiedTyping)(abstraction))
+            have(abstractionProof(boundVar, ty, body, bodyInferredType)(h1))
 
           // Π(x: T1).T2 : U, select the relative bigger type as the final product's type
           case SPi(ty: Expr[Ind], Abs(original: Variable[Ind], originalBody: Expr[Ind])) =>
