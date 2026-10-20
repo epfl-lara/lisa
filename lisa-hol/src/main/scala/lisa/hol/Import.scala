@@ -14,6 +14,7 @@ import lisa.hol.extractor._
 import lisa.hol.{core => h}
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.utils.collection.VecSet
+import lisa.utils.collection.BoundedCache
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.OutputManager
 import lisa.utils.prooflib.SimpleDeducedSteps.Discharge
@@ -63,24 +64,9 @@ object Import extends lisa.HOL:
   private var currentLoggingMode: LoggingMode = LoggingMode.Silent
   given LoggingMode = currentLoggingMode
 
-  /** Bound successful conversion results; recheck capacity after recursive work. */
-  private[hol] final class ConversionCache[A, B](capacity: Int):
-    require(capacity >= 0)
-    private val entries = mutable.HashMap.empty[A, B]
-    def clear(): Unit = entries.clear()
-    def apply(key: A)(compute: => B): B =
-      if capacity == 0 then compute
-      else entries.get(key) match
-        case Some(value) => value
-        case None =>
-          val value = compute
-          if entries.size >= capacity then entries.clear()
-          entries.put(key, value)
-          value
-
   object Transformers:
-    private val types = new ConversionCache[h.Type, Expr[Ind]](sys.props.get("lisa.hol.typeCache").fold(0)(_.toInt))
-    private val constants = new ConversionCache[h.Constant, Expr[Ind]](sys.props.get("lisa.hol.constantCache").fold(0)(_.toInt))
+    private val types = BoundedCache.fifo[h.Type, Expr[Ind]](sys.props.get("lisa.hol.typeCache").fold(4096)(_.toInt))
+    private val constants = BoundedCache.fifo[h.Constant, Expr[Ind]](sys.props.get("lisa.hol.constantCache").fold(4096)(_.toInt))
 
     /** Release converted objects at named-theorem boundaries and import exit. */
     private[hol] def resetConversionCache(): Unit =
@@ -102,7 +88,7 @@ object Import extends lisa.HOL:
       TypedVariable(K.Identifier(name, typeNumber(tpe)), tpe)
 
     extension (typ: h.Type)
-      def toLisaType: Expr[Ind] = types(typ) {
+      def toLisaType: Expr[Ind] = types.getOrElseUpdate(typ) {
         typ match
           case h.BoolType => 𝔹
           case h.FunType(in, out) => in.toLisaType ->: out.toLisaType
@@ -136,7 +122,7 @@ object Import extends lisa.HOL:
       def toLisaTerm: Expr[Ind] =
         term match
           case v @ h.Variable(_, _) => v.toLisaVar
-          case c @ h.Constant(name, tpe) => constants(c)(Constants.lookupTypedConstant(name, tpe.toLisaType))
+          case c @ h.Constant(name, tpe) => constants.getOrElseUpdate(c)(Constants.lookupTypedConstant(name, tpe.toLisaType))
           case h.Combination(left, right) => left.toLisaTerm @@ right.toLisaTerm
           case h.Abstraction(absVar, inner) =>
             fun(absVar.toLisaVar, inner.toLisaTerm)
