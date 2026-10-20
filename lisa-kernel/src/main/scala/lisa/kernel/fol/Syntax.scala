@@ -346,26 +346,26 @@ private[fol] trait Syntax {
     }
 
     /**
-     * The beta-eta normal form of the expression.
-     * Which algorithm is used is controlled by [[BetaNormMode.useNbe]].
+     * Compute the beta-eta normal form and whether the expression is already normal.
      */
-    lazy val (betaNormalForm: Expression, isBetaNormal: Boolean) = this match {
-      case Application(f, arg) =>
-        f.betaNormalForm match {
-          case Lambda(x, body) => (substituteVariables(body, Map(x -> arg)).betaNormalForm, false)
-          case nf              => 
-            if (f.isBetaNormal && arg.isBetaNormal) (this, true)
-            else (Application(nf, arg.betaNormalForm), false)
-        }
-      case Lambda(x, body) =>
-        val nb = body.betaNormalForm
-        nb match {
-          case Application(g, y: Variable) if y == x && !g.freeVariables.contains(x) => (g, false)
-          case _ if body.isBetaNormal => (this, true)
-          case _                                                                     => (Lambda(x, nb), false)
-        }
+    val (betaNormalForm: Expression, isBetaNormal: Boolean) = this match {
+      case Application(f, arg) => {
+        val f1 = f.betaNormalForm
+        val a2 = arg.betaNormalForm
+        f1 match
+          case Lambda(v, body) =>
+            (substituteVariables(body, Map(v -> a2)).betaNormalForm, false)
+          case _ =>
+            val normalized = if ((f1 eq f) && (a2 eq arg)) this else Application(f1, a2)
+            (normalized, f.isBetaNormal && arg.isBetaNormal)
+      }
+      case Lambda(v, Application(f, arg)) if v == arg && !f.freeVariables.contains(v) => (f.betaNormalForm, false)
+      case Lambda(v, inner) if inner.isBetaNormal => (this, true)
+      case Lambda(v, inner) =>
+        // reducing the body can expose an eta redex
+        (Lambda(v, inner.betaNormalForm).betaNormalForm, false)
       case _ => (this, true)
-  }
+    }
 
     /**
      * @return The list of free variables in the expression.
