@@ -14,6 +14,12 @@ import lisa.utils.prooflib._
 trait WithTheorems {
   library: Library =>
 
+  /** Conclude the proof with the declared statement before checking or serializing it. */
+  private def concludeProof(statement: K.Sequent, proof: K.SCProof): K.SCProof =
+    if statement != proof.conclusion && K.isSameSequent(statement, proof.conclusion) then
+      proof.appended(SC.Restate(statement, proof.length - 1))
+    else proof
+
   /**
    * The main builder for proofs. It is a mutable object that can be used to build a proof step by step.
    * It is used either to construct a theorem/lemma ([[BaseProof]]) or to construct a subproof ([[InnerProof]]).
@@ -520,22 +526,34 @@ trait WithTheorems {
      * @param kind The kind of theorem (Theorem, Lemma, Corollary)
      * @param getProof The kernel proof.
      * @param justifs low level justifications used to justify the proof's imports
+     * @param cacheImports Supply frontend owners for imports when writing the binary cache.
      * @return
      */
-    def fromSCProof(using om: OutputManager)(statement: F.Sequent, fullName: String, kind: TheoremKind, getProof: () => K.SCProof, justifs: Seq[theory.Justification]): THM =
-      val proof = getProof()
-      theory.theorem(fullName, statement.underlying, proof, justifs) match {
-        case K.Judgement.ValidJustification(just) =>
-          fromKernel(statement, fullName, kind, just.asInstanceOf, () => Some(getProof()))
-        case wrongJudgement: K.Judgement.InvalidJustification[?] =>
-          om.lisaThrow(
-            LisaException.InvalidKernelJustificationComputation(
-              "The proof was rejected by LISA's logical kernel. ",
-              wrongJudgement,
-              None
+    def fromSCProof(using om: OutputManager)(
+        statement: F.Sequent, fullName: String, kind: TheoremKind, getProof: () => K.SCProof,
+        justifs: Seq[theory.Justification], cacheImports: Seq[JUSTIFICATION] = Seq.empty
+    ): THM =
+      import lisa.utils.Serialization.*
+      val cached = if library._withCache then oneProofFromFile("cache/" + fullName, theory, Some(fullName -> statement.underlying)) else None
+      val (theorem, proof, imports) = cached.getOrElse {
+        val proof = concludeProof(statement.underlying, getProof())
+        theory.theorem(fullName, statement.underlying, proof, justifs) match {
+          case K.Judgement.ValidJustification(just) =>
+            if library._withCache then
+              require(cacheImports.map(_.innerJustification) == justifs, "Supply frontend imports for cached generated proofs")
+              thmsToFile("cache/" + fullName, theory, List((fullName, flattenProof(proof), cacheImports.iterator.map(j => (j.owner, j.innerJustification)).toList)))
+            (just, proof, justifs.toList)
+          case wrongJudgement: K.Judgement.InvalidJustification[?] =>
+            om.lisaThrow(
+              LisaException.InvalidKernelJustificationComputation(
+                "The proof was rejected by LISA's logical kernel. ",
+                wrongJudgement,
+                None
+              )
             )
-          )
+        }
       }
+      fromKernel(statement, fullName, kind, theorem, () => Some(proof))
 
   }
 
@@ -585,7 +603,7 @@ trait WithTheorems {
         }
       else if library._withCache then
         oneProofFromFile("cache/" + fullName, library.theory, Some(fullName -> goal.underlying)) match {
-          case Some((thm, scp)) =>
+          case Some((thm, scp, _)) =>
             cachedProof = Some(scp)
             thm
 
@@ -612,7 +630,7 @@ trait WithTheorems {
       if (proof.length == 0)
       then om.lisaThrow(new UnimplementedProof(this))
 
-      val scp = proof.toSCProof
+      val scp = concludeProof(goal.underlying, proof.toSCProof)
       val justifs = proof.getImports.iterator.map(e => (e._1.owner, e._1.innerJustification)).toList
       theory.theorem(fullName, goal.underlying, scp, justifs.map(_._2)) match {
         case K.Judgement.ValidJustification(just) =>
