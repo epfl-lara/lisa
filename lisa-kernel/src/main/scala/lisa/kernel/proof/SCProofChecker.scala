@@ -36,7 +36,7 @@ object SCProofChecker {
    */
   @inline
   private def subset(subset: Set[Expression], superset: Set[Expression]): Boolean =
-    subset.forall(containsAsSimple(superset.map(simpleReducedForm)))
+    subset.subsetOf(superset) || subset.forall(containsAsSimple(superset.map(simpleReducedForm)))
 
   /**
    * Checks whether `set` is contained in `target` *syntactically*  except for
@@ -44,8 +44,8 @@ object SCProofChecker {
    */
   @inline
   private def allContainedExcept(set: Set[Expression], target: Set[Expression], exception: Expression): Boolean = {
-    val simplifiedTarget = target.map(simpleReducedForm)
-    set.forall(formula => containsAsSimple(simplifiedTarget)(formula) || expEq(formula, exception))
+    lazy val simplifiedTarget = target.map(simpleReducedForm)
+    set.forall(formula => target.contains(formula) || formula == exception || containsAsSimple(simplifiedTarget)(formula) || expEq(formula, exception))
   }
 
   /**
