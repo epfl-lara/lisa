@@ -208,7 +208,7 @@ private[fol] trait Syntax {
     // Retain one full generation while filling the other. This approximates
     // recent-use caching without per-entry bookkeeping or mutation on hits.
     private val maxCompositeEntries =
-      sys.props.get("lisa.hashcons.max").flatMap(_.toIntOption).filter(_ > 0).getOrElse(1 << 20)
+      sys.props.get("lisa.hashcons.max").flatMap(_.toIntOption).filter(_ > 0).getOrElse(1 << 17)
     private val compositeGenerationCount =
       sys.props.get("lisa.hashcons.generations").fold(2) {
         case "1" => 1
