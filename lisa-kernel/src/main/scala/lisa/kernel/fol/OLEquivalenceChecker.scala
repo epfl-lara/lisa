@@ -386,11 +386,11 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   }
 
   /** Retain an application when both transformed children are unchanged. */
-  private def reuseApplication(e: SimpleApplication, f: SimpleExpression, arg: SimpleExpression): SimpleExpression =
+  private inline def reuseApplication(e: SimpleApplication, f: SimpleExpression, arg: SimpleExpression): SimpleExpression =
     if (e.f eq f) && (e.arg eq arg) then e else SimpleApplication(f, arg, e.polarity)
 
   /** Retain an abstraction when its transformed body is unchanged. */
-  private def reuseLambda(e: SimpleLambda, body: SimpleExpression): SimpleExpression =
+  private inline def reuseLambda(e: SimpleLambda, body: SimpleExpression): SimpleExpression =
     if e.body eq body then e else SimpleLambda(e.v, body)
 
   /**
