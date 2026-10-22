@@ -612,7 +612,9 @@ object SCProofChecker {
            *   Γ, Σ |- Δ
            */
           case Weakening(b, t1) =>
-            if (isImplyingSequent(ref(t1), b))
+            val premise = ref(t1)
+            val syntactic = premise.left.subsetOf(b.left) && premise.right.subsetOf(b.right)
+            if (syntactic || isImplyingSequent(premise, b))
               SCValidProof(SCProof(step))
             else SCInvalidProof(SCProof(step), Nil, "Conclusion cannot be trivially derived from premise.")
 

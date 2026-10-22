@@ -50,7 +50,7 @@ object SequentCalculus {
    * @param r the second sequent
    * @return see [[isSameTerm]]
    */
-  def isSameSequent(l: Sequent, r: Sequent): Boolean = isSame(sequentToFormula(l), sequentToFormula(r))
+  def isSameSequent(l: Sequent, r: Sequent): Boolean = l == r || isSame(sequentToFormula(l), sequentToFormula(r))
 
   /**
    * Checks whether a given sequent implies another, with respect to [[latticeLEQ]].
