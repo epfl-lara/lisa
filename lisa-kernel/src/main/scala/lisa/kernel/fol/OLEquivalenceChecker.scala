@@ -1,7 +1,5 @@
 package lisa.kernel.fol
 
-import scala.collection.mutable
-
 private[fol] trait OLEquivalenceChecker extends Syntax {
 
   /**
@@ -209,36 +207,6 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
     def getNormalForm = normalForm
     private[OLEquivalenceChecker] var namelessForm: Option[SimpleExpression] = None
     def getNamelessForm = normalForm
-
-    /**
-     * Caching for the lessThan relation.
-     *
-     * Using a mutable BitSet was the most efficient.
-     * @see [[lessThanCached]]
-     */
-    private val lessThanBitSet: mutable.Set[Long] = new mutable.HashSet()
-    setLessThanCache(this, true)
-
-    /**
-     * Checks if `this` is less than `that` in the cache of `this`.
-     *
-     * The cache is organized as pairs of bits:
-     * For an expression `that` with id `i`, if `this.lessThanBitSet` contains `2*i`, then `this.lessThanBitSet(2*i + 1)` is true iff `this` is less than `that`.
-     */
-    def lessThanCached(that: SimpleExpression): Option[Boolean] = {
-      val thatIx = 2 * that.uniqueKey
-      if (lessThanBitSet.contains(thatIx)) Some(lessThanBitSet.contains(thatIx + 1))
-      else None
-    }
-
-    /**
-     * Sets the cache for the lessThan relation between `this` and `that` to `value`.
-     * @see [[lessThanCached]]
-     */
-    def setLessThanCache(that: SimpleExpression, value: Boolean): Unit = {
-      val thatIx = 2 * that.uniqueKey
-      if (value) lessThanBitSet.update(thatIx + 1, true)
-    }
   }
 
   /**
@@ -666,45 +634,39 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
     require(e1.sort == Prop && e2.sort == Prop)
     if (e1.uniqueKey == e2.uniqueKey) true
     else
-      e1.lessThanCached(e2) match {
-        case Some(value) => value
-        case None =>
-          val r = (e1, e2) match {
-            case (SimpleLiteral(false), _) => true
+      (e1, e2) match {
+        case (SimpleLiteral(false), _) => true
 
-            case (_, SimpleLiteral(true)) => true
+        case (_, SimpleLiteral(true)) => true
 
-            case (SimpleEquality(l1, r1, pol1), SimpleEquality(l2, r2, pol2)) =>
-              pol1 == pol2 && ((latticesEQ(l1, l2) && latticesEQ(r1, r2)) || (latticesEQ(l1, r2) && latticesEQ(r1, l2)))
+        case (SimpleEquality(l1, r1, pol1), SimpleEquality(l2, r2, pol2)) =>
+          pol1 == pol2 && ((latticesEQ(l1, l2) && latticesEQ(r1, r2)) || (latticesEQ(l1, r2) && latticesEQ(r1, l2)))
 
-            case (SimpleForall(body1, polarity1), SimpleForall(body2, polarity2)) =>
-              polarity1 == polarity2 && (if (polarity1) latticesLEQ(body1, body2) else latticesLEQ(body2, body1))
+        case (SimpleForall(body1, polarity1), SimpleForall(body2, polarity2)) =>
+          polarity1 == polarity2 && (if (polarity1) latticesLEQ(body1, body2) else latticesLEQ(body2, body1))
 
-            // Usual lattice conjunction/disjunction cases
-            case (_, SimpleAnd(children, true)) =>
-              children.forall(c => latticesLEQ(e1, c))
-            case (SimpleAnd(children, false), _) =>
-              children.forall(c => latticesLEQ(getInversePolar(c), e2))
-            case (SimpleAnd(children1, true), SimpleAnd(children2, false)) =>
-              children1.exists(c => latticesLEQ(c, e2)) || children2.exists(c => latticesLEQ(e1, getInversePolar(c)))
-            case (_, SimpleAnd(children, false)) =>
-              children.exists(c => latticesLEQ(e1, getInversePolar(c)))
-            case (SimpleAnd(children, true), _) =>
-              children.exists(c => latticesLEQ(c, e2))
+        // Usual lattice conjunction/disjunction cases
+        case (_, SimpleAnd(children, true)) =>
+          children.forall(c => latticesLEQ(e1, c))
+        case (SimpleAnd(children, false), _) =>
+          children.forall(c => latticesLEQ(getInversePolar(c), e2))
+        case (SimpleAnd(children1, true), SimpleAnd(children2, false)) =>
+          children1.exists(c => latticesLEQ(c, e2)) || children2.exists(c => latticesLEQ(e1, getInversePolar(c)))
+        case (_, SimpleAnd(children, false)) =>
+          children.exists(c => latticesLEQ(e1, getInversePolar(c)))
+        case (SimpleAnd(children, true), _) =>
+          children.exists(c => latticesLEQ(c, e2))
 
-            case (s1: SimpleBoundVariable, s2: SimpleBoundVariable) => s1 == s2
+        case (s1: SimpleBoundVariable, s2: SimpleBoundVariable) => s1 == s2
 
-            case (s1: SimpleVariable, s2: SimpleVariable) => s1 == s2
+        case (s1: SimpleVariable, s2: SimpleVariable) => s1 == s2
 
-            case (s1: SimpleConstant, s2: SimpleConstant) => s1 == s2
+        case (s1: SimpleConstant, s2: SimpleConstant) => s1 == s2
 
-            case (SimpleApplication(f1, arg1, polarity1), SimpleApplication(f2, arg2, polarity2)) =>
-              polarity1 == polarity2 && latticesEQ(f1, f2) && latticesEQ(arg1, arg2)
+        case (SimpleApplication(f1, arg1, polarity1), SimpleApplication(f2, arg2, polarity2)) =>
+          polarity1 == polarity2 && latticesEQ(f1, f2) && latticesEQ(arg1, arg2)
 
-            case (_, _) => false
-          }
-          e1.setLessThanCache(e2, r)
-          r
+        case (_, _) => false
       }
 
   }
