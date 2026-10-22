@@ -193,7 +193,7 @@ private[fol] trait Syntax {
       }
     }
 
-    private val maxEntries = sys.props.get("lisa.hashcons.max").flatMap(_.toIntOption).filter(_ > 0).getOrElse(1 << 20)
+    private val maxEntries = sys.props.get("lisa.hashcons.max").flatMap(_.toIntOption).filter(_ > 0).getOrElse(1 << 17)
     private val generationCount = sys.props.getOrElse("lisa.hashcons.generations", "2").toInt
     require(generationCount == 1 || generationCount == 2, "Expected one or two hashcons generations")
     private val generations = Array.fill(generationCount)(new Generation)
