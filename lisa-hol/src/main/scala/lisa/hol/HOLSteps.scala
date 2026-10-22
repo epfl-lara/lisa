@@ -501,14 +501,16 @@ object HOLSteps extends lisa._HOL {
 
   object HOLProofType {
 
-    private case class CacheKey(term: Long, variableTypes: Vector[Long])
+    private case class CacheKey(term: Long, variableTypes: Vector[Option[Long]])
 
     private val cache: mutable.Map[CacheKey, Thm] = mutable.Map.empty
 
     private def code[S: Sort](t: Expr[S]): CacheKey =
-      val variableTypes = Vector.newBuilder[Long]
+      val variableTypes = Vector.newBuilder[Option[Long]]
       def collectVariableTypes(expression: Expr[?]): Unit = expression match
-        case variable: TypedVariable => variableTypes += variable.typ.underlying.uniqueNumber
+        // Erased terms do not distinguish the positions of variable annotations.
+        case variable: TypedVariable => variableTypes += Some(variable.typ.underlying.uniqueNumber)
+        case _: Variable[?] => variableTypes += None
         case App(function, argument) =>
           collectVariableTypes(function)
           collectVariableTypes(argument)
