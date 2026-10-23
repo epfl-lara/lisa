@@ -4,12 +4,13 @@ import lisa.SetTheoryLibrary
 import lisa.automation._
 import lisa.maths.SetTheory.Base.Predef.∈
 import lisa.maths.SetTheory.Functions.Predef.{_, given}
+import lisa.maths.SetTheory.Functions.Function.given
 import lisa.maths.SetTheory.Types
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.K
 import lisa.utils.UserLisaException
-import lisa.utils.fol.FOL._
+import lisa.utils.fol.FOL.{_, given}
 import lisa.utils.prooflib.BasicStepTactic._
 import lisa.utils.prooflib.ProofTacticLib.ProofTactic
 import lisa.utils.prooflib.OutputManager
