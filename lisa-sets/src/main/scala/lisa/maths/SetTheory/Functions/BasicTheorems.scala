@@ -1046,4 +1046,15 @@ object BasicTheorems extends lisa.Main {
     have(thesis) by Tautology.from(`==>`, `<==`)
   }
 
+  /**
+   * Theorem --- A function with a non-empty domain is non-empty.
+   */
+  val nonEmptyDomain = Theorem(!(dom(h) === ∅) |- !(h === ∅)) {
+    val domEmpty = have(dom(∅) === ∅) by Restate.from(
+      lisa.maths.SetTheory.Relations.Examples.EmptyRelation.emptyDomain
+    )
+    have(h === ∅ |- dom(h) === ∅) by Congruence.from(domEmpty)
+    have(thesis) by Tautology.from(lastStep)
+  }
+
 }

@@ -10,8 +10,7 @@ trait Main extends BasicMain {
 
   export lisa.utils.fol.FOL.{=== as _, ≠ as _, *, given}
   export SetTheoryLibrary.{given, _}
-  export lisa.utils.prooflib.BasicStepTactic.*
-  export lisa.utils.prooflib.SimpleDeducedSteps.*
+  export lisa.utils.prooflib.Exports.*
 
   export lisa.automation.Tautology
   export lisa.automation.Substitution.{Apply as Substitute}
