@@ -1,21 +1,21 @@
-ThisBuild / version := "0.9.4"
-ThisBuild / homepage := Some(url("https://github.com/epfl-lara/lisa"))
-ThisBuild / startYear := Some(2021)
-ThisBuild / organization := "ch.epfl.lara"
-ThisBuild / organizationName := "LARA"
-ThisBuild / organizationHomepage := Some(url("https://lara.epfl.ch"))
-ThisBuild / licenses := Seq("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0.html"))
-ThisBuild / versionScheme := Some("semver-spec")
-ThisBuild / scalacOptions ++= Seq(
+version := "0.9.4"
+homepage := Some(url("https://github.com/epfl-lara/lisa"))
+startYear := Some(2021)
+organization := "ch.epfl.lara"
+organizationName := "LARA"
+organizationHomepage := Some(url("https://lara.epfl.ch"))
+licenses := Seq("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0.html"))
+versionScheme := Some("semver-spec")
+scalacOptions ++= Seq(
   "-feature",
   "-deprecation",
   "-unchecked"
 )
-ThisBuild / javacOptions ++= Seq("-encoding", "UTF-8")
-ThisBuild / semanticdbEnabled := true
-ThisBuild / semanticdbVersion := "4.13.6"
+javacOptions ++= Seq("-encoding", "UTF-8")
+semanticdbEnabled := true
+semanticdbVersion := "4.13.6"
 
-val scala3 = "3.7.2"
+val scala3 = "3.8.4"
 val commonSettings = Seq(
   crossScalaVersions := Seq(scala3),
   run / fork := true
@@ -47,7 +47,7 @@ lazy val root = Project(
   .dependsOn(kernel, utils, sets)
   .aggregate(utils, sets)
 
-Compile / run := (sets / Compile / run).evaluated
+LocalRootProject / Compile / run := (sets / Compile / run).evaluated
 
 lazy val kernel = Project(
   id = "lisa-kernel",
@@ -74,7 +74,7 @@ lazy val sets = Project(
   .settings(
     Compile / unmanagedSources := {
       val src = (Compile / scalaSource).value
-      (src ** "*.scala").get.filter { file =>
+      (src ** "*.scala").get().filter { file =>
         val path = IO.relativize(src, file).getOrElse("")
         path == "lisa/Main.scala" ||
         path == "lisa/SetTheoryLibrary.scala" ||
@@ -83,7 +83,7 @@ lazy val sets = Project(
     },
     Test / unmanagedSources := {
       val src = (Test / scalaSource).value
-      (src ** "*.scala").get.filter { file =>
+      (src ** "*.scala").get().filter { file =>
         val path = IO.relativize(src, file).getOrElse("")
         path.startsWith("lisa/maths/")
       }
@@ -91,13 +91,13 @@ lazy val sets = Project(
   )
   .dependsOn(kernel, utils)
 
-ThisBuild / assemblyMergeStrategy := {
+assemblyMergeStrategy := {
   case PathList("module-info.class") => MergeStrategy.discard
   case x if x.endsWith("/module-info.class") => MergeStrategy.discard
   case x if x.endsWith(".class") => MergeStrategy.first
   case x if x.endsWith(".tasty") => MergeStrategy.first
   case x =>
-    val oldStrategy = (ThisBuild / assemblyMergeStrategy).value
+    val oldStrategy = assemblyMergeStrategy.value
     oldStrategy(x)
 }
 
