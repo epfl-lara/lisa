@@ -544,7 +544,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
           case SimpleEquality(left, right, true) =>
             val l = computeNormalForm(left)
             val r = computeNormalForm(right)
-            if (latticesEQ(l, r)) SimpleLiteral(true)
+            if (latticesEQUnchecked(l, r)) SimpleLiteral(true)
             else if (l.uniqueKey >= r.uniqueKey) SimpleEquality(l, r, true)
             else SimpleEquality(r, l, true)
 
@@ -591,13 +591,13 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
         case SimpleAnd(ch, false) =>
           if (polarity) {
             val trCh = ch map getInversePolar
-            trCh.find(f => latticesLEQ(nonSimplified, f)) match {
+            trCh.find(f => latticesLEQUnchecked(nonSimplified, f)) match {
               case Some(value) => treatChild(value)
               case None => List(i)
             }
           } else {
             val trCH = ch
-            trCH.find(f => latticesLEQ(f, nonSimplified)) match {
+            trCH.find(f => latticesLEQUnchecked(f, nonSimplified)) match {
               case Some(value) => treatChild(getInversePolar(value))
               case None => List(i)
             }
@@ -639,6 +639,11 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
    */
   def latticesLEQ(e1: SimpleExpression, e2: SimpleExpression): Boolean = {
     require(e1.sort == Prop && e2.sort == Prop)
+    latticesLEQUnchecked(e1, e2)
+  }
+
+  /** Compare well-sorted propositional subexpressions after the entry-point sort check. */
+  private def latticesLEQUnchecked(e1: SimpleExpression, e2: SimpleExpression): Boolean = {
     if (e1.uniqueKey == e2.uniqueKey) true
     else
       (e1, e2) match {
@@ -647,22 +652,23 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
         case (_, SimpleLiteral(true)) => true
 
         case (SimpleEquality(l1, r1, pol1), SimpleEquality(l2, r2, pol2)) =>
-          pol1 == pol2 && ((latticesEQ(l1, l2) && latticesEQ(r1, r2)) || (latticesEQ(l1, r2) && latticesEQ(r1, l2)))
+          pol1 == pol2 && ((latticesEQUnchecked(l1, l2) && latticesEQUnchecked(r1, r2)) ||
+            (latticesEQUnchecked(l1, r2) && latticesEQUnchecked(r1, l2)))
 
         case (SimpleForall(body1, polarity1), SimpleForall(body2, polarity2)) =>
-          polarity1 == polarity2 && (if (polarity1) latticesLEQ(body1, body2) else latticesLEQ(body2, body1))
+          polarity1 == polarity2 && (if (polarity1) latticesLEQUnchecked(body1, body2) else latticesLEQUnchecked(body2, body1))
 
         // Usual lattice conjunction/disjunction cases
         case (_, SimpleAnd(children, true)) =>
-          children.forall(c => latticesLEQ(e1, c))
+          children.forall(c => latticesLEQUnchecked(e1, c))
         case (SimpleAnd(children, false), _) =>
-          children.forall(c => latticesLEQ(getInversePolar(c), e2))
+          children.forall(c => latticesLEQUnchecked(getInversePolar(c), e2))
         case (SimpleAnd(children1, true), SimpleAnd(children2, false)) =>
-          children1.exists(c => latticesLEQ(c, e2)) || children2.exists(c => latticesLEQ(e1, getInversePolar(c)))
+          children1.exists(c => latticesLEQUnchecked(c, e2)) || children2.exists(c => latticesLEQUnchecked(e1, getInversePolar(c)))
         case (_, SimpleAnd(children, false)) =>
-          children.exists(c => latticesLEQ(e1, getInversePolar(c)))
+          children.exists(c => latticesLEQUnchecked(e1, getInversePolar(c)))
         case (SimpleAnd(children, true), _) =>
-          children.exists(c => latticesLEQ(c, e2))
+          children.exists(c => latticesLEQUnchecked(c, e2))
 
         case (s1: SimpleBoundVariable, s2: SimpleBoundVariable) => s1 == s2
 
@@ -671,7 +677,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
         case (s1: SimpleConstant, s2: SimpleConstant) => s1 == s2
 
         case (SimpleApplication(f1, arg1, polarity1), SimpleApplication(f2, arg2, polarity2)) =>
-          polarity1 == polarity2 && latticesEQ(f1, f2) && latticesEQ(arg1, arg2)
+          polarity1 == polarity2 && latticesEQUnchecked(f1, f2) && latticesEQUnchecked(arg1, arg2)
 
         case (_, _) => false
       }
@@ -684,15 +690,21 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   def latticesEQ(e1: SimpleExpression, e2: SimpleExpression): Boolean =
     if (e1.uniqueKey == e2.uniqueKey) true
     else if (e1.sort == Prop) latticesLEQ(e1, e2) && latticesLEQ(e2, e1)
+    else latticesEQUnchecked(e1, e2)
+
+  /** Compare well-sorted term subexpressions, including embedded propositions. */
+  private def latticesEQUnchecked(e1: SimpleExpression, e2: SimpleExpression): Boolean =
+    if (e1.uniqueKey == e2.uniqueKey) true
+    else if (e1.sort == Prop) latticesLEQUnchecked(e1, e2) && latticesLEQUnchecked(e2, e1)
     else
       (e1, e2) match {
         case (s1: SimpleBoundVariable, s2: SimpleBoundVariable) => s1 == s2
         case (s1: SimpleVariable, s2: SimpleVariable) => s1 == s2
         case (s1: SimpleConstant, s2: SimpleConstant) => s1 == s2
         case (SimpleApplication(f1, arg1, polarity1), SimpleApplication(f2, arg2, polarity2)) =>
-          polarity1 == polarity2 && latticesEQ(f1, f2) && latticesEQ(arg1, arg2)
+          polarity1 == polarity2 && latticesEQUnchecked(f1, f2) && latticesEQUnchecked(arg1, arg2)
         case (SimpleLambda(body1), SimpleLambda(body2)) =>
-          latticesEQ(body1, body2)
+          latticesEQUnchecked(body1, body2)
         case (_, _) => false
       }
 }
