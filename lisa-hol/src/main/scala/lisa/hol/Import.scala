@@ -382,10 +382,11 @@ object Import extends lisa.HOL:
   /** Reconstruct reachable steps and share their judgements; keep named steps and definitions across evictions. */
   private[hol] final class StepStore(
       val statistics: ImportStatistics = new ImportStatistics,
-      capacity: Int = Config.stepCacheCapacity,
+      val capacity: Int = Config.stepCacheCapacity,
       namedSteps: Set[Long] = Set.empty,
-      generations: Int = Config.stepCacheGenerations,
-      lemmaSteps: Set[Long] = Set.empty
+      val generations: Int = Config.stepCacheGenerations,
+      lemmaSteps: Set[Long] = Set.empty,
+      trackReconstruction: Boolean = Config.reconstructionStats
   )(using extractor: ExtractorContext):
     require(capacity >= 0, "Step-cache capacity must be non-negative; zero means unbounded.")
     require(generations >= 0, "Step-cache generation count must be non-negative; zero means FIFO.")
@@ -400,6 +401,7 @@ object Import extends lisa.HOL:
     private var hits = 0L
     private var computed = 0
     private var lemmas = 0
+    private val seen = Option.when(trackReconstruction)(mutable.LongMap.empty[Unit])
 
     initializedDefinitions
 
@@ -412,6 +414,10 @@ object Import extends lisa.HOL:
     def evictions: Long = steps.fold(0L)(_.evictions)
     def lemmaCount: Int = lemmas
 
+    /** Count distinct reconstructed IDs when exact replay tracking is enabled. */
+    def uniqueSteps: Option[Int] = seen.map(_.size)
+    def recomputedSteps: Option[Int] = uniqueSteps.map(computed - _)
+
     /** Count lookups that reused a reconstructed judgement. */
     def cacheHits: Long = hits
 
@@ -420,6 +426,7 @@ object Import extends lisa.HOL:
 
     private def remember(index: Long, step: h.ProofStep, judgement: ProofJudgement): ProofJudgement =
       computed += 1
+      seen.foreach(_.update(index, ()))
       val definition = step match
         case _: h.DEFINITION | _: h.TYPE_DEFINITION => true
         case _ => false
@@ -932,7 +939,9 @@ object Import extends lisa.HOL:
       cacheHits: Long = 0,
       reader: ReaderStatistics = ReaderStatistics(),
       typingCacheEntries: Int = 0,
-      distinctTypes: Int = 0
+      distinctTypes: Int = 0,
+      uniqueSteps: Option[Int] = None,
+      recomputedSteps: Option[Int] = None
   ):
     def elapsedSeconds: Double = elapsedNanos / 1e9
     def totalSeconds: Double = totalElapsedNanos / 1e9
@@ -998,7 +1007,8 @@ object Import extends lisa.HOL:
       val reader = timing.reader
       val readString = f"Reader: ${reader.proofHeaders} headers; ${reader.proofRecords} proofs, ${reader.statementRecords} statements parsed; ${(reader.proofBytes + reader.statementBytes) / 1e6}%.2f MB fetched."
       val cacheString = s"Caches: ${timing.typingCacheEntries} typing results this theorem; ${timing.distinctTypes} distinct HOL types."
-      println(s"\r[INFO] $progressString $usedSteps $rates $memoryString $resourceString $readString $cacheString")
+      val replayString = timing.recomputedSteps.fold("")(count => s" Replay: $count repeated / ${timing.totalSteps} reconstructions; ${store.lemmaCount} lemmas pinned.")
+      println(s"\r[INFO] $progressString $usedSteps $rates $memoryString $resourceString $readString $cacheString$replayString")
 
     val exporter =
       outputPath match
@@ -1042,7 +1052,7 @@ object Import extends lisa.HOL:
           val finished = System.nanoTime()
           val resources = ImportStatistics.sample() - resourcesBefore
           val timing = TheoremTiming(ref, store.size - stepsBefore, finished - theoremStart, store.size, finished - startTime, succeeded, resources, store.cacheHits - hitsBefore,
-            extractor.statistics - readerBefore, HOLProofType.cacheSize, Transformers.typeCount)
+            extractor.statistics - readerBefore, HOLProofType.cacheSize, Transformers.typeCount, store.uniqueSteps, store.recomputedSteps)
           timings += timing
           statistics.finish(ref.id, ref.name)
           printProgress(timing)
@@ -1052,6 +1062,20 @@ object Import extends lisa.HOL:
       Transformers.resetConversionCache()
       closeAll(List(extractor, exporter, statistics))
     println(s"[INFO] Successfully imported $imported theorems with ${store.size} reconstructed steps through index $maxStep in ${time()}s.")
+    println("HOL_IMPORT_METRICS " + ujson.Obj(
+      "precompute_lemmas" -> precomputeLemmas,
+      "cache_capacity" -> store.capacity,
+      "cache_generations" -> store.generations,
+      "preprocessing_seconds" -> preprocessingNanos / 1e9,
+      "selected_lemmas" -> selected.ids.size,
+      "registered_lemmas" -> store.lemmaCount,
+      "reconstructed_steps" -> store.size,
+      "unique_steps" -> store.uniqueSteps.fold[ujson.Value](ujson.Null)(ujson.Num(_)),
+      "recomputed_steps" -> store.recomputedSteps.fold[ujson.Value](ujson.Null)(ujson.Num(_)),
+      "retained_steps" -> store.retainedSize,
+      "pinned_steps" -> store.pinnedSize,
+      "evictions" -> store.evictions.toDouble
+    ))
     timings.toVector
 
   @main
