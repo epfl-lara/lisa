@@ -68,10 +68,12 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
    * This takes into account all the laws of ortholattices, symmetry and reflexivity of equality, alpha-beta-eta-equivalence, and unfolds ⇒, ⇔, ∃ using other connectives.
    */
   def isSame(e1: Expression, e2: Expression): Boolean = {
-    val nf1 = computeNormalForm(simplify(e1.betaNormalForm))
-    val nf2 = computeNormalForm(simplify(e2.betaNormalForm))
-    latticesEQ(nf1, nf2)
-
+    if (e1.uniqueNumber == e2.uniqueNumber) true
+    else {
+      val nf1 = computeNormalForm(simplify(e1.betaNormalForm))
+      val nf2 = computeNormalForm(simplify(e2.betaNormalForm))
+      latticesEQ(nf1, nf2)
+    }
   }
 
   /**
@@ -87,9 +89,12 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
    */
   def isImplying(e1: Expression, e2: Expression): Boolean = {
     require(e1.sort == Prop && e2.sort == Prop)
-    val nf1 = computeNormalForm(simplify(e1.betaNormalForm))
-    val nf2 = computeNormalForm(simplify(e2.betaNormalForm))
-    latticesLEQ(nf1, nf2)
+    if (e1.uniqueNumber == e2.uniqueNumber) true
+    else {
+      val nf1 = computeNormalForm(simplify(e1.betaNormalForm))
+      val nf2 = computeNormalForm(simplify(e2.betaNormalForm))
+      latticesLEQUnchecked(nf1, nf2)
+    }
   }
 
   /**
@@ -599,12 +604,26 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   def checkForContradiction(f: SimpleAnd): Boolean = {
     f match {
       case SimpleAnd(children, false) =>
-        children.exists(cc => latticesLEQ(cc, f))
+        children.exists(cc => latticesLEQUnchecked(cc, f))
       case SimpleAnd(children, true) =>
         val shadowChildren = children map getInversePolar
-        shadowChildren.exists(sc => latticesLEQ(f, sc))
+        shadowChildren.exists(sc => latticesLEQUnchecked(f, sc))
     }
   }
+
+  /** Check a positive conjunction represented by two sequences without joining or wrapping them. */
+  private def conjunctionLEQ(first: Seq[SimpleExpression], second: Seq[SimpleExpression], right: SimpleExpression): Boolean =
+    right match {
+      case SimpleLiteral(true) => true
+      case SimpleAnd(children, true) =>
+        children.forall(conjunctionLEQ(first, second, _))
+      case SimpleAnd(children, false) =>
+        first.exists(latticesLEQUnchecked(_, right)) ||
+          second.exists(latticesLEQUnchecked(_, right)) ||
+          children.exists(child => conjunctionLEQ(first, second, getInversePolar(child)))
+      case _ =>
+        first.exists(latticesLEQUnchecked(_, right)) || second.exists(latticesLEQUnchecked(_, right))
+    }
 
   /**
    * Reduces a conjunction to an antichain
@@ -642,7 +661,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
     while (remaining.nonEmpty) {
       val current = remaining.head
       remaining = remaining.tail
-      if (!latticesLEQ(SimpleAnd(remaining ++ accepted, true), current)) {
+      if (!conjunctionLEQ(remaining, accepted, current)) {
         accepted = current :: accepted
       }
     }
