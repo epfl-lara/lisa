@@ -329,7 +329,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   /**
    * Converts an [[Expression]] to a [[SimpleExpression]], where
    * - ⇒, ⇔, ∃, ∨ are unfolded using other connectives: ¬, ∧, ∀
-   * - consecutive conjunctions are flattened
+   * - consecutive conjunctions are flattened unless disabled at startup
    * - double negations are eliminated
    */
   private[kernel] def polarize(e: Expression, polarity: Boolean): SimpleExpression = {
@@ -354,9 +354,9 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
             polarity
           )
         case and(arg1, arg2) =>
-          SimpleAnd(Seq(polarize(arg1, true), polarize(arg2, true)), polarity)
+          polarizeConnective(arg1, arg2, true, polarity)
         case or(arg1, arg2) =>
-          SimpleAnd(Seq(polarize(arg1, false), polarize(arg2, false)), !polarity)
+          polarizeConnective(arg1, arg2, false, !polarity)
         case forall(Lambda(v, body)) =>
           SimpleForall(polarize(body, true), polarity)(v.id)
         case forall(p) =>
@@ -392,6 +392,33 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   /** Retain an abstraction when its transformed body is unchanged. */
   private inline def reuseLambda(e: SimpleLambda, body: SimpleExpression): SimpleExpression =
     if e.body eq body then e else SimpleLambda(body)(e.v)
+
+  /** Flatten conjunctions and disjunctions if `lisa.ol.flatten` is `true`. */
+  private val flattenPolarConnectives: Boolean =
+    sys.props.get("lisa.ol.flatten").fold(true)(_.toBoolean)
+
+  /** Accumulate conjunction children to flatten, preserving polarity. */
+  private def polarizeConnective(left: Expression, right: Expression, childPolarity: Boolean, polarity: Boolean): SimpleExpression =
+    if (!flattenPolarConnectives) SimpleAnd(Seq(polarize(left, childPolarity), polarize(right, childPolarity)), polarity)
+    else {
+      @scala.annotation.tailrec
+      def append(pending: List[SimpleExpression], acc: List[SimpleExpression]): List[SimpleExpression] = pending match {
+        case Nil => acc
+        case SimpleAnd(children, true) :: tail => append(tail.reverse_:::(children.toList), acc)
+        case e :: tail => append(tail, e :: acc)
+      }
+
+      @scala.annotation.tailrec
+      def collect(pending: List[(Expression, Boolean)], acc: List[SimpleExpression]): List[SimpleExpression] = pending match {
+        case Nil => acc
+        case (neg(arg), positive) :: tail => collect((arg, !positive) :: tail, acc)
+        case (and(a, b), true) :: tail => collect((b, true) :: (a, true) :: tail, acc)
+        case (or(a, b), false) :: tail => collect((b, false) :: (a, false) :: tail, acc)
+        case (e, positive) :: tail => collect(tail, append(List(polarize(e, positive)), acc))
+      }
+
+      SimpleAnd(collect(List((right, childPolarity), (left, childPolarity)), Nil), polarity)
+    }
 
   /**
    * Replaces all [[SimpleVariable]]s with [[SimpleBoundVariable]]s in `e` using localy nameless (de Bruijn) representation.
