@@ -430,7 +430,7 @@ trait Syntax {
     val shortName: String =
       val separator = id.name.lastIndexOf('.')
       val base = if separator < 0 then id.name else id.name.substring(separator + 1)
-      if id.no == 0 then base else base + K.Identifier.counterSeparator + id.no
+      K.Identifier(base, id.no).toString
 
     /**
      * Set the variable to be printed infix.
