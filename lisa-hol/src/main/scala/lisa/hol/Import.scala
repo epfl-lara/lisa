@@ -384,7 +384,8 @@ object Import extends lisa.HOL:
       val statistics: ImportStatistics = new ImportStatistics,
       capacity: Int = Config.stepCacheCapacity,
       namedSteps: Set[Long] = Set.empty,
-      generations: Int = Config.stepCacheGenerations
+      generations: Int = Config.stepCacheGenerations,
+      lemmaSteps: Set[Long] = Set.empty
   )(using extractor: ExtractorContext):
     require(capacity >= 0, "Step-cache capacity must be non-negative; zero means unbounded.")
     require(generations >= 0, "Step-cache generation count must be non-negative; zero means FIFO.")
@@ -398,6 +399,7 @@ object Import extends lisa.HOL:
     private var definitionsThrough = -1L
     private var hits = 0L
     private var computed = 0
+    private var lemmas = 0
 
     initializedDefinitions
 
@@ -408,6 +410,7 @@ object Import extends lisa.HOL:
     def retainedSize: Int = steps.fold(unbounded.size)(_.size) + pinned.size
     def pinnedSize: Int = pinned.size
     def evictions: Long = steps.fold(0L)(_.evictions)
+    def lemmaCount: Int = lemmas
 
     /** Count lookups that reused a reconstructed judgement. */
     def cacheHits: Long = hits
@@ -420,11 +423,27 @@ object Import extends lisa.HOL:
       val definition = step match
         case _: h.DEFINITION | _: h.TYPE_DEFINITION => true
         case _ => false
-      if definition || pinnedIds(index) then pinned(index) = judgement
+      val result =
+        if lemmaSteps(index) && !definition && !pinnedIds(index) && judgement.isValid then registerLemma(index, judgement)
+        else judgement
+      if definition || pinnedIds(index) || lemmaSteps(index) then pinned(index) = result
       else steps match
-        case Some(cache) => cache.put(index, judgement)
-        case None => unbounded(index) = judgement
-      judgement
+        case Some(cache) => cache.put(index, result)
+        case None => unbounded(index) = result
+      result
+
+    /** Register a selected result under its synthetic name without trusting the selection. */
+    private def registerLemma(index: Long, judgement: ProofJudgement): ProofJudgement =
+      val name = s"lemma_$index"
+      val theorem = lisa.utils.prooflib.Theorem(using
+        lib, summon[OutputManager], summon[sourcecode.File], summon[sourcecode.Line],
+        sourcecode.FullName(s"Import.$name"), sourcecode.Name(name)
+      )(judgement.thm.statement):
+        have(judgement)
+      if theorem.errors.nonEmpty then
+        throw FailedTheoremException(index, name, theorem.errors.toSeq.map(_.message))
+      lemmas += 1
+      theorem.judgement
 
     /** Retrieve a step, reconstructing its dependencies and preceding definitions as needed. */
     def apply(index: Long): ProofJudgement =
@@ -935,14 +954,26 @@ object Import extends lisa.HOL:
   ): Vector[TheoremTiming] =
     require(limit > 0, s"Cannot read $limit theorems. Expected positive theorem limit.")
     require(startAt >= 0, s"Cannot start at theorem $startAt. Expected a non-negative index.")
+    val precomputeLemmas = Config.precomputeLemmas
     val (extractor, names) = JSONParser.initializeFromPrefix(prefix)
+    val (requested, selected, preprocessingNanos) = try
+      val requested = names.drop(startAt).take(limit).toVector
+      val started = System.nanoTime()
+      val selected =
+        if precomputeLemmas then LemmaSelection.analyze(new java.io.File(s"$prefix.proofs"), requested.iterator.map(_.id).toSet)
+        else LemmaSelection.Result(Set.empty, 0, 0)
+      (requested, selected, if precomputeLemmas then System.nanoTime() - started else 0L)
+    catch
+      case error: Exception =>
+        extractor.close()
+        throw error
 
     val statistics = try new ImportStatistics(Config.statisticsPath, Config.stepStatisticsPath,
       Config.stepStatisticsMinBytes, Config.stepStatisticsFromTheorem, Config.stepStatisticsRules) catch
       case error: Exception =>
         extractor.close()
         throw error
-    val store = new StepStore(statistics)(using extractor)
+    val store = new StepStore(statistics, namedSteps = requested.iterator.map(_.id).toSet, lemmaSteps = selected.ids)(using extractor)
     val timings = mutable.ArrayBuffer.empty[TheoremTiming]
     var imported = 0
     var maxStep = 0L
@@ -975,7 +1006,9 @@ object Import extends lisa.HOL:
         case None => ExportConfig.dummyWriter
 
     try
-      names.drop(startAt).take(limit).foreach: ref =>
+      if precomputeLemmas then
+        println(f"[INFO] Selected ${selected.ids.size} lemma IDs from ${selected.records} records (${selected.reachable} reachable) in ${preprocessingNanos / 1e9}%.3fs.")
+      requested.foreach: ref =>
         statistics.begin(ref.id)
         val stepsBefore = store.size
         val hitsBefore = store.cacheHits
