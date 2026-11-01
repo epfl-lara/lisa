@@ -201,12 +201,12 @@ object TypingHelpers:
   ///// Definitions /////
   ///////////////////////
 
-  class TypedSimpleConstantDefinition(using om: OutputManager)(fullName: String, line: Int, file: String)(
+  class TypedSimpleConstantDefinition(using om: OutputManager)(sourceName: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(
       val expression: Expr[Ind],
       val typ: Typ
-  ) extends DirectDefinition[Ind](fullName, line, file)(expression, Seq[Variable[?]]()) {
+  ) extends DirectDefinition[Ind](sourceName, line, file)(expression, Seq[Variable[?]]()) {
     val typingName = "typing_" + fullName
-    val typingJudgement = THM(cst :: typ, typingName, line, file, InternalStatement)({
+    val typingJudgement = THM(cst :: typ, typingName, line.value, file.value, InternalStatement)({
       // have(expression :: typ) by TypeChecker.prove
       // thenHave(thesis) by lisa.automation.Substitution.ApplyRules(getShortDefinition(cst).get) //TODO
     })
@@ -215,7 +215,7 @@ object TypingHelpers:
   }
 
   def TYPEDEF(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(term: Expr[Ind], typ: Typ): TypedConstant =
-    TypedSimpleConstantDefinition(name.value, line.value, file.value)(term, typ).typedLabel
+    TypedSimpleConstantDefinition(name, line, file)(term, typ).typedLabel
 
   extension (c: Constant[Ind]) {
     def typedWith(typ: Typ)(justif: JUSTIFICATION): TypedConstant =
