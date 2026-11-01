@@ -81,8 +81,8 @@ object Import extends lisa.HOL:
   given LoggingMode = currentLoggingMode
 
   object Transformers:
-    private val types = BoundedCache.fifo[h.Type, Expr[Ind]](sys.props.get("lisa.hol.typeCache").fold(4096)(_.toInt))
-    private val constants = BoundedCache.fifo[h.Constant, Expr[Ind]](sys.props.get("lisa.hol.constantCache").fold(4096)(_.toInt))
+    private val types = BoundedCache.fifo[h.Type, Expr[Ind]](Config.typeCacheCapacity)
+    private val constants = BoundedCache.fifo[h.Constant, Expr[Ind]](Config.constantCacheCapacity)
 
     // clear at each named theorem and when the import finishes
     private[hol] def resetConversionCache(): Unit =
@@ -382,9 +382,9 @@ object Import extends lisa.HOL:
   /** Reconstruct reachable steps and share their judgements; keep named steps and definitions across evictions. */
   private[hol] final class StepStore(
       val statistics: ImportStatistics = new ImportStatistics,
-      capacity: Int = sys.props.get("lisa.hol.stepCache").fold(750000)(_.toInt),
+      capacity: Int = Config.stepCacheCapacity,
       namedSteps: Set[Long] = Set.empty,
-      generations: Int = sys.props.get("lisa.hol.stepCache.generations").fold(2)(_.toInt)
+      generations: Int = Config.stepCacheGenerations
   )(using extractor: ExtractorContext):
     require(capacity >= 0, "Step-cache capacity must be non-negative; zero means unbounded.")
     require(generations >= 0, "Step-cache generation count must be non-negative; zero means FIFO.")
@@ -937,12 +937,8 @@ object Import extends lisa.HOL:
     require(startAt >= 0, s"Cannot start at theorem $startAt. Expected a non-negative index.")
     val (extractor, names) = JSONParser.initializeFromPrefix(prefix)
 
-    val statisticsPath = sys.props.get("lisa.hol.stats").orElse(sys.env.get("LISA_HOL_STATS")).map(java.nio.file.Path.of(_))
-    val stepStatisticsPath = sys.props.get("lisa.hol.steps").map(java.nio.file.Path.of(_))
-    val statistics = try new ImportStatistics(statisticsPath, stepStatisticsPath,
-      sys.props.get("lisa.hol.steps.minBytes").fold(0L)(_.toLong),
-      sys.props.get("lisa.hol.steps.fromTheorem").fold(0L)(_.toLong),
-      sys.props.get("lisa.hol.steps.rules").fold(StepStatistics.rules)(_.split(",").iterator.map(_.trim).filter(_.nonEmpty).toSet)) catch
+    val statistics = try new ImportStatistics(Config.statisticsPath, Config.stepStatisticsPath,
+      Config.stepStatisticsMinBytes, Config.stepStatisticsFromTheorem, Config.stepStatisticsRules) catch
       case error: Exception =>
         extractor.close()
         throw error
