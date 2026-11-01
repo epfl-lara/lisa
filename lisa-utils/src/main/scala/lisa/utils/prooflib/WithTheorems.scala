@@ -482,7 +482,7 @@ trait WithTheorems {
    * A Justification, corresponding to [[K.FunctionDefinition]] or [[K.PredicateDefinition]]
    */
   abstract class DEFINITION(line: sourcecode.Line, file: sourcecode.File) extends JUSTIFICATION {
-    val fullName: String
+    def fullName: String
     def repr: String = innerJustification.repr
 
     def cst: F.Constant[?]
