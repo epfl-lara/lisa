@@ -329,4 +329,28 @@ object Connectives extends lisa.HOL {
     thenHave((himp * p * holF) <=> !(p === One)) by Substitute(impCorrect)
     thenHave((hnot * p) <=> !(p === One)) by Substitute(beta)
 
+  /** Relate Boolean HOL equality to equivalence of the represented propositions. */
+  val hiffCorrect = HOLTheorem(
+    (holeq(𝔹) * p * q === One) <=> ((p === One) <=> (q === One))
+  ):
+    assumeAll
+    val nativeEquality = p === q
+    val relation = (p === One) <=> (q === One)
+    val u = variable[Ind]
+    val r = variable[Prop]
+
+    val reflexive = have((p === One) <=> (p === One)) by Restate
+    val transported = have(nativeEquality |- relation) by RightSubstEq.withParameters(
+      Seq(p -> q), Seq(u) -> ((p === One) <=> (u === One))
+    )(reflexive)
+    val forward = have(nativeEquality ==> relation) by RightImplies.withParameters(nativeEquality, relation)(transported)
+    val backward = have(relation ==> nativeEquality) by Restate.from(lisa.hol.HOLSteps.propExt)
+    val equivalence = have(nativeEquality <=> relation) by RightIff(forward, backward)
+
+    val aligned = have(eqAlign of (A := 𝔹, x := p, y := q))
+    val rewritten = have((nativeEquality <=> relation) |- (relation <=> (holeq(𝔹) * p * q === One))) by
+      RightSubstIff.withParameters(Seq(nativeEquality -> relation), Seq(r) -> (r <=> (holeq(𝔹) * p * q === One)))(aligned)
+    have(Discharge(equivalence)(rewritten))
+    thenHave(thesis) by Restate
+
 }

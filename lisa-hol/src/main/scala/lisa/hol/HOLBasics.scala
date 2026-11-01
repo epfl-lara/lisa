@@ -41,7 +41,8 @@ object HOLBasics extends lisa.HOL {
   export lisa.hol.basics.Truth.{holT, holTruth, SYM, _SYM}
   export lisa.hol.basics.Forall.{hforall, hforallCorrect}
   export lisa.hol.basics.False.{holF, holFalseZero}
-  export lisa.hol.basics.Connectives.{hand, handCorrect, himp, himpCorrect, hnot, hnotCorrect, p, q}
+  export lisa.hol.basics.Connectives.{hand, handCorrect, himp, himpCorrect, hnot, hnotCorrect, hiffCorrect, p, q}
+  export lisa.hol.basics.Disjunction.{hor, horCorrect}
   export lisa.hol.basics.Exists.{hexists, hexistsCorrect}
   export lisa.hol.basics.Select.{hselect}
   export lisa.hol.basics.Inductive.{hOneOne, hOnto, ind, holeqBetaReduced}

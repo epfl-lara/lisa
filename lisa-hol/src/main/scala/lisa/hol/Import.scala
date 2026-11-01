@@ -348,6 +348,7 @@ object Import extends lisa.HOL:
       "@" -> DefinedConstant(hselect, Seq(A), hselect.typ.outTyp, hselect.holDefinition),
       // boolean ops
       "/\\" -> DefinedConstant(hand, Seq.empty, hand.typ.outTyp, hand.holDefinition),
+      "\\/" -> DefinedConstant(hor, Seq.empty, hor.typ.outTyp, hor.holDefinition),
       "~" -> DefinedConstant(hnot, Seq.empty, hnot.typ.outTyp, hnot.holDefinition),
       "==>" -> DefinedConstant(himp, Seq.empty, himp.typ.outTyp, himp.holDefinition),
       "T" -> DefinedConstant(holT, Seq.empty, holT.typ, holT.holDefinition),

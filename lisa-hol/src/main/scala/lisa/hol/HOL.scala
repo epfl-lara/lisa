@@ -61,6 +61,8 @@ trait _HOL extends Main {
 }
 
 trait HOL extends _HOL {
+  export lisa.hol.FromHOL.fromHOL
+
   def HOLassume(using proof: Proof, line: sourcecode.Line, file: sourcecode.File)(t: Expr[Ind]): Thm =
     val f = eqOne(t)
     proof.assume(f)
