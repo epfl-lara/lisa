@@ -1,5 +1,7 @@
 package lisa.hol.basics
 
+import lisa.hol.HOLLogicalSymbols
+
 import lisa.utils.prooflib.Substitute
 import lisa.hol.HOLHelperTheorems._
 import lisa.hol.HOLSteps._
@@ -50,7 +52,8 @@ object Forall extends lisa.HOL {
       thenHave(thesis) by RightForall
     }
 
-    HOLPolymorphicConstant[Ind >>: Ind](hforall.id, FunctionalClass(List(None), List(A), ((A ->: 𝔹) ->: 𝔹)), typing_of_forall)
+    HOLLogicalSymbols.register(HOLLogicalSymbols.Symbol.Forall,
+      HOLPolymorphicConstant[Ind >>: Ind](hforall.id, FunctionalClass(List(None), List(A), ((A ->: 𝔹) ->: 𝔹)), typing_of_forall))
   }
 
   val hforallCorrect = HOLTheorem(

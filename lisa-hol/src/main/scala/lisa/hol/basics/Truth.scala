@@ -1,5 +1,7 @@
 package lisa.hol.basics
 
+import lisa.hol.HOLLogicalSymbols
+
 import lisa.utils.prooflib.Substitute
 import lisa.hol.HOLHelperTheorems._
 import lisa.hol.HOLSteps._
@@ -77,7 +79,7 @@ object Truth extends lisa.HOL {
       have((fun(p, p) =:= fun(p, p)) :: 𝔹) by Typecheck.prove
       thenHave(thesis) by Substitute(holT.definition)
     }
-    HOLConstant(holT.id, 𝔹, typing_of_T)
+    HOLLogicalSymbols.register(HOLLogicalSymbols.Symbol.Truth, HOLConstant(holT.id, 𝔹, typing_of_T))
   }
 
   val holTruth = HOLTheorem(holT):

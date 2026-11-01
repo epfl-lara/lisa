@@ -1,5 +1,7 @@
 package lisa.hol.basics
 
+import lisa.hol.HOLLogicalSymbols
+
 import lisa.utils.prooflib.Substitute
 import lisa.hol.HOLHelperTheorems._
 import lisa.hol.HOLSteps._
@@ -63,7 +65,8 @@ object Exists extends lisa.HOL {
       have(nonEmpty(A) ==> hexists(A) :: ((A ->: 𝔹) ->: 𝔹)) by Tautology.from(lastStep, faJustif, fbJustif, himp.justif, 𝔹.nonEmptyThm)
       thenHave(thesis) by RightForall
 
-    HOLPolymorphicConstant[Ind >>: Ind](hexists.id, FunctionalClass(List(None), List(A), ((A ->: 𝔹) ->: 𝔹)), typing_of_exists)
+    HOLLogicalSymbols.register(HOLLogicalSymbols.Symbol.Exists,
+      HOLPolymorphicConstant[Ind >>: Ind](hexists.id, FunctionalClass(List(None), List(A), ((A ->: 𝔹) ->: 𝔹)), typing_of_exists))
   }
 
   val hexistsCorrect = HOLTheorem(

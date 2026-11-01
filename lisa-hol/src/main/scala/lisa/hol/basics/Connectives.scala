@@ -1,5 +1,7 @@
 package lisa.hol.basics
 
+import lisa.hol.HOLLogicalSymbols
+
 import lisa.utils.prooflib.Substitute
 import lisa.hol.HOLHelperTheorems
 import lisa.hol.HOLHelperTheorems._
@@ -56,7 +58,8 @@ object Connectives extends lisa.HOL {
       thenHave(thesis) by Substitute(hand.definition)
     }
 
-    HOLPolymorphicConstant[Ind](hand.id, FunctionalClass(List(), List(), (𝔹 ->: 𝔹 ->: 𝔹)), typing_of_and)
+    HOLLogicalSymbols.register(HOLLogicalSymbols.Symbol.And,
+      HOLPolymorphicConstant[Ind](hand.id, FunctionalClass(List(), List(), (𝔹 ->: 𝔹 ->: 𝔹)), typing_of_and))
   }
 
   val handCorrect = HOLTheorem(
@@ -198,7 +201,8 @@ object Connectives extends lisa.HOL {
       thenHave(thesis) by Substitute(himp.definition)
     }
 
-    HOLPolymorphicConstant[Ind](himp.id, FunctionalClass(List(), List(), (𝔹 ->: 𝔹 ->: 𝔹)), typing_of_imp)
+    HOLLogicalSymbols.register(HOLLogicalSymbols.Symbol.Implies,
+      HOLPolymorphicConstant[Ind](himp.id, FunctionalClass(List(), List(), (𝔹 ->: 𝔹 ->: 𝔹)), typing_of_imp))
   }
 
   val himpCorrect = HOLTheorem(
@@ -277,7 +281,8 @@ object Connectives extends lisa.HOL {
       thenHave(thesis) by Substitute(hnot.definition)
     }
 
-    HOLPolymorphicConstant[Ind](hnot.id, FunctionalClass(List(), List(), (𝔹 ->: 𝔹)), typing_of_not)
+    HOLLogicalSymbols.register(HOLLogicalSymbols.Symbol.Not,
+      HOLPolymorphicConstant[Ind](hnot.id, FunctionalClass(List(), List(), (𝔹 ->: 𝔹)), typing_of_not))
   }
 
   val hnotCorrect = HOLTheorem(

@@ -1,5 +1,7 @@
 package lisa.hol.basics
 
+import lisa.hol.HOLLogicalSymbols
+
 import lisa.utils.prooflib.Substitute
 import lisa.hol.HOLHelperTheorems._
 import lisa.hol.HOLSteps._
@@ -42,7 +44,7 @@ object False extends lisa.HOL {
       thenHave(thesis) by Substitute(holF.definition)
     }
 
-    HOLConstant(holF.id, 𝔹, typing_of_F)
+    HOLLogicalSymbols.register(HOLLogicalSymbols.Symbol.Falsehood, HOLConstant(holF.id, 𝔹, typing_of_F))
   }
 
   val holFalseZero = HOLTheorem(holF === Zero):

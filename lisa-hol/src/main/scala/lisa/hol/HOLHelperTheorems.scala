@@ -58,7 +58,7 @@ object HOLHelperTheorems extends lisa.Main {
     val Zero_in_B = Theorem(Zero :: Bool) {
       have(thesis) by Substitute(Zero.definition)(`0 : 𝔹`)
     }
-    Zero.typedWith(Bool)(Zero_in_B)
+    HOLLogicalSymbols.register(HOLLogicalSymbols.Symbol.Falsehood, Zero.typedWith(Bool)(Zero_in_B))
   }
 
   val One: TypedConstant = {
@@ -66,7 +66,7 @@ object HOLHelperTheorems extends lisa.Main {
     val One_in_B = Theorem(One :: Bool) {
       have(thesis) by Substitute(One.definition)(`1 : 𝔹`)
     }
-    One.typedWith(Bool)(One_in_B)
+    HOLLogicalSymbols.register(HOLLogicalSymbols.Symbol.Truth, One.typedWith(Bool)(One_in_B))
   }
 
   val zero_in_B = Theorem(Zero :: Bool) {
@@ -76,7 +76,7 @@ object HOLHelperTheorems extends lisa.Main {
   val boolNonEmpty = Theorem(exists(x, (x ∈ Bool))) {
     have(thesis) by RightExists(One.justif)
   }
-  val 𝔹 = HOLConstantType(Bool.id, boolNonEmpty)
+  val 𝔹 = HOLLogicalSymbols.register(HOLLogicalSymbols.Symbol.Bool, HOLConstantType(Bool.id, boolNonEmpty))
 
   val `0 != 1` = Theorem(!(Zero === One)):
     have(!(∅ === singleton(∅))) by Restate.from(Singleton.nonEmpty of (x := ∅))
@@ -171,7 +171,8 @@ object HOLHelperTheorems extends lisa.Main {
       have(=:=(A) :: (A ->: (A ->: 𝔹))) by Cut(epProof, lastStep)
       thenHave(thesis) by RightForall
     
-    TypedConstantFunctional[Ind >>: Ind](=:=.id, FunctionalClass(List(None), List(A), (A ->: (A ->: 𝔹))), typing_of_eq)
+    HOLLogicalSymbols.register(HOLLogicalSymbols.Symbol.Equality,
+      TypedConstantFunctional[Ind >>: Ind](=:=.id, FunctionalClass(List(None), List(A), (A ->: (A ->: 𝔹))), typing_of_eq))
   }
 
   val eqRefl = Theorem((x :: A |- (=:=(A) * x * x) === One)):

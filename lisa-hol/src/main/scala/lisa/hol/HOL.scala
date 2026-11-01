@@ -46,7 +46,7 @@ trait _HOL extends Main {
   def withCTX(s: F.Sequent): F.Sequent =
     s ++<? (getContext(s) |- ())
 
-  // HOLTheorem is now just an alias for regular Theorem since types are managed externally
+  /** Prove an HOL statement with its typing context and first-order display notation. */
   def HOLTheorem(using
       om: OutputManager,
       fullName: sourcecode.FullName,
@@ -55,7 +55,8 @@ trait _HOL extends Main {
       file: sourcecode.File
   )(statement: F.Sequent)(computeProof: Proof ?=> Any): Theorem =
     val ctx = getContext(statement)
-    lisa.utils.prooflib.Theorem(using library, om, file, line, fullName, name)(statement ++<< (ctx |- ()))(computeProof)
+    val displayed = lisa.hol.HOLPrinting.displayed(statement ++<< (ctx |- ()))
+    lisa.utils.prooflib.Theorem(using library, om, file, line, fullName, name)(displayed)(computeProof)
 
 }
 
