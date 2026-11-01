@@ -1,10 +1,28 @@
-package lisa.automation
+package lisa.utils.prooflib
 
+import lisa.utils.fol.FOL.{_, given}
+import lisa.utils.prooflib.BasicStep._
+import lisa.utils.prooflib.ProofHelpers._
+import org.scalatest.OneInstancePerTest
+import org.scalatest.Outcome
 import org.scalatest.funsuite.AnyFunSuite
 
-class CongruenceTest extends AnyFunSuite with lisa.TestMain {
+class CongruenceSuite extends AnyFunSuite with OneInstancePerTest {
 
-  given testLibrary: lisa.SetTheoryLibrary.type = lisa.SetTheoryLibrary
+  given testLibrary: Library = new Library
+  given OutputManager = new StringOutputManager
+
+  override protected def withFixture(test: NoArgTest): Outcome =
+    val outcome = super.withFixture(test)
+    testLibrary.theorems.all.foreach: theorem =>
+      assert(theorem.errors.isEmpty, theorem.errors.map(_.message).mkString("\n"))
+    outcome
+
+  extension (egraph: EGraphExpr)
+    private def proveEquality[S](left: Expr[S], right: Expr[S], base: Sequent)(using Proof): Thm =
+      val theorem = egraph.proveExpr(left, right, base).fold(fail(_), identity)
+      assert(!theorem.usesSorry)
+      have(theorem)
 
   val a = variable[Ind]
   val b = variable[Ind]
@@ -555,19 +573,19 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     val base = List(a === c, e === f, i === k, m === n, a === b, o === m, i === m, g === h, l === k, b === c, f === e, o === i, g === e, i === j)
 
     val test1 = Theorem(base |- (b === c)) {
-      egraph.proveInnerTerm(b, c, base |- ())
+      egraph.proveEquality(b, c, base |- ())
     }
 
     val test2 = Theorem(base |- (f === h)) {
-      egraph.proveInnerTerm(f, h, base |- ())
+      egraph.proveEquality(f, h, base |- ())
     }
 
     val test3 = Theorem(base |- (i === o)) {
-      egraph.proveInnerTerm(i, o, base |- ())
+      egraph.proveEquality(i, o, base |- ())
     }
 
     val test4 = Theorem(base |- (o === i)) {
-      egraph.proveInnerTerm(o, i, base |- ())
+      egraph.proveEquality(o, i, base |- ())
     }
 
   }
@@ -578,7 +596,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     egraph.add(F(b))
     egraph.merge(a, b)
     val test5 = Theorem(a === b |- F(a) === F(b)) {
-      egraph.proveInnerTerm(F(a), F(b), (a === b) |- ())
+      egraph.proveEquality(F(a), F(b), (a === b) |- ())
     }
   }
 
@@ -602,23 +620,23 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     val base = List[Expr[Prop]](ax2 === as1, ax2_d2 === ax_2d2, `2d2` === one, ax1 === a)
 
     val one_2d2 = Theorem(base |- (one === `2d2`)) {
-      egraph.proveInnerTerm(one, `2d2`, base |- ())
+      egraph.proveEquality(one, `2d2`, base |- ())
     }
 
     val ax2_as1 = Theorem(base |- (ax2 === as1)) {
-      egraph.proveInnerTerm(ax2, as1, base |- ())
+      egraph.proveEquality(ax2, as1, base |- ())
     }
 
     val ax2_d2_ax_2d2 = Theorem(base |- (ax2_d2 === ax_2d2)) {
-      egraph.proveInnerTerm(ax2_d2, ax_2d2, base |- ())
+      egraph.proveEquality(ax2_d2, ax_2d2, base |- ())
     }
 
     val ax_2d2_ax1 = Theorem(base |- (ax_2d2 === ax1)) {
-      egraph.proveInnerTerm(ax_2d2, ax1, base |- ())
+      egraph.proveEquality(ax_2d2, ax1, base |- ())
     }
 
     val ax_2d2_a = Theorem(base |- (ax_2d2 === a)) {
-      egraph.proveInnerTerm(ax_2d2, a, base |- ())
+      egraph.proveEquality(ax_2d2, a, base |- ())
     }
 
   }
@@ -641,13 +659,13 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     val base = List(ffffffffx === x, fffffx === x)
 
     val test2 = Theorem(base |- fffx === x) {
-      egraph.proveInnerTerm(fffx, x, base |- ())
+      egraph.proveEquality(fffx, x, base |- ())
     }
     val test3 = Theorem(base |- ffx === x) {
-      egraph.proveInnerTerm(ffx, x, base |- ())
+      egraph.proveEquality(ffx, x, base |- ())
     }
     val test4 = Theorem(base |- fx === x) {
-      egraph.proveInnerTerm(fx, x, base |- ())
+      egraph.proveEquality(fx, x, base |- ())
     }
 
   }
@@ -687,19 +705,19 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     val base = List(af <=> cf, ef <=> ff, if_ <=> kf, mf <=> nf, af <=> bf, of <=> mf, if_ <=> mf, gf <=> hf, lf <=> kf, bf <=> cf, ff <=> ef, of <=> if_, gf <=> ef, if_ <=> jf)
 
     val test1 = Theorem(base |- bf <=> cf) {
-      egraph.proveInnerTerm(bf, cf, base |- ())
+      egraph.proveEquality(bf, cf, base |- ())
     }
 
     val test2 = Theorem(base |- ff <=> hf) {
-      egraph.proveInnerTerm(ff, hf, base |- ())
+      egraph.proveEquality(ff, hf, base |- ())
     }
 
     val test3 = Theorem(base |- if_ <=> of) {
-      egraph.proveInnerTerm(if_, of, base |- ())
+      egraph.proveEquality(if_, of, base |- ())
     }
 
     val test4 = Theorem(base |- of <=> if_) {
-      egraph.proveInnerTerm(of, if_, base |- ())
+      egraph.proveEquality(of, if_, base |- ())
     }
 
   }
@@ -710,7 +728,7 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     egraph.add(Ff(bf))
     egraph.merge(af, bf)
     val test5 = Theorem(af <=> bf |- Ff(af) <=> Ff(bf)) {
-      egraph.proveInnerTerm(Ff(af), Ff(bf), (af <=> bf) |- ())
+      egraph.proveEquality(Ff(af), Ff(bf), (af <=> bf) |- ())
     }
   }
 
@@ -734,23 +752,23 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     val base = List[Expr[Prop]](ax2 <=> as1, ax2_d2 <=> ax_2d2, `2d2` <=> onef, ax1 <=> af)
 
     val one_2d2 = Theorem(base |- onef <=> `2d2`) {
-      egraph.proveInnerTerm(onef, `2d2`, base |- ())
+      egraph.proveEquality(onef, `2d2`, base |- ())
     }
 
     val ax2_as1 = Theorem(base |- ax2 <=> as1) {
-      egraph.proveInnerTerm(ax2, as1, base |- ())
+      egraph.proveEquality(ax2, as1, base |- ())
     }
 
     val ax2_d2_ax_2d2 = Theorem(base |- ax2_d2 <=> ax_2d2) {
-      egraph.proveInnerTerm(ax2_d2, ax_2d2, base |- ())
+      egraph.proveEquality(ax2_d2, ax_2d2, base |- ())
     }
 
     val ax_2d2_ax1 = Theorem(base |- ax_2d2 <=> ax1) {
-      egraph.proveInnerTerm(ax_2d2, ax1, base |- ())
+      egraph.proveEquality(ax_2d2, ax1, base |- ())
     }
 
     val ax_2d2_a = Theorem(base |- ax_2d2 <=> af) {
-      egraph.proveInnerTerm(ax_2d2, af, base |- ())
+      egraph.proveEquality(ax_2d2, af, base |- ())
     }
 
   }
@@ -773,13 +791,13 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     val base = List(ffffffffx <=> xf, fffffx <=> xf)
 
     val test2 = Theorem(base |- fffx <=> xf) {
-      egraph.proveInnerTerm(fffx, xf, base |- ())
+      egraph.proveEquality(fffx, xf, base |- ())
     }
     val test3 = Theorem(base |- ffx <=> xf) {
-      egraph.proveInnerTerm(ffx, xf, base |- ())
+      egraph.proveEquality(ffx, xf, base |- ())
     }
     val test4 = Theorem(base |- fx <=> xf) {
-      egraph.proveInnerTerm(fx, xf, base |- ())
+      egraph.proveEquality(fx, xf, base |- ())
     }
   }
 
@@ -790,15 +808,15 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     egraph.merge(a, b)
 
     val test5 = Theorem((a === b) |- Fp(a) <=> Fp(b)) {
-      egraph.proveInnerTerm(Fp(a), Fp(b), (a === b) |- ())
+      egraph.proveEquality(Fp(a), Fp(b), (a === b) |- ())
     }
 
     val test6 = Theorem((a === b) |- Ff(Fp(a)) <=> Ff(Fp(b))) {
-      egraph.proveInnerTerm(Ff(Fp(a)), Ff(Fp(b)), (a === b) |- ())
+      egraph.proveEquality(Ff(Fp(a)), Ff(Fp(b)), (a === b) |- ())
     }
 
     val test7 = Theorem((a === b) |- Ff(Ff(Fp(a))) <=> Ff(Ff(Fp(b)))) {
-      egraph.proveInnerTerm(Ff(Ff(Fp(a))), Ff(Ff(Fp(b))), (a === b) |- ())
+      egraph.proveEquality(Ff(Ff(Fp(a))), Ff(Ff(Fp(b))), (a === b) |- ())
     }
 
   }
@@ -810,21 +828,21 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
     egraph.merge(a, b)
 
     val test5 = Theorem((a === b) |- (F(a) === F(b))) {
-      egraph.proveInnerTerm(F(a), F(b), (a === b) |- ())
+      egraph.proveEquality(F(a), F(b), (a === b) |- ())
     }
 
     val test6 = Theorem((a === b) |- Fp(F(F(a))) <=> Fp(F(F(b)))) {
-      egraph.proveInnerTerm(Fp(F(F(a))), Fp(F(F(b))), (a === b) |- ())
+      egraph.proveEquality(Fp(F(F(a))), Fp(F(F(b))), (a === b) |- ())
     }
 
     val test7 = Theorem((a === b) |- Ff(Ff(Fp(F(F(a))))) <=> Ff(Ff(Fp(F(F(b)))))) {
-      egraph.proveInnerTerm(Ff(Ff(Fp(F(F(a))))), Ff(Ff(Fp(F(F(b))))), (a === b) |- ())
+      egraph.proveEquality(Ff(Ff(Fp(F(F(a))))), Ff(Ff(Fp(F(F(b))))), (a === b) |- ())
     }
 
     egraph.merge(Fp(F(F(b))), Ff(Fp(F(F(a)))))
 
     val test8 = Theorem(((a === b), Fp(F(F(b))) <=> Ff(Fp(F(F(a))))) |- Ff(Ff(Fp(F(F(a))))) <=> Ff(Ff(Fp(F(F(b)))))) {
-      egraph.proveInnerTerm(Ff(Ff(Fp(F(F(a))))), Ff(Ff(Fp(F(F(b))))), (a === b, Fp(F(F(b))) <=> Ff(Fp(F(F(a))))) |- ())
+      egraph.proveEquality(Ff(Ff(Fp(F(F(a))))), Ff(Ff(Fp(F(F(b))))), (a === b, Fp(F(F(b))) <=> Ff(Fp(F(F(a))))) |- ())
     }
 
   }
@@ -856,8 +874,6 @@ class CongruenceTest extends AnyFunSuite with lisa.TestMain {
   }
 
   test("Full congruence tactic tests") {
-    println("Full congruence tactic tests\n")
-
     val base1 = List(a === c, e === f, i === k, m === n, a === b, o === m, i === m, g === h, l === k, b === c, f === e, o === i, g === e, i === j)
 
     val test1 = Theorem(base1 |- (b === c)) {
