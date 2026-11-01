@@ -1079,7 +1079,7 @@ object Import extends lisa.HOL:
     timings.toVector
 
   @main
-  def importMain(prefix: String, logMode: String, theoremCount: Int, output: Boolean, outputFile: String, overwrite: Boolean) =
+  def importMain(prefix: String, logMode: String, theoremCount: Int, output: Boolean, outputFile: String, overwrite: Boolean): Unit =
     val pid = ProcessHandle.current().pid()
     println(s"Running on PID: $pid")
 
@@ -1089,17 +1089,5 @@ object Import extends lisa.HOL:
       case _ => throw new IllegalArgumentException(s"Invalid logging mode: $logMode. Expected '--silent' or '--debug'.")
 
     importFromPrefix(prefix, theoremCount, if output then Some(outputFile) else None, overwrite)
-
-    // dump your own heap
-    // to heap-timestamp
-    val heapDumpPath =
-      val pwd = System.getProperty("user.dir")
-      s"$pwd/dumps/auto/heap-${System.currentTimeMillis()}.hprof"
-    println(s"Dumping heap to $heapDumpPath")
-    java.lang.management.ManagementFactory
-      .getPlatformMXBean(classOf[com.sun.management.HotSpotDiagnosticMXBean])
-      .dumpHeap(heapDumpPath, true)
-
-    println(s"Dumped heap.")
 
 end Import
