@@ -1,11 +1,11 @@
 package lisa.automation.superposition
 
 import lisa.automation.superposition.bench.FofEvaluation
+import lisa.automation.{ProofSyntax => K}
 import lisa.tptp.KernelParser.problemToKernel
 import lisa.tptp.KernelParser.strictMapAtom
 import lisa.tptp.KernelParser.strictMapTerm
 import lisa.tptp.KernelParser.strictMapVariable
-import lisa.utils.K
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.io.File
@@ -28,9 +28,10 @@ class ProofExportTest extends AnyFunSuite:
     Files.writeString(f.toPath, problemText)
     f
 
-  private def assertValid(proof: K.SCProof): Unit =
-    K.SCProofChecker.checkSCProof(proof) match
-      case K.SCProofCheckerJudgement.SCValidProof(_, usesSorry) => assert(!usesSorry)
+  private def assertValid(proof: K.ProofCertificate): Unit =
+    proof.check match
+      case Right(theorem) =>
+        assert(!theorem.usesSorry)
       case other => fail(s"invalid proof: $other")
 
   test("a serialized kernel proof reads back and checks") {
@@ -42,12 +43,12 @@ class ProofExportTest extends AnyFunSuite:
     assert(name == "EXP001+1")
     assert(back.conclusion == proof.conclusion)
     assert(back.imports == proof.imports)
-    assert(!back.steps.exists(_.isInstanceOf[K.SCSubproof]))
+    assert(!back.steps.exists(_.isInstanceOf[K.Subproof]))
     assertValid(back)
   }
 
   test("the Lisa TSTP and SC-TPTP exports are not implemented yet") {
-    val proof = K.SCProof(IndexedSeq(K.RestateTrue(K.Sequent(Set.empty, Set(K.top)))))
+    val proof = K.ProofCertificate(IndexedSeq(K.RestateTrue(K.Sequent(Set.empty, Set(K.top)))))
     intercept[NotImplementedError](ProofExport.writeKernel(ProofFormat.LisaTstp, "x", proof, tempDir()))
     intercept[NotImplementedError](ProofExport.writeKernel(ProofFormat.ScTptp, "x", proof, tempDir()))
   }

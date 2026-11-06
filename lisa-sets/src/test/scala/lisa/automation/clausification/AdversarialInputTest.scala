@@ -1,8 +1,8 @@
 package lisa.automation.clausification
 
 import lisa.automation.Problem
-import lisa.utils.K
-import lisa.utils.K.{_, given}
+import lisa.automation.ProofSyntax.{_, given}
+import lisa.automation.{ProofSyntax => K}
 import org.scalatest.funsuite.AnyFunSuite
 
 /**
@@ -37,8 +37,8 @@ class AdversarialInputTest extends AnyFunSuite:
   /**
    * A prover meeting `certifyClausal`'s contract: imports = the clause sequents, conclusion = `⊢`.
    */
-  private def sorryProver(p: Problem): SCProof =
-    SCProof(IndexedSeq(Sorry(Sequent(Set.empty, Set.empty))), p.imports)
+  private def sorryProver(p: Problem): ProofCertificate =
+    ProofCertificate(IndexedSeq(Sorry(Sequent(Set.empty, Set.empty))), p.imports)
 
   /**
    * The same, as a phase-level [[ClausificationProver]]. A phase expects its downstream to declare the
@@ -50,7 +50,7 @@ class AdversarialInputTest extends AnyFunSuite:
     val sc = sorryProver(p)
     ClausificationProof(sc.steps, sc.imports ++ Clausification.libImports)
 
-  private def clausify(problem: Problem, prover: Problem => SCProof = sorryProver): SCProof =
+  private def clausify(problem: Problem, prover: Problem => ProofCertificate = sorryProver): ProofCertificate =
     CertifiedClausifier.certifyClausal(problem, prover)
 
   // ── malformed input sequents ────────────────────────────────────────────────────────────────────────────
@@ -84,14 +84,14 @@ class AdversarialInputTest extends AnyFunSuite:
   test("a prover that drops a clause import is caught at the boundary, not as an invalid proof") {
     // Contract: imports == the clause sequents, pointwise. Declaring only the clauses the refutation used is
     // the tempting mistake, and without this check it surfaces much later as a kernel rejection.
-    val dropsAnImport: Problem => SCProof = p => SCProof(IndexedSeq(Sorry(Sequent(Set.empty, Set.empty))), p.imports.drop(1))
+    val dropsAnImport: Problem => ProofCertificate = p => ProofCertificate(IndexedSeq(Sorry(Sequent(Set.empty, Set.empty))), p.imports.drop(1))
     val problem = Problem(Seq(() |- a, () |- b), Some(() |- a))
     val e = intercept[IllegalArgumentException](clausify(problem, dropsAnImport))
     assert(e.getMessage.contains("imports"), s"unexpected message: ${e.getMessage}")
   }
 
   test("a prover that invents an extra import is caught too") {
-    val addsAnImport: Problem => SCProof = p => SCProof(IndexedSeq(Sorry(Sequent(Set.empty, Set.empty))), p.imports :+ (() |- b))
+    val addsAnImport: Problem => ProofCertificate = p => ProofCertificate(IndexedSeq(Sorry(Sequent(Set.empty, Set.empty))), p.imports :+ (() |- b))
     val e = intercept[IllegalArgumentException](clausify(Problem(Seq(() |- a), Some(() |- a)), addsAnImport))
     assert(e.getMessage.contains("imports"), s"unexpected message: ${e.getMessage}")
   }

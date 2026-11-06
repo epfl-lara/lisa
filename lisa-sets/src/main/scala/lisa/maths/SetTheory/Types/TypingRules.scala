@@ -128,8 +128,8 @@ object TypingRules extends lisa.Main:
     ∀(x ∈ T1, e(x) ∈ T2(x))
       |- abs(T1)(e) ∈ Pi(T1)(T2)
   ) {
-    assume(∀(x ∈ T1, e(x) ∈ T2(x)))
-    val premise = have(x ∈ T1 ==> e(x) ∈ T2(x)) by InstantiateForall
+    val quantified = assume(∀(x ∈ T1, e(x) ∈ T2(x)))
+    val premise = have(x ∈ T1 ==> e(x) ∈ T2(x)) by InstantiateForall(x)(quantified)
     // Set boundary checking
     have(abs(T1)(e) ⊆ (T1 × ⋃({ T2(a) | a ∈ T1 }))) subproof {
       have(z ∈ abs(T1)(e) |- z ∈ abs(T1)(e)) by Hypothesis

@@ -1,7 +1,7 @@
 package lisa.automation.clausification
 
 import lisa.automation.Problem
-import lisa.utils.K.{_, given}
+import lisa.automation.ProofSyntax.{_, given}
 
 import Clausification._
 
@@ -73,7 +73,7 @@ private[clausification] object SkolemPhase:
         for k <- hd.steps.indices do
           val st = hd.steps(k)
           // bridge imports = [existsEpsilonIff, () ⊢ defEq]; supplied from lib slot + this step's def slot.
-          innerSteps += SCSubproof(st.bridge, IndexedSeq(innerLibRef(libExistsEpsilonIffIdx), innerDefRef(jBase + k)))
+          innerSteps += Subproof(st.bridge, IndexedSeq(innerLibRef(libExistsEpsilonIffIdx), innerDefRef(jBase + k)))
           val bridgeRef = innerSteps.size - 1
           innerSteps += Cut(() |- st.skoFormula, prevRef, bridgeRef, prevFormula)
           prevRef = innerSteps.size - 1
@@ -112,7 +112,7 @@ private[clausification] object SkolemPhase:
    * Closed proof of `() ⊢ ∀x̄. (t = t)`, which discharges a defining equality after [[InstSchema]] makes it reflexive.
    * The equality twin of [[NamingSupport.proveQuantifiedReflIff]] (`RightRefl` instead of `RightImplies`/`RightIff`).
    */
-  def proveQuantifiedReflEq(t: Expression, freeVars: Seq[Variable]): SCProof =
+  def proveQuantifiedReflEq(t: Expression, freeVars: Seq[Variable]): ProofCertificate =
     val eq = equality(t)(t)
     quantifyProof(IndexedSeq(RightRefl(() |- eq, eq)), eq, freeVars)
 
@@ -134,7 +134,7 @@ private[clausification] object SkolemPhase:
       fVar: Variable,
       epsWitness: Expression,
       defEq: Expression,
-      bridge: SCProof
+      bridge: ProofCertificate
   )
 
   /**
@@ -224,7 +224,7 @@ private[clausification] object SkolemPhase:
       val defEq = mentionedB.foldRight(equality(epsWitnessB)(fAppB): Expression)((b, e) => forall(Lambda(b, e)))
 
       // ── bridge: f ⊢ skoFormulaF ; imports [existsEpsilonIff (-1), () ⊢ defEq (-2)] ──
-      val steps = scala.collection.mutable.ArrayBuffer.empty[SCProofStep]
+      val steps = scala.collection.mutable.ArrayBuffer.empty[CertificateStep]
       steps += InstSchema(() |- localIff, -1, Map(schemaP -> lambdaInnerU)) // 0: () ⊢ localIff
       var current: Expression = localIff
       var ref = 0
@@ -246,6 +246,6 @@ private[clausification] object SkolemPhase:
       val defEqRef = steps.size - 1
       steps += Cut(f |- skoFormulaF, defEqRef, subEqRef, defEq)
 
-      SkolemStep(skoFormulaF, mentionedB, fVar, epsWitnessB, defEq, SCProof(steps.toIndexedSeq, IndexedSeq(existsEpsilonIffStatement, () |- defEq)))
+      SkolemStep(skoFormulaF, mentionedB, fVar, epsWitnessB, defEq, ProofCertificate(steps.toIndexedSeq, IndexedSeq(existsEpsilonIffStatement, () |- defEq)))
     }
   }

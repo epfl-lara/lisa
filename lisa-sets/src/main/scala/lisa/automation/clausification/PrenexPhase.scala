@@ -1,7 +1,7 @@
 package lisa.automation.clausification
 
 import lisa.automation.Problem
-import lisa.utils.K.{_, given}
+import lisa.automation.ProofSyntax.{_, given}
 
 import Clausification._
 
@@ -65,16 +65,16 @@ private[clausification] object PrenexPhase:
    *
    * Proof size is linear in `|phi|`.
    */
-  def provePrenex(imported: Sequent, premise: Int, counter: Counter, nonLibSize: Int)(using o: ClausifierOptions): (SCSubproof, Sequent) =
+  def provePrenex(imported: Sequent, premise: Int, counter: Counter, nonLibSize: Int)(using o: ClausifierOptions): (Subproof, Sequent) =
     o.prenex match
       case Prenex.Deconstruct => byDeconstruction(imported, premise, counter)
       case Prenex.Rewrite => byRewriting(imported, premise, counter, nonLibSize)
 
-  private def byDeconstruction(imported: Sequent, premise: Int, counter: Counter): (SCSubproof, Sequent) = {
+  private def byDeconstruction(imported: Sequent, premise: Int, counter: Counter): (Subproof, Sequent) = {
     val phi = singleRightFormula(imported, "imported (prenex source)")
 
-    val steps = scala.collection.mutable.ArrayBuffer.empty[SCProofStep]
-    def emit(s: SCProofStep): Int = { steps += s; steps.size - 1 }
+    val steps = scala.collection.mutable.ArrayBuffer.empty[CertificateStep]
+    def emit(s: CertificateStep): Int = { steps += s; steps.size - 1 }
 
     /**
      * `Hypothesis(e ⊢ e)`, the derivation of a subformula whose matrix is itself.
@@ -127,7 +127,7 @@ private[clausification] object PrenexPhase:
     // Cut: from `() ⊢ phi` (import 0) and `phi ⊢ matrix` derive `() ⊢ matrix`.
     emit(Cut(() |- matrix, -1, phiToMatrixIdx, phi))
 
-    (SCSubproof(SCProof(steps.toIndexedSeq, IndexedSeq(imported)), IndexedSeq(premise)), () |- matrix)
+    (Subproof(ProofCertificate(steps.toIndexedSeq, IndexedSeq(imported)), IndexedSeq(premise)), () |- matrix)
   }
 
   /**
@@ -139,10 +139,10 @@ private[clausification] object PrenexPhase:
    * Lift each `∀` to the root one connective at a time with the four prenex laws, then strip it there. Costs
    * quantifiers times depth rather than `|phi|`.
    */
-  private def byRewriting(imported: Sequent, premise: Int, counter: Counter, nonLibSize: Int): (SCSubproof, Sequent) =
+  private def byRewriting(imported: Sequent, premise: Int, counter: Counter, nonLibSize: Int): (Subproof, Sequent) =
     val phi = singleRightFormula(imported, "imported (prenex source)")
-    val steps = scala.collection.mutable.ArrayBuffer.empty[SCProofStep]
-    def emit(s: SCProofStep): Int = { steps += s; steps.size - 1 }
+    val steps = scala.collection.mutable.ArrayBuffer.empty[CertificateStep]
+    def emit(s: CertificateStep): Int = { steps += s; steps.size - 1 }
     val holes = Counter()
 
     // The laws are inner imports `-2` to `-5`, in `libImports` order.
@@ -219,4 +219,4 @@ private[clausification] object PrenexPhase:
     val innerImports = IndexedSeq(imported, forallAndLeftStatement, forallAndRightStatement, forallOrLeftStatement, forallOrRightStatement)
     val outerRefs = IndexedSeq(premise) ++
       Seq(libForallAndLeftIdx, libForallAndRightIdx, libForallOrLeftIdx, libForallOrRightIdx).map(libRef(nonLibSize, _))
-    (SCSubproof(SCProof(steps.toIndexedSeq, innerImports), outerRefs), () |- current)
+    (Subproof(ProofCertificate(steps.toIndexedSeq, innerImports), outerRefs), () |- current)

@@ -2,9 +2,9 @@ package lisa.maths.SetTheory.Base
 
 import lisa.SetTheoryLibrary
 import lisa.SetTheoryLibrary.{_, given}
-import lisa.automation.Tautology
 import lisa.utils.fol.FOL.{_, given}
-import lisa.utils.prooflib.BasicStepTactic._
+import lisa.utils.prooflib.Exports._
+import lisa.utils.prooflib.Subproof
 
 /**
  * Given the equivalence `z ∈ x <=> z ∈ y`, proves that `x = y` if `z` is free.
@@ -16,7 +16,7 @@ import lisa.utils.prooflib.BasicStepTactic._
  * }}}
  * where `z` is not free in `Γ` or `Δ`.
  */
-def Extensionality(using proof: SetTheoryLibrary.Proof)(premise: proof.Fact)(conclusion: Sequent): proof.ProofTacticJudgement = {
+def Extensionality(using proof: SetTheoryLibrary.Proof)(premise: Thm)(conclusion: Sequent): ProofJudgement = {
   val x, y = variable[Ind]
 
   val premiseSeq = premise.statement
@@ -31,9 +31,9 @@ def Extensionality(using proof: SetTheoryLibrary.Proof)(premise: proof.Fact)(con
 
   pivot match {
     case None =>
-      proof.InvalidProofTactic("Could not find a formula of the form z ∈ x <=> z ∈ y in the RHS of the premise.")
+      invalidTactic("Could not find a formula of the form z ∈ x <=> z ∈ y in the RHS of the premise.")
     case Some((z, x_, y_)) =>
-      TacticSubproof {
+      Subproof {
         val equiv = z ∈ x_ <=> z ∈ y_
         val eq = x_ === y_
         val baseSequent = premiseSeq ->> equiv

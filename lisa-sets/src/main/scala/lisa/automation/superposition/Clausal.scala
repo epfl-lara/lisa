@@ -3,7 +3,7 @@ package lisa.automation.superposition
 import lisa.automation.Problem
 import lisa.automation.clausification.Clausification
 import lisa.automation.superposition.ordering._
-import lisa.utils.K
+import lisa.automation.{ProofSyntax => K}
 
 import scala.collection.mutable
 
@@ -49,10 +49,10 @@ object Clausal:
         discharge: Map[K.Variable, K.Expression] = Map.empty
     ) extends Outcome:
       /**
-       * Reconstruct a kernel [[lisa.utils.K.SCProof]] from this refutation: its imports are the input
+       * Reconstruct a kernel [[lisa.automation.ProofSyntax.ProofCertificate]] from this refutation: its imports are the input
        * clause-sequents and its conclusion is the empty sequent `⊢`. See [[Reconstruction]].
        */
-      def reconstructKernelProof: K.SCProof = Reconstruction.reconstruct(empty, bank, inputs, schematicIds, discharge)
+      def reconstructKernelProof: K.ProofCertificate = Reconstruction.reconstruct(empty, bank, inputs, schematicIds, discharge)
 
     /**
      * The passive set was exhausted without deriving `□`: the clause set is satisfiable (a decision).
@@ -296,7 +296,7 @@ object Clausal:
    * A kernel proof of `∅ ⊢` from `problem`'s clauses, taken as imports in order, or `Left(outcome)` when the
    * search saturates or runs out of budget.
    */
-  def prove(problem: Problem, opts: SearchOptions = SearchOptions(), goal: Set[Int] = Set.empty): Either[Clausal.Outcome, K.SCProof] =
+  def prove(problem: Problem, opts: SearchOptions = SearchOptions(), goal: Set[Int] = Set.empty): Either[Clausal.Outcome, K.ProofCertificate] =
     val p = prepare(problem)
     Clausal.refute(p.work, opts, symbolVars = p.symbolVars, discharge = p.abs.dischargeSubst, goal = goal) match
       case s: Clausal.Outcome.Success => Right(composeProof(s.reconstructKernelProof, p.orig))
@@ -309,13 +309,13 @@ object Clausal:
    *
    * The `Restate` is what bridges the two forms, which differ only propositionally (see [[toWorkingSequent]]).
    */
-  private[superposition] def composeProof(base: K.SCProof, orig: IndexedSeq[K.Sequent]): K.SCProof =
+  private[superposition] def composeProof(base: K.ProofCertificate, orig: IndexedSeq[K.Sequent]): K.ProofCertificate =
     // Slot of each working clause, first occurrence winning (duplicate inputs are equal sequents, so either
     // would do). Built once, so composition is linear rather than a structural `Sequent` scan per import.
     val slotOf = mutable.HashMap.empty[K.Sequent, Int]
     var k = 0
     while k < orig.length do { slotOf.getOrElseUpdate(toWorkingSequent(orig(k)), k); k += 1 }
-    val steps = mutable.ArrayBuffer.empty[K.SCProofStep]
+    val steps = mutable.ArrayBuffer.empty[K.CertificateStep]
     val premises: Seq[Int] = base.imports.map { w =>
       // A miss means reconstruction imported a clause the clausifier never produced, impossible unless the
       // abstraction round-trip stops being exact; failing loudly beats silently referencing step 0.
@@ -323,8 +323,8 @@ object Clausal:
       steps += K.Restate(w, -(i + 1))
       steps.length - 1
     }
-    steps += K.SCSubproof(base, premises) // conclusion ∅ ⊢, over the working imports
-    K.SCProof(steps.toIndexedSeq, orig) //   imports = the original clausifier clauses
+    steps += K.Subproof(base, premises) // conclusion ∅ ⊢, over the working imports
+    K.ProofCertificate(steps.toIndexedSeq, orig) //   imports = the original clausifier clauses
 
   /**
    * Pre-solve setup shared by [[prove]] and [[solve]]: abstract the clausifier clauses to a

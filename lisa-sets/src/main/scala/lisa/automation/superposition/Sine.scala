@@ -1,7 +1,7 @@
 package lisa.automation.superposition
 
 import lisa.automation.Problem
-import lisa.utils.K._
+import lisa.automation.ProofSyntax._
 
 import scala.collection.mutable
 

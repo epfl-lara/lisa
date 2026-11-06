@@ -14,34 +14,26 @@ scalacOptions ++= Seq(
 javacOptions ++= Seq("-encoding", "UTF-8")
 semanticdbEnabled := true
 semanticdbVersion := "4.13.6"
-exportJars := false
-resolvers += "jitpack" at "https://jitpack.io"
 
-val scala2Version = "2.13.16"
-val scala3Version = "3.8.4"
-val tptpParserCommit = "0b4ffa55c71415e925080608707c78ada1d750e5"
-
-val commonProjectSettings = Seq(
-  run / fork := true,
-  libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % Test
+val scala3 = "3.8.4"
+val commonSettings = Seq(
+  crossScalaVersions := Seq(scala3),
+  run / fork := true
 )
 
-val scala3ProjectSettings = Seq(
-  scalaVersion := scala3Version,
+val commonSettings3 = commonSettings ++ Seq(
+  scalaVersion := scala3,
   scalacOptions ++= Seq(
     "-language:implicitConversions",
+    "-Wconf:msg=.*is not declared infix*:silent",
     "-Wconf:msg=.*trait or object is defined in the compilation unit.*:silent",
+    "-language:experimental.modularity"
   ),
   javaOptions += "-Xmx10G",
-  libraryDependencies ++= Seq(
-    "com.lihaoyi" %% "sourcecode" % "0.4.4"
-  ),
+  libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % "test",
+  libraryDependencies += "com.lihaoyi" %% "sourcecode" % "0.4.4",
   Test / parallelExecution := false,
   Test / fork := true
-)
-
-val allowScala2ProjectDependency = Seq(
-  allowMismatchScala := true
 )
 
 def withTests(project: Project): ClasspathDependency =
@@ -51,11 +43,9 @@ lazy val root = Project(
   id = "lisa",
   base = file(".")
 )
-  .settings(commonProjectSettings)
-  .settings(scala3ProjectSettings)
-  .settings(allowScala2ProjectDependency)
-  .dependsOn(kernel, withTests(utils), withTests(sets)) // Everything but `examples`
-  .aggregate(utils) // To run tests on all modules
+  .settings(commonSettings3)
+  .dependsOn(kernel, utils, sets)
+  .aggregate(utils, sets)
 
 LocalRootProject / Compile / run := (sets / Compile / run).evaluated
 
@@ -63,46 +53,33 @@ lazy val kernel = Project(
   id = "lisa-kernel",
   base = file("lisa-kernel")
 )
-  .settings(commonProjectSettings)
+  .settings(commonSettings)
   .settings(
-    scalaVersion := scala2Version,
-    crossScalaVersions := Seq(scala3Version),
-    scalacOptions ++= Seq("-Ypatmat-exhaust-depth", "50")
+    scalaVersion := scala3,
+    libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % "test"
   )
-
-lazy val sets = Project(
-  id = "lisa-sets",
-  base = file("lisa-sets")
-)
-  .settings(commonProjectSettings)
-  .settings(scala3ProjectSettings)
-  .settings(allowScala2ProjectDependency)
-  .settings(
-    libraryDependencies += "org.apache.commons" % "commons-math3" % "3.6.1",
-    libraryDependencies += "it.unimi.dsi" % "fastutil-core" % "8.5.15"
-  )
-  .settings(
-    // Executable fat-jar for CASC: `sbt lisa-sets/assembly` builds `casc-prover.jar`, run as
-    // `java -jar casc-prover.jar [-t <seconds>] [--strategy <name>] <problem.p>`.
-    // assembly / mainClass := Some("lisa.automation.superposition.CascProver"),
-    // assembly / assemblyJarName := "casc-prover.jar"
-  )
-  .dependsOn(kernel, withTests(utils))
 
 lazy val utils = Project(
   id = "lisa-utils",
   base = file("lisa-utils")
 )
-  .settings(commonProjectSettings)
-  .settings(scala3ProjectSettings)
-  .settings(allowScala2ProjectDependency)
+  .settings(commonSettings3)
+  .dependsOn(kernel)
+
+lazy val sets = Project(
+  id = "lisa-sets",
+  base = file("lisa-sets")
+)
+  .settings(commonSettings3)
   .settings(
+    resolvers += "jitpack" at "https://jitpack.io",
     libraryDependencies ++= Seq(
-      "com.lihaoyi" %% "mainargs" % "0.7.6",
-      "com.github.SC-TPTP" % "scala-tptp-parser_2.13" % tptpParserCommit
+      "org.apache.commons" % "commons-math3" % "3.6.1",
+      "it.unimi.dsi" % "fastutil-core" % "8.5.15",
+      "com.github.SC-TPTP" % "scala-tptp-parser_2.13" % "0b4ffa55c71415e925080608707c78ada1d750e5"
     )
   )
-  .dependsOn(kernel)
+  .dependsOn(kernel, withTests(utils))
 
 assemblyMergeStrategy := {
   case PathList("module-info.class") => MergeStrategy.discard
@@ -118,14 +95,27 @@ lazy val examples = Project(
   id = "lisa-examples",
   base = file("lisa-examples")
 )
-  .settings(commonProjectSettings)
-  .settings(scala3ProjectSettings)
+  .settings(commonSettings)
+  .settings(commonSettings3)
   .dependsOn(root)
+
+lazy val holImport = Project(
+  id = "lisa-hol",
+  base = file("lisa-hol")
+)
+  .settings(
+    commonSettings3 ++ Seq(
+      libraryDependencies += "com.lihaoyi" %% "upickle" % "4.4.3",
+      libraryDependencies += "com.lihaoyi" %% "fastparse" % "3.1.1",
+      libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "2.4.0" % Test
+    )
+  )
+  .dependsOn(sets, utils)
 
 lazy val coc = Project(
   id = "lisa-coc",
   base = file("lisa-coc")
 )
-  .settings(commonProjectSettings)
-  .settings(scala3ProjectSettings)
+  .settings(commonSettings)
+  .settings(commonSettings3)
   .dependsOn(root)

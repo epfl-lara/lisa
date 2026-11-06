@@ -1,6 +1,7 @@
 package lisa.automation.superposition
 
 import lisa.automation.clausification.UncertifiedClausifier
+import lisa.automation.{ProofSyntax => K}
 import lisa.tptp.AnnotatedStatement
 import lisa.tptp.KernelParser.annotatedStatementToKernel
 import lisa.tptp.KernelParser.emptyctx
@@ -9,7 +10,6 @@ import lisa.tptp.KernelParser.strictMapAtom
 import lisa.tptp.KernelParser.strictMapTerm
 import lisa.tptp.KernelParser.strictMapVariable
 import lisa.tptp.TptpProblem
-import lisa.utils.K
 import org.scalatest.funsuite.AnyFunSuite
 
 /**

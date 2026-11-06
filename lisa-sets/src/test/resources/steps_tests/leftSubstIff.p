@@ -12,4 +12,3 @@ fof(f3, plain, [~(~(a & q(t)) & q(t)) => ~(a & q(t)), q(s) <=> ~(a & q(t))] --> 
 
 fof(a4, axiom, [![X] : ~(q(s) & q(X))] --> []).
 fof(f4, plain, [q(s) <=> q(X), ![Y] : ~(q(X) & q(Y))] --> [], inference(leftSubstIff, [status(thm), 0, 0, $fof(![X] : ~(K & q(X))), 'K'], [a4])).
-

@@ -1,633 +1,432 @@
 package lisa.utils
 
-import lisa.kernel.proof.SequentCalculus._
-import lisa.utils.K.{LeftSubstEq => _, LeftSubstIff => _, RightSubstEq => _, RightSubstIff => _, _}
+import lisa.kernel.fol.FOL._
+import lisa.kernel.proof.Sequent
+import lisa.utils.kernel._
 
 import java.io._
 import scala.collection.mutable.{Map => MutMap}
 
-object Serialization {
+/**
+ * Serialize expressions, sequents, and linear proofs in binary form.
+ */
+object Serialization:
 
-  // Define codes for the various proof steps
-  inline def restate: Byte = 0
-  inline def restateTrue: Byte = 1
-  inline def hypothesis: Byte = 2
-  inline def cut: Byte = 3
-  inline def leftAnd: Byte = 4
-  inline def leftOr: Byte = 5
-  inline def leftImplies: Byte = 6
-  inline def leftIff: Byte = 7
-  inline def leftNot: Byte = 8
-  inline def leftForall: Byte = 9
-  inline def leftExists: Byte = 10
-  inline def rightAnd: Byte = 12
-  inline def rightOr: Byte = 13
-  inline def rightImplies: Byte = 14
-  inline def rightIff: Byte = 15
-  inline def rightNot: Byte = 16
-  inline def rightForall: Byte = 17
-  inline def rightExists: Byte = 18
-  inline def rightEpsilon: Byte = 19
-  inline def weakening: Byte = 20
-  inline def beta: Byte = 21
-  inline def leftRefl: Byte = 22
-  inline def rightRefl: Byte = 23
-  inline def leftSubstEq: Byte = 24
-  inline def rightSubstEq: Byte = 25
-  inline def instSchema: Byte = 26
-  inline def scSubproof: Byte = 27
-  inline def sorry: Byte = 28
+  case class InvalidStepTag(tag: Byte) extends Exception("Invalid proof step tag: " + tag)
+  case class InvalidExprTag(tag: Byte) extends IllegalArgumentException("Invalid expression tag: " + tag)
+  case class IncompleteTreeException(idx: Int) extends Exception("Unexpected end of file while reading tree, after index " + idx)
+
+  object Tag:
+    // Proof-step tags.
+    inline val restate = 0
+    inline val restateTrue = 1
+    inline val hypothesis = 2
+    inline val cut = 3
+    inline val leftAnd = 4
+    inline val leftOr = 5
+    inline val leftImplies = 6
+    inline val leftIff = 7
+    inline val leftNot = 8
+    inline val leftForall = 9
+    inline val leftExists = 10
+    inline val rightAnd = 12
+    inline val rightOr = 13
+    inline val rightImplies = 14
+    inline val rightIff = 15
+    inline val rightNot = 16
+    inline val rightForall = 17
+    inline val rightExists = 18
+    inline val rightEpsilon = 19
+    inline val weakening = 20
+    inline val beta = 21 // reserved proof-step tag
+    inline val leftRefl = 22
+    inline val rightRefl = 23
+    inline val leftSubstEq = 24
+    inline val rightSubstEq = 25
+    inline val instSchema = 26
+    inline val scSubproof = 27 // reserved proof-step tag
+    inline val sorry = 28
+
+    // LCF proof-step tags.
+    inline val axiom = 29
+    inline val assume = 30
+    inline val discharge = 31
+    inline val definition = 32
+
+    // Expression-tree tags.
+    inline val variable = 0
+    inline val constant = 1
+    inline val lambda = 2
+    inline val application = 3
 
   type Line = Int
 
-  def typeToString(t: Sort): String =
-    t match
-      case Ind => "T"
-      case Prop => "F"
-      case Arrow(from, to) => s">${typeToString(from)}${typeToString(to)}"
-
-  def constantToString(c: Constant): String = "cst_" + c.id.name + "_" + c.id.no + "_" + typeToString(c.sort)
-  def variableToString(v: Variable): String = "var_" + v.id.name + "_" + v.id.no + "_" + typeToString(v.sort)
-
-  def constantToDos(c: Constant, dos: DataOutputStream): Unit =
-    dos.writeByte(1)
-    dos.writeUTF(c.id.name)
-    dos.writeInt(c.id.no)
-    dos.writeUTF(typeToString(c.sort))
-
-  def variableToDOS(v: Variable, dos: DataOutputStream): Unit =
-    dos.writeByte(0)
-    dos.writeUTF(v.id.name)
-    dos.writeInt(v.id.no)
-    dos.writeUTF(typeToString(v.sort))
-
-  /*
-  def formulaLabelToDOS(label: FormulaLabel, dos: DataOutputStream): Unit =
-    label match
-      case l: ConstantAtomicLabel =>
-        dos.writeByte(3)
-        dos.writeUTF(l.id.name)
-        dos.writeInt(l.id.no)
-        dos.writeInt(l.arity)
-      case l: SchematicPredicateLabel =>
-        dos.writeByte(4)
-        dos.writeUTF(l.id.name)
-        dos.writeInt(l.id.no)
-        dos.writeInt(l.arity)
-      case l: ConstantConnectorLabel =>
-        dos.writeByte(5)
-        dos.writeUTF(l.id.name)
-      case l: SchematicConnectorLabel =>
-        dos.writeByte(6)
-        dos.writeUTF(l.id.name)
-        dos.writeInt(l.id.no)
-        dos.writeInt(l.arity)
-      case l: VariableFormulaLabel =>
-        dos.writeByte(7)
-        dos.writeUTF(l.id.name)
-        dos.writeInt(l.id.no)
-      case l: BinderLabel =>
-        dos.writeByte(8)
-        dos.writeUTF(l.id.name)
+  /**
+   * Encode a sort as a prefix string.
    */
+  def typeToString(t: Sort): String = t match
+    case Ind => "T"
+    case Prop => "F"
+    case Arrow(from, to) => s">${typeToString(from)}${typeToString(to)}"
 
   /**
-   * Main function that, when given a proof, will serialize it to a file. It will also serialize all the formulas appearing in it to another file.
+   * Decode the leading sort and return the unconsumed suffix.
    */
-  def proofsToDataStream(treesDOS: DataOutputStream, proofDOS: DataOutputStream, theorems: Seq[(String, SCProof, List[String])]): Unit = {
-
-    val exprMap = MutMap[Long, Line]()
-
-    var line = -1
-
-    // Compute the line of a formula. If it is not in the map, add it to the map and write it to the tree file
-    def lineOfExpr(e: Expression): Line =
-      exprMap.get(e.uniqueNumber) match
-        case Some(line) => line
-        case None =>
-          val nextLine = e match
-            case v: Variable =>
-              treesDOS.writeByte(0)
-              treesDOS.writeUTF(v.id.name)
-              treesDOS.writeInt(v.id.no)
-              treesDOS.writeUTF(typeToString(v.sort))
-            case c: Constant =>
-              treesDOS.writeByte(1)
-              treesDOS.writeUTF(c.id.name)
-              treesDOS.writeInt(c.id.no)
-              treesDOS.writeUTF(typeToString(c.sort))
-            case Lambda(v, inner) =>
-              val vi = lineOfExpr(v)
-              val ni = lineOfExpr(inner)
-              treesDOS.writeByte(2)
-              treesDOS.writeInt(vi)
-              treesDOS.writeInt(ni)
-            case Application(f, arg) =>
-              val a1 = lineOfExpr(f)
-              val a2 = lineOfExpr(arg)
-              treesDOS.writeByte(3)
-              treesDOS.writeInt(a1)
-              treesDOS.writeInt(a2)
-          line = line + 1
-          exprMap(e.uniqueNumber) = line
-          line
-
-    // Write a sequent to the proof file.
-    def sequentToProofDOS(sequent: Sequent): Unit =
-      proofDOS.writeShort(sequent.left.size)
-      sequent.left.foreach(f => proofDOS.writeInt(lineOfExpr(f)))
-      proofDOS.writeShort(sequent.right.size)
-      sequent.right.foreach(f => proofDOS.writeInt(lineOfExpr(f)))
-
-    /**
-     * Write a proof step to the proof file.
-     * First write the code describing the proof step, then the "bot" sequent, then the various parameters in order.
-     * List are described by first writing (as a short) the number of elements in the list.
-     *
-     * @param ps
-     */
-    def proofStepToProofDOS(ps: SCProofStep): Unit = {
-      ps match {
-        case Restate(bot, t1) =>
-          proofDOS.writeByte(restate)
-          sequentToProofDOS(bot)
-          proofDOS.writeInt(t1)
-        case RestateTrue(bot) =>
-          proofDOS.writeByte(restateTrue)
-          sequentToProofDOS(bot)
-        case Hypothesis(bot, phi) =>
-          proofDOS.writeByte(hypothesis)
-          sequentToProofDOS(bot)
-          proofDOS.writeInt(lineOfExpr(phi))
-        case Cut(bot, t1, t2, phi) =>
-          proofDOS.writeByte(cut)
-          sequentToProofDOS(bot)
-          proofDOS.writeInt(t1)
-          proofDOS.writeInt(t2)
-          proofDOS.writeInt(lineOfExpr(phi))
-        case LeftAnd(bot, t1, phi, psi) =>
-          proofDOS.writeByte(leftAnd)
-          sequentToProofDOS(bot)
-          proofDOS.writeInt(t1)
-          proofDOS.writeInt(lineOfExpr(phi))
-          proofDOS.writeInt(lineOfExpr(psi))
-        case LeftOr(bot, t, disjuncts) =>
-          proofDOS.writeByte(leftOr)
-          sequentToProofDOS(bot)
-          proofDOS.writeShort(t.size)
-          t.foreach(proofDOS.writeInt)
-          proofDOS.writeShort(disjuncts.size)
-          disjuncts.foreach(f => proofDOS.writeInt(lineOfExpr(f)))
-        case LeftImplies(bot, t1, t2, phi, psi) =>
-          proofDOS.writeByte(leftImplies)
-          sequentToProofDOS(bot)
-          proofDOS.writeInt(t1)
-          proofDOS.writeInt(t2)
-          proofDOS.writeInt(lineOfExpr(phi))
-          proofDOS.writeInt(lineOfExpr(psi))
-        case LeftIff(bot, t1, phi, psi) =>
-          proofDOS.writeByte(leftIff)
-          sequentToProofDOS(bot)
-          proofDOS.writeInt(t1)
-          proofDOS.writeInt(lineOfExpr(phi))
-          proofDOS.writeInt(lineOfExpr(psi))
-        case LeftNot(bot, t1, phi) =>
-          proofDOS.writeByte(leftNot)
-          sequentToProofDOS(bot)
-          proofDOS.writeInt(t1)
-          proofDOS.writeInt(lineOfExpr(phi))
-        case LeftForall(bot, t1, phi, x, t) =>
-          proofDOS.writeByte(leftForall)
-          sequentToProofDOS(bot)
-          proofDOS.writeInt(t1)
-          proofDOS.writeInt(lineOfExpr(phi))
-          proofDOS.writeInt(lineOfExpr(x))
-          proofDOS.writeInt(lineOfExpr(t))
-        case LeftExists(bot, t1, phi, x) =>
-          proofDOS.writeByte(leftExists)
-          sequentToProofDOS(bot)
-          proofDOS.writeInt(t1)
-          proofDOS.writeInt(lineOfExpr(phi))
-          proofDOS.writeInt(lineOfExpr(x))
-        case RightAnd(bot, t, conjuncts) =>
-          proofDOS.writeByte(rightAnd)
-          sequentToProofDOS(bot)
-          proofDOS.writeShort(t.size)
-          t.foreach(proofDOS.writeInt)
-          proofDOS.writeShort(conjuncts.size)
-          conjuncts.foreach(f => proofDOS.writeInt(lineOfExpr(f)))
-        case RightOr(bot, t1, phi, psi) =>
-          proofDOS.writeByte(rightOr)
-          sequentToProofDOS(bot)
-          proofDOS.writeInt(t1)
-          proofDOS.writeInt(lineOfExpr(phi))
-          proofDOS.writeInt(lineOfExpr(psi))
-        case RightImplies(bot, t1, phi, psi) =>
-          proofDOS.writeByte(rightImplies)
-          sequentToProofDOS(bot)
-          proofDOS.writeInt(t1)
-          proofDOS.writeInt(lineOfExpr(phi))
-          proofDOS.writeInt(lineOfExpr(psi))
-        case RightIff(bot, t1, t2, phi, psi) =>
-          proofDOS.writeByte(rightIff)
-          sequentToProofDOS(bot)
-          proofDOS.writeInt(t1)
-          proofDOS.writeInt(t2)
-          proofDOS.writeInt(lineOfExpr(phi))
-          proofDOS.writeInt(lineOfExpr(psi))
-        case RightNot(bot, t1, phi) =>
-          proofDOS.writeByte(rightNot)
-          sequentToProofDOS(bot)
-          proofDOS.writeInt(t1)
-          proofDOS.writeInt(lineOfExpr(phi))
-        case RightForall(bot, t1, phi, x) =>
-          proofDOS.writeByte(rightForall)
-          sequentToProofDOS(bot)
-          proofDOS.writeInt(t1)
-          proofDOS.writeInt(lineOfExpr(phi))
-          proofDOS.writeInt(lineOfExpr(x))
-        case RightExists(bot, t1, phi, x, t) =>
-          proofDOS.writeByte(rightExists)
-          sequentToProofDOS(bot)
-          proofDOS.writeInt(t1)
-          proofDOS.writeInt(lineOfExpr(phi))
-          proofDOS.writeInt(lineOfExpr(x))
-          proofDOS.writeInt(lineOfExpr(t))
-        case RightEpsilon(bot, t1, phi, x, t) =>
-          proofDOS.writeByte(rightEpsilon)
-          sequentToProofDOS(bot)
-          proofDOS.writeInt(t1)
-          proofDOS.writeInt(lineOfExpr(phi))
-          proofDOS.writeInt(lineOfExpr(x))
-          proofDOS.writeInt(lineOfExpr(t))
-        case Weakening(bot, t1) =>
-          proofDOS.writeByte(weakening)
-          sequentToProofDOS(bot)
-          proofDOS.writeInt(t1)
-        case LeftRefl(bot, t1, fa) =>
-          proofDOS.writeByte(leftRefl)
-          sequentToProofDOS(bot)
-          proofDOS.writeInt(t1)
-          proofDOS.writeInt(lineOfExpr(fa))
-        case RightRefl(bot, fa) =>
-          proofDOS.writeByte(rightRefl)
-          sequentToProofDOS(bot)
-          proofDOS.writeInt(lineOfExpr(fa))
-        case LeftSubstEq(bot, t1, equals, lambdaPhi) =>
-          proofDOS.writeByte(leftSubstEq)
-          sequentToProofDOS(bot)
-          proofDOS.writeInt(t1)
-          proofDOS.writeShort(equals.size)
-          equals.foreach(ltts =>
-            proofDOS.writeInt(lineOfExpr(ltts._1))
-            proofDOS.writeInt(lineOfExpr(ltts._2))
-          )
-          proofDOS.writeShort(lambdaPhi._1.size)
-          lambdaPhi._1.foreach(stl => proofDOS.writeInt(lineOfExpr(stl)))
-          proofDOS.writeInt(lineOfExpr(lambdaPhi._2))
-        case RightSubstEq(bot, t1, equals, lambdaPhi) =>
-          proofDOS.writeByte(rightSubstEq)
-          sequentToProofDOS(bot)
-          proofDOS.writeInt(t1)
-          proofDOS.writeShort(equals.size)
-          equals.foreach(ltts =>
-            proofDOS.writeInt(lineOfExpr(ltts._1))
-            proofDOS.writeInt(lineOfExpr(ltts._2))
-          )
-          proofDOS.writeShort(lambdaPhi._1.size)
-          lambdaPhi._1.foreach(stl => proofDOS.writeInt(lineOfExpr(stl)))
-          proofDOS.writeInt(lineOfExpr(lambdaPhi._2))
-        case InstSchema(bot, t1, m) =>
-          proofDOS.writeByte(instSchema)
-          sequentToProofDOS(bot)
-          proofDOS.writeInt(t1)
-          proofDOS.writeShort(m.size)
-          m.foreach(t =>
-            proofDOS.writeInt(lineOfExpr(t._1))
-            proofDOS.writeInt(lineOfExpr(t._2))
-          )
-        case SCSubproof(sp, premises) => throw new Exception("Cannot support subproofs, flatten the proof first.")
-        case Sorry(bot) =>
-          proofDOS.writeByte(sorry)
-          sequentToProofDOS(bot)
-      }
-    }
-
-    proofDOS.writeShort(theorems.size)
-    theorems.foreach((thmName, proof, justifications) =>
-      proofDOS.writeUTF(thmName)
-      proofDOS.writeShort(justifications.size)
-      justifications.foreach(j => proofDOS.writeUTF(j))
-      proofDOS.writeInt(proof.imports.size)
-      proof.imports.foreach(sequent => sequentToProofDOS(sequent))
-      proofDOS.writeInt(proof.steps.size)
-      proof.steps.foreach(ps => proofStepToProofDOS(ps))
-    )
-
-  }
-
   def typeFromString(s: String): (Sort, String) =
     if s(0) == 'T' then (Ind, s.drop(1))
     else if s(0) == 'F' then (Prop, s.drop(1))
     else if s(0) == '>' then
-      val (from, reminder) = typeFromString(s.drop(1))
-      val (to, r) = typeFromString(reminder)
-      (Arrow(from, to), r)
+      val (from, remainder) = typeFromString(s.drop(1))
+      val (to, rest) = typeFromString(remainder)
+      (Arrow(from, to), rest)
     else throw new Exception("Unknown type: " + s)
 
   /**
-   * This functions reverses the effect of proofToDataStream
-   *
-   * @param lines The lines of the "file" where the proof is stored
+   * Write a constant tree entry.
    */
-  def proofsFromDataStream(treesDIS: DataInputStream, proofDIS: DataInputStream): Seq[(String, SCProof, List[String])] = {
+  def constantToDOS(c: Constant, dos: DataOutputStream): Unit =
+    dos.writeByte(Tag.constant)
+    dos.writeUTF(c.id.name)
+    dos.writeInt(c.id.no)
+    dos.writeUTF(typeToString(c.sort))
 
+  /**
+   * Write a variable tree entry.
+   */
+  def variableToDOS(v: Variable, dos: DataOutputStream): Unit =
+    dos.writeByte(Tag.variable)
+    dos.writeUTF(v.id.name)
+    dos.writeInt(v.id.no)
+    dos.writeUTF(typeToString(v.sort))
+
+  /**
+   * Write a lambda tree entry using existing child lines.
+   */
+  def lamdbaToDOS(l: Lambda, dos: DataOutputStream, exprMap: MutMap[Long, Line]): Unit =
+    dos.writeByte(Tag.lambda)
+    dos.writeInt(exprMap(l.v.uniqueNumber))
+    dos.writeInt(exprMap(l.body.uniqueNumber))
+
+  /**
+   * Write an application tree entry using existing child lines.
+   */
+  def applicationToDOS(a: Application, dos: DataOutputStream, exprMap: MutMap[Long, Line]): Unit =
+    dos.writeByte(Tag.application)
+    dos.writeInt(exprMap(a.f.uniqueNumber))
+    dos.writeInt(exprMap(a.arg.uniqueNumber))
+
+  /**
+   * Read a variable after its tag.
+   */
+  inline def variableFromDIS(tag: Tag.variable.type, dis: DataInputStream): Variable =
+    Variable(Identifier(dis.readUTF(), dis.readInt()), typeFromString(dis.readUTF())._1)
+
+  /**
+   * Read a constant after its tag.
+   */
+  inline def constantFromDIS(tag: Tag.constant.type, dis: DataInputStream): Constant =
+    Constant(Identifier(dis.readUTF(), dis.readInt()), typeFromString(dis.readUTF())._1)
+
+  /**
+   * Read a lambda after its tag.
+   */
+  inline def lambdaFromDIS(tag: Tag.lambda.type, dis: DataInputStream, exprMap: MutMap[Line, Expression]): Lambda =
+    Lambda(exprMap(dis.readInt()).asInstanceOf[Variable], exprMap(dis.readInt()))
+
+  /**
+   * Read an application after its tag.
+   */
+  inline def applicationFromDIS(tag: Tag.application.type, dis: DataInputStream, exprMap: MutMap[Line, Expression]): Application =
+    Application(exprMap(dis.readInt()), exprMap(dis.readInt()))
+
+  /**
+   * Write unseen subexpressions first and return the expression line.
+   */
+  def lineOfExpr(e: Expression, dos: DataOutputStream, exprMap: MutMap[Long, Line]): Line =
+    exprMap.getOrElse(
+      e.uniqueNumber, {
+        e match
+          case v: Variable => variableToDOS(v, dos)
+          case c: Constant => constantToDOS(c, dos)
+          case l: Lambda =>
+            lineOfExpr(l.v, dos, exprMap)
+            lineOfExpr(l.body, dos, exprMap)
+            lamdbaToDOS(l, dos, exprMap)
+          case a: Application =>
+            lineOfExpr(a.f, dos, exprMap)
+            lineOfExpr(a.arg, dos, exprMap)
+            applicationToDOS(a, dos, exprMap)
+        val line = exprMap.size
+        exprMap(e.uniqueNumber) = line
+        line
+      }
+    )
+
+  /**
+   * Read one expression tree entry.
+   */
+  def exprFromDIS(tag: Byte, dis: DataInputStream, exprMap: MutMap[Line, Expression]): Expression = tag match
+    case tag: 0 => variableFromDIS(tag, dis)
+    case tag: 1 => constantFromDIS(tag, dis)
+    case tag: 2 => lambdaFromDIS(tag, dis, exprMap)
+    case tag: 3 => applicationFromDIS(tag, dis, exprMap)
+    case _ => throw InvalidExprTag(tag)
+
+  /**
+   * Read expression tree entries into a line map.
+   */
+  def readTreeEntries(dis: DataInputStream, count: Int, exprMap: MutMap[Line, Expression]): Unit =
+    for line <- 0 until count do exprMap(line) = exprFromDIS(dis.readByte(), dis, exprMap)
+
+  /**
+   * Write a self-contained sequent.
+   */
+  def sequentToDOS(s: Sequent, dos: DataOutputStream): Unit =
+    val exprMap = MutMap[Long, Line]()
+    val buffer = new ByteArrayOutputStream()
+    val treeDOS = new DataOutputStream(buffer)
+    val left = s.left.toSeq.map(lineOfExpr(_, treeDOS, exprMap))
+    val right = s.right.toSeq.map(lineOfExpr(_, treeDOS, exprMap))
+    treeDOS.flush()
+    dos.writeInt(exprMap.size)
+    dos.write(buffer.toByteArray)
+    dos.writeShort(left.size)
+    left.foreach(dos.writeInt)
+    dos.writeShort(right.size)
+    right.foreach(dos.writeInt)
+
+  /**
+   * Read a self-contained sequent.
+   */
+  def sequentFromDIS(dis: DataInputStream): Sequent =
     val exprMap = MutMap[Line, Expression]()
+    readTreeEntries(dis, dis.readInt(), exprMap)
+    val left = (1 to dis.readShort()).map(_ => exprMap(dis.readInt())).toSet
+    val right = (1 to dis.readShort()).map(_ => exprMap(dis.readInt())).toSet
+    Sequent(left, right)
 
-    // Read and reconstruct all the terms and formulas in the tree file. Fill the table with it.
-    var tag = treesDIS.read()
+  private final class ProofWriter(treesDOS: DataOutputStream, proofDOS: DataOutputStream):
+    private val exprMap = MutMap[Long, Line]()
+
+    private def line(e: Expression): Line = lineOfExpr(e, treesDOS, exprMap)
+
+    private def writeSequent(s: Sequent): Unit =
+      proofDOS.writeShort(s.left.size)
+      s.left.foreach(e => proofDOS.writeInt(line(e)))
+      proofDOS.writeShort(s.right.size)
+      s.right.foreach(e => proofDOS.writeInt(line(e)))
+
+    private def writeExprs(es: Seq[Expression]): Unit =
+      proofDOS.writeShort(es.size)
+      es.foreach(e => proofDOS.writeInt(line(e)))
+
+    private def writePremises(ps: Array[Int]): Unit =
+      proofDOS.writeShort(ps.length)
+      ps.foreach(proofDOS.writeInt)
+
+    private def writeEquals(equals: Seq[(Expression, Expression)]): Unit =
+      proofDOS.writeShort(equals.size)
+      equals.foreach { (left, right) =>
+        proofDOS.writeInt(line(left))
+        proofDOS.writeInt(line(right))
+      }
+
+    private def writeLambda(lambdaPhi: (Seq[Variable], Expression)): Unit =
+      proofDOS.writeShort(lambdaPhi._1.size)
+      lambdaPhi._1.foreach(v => proofDOS.writeInt(line(v)))
+      proofDOS.writeInt(line(lambdaPhi._2))
+
+    /**
+     * Write one proof step.
+     */
+    def writeStep(step: ProofStep): Unit = step match
+      case Restate(statement, premise) =>
+        proofDOS.writeByte(Tag.restate); writeSequent(statement); proofDOS.writeInt(premise)
+      case RestateTrue(statement) =>
+        proofDOS.writeByte(Tag.restateTrue); writeSequent(statement)
+      case Hypothesis(statement, phi) =>
+        proofDOS.writeByte(Tag.hypothesis); writeSequent(statement); proofDOS.writeInt(line(phi))
+      case Cut(statement, premise1, premise2, phi) =>
+        proofDOS.writeByte(Tag.cut); writeSequent(statement); proofDOS.writeInt(premise1); proofDOS.writeInt(premise2); proofDOS.writeInt(line(phi))
+      case LeftAnd(statement, premise, phi, psi) =>
+        proofDOS.writeByte(Tag.leftAnd); writeSequent(statement); proofDOS.writeInt(premise); proofDOS.writeInt(line(phi)); proofDOS.writeInt(line(psi))
+      case LeftOr(statement, premises, disjuncts) =>
+        proofDOS.writeByte(Tag.leftOr); writeSequent(statement); writePremises(premises); writeExprs(disjuncts)
+      case LeftImplies(statement, premise1, premise2, phi, psi) =>
+        proofDOS.writeByte(Tag.leftImplies); writeSequent(statement); proofDOS.writeInt(premise1); proofDOS.writeInt(premise2); proofDOS.writeInt(line(phi)); proofDOS.writeInt(line(psi))
+      case LeftIff(statement, premise, phi, psi) =>
+        proofDOS.writeByte(Tag.leftIff); writeSequent(statement); proofDOS.writeInt(premise); proofDOS.writeInt(line(phi)); proofDOS.writeInt(line(psi))
+      case LeftNot(statement, premise, phi) =>
+        proofDOS.writeByte(Tag.leftNot); writeSequent(statement); proofDOS.writeInt(premise); proofDOS.writeInt(line(phi))
+      case LeftForall(statement, premise, phi, x, t) =>
+        proofDOS.writeByte(Tag.leftForall); writeSequent(statement); proofDOS.writeInt(premise); proofDOS.writeInt(line(phi)); proofDOS.writeInt(line(x)); proofDOS.writeInt(line(t))
+      case LeftExists(statement, premise, phi, x) =>
+        proofDOS.writeByte(Tag.leftExists); writeSequent(statement); proofDOS.writeInt(premise); proofDOS.writeInt(line(phi)); proofDOS.writeInt(line(x))
+      case RightAnd(statement, premises, conjuncts) =>
+        proofDOS.writeByte(Tag.rightAnd); writeSequent(statement); writePremises(premises); writeExprs(conjuncts)
+      case RightOr(statement, premise, phi, psi) =>
+        proofDOS.writeByte(Tag.rightOr); writeSequent(statement); proofDOS.writeInt(premise); proofDOS.writeInt(line(phi)); proofDOS.writeInt(line(psi))
+      case RightImplies(statement, premise, phi, psi) =>
+        proofDOS.writeByte(Tag.rightImplies); writeSequent(statement); proofDOS.writeInt(premise); proofDOS.writeInt(line(phi)); proofDOS.writeInt(line(psi))
+      case RightIff(statement, premise1, premise2, phi, psi) =>
+        proofDOS.writeByte(Tag.rightIff); writeSequent(statement); proofDOS.writeInt(premise1); proofDOS.writeInt(premise2); proofDOS.writeInt(line(phi)); proofDOS.writeInt(line(psi))
+      case RightNot(statement, premise, phi) =>
+        proofDOS.writeByte(Tag.rightNot); writeSequent(statement); proofDOS.writeInt(premise); proofDOS.writeInt(line(phi))
+      case RightForall(statement, premise, phi, x) =>
+        proofDOS.writeByte(Tag.rightForall); writeSequent(statement); proofDOS.writeInt(premise); proofDOS.writeInt(line(phi)); proofDOS.writeInt(line(x))
+      case RightExists(statement, premise, phi, x, t) =>
+        proofDOS.writeByte(Tag.rightExists); writeSequent(statement); proofDOS.writeInt(premise); proofDOS.writeInt(line(phi)); proofDOS.writeInt(line(x)); proofDOS.writeInt(line(t))
+      case RightEpsilon(statement, premise, phi, x, t) =>
+        proofDOS.writeByte(Tag.rightEpsilon); writeSequent(statement); proofDOS.writeInt(premise); proofDOS.writeInt(line(phi)); proofDOS.writeInt(line(x)); proofDOS.writeInt(line(t))
+      case Weakening(statement, premise) =>
+        proofDOS.writeByte(Tag.weakening); writeSequent(statement); proofDOS.writeInt(premise)
+      case LeftRefl(statement, premise, phi) =>
+        proofDOS.writeByte(Tag.leftRefl); writeSequent(statement); proofDOS.writeInt(premise); proofDOS.writeInt(line(phi))
+      case RightRefl(statement, phi) =>
+        proofDOS.writeByte(Tag.rightRefl); writeSequent(statement); proofDOS.writeInt(line(phi))
+      case LeftSubstEq(statement, premise, equals, lambdaPhi) =>
+        proofDOS.writeByte(Tag.leftSubstEq); writeSequent(statement); proofDOS.writeInt(premise); writeEquals(equals); writeLambda(lambdaPhi)
+      case RightSubstEq(statement, premise, equals, lambdaPhi) =>
+        proofDOS.writeByte(Tag.rightSubstEq); writeSequent(statement); proofDOS.writeInt(premise); writeEquals(equals); writeLambda(lambdaPhi)
+      case InstSchema(statement, premise, subst) =>
+        proofDOS.writeByte(Tag.instSchema); writeSequent(statement); proofDOS.writeInt(premise); proofDOS.writeShort(subst.size)
+        subst.foreach { (variable, expression) =>
+          proofDOS.writeInt(line(variable)); proofDOS.writeInt(line(expression))
+        }
+      case Sorry(statement) =>
+        proofDOS.writeByte(Tag.sorry); writeSequent(statement)
+      case Axiom(statement) =>
+        proofDOS.writeByte(Tag.axiom); writeSequent(statement)
+      case Assume(statement) =>
+        proofDOS.writeByte(Tag.assume); writeSequent(statement)
+      case Discharge(statement, premise, justification) =>
+        proofDOS.writeByte(Tag.discharge); writeSequent(statement); proofDOS.writeInt(premise); proofDOS.writeInt(justification)
+      case Definition(statement, cst, vars, exp) =>
+        proofDOS.writeByte(Tag.definition); writeSequent(statement); proofDOS.writeInt(line(cst)); writeExprs(vars); proofDOS.writeInt(line(exp))
+
+    /**
+     * Write one linear proof.
+     */
+    def writeProof(proof: LinearProof): Unit =
+      proofDOS.writeInt(proof.imports.length)
+      proof.imports.foreach(writeSequent)
+      proofDOS.writeInt(proof.steps.length)
+      proof.steps.foreach(writeStep)
+
+  private final class ProofReader(treesDIS: DataInputStream, proofDIS: DataInputStream):
+    private val exprMap = MutMap[Line, Expression]()
+    private var nextLine = 0
+
+    private var tag = treesDIS.read()
     while tag != -1 do
-      val expression = tag match
-        case 0 =>
-          val name = treesDIS.readUTF()
-          val no = treesDIS.readInt()
-          val sort = treesDIS.readUTF()
-          Variable(Identifier(name, no), typeFromString(sort)._1)
-        case 1 =>
-          val name = treesDIS.readUTF()
-          val no = treesDIS.readInt()
-          val sort = treesDIS.readUTF()
-          Constant(Identifier(name, no), typeFromString(sort)._1)
-        case 2 =>
-          val v = exprMap(treesDIS.readInt())
-          val body = exprMap(treesDIS.readInt())
-          Lambda(v.asInstanceOf[Variable], body)
-        case 3 =>
-          val f = exprMap(treesDIS.readInt())
-          val arg = exprMap(treesDIS.readInt())
-          Application(f, arg)
-        case _ => throw new IllegalArgumentException(s"Unknown expression tag: $tag")
-      exprMap(exprMap.size) = expression
+      try
+        exprMap(nextLine) = exprFromDIS(tag.toByte, treesDIS, exprMap)
+        nextLine += 1
+      catch case _: EOFException => throw IncompleteTreeException(nextLine - 1)
       tag = treesDIS.read()
 
-    // Terms and Formulas finished, deal with the proof now.
+    private def expr(): Expression = exprMap(proofDIS.readInt())
+    private def variable(): Variable = expr().asInstanceOf[Variable]
+    private def constant(): Constant = expr().asInstanceOf[Constant]
 
-    def sequentFromProofDIS(): Sequent =
-      val leftSize = proofDIS.readShort()
-      val left = (1 to leftSize).map(_ => exprMap(proofDIS.readInt())).toSet
-      val rightSize = proofDIS.readShort()
-      val right = (1 to rightSize).map(_ => exprMap(proofDIS.readInt())).toSet
+    private def readSequent(): Sequent =
+      val left = (1 to proofDIS.readShort()).map(_ => expr()).toSet
+      val right = (1 to proofDIS.readShort()).map(_ => expr()).toSet
       Sequent(left, right)
 
-    // Read a proof step from the proof file. Inverse of proofStepToProofDOS
-    def proofStepFromProofDIS(): SCProofStep = {
-      val psType = proofDIS.readByte()
-      if (psType == restate) Restate(sequentFromProofDIS(), proofDIS.readInt())
-      else if (psType == restateTrue) RestateTrue(sequentFromProofDIS())
-      else if (psType == hypothesis) Hypothesis(sequentFromProofDIS(), exprMap(proofDIS.readInt()))
-      else if (psType == cut) Cut(sequentFromProofDIS(), proofDIS.readInt(), proofDIS.readInt(), exprMap(proofDIS.readInt()))
-      else if (psType == leftAnd) LeftAnd(sequentFromProofDIS(), proofDIS.readInt(), exprMap(proofDIS.readInt()), exprMap(proofDIS.readInt()))
-      else if (psType == leftOr)
-        LeftOr(
-          sequentFromProofDIS(),
-          (1 to proofDIS.readShort()).map(_ => proofDIS.readInt()).toSeq,
-          (1 to proofDIS.readShort()).map(_ => exprMap(proofDIS.readInt())).toSeq
-        )
-      else if (psType == leftImplies) LeftImplies(sequentFromProofDIS(), proofDIS.readInt(), proofDIS.readInt(), exprMap(proofDIS.readInt()), exprMap(proofDIS.readInt()))
-      else if (psType == leftIff) LeftIff(sequentFromProofDIS(), proofDIS.readInt(), exprMap(proofDIS.readInt()), exprMap(proofDIS.readInt()))
-      else if (psType == leftNot) LeftNot(sequentFromProofDIS(), proofDIS.readInt(), exprMap(proofDIS.readInt()))
-      else if (psType == leftForall)
-        LeftForall(
-          sequentFromProofDIS(),
-          proofDIS.readInt(),
-          exprMap(proofDIS.readInt()),
-          exprMap(proofDIS.readInt()).asInstanceOf[Variable],
-          exprMap(proofDIS.readInt())
-        )
-      else if (psType == leftExists) LeftExists(sequentFromProofDIS(), proofDIS.readInt(), exprMap(proofDIS.readInt()), exprMap(proofDIS.readInt()).asInstanceOf[Variable])
-      else if (psType == rightAnd)
-        RightAnd(
-          sequentFromProofDIS(),
-          (1 to proofDIS.readShort()).map(_ => proofDIS.readInt()).toSeq,
-          (1 to proofDIS.readShort()).map(_ => exprMap(proofDIS.readInt())).toSeq
-        )
-      else if (psType == rightOr) RightOr(sequentFromProofDIS(), proofDIS.readInt(), exprMap(proofDIS.readInt()), exprMap(proofDIS.readInt()))
-      else if (psType == rightImplies) RightImplies(sequentFromProofDIS(), proofDIS.readInt(), exprMap(proofDIS.readInt()), exprMap(proofDIS.readInt()))
-      else if (psType == rightIff) RightIff(sequentFromProofDIS(), proofDIS.readInt(), proofDIS.readInt(), exprMap(proofDIS.readInt()), exprMap(proofDIS.readInt()))
-      else if (psType == rightNot) RightNot(sequentFromProofDIS(), proofDIS.readInt(), exprMap(proofDIS.readInt()))
-      else if (psType == rightForall) RightForall(sequentFromProofDIS(), proofDIS.readInt(), exprMap(proofDIS.readInt()), exprMap(proofDIS.readInt()).asInstanceOf[Variable])
-      else if (psType == rightExists)
-        RightExists(
-          sequentFromProofDIS(),
-          proofDIS.readInt(),
-          exprMap(proofDIS.readInt()),
-          exprMap(proofDIS.readInt()).asInstanceOf[Variable],
-          exprMap(proofDIS.readInt())
-        )
-      else if (psType == rightEpsilon)
-        RightEpsilon(
-          sequentFromProofDIS(),
-          proofDIS.readInt(),
-          exprMap(proofDIS.readInt()),
-          exprMap(proofDIS.readInt()).asInstanceOf[Variable],
-          exprMap(proofDIS.readInt())
-        )
-      else if (psType == weakening) Weakening(sequentFromProofDIS(), proofDIS.readInt())
-      else if (psType == leftRefl) LeftRefl(sequentFromProofDIS(), proofDIS.readInt(), exprMap(proofDIS.readInt()))
-      else if (psType == rightRefl) RightRefl(sequentFromProofDIS(), exprMap(proofDIS.readInt()))
-      else if (psType == leftSubstEq)
-        LeftSubstEq(
-          sequentFromProofDIS(),
-          proofDIS.readInt(),
-          (1 to proofDIS.readShort()).map(_ => (exprMap(proofDIS.readInt()), exprMap(proofDIS.readInt()))).toList,
-          ((1 to proofDIS.readShort()).map(_ => exprMap(proofDIS.readInt()).asInstanceOf[Variable]).toList, exprMap(proofDIS.readInt()))
-        )
-      else if (psType == rightSubstEq)
-        RightSubstEq(
-          sequentFromProofDIS(),
-          proofDIS.readInt(),
-          (1 to proofDIS.readShort()).map(_ => (exprMap(proofDIS.readInt()), exprMap(proofDIS.readInt()))).toList,
-          ((1 to proofDIS.readShort()).map(_ => exprMap(proofDIS.readInt()).asInstanceOf[Variable]).toList, exprMap(proofDIS.readInt()))
-        )
-      else if (psType == instSchema)
-        InstSchema(
-          sequentFromProofDIS(),
-          proofDIS.readInt(),
-          (1 to proofDIS.readShort()).map(_ => exprMap(proofDIS.readInt()).asInstanceOf[Variable] -> exprMap(proofDIS.readInt())).toMap
-        )
-      else if (psType == sorry) Sorry(sequentFromProofDIS())
-      else throw new Exception("Unknown proof step type: " + psType)
+    private def readPremises(): Array[Int] = Array.fill(proofDIS.readShort())(proofDIS.readInt())
+    private def readExprs(): Seq[Expression] = Seq.fill(proofDIS.readShort())(expr())
+    private def readVariables(): Seq[Variable] = Seq.fill(proofDIS.readShort())(variable())
+    private def readEquals(): Seq[(Expression, Expression)] = Seq.fill(proofDIS.readShort())((expr(), expr()))
+    private def readLambda(): (Seq[Variable], Expression) = (readVariables(), expr())
+
+    /**
+     * Read one proof step.
+     */
+    def readStep(): ProofStep = proofDIS.readByte() match
+      case Tag.restate => Restate(readSequent(), proofDIS.readInt())
+      case Tag.restateTrue => RestateTrue(readSequent())
+      case Tag.hypothesis => Hypothesis(readSequent(), expr())
+      case Tag.cut => Cut(readSequent(), proofDIS.readInt(), proofDIS.readInt(), expr())
+      case Tag.leftAnd => LeftAnd(readSequent(), proofDIS.readInt(), expr(), expr())
+      case Tag.leftOr => LeftOr(readSequent(), readPremises(), readExprs())
+      case Tag.leftImplies => LeftImplies(readSequent(), proofDIS.readInt(), proofDIS.readInt(), expr(), expr())
+      case Tag.leftIff => LeftIff(readSequent(), proofDIS.readInt(), expr(), expr())
+      case Tag.leftNot => LeftNot(readSequent(), proofDIS.readInt(), expr())
+      case Tag.leftForall => LeftForall(readSequent(), proofDIS.readInt(), expr(), variable(), expr())
+      case Tag.leftExists => LeftExists(readSequent(), proofDIS.readInt(), expr(), variable())
+      case Tag.rightAnd => RightAnd(readSequent(), readPremises(), readExprs())
+      case Tag.rightOr => RightOr(readSequent(), proofDIS.readInt(), expr(), expr())
+      case Tag.rightImplies => RightImplies(readSequent(), proofDIS.readInt(), expr(), expr())
+      case Tag.rightIff => RightIff(readSequent(), proofDIS.readInt(), proofDIS.readInt(), expr(), expr())
+      case Tag.rightNot => RightNot(readSequent(), proofDIS.readInt(), expr())
+      case Tag.rightForall => RightForall(readSequent(), proofDIS.readInt(), expr(), variable())
+      case Tag.rightExists => RightExists(readSequent(), proofDIS.readInt(), expr(), variable(), expr())
+      case Tag.rightEpsilon => RightEpsilon(readSequent(), proofDIS.readInt(), expr(), variable(), expr())
+      case Tag.weakening => Weakening(readSequent(), proofDIS.readInt())
+      case Tag.leftRefl => LeftRefl(readSequent(), proofDIS.readInt(), expr())
+      case Tag.rightRefl => RightRefl(readSequent(), expr())
+      case Tag.leftSubstEq => LeftSubstEq(readSequent(), proofDIS.readInt(), readEquals(), readLambda())
+      case Tag.rightSubstEq => RightSubstEq(readSequent(), proofDIS.readInt(), readEquals(), readLambda())
+      case Tag.instSchema =>
+        val statement = readSequent()
+        val premise = proofDIS.readInt()
+        val subst = (1 to proofDIS.readShort()).map(_ => variable() -> expr()).toMap
+        InstSchema(statement, premise, subst)
+      case Tag.sorry => Sorry(readSequent())
+      case Tag.axiom => Axiom(readSequent())
+      case Tag.assume => Assume(readSequent())
+      case Tag.discharge => Discharge(readSequent(), proofDIS.readInt(), proofDIS.readInt())
+      case Tag.definition => Definition(readSequent(), constant(), readVariables(), expr())
+      case tag => throw InvalidStepTag(tag)
+
+    /**
+     * Read one linear proof.
+     */
+    def readProof(): LinearProof =
+      val imports = Array.fill(proofDIS.readInt())(readSequent())
+      val steps = Array.fill(proofDIS.readInt())(readStep())
+      LinearProof(steps, imports)
+
+  /**
+   * Write one linear proof to separate tree and proof streams.
+   */
+  def proofToDataStream(treesDOS: DataOutputStream, proofDOS: DataOutputStream, proof: LinearProof): Unit =
+    ProofWriter(treesDOS, proofDOS).writeProof(proof)
+
+  /**
+   * Read one linear proof from separate tree and proof streams.
+   */
+  def proofFromDataStream(treesDIS: DataInputStream, proofDIS: DataInputStream): LinearProof =
+    ProofReader(treesDIS, proofDIS).readProof()
+
+  /**
+   * Write named linear proofs and their justification names.
+   */
+  def proofsToDataStream(
+      treesDOS: DataOutputStream,
+      proofDOS: DataOutputStream,
+      proofs: Seq[(String, LinearProof, List[String])]
+  ): Unit =
+    val writer = ProofWriter(treesDOS, proofDOS)
+    proofDOS.writeShort(proofs.size)
+    proofs.foreach { (name, proof, justifications) =>
+      proofDOS.writeUTF(name)
+      proofDOS.writeShort(justifications.size)
+      justifications.foreach(proofDOS.writeUTF)
+      writer.writeProof(proof)
     }
 
-    // for each given theorem, write it to the file.
-    val numberThm = proofDIS.readShort()
-    (1 to numberThm)
-      .map(_ =>
-        val thmName = proofDIS.readUTF()
-        val justificationsSize = proofDIS.readShort()
-        val justifications = (1 to justificationsSize).map(_ => proofDIS.readUTF()).toList
-        val importsSize = proofDIS.readInt()
-        val imports = (1 to importsSize).map(_ => sequentFromProofDIS()).toSeq
-        val noSteps = proofDIS.readInt()
-        val steps = (1 to noSteps).map(_ => proofStepFromProofDIS()).toSeq
-
-        (thmName, new SCProof(steps.toIndexedSeq, imports.toIndexedSeq), justifications)
-      )
-      .toSeq
-
-  }
-
   /**
-   * Write a list of theorems to a pair of OutputStrem, one for the formulas and term trees, one for the proof.
-   * Each theorem has a name, a proof and a list of justifications, with a name for those justifications that can be fetched in the code base.
+   * Read named linear proofs and their justification names.
    */
-  def thmsToDataStream(treesDOS: DataOutputStream, proofDOS: DataOutputStream, theory: RunningTheory, theorems: List[(String, SCProof, List[(String, theory.Justification)])]): Unit = {
-    proofsToDataStream(
-      treesDOS,
-      proofDOS,
-      theorems.map((name, proof, justs) =>
-        val justNames = justs.map {
-          case (obj, theory.Axiom(name, ax)) => "a" + obj + "$" + name
-          case (obj, theory.Theorem(name, proposition, withSorry)) => "t" + obj + "$" + name
-          case (obj, theory.Definition(label, expression, vars)) =>
-            "d" + obj + "$" + label.id.name + "_" + label.id.no + "_" + typeToString(label.sort) // + "__" +
-          // vars.size + vars.map(v => v.id.name + "_" + v.id.no + "_" + typeToString(v.sort)).mkString("__")
-        }
-        // (name, minimizeProofOnce(proof), justNames)
-        (name, proof, justNames)
-      )
-    )
-  }
-
-  /**
-   * Read theorems from two files, one for the formulas and term trees, one for the proof.
-   * Theorems are validated in the kernel. Justifications are fetched from the code base using the name written in the file.
-   * This uses java reflection, for example to obtain the theorem [[scala.mathematics.settheory.SetTheoryLibrary.russelsParadox]] from the
-   * string "scala.mathematics.settheory.SetTheoryLibrary.russelsParadox".
-   * A bit ugly, but don't really have better for now.
-   */
-  def thmsFromDataStream(treesDIS: DataInputStream, proofDIS: DataInputStream, theory: RunningTheory, debug: Boolean = false): Seq[(theory.Theorem, SCProof)] = {
-    checkTheorems(proofsFromDataStream(treesDIS, proofDIS), theory, debug)
-  }
-
-  /**
-   * Resolve imports and check each decoded theorem before registering it.
-   */
-  private def checkTheorems(
-      theorems: Seq[(String, SCProof, List[String])],
-      theory: RunningTheory,
-      debug: Boolean,
-      loadTheorem: String => Option[theory.Theorem] = (_: String) => None
-  ): Seq[(theory.Theorem, SCProof)] = {
-    theorems.map { (name, proof, justifications) =>
-      val justs = justifications.map { j =>
-        val Array(owner, jName) = j.tail.split("\\$", 2)
-        def lookup(): Option[theory.Justification] = j(0) match
-          case 'a' => theory.getAxiom(jName)
-          case 't' => theory.getTheorem(jName)
-          case 'd' =>
-            val sortSeparator = jName.lastIndexOf('_')
-            val numberSeparator = jName.lastIndexOf('_', sortSeparator - 1)
-            val id = jName.take(numberSeparator)
-            val no = jName.substring(numberSeparator + 1, sortSeparator)
-            val sort = jName.drop(sortSeparator + 1)
-            val cst = Constant(Identifier(id, no.toInt), typeFromString(sort)._1)
-            theory.getDefinition(cst)
-          case tag => throw new IllegalArgumentException(s"Unknown justification tag: $tag")
-
-        lookup().getOrElse {
-          // A cached proof skips its body, including references that initialize other Scala objects.
-          try Class.forName(owner + "$").getField("MODULE$").get(null)
-          catch case _: ClassNotFoundException => () // Generated theorems need not have a Scala owner.
-          lookup()
-            .orElse(if j(0) == 't' then loadTheorem(jName) else None)
-            .getOrElse(throw new IllegalArgumentException(s"Missing cached dependency: $owner: $jName"))
-        }
-      }
-      val verdict =
-        if debug then theory.makeTheorem(name + "_test", proof.conclusion, proof, justs)
-        else theory.makeTheorem(name, proof.conclusion, proof, justs)
-      (verdict.get, proof)
+  def proofsFromDataStream(
+      treesDIS: DataInputStream,
+      proofDIS: DataInputStream
+  ): Seq[(String, LinearProof, List[String])] =
+    val reader = ProofReader(treesDIS, proofDIS)
+    (1 to proofDIS.readShort()).map { _ =>
+      val name = proofDIS.readUTF()
+      val justifications = (1 to proofDIS.readShort()).map(_ => proofDIS.readUTF()).toList
+      (name, reader.readProof(), justifications)
     }
-
-  }
-
-  /**
-   * Write a list of theorems to a pair file, one for the formulas and term trees, one for the proof.
-   * Each theorem has a name, a proof and a list of justifications, with a name for those justifications that can be fetched in the code base.
-   */
-  def thmsToFile(filename: String, theory: RunningTheory, theorems: List[(String, SCProof, List[(String, theory.Justification)])]): Unit = {
-    val directory = File(filename).getParentFile()
-    if (directory != null) && !directory.exists() then directory.mkdirs()
-    val treeFile = File(filename + ".trees")
-    if !treeFile.exists() then treeFile.createNewFile()
-    val proofFile = File(filename + ".proof")
-    if !proofFile.exists() then proofFile.createNewFile()
-    val treesDOS = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(treeFile)))
-    val proofDOS = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(proofFile)))
-    thmsToDataStream(treesDOS, proofDOS, theory, theorems)
-    treesDOS.close()
-    proofDOS.close()
-  }
-
-  /**
-   * Read theorems from two files, one for the formulas and term trees, one for the proof.
-   * Theorems are validated in the kernel. Justifications are fetched from the code base using the name written in the file.
-   */
-  def thmsFromFile(filename: String, theory: RunningTheory): Seq[(theory.Theorem, SCProof)] = {
-    val treesDIS = new DataInputStream(new BufferedInputStream(new FileInputStream(File(filename + ".trees"))))
-    val proofDIS = new DataInputStream(new BufferedInputStream(new FileInputStream(File(filename + ".proof"))))
-    val thm = thmsFromDataStream(treesDIS, proofDIS, theory, false)
-    treesDIS.close()
-    proofDIS.close()
-    thm
-  }
-
-  /**
-   * Same as [[thmsFromFile]] but only returns the first theorem (usually because we know there is only one theorem in the file).
-   */
-  def oneThmFromFile(filename: String, theory: RunningTheory): Option[theory.Theorem] =
-    oneProofFromFile(filename, theory).map(_._1)
-
-  /**
-   * Read and check one cached theorem; initialize or load its missing dependencies.
-   */
-  def oneProofFromFile(
-      filename: String,
-      theory: RunningTheory,
-      expected: Option[(String, Sequent)] = None
-  ): Option[(theory.Theorem, SCProof)] = {
-    val directory = File(filename).getAbsoluteFile.getParentFile
-    def read(base: String, name: Option[String], statement: Option[Sequent], pending: Set[String]): Option[(theory.Theorem, SCProof)] = {
-      val treeFile = File(base + ".trees")
-      val proofFile = File(base + ".proof")
-      if treeFile.isFile() && proofFile.isFile() then
-        val treesDIS = new DataInputStream(new BufferedInputStream(new FileInputStream(treeFile)))
-        val proofDIS = new DataInputStream(new BufferedInputStream(new FileInputStream(proofFile)))
-
-        try {
-          val decoded = proofsFromDataStream(treesDIS, proofDIS)
-          require(decoded.nonEmpty && (name.isEmpty || decoded.size == 1), "Expected one cached theorem")
-          val (decodedName, proof, _) = decoded.head
-          require(!pending(decodedName), s"Cyclic cached dependency: $decodedName")
-          name.foreach(n => require(decodedName == n, "Cached theorem name does not match"))
-          statement.foreach(s => require(proof.conclusion == s, "Cached theorem statement does not match"))
-          val load = (dependency: String) => {
-            require(!dependency.contains('/') && !dependency.contains('\\'), "Invalid cached dependency name")
-            read(File(directory, dependency).getPath, Some(dependency), None, pending + decodedName).map(_._1)
-          }
-          Some(checkTheorems(decoded, theory, false, load).head)
-        } catch {
-          case e: Exception =>
-            println(s"Error while reading theorems from file: $base: ${e.getMessage}")
-            None
-        } finally {
-          treesDIS.close()
-          proofDIS.close()
-        }
-      else None
-    }
-    read(filename, expected.map(_._1), expected.map(_._2), Set.empty)
-  }
-
-}

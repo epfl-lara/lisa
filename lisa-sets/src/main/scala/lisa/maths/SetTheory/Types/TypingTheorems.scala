@@ -162,8 +162,11 @@ object TypingTheorems extends lisa.Main:
           assume((x ∈ A /\ ((a, y) === (x, T2(x)))))
           val both = have((a === x) /\ (y === T2(x))) by Tautology.from(Pair.extensionality of (b := y, c := x, d := T2(x)))
           val s1 = have(x === a) by Tautology.from(both)
-          have(y === T2(x)) by Tautology.from(both)
-          thenHave(y === T2(a)) by Substitute(s1)
+          val before = have(y === T2(x)) by Tautology.from(both)
+          val rewriteVar = variable[Ind]
+          val rewritten = have(before.statement.copy(right = Set(y === T2(a))) +<< (x === a)) by
+            RightSubstEq.withParameters(Seq(x -> a), Seq(rewriteVar) -> (y === T2(rewriteVar)))(before)
+          have(Discharge(s1)(rewritten))
           thenHave(thesis) by Restate
         }
         thenHave(∀(x, (x ∈ A /\ ((a, y) === (x, T2(x)))) ==> (y === T2(a)))) by RightForall
@@ -432,8 +435,11 @@ object TypingTheorems extends lisa.Main:
               assumeAll
               val equalFormula2 = have(T2(a) === y) by Hypothesis
               have(a ∈ T1 ==> T2(a) ⊆ T2p(a)) by InstantiateForall(a)(pred)
-              thenHave(T2(a) ⊆ T2p(a)) by Tautology.fromLastStep()
-              thenHave(y ⊆ T2p(a)) by Substitute(equalFormula2)
+              val before = thenHave(T2(a) ⊆ T2p(a)) by Tautology.fromLastStep()
+              val rewriteVar = variable[Ind]
+              val rewritten = have(before.statement.copy(right = Set(y ⊆ T2p(a))) +<< (T2(a) === y)) by
+                RightSubstEq.withParameters(Seq(T2(a) -> y), Seq(rewriteVar) -> (rewriteVar ⊆ T2p(a)))(before)
+              have(Discharge(equalFormula2)(rewritten))
               val stmt3 = thenHave(x ∈ T2p(a)) by Tautology.fromLastStep(Subset.membership of (x := y, y := T2p(a), z := x))
               have(T2p(a) === T2p(a)) by Congruence
               thenHave(a ∈ T1 /\ (T2p(a) === T2p(a))) by Tautology.fromLastStep()

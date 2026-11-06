@@ -1,9 +1,8 @@
 package lisa.kernel
 
 import lisa.kernel.fol.FOL._
-import lisa.kernel.proof.SCProof
-import lisa.kernel.proof.SCProofChecker
-import lisa.kernel.proof.SequentCalculus._
+import lisa.kernel.proof.Sequent
+import lisa.utils.kernel._
 import org.scalatest.exceptions.TestFailedException
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -18,20 +17,20 @@ class KernelProofTest extends AnyFunSuite:
   /**
    * `⊢` by a single `Sorry`: valid for the checker, but `usesSorry`.
    */
-  private val fabricated = SCProof(IndexedSeq(Sorry(emptySequent)), IndexedSeq.empty)
+  private val fabricated = ProofCertificate(IndexedSeq(Sorry(emptySequent)), IndexedSeq.empty)
 
   /**
    * `a ⊢ a` by `Hypothesis`.
    */
-  private val genuine = SCProof(IndexedSeq(Hypothesis(Sequent(Set(a), Set(a)), a)), IndexedSeq.empty)
+  private val genuine = ProofCertificate(IndexedSeq(Hypothesis(Sequent(Set(a), Set(a)), a)), IndexedSeq.empty)
 
   /**
    * `Hypothesis` whose conclusion lacks the hypothesis.
    */
-  private val bogus = SCProof(IndexedSeq(Hypothesis(emptySequent, a)), IndexedSeq.empty)
+  private val bogus = ProofCertificate(IndexedSeq(Hypothesis(emptySequent, a)), IndexedSeq.empty)
 
   test("the kernel accepts a Sorry proof, so `isValid` alone cannot be the oracle") {
-    assert(SCProofChecker.checkSCProof(fabricated).isValid)
+    assert(fabricated.check.isRight)
   }
 
   test("assertCorrectProofNoSorry rejects a Sorry proof") {

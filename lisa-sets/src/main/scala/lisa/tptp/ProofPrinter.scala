@@ -5,16 +5,20 @@ import leo.datastructures.TPTP.FOF
 import leo.datastructures.TPTP.FOFAnnotated
 import leo.datastructures.TPTP.GeneralTerm
 import leo.datastructures.TPTP.MetaFunctionData
-import lisa.utils.K
+import lisa.automation.{ProofSyntax => K}
 
 import java.io.File
 
 import KernelParser.unsanitize
 import K.given
 import K.repr
-import ProofParser._
+import K.bot
 
 object ProofPrinter {
+  private val TPTPversion = "TPTP v8.0.0"
+
+  private def annotationAtom(name: String): GeneralTerm =
+    GeneralTerm(List(MetaFunctionData(name, List.empty)), None)
 
   def problemToFile(fileDirectory: String, fileName: String, name: String, axioms: Seq[K.Sequent], conjecture: K.Sequent, source: String): File = {
     // case class TptpProblem(file: String, domain: String, name: String, status: String, spc: Seq[String], formulas: Seq[AnnotatedStatement])
@@ -31,7 +35,7 @@ object ProofPrinter {
 % Refs     : https://github.com/epfl-lara/lisa
 %          : lisa.utils.tptp.ProofParser
 % Source   : [Lisa, $source]
-% Names    : 
+% Names    :
 
 % Status   : Unknown
 % Rating   : ?
@@ -97,8 +101,8 @@ object ProofPrinter {
         if strict then
           // `KernelParser` parks TPTP distinct objects / numerals as `$d…` / `$n…` uninterpreted nullary
           // constants (Fix B); render them back to their source `"…"` distinct object / bare numeral.
-          if id.name.startsWith("$d") then FOF.DistinctObject("\"" + unsanitize(id.name.drop(2), 0) + "\"")
-          else if id.name.startsWith("$n") then numeralTerm(unsanitize(id.name.drop(2), 0))
+          if id.name.startsWith("@d") then FOF.DistinctObject("\"" + unsanitize(id.name.drop(2), 0) + "\"")
+          else if id.name.startsWith("@n") then numeralTerm(unsanitize(id.name.drop(2), 0))
           else if id.name(0).isLower && !id.name.contains(" ") then FOF.AtomicTerm(unsanitize(id), Seq())
           else FOF.AtomicTerm(quoted(unsanitize(id)), Seq())
         else FOF.AtomicTerm(quoted("c" + id), Seq())
@@ -163,7 +167,7 @@ object ProofPrinter {
     FOF.Logical(formulaToFOFFormula(formula, Set()))
   }
 
-  def proofToTPTP(proof: K.SCProof, axioms: Map[Int, (String, K.Sequent)], conj: (String, K.Sequent), strict: Boolean = false): Seq[FOFAnnotated] = {
+  def proofToTPTP(proof: K.ProofCertificate, axioms: Map[Int, (String, K.Sequent)], conj: (String, K.Sequent), strict: Boolean = false): Seq[FOFAnnotated] = {
     val tptpaxioms = axioms.map { case (i, (name, sequent)) =>
       sequentToFOFAnnotated(sequent, name, "axiom", None, strict)
     }.toSeq
@@ -185,8 +189,8 @@ object ProofPrinter {
               "inference",
               List(
                 GeneralTerm(List(MetaFunctionData(stepName, List())), None), // stepnames
-                GeneralTerm(List(), Some(List(GeneralTerm(List(MetaFunctionData("status", List(Inference.String("thm")))), None)))), // params
-                GeneralTerm(List(), Some(premises.map(n => Inference.String(n))))
+                GeneralTerm(List(), Some(List(GeneralTerm(List(MetaFunctionData("status", List(annotationAtom("thm")))), None)))), // params
+                GeneralTerm(List(), Some(premises.map(annotationAtom)))
               ) // numbers
             )
           ),
@@ -200,7 +204,7 @@ object ProofPrinter {
   def premisesToAnnotations(premises: Seq[Int], stepName: String): Annotations =
     premisesToAnnotationsStr(premises.map(s), stepName)
 
-  def proofStepToTPTP(step: K.SCProofStep, axiomsMap: Map[Int, (String, K.Sequent)], no: Int, strict: Boolean): FOFAnnotated = {
+  def proofStepToTPTP(step: K.CertificateStep, axiomsMap: Map[Int, (String, K.Sequent)], no: Int, strict: Boolean): FOFAnnotated = {
     val role = "plain"
 
     step match
@@ -223,7 +227,7 @@ object ProofPrinter {
       case K.LeftNot(bot, t1, phi) =>
         sequentToFOFAnnotated(bot, s(no), role, premisesToAnnotations(Seq(t1), "left_not"), strict)
       case K.LeftOr(bot, t, disjuncts) =>
-        sequentToFOFAnnotated(bot, s(no), role, premisesToAnnotations(t, "left_or"), strict)
+        sequentToFOFAnnotated(bot, s(no), role, premisesToAnnotations(t.toIndexedSeq, "left_or"), strict)
       case K.LeftRefl(bot, t1, fa) =>
         sequentToFOFAnnotated(bot, s(no), role, premisesToAnnotations(Seq(t1), "left_refl"), strict)
       case K.LeftSubstEq(bot, t1, equals, lambdaPhi) =>
@@ -233,7 +237,7 @@ object ProofPrinter {
       case K.RestateTrue(bot) =>
         sequentToFOFAnnotated(bot, s(no), role, premisesToAnnotations(Seq(), "restate_true"), strict)
       case K.RightAnd(bot, t, cunjuncts) =>
-        sequentToFOFAnnotated(bot, s(no), role, premisesToAnnotations(t, "right_and"), strict)
+        sequentToFOFAnnotated(bot, s(no), role, premisesToAnnotations(t.toIndexedSeq, "right_and"), strict)
       case K.RightEpsilon(bot, t1, phi, x, t) =>
         sequentToFOFAnnotated(bot, s(no), role, premisesToAnnotations(Seq(t1), "right_epsilon"), strict)
       case K.RightExists(bot, t1, phi, x, t) =>
@@ -252,12 +256,20 @@ object ProofPrinter {
         sequentToFOFAnnotated(bot, s(no), role, premisesToAnnotations(Seq(), "right_refl"), strict)
       case K.RightSubstEq(bot, t1, equals, lambdaPhi) =>
         sequentToFOFAnnotated(bot, s(no), role, premisesToAnnotations(Seq(t1), "right_subst_eq"), strict)
-      case K.SCSubproof(sp, premises) =>
+      case K.Subproof(sp, premises) =>
         sequentToFOFAnnotated(step.bot, s(no), role, premisesToAnnotations(premises, "subproof"), strict)
       case K.Sorry(bot) =>
         sequentToFOFAnnotated(bot, s(no), role, premisesToAnnotations(Seq(), "sorry"), strict)
       case K.Weakening(bot, t1) =>
         sequentToFOFAnnotated(bot, s(no), role, premisesToAnnotations(Seq(t1), "weakening"), strict)
+      case K.Axiom(bot) =>
+        sequentToFOFAnnotated(bot, s(no), role, premisesToAnnotations(Seq.empty, "axiom"), strict)
+      case K.Assume(bot) =>
+        sequentToFOFAnnotated(bot, s(no), role, premisesToAnnotations(Seq.empty, "assume"), strict)
+      case K.Discharge(bot, premise, justification) =>
+        sequentToFOFAnnotated(bot, s(no), role, premisesToAnnotations(Seq(premise, justification), "discharge"), strict)
+      case K.Definition(bot, _, _, _) =>
+        sequentToFOFAnnotated(bot, s(no), role, premisesToAnnotations(Seq.empty, "definition"), strict)
   }
 
 }

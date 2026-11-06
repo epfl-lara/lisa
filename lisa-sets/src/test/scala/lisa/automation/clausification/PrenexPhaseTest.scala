@@ -1,7 +1,7 @@
 package lisa.automation.clausification
 
+import lisa.automation.ProofSyntax.{_, given}
 import lisa.kernel.KernelProof
-import lisa.utils.K.{_, given}
 import org.scalatest.funsuite.AnyFunSuite
 
 /**
@@ -26,10 +26,10 @@ class PrenexPhaseTest extends AnyFunSuite:
    * Run `PrenexPhase`'s entry point on `phi` exactly as `certifyPrenex` does, and return the composed proof
    * together with the matrix it derived.
    */
-  private def prenex(phi: Expression): (SCProof, Expression) =
+  private def prenex(phi: Expression): (ProofCertificate, Expression) =
     val ax = () |- phi
     val (sub, matrixAx) = PrenexPhase.provePrenex(ax, -1, Clausification.Counter(), nonLibSize = 1)
-    (SCProof(IndexedSeq(sub), IndexedSeq(ax) ++ Clausification.libImports), matrixAx.right.head)
+    (ProofCertificate(IndexedSeq(sub), IndexedSeq(ax) ++ Clausification.libImports), matrixAx.right.head)
 
   test("a ∀ whose sibling mentions the binder free is stripped without capturing it") {
     val fa = forall(zv, Application(Pc, zv))

@@ -193,7 +193,7 @@ justification asked for. That difference is what picks the clausifier.
 | entry point | result | clausifier |
 |---|---|---|
 | `Prover.solve(problem, opts)` | the verdict alone, no proof built | uncertified |
-| `Prover.proveKernel(problem, opts)` | a kernel `SCProof` of the goal | certified |
+| `Prover.proveKernel(problem, opts)` | a `ProofCertificate` of the goal, flattened for the LCF checker | certified |
 | `Prover.proveTstp(problem, opts)` | a TSTP derivation, which needs no kernel justification | uncertified |
 
 Both proving entry points return a proof of the problem's goal — its conjecture, or `⊢` when it has none —

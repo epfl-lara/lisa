@@ -1,7 +1,7 @@
 package lisa.automation.superposition
 
 import lisa.automation.Problem
-import lisa.utils.K.{_, given}
+import lisa.automation.ProofSyntax.{_, given}
 import org.scalatest.funsuite.AnyFunSuite
 
 /**

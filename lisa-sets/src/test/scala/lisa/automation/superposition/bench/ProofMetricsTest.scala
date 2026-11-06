@@ -1,7 +1,7 @@
 package lisa.automation.superposition
 package bench
 
-import lisa.utils.K._
+import lisa.automation.ProofSyntax._
 import org.scalatest.funsuite.AnyFunSuite
 
 /**
@@ -21,7 +21,7 @@ class ProofMetricsTest extends AnyFunSuite:
 
   test("a one step proof: sizes are the node counts of its conclusion") {
     // Both sides hold the same object.
-    val proof = SCProof(IndexedSeq(Hypothesis(a |- a, a)), IndexedSeq.empty)
+    val proof = ProofCertificate(IndexedSeq(Hypothesis(a |- a, a)), IndexedSeq.empty)
     val m = ProofMetrics.of(proof)
     assert(m.steps == 1)
     assert(m.rawSize == 2, "one node on each side")
@@ -31,7 +31,7 @@ class ProofMetricsTest extends AnyFunSuite:
   }
 
   test("shared never exceeds raw, and they agree when nothing repeats") {
-    val proof = SCProof(IndexedSeq(Weakening(a |- b, -1)), IndexedSeq(a |- b))
+    val proof = ProofCertificate(IndexedSeq(Weakening(a |- b, -1)), IndexedSeq(a |- b))
     val m = ProofMetrics.of(proof)
     assert(m.rawSize == m.sharedSize, s"no repetition, so the counts should agree: $m")
     assert(m.sharedSize <= m.rawSize)
@@ -39,22 +39,22 @@ class ProofMetricsTest extends AnyFunSuite:
 
   test("a repeated compound subformula is counted once by shared and twice by raw") {
     // Hash-consing makes both occurrences one object.
-    val both = SCProof(IndexedSeq(Hypothesis(px |- px, px)), IndexedSeq.empty)
+    val both = ProofCertificate(IndexedSeq(Hypothesis(px |- px, px)), IndexedSeq.empty)
     val m = ProofMetrics.of(both)
     assert(m.rawSize == 6, "three nodes on each side")
     assert(m.sharedSize == 3, "one application, one p, one x")
   }
 
   test("imports are excluded from the sizes and reported as a count") {
-    val withImport = SCProof(IndexedSeq(Weakening(a |- a, -1)), IndexedSeq(px |- px))
+    val withImport = ProofCertificate(IndexedSeq(Weakening(a |- a, -1)), IndexedSeq(px |- px))
     val m = ProofMetrics.of(withImport)
     assert(m.imports == 1)
     assert(m.rawSize == 2, "the import's six nodes are not counted, only the step's two")
   }
 
   test("subproofs are descended into, for steps and for both sizes") {
-    val inner = SCProof(IndexedSeq(Hypothesis(px |- px, px)), IndexedSeq.empty)
-    val outer = SCProof(IndexedSeq(SCSubproof(inner, IndexedSeq.empty)), IndexedSeq.empty)
+    val inner = ProofCertificate(IndexedSeq(Hypothesis(px |- px, px)), IndexedSeq.empty)
+    val outer = ProofCertificate(IndexedSeq(Subproof(inner, IndexedSeq.empty)), IndexedSeq.empty)
     val flat = ProofMetrics.of(inner)
     val nested = ProofMetrics.of(outer)
     assert(nested.steps == flat.steps + 1, "a subproof counts as its body plus one, as `totalLength` does")
@@ -63,8 +63,8 @@ class ProofMetricsTest extends AnyFunSuite:
     assert(nested.sharedSize == flat.sharedSize, "the repeat is the same object, so shared is unchanged")
   }
 
-  test("steps agrees with the kernel's own count") {
-    val inner = SCProof(IndexedSeq(Hypothesis(a |- a, a)), IndexedSeq.empty)
-    val outer = SCProof(IndexedSeq(Hypothesis(b |- b, b), SCSubproof(inner, IndexedSeq.empty)), IndexedSeq.empty)
+  test("steps agrees with the certificate node count") {
+    val inner = ProofCertificate(IndexedSeq(Hypothesis(a |- a, a)), IndexedSeq.empty)
+    val outer = ProofCertificate(IndexedSeq(Hypothesis(b |- b, b), Subproof(inner, IndexedSeq.empty)), IndexedSeq.empty)
     assert(ProofMetrics.of(outer).steps == outer.totalLength)
   }

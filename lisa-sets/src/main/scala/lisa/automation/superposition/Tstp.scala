@@ -1,9 +1,9 @@
 package lisa.automation.superposition
 
+import lisa.automation.{ProofSyntax => K}
 import lisa.tptp.AnnotatedFormula
 import lisa.tptp.KernelParser.unsanitize
 import lisa.tptp.ProofPrinter
-import lisa.utils.K
 
 /**
  * Rendering a refutation as a TSTP `CNFRefutation`, the format CASC expects (see the
@@ -96,21 +96,20 @@ object Tstp:
     println(s"% SZS output end CNFRefutation for $name")
 
   /**
-   * Reverse [[lisa.tptp.KernelParser]]'s Fix-B mangling for proof output: a `$d`-prefixed constant prints as a
-   *  double-quoted TPTP distinct object `"…"`, a `$n`-prefixed one as a bare numeral; the rest yield `None`.
-   *  (`$u`/`$s` are un-`sanitize`d back to `_`/space first.)
+   * Decode parser-internal constants for proof output: `@d` marks a double-quoted distinct object,
+   * `@n` a numeral. Other symbols yield `None`.
    */
   private def unmangleSpecial(nm: String): Option[String] =
-    def unsan(s: String): String = unsanitize(s, 0) // shared `lisa.tptp` decode: $u→_, $s→space
-    if nm.startsWith("$d") then Some("\"" + unsan(nm.drop(2)).replace("\\", "\\\\").replace("\"", "\\\"") + "\"")
-    else if nm.startsWith("$n") then Some(unsan(nm.drop(2)))
+    def unsan(s: String): String = unsanitize(s, 0)
+    if nm.startsWith("@d") then Some("\"" + unsan(nm.drop(2)).replace("\\", "\\\\").replace("\"", "\\\"") + "\"")
+    else if nm.startsWith("@n") then Some(unsan(nm.drop(2)))
     else None
 
   /**
-   * An interned symbol name `nm` as a valid TPTP `atomic_word`: a `$d`/`$n` distinct-object/numeral un-mangled
+   * An interned symbol name `nm` as a valid TPTP `atomic_word`: an `@d`/`@n` distinct-object/numeral un-mangled
    *  to its source form ([[unmangleSpecial]]), a lower-word verbatim (our lowercase-prefixed fresh symbols such
-   *  as `sk`, `sk_1`, `nm` included), anything else single-quoted. Reverses `KernelParser.sanitize` ($u→_,
-   *  $s→space) so the output echoes the input's real names (e.g. `accept_team`, not `accept$uteam`), the exact
+   *  as `sk`, `sk_1`, `nm` included), anything else single-quoted. Reverses `KernelParser.sanitize` (@u→_,
+   *  @s→space) so the output echoes the input's real names (e.g. `accept_team`, not `accept@uteam`), the exact
    *  inverse of the parser's encode. Shared by the flat-CNF renderer ([[Syntax]]) and the derivation printer.
    */
   private def functor(nm: String): String =
@@ -209,7 +208,7 @@ object Tstp:
    * Minimal TPTP printer for the first-order fragment the clausifier emits (no `λ` except under quantifiers).
    */
   private object Syntax:
-    import lisa.utils.K.*
+    import lisa.automation.ProofSyntax.*
 
     private def flatten(e: Expression): (Expression, List[Expression]) = Clausal.headAndArgs(e)
 

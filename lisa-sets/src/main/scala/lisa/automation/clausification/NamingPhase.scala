@@ -1,7 +1,7 @@
 package lisa.automation.clausification
 
 import lisa.automation.Problem
-import lisa.utils.K.{_, given}
+import lisa.automation.ProofSyntax.{_, given}
 
 import Clausification._
 
@@ -26,7 +26,7 @@ private[clausification] object NamingPhase:
       subst: Expression, //          the named subformula
       pol: Int, //                   the polarity `subst` occurs at (+1 / -1 / 0 under `⇔`)
       quantified: Expression, //     the full definition `∀x̄. subst ⇔ d(x̄)`, which the bridge below imports
-      bridge: SCProof //             conclusion `f ⊢ named`, one import `() ⊢ quantified`
+      bridge: ProofCertificate //             conclusion `f ⊢ named`, one import `() ⊢ quantified`
   ):
     /**
      * The definition handed to the downstream phases, i.e. the one that gets clausified: only the half
@@ -137,7 +137,7 @@ private[clausification] object NamingPhase:
         Restate(() |- quantified, -1), //                                                                      2
         Cut(f |- named, 2, 1, quantified)
       )
-      NamingStep(named, nm, freeVars, nmApp, site.subst, site.pol, quantified, SCProof(steps, IndexedSeq(() |- quantified)))
+      NamingStep(named, nm, freeVars, nmApp, site.subst, site.pol, quantified, ProofCertificate(steps, IndexedSeq(() |- quantified)))
     }
 
   // ── the naming phase ───────────────────────────────────────────────────────────────────────────
@@ -199,7 +199,7 @@ private[clausification] object NamingPhase:
       var prevFormula: Expression = hd.phi
       for k <- hd.steps.indices do
         val st = hd.steps(k)
-        innerSteps += SCSubproof(st.bridge, IndexedSeq(innerDefRef(defBase(i) + k)))
+        innerSteps += Subproof(st.bridge, IndexedSeq(innerDefRef(defBase(i) + k)))
         val bridgeRef = innerSteps.size - 1
         innerSteps += Cut(() |- st.named, prevRef, bridgeRef, prevFormula)
         prevRef = innerSteps.size - 1

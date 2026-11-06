@@ -7,6 +7,7 @@ package lisa.maths.SetTheory.Types
 import lisa.SetTheoryLibrary._
 import lisa.maths.SetTheory.Base.Predef.∪
 import lisa.maths.SetTheory.Functions.Predef._
+import lisa.utils.K
 import lisa.utils.fol.FOL.{=== => _, ∀ => _, ≠ => _, _, given}
 import lisa.utils.prooflib.OutputManager
 
@@ -153,7 +154,7 @@ object TypingHelpers:
   // Typed Constants
   // ============================================================================
 
-  class TypedConstant(id: Identifier, val typ: Typ, val justif: JUSTIFICATION) extends Constant[Ind](id) {
+  class TypedConstant(id: Identifier, val typ: Typ, val justif: Thm) extends Constant[Ind](id) {
     val formula = TypeAssign[Constant[Ind]](this, typ)
     assert(justif.statement.left.isEmpty && (justif.statement.right.head == formula))
 
@@ -168,7 +169,15 @@ object TypingHelpers:
     case Some(typ) => member is typ
     case None => top
 
-  case class FunctionalClass(inTyp: List[Option[Typ]], args: List[Variable[Ind]], outTyp: Typ) {
+  /**
+   * A class representing the typing information of a functional constant.
+   *
+   * A functional class with `inType = Seq(T)`, `args = Seq(A)`, and `outType =
+   * A -> A` represents the class of functions `Λ A : T. A -> A`.
+   *
+   * If `T` is `None`, this means `A` is an unrestricted set (like `A : Any`).
+   */
+  case class FunctionalClass(inTyp: Seq[Option[Typ]], args: Seq[Variable[Ind]], outTyp: Typ) {
     def formula(f: Expr[?]): Expr[Prop] = {
       val inner = (args.zip(inTyp).map((term, inType) => optype(inType, term)).reduceLeft[Expr[Prop]]((a, b) => a /\ b)) ==> ((f #@@ args).asInstanceOf[Expr[Ind]] `is` outTyp)
       args.foldRight(inner)((v, form) => forall(v, form))
@@ -185,7 +194,7 @@ object TypingHelpers:
       typ: FunctionalClass
   ) extends App[Ind >>: Prop, Prop](forall, λ(typ.args.head, typ.formulaMinusOne(const))) {}
 
-  class TypedConstantFunctional[S: Sort](id: Identifier, val typ: FunctionalClass, val justif: JUSTIFICATION) extends Constant[S](id) {
+  class TypedConstantFunctional[S: Sort](id: Identifier, val typ: FunctionalClass, val justif: Thm) extends Constant[S](id) {
 
     assert(typ.inTyp.size == arity, s"TypedConstantFunctional arity mismatch: symbol $id  expected arity ${arity}, got ${typ.inTyp}.")
 
@@ -201,24 +210,26 @@ object TypingHelpers:
   ///// Definitions /////
   ///////////////////////
 
-  class TypedSimpleConstantDefinition(using om: OutputManager)(fullName: String, line: Int, file: String)(
+  class TypedSimpleConstantDefinition(using om: OutputManager, line: sourcecode.Line, file: sourcecode.File)(fullName: String)(
       val expression: Expr[Ind],
       val typ: Typ
-  ) extends DirectDefinition[Ind](fullName, line, file)(expression, Seq[Variable[?]]()) {
+  ) extends DirectDefinition[Ind](using line, file)(fullName)(expression, Seq[Variable[?]]()) {
     val typingName = "typing_" + fullName
-    val typingJudgement = THM(cst :: typ, typingName, line, file, InternalStatement)({
+    val typingJudgement =
+      val statement: Sequent = cst :: typ
+      val proof = lisa.utils.prooflib.Proof.withGoal(using lisa.SetTheoryLibrary)(statement)
       // have(expression :: typ) by TypeChecker.prove
       // thenHave(thesis) by lisa.automation.Substitution.ApplyRules(getShortDefinition(cst).get) //TODO
-    })
+      proof.pure(()).thm
     val typedLabel: TypedConstant = TypedConstant(cst.id, typ, typingJudgement)
 
   }
 
   def TYPEDEF(using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(term: Expr[Ind], typ: Typ): TypedConstant =
-    TypedSimpleConstantDefinition(name.value, line.value, file.value)(term, typ).typedLabel
+    TypedSimpleConstantDefinition(using om, line, file)(name.value)(term, typ).typedLabel
 
   extension (c: Constant[Ind]) {
-    def typedWith(typ: Typ)(justif: JUSTIFICATION): TypedConstant =
+    def typedWith(typ: Typ)(justif: Thm): TypedConstant =
       if justif.statement.right.size != 1 || justif.statement.left.size != 0 || !K.isSame((c `is` typ).underlying, justif.statement.right.head.underlying) then
         throw new IllegalArgumentException(s"A proof of typing of $c must be of the form ${c :: typ}, but the given justification shows ${justif.statement}.")
       else TypedConstant(c.id, typ, justif)

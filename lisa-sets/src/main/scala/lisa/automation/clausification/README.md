@@ -154,7 +154,7 @@ the cost of proof construction rather than of clausification.
 
 | entry point | file | result |
 |---|---|---|
-| `CertifiedClausifier.certifyClausal(problem, prover)` | [CertifiedClausifier.scala](CertifiedClausifier.scala) | a kernel `SCProof` of the goal |
+| `CertifiedClausifier.certifyClausal(problem, prover)` | [CertifiedClausifier.scala](CertifiedClausifier.scala) | a `ProofCertificate` of the goal |
 | `UncertifiedClausifier.clausalForm(problem)` | [UncertifiedClausifier.scala](UncertifiedClausifier.scala) | the clause set alone |
 | `UncertifiedClausifier.clausalProblemWithOrigins(problem)` | [UncertifiedClausifier.scala](UncertifiedClausifier.scala) | the same, each clause paired with the index of the formula it came from |
 
@@ -194,24 +194,26 @@ therefore without a Skolem definition or a step to recover the original goal.
 
 ### 2.3 Representation of proofs under construction
 
-A phase does not emit a kernel `SCProof` directly, because Section 1.5 requires a part of the proof to carry
+A phase does not emit a `ProofCertificate` directly, because Section 1.5 requires a part of the proof to carry
 assumptions on the left side of its sequents while the phase that introduced them is still assembling their
 discharge. [ProofIR.scala](ProofIR.scala) supplies the intermediate representation.
 
 | type | role |
 |---|---|
-| `ClausificationProof` | a list of steps together with an import list, mirroring `SCProof` |
-| `ClausificationProofStep` | either a kernel `SCProofStep` or a `ClausificationSubproof` |
+| `ClausificationProof` | a list of steps together with an import list, mirroring `ProofCertificate` |
+| `ClausificationProofStep` | either a `CertificateStep` or a `ClausificationSubproof` |
 | `ClausificationSubproof` | a nested `ClausificationProof`, some of whose imports are declared as assumptions, by index |
 
-`clausificationProofToSCProof` converts this representation into a kernel `SCProof`. For each assumption it adds
+`clausificationProofToProofCertificate` converts this representation into a `ProofCertificate`. For each assumption it adds
 the assumed formula to the left side of the steps that need it, and inserts one `RestateTrue` step, proving the
 tautology `assumptions ⊢ φ`, to account for the corresponding import. Only the steps whose premises reach an import can be affected by an
 assumption, so the others are left unchanged, which keeps the conversion proportional to the number of steps that
 genuinely depend on the assumption.
 
-A kernel `SCSubproof` is converted exactly like a `ClausificationSubproof` that declares no assumption of its
-own, so the two follow the same rule at every depth.
+A certificate `Subproof` is converted exactly like a `ClausificationSubproof` that declares no assumption of its
+own, so the two follow the same rule at every depth. `ProofCertificate.toLinearProof` then flattens the result,
+remapping premise references and checking import boundaries with `Restate`. The linear checker delegates
+each inference to the LCF kernel; nested certificates are construction data, not kernel proof objects.
 
 One restriction applies to both and is checked rather than assumed. The imports of a converted subproof receive
 the assumptions handed to it, and the kernel matches each of those imports against the parent step that
@@ -283,7 +285,7 @@ expansion as screening, both at its own entry point.
 |---|---|
 | [Clausification.scala](Clausification.scala) | the `Problem` type, the generated names, the library theorems, assumption discharge, size estimation, and the shared helpers |
 | [NamingSupport.scala](NamingSupport.scala) | creation of a naming predicate over a subformula's free variables, and the small proofs that discharge a definition |
-| [ProofIR.scala](ProofIR.scala) | the intermediate proof representation and its conversion to `SCProof`, described in Section 2.3 |
+| [ProofIR.scala](ProofIR.scala) | the intermediate proof representation and its conversion to `ProofCertificate`, described in Section 2.3 |
 
 `Clausification.checkInterrupted` is called at every point in the pipeline where work can grow without bound.
 It observes thread interruption and available heap, so that a caller with a time budget can stop a conversion

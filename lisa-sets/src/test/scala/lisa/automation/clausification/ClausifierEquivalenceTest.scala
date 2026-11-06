@@ -3,6 +3,7 @@ package lisa.automation.clausification
 import lisa.automation.superposition.TptpCorpus
 import lisa.automation.superposition.bench.FofEvaluation
 import lisa.automation.superposition.bench.ProblemList
+import lisa.automation.{ProofSyntax => K}
 import lisa.tptp.AnnotatedFormula
 import lisa.tptp.AnnotatedSequent
 import lisa.tptp.KernelParser.axiomLikeRoles
@@ -10,7 +11,6 @@ import lisa.tptp.KernelParser.problemToKernel
 import lisa.tptp.KernelParser.strictMapAtom
 import lisa.tptp.KernelParser.strictMapTerm
 import lisa.tptp.KernelParser.strictMapVariable
-import lisa.utils.K
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.io.File
@@ -294,7 +294,7 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
    */
   private def certifiedClauses(p: lisa.automation.Problem): Seq[K.Sequent] =
     var captured: lisa.automation.Problem = null
-    CertifiedClausifier.certifyClausal(p, q => { captured = q; K.SCProof(IndexedSeq(K.Sorry(K.Sequent(Set.empty, Set.empty))), q.imports) })
+    CertifiedClausifier.certifyClausal(p, q => { captured = q; K.ProofCertificate(IndexedSeq(K.Sorry(K.Sequent(Set.empty, Set.empty))), q.imports) })
     captured.imports.toSeq
 
   test("certified and uncertified clausifier name AND Skolemize equivalently across the corpus") {
@@ -440,7 +440,7 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
               var certGoal = 0
               CertifiedClausifier.certifyClausalGoal(
                 problem,
-                (q, g) => { certGoal = g.size; K.SCProof(IndexedSeq(K.Sorry(K.Sequent(Set.empty, Set.empty))), q.imports) }
+                (q, g) => { certGoal = g.size; K.ProofCertificate(IndexedSeq(K.Sorry(K.Sequent(Set.empty, Set.empty))), q.imports) }
               )
               // The negated conjecture comes last, as in `Prover.goalClauses`.
               val (_, origins) = UncertifiedClausifier.clausalProblemWithOrigins(problem)
