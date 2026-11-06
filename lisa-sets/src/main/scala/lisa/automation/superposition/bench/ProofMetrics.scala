@@ -1,20 +1,21 @@
 package lisa.automation.superposition
 package bench
 
-import lisa.utils.K.Application
-import lisa.utils.K.Expression
-import lisa.utils.K.Lambda
-import lisa.utils.K.SCProof
-import lisa.utils.K.SCProofStep
-import lisa.utils.K.SCSubproof
-import lisa.utils.K.Sequent
+import lisa.automation.ProofSyntax.Application
+import lisa.automation.ProofSyntax.Expression
+import lisa.automation.ProofSyntax.Lambda
+import lisa.automation.ProofSyntax.ProofCertificate
+import lisa.automation.ProofSyntax.CertificateStep
+import lisa.automation.ProofSyntax.Subproof
+import lisa.automation.ProofSyntax.Sequent
+import lisa.automation.ProofSyntax.bot
 
 import scala.collection.mutable
 
 /**
- * Size of a reconstructed kernel proof.
+ * Size of a reconstructed certificate, before flattening.
  *
- * @param steps      proof steps, as [[SCProof.totalLength]] counts them
+ * @param steps      certificate nodes, including subproof wrappers, as [[ProofCertificate.totalLength]] counts them
  * @param rawSize    node count over every step conclusion, without sharing
  * @param sharedSize the same count with each distinct subexpression counted once
  * @param maxSequent node count of the largest step conclusion
@@ -28,7 +29,7 @@ final case class ProofMetrics(steps: Int, rawSize: Long, sharedSize: Long, maxSe
  */
 object ProofMetrics:
 
-  def of(proof: SCProof): ProofMetrics =
+  def of(proof: ProofCertificate): ProofMetrics =
     val seen = mutable.HashSet.empty[Long]
     var raw = 0L
     var shared = 0L
@@ -54,9 +55,9 @@ object ProofMetrics:
       raw += here
       if here > maxSeq then maxSeq = here
 
-    def walk(steps: IndexedSeq[SCProofStep]): Unit =
+    def walk(steps: IndexedSeq[CertificateStep]): Unit =
       steps.foreach {
-        case s: SCSubproof => visit(s.bot); walk(s.sp.steps) // body + 1, as in `totalLength`
+        case s: Subproof => visit(s.bot); walk(s.proof.steps) // body + 1, as in `totalLength`
         case s => visit(s.bot)
       }
 

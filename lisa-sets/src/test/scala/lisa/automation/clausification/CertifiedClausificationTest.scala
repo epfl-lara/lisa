@@ -4,7 +4,7 @@ import lisa.automation.Problem
 import lisa.automation.superposition.Clausal
 import lisa.automation.superposition.SearchOptions
 import lisa.kernel.KernelProof
-import lisa.utils.K
+import lisa.automation.{ProofSyntax as K}
 import org.scalatest.funsuite.AnyFunSuite
 
 /**
@@ -25,10 +25,10 @@ import org.scalatest.funsuite.AnyFunSuite
 class CertifiedClausificationTest extends AnyFunSuite:
 
   /**
-   * The clausal prover as `certifyClausal` wants it: `Problem => SCProof`. `Clausal.prove` reports a
+   * The clausal prover as `certifyClausal` wants it: `Problem => ProofCertificate`. `Clausal.prove` reports a
    * non-refutation rather than throwing, and every test here needs one, so the absence is a test failure.
    */
-  private def prover(p: Problem): K.SCProof =
+  private def prover(p: Problem): K.ProofCertificate =
     Clausal.prove(p).fold(o => fail(s"the clausal prover did not refute: $o"), identity)
 
   private def vr(n: String): K.Variable = K.Variable(K.Identifier(n), K.Ind)
@@ -290,7 +290,7 @@ class CertifiedClausificationTest extends AnyFunSuite:
     )
     for problem <- problems do
       var captured: Problem = null // record what certifyClausal feeds its prover (the certified clauses)
-      CertifiedClausifier.certifyClausal(problem, p => { captured = p; K.SCProof(IndexedSeq(K.Sorry(K.Sequent(Set.empty, Set.empty))), p.imports) })
+      CertifiedClausifier.certifyClausal(problem, p => { captured = p; K.ProofCertificate(IndexedSeq(K.Sorry(K.Sequent(Set.empty, Set.empty))), p.imports) })
       val certifiedRefuted = Clausal.solve(Problem(captured.imports.toSeq, None)).refuted
       val uncertifiedRefuted = Clausal.solve(lisa.automation.clausification.UncertifiedClausifier.clausalForm(problem)).refuted
       assert(
@@ -452,8 +452,8 @@ class CertifiedClausificationTest extends AnyFunSuite:
    *  Kernel-checking a proof built on it validates the *composition* (the clausifier's new literal-set
    *  `Restate` steps included) while trusting only the refutation itself.
    */
-  private def sorryProver(p: Problem): K.SCProof =
-    K.SCProof(IndexedSeq(K.Sorry(K.Sequent(Set.empty, Set.empty))), p.imports)
+  private def sorryProver(p: Problem): K.ProofCertificate =
+    K.ProofCertificate(IndexedSeq(K.Sorry(K.Sequent(Set.empty, Set.empty))), p.imports)
 
   test("definitional naming end-to-end: a problem needing a naming atom, refuted by Bridge (kernel-valid)") {
     val A = pred("A", 0); val B = pred("B", 0); val C = pred("C", 0)

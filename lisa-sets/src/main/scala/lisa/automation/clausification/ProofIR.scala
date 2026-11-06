@@ -1,22 +1,22 @@
 package lisa.automation.clausification
 
-import lisa.utils.K
-import lisa.utils.K.{_, given}
+import lisa.automation.{ProofSyntax as K}
+import lisa.automation.ProofSyntax.{_, given}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Proof IR for the certified clausification pipeline.
 //
-// A [[ClausificationProof]] is a thin layer over [[SCProof]] whose steps may be
+// A [[ClausificationProof]] is a thin layer over [[ProofCertificate]] whose steps may be
 // a [[ClausificationSubproof]], a nested proof declaring a subset of its own
 // imports as *local assumptions* rather than as premises supplied by the
 // parent. Such a subproof may use the sequent `⊢ φ` for each of them.
-// [[clausificationProofToSCProof]] converts a [[ClausificationProof]] into a kernel [[SCProof]] by:
+// [[clausificationProofToProofCertificate]] converts a [[ClausificationProof]] into a [[ProofCertificate]] by:
 //   - threading each assumed formula onto the LHS of the step bots of
 //     the inner proof that need it, namely those whose premise cone reaches an
 //     import, and
 //   - introducing a `RestateTrue(… ⊢ φ)` step at the start of the converted
 //     subproof to represent the corresponding assumption.
-// A kernel `SCSubproof` step follows the same path, as the case where the list
+// A certificate `Subproof` step follows the same path, as the case where the list
 // of local assumptions is empty.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -24,14 +24,15 @@ import lisa.utils.K.{_, given}
  * A step of a [[ClausificationProof]]: an ordinary kernel step, or a [[ClausificationSubproof]]. Both are
  * converted by the same code; they differ only in whether the inner proof declares assumptions of its own.
  */
-private[clausification] type ClausificationProofStep = SCProofStep | ClausificationSubproof
+private[clausification] type ClausificationProofStep = CertificateStep | ClausificationSubproof
 
 /**
  * The conclusion of a step. Selection on a union type needs this; on either arm alone the member is used.
  */
 extension (step: ClausificationProofStep)
   private[clausification] def bot: Sequent = step match
-    case s: SCProofStep => s.bot
+    case s: ProofStep => s.statement
+    case s: Subproof => s.statement
     case c: ClausificationSubproof => c.bot
 
 /**
@@ -46,14 +47,14 @@ private[clausification] def isAssumptionImport(sequent: Sequent): Boolean =
 private[clausification] def assumedFormula(sequent: Sequent): Expression = sequent.right.head
 
 /**
- * A subproof that is itself a [[ClausificationProof]], converted to an [[SCSubproof]] by
- * [[clausificationProofToSCProof]]. Its inner imports split in two: the positions named by [[assumptions]], each
+ * A subproof that is itself a [[ClausificationProof]], converted to an [[Subproof]] by
+ * [[clausificationProofToProofCertificate]]. Its inner imports split in two: the positions named by [[assumptions]], each
  * materialised inside the converted subproof by a `RestateTrue(… ⊢ φ)` and added to the left of every conclusion
- * depending on it, and all other positions, discharged ba reference as usual in the kernel's SCProof.
+ * depending on it, and all other positions, supplied by reference from the parent certificate.
  * From outside, this step's bot is the inner conclusion plus the assumed formulas
  * (see [[bot]]). Construction checks that each assumption names an import of the form `() ⊢ φ`.
  *
- * A kernel `SCSubproof` inside a [[ClausificationProof]] is converted by the same code, as the case where
+ * A certificate `Subproof` inside a [[ClausificationProof]] is converted by the same code, as the case where
  * [[assumptions]] is empty, so everything below applies to it as well.
  *
  * Two restrictions on the inner proof follow, both asserted during the conversion.
@@ -94,7 +95,7 @@ private[clausification] final case class ClausificationProof(steps: IndexedSeq[C
 }
 
 private[clausification] object ClausificationProof {
-  def fromSCProof(proof: SCProof): ClausificationProof =
+  def fromProofCertificate(proof: ProofCertificate): ClausificationProof =
     ClausificationProof(proof.steps, proof.imports)
 }
 
@@ -108,9 +109,9 @@ private[clausification] def addAssumptionsLeftSet(sequent: Sequent, assumptionSe
   else sequent.copy(left = sequent.left ++ assumptionSet)
 
 /**
- * Rebuild a kernel [[SCProofStep]] keeping all its data but swapping its bot.
+ * Rebuild a [[CertificateStep]] keeping all its data but swapping its bot.
  */
-private[clausification] def rewriteStepBot(step: SCProofStep, newBot: Sequent): SCProofStep = step match
+private[clausification] def rewriteStepBot(step: CertificateStep, newBot: Sequent): CertificateStep = step match
   case Cut(_, t1, t2, phi) => Cut(newBot, t1, t2, phi)
   case Hypothesis(_, phi) => Hypothesis(newBot, phi)
   case InstSchema(_, t1, subst) => InstSchema(newBot, t1, subst)
@@ -135,27 +136,28 @@ private[clausification] def rewriteStepBot(step: SCProofStep, newBot: Sequent): 
   case RightOr(_, t1, phi, psi) => RightOr(newBot, t1, phi, psi)
   case RightRefl(_, fa) => RightRefl(newBot, fa)
   case RightSubstEq(_, t1, equals, lambdaPhi) => RightSubstEq(newBot, t1, equals, lambdaPhi)
-  case SCSubproof(sp, premises) =>
+  case Subproof(sp, premises) =>
     val rewritten =
       if (sp.conclusion.left.size == newBot.left.size && sp.conclusion.right.size == newBot.right.size && isSameSequent(sp.conclusion, newBot))
         sp
       else
         sp.withNewSteps(IndexedSeq(Weakening(newBot, sp.steps.size - 1)))
-    SCSubproof(rewritten, premises)
-  case step: Sorry => step.copy(bot = newBot)
+    Subproof(rewritten, premises)
+  case step: Sorry => step.copy(statement = newBot)
   case Weakening(_, t1) => Weakening(newBot, t1)
+  case other => throw new IllegalArgumentException(s"Unsupported clausification step: $other")
 
 /**
- * Convert a [[ClausificationProof]] to a kernel [[SCProof]] (no assumptions).
+ * Convert a [[ClausificationProof]] to a [[ProofCertificate]] (no local assumptions).
  */
-private[clausification] def clausificationProofToSCProof(proof: ClausificationProof): SCProof =
-  clausificationProofToSCProof(proof, IndexedSeq.empty, IndexedSeq.empty)
+private[clausification] def clausificationProofToProofCertificate(proof: ClausificationProof): ProofCertificate =
+  clausificationProofToProofCertificate(proof, IndexedSeq.empty, IndexedSeq.empty)
 
-private[clausification] def clausificationProofToSCProof(
+private[clausification] def clausificationProofToProofCertificate(
     proof: ClausificationProof,
     localAssumptions: IndexedSeq[Int],
     inheritedAssumptions: IndexedSeq[Expression]
-): SCProof = {
+): ProofCertificate = {
   val assumptions = inheritedAssumptions ++ localAssumptions.map(i => assumedFormula(proof.imports(i)))
   val assumptionSet: Set[Expression] = if (assumptions.isEmpty) Set.empty else assumptions.toSet
   val assumptionIndexSet = localAssumptions.toSet
@@ -169,7 +171,7 @@ private[clausification] def clausificationProofToSCProof(
     addAssumptionsLeftSet(proof.imports(i), inheritedSet)
   }
 
-  val scSteps = scala.collection.mutable.ArrayBuffer.empty[SCProofStep]
+  val scSteps = scala.collection.mutable.ArrayBuffer.empty[CertificateStep]
   // Each external import has two forms. The import list of the converted proof shows the raw import plus the
   // INHERITED assumptions, since that is what the parent's premise steps prove. A step inside this proof that
   // cites the import expects the raw import plus ALL the assumptions in scope, inherited and local. The two
@@ -208,7 +210,7 @@ private[clausification] def clausificationProofToSCProof(
   val localPrefixSize = scSteps.size
 
   // With no local assumption there is no prefix step and no import renumbering, so `mapReference` below is the
-  // identity: no step needs rebuilding. This is the common case, every kernel subproof included.
+  // identity: no step needs rebuilding. This is the common case, every certificate subproof included.
   val identityMapping = localAssumptions.isEmpty
 
   /**
@@ -237,7 +239,7 @@ private[clausification] def clausificationProofToSCProof(
       var i = 0
       while (i < proof.steps.size) {
         val premises = proof.steps(i) match
-          case step: SCProofStep => step.premises
+          case step: CertificateStep => step.premises
           case csub: ClausificationSubproof => csub.premises
         needs(i) = premises.exists(r => r < 0 || needs(r))
         i += 1
@@ -273,15 +275,15 @@ private[clausification] def clausificationProofToSCProof(
   def emitSubproof(inner: ClausificationProof, innerAssumptions: IndexedSeq[Int], premises: Seq[Int], idx: Int): Unit =
     val inherited = if (assumptionsFor(idx).isEmpty) IndexedSeq.empty else assumptions
     if (inherited.nonEmpty) checkSubproofPremises(premises)
-    scSteps += SCSubproof(clausificationProofToSCProof(inner, innerAssumptions, inherited), mapPremises(premises))
+    scSteps += Subproof(clausificationProofToProofCertificate(inner, innerAssumptions, inherited), mapPremises(premises))
 
   proof.steps.zipWithIndex.foreach { (s, idx) =>
     if (Thread.interrupted()) throw new InterruptedException("Clausification cancelled (proof conversion)")
     s match {
-      case SCSubproof(sp, premises) =>
-        emitSubproof(ClausificationProof.fromSCProof(sp), IndexedSeq.empty, premises, idx)
+      case Subproof(sp, premises) =>
+        emitSubproof(ClausificationProof.fromProofCertificate(sp), IndexedSeq.empty, premises, idx)
 
-      case step: SCProofStep =>
+      case step: CertificateStep =>
         val stepAssumptions = assumptionsFor(idx)
         val rebased = if (identityMapping) step else mapStepPremises(step, mapReference)
         // Skip the bot-rewrite allocation when this step needs no assumptions added.
@@ -296,11 +298,11 @@ private[clausification] def clausificationProofToSCProof(
 
   // This conclusion becomes the bot of the subproof step in the parent, and the parent gave that step the
   // assumptions, so the last step must carry them however its cone looks. It normally does, descending from the
-  // imports; this covers the proof that concludes without reaching one, a closed kernel subproof for instance.
+  // imports; this covers the proof that concludes without reaching one, a closed certificate subproof for instance.
   if (needsAssumptions != null && !needsAssumptions(proof.steps.size - 1)) {
     val last = scSteps.size - 1
     scSteps += Weakening(addAssumptionsLeftSet(scSteps(last).bot, assumptionSet), last)
   }
 
-  SCProof(scSteps.toIndexedSeq, externalImports.toIndexedSeq)
+  ProofCertificate(scSteps.toIndexedSeq, externalImports.toIndexedSeq)
 }

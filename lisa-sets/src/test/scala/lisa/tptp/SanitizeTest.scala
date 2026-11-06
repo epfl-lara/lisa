@@ -1,7 +1,7 @@
 package lisa.tptp
 
-import lisa.utils.K
-import lisa.utils.KernelHelpers.given
+import lisa.automation.{ProofSyntax as K}
+import lisa.automation.ProofSyntax.given
 import org.scalatest.funsuite.AnyFunSuite
 
 /**
@@ -15,13 +15,19 @@ class SanitizeTest extends AnyFunSuite:
   /**
    * Every character an identifier may not contain, plus the escape character itself.
    */
-  private val hostile: String = K.Identifier.forbiddenChars.mkString + " \t\n\r $"
+  private val hostile: String = K.Identifier.forbiddenChars.mkString + " \t\n\r $@"
 
   private val cases: Seq[String] = Seq(
     "",
     "plain",
     "a_b",
     "a$ub", // must not collide with `a_b`
+    "a@ub",
+    "@",
+    "@@",
+    "@dfoo",
+    "@n42",
+    "@x0041",
     "$",
     "$$",
     "$u",
@@ -42,7 +48,7 @@ class SanitizeTest extends AnyFunSuite:
     for s <- cases do
       val encoded = sanitize(s)
       assert(K.Identifier.isValidIdentifier(encoded), s"sanitize(${s.replace("\n", "\\n")}) = $encoded is not a valid identifier")
-      // The String -> Identifier conversion is the real caller and also splits off a `_`-counter.
+      // The String -> Identifier conversion must preserve the encoded name whole.
       val id: K.Identifier = encoded
       assert(id.name == encoded && id.no == 0, s"$encoded did not survive the conversion whole: $id")
   }
@@ -51,8 +57,10 @@ class SanitizeTest extends AnyFunSuite:
     for s <- cases do assert(unsanitize(sanitize(s), 0) == s, s"round trip failed on ${s.replace("\n", "\\n")}")
   }
 
-  test("sanitize is injective, which the `$u`-only encoding was not") {
+  test("sanitize is injective and leaves parser-internal tags reserved") {
     assert(sanitize("a_b") != sanitize("a$ub"))
+    assert(sanitize("a_b") != sanitize("a@ub"))
+    assert(cases.forall(s => !sanitize(s).startsWith("@d") && !sanitize(s).startsWith("@n")))
     val encoded = cases.map(sanitize)
     assert(encoded.distinct.size == cases.distinct.size, s"two distinct names encoded alike: $encoded")
   }

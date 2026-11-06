@@ -1,8 +1,8 @@
 package lisa.automation.clausification
 
 import lisa.tptp.ProofPrinter
-import lisa.utils.K
-import lisa.utils.K.{_, given}
+import lisa.automation.{ProofSyntax as K}
+import lisa.automation.ProofSyntax.{_, given}
 import org.scalatest.funsuite.AnyFunSuite
 
 /**
@@ -26,12 +26,12 @@ class ProofPrinterSpecialTest extends AnyFunSuite:
   }
 
   test("TPTP distinct objects print as \"...\" and numerals as bare numbers") {
-    val d = Constant(Identifier("$dfoo$ubar"), Ind) //   KernelParser's parking of the distinct object "foo_bar"
-    val n = Constant(Identifier("$n42"), Ind) //         ... of the numeral 42
-    val real = Constant(Identifier("$n3.14"), Ind) //    a real literal (fallback path)
+    val d = Constant(Identifier("@dfoo@ubar"), Ind) //   KernelParser's parking of the distinct object "foo_bar"
+    val n = Constant(Identifier("@n42"), Ind) //         ... of the numeral 42
+    val real = Constant(Identifier("@n3.14"), Ind) //    a real literal (fallback path)
     assert(pretty(q(d)).contains("\"foo_bar\""), pretty(q(d)))
     assert(pretty(q(n)).contains("(42)") || pretty(q(n)).endsWith("42)"), pretty(q(n)))
-    assert(!pretty(q(n)).contains("$n"), pretty(q(n)))
-    // real degrades to a valid (escaped) atomic word, never `$n`
-    assert(!pretty(q(real)).contains("$n"), pretty(q(real)))
+    assert(!pretty(q(n)).contains("@n"), pretty(q(n)))
+    // real degrades to a valid (escaped) atomic word, never `@n`
+    assert(!pretty(q(real)).contains("@n"), pretty(q(real)))
   }

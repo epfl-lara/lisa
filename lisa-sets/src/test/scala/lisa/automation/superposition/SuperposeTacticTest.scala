@@ -7,13 +7,17 @@ import org.scalatest.funsuite.AnyFunSuite
 
 /**
  * End-to-end tests of the [[Superpose]] tactic: each theorem is proved by `have(thesis) by Superpose`, so the
- * whole path runs: clausify → superposition refute → reconstruct → discharge the five library lemmas
- * ([[lisa.maths.Quantifiers.existsEpsilonIff]] + the prenex laws) at theorem completion. A failing proof throws
- * at construction, so reaching a `test` body means the theorem was accepted by the kernel and the library.
+ * whole path runs: clausify → superposition refute → reconstruct → check → discharge imports.
+ * Each test checks that its theorem has no errors, Sorry dependencies or unresolved assumptions.
  */
-class SuperposeTacticTest extends AnyFunSuite with lisa.TestMain {
+class SuperposeTacticTest extends AnyFunSuite with lisa.Main {
 
   given lib: lisa.SetTheoryLibrary.type = lisa.SetTheoryLibrary
+
+  private def checked(theorem: lisa.utils.prooflib.Theorem): Unit =
+    assert(theorem.errors.isEmpty, theorem.errors.mkString("\n"))
+    assert(!theorem.kernel.usesSorry)
+    assert(theorem.kernel.assumptions.isEmpty)
 
   val A, B = variable[Prop]
   val zz, ww = variable[Ind]
@@ -27,11 +31,11 @@ class SuperposeTacticTest extends AnyFunSuite with lisa.TestMain {
   // The name a proof outside this package uses, re-exported by automation/package.scala.
   val viaExport = Theorem(B ==> B) { have(thesis) by lisa.automation.Superpose }
 
-  test("propositional: A ⟹ A") { assert(implSelf.statement.underlying == (() |- (A ==> A)).underlying) }
-  test("propositional: excluded middle A ∨ ¬A") { succeed }
-  test("propositional: De Morgan ¬(A ∧ B) ⟺ ¬A ∨ ¬B") { succeed }
-  test("`.from`: a cited hypothesis fact is threaded in and discharged") { succeed }
-  test("the tactic is reachable as `lisa.automation.Superpose`") { succeed }
+  test("propositional: A ⟹ A") { checked(implSelf); assert(implSelf.statement.underlying == (() |- (A ==> A)).underlying) }
+  test("propositional: excluded middle A ∨ ¬A") { checked(excludedMiddle) }
+  test("propositional: De Morgan ¬(A ∧ B) ⟺ ¬A ∨ ¬B") { checked(deMorgan) }
+  test("`.from`: a cited hypothesis fact is threaded in and discharged") { checked(fromHyp) }
+  test("the tactic is reachable as `lisa.automation.Superpose`") { checked(viaExport) }
 
   // Regression for the NegatedPhase bug: a conjecture with a free predicate VARIABLE must clausify to a
   // kernel-valid proof WITHOUT the caller pre-freezing anything (frozen defaults to ∅). NegatedPhase pins the
@@ -39,11 +43,11 @@ class SuperposeTacticTest extends AnyFunSuite with lisa.TestMain {
   // renaming `S`, which is free in the negated-conjecture assumption. The rename now happens in ScreenPhase,
   // above the assumption, where it is legal at every sort).
   test("certifyClausal is kernel-valid on a first-order goal with a free predicate variable (frozen=∅)") {
-    import lisa.utils.K
+    import lisa.automation.{ProofSyntax as K}
     val z, w = variable[Ind]; val S = variable[Ind >>: Prop]
     val conj: K.Expression = (∀(z, S(z)) ==> S(w)).underlying
     val problem = Problem(Seq.empty, Some(K.Sequent(Set.empty, Set(conj))))
-    val prover: Problem => K.SCProof =
+    val prover: Problem => K.ProofCertificate =
       p => Clausal.prove(p).fold(o => throw new RuntimeException(o.toString), identity)
     val pk = CertifiedClausifier.certifyClausal(problem, prover)
     KernelProof.assertCorrectProofNoSorry(pk, "certifyClausal on the schematic FO goal")
@@ -53,8 +57,8 @@ class SuperposeTacticTest extends AnyFunSuite with lisa.TestMain {
   val univInst = Theorem(∀(zz, SS(zz)) ==> SS(ww)) { have(thesis) by Superpose }
   val drinker = Theorem(∃(zz, SS(zz) ==> ∀(ww, SS(ww)))) { have(thesis) by Superpose }
 
-  test("first-order: (∀z. S(z)) ⟹ S(w)") { succeed }
-  test("first-order: drinker's paradox ∃z. (S(z) ⟹ ∀w. S(w))") { succeed }
+  test("first-order: (∀z. S(z)) ⟹ S(w)") { checked(univInst) }
+  test("first-order: drinker's paradox ∃z. (S(z) ⟹ ∀w. S(w))") { checked(drinker) }
 
   // End-to-end counterpart of `ScreenPhaseTest`: the goal is written with the names the clausifier reserves for
   // its own schemas: `P : Ind → Prop` (instantiated by the Skolem bridge), `R : Prop` (the closed operand of the
@@ -65,7 +69,7 @@ class SuperposeTacticTest extends AnyFunSuite with lisa.TestMain {
   val x, xx = variable[Ind] //      `x` is the library statements' bound variable
   val collidingNames = Theorem((∀(x, P(x)) /\ R) ==> (P(xx) /\ R)) { have(thesis) by Superpose }
 
-  test("names reserved by the clausifier (`P`, `R`, `x`) are usable in a goal") { succeed }
+  test("names reserved by the clausifier (`P`, `R`, `x`) are usable in a goal") { checked(collidingNames) }
 
   // ── arbitrary sequent shapes ──
   // The clausifier takes one conjecture formula, so the goal is folded through `sequentToFormula` and unfolded
@@ -78,12 +82,12 @@ class SuperposeTacticTest extends AnyFunSuite with lisa.TestMain {
   // A cited fact with a non-empty left-hand side is folded to `⊢ ⋀Γᵢ ⟹ ⋁Δᵢ` by its per-premise Restate.
   val seqFromShaped = Theorem(A |- (A \/ B)) { have(thesis) by Superpose.from(seqIdentity) }
 
-  test("sequent shape: A ⊢ A") { succeed }
-  test("sequent shape: A ∧ B ⊢ B ∨ A (both sides non-empty)") { succeed }
-  test("sequent shape: A ⟹ B, A ⊢ B (several assumptions)") { succeed }
-  test("sequent shape: A, ¬A ⊢ (empty right-hand side)") { succeed }
-  test("sequent shape: ∀z. S(z) ⊢ S(w) (first-order)") { succeed }
-  test("sequent shape: a cited fact with a non-empty left-hand side") { succeed }
+  test("sequent shape: A ⊢ A") { checked(seqIdentity) }
+  test("sequent shape: A ∧ B ⊢ B ∨ A (both sides non-empty)") { checked(seqBothSides) }
+  test("sequent shape: A ⟹ B, A ⊢ B (several assumptions)") { checked(seqMultiLeft) }
+  test("sequent shape: A, ¬A ⊢ (empty right-hand side)") { checked(seqEmptyRhs) }
+  test("sequent shape: ∀z. S(z) ⊢ S(w) (first-order)") { checked(seqFirstOrder) }
+  test("sequent shape: a cited fact with a non-empty left-hand side") { checked(seqFromShaped) }
 
   // Degenerate/unprovable shapes must come back as a judgement, not an exception: the tactic is called here for
   // its return value and never `have`n, so "did not throw and is not valid" is the pass condition. The message
@@ -92,13 +96,10 @@ class SuperposeTacticTest extends AnyFunSuite with lisa.TestMain {
   val cleanFailures = Theorem(A |- A) {
     val nonTheorem = Superpose(A |- B)
     assert(!nonTheorem.isValid, "a non-theorem must not yield a valid judgement")
-    nonTheorem match
-      case ipt: lisa.SetTheoryLibrary.Proof#InvalidProofTactic =>
-        assert(ipt.message.startsWith("Superpose could not refute"), s"expected a clean non-refutation, got: ${ipt.message}")
-      case other => fail(s"expected an InvalidProofTactic carrying a message, got $other")
+    assert(nonTheorem.errors.exists(_.message.startsWith("Superpose could not refute")), nonTheorem.errors.mkString("\n"))
     assert(!Superpose(() |- ()).isValid, "the empty sequent must not yield a valid judgement")
     have(thesis) by Superpose
   }
 
-  test("an unprovable goal and the empty sequent fail cleanly (judgement, not exception)") { succeed }
+  test("an unprovable goal and the empty sequent fail cleanly (judgement, not exception)") { checked(cleanFailures) }
 }

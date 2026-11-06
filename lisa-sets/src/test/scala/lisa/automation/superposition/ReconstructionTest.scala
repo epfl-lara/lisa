@@ -7,7 +7,7 @@ import lisa.tptp.KernelParser.strictMapAtom
 import lisa.tptp.KernelParser.strictMapTerm
 import lisa.tptp.KernelParser.strictMapVariable
 import lisa.tptp.TptpProblem
-import lisa.utils.K
+import lisa.automation.{ProofSyntax as K}
 import org.scalatest.funsuite.AnyFunSuite
 
 /**
@@ -31,7 +31,7 @@ class ReconstructionTest extends AnyFunSuite:
    *  `subsumptionResolution` / `condensation` force those simplifications on for the reconstruction check.
    */
   private def check(name: String, clauses: List[K.Sequent], subsumptionResolution: Boolean = false, condensation: Boolean = false): Unit =
-    val proof: Option[K.SCProof] = Clausal.refute(
+    val proof: Option[K.ProofCertificate] = Clausal.refute(
       clauses,
       SearchOptions(forwardSubsumptionResolution = subsumptionResolution, backwardSubsumptionResolution = subsumptionResolution, condensation = condensation, maxGiven = 10000)
     ) match
@@ -273,7 +273,7 @@ class ReconstructionTest extends AnyFunSuite:
       val f = new java.io.File(TptpCorpus.subdirOrCancel("Problems/SYN", "the SYN reconstruction suite"), name)
       assume(f.exists, s"$f not found")
       val problem: TptpProblem = problemToKernel(f)(using (strictMapAtom, strictMapTerm, strictMapVariable))
-      val proof: Option[K.SCProof] = Clausal.solve(UncertifiedClausifier.clausalForm(Prover.fromTptp(problem)), SearchOptions(maxGiven = 50000)) match
+      val proof: Option[K.ProofCertificate] = Clausal.solve(UncertifiedClausifier.clausalForm(Prover.fromTptp(problem)), SearchOptions(maxGiven = 50000)) match
         case s: Clausal.Outcome.Success => Some(s.reconstructKernelProof)
         case _ => None
       assert(proof.isDefined, s"$name: expected a refutation")

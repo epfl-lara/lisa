@@ -1,7 +1,7 @@
 package lisa.automation.clausification
 
 import lisa.automation.Problem
-import lisa.utils.K.{_, given}
+import lisa.automation.ProofSyntax.{_, given}
 
 import Clausification._
 
@@ -98,7 +98,7 @@ private[clausification] object DistributePhase:
       steps: scala.collection.mutable.ArrayBuffer[ClausificationProofStep]
   ): Seq[(Set[Expression], Set[Expression], Int)] =
     checkInterrupted()
-    def emit(step: SCProofStep): Int = { steps += step; steps.size - 1 }
+    def emit(step: CertificateStep): Int = { steps += step; steps.size - 1 }
     phi match
       case And(a, b) =>
         val conjunction = and(a)(b)

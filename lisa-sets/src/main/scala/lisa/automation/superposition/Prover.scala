@@ -8,7 +8,7 @@ import lisa.tptp.AnnotatedFormula
 import lisa.tptp.AnnotatedSequent
 import lisa.tptp.KernelParser.axiomLikeRoles
 import lisa.tptp.TptpProblem
-import lisa.utils.K
+import lisa.automation.{ProofSyntax as K}
 
 import scala.collection.mutable
 
@@ -89,7 +89,7 @@ object Prover:
   /**
    * A Lisa kernel proof of `problem`'s goal, or the verdict that stopped it. See the contract above.
    */
-  def proveKernel(problem: Problem, opts: SearchOptions = SearchOptions()): Either[Clausal.Outcome, K.SCProof] =
+  def proveKernel(problem: Problem, opts: SearchOptions = SearchOptions()): Either[Clausal.Outcome, K.ProofCertificate] =
     // `certifyClausal` calls the prover from *inside* the clausification pipeline, so a non-refutation cannot
     // be returned from there; it is thrown and caught here, which is the whole extent of the exception.
     try
@@ -109,7 +109,7 @@ object Prover:
    * SInE selection and orthologic normalisation around a kernel-proof-producing step, each justified in the
    * returned proof. Public for the benchmark harness, which times the phases separately.
    */
-  def preprocessKernel(p: Problem, opts: SearchOptions)(next: Problem => K.SCProof): K.SCProof =
+  def preprocessKernel(p: Problem, opts: SearchOptions)(next: Problem => K.ProofCertificate): K.ProofCertificate =
     sineKernel(p, opts)(p1 => olKernel(p1, opts)(next))
 
   /**
@@ -193,39 +193,39 @@ object Prover:
     // between the two, exactly as it did when the clausifier applied it internally.
     next(if opts.orthologic then olNormalise(p) else p)
 
-  private def sineKernel(p: Problem, opts: SearchOptions)(next: Problem => K.SCProof): K.SCProof =
+  private def sineKernel(p: Problem, opts: SearchOptions)(next: Problem => K.ProofCertificate): K.ProofCertificate =
     val keep = sineKeep(p, opts)
     if keep.size == p.hypotheses.size then next(p)
     else widenImports(next(prune(p, keep)), p.hypotheses.toIndexedSeq, keep)
 
-  private def olKernel(p: Problem, opts: SearchOptions)(next: Problem => K.SCProof): K.SCProof =
+  private def olKernel(p: Problem, opts: SearchOptions)(next: Problem => K.ProofCertificate): K.ProofCertificate =
     if !opts.orthologic then next(p)
     else
-      val inner: K.SCProof = next(olNormalise(p))
+      val inner: K.ProofCertificate = next(olNormalise(p))
       val n: Int = p.hypotheses.size
-      val steps = scala.collection.mutable.ArrayBuffer.empty[K.SCProofStep]
+      val steps = scala.collection.mutable.ArrayBuffer.empty[K.CertificateStep]
       // Each normalised hypothesis is OL-equal to the original it replaced, which is exactly what `Restate`
       // checks; the library imports past `n` are untouched and pass straight through.
       val premises: Seq[Int] = inner.imports.indices.map { i =>
         if i >= n then -(i + 1)
         else { steps += K.Restate(inner.imports(i), -(i + 1)); steps.length - 1 }
       }
-      steps += K.SCSubproof(inner, premises)
+      steps += K.Subproof(inner, premises)
       steps += K.Restate(goalSequent(p), steps.length - 1) // the subproof concludes the *normalised* goal
-      K.SCProof(steps.toIndexedSeq, p.hypotheses.toIndexedSeq ++ inner.imports.drop(n))
+      K.ProofCertificate(steps.toIndexedSeq, p.hypotheses.toIndexedSeq ++ inner.imports.drop(n))
 
   /**
    * Present `inner`, whose imports are the SInE-kept hypotheses followed by the library ones, as a proof over
    * the caller's full hypothesis list `all`: one subproof, each premise naming the slot its import came from.
    * No step justifies anything — dropping a hypothesis needs none — so this only renumbers.
    */
-  private[superposition] def widenImports(inner: K.SCProof, all: IndexedSeq[K.Sequent], keep: IndexedSeq[Int]): K.SCProof =
+  private[superposition] def widenImports(inner: K.ProofCertificate, all: IndexedSeq[K.Sequent], keep: IndexedSeq[Int]): K.ProofCertificate =
     val n: Int = keep.size
     val premises: Seq[Int] = inner.imports.indices.map { i =>
       if i < n then -(keep(i) + 1) //                  a kept hypothesis, at its slot in the full list
       else -(all.size + (i - n) + 1) //                a library import, after the hypotheses and in order
     }
-    K.SCProof(IndexedSeq(K.SCSubproof(inner, premises)), all ++ inner.imports.drop(n))
+    K.ProofCertificate(IndexedSeq(K.Subproof(inner, premises)), all ++ inner.imports.drop(n))
 
   // ── internals ──────────────────────────────────────────────────────────────────────────────────────────
 

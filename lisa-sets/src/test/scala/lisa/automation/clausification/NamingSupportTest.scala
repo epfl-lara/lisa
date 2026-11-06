@@ -1,8 +1,8 @@
 package lisa.automation.clausification
 
 import lisa.kernel.KernelProof
-import lisa.utils.K
-import lisa.utils.K.{_, given}
+import lisa.automation.{ProofSyntax as K}
+import lisa.automation.ProofSyntax.{_, given}
 import org.scalatest.funsuite.AnyFunSuite
 
 import Clausification.Counter

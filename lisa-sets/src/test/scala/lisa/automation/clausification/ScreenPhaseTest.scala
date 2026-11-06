@@ -1,8 +1,8 @@
 package lisa.automation.clausification
 
 import lisa.automation.Problem
-import lisa.utils.K
-import lisa.utils.K.{_, given}
+import lisa.automation.{ProofSyntax as K}
+import lisa.automation.ProofSyntax.{_, given}
 import org.scalatest.funsuite.AnyFunSuite
 
 /**
@@ -51,8 +51,8 @@ class ScreenPhaseTest extends AnyFunSuite:
   /**
    * Prover stub meeting `certifyClausal`'s contract: imports = the clause sequents, conclusion = `⊢`.
    */
-  private def sorryProver(p: Problem): SCProof =
-    SCProof(IndexedSeq(Sorry(Sequent(Set.empty, Set.empty))), p.imports)
+  private def sorryProver(p: Problem): ProofCertificate =
+    ProofCertificate(IndexedSeq(Sorry(Sequent(Set.empty, Set.empty))), p.imports)
 
   /**
    * Clausify `hyps ⊢ goal` with the stubbed prover; assert the kernel accepts it and that the proof concludes

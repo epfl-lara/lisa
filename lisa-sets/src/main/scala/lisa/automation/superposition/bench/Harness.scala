@@ -12,7 +12,7 @@ import lisa.tptp.KernelParser.problemToKernel
 import lisa.tptp.KernelParser.strictMapAtom
 import lisa.tptp.KernelParser.strictMapTerm
 import lisa.tptp.KernelParser.strictMapVariable
-import lisa.utils.K
+import lisa.automation.{ProofSyntax as K}
 
 import java.io.File
 import scala.util.Failure
@@ -25,7 +25,7 @@ import BenchUtil.median
 
 /**
  * Runs a dataset through the whole pipeline: clausify, refute, kernel-check the composed proof. A `bad_proof`
- * row is therefore a reconstruction or composition bug. The clausifiers take a `Problem => SCProof`, so the
+ * row is therefore a reconstruction or composition bug. The clausifiers take a `Problem => ProofCertificate`, so the
  * prover is called mid-descent and is timed inside its own closure.
  *
  * `mode=uncert` is a separate pipeline: it clausifies without a certificate, searches and prints TSTP, building
@@ -227,10 +227,10 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
       val verdict =
         try
           val (name, proof) = ProofExport.readSerialized(d)
-          K.SCProofChecker.checkSCProof(proof) match
-            case K.SCProofCheckerJudgement.SCValidProof(_, true) => s"VALID_WITH_SORRY  $name"
-            case K.SCProofCheckerJudgement.SCValidProof(_, false) => valid += 1; s"VALID  $name"
-            case K.SCProofCheckerJudgement.SCInvalidProof(_, path, message) => s"INVALID  $name: step ${path.mkString(".")}: $message"
+          proof.check match
+            case Right(theorem) if theorem.usesSorry => s"VALID_WITH_SORRY  $name"
+            case Right(_) => valid += 1; s"VALID  $name"
+            case Left(error) => s"INVALID  $name: $error"
         catch case e: Throwable => s"UNREADABLE  ${e.getClass.getSimpleName}: ${e.getMessage}"
       println(s"$d  $verdict")
     println(s"$valid of ${found.size} proofs valid")
@@ -651,12 +651,12 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
     val stats = new java.util.concurrent.atomic.AtomicReference[Discount.LoopStats](Discount.LoopStats(0, 0, 0, 0))
     // `Clausal.prove` inlined, to time search and reconstruction apart. Both accumulate: the clausifier may call
     // this closure more than once. `goal` holds the goal clauses from `certifyClausalGoal`.
-    val prover: (Problem, Set[Int]) => K.SCProof = (p, goal) =>
+    val prover: (Problem, Set[Int]) => K.ProofCertificate = (p, goal) =>
       try
         clauseCount.set(p.imports.size)
         freshCount.set(freshSymbolsOf(p))
         // Clausify-only: close with a `Sorry` and never search, so only the clausification derivation is checked.
-        if cfg.clausifyOnly then K.SCProof(IndexedSeq(K.Sorry(K.Sequent(Set.empty, Set.empty))), p.imports)
+        if cfg.clausifyOnly then K.ProofCertificate(IndexedSeq(K.Sorry(K.Sequent(Set.empty, Set.empty))), p.imports)
         else
           val prepared = Clausal.prepare(p)
           val ss = System.nanoTime()
@@ -711,21 +711,21 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
             )
           )
         val cs = System.nanoTime()
-        val judgement = if cfg.check then Some(K.SCProofChecker.checkSCProof(proof)) else None
+        val judgement = if cfg.check then Some(proof.check) else None
         val checkMs = if cfg.check then (System.nanoTime() - cs) / 1e6 else 0.0
         val sorry = judgement match
-          case Some(K.SCProofCheckerJudgement.SCValidProof(_, us)) => us
+          case Some(Right(theorem)) => theorem.usesSorry
           case _ => false
         // A `Sorry` is expected in clausify-only mode; anywhere else it makes a valid but worthless proof.
         val verdict =
-          if judgement.exists(!_.isValid) then "BAD_PROOF"
+          if judgement.exists(_.isLeft) then "BAD_PROOF"
           else if cfg.clausifyOnly then "CLAUSIFIED"
           else if sorry then "BAD_PROOF"
           else "REFUTED"
         // Keep the checker's message and failing step, so a bug can be located without rerunning the search.
         val detail = judgement match
-          case Some(K.SCProofCheckerJudgement.SCInvalidProof(_, path, message)) =>
-            s"step ${path.mkString(".")}: ${message.replace(',', ';').replace('\n', ' ').take(300)}"
+          case Some(Left(error)) =>
+            error.toString.replace(',', ';').replace('\n', ' ').take(300)
           case _ =>
             if sorry && !cfg.clausifyOnly then "valid only via Sorry"
             else if !cfg.check then "unchecked"
@@ -788,16 +788,16 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
 
   /**
    * Clausify one problem both ways, solve, and report the kernel checker's verdict in full, for diagnosing a
-   * `BAD_PROOF` row. Both clausifiers take a `Problem => SCProof`, so a non-refutation is fatal here.
+   * `BAD_PROOF` row. Both clausifiers take a `Problem => ProofCertificate`, so a non-refutation is fatal here.
    */
   def verifyOne(rel: String): Unit =
     val root: Option[File] = BenchUtil.tptpRootOrExplain()
     if root.isEmpty then return
     val f = new File(root.get, rel)
     val cprob = Prover.fromTptp(problemToKernel(f)(using (strictMapAtom, strictMapTerm, strictMapVariable)))
-    def prover(p: Problem): K.SCProof =
+    def prover(p: Problem): K.ProofCertificate =
       Clausal.prove(p).fold(o => throw new RuntimeException(s"expected a refutation, got $o"), identity)
-    for (label, mk) <- Seq[(String, () => K.SCProof)](
+    for (label, mk) <- Seq[(String, () => K.ProofCertificate)](
         "uncertified" -> (() => UncertifiedClausifier.uncertifyClausal(cprob, prover)),
         "certified" -> (() => CertifiedClausifier.certifyClausal(cprob, prover))
       )
@@ -805,10 +805,10 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
       print(f"$rel%-18s $label%-12s ")
       try
         val proof = mk()
-        val r = K.SCProofChecker.checkSCProof(proof)
-        println(s"valid=${r.isValid}  conclusion=${proof.conclusion}  steps=${proof.steps.size} imports=${proof.imports.size}")
+        val r = proof.check
+        println(s"valid=${r.isRight}  conclusion=${proof.conclusion}  steps=${proof.steps.size} imports=${proof.imports.size}")
         r match
-          case K.SCProofCheckerJudgement.SCInvalidProof(_, path, message) => println(s"    INVALID at step-path $path: $message")
+          case Left(error) => println(s"    INVALID: $error")
           case _ => ()
       catch case e: Throwable => println(s"threw ${e.getClass.getSimpleName}: ${e.getMessage}")
 

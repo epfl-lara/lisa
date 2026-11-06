@@ -5,9 +5,9 @@ import leo.datastructures.TPTP.CNF
 import leo.datastructures.TPTP.FOF
 import leo.modules.input.{TPTPParser => Parser}
 import lisa.tptp._
-import lisa.utils.K
-import lisa.utils.KernelHelpers._
-import lisa.utils.KernelHelpers.given_Conversion_String_Identifier
+import lisa.automation.{ProofSyntax as K}
+import lisa.automation.ProofSyntax._
+import lisa.automation.ProofSyntax.given_Conversion_String_Identifier
 
 import java.io.File
 
@@ -90,19 +90,19 @@ object KernelParser {
     term match {
       case CNF.AtomicTerm(f, args) => K.multiapply(mapTerm(f, args.size))(args map convertTermToKernel)
       case CNF.Variable(name) => mapVariable(name)
-      // Fix B: a distinct object "..." → a plain nullary constant, `$d`-prefixed to avoid colliding with ordinary
+      // A distinct object "..." → a plain nullary constant, `@d`-prefixed to avoid colliding with ordinary
       // functors (the surrounding quotes are stripped so the two occurrences of the same object share a symbol).
       case CNF.DistinctObject(name) => distinctObjectConstant(name)
     }
 
   /**
-   * The kernel constant a distinct object `"name"` is encoded as: a plain nullary constant, `$d`-prefixed so it
+   * The kernel constant a distinct object `"name"` is encoded as: a plain nullary constant, `@d`-prefixed so it
    *  cannot collide with an ordinary functor, with the quotes stripped so two occurrences of the same object
    *  share a symbol. One definition, so the conversions above and [[distinctObjectsOf]] cannot disagree about
    *  the encoding — which is why the latter can classify by AST node rather than by testing the prefix back.
    */
   private def distinctObjectConstant(name: String): K.Expression =
-    taggedConstant("$d", name.stripPrefix("\"").stripSuffix("\""))
+    taggedConstant("@d", name.stripPrefix("\"").stripSuffix("\""))
 
   /**
    * @param term a tptp term in leo parser
@@ -115,10 +115,10 @@ object KernelParser {
         if (f.head == '$' && args.size == 0 && defctx(f.tail).isDefined) then defctx(f.tail).get
         else K.multiapply(mapTerm(f, args.size))(args map convertTermToKernel)
       case FOF.Variable(name) => mapVariable(name)
-      // Fix B: distinct objects and numeric literals → plain nullary constants, prefixed `$d` / `$n` so they never
+      // Distinct objects and numeric literals → plain nullary constants, prefixed `@d` / `@n` so they never
       // collide with ordinary functors (or each other). No arithmetic/distinctness axioms — sound, just uninterpreted.
       case FOF.DistinctObject(name) => distinctObjectConstant(name)
-      case FOF.NumberTerm(value) => taggedConstant("$n", value.pretty)
+      case FOF.NumberTerm(value) => taggedConstant("@n", value.pretty)
       case FOF.QuantifiedTerm(quantifier, Seq(x), body) => K.epsilon(mapVariable(x), convertToKernel(body))
       case FOF.QuantifiedTerm(_, _, _) => throw Exception("Only epsilon is supported as term quantifier")
     }
@@ -191,7 +191,7 @@ object KernelParser {
    *  first-occurrence order.
    *
    *  Collected from the parsed TPTP tree, so a distinct object is one the grammar says is one — a
-   *  `DistinctObject` node — rather than one whose encoded name happens to begin with `$d`. Numeric literals
+   *  `DistinctObject` node — rather than one whose encoded name happens to begin with `@d`. Numeric literals
    *  are deliberately not included: they are encoded the same way, but `1`, `1.0` and `1/1` can denote the
    *  same number, so asserting them pairwise distinct would be unsound.
    */
@@ -266,37 +266,37 @@ object KernelParser {
 
   /**
    * Encode a TPTP symbol name, which in a quoted atom may be any text, as a valid [[K.Identifier]] name:
-   * `$` -> `$$`, `_` -> `$u`, space -> `$s`, other forbidden or whitespace characters -> `$xHHHH`.
-   * Escaping `_` keeps a trailing `_<digits>` out of `Identifier.no`, an `Int` that overflows on large SUMO ids.
-   * Escaping `$` makes the encoding injective and leaves bare-`$` prefixes to [[taggedConstant]].
+   * `@` -> `@@`, `_` -> `@u`, space -> `@s`, forbidden or whitespace characters -> `@xHHHH`.
+   * The escape character is valid in kernel names, unlike the counter separator `$`.
+   * Escaping `@` makes the encoding injective and reserves `@d`/`@n` for [[taggedConstant]].
    */
   def sanitize(s: String): String =
     val out = new StringBuilder(s.length)
     s.foreach {
-      case '$' => out ++= "$$"
-      case '_' => out ++= "$u"
-      case ' ' => out ++= "$s"
-      case c if K.Identifier.forbiddenChars.contains(c) || c.isWhitespace => out ++= f"$$x${c.toInt}%04X"
+      case '@' => out ++= "@@"
+      case '_' => out ++= "@u"
+      case ' ' => out ++= "@s"
+      case c if K.Identifier.forbiddenChars.contains(c) || c.isWhitespace => out ++= f"@x${c.toInt}%04X"
       case c => out += c
     }
     out.result()
 
   /**
    * Inverse of [[sanitize]]. Kernel-generated names that were never sanitized also pass through here, so an
-   * unrecognised escape yields a literal `$` rather than an error. `no` is ignored.
+   * unrecognised escape yields a literal `@` rather than an error. `no` is ignored.
    */
   def unsanitize(s: String, no: Int): String =
     val out = new StringBuilder(s.length)
     var i = 0
     def hexAt(j: Int): Boolean = j + 4 <= s.length && (j until j + 4).forall(k => Character.digit(s(k), 16) >= 0)
     while i < s.length do
-      if s(i) == '$' && i + 1 < s.length then
+      if s(i) == '@' && i + 1 < s.length then
         s(i + 1) match
-          case '$' => out += '$'; i += 2
+          case '@' => out += '@'; i += 2
           case 'u' => out += '_'; i += 2
           case 's' => out += ' '; i += 2
           case 'x' if hexAt(i + 2) => out += Integer.parseInt(s.substring(i + 2, i + 6), 16).toChar; i += 6
-          case _ => out += '$'; i += 1
+          case _ => out += '@'; i += 1
       else
         out += s(i)
         i += 1
@@ -306,8 +306,8 @@ object KernelParser {
     unsanitize(id.name, id.no)
 
   /**
-   * A parser-internal nullary constant: a bare `$` tag followed by the sanitized payload. Since [[sanitize]]
-   * escapes `$`, it cannot collide with a source symbol. Readers strip the tag and [[unsanitize]] the rest.
+   * A parser-internal nullary constant: a reserved `@d` or `@n` tag followed by the sanitized payload.
+   * Neither tag can begin a sanitized source symbol. Readers strip the tag and [[unsanitize]] the rest.
    */
   private def taggedConstant(tag: String, payload: String): K.Constant =
     K.Constant(K.Identifier(tag + sanitize(payload)), K.functionType(0))

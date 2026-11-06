@@ -2,7 +2,7 @@ package lisa.automation.superposition
 
 import it.unimi.dsi.fastutil.ints.IntArrayList
 import lisa.kernel.KernelProof
-import lisa.utils.K
+import lisa.automation.{ProofSyntax as K}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.mutable

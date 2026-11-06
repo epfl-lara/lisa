@@ -3,7 +3,7 @@ package lisa.automation.superposition
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet
 import lisa.automation.clausification.Clausification.GeneratedNames
-import lisa.utils.K
+import lisa.automation.{ProofSyntax as K}
 
 import scala.collection.mutable
 
@@ -11,7 +11,7 @@ import Core._
 
 /**
  * Reconstruction of a refutation (the empty clause and its [[Justification]] DAG) into a Lisa kernel
- * [[lisa.utils.K.SCProof]] whose imports are the input clause-sequents and whose conclusion is the
+ * [[lisa.automation.ProofSyntax.ProofCertificate]] whose imports are the input clause-sequents and whose conclusion is the
  * empty sequent `⊢`.
  *
  * Each clause becomes one import or step. The README lists which kernel rules each inference maps to.
@@ -35,12 +35,12 @@ object Reconstruction:
       inputs: collection.Map[Int, InputInfo],
       schematicIds: Set[K.Identifier] = Set.empty,
       discharge: Map[K.Variable, K.Expression] = Map.empty
-  ): K.SCProof =
+  ): K.ProofCertificate =
     new Builder(bank, inputs, schematicIds, discharge).reconstructProof(empty)
 
   private final class Builder(bank: TermBank, inputs: collection.Map[Int, InputInfo], schematicIds: Set[K.Identifier], discharge: Map[K.Variable, K.Expression]):
     private val sig: Signature = bank.signature
-    private val steps: mutable.ArrayBuffer[K.SCProofStep] = mutable.ArrayBuffer.empty
+    private val steps: mutable.ArrayBuffer[K.CertificateStep] = mutable.ArrayBuffer.empty
     private val imports: mutable.ArrayBuffer[K.Sequent] = mutable.ArrayBuffer.empty
     private val memo: mutable.Map[Int, Recon] = mutable.Map.empty
     private val trail: Trail = new Trail(bank)
@@ -48,16 +48,16 @@ object Reconstruction:
     // closed value `λfv. e`, inlined so the rebuilt proof carries `e` and never `F`. Empty for clausal input.
     private val dischargeById: Map[K.Identifier, K.Expression] = discharge.map((v, e) => v.id -> e)
 
-    def reconstructProof(empty: Clause): K.SCProof =
+    def reconstructProof(empty: Clause): K.ProofCertificate =
       refOf(empty)
-      K.SCProof(steps.toIndexedSeq, imports.toIndexedSeq)
+      K.ProofCertificate(steps.toIndexedSeq, imports.toIndexedSeq)
 
     /**
      * A reconstructed clause: its proof reference and kernel sequent (already in the canonical `cv…` naming).
      */
     private final case class Recon(ref: Int, seq: K.Sequent)
 
-    private def addStep(s: K.SCProofStep): Int = { steps += s; steps.length - 1 }
+    private def addStep(s: K.CertificateStep): Int = { steps += s; steps.length - 1 }
     private def addImport(s: K.Sequent): Int = { imports += s; -imports.length }
 
     /**

@@ -1,13 +1,13 @@
 package lisa.automation.clausification
 import lisa.automation.Problem
-import lisa.utils.K
-import lisa.utils.K.{_, given}
+import lisa.automation.{ProofSyntax as K}
+import lisa.automation.ProofSyntax.{_, given}
 
 /**
  * Certified clausification for Lisa, following the SC-TPTP pipeline structure.
  *
  * The reusable proof IR (`ClausificationProof`, `ClausificationSubproof`,
- * conversion to `SCProof`, etc.) lives in [[ProofIR]] (same package). This module hosts the
+ * conversion to `ProofCertificate`, etc.) lives in [[ProofIR]] (same package). This module hosts the
  * clausification-specific certification pipeline.
  */
 object Clausification {
@@ -137,9 +137,9 @@ object Clausification {
    * result concludes `() ⊢ ∀x̄. body`. The shared tail of the two closed proofs that discharge a definition,
    * [[NamingSupport.proveQuantifiedReflIff]] and [[SkolemPhase.proveQuantifiedReflEq]].
    */
-  private[clausification] def quantifyProof(base: IndexedSeq[SCProofStep], body: Expression, vars: Seq[Variable]): SCProof =
+  private[clausification] def quantifyProof(base: IndexedSeq[CertificateStep], body: Expression, vars: Seq[Variable]): ProofCertificate =
     val n = vars.size
-    val steps = new Array[SCProofStep](base.size + n)
+    val steps = new Array[CertificateStep](base.size + n)
     base.copyToArray(steps)
     var current = body
     var ref = base.size - 1
@@ -149,7 +149,7 @@ object Clausification {
       steps(base.size + k) = RightForall(() |- next, ref, current, v)
       ref = base.size + k
       current = next
-    SCProof(steps.toIndexedSeq, IndexedSeq.empty)
+    ProofCertificate(steps.toIndexedSeq, IndexedSeq.empty)
 
   private[clausification] def sameImportList(left: Seq[Sequent], right: Seq[Sequent]): Boolean =
     left.size == right.size && left.zip(right).forall((l, r) => l == r || isSameSequent(l, r))
@@ -230,7 +230,7 @@ object Clausification {
       csub: ClausificationSubproof,
       count: Int,
       outerImports: IndexedSeq[Sequent],
-      perStep: Int => (Map[Variable, Expression], Expression, SCProof)
+      perStep: Int => (Map[Variable, Expression], Expression, ProofCertificate)
   ): ClausificationProof =
     val outerSteps = scala.collection.mutable.ArrayBuffer.empty[ClausificationProofStep]
     outerSteps += csub
@@ -243,7 +243,7 @@ object Clausification {
       mutableLhs -= oldLhs; mutableLhs += reflexive
       outerSteps += InstSchema(Sequent(mutableLhs.toSet, rhs), prevBotRef, schemaSubst)
       val instRef = outerSteps.size - 1
-      outerSteps += SCSubproof(reflProof, IndexedSeq.empty)
+      outerSteps += Subproof(reflProof, IndexedSeq.empty)
       val reflRef = outerSteps.size - 1
       mutableLhs -= reflexive
       outerSteps += Cut(Sequent(mutableLhs.toSet, rhs), reflRef, instRef, reflexive)
@@ -294,7 +294,7 @@ object Clausification {
 
   // The top-level certified clausification pipeline lives in [[CertifiedClausifier.certifyClausal]] (it adds a
   // threshold-gated naming pass before NNF to cap CNF blow-up). The per-phase certifiers and the shared helpers
-  // (libImports, clausificationProofToSCProof, ClausificationProof) below are what it composes.
+  // (libImports, clausificationProofToProofCertificate, ClausificationProof) below are what it composes.
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Pure (uncertified) formula transformations  (helpers for the pipeline)

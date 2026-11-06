@@ -79,7 +79,7 @@ lazy val sets = Project(
       "com.github.SC-TPTP" % "scala-tptp-parser_2.13" % "0b4ffa55c71415e925080608707c78ada1d750e5"
     )
   )
-  .dependsOn(kernel, utils)
+  .dependsOn(kernel, withTests(utils))
 
 assemblyMergeStrategy := {
   case PathList("module-info.class") => MergeStrategy.discard

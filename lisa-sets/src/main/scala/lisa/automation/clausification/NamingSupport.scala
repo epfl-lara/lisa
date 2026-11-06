@@ -1,6 +1,6 @@
 package lisa.automation.clausification
 
-import lisa.utils.K.{_, given}
+import lisa.automation.ProofSyntax.{_, given}
 
 import Clausification._
 
@@ -29,7 +29,7 @@ private[clausification] object NamingSupport:
    * RightForall × |x̄|). Used to discharge a naming definition after its schema variable has been instantiated
    * to `λx̄. subst`.
    */
-  def proveQuantifiedReflIff(subst: Expression, freeVars: Seq[Variable]): SCProof =
+  def proveQuantifiedReflIff(subst: Expression, freeVars: Seq[Variable]): ProofCertificate =
     val implFormula = implies(subst)(subst)
     val base = IndexedSeq(Hypothesis(subst |- subst, subst), RightImplies(() |- implFormula, 0, subst, subst), RightIff(() |- (subst <=> subst), 1, 1, subst, subst))
     quantifyProof(base, subst <=> subst, freeVars)

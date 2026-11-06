@@ -196,7 +196,8 @@ class CascProverTest extends AnyFunSuite:
    * Every distinct functor in the refutation block that starts with `prefix` (`sk`, `nm`, …).
    */
   private def generatedSymbols(output: String, prefix: String): Set[String] =
-    val rx = raw"\b($prefix(?:_\d+)?)\b".r
+    val separator = java.util.regex.Pattern.quote(lisa.utils.K.Identifier.counterSeparator.toString)
+    val rx = raw"\b($prefix(?:$separator\d+)?)\b".r
     emittedFormulas(output).flatMap(l => rx.findAllMatchIn(l).map(_.group(1))).toSet
 
   /**
