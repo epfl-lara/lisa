@@ -26,27 +26,27 @@ class Library:
 
   /**
    * Declare a constant symbol in the library. This does not define the symbol,
-   * but allows it to be used in expressions. 
+   * but allows it to be used in expressions.
    *
    * Note: this precludes the symbol from being defined in the future.
    */
-  def addSymbol[S](symbol: Constant[S]): symbol.type = 
+  def addSymbol[S](symbol: Constant[S]): symbol.type =
     theory.addSymbol(symbol.underlying)
     symbol
 
   /**
    * All constants defined in this library with a certified definition and the
-   * expression used to define them. 
-   * 
+   * expression used to define them.
+   *
    * Invariant: key (constant) and value (expression) sorts are identical.
    */
   private val definitions = mutable.HashMap.empty[Constant[?], (Thm, Expr[?])]
-  
+
   // theorem registry
   // TODO: does this need to be thread safe?
   private val theoremByFullName = mutable.LinkedHashMap.empty[String, Theorem]
   private val theoremByShortName = mutable.HashMap.empty[String, Vector[Theorem]]
-  
+
   // section data, currently only for display
   private var sectionIndex = 0
 
@@ -56,7 +56,7 @@ class Library:
 
   /**
    * Declare an axiom in this library. The axiom is added to the theory and the
-   * underlying registered theorem is returned. 
+   * underlying registered theorem is returned.
    *
    * Intended for internal use. For external use, see
    * [[lisa.utils.prooflib.BasicStep.Axiom]]. The result type is intentionally
@@ -81,7 +81,7 @@ class Library:
       case Right(theorem) => Thm(statement, theorem)
 
   /**
-   * The leading bouond variables of an expression, in order of appearance. 
+   * The leading bouond variables of an expression, in order of appearance.
    */
   private def leadingVars(e: Expr[?]): Seq[Variable[?]] =
     @annotation.tailrec
@@ -93,19 +93,17 @@ class Library:
     leadingTailrec(e, Nil).reverse
 
   /**
-    * The defining statement for a constant. Assumes that the arity of the
-    * constant matches the sort and number of provided variables and the
-    * provided expression and constant.
-    */
+   * The defining statement for a constant. Assumes that the arity of the
+   * constant matches the sort and number of provided variables and the
+   * provided expression and constant.
+   */
   private def definitionStatement[S](constant: Constant[S], expression: Expr[S], vars: Seq[Variable[?]]): Sequent =
     val appliedConstant = constant #@@ vars
     val appliedExpression = expression #@@ vars
     val formula =
-      if appliedConstant.sort == K.Prop then 
-        appliedConstant.asInstanceOf[Expr[Prop]] <=> appliedExpression.asInstanceOf[Expr[Prop]]
-      else 
-        appliedConstant.asInstanceOf[Expr[Ind]] === appliedExpression.asInstanceOf[Expr[Ind]]
-    
+      if appliedConstant.sort == K.Prop then appliedConstant.asInstanceOf[Expr[Prop]] <=> appliedExpression.asInstanceOf[Expr[Prop]]
+      else appliedConstant.asInstanceOf[Expr[Ind]] === appliedExpression.asInstanceOf[Expr[Ind]]
+
     () |- formula
 
   private inline def storeDefinition[S](constant: Constant[S], expr: Expr[S], defn: Thm): (constant.type, Thm) =
@@ -113,16 +111,16 @@ class Library:
     constant -> defn
 
   /**
-    * Define a constant with the given name and expression. 
-    * 
-    * Intended for internal use. For external use, see [[DEF]].
-    * 
-    * Use discouraged largely to avoid name conflicts.
-    * 
-    * Synchronizes against the definitions registry.
-    *
-    * @throws AlreadyDefined if the constant is already defined (even if with the same expression).
-    */
+   * Define a constant with the given name and expression.
+   *
+   * Intended for internal use. For external use, see [[DEF]].
+   *
+   * Use discouraged largely to avoid name conflicts.
+   *
+   * Synchronizes against the definitions registry.
+   *
+   * @throws AlreadyDefined if the constant is already defined (even if with the same expression).
+   */
   private def defineWithVariables[S: Sort](name: String, expression: Expr[S], vars: Seq[Variable[?]]): (Constant[S], Thm) =
     definitions.synchronized:
       val cst = constant[S](name)
@@ -130,7 +128,7 @@ class Library:
         val (_, existing) = definitions(cst)
         throw AlreadyDefined(name, existing, expression)
       else
-        val thm = 
+        val thm =
           K.Definition(using theory)(cst.underlying, vars.map(_.underlying), expression.underlying) match
             case Right(definition) =>
               definition
@@ -176,13 +174,13 @@ class Library:
     val (cst, definition): (Constant[S], Thm) = defineWithVariables(fullName, expression, vars)
 
   /**
-    * **[UNSAFE]**. Register or override a definition for a registered constant.
-    *
-    * Should only be used when necessary, e.g. with theory symbols defined by
-    * axioms. This allows them to still be looked up by [[Constant.definition]]
-    * and used in proofs, but does not guarantee that the definition has the
-    * otherwise expected shape as with other definitions.
-    */
+   * **[UNSAFE]**. Register or override a definition for a registered constant.
+   *
+   * Should only be used when necessary, e.g. with theory symbols defined by
+   * axioms. This allows them to still be looked up by [[Constant.definition]]
+   * and used in proofs, but does not guarantee that the definition has the
+   * otherwise expected shape as with other definitions.
+   */
   def registerDefinition[S](constant: Constant[S], definition: Thm): Thm =
     definitions.synchronized:
       storeDefinition(constant, constant, definition)
@@ -190,14 +188,14 @@ class Library:
 
   extension [S](constant: Constant[S])
     /**
-      * The defining theorem for this constant. Theorem expected to be of the
-      * form `⊢ cst(vars) = expr(vars)` or `⊢ cst(vars) ↔ expr(vars)` depending
-      * on the sort of the constant.
-      *
-      * @throws NoSuchElementException if the constant is not defined in this
-      * library, or does not have a registered definition (due to
-      * [[addSymbol]]).
-      */
+     * The defining theorem for this constant. Theorem expected to be of the
+     * form `⊢ cst(vars) = expr(vars)` or `⊢ cst(vars) ↔ expr(vars)` depending
+     * on the sort of the constant.
+     *
+     * @throws NoSuchElementException if the constant is not defined in this
+     * library, or does not have a registered definition (due to
+     * [[addSymbol]]).
+     */
     def definition: Thm =
       definitions
         .getOrElse(constant, throw new NoSuchElementException(s"No definition registered for $constant."))

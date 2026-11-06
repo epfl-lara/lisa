@@ -12,11 +12,15 @@ import scala.jdk.CollectionConverters._
 import scala.util.Using
 import scala.util.control.NonFatal
 
-/** Check named binary proof bundles against their declared imports, without admitting trusted steps. */
+/**
+ * Check named binary proof bundles against their declared imports, without admitting trusted steps.
+ */
 object SerializedProofCheck:
   case class Result(name: String, steps: Int, imports: Int, readNanos: Long, checkNanos: Long)
 
-  /** Read both streams completely and check every proof in a bundle. Leave stream ownership to the caller. */
+  /**
+   * Read both streams completely and check every proof in a bundle. Leave stream ownership to the caller.
+   */
   def check(trees: InputStream, proofs: InputStream): Seq[Result] =
     val treeInput = new DataInputStream(new BufferedInputStream(trees))
     val proofInput = new DataInputStream(new BufferedInputStream(proofs))
@@ -26,10 +30,13 @@ object SerializedProofCheck:
     require(bundle.nonEmpty, "Empty proof bundle")
     require(treeInput.read() == -1 && proofInput.read() == -1, "Trailing data in proof bundle")
     bundle.zipWithIndex.map { case ((name, proof, _), index) =>
-      require(!proof.steps.exists {
-        case _: Sorry | _: Axiom | _: Assume => true
-        case _ => false
-      }, s"$name: trusted proof step")
+      require(
+        !proof.steps.exists {
+          case _: Sorry | _: Axiom | _: Assume => true
+          case _ => false
+        },
+        s"$name: trusted proof step"
+      )
       val checkStart = System.nanoTime()
       val theorem = proof.check.fold(error => throw new IllegalArgumentException(s"$name: $error", error), identity)
       require(!theorem.usesSorry && theorem.axioms.isEmpty, s"$name: trusted proof dependency")
@@ -37,7 +44,9 @@ object SerializedProofCheck:
       Result(name, proof.steps.length, proof.imports.length, if index == 0 then readNanos else 0L, System.nanoTime() - checkStart)
     }
 
-  /** Check every .trees/.proof pair in a ZIP archive and write a tab-separated result log. */
+  /**
+   * Check every .trees/.proof pair in a ZIP archive and write a tab-separated result log.
+   */
   def main(args: Array[String]): Unit =
     require(args.length == 2 || args.length == 3, "Usage: SerializedProofCheck <archive.zip> <results.tsv> [entry-regex]")
     val selection = args.lift(2).map(_.r)
@@ -45,10 +54,14 @@ object SerializedProofCheck:
       val entries = archive.entries().asScala.filterNot(_.isDirectory).toVector
       require(entries.map(_.getName).distinct.size == entries.size, "Duplicate archive entry")
       val names = entries.map(_.getName).toSet
-      val prefixes = names.collect {
-        case name if name.endsWith(".trees") => name.stripSuffix(".trees")
-        case name if name.endsWith(".proof") => name.stripSuffix(".proof")
-      }.toVector.sorted.filter(prefix => selection.forall(_.matches(prefix)))
+      val prefixes = names
+        .collect {
+          case name if name.endsWith(".trees") => name.stripSuffix(".trees")
+          case name if name.endsWith(".proof") => name.stripSuffix(".proof")
+        }
+        .toVector
+        .sorted
+        .filter(prefix => selection.forall(_.matches(prefix)))
       require(prefixes.nonEmpty, "No serialized proofs found")
       output.write("file\tname\tstatus\tsteps\timports\tread_ns\tcheck_ns\tdetail\n")
       var passed = 0

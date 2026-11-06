@@ -8,7 +8,9 @@ sealed trait ProofStep:
   val premises: Array[Int]
 
 object ProofStep:
-  /** Remap every premise reference without changing the inference. */
+  /**
+   * Remap every premise reference without changing the inference.
+   */
   def mapPremises(step: ProofStep, f: Int => Int): ProofStep = step match
     case s: Discharge => s.copy(premise = f(s.premise), justification = f(s.justification))
     case s: Restate => s.copy(premise = f(s.premise))

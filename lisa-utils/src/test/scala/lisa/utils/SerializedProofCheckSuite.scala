@@ -20,8 +20,7 @@ class SerializedProofCheckSuite extends AnyFunSuite:
   private def encode(proofs: LinearProof*): (Array[Byte], Array[Byte]) =
     val trees = new ByteArrayOutputStream()
     val steps = new ByteArrayOutputStream()
-    Serialization.proofsToDataStream(new DataOutputStream(trees), new DataOutputStream(steps),
-      proofs.zipWithIndex.map((proof, index) => (s"proof$index", proof, Nil)))
+    Serialization.proofsToDataStream(new DataOutputStream(trees), new DataOutputStream(steps), proofs.zipWithIndex.map((proof, index) => (s"proof$index", proof, Nil)))
     (trees.toByteArray, steps.toByteArray)
 
   private def check(bytes: (Array[Byte], Array[Byte])) =

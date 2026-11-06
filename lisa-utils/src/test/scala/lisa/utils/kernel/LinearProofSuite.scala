@@ -11,7 +11,7 @@ class LinearProofSuite extends AnyFunSuite:
 
   test("empty proofs are rejected"):
     assert(LinearProof(Array.empty, Array.empty).check == Left(EmptyProofError))
- 
+
   test("negative premises resolve to imported assumptions"):
     val result = LinearProof(Array(Restate(statement, -1)), Array(statement)).check
 

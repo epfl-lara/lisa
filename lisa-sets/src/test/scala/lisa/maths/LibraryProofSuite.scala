@@ -3,7 +3,9 @@ package lisa.maths
 import lisa.SetTheoryLibrary
 import org.scalatest.funsuite.AnyFunSuite
 
-/** Check recorded proof errors: initializing a development alone does not fail on them. */
+/**
+ * Check recorded proof errors: initializing a development alone does not fail on them.
+ */
 class LibraryProofSuite extends AnyFunSuite:
   private def check(name: String)(initialize: => lisa.Main): Unit =
     test(name):
@@ -79,7 +81,8 @@ class LibraryProofSuite extends AnyFunSuite:
 
   test("closure and transfinite recursion do not inherit Sorry"):
     for theorem <- Seq(
-      lisa.maths.SetTheory.Relations.Operations.Closure.reflexiveClosureValid,
-      lisa.maths.SetTheory.Order.WellOrders.WellOrderedRecursion.limitCase,
-      lisa.maths.SetTheory.Ordinals.TransfiniteRecursion.transfiniteRecursion
-    ) do assert(!theorem.kernel.usesSorry, theorem.fullName.value)
+        lisa.maths.SetTheory.Relations.Operations.Closure.reflexiveClosureValid,
+        lisa.maths.SetTheory.Order.WellOrders.WellOrderedRecursion.limitCase,
+        lisa.maths.SetTheory.Ordinals.TransfiniteRecursion.transfiniteRecursion
+      )
+    do assert(!theorem.kernel.usesSorry, theorem.fullName.value)

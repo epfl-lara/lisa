@@ -12,9 +12,7 @@ import scala.collection.immutable.HashMap
  */
 object Tableau extends SequentTactic, PremiseSequentTactic, DerivedFromPremises:
   protected def prove(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premises: Seq[Thm]): ProofJudgement =
-    Tautology.proveFromPremises(conclusion.underlying, premises.map(_.kernel))(statement =>
-      solve(statement).toRight("Could not prove the statement by tableau.")
-    ) match
+    Tautology.proveFromPremises(conclusion.underlying, premises.map(_.kernel))(statement => solve(statement).toRight("Could not prove the statement by tableau.")) match
       case Right(theorem) => ProofJudgement(Thm(conclusion, theorem))
       case Left(message) => ProofCarrier(Set(SoftError(message, file, line)), conclusion, None, ())
 
@@ -224,16 +222,19 @@ object Tableau extends SequentTactic, PremiseSequentTactic, DerivedFromPremises:
         (next.prepended(instance), metavariable, instance)
 
   def applyInst(branch: Branch, variable: K.Variable, term: K.Expression): Option[(Branch, K.Expression)] =
-    branch.unifiable.get(variable).map(_._1).collect:
-      case K.forall(K.Lambda(bound, body)) =>
-        val tried = branch.triedInstantiation.updated(variable, branch.triedInstantiation.getOrElse(variable, Set.empty) + term)
-        val instance = instantiate(body, bound, term)
-        branch
-          .prepended(instance)
-          .copy(
-            triedInstantiation = tried,
-            numberInstantiated = branch.numberInstantiated.updated(variable, branch.numberInstantiated(variable) + 1)
-          ) -> instance
+    branch.unifiable
+      .get(variable)
+      .map(_._1)
+      .collect:
+        case K.forall(K.Lambda(bound, body)) =>
+          val tried = branch.triedInstantiation.updated(variable, branch.triedInstantiation.getOrElse(variable, Set.empty) + term)
+          val instance = instantiate(body, bound, term)
+          branch
+            .prepended(instance)
+            .copy(
+              triedInstantiation = tried,
+              numberInstantiated = branch.numberInstantiated.updated(variable, branch.numberInstantiated(variable) + 1)
+            ) -> instance
 
   /**
    * Main tableau search, returning the theorem for the used branch subset.
@@ -242,13 +243,15 @@ object Tableau extends SequentTactic, PremiseSequentTactic, DerivedFromPremises:
     val closing = close(branch)
     if closing.exists(_._1.isEmpty) then K.RestateTrue(using library.theory)(K.Sequent(closing.get._2, Set.empty)).toOption
     else if branch.alpha.nonEmpty then
-      alpha(branch).flatMap(decide).flatMap: proof =>
-        branch.alpha.headOption match
-          case Some(conjunction @ K.and(left, right)) if proof.statement.left.contains(left) || proof.statement.left.contains(right) =>
-            val statement = K.Sequent((proof.statement.left - left - right) + conjunction, proof.statement.right)
-            K.Weakening(using library.theory)(statement, proof).toOption
-          case Some(_) => Some(proof)
-          case None => None
+      alpha(branch)
+        .flatMap(decide)
+        .flatMap: proof =>
+          branch.alpha.headOption match
+            case Some(conjunction @ K.and(left, right)) if proof.statement.left.contains(left) || proof.statement.left.contains(right) =>
+              val statement = K.Sequent((proof.statement.left - left - right) + conjunction, proof.statement.right)
+              K.Weakening(using library.theory)(statement, proof).toOption
+            case Some(_) => Some(proof)
+            case None => None
     else if branch.delta.nonEmpty then
       delta(branch).flatMap: (next, fresh, instance) =>
         decide(next).flatMap: proof =>

@@ -3,27 +3,43 @@ package lisa.utils.collection
 import scala.annotation.tailrec
 import scala.collection.mutable
 
-/** Keep bounded memoized values. Confine each cache to one thread. */
+/**
+ * Keep bounded memoized values. Confine each cache to one thread.
+ */
 sealed trait BoundedCache[K, V]:
-  /** Return the cached value without refreshing its retention order. */
+  /**
+   * Return the cached value without refreshing its retention order.
+   */
   def get(key: K): Option[V]
 
-  /** Insert or replace a value, evicting entries when needed. */
+  /**
+   * Insert or replace a value, evicting entries when needed.
+   */
   def put(key: K, value: V): Unit
 
-  /** Remove a value without counting it as a capacity eviction. */
+  /**
+   * Remove a value without counting it as a capacity eviction.
+   */
   def remove(key: K): Option[V]
 
-  /** Release all entries and reset the eviction counter. */
+  /**
+   * Release all entries and reset the eviction counter.
+   */
   def clear(): Unit
 
-  /** Count retained entries. */
+  /**
+   * Count retained entries.
+   */
   def size: Int
 
-  /** Count capacity evictions since construction or the last clear. */
+  /**
+   * Count capacity evictions since construction or the last clear.
+   */
   def evictions: Long
 
-  /** Reuse a value or cache a successful computation. Allow recursive cache use. */
+  /**
+   * Reuse a value or cache a successful computation. Allow recursive cache use.
+   */
   final def getOrElseUpdate(key: K)(compute: => V): V =
     get(key) match
       case Some(value) => value
@@ -33,7 +49,9 @@ sealed trait BoundedCache[K, V]:
         value
 
 object BoundedCache:
-  /** Evict the oldest insertion when capacity is exceeded; disable retention at zero. */
+  /**
+   * Evict the oldest insertion when capacity is exceeded; disable retention at zero.
+   */
   def fifo[K, V](capacity: Int): BoundedCache[K, V] = new Fifo(capacity)
 
   /**
@@ -76,9 +94,10 @@ object BoundedCache:
 
     @tailrec private def lookup(key: K, index: Int, remaining: Int): Option[V] =
       if remaining == 0 then None
-      else generations(index).get(key) match
-        case found @ Some(_) => found
-        case None => lookup(key, previous(index), remaining - 1)
+      else
+        generations(index).get(key) match
+          case found @ Some(_) => found
+          case None => lookup(key, previous(index), remaining - 1)
 
     def get(key: K): Option[V] = lookup(key, current, count)
 

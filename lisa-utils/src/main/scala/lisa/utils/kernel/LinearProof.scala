@@ -12,8 +12,8 @@ case class InvalidImportError(idx: Int) extends CheckError
 case class InvalidStepError(idx: Int, error: K.ProofError) extends CheckError
 
 case class LinearProof(
-  steps: Array[ProofStep],
-  imports: Array[Sequent]
+    steps: Array[ProofStep],
+    imports: Array[Sequent]
 ):
   def importThms(using theory: K.Theory): Array[K.Thm] = imports.map { statement =>
     K.Assume(statement) match
@@ -21,8 +21,7 @@ case class LinearProof(
   }
 
   def check(using theory: K.Theory = K.Theory.empty): Either[CheckError, Thm] =
-    if steps.isEmpty then
-      Left(EmptyProofError)
+    if steps.isEmpty then Left(EmptyProofError)
     else
       var idx = 0
       val checked = new Array[Thm](steps.length)
@@ -40,18 +39,16 @@ case class LinearProof(
   extension (idx: Int) private def asImport: Int = -idx - 1
 
   private def checkOne(
-    step: ProofStep,
-    idx: Int,
-    checked: Array[Thm],
-    imports: Array[K.Thm]
+      step: ProofStep,
+      idx: Int,
+      checked: Array[Thm],
+      imports: Array[K.Thm]
   )(using theory: K.Theory): Either[CheckError, Thm] =
     val fwdRef = step.premises.find(p => p >= idx)
     val invalidImport = step.premises.find(p => p < 0 && p.asImport >= imports.length)
 
-    if fwdRef.isDefined then
-      Left(ForwardReferenceError(fwdRef.get))
-    else if invalidImport.isDefined then
-      Left(InvalidImportError(invalidImport.get))
+    if fwdRef.isDefined then Left(ForwardReferenceError(fwdRef.get))
+    else if invalidImport.isDefined then Left(InvalidImportError(invalidImport.get))
     else
       def resolve(premise: Int): Thm =
         if premise >= 0 then checked(premise)

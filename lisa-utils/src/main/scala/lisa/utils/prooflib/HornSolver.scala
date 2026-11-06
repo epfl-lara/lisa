@@ -2,20 +2,28 @@ package lisa.utils.prooflib
 
 import scala.collection.mutable
 
-/** Performs forward chaining on definite Horn clauses. */
+/**
+ * Performs forward chaining on definite Horn clauses.
+ */
 object HornSolver:
 
-  /** Represents `body => head`. */
+  /**
+   * Represents `body => head`.
+   */
   final case class Clause[A](body: Vector[A], head: A)
 
   enum Origin:
     case Initial
     case ByClause(index: Int)
 
-  /** Records the first derivation of an atom. */
+  /**
+   * Records the first derivation of an atom.
+   */
   final case class Step[A](atom: A, origin: Origin)
 
-  /** Contains the reached goal, if any, and the derivations performed before stopping. */
+  /**
+   * Contains the reached goal, if any, and the derivations performed before stopping.
+   */
   final case class Result[A](goal: Option[A], steps: Vector[Step[A]]):
     def reached: Boolean = goal.nonEmpty
     def derived: Vector[A] = steps.map(_.atom)
@@ -76,8 +84,7 @@ object HornSolver:
 
     var clauseIndex = 0
     while clauseIndex < clauses.size && reached.isEmpty do
-      if remaining(clauseIndex) == 0 then
-        derive(compiled(clauseIndex)._2, clauses(clauseIndex).head, Origin.ByClause(clauseIndex))
+      if remaining(clauseIndex) == 0 then derive(compiled(clauseIndex)._2, clauses(clauseIndex).head, Origin.ByClause(clauseIndex))
       clauseIndex += 1
 
     while queue.nonEmpty && reached.isEmpty do
@@ -86,8 +93,7 @@ object HornSolver:
       while dependentClauses.nonEmpty && reached.isEmpty do
         val dependent = dependentClauses.head
         remaining(dependent) -= 1
-        if remaining(dependent) == 0 then
-          derive(compiled(dependent)._2, clauses(dependent).head, Origin.ByClause(dependent))
+        if remaining(dependent) == 0 then derive(compiled(dependent)._2, clauses(dependent).head, Origin.ByClause(dependent))
         dependentClauses = dependentClauses.tail
 
     Result(reached, steps.toVector)

@@ -80,12 +80,9 @@ final class Theorem(theoremKind: TheoremKind)(using library: Library, output: Ou
 
   private val state = s"  $kind $shortName := $statement"
   output.output(
-    if errors.isEmpty then 
-      OutputManager.GREEN(state)
-    else if thm.usesSorry then
-      OutputManager.YELLOW(state)
-    else 
-      OutputManager.RED(state)
+    if errors.isEmpty then OutputManager.GREEN(state)
+    else if thm.usesSorry then OutputManager.YELLOW(state)
+    else OutputManager.RED(state)
   )
 
   private def errorString(error: ProofError): String =
@@ -95,7 +92,7 @@ final class Theorem(theoremKind: TheoremKind)(using library: Library, output: Ou
 
   errors.toSeq
     .sortBy(error => (error.file.value, error.line.value, error.message))
-    .foreach: 
+    .foreach:
       case error: SoftError =>
         output.output(OutputManager.YELLOW(errorString(error)))
       case error: FatalError =>

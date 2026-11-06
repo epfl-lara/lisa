@@ -65,13 +65,13 @@ class BoundedCacheSuite extends AnyFunSuite:
             cache.put(key, operation)
         assert(cache.size == model.map(_.size).sum)
         assert(cache.size <= capacity * count && cache.evictions == evicted)
-        for candidate <- 0 until 19 do
-          assert(cache.get(candidate) == model.iterator.flatMap(_.get(candidate)).nextOption())
+        for candidate <- 0 until 19 do assert(cache.get(candidate) == model.iterator.flatMap(_.get(candidate)).nextOption())
 
   for (name, create) <- Seq(
-    "FIFO" -> ((n: Int) => BoundedCache.fifo[Int, Int](n)),
-    "generational" -> ((n: Int) => BoundedCache.generational[Int, Int](n))
-  ) do
+      "FIFO" -> ((n: Int) => BoundedCache.fifo[Int, Int](n)),
+      "generational" -> ((n: Int) => BoundedCache.generational[Int, Int](n))
+    )
+  do
     test(s"disable retention at zero capacity ($name)"):
       val cache = create(0)
       var calls = 0

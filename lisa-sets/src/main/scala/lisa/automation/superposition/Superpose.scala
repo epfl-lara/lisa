@@ -12,7 +12,9 @@ import lisa.utils.prooflib._
 
 import scala.util.control.NonFatal
 
-/** Reconstruct a linear certificate, check it, then discharge its imports against the cited facts. */
+/**
+ * Reconstruct a linear certificate, check it, then discharge its imports against the cited facts.
+ */
 object Superpose extends SequentTactic, PremiseSequentTactic, DerivedFromPremises:
   val timeoutMs: Long = 10000L
   val maxGiven: Int = 100000
@@ -22,12 +24,15 @@ object Superpose extends SequentTactic, PremiseSequentTactic, DerivedFromPremise
       hypotheses.map(formula => K.Sequent(Set.empty, Set(formula))),
       Some(K.Sequent(Set.empty, Set(K.sequentToFormula(goal))))
     )
-    try
-      Prover.proveKernel(problem, SearchOptions(maxGiven = maxGiven, maxMillis = timeoutMs))
-        .left.map(outcome => s"Superpose could not refute the goal ($outcome).")
+    try Prover.proveKernel(problem, SearchOptions(maxGiven = maxGiven, maxMillis = timeoutMs)).left.map(outcome => s"Superpose could not refute the goal ($outcome).")
     catch case NonFatal(error) => Left(s"Superpose failed: ${error.getClass.getSimpleName}: ${error.getMessage}")
 
-  protected def prove(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(
+  protected def prove(using
+      file: sourcecode.File,
+      line: sourcecode.Line
+  )(using
+      library: Library
+  )(
       conclusion: F.Sequent,
       premises: Seq[Thm]
   ): ProofJudgement =
@@ -37,15 +42,22 @@ object Superpose extends SequentTactic, PremiseSequentTactic, DerivedFromPremise
     val result = runProver(hypotheses, conclusion.underlying).flatMap: certificate =>
       if certificate.imports.size != imports.size then Left("Superpose produced an unexpected import list.")
       else
-        certificate.check.left.map(_.toString).flatMap: checked =>
-          certificate.imports.zip(imports).foldLeft(Right(checked): Either[String, Kernel.Thm]):
-            case (result, (expected, actual)) =>
-              result.flatMap: current =>
-                Kernel.Restate(expected, actual).left.map(_.toString)
-                  .flatMap(justification => Kernel.Discharge(current, justification).left.map(_.toString))
-          .flatMap: discharged =>
-            if discharged.assumptions.nonEmpty then Left("Superpose left unresolved certificate imports.")
-            else Kernel.Restate(conclusion.underlying, discharged).left.map(_.toString)
+        certificate.check.left
+          .map(_.toString)
+          .flatMap: checked =>
+            certificate.imports
+              .zip(imports)
+              .foldLeft(Right(checked): Either[String, Kernel.Thm]):
+                case (result, (expected, actual)) =>
+                  result.flatMap: current =>
+                    Kernel
+                      .Restate(expected, actual)
+                      .left
+                      .map(_.toString)
+                      .flatMap(justification => Kernel.Discharge(current, justification).left.map(_.toString))
+              .flatMap: discharged =>
+                if discharged.assumptions.nonEmpty then Left("Superpose left unresolved certificate imports.")
+                else Kernel.Restate(conclusion.underlying, discharged).left.map(_.toString)
     result match
       case Right(theorem) => ProofJudgement(Thm(conclusion, theorem))
       case Left(message) => ProofCarrier(Set(SoftError(message, file, line)), conclusion, None, ())

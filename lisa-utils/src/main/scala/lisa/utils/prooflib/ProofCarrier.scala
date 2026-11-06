@@ -51,13 +51,15 @@ trait ProofCarrier[+T]:
    */
   def judgement: ProofJudgement
 
-  /** Extract the front theorem, using Sorry when a soft carrier has no justification.
+  /**
+   * Extract the front theorem, using Sorry when a soft carrier has no justification.
    *
    * @throws FatalCarrierDestructionException if this carrier holds a fatal error.
    */
   inline def thm(using file: sourcecode.File, line: sourcecode.Line): Thm = destruct._1
 
-  /** Extract the kernel theorem, using Sorry when a soft carrier has no justification.
+  /**
+   * Extract the kernel theorem, using Sorry when a soft carrier has no justification.
    *
    * @throws FatalCarrierDestructionException if this carrier holds a fatal error.
    */
@@ -65,8 +67,8 @@ trait ProofCarrier[+T]:
 
   /**
    * The carrier's theorem and payload, using a sorry theorem when no
-   * justification was produced. 
-   * 
+   * justification was produced.
+   *
    * @throws FatalCarrierDestructionException if this carrier holds a fatal error; see [[FatalCarrier]].
    */
   def destruct(using file: sourcecode.File, line: sourcecode.Line): (Thm, T)
@@ -77,7 +79,7 @@ trait ProofCarrier[+T]:
    *
    * Use [[flatMap]] to additionally transform the existing justification
    * and/or payload.
-   * 
+   *
    * @throws FatalCarrierDestructionException if this carrier holds a fatal error; see [[FatalCarrier]].
    */
   def withJustification(using file: sourcecode.File, line: sourcecode.Line)(just: Thm): ProofCarrier[T]
@@ -169,14 +171,14 @@ object ProofJudgement:
 
 extension (kernelResult: Either[ProofError, K.Thm])(using lib: Library)
   /**
-    * Lift a kernel result (with its error handled, see [[ProofError]]) into a
-    * proof judgement/carrier with a known front statement.
-    *
-    * Checks that `intendedConclusion.underlying` is `==` to the kernel result.
-    *
-    * @throws IllegalArgumentException if the kernel result's statement does not
-    * match the intended conclusion.
-    */
+   * Lift a kernel result (with its error handled, see [[ProofError]]) into a
+   * proof judgement/carrier with a known front statement.
+   *
+   * Checks that `intendedConclusion.underlying` is `==` to the kernel result.
+   *
+   * @throws IllegalArgumentException if the kernel result's statement does not
+   * match the intended conclusion.
+   */
   def lift(intendedConclusion: Sequent): ProofJudgement =
     kernelResult match
       case Left(err) =>

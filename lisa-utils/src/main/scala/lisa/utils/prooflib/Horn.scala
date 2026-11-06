@@ -6,14 +6,20 @@ import lisa.utils.prooflib.Helpers.withParams
 
 import scala.collection.mutable
 
-/** Proves Horn consequences by forward chaining and cut reconstruction. */
+/**
+ * Proves Horn consequences by forward chaining and cut reconstruction.
+ */
 object Horn extends DerivedFromPremises:
 
   object CutKey:
-    /** Match cut formulas by their front-end syntax. */
+    /**
+     * Match cut formulas by their front-end syntax.
+     */
     val Syntactic: Expr[Prop] => Expr[Prop] = identity
 
-    /** Use OL equivalence as hash-key equality. */
+    /**
+     * Use OL equivalence as hash-key equality.
+     */
     final class OL private[CutKey] (private val formula: K.Expression):
       override def equals(other: Any): Boolean =
         other match
@@ -24,13 +30,17 @@ object Horn extends DerivedFromPremises:
       // benchmarks measure its collision cost separately.
       override def hashCode(): Int = 0
 
-    /** Match cut formulas modulo OL equivalence. */
+    /**
+     * Match cut formulas modulo OL equivalence.
+     */
     val OL: Expr[Prop] => OL = formula => new OL(formula.underlying)
 
   protected def prove(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premises: Seq[Thm]): ProofJudgement =
     proveWith(conclusion, premises, CutKey.Syntactic)
 
-  /** Use `cutKey` to choose which formulas may be connected by a cut. */
+  /**
+   * Use `cutKey` to choose which formulas may be connected by a cut.
+   */
   def withCutKey[Key](cutKey: Expr[Prop] => Key)(premises: Thm*)(using
       file: sourcecode.File,
       line: sourcecode.Line,

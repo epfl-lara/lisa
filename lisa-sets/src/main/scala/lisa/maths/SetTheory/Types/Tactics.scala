@@ -56,7 +56,9 @@ object Tactics:
   private val p: Variable[Prop] = variable[Prop]
 
   object Typecheck:
-    /** Extract one side of a proved conjunction with explicit sequent steps. */
+    /**
+     * Extract one side of a proved conjunction with explicit sequent steps.
+     */
     private def conjunct(using lib: SetTheoryLibrary.type, proof: Proof)(fact: Thm, takeLeft: Boolean): Thm =
       fact.statement.right.head match
         case conjunction @ (left /\ right) =>
@@ -68,7 +70,9 @@ object Tactics:
           have(fact.statement.left |- selected) by Cut.withParameters(conjunction)(fact, fromConjunction)
         case _ => throw new IllegalArgumentException(s"Expected a proved conjunction, got ${fact.statement}")
 
-    /** Memoize recursive checks while constructing one typing proof. */
+    /**
+     * Memoize recursive checks while constructing one typing proof.
+     */
     private final class Memo:
       private val inferred = mutable.HashMap.empty[(Set[Long], Long), ProofCarrier[Expr[Ind]]]
       private val checked = mutable.HashMap.empty[(Set[Long], Long, Long), ProofJudgement]
@@ -120,8 +124,13 @@ object Tactics:
     def apply(using lib: SetTheoryLibrary.type, proof: Proof)(bot: F.Sequent): ProofJudgement =
       prove(bot)
 
-    /** Derive application typing from proved function and argument typings; return the result type. */
-    def applicationProof(using lib: SetTheoryLibrary.type, proof: Proof)(
+    /**
+     * Derive application typing from proved function and argument typings; return the result type.
+     */
+    def applicationProof(using
+        lib: SetTheoryLibrary.type,
+        proof: Proof
+    )(
         function: Expr[Ind],
         argument: Expr[Ind],
         functionType: Expr[Ind]
@@ -145,8 +154,13 @@ object Tactics:
         case _ => failWith(s"Expected a Π-type with a lambda codomain, got $functionType.")
     }
 
-    /** Derive abstraction typing from a proved body typing; return the dependent product type. */
-    def abstractionProof(using lib: SetTheoryLibrary.type, proof: Proof)(
+    /**
+     * Derive abstraction typing from a proved body typing; return the dependent product type.
+     */
+    def abstractionProof(using
+        lib: SetTheoryLibrary.type,
+        proof: Proof
+    )(
         bound: Variable[Ind],
         domain: Expr[Ind],
         body: Expr[Ind],
@@ -185,7 +199,10 @@ object Tactics:
      * both results together and never have to recover the type by inspecting
      * the right-hand side of the generated theorem.
      */
-    private def inferProofM(using lib: SetTheoryLibrary.type, proof: Proof)(
+    private def inferProofM(using
+        lib: SetTheoryLibrary.type,
+        proof: Proof
+    )(
         localContext: Set[Expr[Prop]],
         tm: Expr[Ind],
         memo: Memo
@@ -193,132 +210,134 @@ object Tactics:
       memo.infer(localContext, tm) {
         import lib.*
         SubproofM {
-        tm match
-          /**
-           * Function application:
-           *
-           *     Γ₁ |- func ∈ Π(x : T₁). T₂(x)    Γ₂ |- arg ∈ T₁
-           *     ------------------------------------------------ TApp
-           *              Γ₁, Γ₂ |- func(arg) ∈ T₂(arg)
-           *
-           * First inference returns the function type as payload. Once it is
-           * known to be a Π-type, checking the argument returns its proof.
-           * `resultType` is then threaded out with the TApp justification.
-           */
-          case Sapp(func: Expr[Ind], tm2: Expr[Ind]) =>
-            inferProofM(using SetTheoryLibrary)(localContext, func, memo).flatMap { (funcType, funcTyping) =>
-              funcType match
-                case SPi(ty1: Expr[Ind], _: Abs[?, ?]) =>
-                  checkProofM(using SetTheoryLibrary)(localContext, tm2, ty1, memo).flatMap { (_, argTyping) =>
-                    applicationProof(func, tm2, funcType)(funcTyping, argTyping)
-                  }
-                case SPi(_, ty2) => failWith(s"Inferred type T2($ty2) is not a lambda expression")
-                case _ => failWith(s"$funcType must be a Π-type")
-            }
-
-          /**
-           * Abstraction:
-           *
-           *     Γ, x ∈ T₁ |- body ∈ T₂
-           *     ------------------------- implication, forall, TAbs
-           *     Γ |- λ(x : T₁). body ∈ Π(x : T₁). T₂
-           *
-           * Body inference directly supplies `T₂`; no theorem inspection is
-           * needed. The temporary binder assumption is discharged before the
-           * abstraction type and proof are returned together.
-           */
-          case Sabs(ty: Expr[Ind], Abs(boundVar: Variable[Ind], body: Expr[Ind])) =>
-            val newContext = localContext ++ Set(boundVar ∈ ty)
-            inferProofM(using SetTheoryLibrary)(newContext, body, memo).flatMap { (bodyType, bodyTyping) =>
-              abstractionProof(boundVar, ty, body, bodyType)(bodyTyping)
-            }
-
-          /**
-           * Dependent product formation:
-           *
-           *     Γ, x ∈ T₁ |- T₂(x) ∈ U₂    Umin ⊆ Umax
-           *     ---------------------------------------- universe Π-closure
-           *              Γ |- Π(x : T₁). T₂(x) ∈ Umax
-           *
-           * Body inference carries `U₂`. `U₁` comes from the local context
-           * when available, otherwise from `universeOf(T₁)`. The larger
-           * universe becomes this branch's inferred-type payload.
-           */
-          case SPi(ty: Expr[Ind], Abs(boundVar: Expr[Ind], body: Expr[Ind])) =>
-            val newContext = localContext ++ Set(boundVar ∈ ty)
-            inferProofM(using SetTheoryLibrary)(newContext, body, memo).flatMap { (u2, bodyTyping) =>
-              val (u1, u1Fact, u1Premises) = localContext
-                .collectFirst {
-                  case typeOf(s, u) if isSame(s, ty) => (u, None, Set(isUniverse(u), ty ∈ u))
-                }
-                .getOrElse {
-                  (universeOf(ty), Some(universeOfIsUniverse of (x := ty)), Set())
-                }
-              val (maxU, minU, closureThm) =
-                if getDepth(u1) > getDepth(u2) then (u1, u2, universeHierarchyPiClosureRight)
-                else (u2, u1, universeHierarchyPiClosureLeft)
-              subsetProof(using SetTheoryLibrary)(localContext, minU, maxU).flatMap { (_, subRel) =>
-                val resetBot = bodyTyping.statement -<< (boundVar ∈ ty)
-                have((boundVar ∈ ty |- body ∈ u2) ++<< bodyTyping.statement) by Weakening(bodyTyping)
-                thenHave((boundVar ∈ ty ==> body ∈ u2) ++<< resetBot) by RightImplies
-                thenHave((∀(boundVar ∈ ty, body ∈ u2)) ++<< resetBot) by RightForall
-                val quantifiedBody = lastStep
-                val closure = closureThm of (T1 := ty, T2 := Abs(boundVar, body), U1 := u1, U2 := u2)
-                val closed = have(Discharge(quantifiedBody, subRel)(closure))
-                val withUniverse = u1Fact.fold(closed): fact =>
-                  val universe = conjunct(fact, takeLeft = true)
-                  val membership = conjunct(fact, takeLeft = false)
-                  have(Discharge(universe, membership)(closed))
-                val typing = have(((u1Premises ++ Set(isUniverse(u2)) |- tm ∈ maxU) ++<< resetBot)) by Weakening(withUniverse)
-                ProofJudgement(typing).map(_ => maxU)
+          tm match
+            /**
+             * Function application:
+             *
+             *     Γ₁ |- func ∈ Π(x : T₁). T₂(x)    Γ₂ |- arg ∈ T₁
+             *     ------------------------------------------------ TApp
+             *              Γ₁, Γ₂ |- func(arg) ∈ T₂(arg)
+             *
+             * First inference returns the function type as payload. Once it is
+             * known to be a Π-type, checking the argument returns its proof.
+             * `resultType` is then threaded out with the TApp justification.
+             */
+            case Sapp(func: Expr[Ind], tm2: Expr[Ind]) =>
+              inferProofM(using SetTheoryLibrary)(localContext, func, memo).flatMap { (funcType, funcTyping) =>
+                funcType match
+                  case SPi(ty1: Expr[Ind], _: Abs[?, ?]) =>
+                    checkProofM(using SetTheoryLibrary)(localContext, tm2, ty1, memo).flatMap { (_, argTyping) =>
+                      applicationProof(func, tm2, funcType)(funcTyping, argTyping)
+                    }
+                  case SPi(_, ty2) => failWith(s"Inferred type T2($ty2) is not a lambda expression")
+                  case _ => failWith(s"$funcType must be a Π-type")
               }
-            }
 
-          /** Typed constants already carry both parts of the inference result. */
-          case tCst: TypedConstant => ProofJudgement(tCst.justif).map(_ => tCst.typ)
+            /**
+             * Abstraction:
+             *
+             *     Γ, x ∈ T₁ |- body ∈ T₂
+             *     ------------------------- implication, forall, TAbs
+             *     Γ |- λ(x : T₁). body ∈ Π(x : T₁). T₂
+             *
+             * Body inference directly supplies `T₂`; no theorem inspection is
+             * needed. The temporary binder assumption is discharged before the
+             * abstraction type and proof are returned together.
+             */
+            case Sabs(ty: Expr[Ind], Abs(boundVar: Variable[Ind], body: Expr[Ind])) =>
+              val newContext = localContext ++ Set(boundVar ∈ ty)
+              inferProofM(using SetTheoryLibrary)(newContext, body, memo).flatMap { (bodyType, bodyTyping) =>
+                abstractionProof(boundVar, ty, body, bodyType)(bodyTyping)
+              }
 
-          /**
-           * Fully applied type-level constants use their quantified typing
-           * theorem. Instantiating its binders yields
-           *
-           *     requirements(args) |- tm ∈ outType(args)
-           *
-           * and `outType(args)` is returned as payload.
-           */
-          case Multiapp(func, args: List[Expr[Ind]] @unchecked) if args.forall(_.sort == K.Ind) =>
-            func match
-              case tcf: TypedConstantFunctional[?] =>
-                if tcf.arity != args.size then
-                  throw new IllegalArgumentException(
-                    "computeType can only handle fully applied functions. Function " + tcf + " has arity " + tcf.arity + " but was applied to " + args.size + " arguments."
-                  )
-                val subst = (tcf.typ.args zip args).map((v, a) => (v := a))
-                val instance = args.foldLeft(tcf.justif.statement.right.head) {
-                  case (forall(v, body), arg) => body.substitute(v := arg)
-                  case _ => failWith(s"Typing theorem for $tcf does not quantify all type arguments.")
+            /**
+             * Dependent product formation:
+             *
+             *     Γ, x ∈ T₁ |- T₂(x) ∈ U₂    Umin ⊆ Umax
+             *     ---------------------------------------- universe Π-closure
+             *              Γ |- Π(x : T₁). T₂(x) ∈ Umax
+             *
+             * Body inference carries `U₂`. `U₁` comes from the local context
+             * when available, otherwise from `universeOf(T₁)`. The larger
+             * universe becomes this branch's inferred-type payload.
+             */
+            case SPi(ty: Expr[Ind], Abs(boundVar: Expr[Ind], body: Expr[Ind])) =>
+              val newContext = localContext ++ Set(boundVar ∈ ty)
+              inferProofM(using SetTheoryLibrary)(newContext, body, memo).flatMap { (u2, bodyTyping) =>
+                val (u1, u1Fact, u1Premises) = localContext
+                  .collectFirst {
+                    case typeOf(s, u) if isSame(s, ty) => (u, None, Set(isUniverse(u), ty ∈ u))
+                  }
+                  .getOrElse {
+                    (universeOf(ty), Some(universeOfIsUniverse of (x := ty)), Set())
+                  }
+                val (maxU, minU, closureThm) =
+                  if getDepth(u1) > getDepth(u2) then (u1, u2, universeHierarchyPiClosureRight)
+                  else (u2, u1, universeHierarchyPiClosureLeft)
+                subsetProof(using SetTheoryLibrary)(localContext, minU, maxU).flatMap { (_, subRel) =>
+                  val resetBot = bodyTyping.statement -<< (boundVar ∈ ty)
+                  have((boundVar ∈ ty |- body ∈ u2) ++<< bodyTyping.statement) by Weakening(bodyTyping)
+                  thenHave((boundVar ∈ ty ==> body ∈ u2) ++<< resetBot) by RightImplies
+                  thenHave((∀(boundVar ∈ ty, body ∈ u2)) ++<< resetBot) by RightForall
+                  val quantifiedBody = lastStep
+                  val closure = closureThm of (T1 := ty, T2 := Abs(boundVar, body), U1 := u1, U2 := u2)
+                  val closed = have(Discharge(quantifiedBody, subRel)(closure))
+                  val withUniverse = u1Fact.fold(closed): fact =>
+                    val universe = conjunct(fact, takeLeft = true)
+                    val membership = conjunct(fact, takeLeft = false)
+                    have(Discharge(universe, membership)(closed))
+                  val typing = have(((u1Premises ++ Set(isUniverse(u2)) |- tm ∈ maxU) ++<< resetBot)) by Weakening(withUniverse)
+                  ProofJudgement(typing).map(_ => maxU)
                 }
-                val instantiated =
-                  if args.isEmpty then have(tcf.justif)
-                  else have(instance) by InstantiateForall(args*)(tcf.justif)
-                val resultType = tcf.typ.outTyp.substitute(subst*)
-                val typing = tm ∈ resultType
-                def conjuncts(formula: Expr[Prop]): Set[Expr[Prop]] = formula match
-                  case left /\ right => conjuncts(left) union conjuncts(right)
-                  case _ => Set(formula)
-                @annotation.tailrec
-                def antecedents(formula: Expr[Prop], acc: Set[Expr[Prop]] = Set.empty): (Set[Expr[Prop]], Expr[Prop]) =
-                  formula match
-                    case premise ==> result => antecedents(result, acc union conjuncts(premise))
-                    case result => acc -> result
-                val (requirements, result) = antecedents(instance)
-                if !isSame(result, typing) then failWith(s"Instantiated typing theorem for $tcf concludes $result instead of $typing.")
-                val baseTyping = have(requirements |- typing) by Restate.from(instantiated)
-                val typingProof = have((localContext ++ requirements) |- typing) by Weakening(baseTyping)
-                ProofJudgement(typingProof).map(_ => resultType)
+              }
 
-              case _ => inferAtomic(localContext, tm)
+            /**
+             * Typed constants already carry both parts of the inference result.
+             */
+            case tCst: TypedConstant => ProofJudgement(tCst.justif).map(_ => tCst.typ)
 
-          case _ => inferAtomic(localContext, tm)
+            /**
+             * Fully applied type-level constants use their quantified typing
+             * theorem. Instantiating its binders yields
+             *
+             *     requirements(args) |- tm ∈ outType(args)
+             *
+             * and `outType(args)` is returned as payload.
+             */
+            case Multiapp(func, args: List[Expr[Ind]] @unchecked) if args.forall(_.sort == K.Ind) =>
+              func match
+                case tcf: TypedConstantFunctional[?] =>
+                  if tcf.arity != args.size then
+                    throw new IllegalArgumentException(
+                      "computeType can only handle fully applied functions. Function " + tcf + " has arity " + tcf.arity + " but was applied to " + args.size + " arguments."
+                    )
+                  val subst = (tcf.typ.args zip args).map((v, a) => (v := a))
+                  val instance = args.foldLeft(tcf.justif.statement.right.head) {
+                    case (forall(v, body), arg) => body.substitute(v := arg)
+                    case _ => failWith(s"Typing theorem for $tcf does not quantify all type arguments.")
+                  }
+                  val instantiated =
+                    if args.isEmpty then have(tcf.justif)
+                    else have(instance) by InstantiateForall(args*)(tcf.justif)
+                  val resultType = tcf.typ.outTyp.substitute(subst*)
+                  val typing = tm ∈ resultType
+                  def conjuncts(formula: Expr[Prop]): Set[Expr[Prop]] = formula match
+                    case left /\ right => conjuncts(left) union conjuncts(right)
+                    case _ => Set(formula)
+                  @annotation.tailrec
+                  def antecedents(formula: Expr[Prop], acc: Set[Expr[Prop]] = Set.empty): (Set[Expr[Prop]], Expr[Prop]) =
+                    formula match
+                      case premise ==> result => antecedents(result, acc union conjuncts(premise))
+                      case result => acc -> result
+                  val (requirements, result) = antecedents(instance)
+                  if !isSame(result, typing) then failWith(s"Instantiated typing theorem for $tcf concludes $result instead of $typing.")
+                  val baseTyping = have(requirements |- typing) by Restate.from(instantiated)
+                  val typingProof = have((localContext ++ requirements) |- typing) by Weakening(baseTyping)
+                  ProofJudgement(typingProof).map(_ => resultType)
+
+                case _ => inferAtomic(localContext, tm)
+
+            case _ => inferAtomic(localContext, tm)
         }
       }
 
@@ -326,7 +345,10 @@ object Tactics:
      * Infer a non-structural term from the local context. If no assignment is
      * known, TSort provides the conservative universe type.
      */
-    private def inferAtomic(using lib: SetTheoryLibrary.type, proof: Proof)(
+    private def inferAtomic(using
+        lib: SetTheoryLibrary.type,
+        proof: Proof
+    )(
         localContext: Set[Expr[Prop]],
         tm: Expr[Ind]
     ): ProofCarrier[Expr[Ind]] =
@@ -340,7 +362,9 @@ object Tactics:
           val typing = have(TSort of (U := tm))
           ProofJudgement(typing).map(_ => ty)
 
-    /** Infer the type of the given term (↑), discarding the internal payload. */
+    /**
+     * Infer the type of the given term (↑), discarding the internal payload.
+     */
     def inferProof(using lib: SetTheoryLibrary.type, proof: Proof)(localContext: Set[Expr[Prop]], tm: Expr[Ind]): ProofJudgement =
       inferProofM(using lib, proof)(localContext, tm, Memo()).judgement
 
@@ -350,7 +374,10 @@ object Tactics:
     def checkProof(using lib: SetTheoryLibrary.type, proof: Proof)(localContext: Set[Expr[Prop]], tm: Expr[Ind], ty: Expr[Ind]): ProofJudgement =
       checkProofM(using lib, proof)(localContext, tm, ty, Memo())
 
-    private def checkProofM(using lib: SetTheoryLibrary.type, proof: Proof)(
+    private def checkProofM(using
+        lib: SetTheoryLibrary.type,
+        proof: Proof
+    )(
         localContext: Set[Expr[Prop]],
         tm: Expr[Ind],
         ty: Expr[Ind],
@@ -359,67 +386,69 @@ object Tactics:
       memo.check(localContext, tm, ty) {
         import lib.*
         SubproofM {
-        (tm, ty) match
-          /**
-           * Bidirectional abstraction check:
-           *
-           *     Γ, x ∈ T₁ |- body ∈ T₂(x)
-           *     ----------------------------- TAbs
-           *     Γ |- λ(x : T₁). body ∈ Π(x : T₁). T₂(x)
-           *
-           * The expected Π-type supplies the codomain, so only the body needs
-           * recursive checking. Its carrier threads the proof into this step.
-           */
-          case (Sabs(ty1: Expr[Ind], body: Expr[Ind >>: Ind]), SPi(ty1prime: Expr[Ind], ty2: Expr[Ind >>: Ind])) =>
-            val (newBoundVariable, replaceVar, body1, body2) = (body, ty2) match
-              case (Abs(v1, b1), Abs(v2, b2)) => (v1, v2, b1, b2)
-              case _ => failWith("Term and Type must be lambda expressions")
-            have(ty1 === ty1prime) by RightRefl.withParameters(ty1 === ty1prime)
-            val newContext = localContext ++ Set(newBoundVariable ∈ ty1)
-            val newBody2 = body2.substitute((replaceVar, newBoundVariable))
-            checkProofM(using SetTheoryLibrary)(newContext, body1, newBody2, memo).flatMap { (_, bodyTyping) =>
-              val resetBot = bodyTyping.statement -<< (newBoundVariable ∈ ty1)
-              have((newBoundVariable ∈ ty1 |- body1 ∈ newBody2) ++<< bodyTyping.statement) by Weakening(bodyTyping)
-              thenHave((newBoundVariable ∈ ty1 ==> body1 ∈ newBody2) ++<< resetBot) by RightImplies
-              thenHave((∀(newBoundVariable ∈ ty1, body1 ∈ newBody2)) ++<< resetBot) by RightForall
-              val quantifiedTyping = lastStep
-              val abstraction = TAbs of (T1 := ty1, T2 := ty2, e := body)
-              val typing = have(Discharge(quantifiedTyping)(abstraction))
-              ProofJudgement(typing)
-            }
-
-          /**
-           * Conversion check:
-           *
-           *     Γ₁ |- tm ∈ inferredType    Γ₂ |- inferredType ⊆ expectedType
-           *     ------------------------------------------------------------ TConvAdv
-           *                   Γ₁, Γ₂ |- tm ∈ expectedType
-           *
-           * Reuse the inferred typing when its type matches; restate equivalent
-           * types and construct a conversion only for a genuine inclusion.
-           */
-          case _ =>
-            inferProofM(using SetTheoryLibrary)(localContext, tm, memo).flatMap { (inferredType, inferredTyping) =>
-              if inferredType == ty then ProofJudgement(inferredTyping)
-              else if isSame(inferredType, ty) then
-                val typing = have((tm ∈ ty) ++<< inferredTyping.statement) by Restate.from(inferredTyping)
+          (tm, ty) match
+            /**
+             * Bidirectional abstraction check:
+             *
+             *     Γ, x ∈ T₁ |- body ∈ T₂(x)
+             *     ----------------------------- TAbs
+             *     Γ |- λ(x : T₁). body ∈ Π(x : T₁). T₂(x)
+             *
+             * The expected Π-type supplies the codomain, so only the body needs
+             * recursive checking. Its carrier threads the proof into this step.
+             */
+            case (Sabs(ty1: Expr[Ind], body: Expr[Ind >>: Ind]), SPi(ty1prime: Expr[Ind], ty2: Expr[Ind >>: Ind])) =>
+              val (newBoundVariable, replaceVar, body1, body2) = (body, ty2) match
+                case (Abs(v1, b1), Abs(v2, b2)) => (v1, v2, b1, b2)
+                case _ => failWith("Term and Type must be lambda expressions")
+              have(ty1 === ty1prime) by RightRefl.withParameters(ty1 === ty1prime)
+              val newContext = localContext ++ Set(newBoundVariable ∈ ty1)
+              val newBody2 = body2.substitute((replaceVar, newBoundVariable))
+              checkProofM(using SetTheoryLibrary)(newContext, body1, newBody2, memo).flatMap { (_, bodyTyping) =>
+                val resetBot = bodyTyping.statement -<< (newBoundVariable ∈ ty1)
+                have((newBoundVariable ∈ ty1 |- body1 ∈ newBody2) ++<< bodyTyping.statement) by Weakening(bodyTyping)
+                thenHave((newBoundVariable ∈ ty1 ==> body1 ∈ newBody2) ++<< resetBot) by RightImplies
+                thenHave((∀(newBoundVariable ∈ ty1, body1 ∈ newBody2)) ++<< resetBot) by RightForall
+                val quantifiedTyping = lastStep
+                val abstraction = TAbs of (T1 := ty1, T2 := ty2, e := body)
+                val typing = have(Discharge(quantifiedTyping)(abstraction))
                 ProofJudgement(typing)
-              else
-                subsetProof(using SetTheoryLibrary)(localContext, inferredType, ty).flatMap { (_, conversion) =>
-                  val statement = (tm ∈ ty) ++<< inferredTyping.statement ++<< conversion.statement
-                  val inferredTypingFormula = tm ∈ inferredType
-                  val conversionFormula = inferredType ⊆ ty
-                  val rule = TConvAdv of (e1 := tm, T := inferredType, T1 := ty)
-                  val withInference = have(((tm ∈ ty) +<< conversionFormula) ++<< inferredTyping.statement) by
-                    Cut.withParameters(inferredTypingFormula)(inferredTyping, rule)
-                  val typing = have(statement) by Cut.withParameters(conversionFormula)(conversion, withInference)
+              }
+
+            /**
+             * Conversion check:
+             *
+             *     Γ₁ |- tm ∈ inferredType    Γ₂ |- inferredType ⊆ expectedType
+             *     ------------------------------------------------------------ TConvAdv
+             *                   Γ₁, Γ₂ |- tm ∈ expectedType
+             *
+             * Reuse the inferred typing when its type matches; restate equivalent
+             * types and construct a conversion only for a genuine inclusion.
+             */
+            case _ =>
+              inferProofM(using SetTheoryLibrary)(localContext, tm, memo).flatMap { (inferredType, inferredTyping) =>
+                if inferredType == ty then ProofJudgement(inferredTyping)
+                else if isSame(inferredType, ty) then
+                  val typing = have((tm ∈ ty) ++<< inferredTyping.statement) by Restate.from(inferredTyping)
                   ProofJudgement(typing)
-                }
-            }
+                else
+                  subsetProof(using SetTheoryLibrary)(localContext, inferredType, ty).flatMap { (_, conversion) =>
+                    val statement = (tm ∈ ty) ++<< inferredTyping.statement ++<< conversion.statement
+                    val inferredTypingFormula = tm ∈ inferredType
+                    val conversionFormula = inferredType ⊆ ty
+                    val rule = TConvAdv of (e1 := tm, T := inferredType, T1 := ty)
+                    val withInference = have(((tm ∈ ty) +<< conversionFormula) ++<< inferredTyping.statement) by
+                      Cut.withParameters(inferredTypingFormula)(inferredTyping, rule)
+                    val typing = have(statement) by Cut.withParameters(conversionFormula)(conversion, withInference)
+                    ProofJudgement(typing)
+                  }
+              }
         }
       }
 
-    /** Prove type inclusion, handling reflexivity before dependent covariance. */
+    /**
+     * Prove type inclusion, handling reflexivity before dependent covariance.
+     */
     def subsetProof(using lib: SetTheoryLibrary.type, proof: Proof)(localContext: Set[Expr[Prop]], sub: Expr[Ind], sup: Expr[Ind]): ProofJudgement =
       import lib.*
       Subproof {
