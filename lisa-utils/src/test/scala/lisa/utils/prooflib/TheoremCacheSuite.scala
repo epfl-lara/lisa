@@ -5,8 +5,7 @@ import lisa.utils.fol.FOL.{*, given}
 import lisa.utils.prooflib.BasicStepTactic.{Hypothesis, Restate}
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.nio.file.Files
-import java.nio.file.Path
+import java.nio.file.{Files, Path}
 import java.util.UUID
 
 class TheoremCacheSuite extends AnyFunSuite:
@@ -33,7 +32,8 @@ class TheoremCacheSuite extends AnyFunSuite:
     val second = s"$prefix.Second.membership"
     try test(first, second)
     finally
-      for name <- Seq(first, second); extension <- Seq(".proof", ".trees") do Files.deleteIfExists(Path.of("cache", name + extension))
+      for name <- Seq(first, second); extension <- Seq(".proof", ".trees") do
+        Files.deleteIfExists(Path.of("cache", name + extension))
 
   test("same short names keep separate cache files and kernel identities"):
     withNames: (first, second) =>

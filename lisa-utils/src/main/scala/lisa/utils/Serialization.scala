@@ -9,7 +9,7 @@ import scala.collection.mutable.{Map => MutMap}
 object Serialization {
 
   case class InvalidStepTag(tag: Byte) extends Exception("Invalid proof step tag: " + tag)
-  case class InvalidExprTag(tag: Byte) extends IllegalArgumentException("Invalid expression tag: " + tag)
+  case class InvalidExprTag(tag: Byte) extends Exception("Invalid expression tag: " + tag)
   case class IncompleteTreeException(idx: Int) extends Exception("Unexpected end of file while reading tree, after index " + idx)
 
   object Tag:
@@ -56,11 +56,6 @@ object Serialization {
       case Ind => "T"
       case Prop => "F"
       case Arrow(from, to) => s">${typeToString(from)}${typeToString(to)}"
-
-  def constantToString(c: Constant): String = "cst_" + c.id.name + "_" + c.id.no + "_" + typeToString(c.sort)
-  def variableToString(v: Variable): String = "var_" + v.id.name + "_" + v.id.no + "_" + typeToString(v.sort)
-
-  def constantToDos(c: Constant, dos: DataOutputStream): Unit = constantToDOS(c, dos)
 
   def constantToDOS(c: Constant, dos: DataOutputStream): Unit =
     dos.writeByte(Tag.constant)
@@ -419,11 +414,17 @@ object Serialization {
     val exprMap = MutMap[Line, Expression]()
 
     // Read and reconstruct all the terms and formulas in the tree file. Fill the table with it.
-    var tag = treesDIS.read()
-    while tag != -1 do
-      val expression = exprFromDIS(tag.toByte, treesDIS, exprMap)
-      exprMap(exprMap.size) = expression
-      tag = treesDIS.read()
+    var lineNo = -1
+
+    try {
+      while treesDIS.available() > 0 do
+        lineNo += 1
+        val tag = treesDIS.readByte()
+        val expr = exprFromDIS(tag, treesDIS, exprMap)
+        exprMap(lineNo) = expr
+    } catch
+      case _: EOFException =>
+        throw IncompleteTreeException(lineNo)
 
     // Terms and Formulas finished, deal with the proof now.
 

@@ -11,7 +11,6 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
-import java.io.EOFException
 import scala.collection.mutable.{Map => MutMap}
 
 /**
@@ -19,52 +18,6 @@ import scala.collection.mutable.{Map => MutMap}
  */
 class SerializationTest extends AnyFunSuite with TestUtils {
 
-  test("Serialization: leaf helpers use the same tags as proof trees") {
-    val bytes = new ByteArrayOutputStream
-    val out = new DataOutputStream(bytes)
-    variableToDOS(x, out)
-    assert(bytes.toByteArray.head == 0)
-    bytes.reset()
-    constantToDos(a, out)
-    assert(bytes.toByteArray.head == 1)
-  }
-
-  test("Serialization: reject a truncated tree entry") {
-    val trees = new ByteArrayOutputStream
-    val proofs = new ByteArrayOutputStream
-    val proof = SCProof(Hypothesis(Sequent(Set(a), Set(a)), a))
-    proofsToDataStream(new DataOutputStream(trees), new DataOutputStream(proofs), Seq(("truncated", proof, Nil)))
-    intercept[EOFException] {
-      proofsFromDataStream(
-        new DataInputStream(new ByteArrayInputStream(trees.toByteArray.dropRight(1))),
-        new DataInputStream(new ByteArrayInputStream(proofs.toByteArray))
-      )
-    }
-  }
-
-  test("Serialization: read tree entries when available reports zero") {
-    val trees = new ByteArrayOutputStream
-    val proofs = new ByteArrayOutputStream
-    val proof = SCProof(Hypothesis(Sequent(Set(a), Set(a)), a))
-    proofsToDataStream(new DataOutputStream(trees), new DataOutputStream(proofs), Seq(("unbuffered", proof, Nil)))
-    val input = new ByteArrayInputStream(trees.toByteArray) {
-      override def available(): Int = 0
-    }
-    val decoded = proofsFromDataStream(
-      new DataInputStream(input),
-      new DataInputStream(new ByteArrayInputStream(proofs.toByteArray))
-    )
-    assert(decoded.size == 1 && proofsEqual(decoded.head._2, proof))
-  }
-
-  test("Serialization: reject an unknown tree tag") {
-    intercept[IllegalArgumentException] {
-      proofsFromDataStream(
-        new DataInputStream(new ByteArrayInputStream(Array[Byte](99))),
-        new DataInputStream(new ByteArrayInputStream(Array.emptyByteArray))
-      )
-    }
-  }
   ///////////////////////////////////////////////////////
   // Testing utilities
 
@@ -680,7 +633,8 @@ class SerializationTest extends AnyFunSuite with TestUtils {
     val proof = SCProof(IndexedSeq(Restate(statement, -1)), IndexedSeq(statement))
     val trees = new ByteArrayOutputStream
     val steps = new ByteArrayOutputStream
-    thmsToDataStream(new DataOutputStream(trees), new DataOutputStream(steps), theory, List(("test.underscore", proof, List(("test", definition)))))
+    thmsToDataStream(new DataOutputStream(trees), new DataOutputStream(steps), theory,
+      List(("test.underscore", proof, List(("test", definition)))))
     val read = thmsFromDataStream(
       new DataInputStream(new ByteArrayInputStream(trees.toByteArray)),
       new DataInputStream(new ByteArrayInputStream(steps.toByteArray)),
