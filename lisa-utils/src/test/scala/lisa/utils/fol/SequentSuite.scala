@@ -9,6 +9,15 @@ class SequentSuite extends AnyFunSuite:
   private val y = variable[Ind](K.Identifier("sequent-x", 2))
   private val p = variable[Ind >>: Prop](K.Identifier("sequent-p"))
 
+  test("cache kernel conversion independently for each immutable sequent"):
+    val statement = Sequent(Set(p(x)), Set(p(y)))
+    val kernel = statement.underlying
+    assert(statement.underlying eq kernel)
+    val replaced = statement.substitute(x := y)
+    assert(replaced.underlying == K.Sequent(Set(p(y).underlying), Set(p(y).underlying)))
+    assert(!(replaced.underlying eq kernel))
+    assert(statement.underlying eq kernel)
+
   test("hasFree agrees with freeVars across binders and shared subexpressions"):
     val shared = p(x)
     val formulas = Seq(shared, p(y), forall(x, shared), forall(y, shared),

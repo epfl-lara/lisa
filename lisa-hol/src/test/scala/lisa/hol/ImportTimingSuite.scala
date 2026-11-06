@@ -143,9 +143,11 @@ class ImportTimingSuite extends AnyFunSuite:
       assert(timings.head.typingCacheEntries > 0)
       assert(timings.head.distinctTypes > 0)
       assert(HOLSteps.HOLProofType.cacheSize == 0)
+      assert(Import.Transformers.conversionCacheSize == 0)
 
   test("release typing caches after failed imports"):
     withTrace("cache_failure", mismatch = true, composite = true): prefix =>
       Console.withOut(new ByteArrayOutputStream):
         assertThrows[Import.FailedTheoremException](Import.importFromPrefix(prefix, 2, failFast = true))
       assert(HOLSteps.HOLProofType.cacheSize == 0)
+      assert(Import.Transformers.conversionCacheSize == 0)

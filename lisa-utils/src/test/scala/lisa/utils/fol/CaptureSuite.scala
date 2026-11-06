@@ -36,3 +36,12 @@ class CaptureSuite extends AnyFunSuite:
     val replaced = expression.substitute(q := p)
     assert(replaced.freeVars.contains(p))
     assert(!replaced.freeVars.contains(q))
+
+  test("freshening reads kernel support without enumerating frontend variables"):
+    val guarded = new Variable[Ind](K.Identifier("capture-guarded")):
+      override def freeVars: Set[Variable[?]] = throw new AssertionError("Frontend traversal")
+    val original = forall(x, p(guarded))
+    val replaced = original.substitute(guarded := x)
+    val kernel = K.substituteVariables(original.underlying, Map(guarded.underlying -> x.underlying))
+    assert(K.isSame(replaced.underlying, kernel))
+    assert(replaced.underlying.freeVariables.contains(x.underlying))

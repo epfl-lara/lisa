@@ -40,6 +40,12 @@ class EqualityRuleSuite extends AnyFunSuite:
     val truth = premise(y === One)
     assert(!Proof.withContext(ExtendedHOLSteps._EQ_MP(equality, truth)).isValid)
 
+  test("EQ_MP derives source Boolean typing from truth without a typing assignment"):
+    val source = variable[Ind](K.Identifier("rule-unannotated-source"))
+    val equality = premise((holeq(𝔹) * source * y) === One)
+    val truth = premise(source === One)
+    checked(Proof.withContext(ExtendedHOLSteps._EQ_MP(equality, truth)), y === One, equality, truth)
+
   test("MK_COMB retains both equality dependencies for variable and composite arguments"):
     for (left, right) <- Seq((x, y), (f * x, g * y)) do
       HOLSteps.HOLProofType.resetCache()

@@ -55,6 +55,21 @@ class HOLTypingSuite extends AnyFunSuite:
       HOLSteps._INST(Seq(function -> argument), premise)
     assert(!result.isValid)
 
+  test("term instantiation rejects a composite replacement at the wrong type"):
+    HOLSteps.HOLProofType.resetCache()
+    val result = Proof.withContext:
+      val premise = checked(ExtendedHOLSteps._REFL(function))
+      HOLSteps._INST(Seq(function -> (function * argument)), premise)
+    assert(!result.isValid)
+
+  test("term instantiation does not check the type of an absent source variable"):
+    val unused = TypedVariable(K.Identifier("hol-inst-unused"), 𝔹 ->: 𝔹)
+    val result = Proof.withContext:
+      val premise = checked(ExtendedHOLSteps._REFL(argument))
+      HOLSteps._INST(Seq(unused -> argument), premise)
+    val theorem = checked(result)
+    assert(isSameSequent(theorem.statement, argument :: 𝔹 |- ((argument =:= argument) === One)))
+
   test("equivalent types still discharge a composite replacement's typing"):
     val bound = variable[Ind](K.Identifier("hol-inst-composite-binder"))
     val renamedType = Pi(𝔹)(λ(bound, 𝔹))

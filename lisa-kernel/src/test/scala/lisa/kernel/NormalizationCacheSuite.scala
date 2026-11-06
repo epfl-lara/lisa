@@ -21,6 +21,17 @@ class NormalizationCacheSuite extends AnyFunSuite:
     assert(!eta.isBetaNormal)
     assert(eta.betaNormalForm == f)
 
+  test("reuse unchanged application children when normalizing either operand"):
+    val g = Variable(Identifier("normal-function"), Ind -> Ind)
+    val expressions = Seq(f(Lambda(y, y)(x)), Lambda(g, g)(f)(x))
+    for expression <- expressions do
+      val normal = expression.betaNormalForm.asInstanceOf[Application]
+      assert(!expression.isBetaNormal)
+      assert(!(normal eq expression))
+      assert(normal.f eq f)
+      assert(normal.arg eq x)
+      assert(normal.betaNormalForm eq normal)
+
   test("normalize inside both application operands and abstraction bodies"):
     val identity = Lambda(x, x)
     val expressions = Seq(f(identity(y)), Lambda(x, identity(f(y))))
@@ -43,3 +54,32 @@ class NormalizationCacheSuite extends AnyFunSuite:
     val expression = Lambda(x, binary(x)(x))
     assert(expression.isBetaNormal)
     assert(expression.betaNormalForm eq expression)
+
+  test("normalize eta redexes exposed by reducing an abstraction body"):
+    val expression = Lambda(x, Lambda(y, y)(f(x)))
+    assert(!expression.isBetaNormal)
+    assert(expression.betaNormalForm eq f)
+    assert(expression.betaNormalForm.isBetaNormal)
+    val z = Variable(Identifier("normal-z"), Ind)
+    val binary = Constant(Identifier("normal-nested-binary"), Ind -> (Ind -> Ind))
+    val nested = Lambda(x, Lambda(z, Lambda(y, y)(binary(x)(z))))
+    assert(nested.betaNormalForm eq binary)
+
+  test("recompute normality when substitution creates beta and eta redexes"):
+    val g = Variable(Identifier("normal-g"), Ind -> Ind)
+    val normal = g(x)
+    assert(normal.isBetaNormal)
+    val copied = substituteVariables(normal, Map.empty)
+    assert(copied.isBetaNormal)
+    assert(copied.betaNormalForm eq copied)
+
+    val beta = substituteVariables(normal, Map(g -> Lambda(y, y)))
+    assert(!beta.isBetaNormal)
+    assert(beta.betaNormalForm == x)
+
+    val higherOrder = Constant(Identifier("normal-higher-order"), (Ind -> Ind) -> Ind)
+    val application = higherOrder(g)
+    assert(application.isBetaNormal)
+    val eta = substituteVariables(application, Map(g -> Lambda(x, f(x))))
+    assert(!eta.isBetaNormal)
+    assert(eta.betaNormalForm == higherOrder(f))
