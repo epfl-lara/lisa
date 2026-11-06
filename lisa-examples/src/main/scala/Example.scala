@@ -6,7 +6,7 @@ object Example extends lisa.Main:
 
   // Formulas are Scala values: they can be inspected and transformed.
   val formula = ∀(x, P(x) ==> ∃(y, P(y)))
-  println(formula.subexpressions.mkString("\n"))
+  println(formula.subexpressions.mkString("; "))
 
   // A unary first-order function.
   val f = variable[Ind >>: Ind]
@@ -25,13 +25,15 @@ object Example extends lisa.Main:
   /**
    * Every set is a subset of itself: `⊢ x ⊆ x`.
    */
-  val subsetReflexivity = Theorem(x ⊆ x):
+  val subsetReflexivity = Theorem(x subset x):
     have((y ∈ x) ==> (y ∈ x)) by Restate
     thenHave(∀(y, (y ∈ x) ==> (y ∈ x))) by RightForall
     have(thesis) by Tautology.from(lastStep, subsetAxiom of (x := x, y := x))
 
   /**
    * The empty set is a subset of every set: `⊢ ∅ ⊆ x`.
+   * 
+   * Similar to infix `subset` above, we have also defined `⊆` 
    */
   val emptySetSubset = Theorem(∅ ⊆ x):
     have((y ∈ ∅) ==> (y ∈ x)) by Weakening(emptySetAxiom of (x := y))
@@ -43,6 +45,8 @@ object Example extends lisa.Main:
    */
   val setWithElementNonEmpty = Theorem((y ∈ x) |- x =/= ∅):
     have((x === ∅) |- !(y ∈ x)) by Substitute(x === ∅)(emptySetAxiom of (x := y))
+    // Restate the same fact in its contrapositive form.
+    have(thesis) by Restate.from(lastStep)
 
   /**
    * The power set of any set is non-empty: `⊢ 𝒫(x) ≠ ∅`.
