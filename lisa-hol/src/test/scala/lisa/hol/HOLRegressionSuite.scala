@@ -66,6 +66,12 @@ class HOLRegressionSuite extends AnyFunSuite:
     Proofs.check(Proofs.abstraction)
     Proofs.check(Proofs.beta)
 
+  test("check closure and transfinite recursion without admitted dependencies"):
+    for theorem <- Seq(
+      lisa.maths.SetTheory.Relations.Operations.Closure.reflexiveClosureValid,
+      lisa.maths.SetTheory.Ordinals.TransfiniteRecursion.transfiniteRecursion
+    ) do assert(!theorem.withSorry, theorem.fullName)
+
   test("distinguish HOL variable types when their printed names agree"):
     val first = Import.Transformers.mkTypedVar("same-name", Proofs.A)
     val second = Import.Transformers.mkTypedVar("same-name", Proofs.B)
@@ -99,6 +105,51 @@ class HOLRegressionSuite extends AnyFunSuite:
     val typing = HOLSteps.HOLProofType(Proofs.x)
     assert(typing.statement.left == typing.statement.right)
     checkTyping(proof)(typing)
+
+  test("reuse typing steps only within their root proof without registering theorems"):
+    import lisa.SetTheoryLibrary.*
+    val proof = new BaseProof(Proofs.reflexivity.asInstanceOf[THMFromProof])
+    given proof.type = proof
+    val before = lisa.kernel.proof.TheoremRegistrySnapshot.names(theory)
+    val first = HOLSteps.HOLProofType(Proofs.x)
+    assert(HOLSteps.HOLProofType(Proofs.x).eq(first))
+    val other = new BaseProof(Proofs.reflexivity.asInstanceOf[THMFromProof])
+    val second = HOLSteps.HOLProofType(using other)(Proofs.x)
+    assert(!first.eq(second))
+    assert(first.host.eq(proof))
+    assert(second.host.eq(other))
+    assert(first.bot == second.bot)
+    assert(lisa.kernel.proof.TheoremRegistrySnapshot.names(theory) == before)
+    checkTyping(proof)(first)
+    checkTyping(other)(second)
+
+  test("reuse canonical typings across nested tactics without inheriting assumptions"):
+    import lisa.SetTheoryLibrary.*
+    import lisa.maths.SetTheory.Functions.Predef.*
+    import lisa.maths.SetTheory.Types.TypingHelpers.*
+    val proof = new BaseProof(Proofs.reflexivity.asInstanceOf[THMFromProof])
+    given proof.type = proof
+    val unrelated = variable[Prop]
+    proof.addAssumption(unrelated)
+    val firstChild = proof.newInnerProof(None)
+    val first = HOLSteps.HOLProofType(using firstChild)(Proofs.f * Proofs.x)
+    val nested = firstChild.newInnerProof(None)
+    val repeated = HOLSteps.HOLProofType(using nested)(Proofs.f * Proofs.x)
+    val sibling = proof.newInnerProof(None)
+    val last = HOLSteps.HOLProofType(using sibling)(Proofs.f * Proofs.x)
+    assert(first.bot == repeated.bot && first.bot == last.bot)
+    assert(first.host.eq(firstChild))
+    assert(repeated.host.eq(nested))
+    assert(last.host.eq(sibling))
+    assert(!firstChild.sequentOfFact(first).left.contains(unrelated))
+    assert(HOLSteps.HOLProofType.cacheSize == 3)
+    val result = TacticSubproof { ip ?=>
+      ip.cleanAssumptions
+      HOLSteps.HOLProofType(Proofs.f * Proofs.x)
+    }
+    val typed = result.validate(summon[sourcecode.Line], summon[sourcecode.File])
+    assert(!typed.bot.left.contains(unrelated))
+    checkTyping(proof)(typed)
 
   test("retry local typing without caching its assumptions"):
     import lisa.SetTheoryLibrary.*
@@ -164,6 +215,55 @@ class HOLRegressionSuite extends AnyFunSuite:
     val store = new Import.StepStore()(using summon[ExtractorContext], Import.Logging.LoggingMode.Debug)
     intercept[Exception](store(4))
     assert(store.size == 0)
+
+  test("keep unnamed steps local while reusing checked named theorems"):
+    import lisa.hol.extractor.*
+    val start = 10000001L
+    val p = "v(local-cache-p)(c[bool][])"
+    val equality = s"C(C(c(=)(c[fun][[c[bool][]][c[fun][[c[bool][]][c[bool][]]]]]))($p))($p)"
+    given ExtractorContext = new ExtractorContext(
+      Iterator(
+        ProofLine(start, REFL(p)),
+        ProofLine(start + 1, TRANS(start, start)),
+        ProofLine(start + 2, TRANS(start, start)),
+        ProofLine(start + 3, TRANS(start + 1, start + 1))
+      ),
+      (0 to 3).iterator.map(offset => TheoremStatement(start + offset, RawSequent(Nil, equality)))
+    )
+    val store = new Import.LocalStepStore
+    val first = store.theorem(TheoremRef(start + 1, "LOCAL_CACHE_FIRST"))
+    assert(store.size == 2 && store.localCacheSize == 2)
+    val second = store.theorem(TheoremRef(start + 2, "LOCAL_CACHE_SECOND"))
+    assert(store.size == 4 && store.localCacheSize == 2)
+    val third = store.theorem(TheoremRef(start + 3, "LOCAL_CACHE_THIRD"))
+    assert(store.size == 5 && store.localCacheSize == 1)
+    assert(store.retainedSize == 3)
+    List(first, second, third).foreach(result => Proofs.check(result.asInstanceOf[lisa.SetTheoryLibrary.THM]))
+    (0 to 3).foreach(offset => assert(lisa.SetTheoryLibrary.theory.getTheorem(s"Import.step${start + offset}").isEmpty))
+
+  test("reject forward and missing dependencies with a theorem-local cache"):
+    import lisa.hol.extractor.*
+    val p = "v(local-cache-invalid-p)(c[bool][])"
+    for target <- List(9L, 11L) do
+      val extractor = new ExtractorContext(
+        Iterator(ProofLine(10, TRANS(target, target))),
+        Iterator(TheoremStatement(10, RawSequent(List(p), p)))
+      )
+      val store = new Import.LocalStepStore()(using extractor)
+      intercept[Exception](store.theorem(TheoremRef(10, s"LOCAL_CACHE_INVALID_$target")))
+      assert(store.size == 0 && store.retainedSize == 0)
+
+  test("check intermediate statements in the theorem-local debug variant"):
+    import lisa.hol.extractor.*
+    val p = "v(local-debug-p)(c[bool][])"
+    val q = "v(local-debug-q)(c[bool][])"
+    given ExtractorContext = new ExtractorContext(
+      Iterator(ProofLine(20, ASSUME(p))),
+      Iterator(TheoremStatement(20, RawSequent(List(p), q)))
+    )
+    val store = new Import.LocalStepStore()(using summon[ExtractorContext], Import.Logging.LoggingMode.Debug)
+    intercept[Exception](store.theorem(TheoremRef(20, "LOCAL_CACHE_DEBUG_MISMATCH")))
+    assert(store.size == 0 && store.retainedSize == 0)
 
   test("do not carry an erased type's non-emptiness through shared REFL and MK_COMB"):
     import lisa.hol.extractor.*

@@ -1,10 +1,8 @@
 package lisa.utils.prooflib
 
-import lisa.kernel.proof.RunningTheory
-import lisa.kernel.proof.SCProofChecker
-import lisa.utils.fol.FOL.{_, given}
-import lisa.utils.prooflib.BasicStepTactic.Hypothesis
-import lisa.utils.prooflib.BasicStepTactic.Restate
+import lisa.kernel.proof.{RunningTheory, SCProofChecker}
+import lisa.utils.fol.FOL.{*, given}
+import lisa.utils.prooflib.BasicStepTactic.{Hypothesis, Restate}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.nio.file.Files
@@ -88,23 +86,24 @@ class TheoremCacheSuite extends AnyFunSuite:
           have(p |- p) by Hypothesis
 
       val cold = build(new CachedLibrary)(())
-      assert(cold.kernelProof.get.conclusion == declared.underlying)
-      val warm = build(new CachedLibrary)(fail("recomputed the restated proof"))
-      assert(warm.highProof.isEmpty)
-      assert(warm.kernelProof.get.conclusion == declared.underlying)
-      assert(SCProofChecker.checkSCProof(warm.kernelProof.get).isValid)
+      assert(cold.innerJustification.proposition == declared.underlying)
+      assert(!cold.wasCached)
+      val warmLibrary = new CachedLibrary
+      val warm = build(warmLibrary)(fail("recomputed the restated proof"))
+      assert(warm.wasCached)
+      assert(warm.innerJustification.proposition == declared.underlying)
+      assert(lisa.utils.Serialization.oneProofFromFile("cache/" + name, warmLibrary.theory).exists((_, proof, _) =>
+        proof.conclusion == declared.underlying && SCProofChecker.checkSCProof(proof).isValid))
 
   test("reload a generated dependency without executing the consuming proof body"):
     withNames: (childName, parentName) =>
       val cold = new CachedLibrary
       val goal = (p |- p).underlying
-      val child = cold.THM.fromSCProof(
-        p |- p,
-        childName,
-        cold.InternalStatement,
-        () => lisa.kernel.proof.SCProof(lisa.kernel.proof.SequentCalculus.Hypothesis(goal, p.underlying)),
-        Nil
-      )
+      val child = locally:
+        import cold.{*, given}
+        InternalStatement.infer(using summon[OutputManager], sourcecode.FullName(childName)):
+          val step = have(p |- p) by Hypothesis
+          step.statement
       locally:
         import cold.{*, given}
         Theorem(using summon[OutputManager], sourcecode.FullName(parentName))(p |- p):
@@ -114,19 +113,16 @@ class TheoremCacheSuite extends AnyFunSuite:
       val before = files.map(Files.getLastModifiedTime(_))
       val warm = new CachedLibrary
       val parent = theorem(warm, parentName, p)(fail("recomputed the parent"))
-      assert(parent.highProof.isEmpty)
+      assert(parent.wasCached)
       assert(warm.theory.getTheorem(childName).nonEmpty)
       assert(files.map(Files.getLastModifiedTime(_)) == before)
-      assert(SCProofChecker.checkSCProof(parent.kernelProof.get).isValid)
+      assert(!parent.withSorry)
 
       val reloaded = warm.THM.fromSCProof(
-        p |- p,
-        childName,
-        warm.InternalStatement,
-        () => fail("recomputed generated proof"),
-        Nil
+        p |- p, childName, warm.InternalStatement, () => fail("recomputed generated proof"), Nil
       )
-      assert(reloaded.kernelProof.get.conclusion == goal)
+      assert(reloaded.wasCached)
+      assert(reloaded.innerJustification.proposition == goal)
 
   test("reject a dependency that no longer proves the imported statement"):
     withNames: (childName, parentName) =>
@@ -134,12 +130,9 @@ class TheoremCacheSuite extends AnyFunSuite:
         val axiom = lib.Axiom(using sourcecode.FullName(childName + ".axiom"))(formula)
         val statement = (Sequent(Set.empty, Set(formula))).underlying
         lib.THM.fromSCProof(
-          axiom.statement,
-          childName,
-          lib.InternalStatement,
+          axiom.statement, childName, lib.InternalStatement,
           () => lisa.kernel.proof.SCProof(IndexedSeq(lisa.kernel.proof.SequentCalculus.Restate(statement, -1)), IndexedSeq(statement)),
-          List(axiom.innerJustification),
-          List(axiom)
+          List(axiom.innerJustification), List(axiom)
         )
       val cold = new CachedLibrary
       val dependency = child(cold, p)
@@ -177,17 +170,86 @@ class TheoremCacheSuite extends AnyFunSuite:
       def build(lib: CachedLibrary, formula: Expr[Prop])(onCompute: => Unit): lib.THM =
         val statement = (formula |- formula).underlying
         lib.THM.fromSCProof(
-          formula |- formula,
-          name,
-          lib.InternalStatement,
+          formula |- formula, name, lib.InternalStatement,
           () => {
             onCompute
             lisa.kernel.proof.SCProof(lisa.kernel.proof.SequentCalculus.Hypothesis(statement, formula.underlying))
-          },
-          Nil
+          }, Nil
         )
       build(new CachedLibrary, a)(())
       var computed = false
       val replacement = build(new CachedLibrary, b) { computed = true }
       assert(computed)
-      assert(replacement.kernelProof.get.conclusion == (b |- b).underlying)
+      assert(!replacement.wasCached)
+      assert(replacement.innerJustification.proposition == (b |- b).underlying)
+
+  test("record proof statistics without retaining the builder or computation"):
+    val lib = new Library:
+      val theory = new RunningTheory
+    import lib.*
+    var computations = 0
+    val result = Theorem(p |- p):
+      computations += 1
+      have(thesis) by Hypothesis
+    assert(computations == 1)
+    assert(result.proofStatistics.kernelSize == 1)
+    assert(!result.wasCached && result.sorryDependencies.isEmpty)
+    val fields = result.getClass.getDeclaredFields.filterNot(field => java.lang.reflect.Modifier.isStatic(field.getModifiers))
+    assert(fields.forall(field => !classOf[Proof].isAssignableFrom(field.getType)))
+    val retainedCallbacks = fields.filter(_.getType.getName.startsWith("scala.Function"))
+    assert(retainedCallbacks.isEmpty, s"Retained callbacks in ${result.getClass}: ${retainedCallbacks.toList}")
+    assert(fields.forall(field => field.getType != classOf[lisa.kernel.proof.SCProof]))
+
+  test("preserve admitted imports and statistics on a cache hit"):
+    withNames: (childName, parentName) =>
+      val cold = new CachedLibrary
+      locally:
+        import cold.{*, given}
+        val admitted = Theorem(using summon[OutputManager], sourcecode.FullName(childName))(p):
+          have(thesis) by lisa.utils.prooflib.BasicStepTactic.Sorry
+        val parent = Theorem(using summon[OutputManager], sourcecode.FullName(parentName))(p):
+          have(thesis) by Restate.from(admitted)
+        assert(parent.withSorry)
+        assert(parent.sorryDependencies.map(_.name) == List(childName))
+        assert(!parent.wasCached)
+      val warm = new CachedLibrary
+      locally:
+        import warm.{*, given}
+        val parent = Theorem(using summon[OutputManager], sourcecode.FullName(parentName))(p):
+          fail("recomputed the cached admitted dependency")
+        assert(parent.wasCached && parent.withSorry)
+        assert(parent.proofStatistics.kernelSize > 0)
+        assert(parent.sorryDependencies.map(_.name) == List(childName))
+
+  test("record draft metadata without constructing a proof"):
+    val lib = new Library:
+      val theory = new RunningTheory
+    lib.draft(using sourcecode.File("different-proof-file.scala"), summon[OutputManager])()
+    import lib.*
+    val result = Theorem(p):
+      fail("constructed a draft proof")
+    assert(result.withSorry && !result.wasCached)
+    assert(result.proofStatistics.kernelSize == 1)
+    assert(result.sorryDependencies.isEmpty)
+
+  test("infer an internal theorem without supplying an artificial goal"):
+    val lib = new Library:
+      val theory = new RunningTheory
+    import lib.*
+    val result = InternalStatement.infer:
+      val step = have(p |- p) by Hypothesis
+      step.statement
+    assert(result.statement == (p |- p))
+    assert(result.proofStatistics.kernelSize == 1)
+    assert(!result.wasCached && !result.withSorry)
+
+  test("check an inferred conclusion before registering its theorem"):
+    val lib = new Library:
+      val theory = new RunningTheory
+    import lib.*
+    val name = "invalid-inferred-conclusion"
+    intercept[Exception]:
+      InternalStatement.infer(using summon[OutputManager], sourcecode.FullName(name), summon[sourcecode.Line], summon[sourcecode.File]):
+        have(p |- p) by Hypothesis
+        p |- q
+    assert(theory.getTheorem(name).isEmpty)
