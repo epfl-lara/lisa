@@ -117,3 +117,8 @@ doc/api/
 # metals auto gen files
 # can be nested inside /project
 project/**/metals.sbt
+
+bench/
+import-bench/
+hol-export/
+experiment-analysis/
