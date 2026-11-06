@@ -13,7 +13,7 @@ import scala.collection.mutable.{Map => MutMap}
 object Serialization:
 
   case class InvalidStepTag(tag: Byte) extends Exception("Invalid proof step tag: " + tag)
-  case class InvalidExprTag(tag: Byte) extends Exception("Invalid expression tag: " + tag)
+  case class InvalidExprTag(tag: Byte) extends IllegalArgumentException("Invalid expression tag: " + tag)
   case class IncompleteTreeException(idx: Int) extends Exception("Unexpected end of file while reading tree, after index " + idx)
 
   object Tag:
@@ -317,11 +317,13 @@ object Serialization:
     private val exprMap = MutMap[Line, Expression]()
     private var nextLine = 0
 
-    try
-      while treesDIS.available() > 0 do
-        exprMap(nextLine) = exprFromDIS(treesDIS.readByte(), treesDIS, exprMap)
+    private var tag = treesDIS.read()
+    while tag != -1 do
+      try
+        exprMap(nextLine) = exprFromDIS(tag.toByte, treesDIS, exprMap)
         nextLine += 1
-    catch case _: EOFException => throw IncompleteTreeException(nextLine - 1)
+      catch case _: EOFException => throw IncompleteTreeException(nextLine - 1)
+      tag = treesDIS.read()
 
     private def expr(): Expression = exprMap(proofDIS.readInt())
     private def variable(): Variable = expr().asInstanceOf[Variable]

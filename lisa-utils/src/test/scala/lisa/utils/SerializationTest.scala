@@ -59,6 +59,24 @@ class SerializationTest extends AnyFunSuite:
     assert(line == 0)
     assert(hex(bytes) == "0000017800000000000154")
 
+  test("read tree records even when available reports zero"):
+    val original = LinearProof(Array(Hypothesis(Sequent(Set(p), Set(p)), p)), Array.empty)
+    val (trees, steps) = proofBytes(original)
+    val input = new ByteArrayInputStream(trees):
+      override def available(): Int = 0
+    val restored = proofFromDataStream(DataInputStream(input), DataInputStream(ByteArrayInputStream(steps)))
+    assert(proofsEqual(original, restored))
+    assert(restored.check.isRight)
+
+  test("reject a truncated tree record"):
+    val (trees, steps) = proofBytes(LinearProof(Array(Hypothesis(Sequent(Set(p), Set(p)), p)), Array.empty))
+    intercept[IncompleteTreeException]:
+      proofFromDataStream(DataInputStream(ByteArrayInputStream(trees.dropRight(1))), DataInputStream(ByteArrayInputStream(steps)))
+
+  test("reject an unknown tree tag"):
+    intercept[IllegalArgumentException]:
+      proofFromDataStream(DataInputStream(ByteArrayInputStream(Array[Byte](99))), DataInputStream(ByteArrayInputStream(Array.emptyByteArray)))
+
   test("legacy compound tree bytes and DAG line order remain unchanged"):
     val expression = Lambda(x, Application(f, x))
     val (bytes, line) = expressionBytes(expression)
