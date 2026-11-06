@@ -2,10 +2,13 @@ package lisa.utils.prooflib
 
 import lisa.kernel.proof.RunningTheory
 import lisa.utils.K
-import lisa.utils.fol.FOL.{*, given}
+import lisa.utils.fol.FOL.{_, given}
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.DataInputStream
+import java.io.DataOutputStream
 
 class DefinitionSuite extends AnyFunSuite:
   private given OutputManager = new OutputManager:
@@ -48,8 +51,10 @@ class DefinitionSuite extends AnyFunSuite:
       assert(symbol.id.name.endsWith(s".Definitions.${symbol.shortName}"))
       assert(symbol.definition.fullName == symbol.fullName)
       assert(theory.getDefinition(symbol.underlying).nonEmpty)
-    assert(etaExpanded.definition.statement.underlying ==
-      theory.sequentFromJustification(etaExpanded.definition.innerJustification))
+    assert(
+      etaExpanded.definition.statement.underlying ==
+        theory.sequentFromJustification(etaExpanded.definition.innerJustification)
+    )
 
   test("reject duplicate full names"):
     val lib = new Definitions
@@ -64,18 +69,22 @@ class DefinitionSuite extends AnyFunSuite:
     val definition = cold.getDefinition(cold.First.ω).get
     val statement = definition.statement.underlying
     val proof = lisa.kernel.proof.SCProof(
-      IndexedSeq(lisa.kernel.proof.SequentCalculus.Restate(statement, -1)), IndexedSeq(statement)
+      IndexedSeq(lisa.kernel.proof.SequentCalculus.Restate(statement, -1)),
+      IndexedSeq(statement)
     )
     val trees = new ByteArrayOutputStream
     val steps = new ByteArrayOutputStream
     lisa.utils.Serialization.thmsToDataStream(
-      new DataOutputStream(trees), new DataOutputStream(steps), cold.theory,
+      new DataOutputStream(trees),
+      new DataOutputStream(steps),
+      cold.theory,
       List(("DefinitionSuite.imported", proof, List((definition.owner, definition.innerJustification))))
     )
     val warm = new Definitions
     val checked = lisa.utils.Serialization.thmsFromDataStream(
       new DataInputStream(new ByteArrayInputStream(trees.toByteArray)),
-      new DataInputStream(new ByteArrayInputStream(steps.toByteArray)), warm.theory
+      new DataInputStream(new ByteArrayInputStream(steps.toByteArray)),
+      warm.theory
     )
     assert(checked.size == 1)
     assert(checked.head._1.proposition == statement)

@@ -29,8 +29,7 @@ class SequentSuite extends AnyFunSuite:
 
   test("hasFree agrees with freeVars across binders and shared subexpressions"):
     val shared = p(x)
-    val formulas = Seq(shared, p(y), forall(x, shared), forall(y, shared),
-      forall(x, forall(x, shared)), shared /\ forall(x, shared))
+    val formulas = Seq(shared, p(y), forall(x, shared), forall(y, shared), forall(x, forall(x, shared)), shared /\ forall(x, shared))
     for left <- formulas.combinations(2); right <- formulas; v <- Seq(x, y) do
       val statement = Sequent(left.toSet, Set(right))
       assert(statement.hasFree(v) == statement.freeVars.contains(v))

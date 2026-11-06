@@ -1,8 +1,9 @@
 package lisa.utils.prooflib
 
-import lisa.kernel.proof.{RunningTheory, SCProofChecker}
-import lisa.utils.fol.FOL.*
-import lisa.utils.prooflib.BasicStepTactic.*
+import lisa.kernel.proof.RunningTheory
+import lisa.kernel.proof.SCProofChecker
+import lisa.utils.fol.FOL._
+import lisa.utils.prooflib.BasicStepTactic._
 import org.scalatest.funsuite.AnyFunSuite
 
 class ImportIndexSuite extends AnyFunSuite:
@@ -20,8 +21,7 @@ class ImportIndexSuite extends AnyFunSuite:
   private lazy val second = Theorem(p |- p) { have(thesis) by Hypothesis }
 
   private def colliding(theorem: THM): THM =
-    new THMFromKernel(theorem.statement, theorem.fullName, theorem.kind,
-      theorem.innerJustification, theorem.proofStatistics, theorem.wasCached, theorem.sorryDependencies):
+    new THMFromKernel(theorem.statement, theorem.fullName, theorem.kind, theorem.innerJustification, theorem.proofStatistics, theorem.wasCached, theorem.sorryDependencies):
       override def hashCode(): Int = 0
 
   test("read statements without importing and keep negative indices stable"):

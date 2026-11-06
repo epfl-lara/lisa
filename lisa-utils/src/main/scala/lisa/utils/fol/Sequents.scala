@@ -34,11 +34,14 @@ trait Sequents extends Predef {
       super.substitute(pairs*).asInstanceOf[Sequent]
 
     def freeVars: Set[Variable[?]] = left.flatMap(_.freeVars) ++ right.flatMap(_.freeVars)
-    /** Test free occurrence using cached kernel supports without building a sequent-wide set. */
+
+    /**
+     * Test free occurrence using cached kernel supports without building a sequent-wide set.
+     */
     def hasFree[S: Sort](v: Variable[S]): Boolean =
       val target = v.underlying
       right.exists(_.underlying.freeVariables.contains(target)) ||
-        left.exists(_.underlying.freeVariables.contains(target))
+      left.exists(_.underlying.freeVariables.contains(target))
     def freeTermVars: Set[Variable[Ind]] = left.flatMap(_.freeTermVars) ++ right.flatMap(_.freeTermVars)
     def constants: Set[Constant[?]] = left.flatMap(_.constants) ++ right.flatMap(_.constants)
 

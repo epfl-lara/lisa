@@ -417,10 +417,14 @@ trait Syntax {
     override def hashCode(): Int = underlyingHashCode
     val sort: K.Sort = sortEv.underlying
 
-    /** Complete identifier used by the front end. */
+    /**
+     * Complete identifier used by the front end.
+     */
     val fullName: String = id.toString
 
-    /** Unqualified identifier for printing. */
+    /**
+     * Unqualified identifier for printing.
+     */
     val shortName: String =
       val separator = id.name.lastIndexOf('.')
       val base = if separator < 0 then id.name else id.name.substring(separator + 1)

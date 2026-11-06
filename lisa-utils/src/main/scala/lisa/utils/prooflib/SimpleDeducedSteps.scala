@@ -23,8 +23,7 @@ object SimpleDeducedSteps {
             val goal = prem.statement -<? seq.right.head ++<? (seq.left |- ())
             if goal == prem.statement then prem
             else lib.have(Cut.withParameters(seq.right.head)(discharge, prem)(goal))
-          else
-            prem
+          else prem
         )
     }
 

@@ -1,6 +1,6 @@
 package lisa.utils
 
-import lisa.utils.fol.FOL.{*, given}
+import lisa.utils.fol.FOL.{_, given}
 import org.scalatest.funsuite.AnyFunSuite
 
 class FrontExpressionSuite extends AnyFunSuite:

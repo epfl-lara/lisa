@@ -183,7 +183,9 @@ trait ProofsHelpers {
 
   // NOTE: only the top level functions here should use sourcecode implicits!!
 
-  /** Define a constant under its declaration's fully qualified name. */
+  /**
+   * Define a constant under its declaration's fully qualified name.
+   */
   def DEF[S: Sort](using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(e: Expr[S]): Constant[S] =
     val (vars, body) = leadingVarsAndBody(e)
     if vars.size == e.sort.depth then DirectDefinition[S](name, line, file)(e, vars).cst
@@ -204,7 +206,9 @@ trait ProofsHelpers {
         case _ => om.lisaThrow(UserInvalidDefinitionException(name.value, "The given expression is not an epsilon term.")(line, file))
     else om.lisaThrow(UserInvalidDefinitionException(name.value, "The given expression is not an epsilon term.")(line, file))
 
-  /** Define a constant under an explicit fully qualified name. */
+  /**
+   * Define a constant under an explicit fully qualified name.
+   */
   class DirectDefinition[S: Sort](using om: OutputManager)(sourceName: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(val expr: Expr[S], val vars: Seq[Variable[?]])
       extends DEFINITION(line, file) {
 

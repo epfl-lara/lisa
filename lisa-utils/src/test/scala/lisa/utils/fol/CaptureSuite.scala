@@ -11,10 +11,8 @@ class CaptureSuite extends AnyFunSuite:
   private val p = variable[Ind >>: Prop](K.Identifier("capture-p"))
 
   test("capture detection agrees with kernel substitution across nested binders"):
-    val expressions = Seq[Expr[Prop]](p(x), forall(x, p(y)), forall(x, forall(y, p(z))),
-      forall(x, forall(x, p(y))), forall(y, p(x)) /\ forall(x, p(z)))
-    val maps = Seq(Map[Variable[?], Expr[?]](y -> x), Map[Variable[?], Expr[?]](x -> y, y -> z),
-      Map[Variable[?], Expr[?]](z -> x, x -> y), Map.empty[Variable[?], Expr[?]])
+    val expressions = Seq[Expr[Prop]](p(x), forall(x, p(y)), forall(x, forall(y, p(z))), forall(x, forall(x, p(y))), forall(y, p(x)) /\ forall(x, p(z)))
+    val maps = Seq(Map[Variable[?], Expr[?]](y -> x), Map[Variable[?], Expr[?]](x -> y, y -> z), Map[Variable[?], Expr[?]](z -> x, x -> y), Map.empty[Variable[?], Expr[?]])
     for expression <- expressions; substitutions <- maps do
       val front = expression.substituteUnsafe(substitutions)
       val kernel = K.substituteVariables(expression.underlying, substitutions.map((v, e) => v.underlying -> e.underlying))

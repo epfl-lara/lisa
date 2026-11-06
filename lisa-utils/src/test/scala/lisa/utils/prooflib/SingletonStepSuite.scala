@@ -1,8 +1,9 @@
 package lisa.utils.prooflib
 
-import lisa.kernel.proof.{RunningTheory, SCProofChecker}
-import lisa.utils.fol.FOL.*
-import lisa.utils.prooflib.BasicStepTactic.*
+import lisa.kernel.proof.RunningTheory
+import lisa.kernel.proof.SCProofChecker
+import lisa.utils.fol.FOL._
+import lisa.utils.prooflib.BasicStepTactic._
 import org.scalatest.funsuite.AnyFunSuite
 
 class SingletonStepSuite extends AnyFunSuite:

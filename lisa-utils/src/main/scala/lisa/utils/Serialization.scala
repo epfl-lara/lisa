@@ -563,9 +563,13 @@ object Serialization {
     checkTheorems(proofsFromDataStream(treesDIS, proofDIS), theory, debug).map((theorem, proof, _) => (theorem, proof))
   }
 
-  /** Resolve imports and check each decoded theorem before registering it. */
+  /**
+   * Resolve imports and check each decoded theorem before registering it.
+   */
   private def checkTheorems(
-      theorems: Seq[(String, SCProof, List[String])], theory: RunningTheory, debug: Boolean,
+      theorems: Seq[(String, SCProof, List[String])],
+      theory: RunningTheory,
+      debug: Boolean,
       loadTheorem: String => Option[theory.Theorem] = (_: String) => None
   ): Seq[(theory.Theorem, SCProof, List[theory.Justification])] = {
     theorems.map { (name, proof, justifications) =>
@@ -588,7 +592,8 @@ object Serialization {
           // A cached proof skips its body, including references that initialize other Scala objects.
           try Class.forName(owner + "$").getField("MODULE$").get(null)
           catch case _: ClassNotFoundException => () // Generated theorems need not have a Scala owner.
-          lookup().orElse(if j(0) == 't' then loadTheorem(jName) else None)
+          lookup()
+            .orElse(if j(0) == 't' then loadTheorem(jName) else None)
             .getOrElse(throw new IllegalArgumentException(s"Missing cached dependency: $owner: $jName"))
         }
       }
@@ -637,7 +642,9 @@ object Serialization {
   def oneThmFromFile(filename: String, theory: RunningTheory): Option[theory.Theorem] =
     oneProofFromFile(filename, theory).map(_._1)
 
-  /** Read and check one cached theorem, returning its certificate and resolved imports. */
+  /**
+   * Read and check one cached theorem, returning its certificate and resolved imports.
+   */
   def oneProofFromFile(
       filename: String,
       theory: RunningTheory,
@@ -663,13 +670,11 @@ object Serialization {
             read(File(directory, dependency).getPath, Some(dependency), None, pending + decodedName).map(_._1)
           }
           Some(checkTheorems(decoded, theory, false, load).head)
-        }
-        catch {
+        } catch {
           case e: Exception =>
             println(s"Error while reading theorems from file: $base: ${e.getMessage}")
             None
-        }
-        finally {
+        } finally {
           treesDIS.close()
           proofDIS.close()
         }
