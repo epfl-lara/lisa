@@ -7,6 +7,34 @@ sealed trait ProofStep:
   val statement: Sequent
   val premises: Array[Int]
 
+object ProofStep:
+  /** Remap every premise reference without changing the inference. */
+  def mapPremises(step: ProofStep, f: Int => Int): ProofStep = step match
+    case s: Discharge => s.copy(premise = f(s.premise), justification = f(s.justification))
+    case s: Restate => s.copy(premise = f(s.premise))
+    case s: Cut => s.copy(premise1 = f(s.premise1), premise2 = f(s.premise2))
+    case s: LeftAnd => s.copy(premise = f(s.premise))
+    case s: LeftOr => s.copy(premises = s.premises.map(f))
+    case s: LeftImplies => s.copy(premise1 = f(s.premise1), premise2 = f(s.premise2))
+    case s: LeftIff => s.copy(premise = f(s.premise))
+    case s: LeftNot => s.copy(premise = f(s.premise))
+    case s: LeftForall => s.copy(premise = f(s.premise))
+    case s: LeftExists => s.copy(premise = f(s.premise))
+    case s: RightAnd => s.copy(premises = s.premises.map(f))
+    case s: RightOr => s.copy(premise = f(s.premise))
+    case s: RightImplies => s.copy(premise = f(s.premise))
+    case s: RightIff => s.copy(premise1 = f(s.premise1), premise2 = f(s.premise2))
+    case s: RightNot => s.copy(premise = f(s.premise))
+    case s: RightForall => s.copy(premise = f(s.premise))
+    case s: RightExists => s.copy(premise = f(s.premise))
+    case s: RightEpsilon => s.copy(premise = f(s.premise))
+    case s: Weakening => s.copy(premise = f(s.premise))
+    case s: LeftRefl => s.copy(premise = f(s.premise))
+    case s: LeftSubstEq => s.copy(premise = f(s.premise))
+    case s: RightSubstEq => s.copy(premise = f(s.premise))
+    case s: InstSchema => s.copy(premise = f(s.premise))
+    case _: Sorry | _: Axiom | _: Assume | _: Definition | _: RestateTrue | _: Hypothesis | _: RightRefl => step
+
 case class Sorry(statement: Sequent) extends ProofStep:
   val premises: Array[Int] = Array.empty
 
@@ -39,6 +67,10 @@ case class LeftAnd(statement: Sequent, premise: Int, phi: Expression, psi: Expre
 
 case class LeftOr(statement: Sequent, premises: Array[Int], disjuncts: Seq[Expression]) extends ProofStep
 
+object LeftOr:
+  def apply(statement: Sequent, premises: Seq[Int], disjuncts: Seq[Expression]): LeftOr =
+    new LeftOr(statement, premises.toArray, disjuncts)
+
 case class LeftImplies(statement: Sequent, premise1: Int, premise2: Int, phi: Expression, psi: Expression) extends ProofStep:
   val premises: Array[Int] = Array(premise1, premise2)
 
@@ -55,6 +87,10 @@ case class LeftExists(statement: Sequent, premise: Int, phi: Expression, x: Vari
   val premises: Array[Int] = Array(premise)
 
 case class RightAnd(statement: Sequent, premises: Array[Int], conjuncts: Seq[Expression]) extends ProofStep
+
+object RightAnd:
+  def apply(statement: Sequent, premises: Seq[Int], conjuncts: Seq[Expression]): RightAnd =
+    new RightAnd(statement, premises.toArray, conjuncts)
 
 case class RightOr(statement: Sequent, premise: Int, phi: Expression, psi: Expression) extends ProofStep:
   val premises: Array[Int] = Array(premise)
