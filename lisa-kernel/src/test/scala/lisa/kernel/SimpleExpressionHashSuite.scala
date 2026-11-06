@@ -15,7 +15,7 @@ class SimpleExpressionHashSuite extends AnyFunSuite:
       SimpleBoundVariable(0, Ind, true),
       SimpleConstant(Identifier("hash-f"), Ind -> Ind, true),
       SimpleApplication(SimpleConstant(Identifier("hash-f"), Ind -> Ind, true), x, true),
-      SimpleLambda(x)(Variable(id, Ind)),
+      SimpleLambda(Ind, x)(Variable(id, Ind)),
       SimpleAnd(Seq(p, SimpleLiteral(false)), true),
       SimpleForall(p, true)(id),
       SimpleLiteral(true),

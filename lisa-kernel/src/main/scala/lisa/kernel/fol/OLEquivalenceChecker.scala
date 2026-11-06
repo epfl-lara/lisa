@@ -188,9 +188,9 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
   /**
    * Polar version of [[Lambda]] for a lambda abstraction.
    */
-  private[kernel] case class SimpleLambda(body: SimpleExpression)(val v: Variable) extends SimpleExpression {
+  private[kernel] case class SimpleLambda(boundSort: Sort, body: SimpleExpression)(val v: Variable) extends SimpleExpression {
     val containsFormulas: Boolean = body.containsFormulas
-    val sort = (v.sort -> body.sort)
+    val sort = (boundSort -> body.sort)
   }
 
   /**
@@ -271,7 +271,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
             g
           else
             neg(g)
-        case sl @ SimpleLambda(body) => Lambda(sl.v, toExpressionAIG(body))
+        case sl @ SimpleLambda(_, body) => Lambda(sl.v, toExpressionAIG(body))
       }
       e.formulaAIG = Some(r)
       r
@@ -319,7 +319,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
           Application(toExpressionNNF(f, true), toExpressionNNF(arg, true))
         else
           neg(Application(toExpressionNNF(f, true), toExpressionNNF(arg, true)))
-      case sl @ SimpleLambda(body) => Lambda(sl.v, toExpressionNNF(body, true))
+      case sl @ SimpleLambda(_, body) => Lambda(sl.v, toExpressionNNF(body, true))
     }
     if (positive) e.NNF_pos = Some(r)
     else e.NNF_neg = Some(r)
@@ -373,7 +373,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
           SimpleEquality(polarize(arg1, true), polarize(arg2, true), polarity)
         case Application(f, arg) =>
           SimpleApplication(polarize(f, true), polarize(arg, true), polarity)
-        case Lambda(v, body) => SimpleLambda(polarize(body, true))(v)
+        case Lambda(v, body) => SimpleLambda(v.sort, polarize(body, true))(v)
         case `top` => SimpleLiteral(polarity)
         case `bot` => SimpleLiteral(!polarity)
         case Constant(id, sort) => SimpleConstant(id, sort, polarity)
@@ -391,7 +391,7 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
 
   /** Retain an abstraction when its transformed body is unchanged. */
   private inline def reuseLambda(e: SimpleLambda, body: SimpleExpression): SimpleExpression =
-    if e.body eq body then e else SimpleLambda(body)(e.v)
+    if e.body eq body then e else SimpleLambda(e.boundSort, body)(e.v)
 
   /** Flatten conjunctions and disjunctions if `lisa.ol.flatten` is `true`. */
   private val flattenPolarConnectives: Boolean =
@@ -671,7 +671,8 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
    * Checks if `e1` is equivalent to `e2` by the laws of OL
    */
   private[kernel] def latticesEQ(e1: SimpleExpression, e2: SimpleExpression): Boolean =
-    if (e1.uniqueKey == e2.uniqueKey) true
+    if (e1.sort != e2.sort) false
+    else if (e1.uniqueKey == e2.uniqueKey) true
     else if (e1.sort == Prop) latticesLEQ(e1, e2) && latticesLEQ(e2, e1)
     else latticesEQUnchecked(e1, e2)
 
@@ -686,8 +687,8 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
         case (s1: SimpleConstant, s2: SimpleConstant) => s1 == s2
         case (SimpleApplication(f1, arg1, polarity1), SimpleApplication(f2, arg2, polarity2)) =>
           polarity1 == polarity2 && latticesEQUnchecked(f1, f2) && latticesEQUnchecked(arg1, arg2)
-        case (SimpleLambda(body1), SimpleLambda(body2)) =>
-          latticesEQUnchecked(body1, body2)
+        case (SimpleLambda(sort1, body1), SimpleLambda(sort2, body2)) =>
+          sort1 == sort2 && latticesEQUnchecked(body1, body2)
         case (_, _) => false
       }
 }

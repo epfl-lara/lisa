@@ -13,17 +13,17 @@ class OLReuseSuite extends AnyFunSuite:
   // Keep the original scope conversion as a differential oracle.
   private def original(e: SimpleExpression, env: Map[(Identifier, Sort), Int], depth: Int): SimpleExpression = e match
     case SimpleAnd(cs, p) => SimpleAnd(cs.map(original(_, env, depth)), p)
-    case SimpleForall(v, b, p) => SimpleForall(v, original(b, env + ((v, Ind) -> depth), depth + 1), p)
+    case e @ SimpleForall(b, p) => SimpleForall(original(b, env + ((e.id, Ind) -> depth), depth + 1), p)(e.id)
     case SimpleEquality(l, r, p) => SimpleEquality(original(l, env, depth), original(r, env, depth), p)
     case v: SimpleVariable => env.get((v.id, v.sort)).fold[SimpleExpression](v)(d => SimpleBoundVariable(depth - d, v.sort, v.polarity))
     case v: SimpleBoundVariable => throw new IllegalArgumentException("Unexpected bound input")
     case SimpleApplication(f, a, p) => SimpleApplication(original(f, env, depth), original(a, env, depth), p)
-    case SimpleLambda(v, b) => SimpleLambda(v, original(b, env + ((v.id, v.sort) -> depth), depth + 1))
+    case e @ SimpleLambda(sort, b) => SimpleLambda(sort, original(b, env + ((e.v.id, sort) -> depth), depth + 1))(e.v)
     case _ => e
 
   test("retain unchanged applications and vacuous abstractions through conversion and normalization"):
     val app = SimpleApplication(f, sy, true)
-    val lam = SimpleLambda(x, app)
+    val lam = SimpleLambda(x.sort, app)(x)
     assert(toLocallyNameless(app) eq app)
     assert(toLocallyNameless(lam) eq lam)
     assert(toLocallyNameless2(app, Map((x.id, Ind) -> 0), 1) eq app)
@@ -33,21 +33,21 @@ class OLReuseSuite extends AnyFunSuite:
 
   test("rebuild changed paths while retaining unchanged siblings"):
     val app = SimpleApplication(f, sx, true)
-    val converted = toLocallyNameless(SimpleLambda(x, app)).asInstanceOf[SimpleLambda]
+    val converted = toLocallyNameless(SimpleLambda(x.sort, app)(x)).asInstanceOf[SimpleLambda]
     val body = converted.body.asInstanceOf[SimpleApplication]
     assert(!(body eq app))
     assert(body.f eq f)
     assert(body.arg == SimpleBoundVariable(1, Ind, true))
-    assert(fromLocallyNameless(converted, Map.empty, 0) == SimpleLambda(x, app))
+    assert(fromLocallyNameless(converted, Map.empty, 0) == SimpleLambda(x.sort, app)(x))
 
   test("isolate sibling scopes, nested depths, shadowing and same-named different sorts"):
     val px = SimpleVariable(x.id, Prop, false)
     val shared = SimpleEquality(sx, sy, true)
     val inputs = Seq(
-      SimpleAnd(Seq(SimpleForall(x.id, shared, true), SimpleForall(y.id, shared, false)), true),
-      SimpleForall(x.id, SimpleAnd(Seq(shared, SimpleForall(y.id, shared, true)), true), true),
-      SimpleForall(x.id, SimpleForall(x.id, shared, true), true),
-      SimpleLambda(Variable(x.id, Prop), SimpleAnd(Seq(px, shared), true))
+      SimpleAnd(Seq(SimpleForall(shared, true)(x.id), SimpleForall(shared, false)(y.id)), true),
+      SimpleForall(SimpleAnd(Seq(shared, SimpleForall(shared, true)(y.id)), true), true)(x.id),
+      SimpleForall(SimpleForall(shared, true)(x.id), true)(x.id),
+      SimpleLambda(Prop, SimpleAnd(Seq(px, shared), true))(Variable(x.id, Prop))
     )
     inputs.foreach: e =>
       val converted = toLocallyNameless2(e, Map.empty, 0)
@@ -59,7 +59,7 @@ class OLReuseSuite extends AnyFunSuite:
     val terms = Iterator.iterate[SimpleExpression](sx)(t => SimpleApplication(SimpleApplication(g, t, true), t, true)).take(8).toVector
     val envs = Seq(Map.empty[(Identifier, Sort), Int], Map((x.id, Ind) -> 0), Map((x.id, Prop) -> 0), Map((x.id, Ind) -> 2))
     for term <- terms; env <- envs do
-      val e = SimpleAnd(Seq(SimpleEquality(term, sy, false), SimpleForall(x.id, SimpleEquality(term, sx, true), false)), true)
+      val e = SimpleAnd(Seq(SimpleEquality(term, sy, false), SimpleForall(SimpleEquality(term, sx, true), false)(x.id)), true)
       assert(toLocallyNameless2(e, env, 3) == original(e, env, 3))
 
   test("still normalize formulas embedded inside term applications and abstractions"):
@@ -67,7 +67,7 @@ class OLReuseSuite extends AnyFunSuite:
     val contradiction = SimpleAnd(Seq(p, getInversePolar(p)), true)
     val h = SimpleConstant(Identifier("reuse-h"), Prop -> Ind, true)
     val app = SimpleApplication(h, contradiction, true)
-    val lam = SimpleLambda(x, app)
+    val lam = SimpleLambda(x.sort, app)(x)
     val result = computeNormalForm(lam).asInstanceOf[SimpleLambda]
     assert(!(result eq lam))
     assert(result.body == SimpleApplication(h, SimpleLiteral(false), true))
