@@ -15,6 +15,8 @@ private[extractor] object TraceHeader:
   final case class Header(id: Long, rule: String):
     def isDefinition: Boolean = rule == "DEFINITION" || rule == "TYPE_DEFINITION"
 
+  final case class Dependencies(header: Header, first: Long = -1L, second: Long = -1L)
+
   private val rules = Set("REFL", "TRANS", "MK_COMB", "ABS", "BETA", "ASSUME", "EQ_MP", "DEDUCT_ANTISYM_RULE", "INST", "INST_TYPE", "AXIOM", "DEFINITION", "TYPE_DEFINITION")
 
   private def token[$: P](text: String): P[Unit] = P(CharsWhileIn(" \t", 0) ~ text)
@@ -27,8 +29,11 @@ private[extractor] object TraceHeader:
       .map(_.get)
 
   // HOL emits decimal IDs; uPickle quotes large Long values. Neither passes through Double.
+  private def number[$: P]: P[Long] =
+    P(CharsWhileIn(" \t", 0) ~ ("\"" ~/ decimal ~ token("\"") | decimal))
+
   private def idPrefix[$: P]: P[Long] =
-    P(token("{") ~/ field("id") ~ CharsWhileIn(" \t", 0) ~ ("\"" ~/ decimal ~ token("\"") | decimal) ~ token(","))
+    P(token("{") ~/ field("id") ~ number ~ token(","))
 
   private def proofHeader[$: P]: P[Header] =
     P(idPrefix ~ field("pr") ~ token("{") ~ field("step") ~ token("\"") ~ CharIn("A-Z_").rep(min = 1, max = 32).! ~ "\"" ~ token(","))
@@ -36,6 +41,16 @@ private[extractor] object TraceHeader:
       .map((id, rule) => Header(id, rule))
 
   private def statementHeader[$: P]: P[Long] = P(idPrefix ~ field("th") ~ token("{"))
+
+  private def dependencies[$: P]: P[Dependencies] =
+    proofHeader.flatMap: header =>
+      header.rule match
+        case "TRANS" | "MK_COMB" | "EQ_MP" | "DEDUCT_ANTISYM_RULE" =>
+          P(field("pred1") ~ number ~ token(",") ~ field("pred2") ~ number ~ token("}"))
+            .map((first, second) => Dependencies(header, first, second))
+        case "ABS" | "INST" | "INST_TYPE" | "TYPE_DEFINITION" =>
+          P(field("pred") ~ number ~ token(",")).map(first => Dependencies(header, first))
+        case _ => Pass.map(_ => Dependencies(header))
 
   private def read[T](reader: TraceReader, parser: P[?] => P[T], kind: String): Option[T] =
     val start = reader.position
@@ -58,6 +73,9 @@ private[extractor] object TraceHeader:
 
   def readStatementId(reader: TraceReader): Option[Long] =
     read(reader, statementHeader(using _), "statement")
+
+  def readDependencies(reader: TraceReader): Option[Dependencies] =
+    read(reader, dependencies(using _), "dependency")
 
 /**
  * Index sparse proof IDs by blocks; retain offsets, never ordinary proof payloads.

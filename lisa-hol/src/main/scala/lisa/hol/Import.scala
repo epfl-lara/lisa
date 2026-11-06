@@ -1000,11 +1000,33 @@ object Import extends lisa.HOL:
     def stepsPerSecond: Double = if elapsedNanos == 0 then 0d else steps / elapsedSeconds
     def totalStepsPerSecond: Double = if totalElapsedNanos == 0 then 0d else totalSteps / totalSeconds
 
-  /** Import a range of names and reconstruct their shared dependencies. */
-  def importFromPrefix(prefix: String, limit: Int, outputPath: Option[String] = None, overwrite: Boolean = false, startAt: Int = 0): Vector[TheoremTiming] =
+  /**
+   * Import the requested names and reconstruct their shared dependencies.
+   * Notify `onPreprocessing` before reconstruction; exclude its duration from theorem timings.
+   */
+  def importFromPrefix(
+      prefix: String,
+      limit: Int,
+      outputPath: Option[String] = None,
+      overwrite: Boolean = false,
+      startAt: Int = 0,
+      onPreprocessing: LemmaSelection.Timing => Unit = _ => ()
+  ): Vector[TheoremTiming] =
     require(limit > 0, s"Cannot read $limit theorems. Expected positive theorem limit.")
     require(startAt >= 0, s"Cannot start at negative theorem index $startAt.")
+    val cacheMode = Config.proofCacheMode
+    require(Set("registered", "local", "filtered")(cacheMode), s"Unknown HOL proof-cache mode: $cacheMode. Expected registered, local, or filtered.")
+    require(!Config.precomputeLemmas || cacheMode == "local", "Automatic lemma preprocessing requires -Dlisa.hol.proofCache=local.")
+    require(Config.lemmaPath.isEmpty || cacheMode == "filtered", "A lemma sidecar requires -Dlisa.hol.proofCache=filtered.")
     val (extractor, names) = JSONParser.initializeFromPrefix(prefix)
+    val (requested, selected) = try
+      val requested = names.drop(startAt).take(limit).toVector
+      val (selected, _) = LemmaSelection.prepare(new java.io.File(s"$prefix.proofs"), requested.iterator.map(_.id).toSet, Config.precomputeLemmas)(onPreprocessing)
+      (requested, selected)
+    catch
+      case error: Exception =>
+        extractor.close()
+        throw error
     val statistics = try
       val path = sys.props.get("lisa.hol.stats").orElse(sys.env.get("LISA_HOL_STATS")).map(java.nio.file.Path.of(_))
       new ImportStatistics(path)
@@ -1021,12 +1043,11 @@ object Import extends lisa.HOL:
         throw error
 
     try
-      val cacheMode = sys.props.getOrElse("lisa.hol.proofCache", "registered")
       val store: ProofStore = cacheMode match
         case "registered" => new StepStore(statistics)(using extractor, currentLoggingMode)
-        case "local" => new LocalStepStore(statistics)(using extractor, currentLoggingMode)
+        case "local" => new LocalStepStore(statistics, selected.ids)(using extractor, currentLoggingMode)
         case "filtered" =>
-          val path = java.nio.file.Path.of(sys.props.getOrElse("lisa.hol.lemmas", throw new IllegalArgumentException("Filtered caching requires -Dlisa.hol.lemmas=<ID file>")))
+          val path = Config.lemmaPath.getOrElse(throw new IllegalArgumentException("Filtered caching requires -Dlisa.hol.lemmas=<ID file>"))
           val selected = java.nio.file.Files.readAllLines(path).asScala.iterator.map(_.toLong).toSet
           require(selected.forall(_ >= 0), "Lemma IDs must be nonnegative")
           println(s"[INFO] Selected ${selected.size} lemma IDs from $path")
@@ -1036,7 +1057,7 @@ object Import extends lisa.HOL:
       val timings = Vector.newBuilder[TheoremTiming]
       val startTime = System.nanoTime()
       var count = 0
-      names.drop(startAt).take(limit).foreach: ref =>
+      requested.foreach: ref =>
         val stepsBefore = store.size
         val hitsBefore = store.cacheHits
         val resourcesBefore = ImportStatistics.sample()
