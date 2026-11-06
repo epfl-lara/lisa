@@ -71,24 +71,6 @@ lazy val sets = Project(
   base = file("lisa-sets")
 )
   .settings(commonSettings3)
-  .settings(
-    Compile / unmanagedSources := {
-      val src = (Compile / scalaSource).value
-      (src ** "*.scala").get().filter { file =>
-        val path = IO.relativize(src, file).getOrElse("")
-        path == "lisa/Main.scala" ||
-        path == "lisa/SetTheoryLibrary.scala" ||
-        path.startsWith("lisa/maths/")
-      }
-    },
-    Test / unmanagedSources := {
-      val src = (Test / scalaSource).value
-      (src ** "*.scala").get().filter { file =>
-        val path = IO.relativize(src, file).getOrElse("")
-        path.startsWith("lisa/maths/")
-      }
-    }
-  )
   .dependsOn(kernel, utils)
 
 assemblyMergeStrategy := {
