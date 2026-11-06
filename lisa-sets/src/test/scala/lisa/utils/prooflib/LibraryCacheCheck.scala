@@ -46,10 +46,12 @@ object LibraryCacheCheck:
     val elapsed = (System.nanoTime() - started) / 1e9
     val theorems = List(lisa.maths.SetTheory.Ordinals.TransfiniteRecursion.transfiniteRecursion)
     theorems.foreach: theorem =>
-      val cached = theorem.highProof.isEmpty
+      val cached = theorem.wasCached
       println(s"CACHE_CHECK ${theorem.fullName}: cached=$cached")
       require(!theorem.innerJustification.withSorry, s"Admitted dependency in ${theorem.fullName}")
-      require(theorem.kernelProof.exists(proof => SCProofChecker.checkSCProof(proof).isValid))
+      val loaded = lisa.utils.Serialization.oneProofFromFile("cache/" + theorem.fullName, SetTheoryLibrary.theory)
+      require(loaded.exists((_, proof, _) => SCProofChecker.checkSCProof(proof).isValid))
+      require(theorem.proofStatistics.kernelSize > 0)
     val after = snapshot()
     println(f"CACHE_CHECK mode=${args(0)} elapsed=$elapsed%.3fs files=${after.size} bytes=${after.values.map(_._1).sum}")
     if warm then
@@ -58,5 +60,5 @@ object LibraryCacheCheck:
       val removed = before.keySet -- after.keySet
       println(s"CACHE_CHECK rewritten=${rewritten.size} added=${added.size} removed=${removed.size}")
       require(rewritten.isEmpty && added.isEmpty && removed.isEmpty, s"Warm cache changed: rewritten=$rewritten; added=$added; removed=$removed")
-    require(theorems.forall(_.highProof.isEmpty == warm), "Unexpected cache hits or misses")
+    require(theorems.forall(_.wasCached == warm), "Unexpected cache hits or misses")
     println("CACHE_CHECK PASSED")

@@ -42,6 +42,21 @@ class SerializationTest extends AnyFunSuite with TestUtils {
     }
   }
 
+  test("Serialization: read tree entries when available reports zero") {
+    val trees = new ByteArrayOutputStream
+    val proofs = new ByteArrayOutputStream
+    val proof = SCProof(Hypothesis(Sequent(Set(a), Set(a)), a))
+    proofsToDataStream(new DataOutputStream(trees), new DataOutputStream(proofs), Seq(("unbuffered", proof, Nil)))
+    val input = new ByteArrayInputStream(trees.toByteArray) {
+      override def available(): Int = 0
+    }
+    val decoded = proofsFromDataStream(
+      new DataInputStream(input),
+      new DataInputStream(new ByteArrayInputStream(proofs.toByteArray))
+    )
+    assert(decoded.size == 1 && proofsEqual(decoded.head._2, proof))
+  }
+
   test("Serialization: reject an unknown tree tag") {
     intercept[IllegalArgumentException] {
       proofsFromDataStream(
