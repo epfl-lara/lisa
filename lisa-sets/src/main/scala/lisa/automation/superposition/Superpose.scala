@@ -1,13 +1,14 @@
 package lisa.automation.superposition
 
 import lisa.automation.Problem
+import lisa.kernel.{proof => Kernel}
 import lisa.maths.Quantifiers
-import lisa.kernel.proof as Kernel
 import lisa.utils.K
 import lisa.utils.fol.{FOL => F}
 import lisa.utils.kernel.ProofCertificate
-import lisa.utils.prooflib.*
-import lisa.utils.prooflib.ProofHelpers.{SequentTactic, PremiseSequentTactic}
+import lisa.utils.prooflib.ProofHelpers.PremiseSequentTactic
+import lisa.utils.prooflib.ProofHelpers.SequentTactic
+import lisa.utils.prooflib._
 
 import scala.util.control.NonFatal
 

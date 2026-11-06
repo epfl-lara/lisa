@@ -1,6 +1,6 @@
 package lisa.automation.superposition
 
-import lisa.automation.{ProofSyntax as K}
+import lisa.automation.{ProofSyntax => K}
 import lisa.utils.Serialization
 
 import java.io.BufferedInputStream

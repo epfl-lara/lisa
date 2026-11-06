@@ -1,7 +1,7 @@
 package lisa.utils.prooflib
 
 import lisa.utils.K
-import lisa.utils.fol.FOL.*
+import lisa.utils.fol.FOL._
 import lisa.utils.prooflib.Helpers.withParams
 
 import scala.collection.mutable

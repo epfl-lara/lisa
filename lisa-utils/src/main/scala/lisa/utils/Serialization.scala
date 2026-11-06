@@ -1,10 +1,10 @@
 package lisa.utils
 
-import lisa.kernel.fol.FOL.*
+import lisa.kernel.fol.FOL._
 import lisa.kernel.proof.Sequent
-import lisa.utils.kernel.*
+import lisa.utils.kernel._
 
-import java.io.*
+import java.io._
 import scala.collection.mutable.{Map => MutMap}
 
 /**

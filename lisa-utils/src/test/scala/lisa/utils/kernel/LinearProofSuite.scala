@@ -1,8 +1,8 @@
 package lisa.utils.kernel
 
-import lisa.kernel.fol.FOL.*
-import lisa.kernel.proof as K
+import lisa.kernel.fol.FOL._
 import lisa.kernel.proof.Sequent
+import lisa.kernel.{proof => K}
 import org.scalatest.funsuite.AnyFunSuite
 
 class LinearProofSuite extends AnyFunSuite:

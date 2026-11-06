@@ -3,8 +3,8 @@ package lisa.automation.clausification
 import lisa.automation.Problem
 import lisa.automation.superposition.Clausal
 import lisa.automation.superposition.SearchOptions
+import lisa.automation.{ProofSyntax => K}
 import lisa.kernel.KernelProof
-import lisa.automation.{ProofSyntax as K}
 import org.scalatest.funsuite.AnyFunSuite
 
 /**

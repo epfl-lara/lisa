@@ -2,7 +2,7 @@ package lisa.kernel
 
 import lisa.kernel.fol.FOL._
 import lisa.kernel.proof.Sequent
-import lisa.utils.kernel.*
+import lisa.utils.kernel._
 import org.scalatest.exceptions.TestFailedException
 import org.scalatest.funsuite.AnyFunSuite
 

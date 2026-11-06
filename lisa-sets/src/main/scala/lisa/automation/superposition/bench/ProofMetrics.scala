@@ -2,12 +2,12 @@ package lisa.automation.superposition
 package bench
 
 import lisa.automation.ProofSyntax.Application
+import lisa.automation.ProofSyntax.CertificateStep
 import lisa.automation.ProofSyntax.Expression
 import lisa.automation.ProofSyntax.Lambda
 import lisa.automation.ProofSyntax.ProofCertificate
-import lisa.automation.ProofSyntax.CertificateStep
-import lisa.automation.ProofSyntax.Subproof
 import lisa.automation.ProofSyntax.Sequent
+import lisa.automation.ProofSyntax.Subproof
 import lisa.automation.ProofSyntax.bot
 
 import scala.collection.mutable

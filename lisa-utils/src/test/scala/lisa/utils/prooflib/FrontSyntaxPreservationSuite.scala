@@ -2,7 +2,7 @@ package lisa.utils.prooflib
 
 import lisa.utils.K
 import lisa.utils.fol.FOL.{_, given}
-import lisa.utils.prooflib.ProofHelpers.*
+import lisa.utils.prooflib.ProofHelpers._
 import org.scalatest.funsuite.AnyFunSuite
 
 class FrontSyntaxPreservationSuite extends AnyFunSuite:

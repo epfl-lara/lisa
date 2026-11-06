@@ -1,7 +1,8 @@
 package lisa.utils.kernel
 
-import lisa.kernel.proof as K
-import lisa.kernel.proof.{Sequent, Thm}
+import lisa.kernel.proof.Sequent
+import lisa.kernel.proof.Thm
+import lisa.kernel.{proof => K}
 import lisa.utils.collection.Extensions.mapLeft
 
 sealed trait CheckError extends Exception

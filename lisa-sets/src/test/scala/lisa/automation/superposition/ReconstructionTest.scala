@@ -1,13 +1,13 @@
 package lisa.automation.superposition
 
 import lisa.automation.clausification.UncertifiedClausifier
+import lisa.automation.{ProofSyntax => K}
 import lisa.kernel.KernelProof
 import lisa.tptp.KernelParser.problemToKernel
 import lisa.tptp.KernelParser.strictMapAtom
 import lisa.tptp.KernelParser.strictMapTerm
 import lisa.tptp.KernelParser.strictMapVariable
 import lisa.tptp.TptpProblem
-import lisa.automation.{ProofSyntax as K}
 import org.scalatest.funsuite.AnyFunSuite
 
 /**

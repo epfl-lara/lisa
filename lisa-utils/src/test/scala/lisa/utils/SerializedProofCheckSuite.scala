@@ -1,14 +1,15 @@
 package lisa.utils
 
-import lisa.kernel.fol.FOL.*
+import lisa.kernel.fol.FOL._
 import lisa.kernel.proof.Sequent
-import lisa.utils.kernel.*
+import lisa.utils.kernel._
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.io.*
-import java.util.Base64
+import java.io._
 import java.nio.file.Files
-import java.util.zip.{ZipEntry, ZipOutputStream}
+import java.util.Base64
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import scala.util.Using
 
 class SerializedProofCheckSuite extends AnyFunSuite:

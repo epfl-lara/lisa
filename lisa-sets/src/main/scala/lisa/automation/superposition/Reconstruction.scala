@@ -3,7 +3,7 @@ package lisa.automation.superposition
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet
 import lisa.automation.clausification.Clausification.GeneratedNames
-import lisa.automation.{ProofSyntax as K}
+import lisa.automation.{ProofSyntax => K}
 
 import scala.collection.mutable
 

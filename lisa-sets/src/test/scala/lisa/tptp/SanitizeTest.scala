@@ -1,7 +1,7 @@
 package lisa.tptp
 
-import lisa.automation.{ProofSyntax as K}
 import lisa.automation.ProofSyntax.given
+import lisa.automation.{ProofSyntax => K}
 import org.scalatest.funsuite.AnyFunSuite
 
 /**

@@ -1,12 +1,12 @@
 package lisa.utils
 
-import lisa.kernel.fol.FOL.*
+import lisa.kernel.fol.FOL._
 import lisa.kernel.proof.Sequent
-import lisa.utils.Serialization.*
-import lisa.utils.kernel.*
+import lisa.utils.Serialization._
+import lisa.utils.kernel._
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.io.*
+import java.io._
 import scala.collection.mutable.{Map => MutMap}
 
 class SerializationTest extends AnyFunSuite:

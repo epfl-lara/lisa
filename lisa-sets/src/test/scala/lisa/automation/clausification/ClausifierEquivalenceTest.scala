@@ -3,6 +3,7 @@ package lisa.automation.clausification
 import lisa.automation.superposition.TptpCorpus
 import lisa.automation.superposition.bench.FofEvaluation
 import lisa.automation.superposition.bench.ProblemList
+import lisa.automation.{ProofSyntax => K}
 import lisa.tptp.AnnotatedFormula
 import lisa.tptp.AnnotatedSequent
 import lisa.tptp.KernelParser.axiomLikeRoles
@@ -10,7 +11,6 @@ import lisa.tptp.KernelParser.problemToKernel
 import lisa.tptp.KernelParser.strictMapAtom
 import lisa.tptp.KernelParser.strictMapTerm
 import lisa.tptp.KernelParser.strictMapVariable
-import lisa.automation.{ProofSyntax as K}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.io.File

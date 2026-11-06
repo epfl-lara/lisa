@@ -8,11 +8,11 @@ import lisa.automation.clausification.Clausification.Distribute
 import lisa.automation.clausification.Clausification.GeneratedNames
 import lisa.automation.clausification.Clausification.Prenex
 import lisa.automation.clausification.UncertifiedClausifier
+import lisa.automation.{ProofSyntax => K}
 import lisa.tptp.KernelParser.problemToKernel
 import lisa.tptp.KernelParser.strictMapAtom
 import lisa.tptp.KernelParser.strictMapTerm
 import lisa.tptp.KernelParser.strictMapVariable
-import lisa.automation.{ProofSyntax as K}
 
 import java.io.File
 import scala.util.Failure

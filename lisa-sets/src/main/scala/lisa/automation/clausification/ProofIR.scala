@@ -1,7 +1,7 @@
 package lisa.automation.clausification
 
-import lisa.automation.{ProofSyntax as K}
 import lisa.automation.ProofSyntax.{_, given}
+import lisa.automation.{ProofSyntax => K}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Proof IR for the certified clausification pipeline.

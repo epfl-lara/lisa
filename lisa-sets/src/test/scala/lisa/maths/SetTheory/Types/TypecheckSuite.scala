@@ -1,13 +1,13 @@
 package lisa.maths.SetTheory.Types
 
 import lisa.SetTheoryLibrary
-import lisa.SetTheoryLibrary.*
+import lisa.SetTheoryLibrary._
 import lisa.maths.SetTheory.Cardinal.Predef.universeOf
-import lisa.maths.SetTheory.Functions.Predef.*
+import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
-import lisa.maths.SetTheory.Types.TypingHelpers.*
+import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.K
-import lisa.utils.fol.FOL.*
+import lisa.utils.fol.FOL._
 import lisa.utils.prooflib.BasicStep
 import lisa.utils.prooflib.Proof
 import lisa.utils.prooflib.ProofCarrier

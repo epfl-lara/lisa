@@ -1,7 +1,7 @@
 package lisa.automation.clausification
 import lisa.automation.Problem
-import lisa.automation.{ProofSyntax as K}
 import lisa.automation.ProofSyntax.{_, given}
+import lisa.automation.{ProofSyntax => K}
 
 /**
  * Certified clausification for Lisa, following the SC-TPTP pipeline structure.

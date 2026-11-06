@@ -3,7 +3,7 @@ package lisa.automation.superposition
 import lisa.automation.Problem
 import lisa.automation.clausification.Clausification
 import lisa.automation.superposition.ordering._
-import lisa.automation.{ProofSyntax as K}
+import lisa.automation.{ProofSyntax => K}
 
 import scala.collection.mutable
 

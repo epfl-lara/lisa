@@ -1,11 +1,11 @@
 package lisa.automation.superposition
 
 import lisa.automation.superposition.bench.FofEvaluation
+import lisa.automation.{ProofSyntax => K}
 import lisa.tptp.KernelParser.problemToKernel
 import lisa.tptp.KernelParser.strictMapAtom
 import lisa.tptp.KernelParser.strictMapTerm
 import lisa.tptp.KernelParser.strictMapVariable
-import lisa.automation.{ProofSyntax as K}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.io.File

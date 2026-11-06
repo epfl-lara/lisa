@@ -1,7 +1,7 @@
 package lisa.tptp
 
 import leo.datastructures.TPTP
-import lisa.automation.{ProofSyntax as K}
+import lisa.automation.{ProofSyntax => K}
 
 sealed trait AnnotatedStatement {
   def role: String

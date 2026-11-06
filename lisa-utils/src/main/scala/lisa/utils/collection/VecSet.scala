@@ -56,7 +56,7 @@ sealed class VecSet[A] private (protected val evec: Vector[A], protected val ese
         val iter = evec.iterator
 
         while (iter.hasNext) do
-          val next = iter.next
+          val next = iter.next()
           if next == elem then
             // found the element to remove, rush through the remaining
             builder.addAll(iter)

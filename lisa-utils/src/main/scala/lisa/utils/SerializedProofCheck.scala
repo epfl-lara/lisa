@@ -1,11 +1,14 @@
 package lisa.utils
 
-import lisa.utils.kernel.*
+import lisa.utils.kernel._
 
-import java.io.{BufferedInputStream, DataInputStream, InputStream}
-import java.nio.file.{Files, Path}
+import java.io.BufferedInputStream
+import java.io.DataInputStream
+import java.io.InputStream
+import java.nio.file.Files
+import java.nio.file.Path
 import java.util.zip.ZipFile
-import scala.jdk.CollectionConverters.*
+import scala.jdk.CollectionConverters._
 import scala.util.Using
 import scala.util.control.NonFatal
 

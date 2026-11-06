@@ -1,7 +1,7 @@
 package lisa.automation.clausification
 
-import lisa.kernel.KernelProof
 import lisa.automation.ProofSyntax.{_, given}
+import lisa.kernel.KernelProof
 import org.scalatest.funsuite.AnyFunSuite
 
 /**

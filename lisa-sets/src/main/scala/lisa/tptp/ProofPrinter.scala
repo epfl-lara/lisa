@@ -5,7 +5,7 @@ import leo.datastructures.TPTP.FOF
 import leo.datastructures.TPTP.FOFAnnotated
 import leo.datastructures.TPTP.GeneralTerm
 import leo.datastructures.TPTP.MetaFunctionData
-import lisa.automation.{ProofSyntax as K}
+import lisa.automation.{ProofSyntax => K}
 
 import java.io.File
 

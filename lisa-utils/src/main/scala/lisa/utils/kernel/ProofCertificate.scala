@@ -1,6 +1,8 @@
 package lisa.utils.kernel
 
-import lisa.kernel.proof.{Sequent, Theory, Thm}
+import lisa.kernel.proof.Sequent
+import lisa.kernel.proof.Theory
+import lisa.kernel.proof.Thm
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.NonFatal

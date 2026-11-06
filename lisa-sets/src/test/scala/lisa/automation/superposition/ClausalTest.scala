@@ -3,8 +3,8 @@ package lisa.automation.superposition
 import lisa.automation.Problem
 import lisa.automation.clausification.CertifiedClausifier
 import lisa.automation.superposition.bench.FofEvaluation
+import lisa.automation.{ProofSyntax => K}
 import lisa.kernel.KernelProof
-import lisa.automation.{ProofSyntax as K}
 import org.scalatest.funsuite.AnyFunSuite
 
 /**

@@ -1,9 +1,9 @@
 package lisa.automation.superposition
 
+import lisa.automation.{ProofSyntax => K}
 import lisa.tptp.AnnotatedFormula
 import lisa.tptp.KernelParser.unsanitize
 import lisa.tptp.ProofPrinter
-import lisa.automation.{ProofSyntax as K}
 
 /**
  * Rendering a refutation as a TSTP `CNFRefutation`, the format CASC expects (see the

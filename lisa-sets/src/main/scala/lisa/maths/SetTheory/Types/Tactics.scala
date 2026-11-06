@@ -10,13 +10,13 @@ import lisa.maths.SetTheory.Functions.Predef._
 import lisa.utils.K
 import lisa.utils.fol.{FOL => F}
 import lisa.utils.prooflib.Exports._
+import lisa.utils.prooflib.Proof
 import lisa.utils.prooflib.ProofCarrier
 import lisa.utils.prooflib.ProofJudgement
-import lisa.utils.prooflib.Proof
 import lisa.utils.prooflib.Subproof
 import lisa.utils.prooflib.SubproofM
-import lisa.utils.prooflib.Thm
 import lisa.utils.prooflib.TacticHelpers.failWith
+import lisa.utils.prooflib.Thm
 
 import scala.collection.Set
 import scala.collection.mutable

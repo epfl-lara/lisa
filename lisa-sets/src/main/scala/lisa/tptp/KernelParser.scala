@@ -4,10 +4,10 @@ import leo.datastructures.TPTP
 import leo.datastructures.TPTP.CNF
 import leo.datastructures.TPTP.FOF
 import leo.modules.input.{TPTPParser => Parser}
-import lisa.tptp._
-import lisa.automation.{ProofSyntax as K}
 import lisa.automation.ProofSyntax._
 import lisa.automation.ProofSyntax.given_Conversion_String_Identifier
+import lisa.automation.{ProofSyntax => K}
+import lisa.tptp._
 
 import java.io.File
 

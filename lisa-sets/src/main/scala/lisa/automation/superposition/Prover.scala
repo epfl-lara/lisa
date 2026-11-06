@@ -4,11 +4,11 @@ import lisa.automation.Problem
 import lisa.automation.clausification.CertifiedClausifier
 import lisa.automation.clausification.Clausification
 import lisa.automation.clausification.UncertifiedClausifier
+import lisa.automation.{ProofSyntax => K}
 import lisa.tptp.AnnotatedFormula
 import lisa.tptp.AnnotatedSequent
 import lisa.tptp.KernelParser.axiomLikeRoles
 import lisa.tptp.TptpProblem
-import lisa.automation.{ProofSyntax as K}
 
 import scala.collection.mutable
 
