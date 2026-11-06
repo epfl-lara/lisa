@@ -183,16 +183,19 @@ trait ProofsHelpers {
 
   // NOTE: only the top level functions here should use sourcecode implicits!!
 
+  /**
+   * Define a constant under its declaration's fully qualified name.
+   */
   def DEF[S: Sort](using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(e: Expr[S]): Constant[S] =
     val (vars, body) = leadingVarsAndBody(e)
-    if vars.size == e.sort.depth then DirectDefinition[S](name.value, line, file)(e, vars).cst
+    if vars.size == e.sort.depth then DirectDefinition[S](name, line, file)(e, vars).cst
     else
       val maxV: Int = vars.map(_.id.no).maxOption.getOrElse(0)
       val maxB: Int = body.freeVars.map(_.id.no).maxOption.getOrElse(0)
       var no = List(maxV, maxB).max
       val newvars = K.flatTypeParameters(body.sort).map(i => { no += 1; Variable.unsafe(K.Identifier("x", no), i) })
       val totvars = vars ++ newvars
-      DirectDefinition[S](name.value, line, file)(e, totvars)(using F.unsafeSortEvidence(e.sort)).cst
+      DirectDefinition[S](name, line, file)(e, totvars)(using F.unsafeSortEvidence(e.sort)).cst
 
   def EpsilonDEF[S: Sort](using om: OutputManager, name: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(e: Expr[S], j: JUSTIFICATION): Constant[S] =
     val (vars, body) = leadingVarsAndBody(e)
@@ -203,19 +206,24 @@ trait ProofsHelpers {
         case _ => om.lisaThrow(UserInvalidDefinitionException(name.value, "The given expression is not an epsilon term.")(line, file))
     else om.lisaThrow(UserInvalidDefinitionException(name.value, "The given expression is not an epsilon term.")(line, file))
 
-  class DirectDefinition[S: Sort](using om: OutputManager)(val fullName: String, line: sourcecode.Line, file: sourcecode.File)(val expr: Expr[S], val vars: Seq[Variable[?]])
+  /**
+   * Define a constant under an explicit fully qualified name.
+   */
+  class DirectDefinition[S: Sort](using om: OutputManager)(sourceName: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(val expr: Expr[S], val vars: Seq[Variable[?]])
       extends DEFINITION(line, file) {
+
+    def fullName: String = sourceName.value
 
     val arity = vars.size
 
-    lazy val cst: Constant[S] = F.Constant(name)
+    lazy val cst: Constant[S] = F.Constant(fullName)
 
     val appliedCst: Expr[?] = cst #@@ (vars)
 
     val innerJustification: theory.Definition = {
       import lisa.utils.K.{findUndefinedSymbols}
       val uexpr = expr.underlying
-      val ucst = K.Constant(name, cst.sort)
+      val ucst = cst.underlying
       val uvars = vars.map(_.underlying)
       val judgement = theory.makeDefinition(ucst, uexpr, uvars)
       judgement match {
@@ -225,21 +233,21 @@ trait ProofsHelpers {
           if (!theory.belongsToTheory(uexpr)) {
             om.lisaThrow(
               UserInvalidDefinitionException(
-                name,
+                fullName,
                 s"All symbols in the definition must belong to the theory. The symbols ${theory.findUndefinedSymbols(uexpr)} are unknown and you need to define them first."
               )(line, file)
             )
           }
-          if !theory.isAvailable(ucst) then om.lisaThrow(UserInvalidDefinitionException(name, s"The symbol ${name} has already been defined and can't be redefined.")(line, file))
+          if !theory.isAvailable(ucst) then om.lisaThrow(UserInvalidDefinitionException(fullName, s"The symbol ${fullName} has already been defined and can't be redefined.")(line, file))
           if !uexpr.freeVariables.nonEmpty then
             om.lisaThrow(
               UserInvalidDefinitionException(
-                name,
+                fullName,
                 s"The definition is not allowed to contain schematic symbols or free variables. " +
                   s"The variables {${(uexpr.freeVariables).mkString(", ")}} are free in the expression ${uexpr}."
               )(line, file)
             )
-          if !theory.isAvailable(ucst) then om.lisaThrow(UserInvalidDefinitionException(name, s"The symbol ${name} has already been defined and can't be redefined.")(line, file))
+          if !theory.isAvailable(ucst) then om.lisaThrow(UserInvalidDefinitionException(fullName, s"The symbol ${fullName} has already been defined and can't be redefined.")(line, file))
           om.lisaThrow(
             LisaException.InvalidKernelJustificationComputation(
               "The final proof was rejected by LISA's logical kernel. This may be due to a faulty proof computation or an error in LISA.",
@@ -295,21 +303,21 @@ trait ProofsHelpers {
   /**
    * Allows to make definitions "by existance" of a symbol. May need debugging
    */
-  class EpsilonDefinition[S: Sort](using om: OutputManager)(fullName: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(
+  class EpsilonDefinition[S: Sort](using om: OutputManager)(sourceName: sourcecode.FullName, line: sourcecode.Line, file: sourcecode.File)(
       expr: Expr[S],
       vars: Seq[Variable[?]],
       val j: JUSTIFICATION
-  ) extends DirectDefinition(fullName.value, line, file)(expr, vars) {
+  ) extends DirectDefinition(sourceName, line, file)(expr, vars) {
 
     val body: Expr[Ind] = dropAllLambdas(expr).asInstanceOf
     override val appliedCst: Expr[Ind] = (cst #@@ (vars)).asInstanceOf
     val (epsilonVar, inner) = body match
       case epsilon(x, inner) => (x, inner)
-      case _ => om.lisaThrow(UserInvalidDefinitionException(name, "The given expression is not an epsilon term.")(line, file))
+      case _ => om.lisaThrow(UserInvalidDefinitionException(fullName, "The given expression is not an epsilon term.")(line, file))
 
     private val propCst = inner.substitute(epsilonVar := appliedCst)
     private val propEpsilon = inner.substitute(epsilonVar := body)
-    val definingProp = Theorem(propCst) {
+    val definingProp = Theorem(using om, sourcecode.FullName(s"$fullName.definingProp"), line, file)(propCst) {
       val fresh = freshId(vars, "x")
       have(this)
 

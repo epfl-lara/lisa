@@ -526,9 +526,9 @@ object Ordinal extends lisa.Main {
           // Since δ ∈ α, G ∈ α
           have(thesis) by Congruence.from(`G = δ`, `δ ∈ α`)
         }
-        thenHave(minimal(δ)(D)(membershipRelation(α)) ==> (G ∈ α)) by Restate
-        thenHave(∀(δ, minimal(δ)(D)(membershipRelation(α)) ==> (G ∈ α))) by RightForall
-        have(thesis) by Tautology.from(lastStep, minExists)
+        thenHave(∃(δ, minimal(δ)(D)(membershipRelation(α))) |- G ∈ α) by
+          LeftExists.withParameters(minimal(δ)(D)(membershipRelation(α)), δ)
+        have(thesis) by Cut.withParameters(∃(δ, minimal(δ)(D)(membershipRelation(α))))(minExists, lastStep)
       }
 
       have(thesis) by Tautology.from(case1, case2)
@@ -689,9 +689,9 @@ object Ordinal extends lisa.Main {
 
           have(thesis) by Congruence.from(`G = δ`, `δ ∈ β`)
         }
-        thenHave(minimal(δ)(D2)(membershipRelation(β)) ==> (G ∈ β)) by Restate
-        thenHave(∀(δ, minimal(δ)(D2)(membershipRelation(β)) ==> (G ∈ β))) by RightForall
-        have(thesis) by Tautology.from(lastStep, minExists2)
+        thenHave(∃(δ, minimal(δ)(D2)(membershipRelation(β))) |- G ∈ β) by
+          LeftExists.withParameters(minimal(δ)(D2)(membershipRelation(β)), δ)
+        have(thesis) by Cut.withParameters(∃(δ, minimal(δ)(D2)(membershipRelation(β))))(minExists2, lastStep)
       }
 
       have(thesis) by Tautology.from(case1b, case2b)

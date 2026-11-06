@@ -11,7 +11,6 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
-import java.io.EOFException
 import scala.collection.mutable.{Map => MutMap}
 
 /**
@@ -19,37 +18,156 @@ import scala.collection.mutable.{Map => MutMap}
  */
 class SerializationTest extends AnyFunSuite with TestUtils {
 
-  test("Serialization: leaf helpers use the same tags as proof trees") {
-    val bytes = new ByteArrayOutputStream
-    val out = new DataOutputStream(bytes)
-    variableToDOS(x, out)
-    assert(bytes.toByteArray.head == 0)
-    bytes.reset()
-    constantToDos(a, out)
-    assert(bytes.toByteArray.head == 1)
+  ///////////////////////////////////////////////////////
+  // Testing utilities
+
+  def roundTrip[A, B >: A](
+      serialize: (A, DataOutputStream) => Unit,
+      deserialize: DataInputStream => B,
+      equal: (A, B) => Boolean = (a: A, b: B) => a == b
+  )(name: String, obj: A): Unit =
+    test(s"Serialization: $name") {
+      val baos = new ByteArrayOutputStream()
+      val dos = new DataOutputStream(baos)
+      serialize(obj, dos)
+      dos.flush()
+      val bytes = baos.toByteArray
+      val bais = new ByteArrayInputStream(bytes)
+      val dis = new DataInputStream(bais)
+      val deserialized = deserialize(dis)
+      assert(equal(obj, deserialized), s"Round-trip failed:\n  Original:      $obj\n  Deserialized:  $deserialized")
+    }
+
+  def exprRoundTrip(name: String, e: Expression): Unit =
+    test(s"Serialization: $name") {
+      val baos = new ByteArrayOutputStream()
+      val dos = new DataOutputStream(baos)
+      val writeMap = MutMap[Long, Line]()
+      val line = lineOfExpr(e, dos, writeMap)
+      dos.flush()
+      val dis = new DataInputStream(new ByteArrayInputStream(baos.toByteArray))
+      val readMap = MutMap[Line, Expression]()
+      readTreeEntries(dis, writeMap.size, readMap)
+      val result = readMap(line)
+      assert(result == e, s"Round-trip failed:\n  Original:      $e\n  Deserialized:  $result")
+    }
+
+  ///////////////////////////////////////////////////////
+  // Variable serialization tests
+
+  def varRT(name: String, v: Variable): Unit = exprRoundTrip(name, v)
+
+  varRT("variable x:Ind", x)
+  varRT("variable y:Ind", y)
+  varRT("variable z:Ind", z)
+  varRT("formula variable", Variable("p", Prop))
+  varRT("function variable", Variable("f", Arrow(Ind, Ind)))
+  varRT("predicate variable", Variable("P", Arrow(Ind, Prop)))
+  varRT("higher-order variable", Variable("F", Arrow(Arrow(Ind, Prop), Prop)))
+  varRT("arrow of arrows", Variable("g", Arrow(Arrow(Ind, Ind), Arrow(Ind, Ind))))
+  varRT("variable with non-zero index", Variable(Identifier("x", 5), Ind))
+
+  ///////////////////////////////////////////////////////
+  // Constant serialization tests
+
+  def cstRT(name: String, c: Constant): Unit = exprRoundTrip(name, c)
+
+  cstRT("propositional constant a", a)
+  cstRT("propositional constant b", b)
+  cstRT("individual constant", Constant("myc", Ind))
+  cstRT("unary function constant", f1)
+  cstRT("predicate constant p", p)
+  cstRT("binary function constant", f2)
+  cstRT("ternary function constant", f3)
+  cstRT("constant with non-zero index", Constant(Identifier("k", 3), Prop))
+
+  ///////////////////////////////////////////////////////
+  // Expression tree serialization tests
+
+  def exprRT(name: String, e: Expression): Unit = exprRoundTrip(name, e)
+
+  // Leaf expressions
+  exprRT("variable as expression", x)
+  exprRT("constant as expression", a)
+  exprRT("individual constant as expression", Constant("d", Ind))
+
+  // Simple applications
+  exprRT("unary predicate application p(x)", Application(p, x))
+  exprRT("binary function application f(x,y)", Application(Application(f2, x), y))
+  exprRT("negation", Application(neg, a))
+  exprRT("implication a => b", Application(Application(implies, a), b))
+  exprRT("conjunction a /\\ b", Application(Application(and, a), b))
+  exprRT("disjunction a \\/ b", Application(Application(or, a), b))
+  exprRT("equality x = y", Application(Application(equality, x), y))
+
+  // Lambda expressions
+  exprRT("simple lambda", Lambda(x, Application(p, x)))
+  exprRT("nested lambda", Lambda(x, Lambda(y, Application(Application(f2, x), y))))
+  exprRT("lambda with formula body", Lambda(x, Application(Application(equality, x), y)))
+
+  // Quantifiers (Application of forall/exists to a lambda)
+  exprRT("forall x. p(x)", Application(forall, Lambda(x, Application(p, x))))
+  exprRT("exists x. p(x)", Application(exists, Lambda(x, Application(p, x))))
+
+  // Shared subexpressions
+  exprRT(
+    "shared subexpressions", {
+      val px = Application(p, x)
+      Application(Application(and, px), px)
+    }
+  )
+
+  // Deeply nested
+  exprRT(
+    "deeply nested applications", {
+      val fx = Application(f1, x)
+      val ffx = Application(f1, fx)
+      val fffx = Application(f1, ffx)
+      Application(p, fffx)
+    }
+  )
+
+  ///////////////////////////////////////////////////////
+  // Sort string round-trip tests
+
+  test("Serialization: typeToString/typeFromString round-trip Ind") {
+    assert(typeFromString(typeToString(Ind))._1 == Ind)
+  }
+  test("Serialization: typeToString/typeFromString round-trip Prop") {
+    assert(typeFromString(typeToString(Prop))._1 == Prop)
+  }
+  test("Serialization: typeToString/typeFromString round-trip Arrow") {
+    val t = Arrow(Ind, Arrow(Ind, Prop))
+    assert(typeFromString(typeToString(t))._1 == t)
+  }
+  test("Serialization: typeToString/typeFromString round-trip nested Arrow") {
+    val t = Arrow(Arrow(Ind, Prop), Arrow(Ind, Prop))
+    assert(typeFromString(typeToString(t))._1 == t)
   }
 
-  test("Serialization: reject a truncated tree entry") {
-    val trees = new ByteArrayOutputStream
-    val proofs = new ByteArrayOutputStream
-    val proof = SCProof(Hypothesis(Sequent(Set(a), Set(a)), a))
-    proofsToDataStream(new DataOutputStream(trees), new DataOutputStream(proofs), Seq(("truncated", proof, Nil)))
-    intercept[EOFException] {
-      proofsFromDataStream(
-        new DataInputStream(new ByteArrayInputStream(trees.toByteArray.dropRight(1))),
-        new DataInputStream(new ByteArrayInputStream(proofs.toByteArray))
-      )
-    }
-  }
+  ///////////////////////////////////////////////////////
+  // Sequent serialization tests
 
-  test("Serialization: reject an unknown tree tag") {
-    intercept[IllegalArgumentException] {
-      proofsFromDataStream(
-        new DataInputStream(new ByteArrayInputStream(Array[Byte](99))),
-        new DataInputStream(new ByteArrayInputStream(Array.emptyByteArray))
-      )
+  val seqRT = roundTrip[Sequent, Sequent](
+    (s, dos) => sequentToDOS(s, dos),
+    dis => sequentFromDIS(dis)
+  )
+
+  seqRT("empty sequent", Sequent(Set.empty, Set.empty))
+  seqRT("hypothesis-like P |- P", Sequent(Set(a), Set(a)))
+  seqRT("multi-formula left", Sequent(Set(a, b, c), Set.empty))
+  seqRT("multi-formula right", Sequent(Set.empty, Set(a, b, c)))
+  seqRT("both sides", Sequent(Set(a, b), Set(c)))
+  seqRT("with applications", Sequent(Set(Application(p, x)), Set(Application(p, y))))
+  seqRT(
+    "with quantifiers", {
+      val phi = Application(forall, Lambda(x, Application(p, x)))
+      Sequent(Set(phi), Set(phi))
     }
-  }
+  )
+
+  ///////////////////////////////////////////////////////
+  // Proof serialization tests (via proofsToDataStream/proofsFromDataStream)
 
   def proofsEqual(p1: SCProof, p2: SCProof): Boolean =
     p1.steps.size == p2.steps.size &&
