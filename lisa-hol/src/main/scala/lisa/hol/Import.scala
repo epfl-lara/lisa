@@ -952,14 +952,18 @@ object Import extends lisa.HOL:
     /** Compute cumulative throughput, including time spent reporting earlier attempts. */
     def totalStepsPerSecond: Double = if totalElapsedNanos == 0 then 0d else totalSteps / totalSeconds
 
-  /** Reconstruct the requested names and return immutable timings for every attempted theorem. */
+  /**
+   * Reconstruct the requested names and return timings for every attempted theorem.
+   * Notify `onPreprocessing` before reconstruction; exclude its duration from theorem timings.
+   */
   def importFromPrefix(
       prefix: String,
       limit: Int,
       outputPath: Option[String] = None,
       overwrite: Boolean = false,
       failFast: Boolean = false,
-      startAt: Int = 0
+      startAt: Int = 0,
+      onPreprocessing: LemmaSelection.Timing => Unit = _ => ()
   ): Vector[TheoremTiming] =
     require(limit > 0, s"Cannot read $limit theorems. Expected positive theorem limit.")
     require(startAt >= 0, s"Cannot start at theorem $startAt. Expected a non-negative index.")
@@ -967,11 +971,8 @@ object Import extends lisa.HOL:
     val (extractor, names) = JSONParser.initializeFromPrefix(prefix)
     val (requested, selected, preprocessingNanos) = try
       val requested = names.drop(startAt).take(limit).toVector
-      val started = System.nanoTime()
-      val selected =
-        if precomputeLemmas then LemmaSelection.analyze(new java.io.File(s"$prefix.proofs"), requested.iterator.map(_.id).toSet)
-        else LemmaSelection.Result(Set.empty, 0, 0)
-      (requested, selected, if precomputeLemmas then System.nanoTime() - started else 0L)
+      val (selected, timing) = LemmaSelection.prepare(new java.io.File(s"$prefix.proofs"), requested.iterator.map(_.id).toSet, precomputeLemmas)(onPreprocessing)
+      (requested, selected, timing.elapsedNanos)
     catch
       case error: Exception =>
         extractor.close()

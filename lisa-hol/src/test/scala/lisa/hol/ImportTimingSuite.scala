@@ -9,21 +9,24 @@ class ImportTimingSuite extends AnyFunSuite:
   private val p = "v(timing_p)(c[bool][])"
   private val q = "v(timing_q)(c[bool][])"
   private val equality = s"C(C(c(=)(c[fun][[c[bool][]][c[fun][[c[bool][]][c[bool][]]]]]))($p))($p)"
+  private var nextId = 10000L
 
   private def withTrace[A](label: String, mismatch: Boolean = false, composite: Boolean = false)(run: String => A): A =
     val directory = Files.createTempDirectory("lisa-import-timing")
+    val offset = nextId
+    nextId += 10
     val prefix = directory.resolve("trace").toString
     val paths = Seq("proofs", "theorems", "names").map(suffix => Path.of(s"$prefix.$suffix"))
     val term = if composite then equality else p
     val reflexivity = if composite then s"C(C(c(=)(c[fun][[c[bool][]][c[fun][[c[bool][]][c[bool][]]]]]))($term))($term)" else equality
-    val proofs = Seq(ProofLine(0, REFL(term)), ProofLine(1, ASSUME(term)), ProofLine(3, EQ_MP(0, 1)), ProofLine(7, EQ_MP(0, 1)))
+    val proofs = Seq(ProofLine(offset, REFL(term)), ProofLine(offset + 1, ASSUME(term)), ProofLine(offset + 3, EQ_MP(offset, offset + 1)), ProofLine(offset + 7, EQ_MP(offset, offset + 1)))
     val statements = Seq(
-      TheoremStatement(0, RawSequent(Nil, reflexivity)),
-      TheoremStatement(1, RawSequent(List(term), term)),
-      TheoremStatement(3, RawSequent(List(term), term)),
-      TheoremStatement(7, RawSequent(List(term), if mismatch then q else term))
+      TheoremStatement(offset, RawSequent(Nil, reflexivity)),
+      TheoremStatement(offset + 1, RawSequent(List(term), term)),
+      TheoremStatement(offset + 3, RawSequent(List(term), term)),
+      TheoremStatement(offset + 7, RawSequent(List(term), if mismatch then q else term))
     )
-    val names = Seq(TheoremRef(3, s"timing_${label}_first"), TheoremRef(7, s"timing_${label}_second"), TheoremRef(3, s"timing_${label}_alias"))
+    val names = Seq(TheoremRef(offset + 3, s"timing_${label}_first"), TheoremRef(offset + 7, s"timing_${label}_second"), TheoremRef(offset + 3, s"timing_${label}_alias"))
     try
       Files.writeString(paths(0), proofs.map(upickle.default.write(_)).mkString("\n"))
       Files.writeString(paths(1), statements.map(upickle.default.write(_)).mkString("\n"))
@@ -39,6 +42,47 @@ class ImportTimingSuite extends AnyFunSuite:
     assert(timing.totalSeconds == 4d)
     assert(timing.stepsPerSecond == 2d)
     assert(timing.totalStepsPerSecond == 2.5d)
+
+  test("retain startup configuration after properties change"):
+    val original = Config.precomputeLemmas
+    val key = "lisa.hol.precomputeLemmas"
+    val previous = sys.props.get(key)
+    try
+      sys.props(key) = (!original).toString
+      assert(Config.precomputeLemmas == original)
+    finally
+      previous match
+        case Some(value) => sys.props(key) = value
+        case None => sys.props.remove(key)
+
+  test("import with startup configuration without changing conclusions"):
+    withTrace(s"precompute_${Config.precomputeLemmas}"): prefix =>
+      val output = new ByteArrayOutputStream
+      var preprocessing = Option.empty[LemmaSelection.Timing]
+      val timings = Console.withOut(output):
+        Import.importFromPrefix(prefix, 2, failFast = true, onPreprocessing = timing => {
+          assert(!output.toString.contains("Last theorem"))
+          preprocessing = Some(timing)
+        })
+      assert(timings.forall(_.succeeded))
+      val measured = preprocessing.get
+      assert(measured.enabled == Config.precomputeLemmas)
+      assert(measured.elapsedNanos >= 0)
+      assert(measured.selectedLemmas == (if Config.precomputeLemmas then 2 else 0))
+      assert(output.toString.linesIterator.count(_.startsWith("HOL_PREPROCESSING_METRICS ")) == 1)
+      val last = timings.last
+      if Config.reconstructionStats then
+        assert(last.uniqueSteps.contains(4))
+        val replay = if !Config.precomputeLemmas && Config.stepCacheCapacity == 1 && Config.stepCacheGenerations <= 1 then 2 else 0
+        assert(last.recomputedSteps.contains(replay))
+      else
+        assert(last.uniqueSteps.isEmpty && last.recomputedSteps.isEmpty)
+      val line = output.toString.linesIterator.find(_.startsWith("HOL_IMPORT_METRICS ")).get
+      val metrics = ujson.read(line.stripPrefix("HOL_IMPORT_METRICS "))
+      assert(metrics("precompute_lemmas").bool == Config.precomputeLemmas)
+      assert(metrics("selected_lemmas").num == (if Config.precomputeLemmas then 2 else 0))
+      assert(metrics("registered_lemmas").num == (if Config.precomputeLemmas then 2 else 0))
+      assert(metrics("preprocessing_seconds").num == measured.elapsedSeconds)
 
   test("keep zero-duration and cache-only rates finite"):
     val zero = Import.TheoremTiming(TheoremRef(0, "zero"), 0, 0, 0, 0, true)
@@ -58,7 +102,8 @@ class ImportTimingSuite extends AnyFunSuite:
       assert(timings.map(_.reader.proofHeaders) == Vector(3, 1, 0))
       assert(timings.map(_.reader.proofRecords) == Vector(3, 1, 0))
       assert(timings.map(_.reader.statementRecords) == Vector(1, 1, 1))
-      assert(timings.map(_.theorem.id) == Vector(3L, 7L, 3L))
+      val firstId = timings.head.theorem.id
+      assert(timings.map(_.theorem.id) == Vector(firstId, firstId + 4, firstId))
       assert(timings.forall(_.succeeded))
       assert(timings.forall(t => t.resources.cpuNanos >= -1 && t.resources.allocatedBytes >= -1 && t.resources.gcMillis >= 0))
       assert(timings.forall(t => t.elapsedNanos >= 0 && t.totalElapsedNanos >= t.elapsedNanos))
@@ -67,7 +112,7 @@ class ImportTimingSuite extends AnyFunSuite:
       assert(output.toString.contains("KiB/step"))
       assert(output.toString.contains("GC "))
       assert(output.toString.contains("reused 1 steps"))
-      assert(output.toString.contains("Last theorem timing_shared_alias (#3): OK; 0 steps"))
+      assert(output.toString.contains(s"Last theorem timing_shared_alias (#$firstId): OK; 0 steps"))
 
   test("include failed work without charging it to the next theorem"):
     withTrace("failure", mismatch = true): prefix =>
@@ -81,13 +126,14 @@ class ImportTimingSuite extends AnyFunSuite:
       val output = new ByteArrayOutputStream
       Console.withOut(output):
         assertThrows[Import.FailedTheoremException](Import.importFromPrefix(prefix, 3, failFast = true))
-      assert(output.toString.contains("Last theorem timing_failfast_second (#7): FAILED; 1 steps"))
+      assert(output.toString.contains("Last theorem timing_failfast_second"))
+      assert(output.toString.contains("FAILED; 1 steps"))
 
   test("measure only requested names and their newly reconstructed dependencies"):
     withTrace("offset"): prefix =>
       val timings = Console.withOut(new ByteArrayOutputStream)(Import.importFromPrefix(prefix, 1, failFast = true, startAt = 1))
       assert(timings.size == 1)
-      assert(timings.head.theorem.id == 7)
+      assert(timings.head.theorem.name == "timing_offset_second")
       assert(timings.head.steps == 3)
       assert(timings.head.totalSteps == 3)
 

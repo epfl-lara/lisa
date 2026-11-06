@@ -12,8 +12,8 @@ object Config:
   /** Set the number of cache generations; use zero for FIFO eviction. */
   val stepCacheGenerations: Int = sys.props.get("lisa.hol.stepCache.generations").fold(2)(_.toInt)
 
-  /** Select shared dependencies before reconstruction and retain them as named lemmas. */
-  val precomputeLemmas: Boolean = sys.props.get("lisa.hol.precomputeLemmas").exists(_.toBoolean)
+  /** Select shared dependencies by default; disable to retain no extra lemmas. */
+  val precomputeLemmas: Boolean = sys.props.get("lisa.hol.precomputeLemmas").fold(true)(_.toBoolean)
 
   // HOL-to-Lisa conversion caches. Zero disables retention.
 

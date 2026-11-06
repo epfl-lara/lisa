@@ -9,6 +9,32 @@ import scala.util.Using
 object LemmaSelection:
   final case class Result(ids: Set[Long], records: Int, reachable: Int)
 
+  /** Record preprocessing cost independently of theorem reconstruction. */
+  final case class Timing(enabled: Boolean, elapsedNanos: Long, records: Int, reachable: Int, selectedLemmas: Int):
+    def elapsedSeconds: Double = elapsedNanos / 1e9
+
+  /**
+   * Run the optional prepass, report its cost, and notify the caller before reconstruction.
+   *
+   * @throws IllegalArgumentException if enabled selection encounters invalid dependencies
+   * @throws java.io.IOException if reading the proof store fails
+   */
+  @throws[IllegalArgumentException]
+  @throws[java.io.IOException]
+  def prepare(proofs: File, roots: Set[Long], enabled: Boolean)(onComplete: Timing => Unit = _ => ()): (Result, Timing) =
+    val started = System.nanoTime()
+    val result = if enabled then analyze(proofs, roots) else Result(Set.empty, 0, 0)
+    val timing = Timing(enabled, if enabled then System.nanoTime() - started else 0L, result.records, result.reachable, result.ids.size)
+    println("HOL_PREPROCESSING_METRICS " + ujson.Obj(
+      "precompute_lemmas" -> enabled,
+      "preprocessing_seconds" -> timing.elapsedSeconds,
+      "selected_lemmas" -> timing.selectedLemmas,
+      "records" -> timing.records,
+      "reachable" -> timing.reachable
+    ))
+    onComplete(timing)
+    (result, timing)
+
   /**
    * Promote steps reached from two distinct proof contexts, then propagate from
    * each promoted step as a new context. Named theorems and definitions already
