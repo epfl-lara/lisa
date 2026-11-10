@@ -128,21 +128,6 @@ private inline def requireTerm[E, T](using step: Step)(e: Expression)(body: => E
 private def variableIsFreeInSequent(sequent: Sequent, variable: Variable): Boolean =
   sequent.left.exists(_.freeVariables.contains(variable)) || sequent.right.exists(_.freeVariables.contains(variable))
 
-/**
-  * Helper for [[LeftSubstEq]] and [[RightSubstEq]].
-  */
-private def liftedEqualities(equalities: Seq[(Expression, Expression)]): Seq[Expression] =
-  def liftEquality(s: Expression, t: Expression): Expression =
-    val maxId = (s.freeVariables ++ t.freeVariables).map(_.id.no).maxOption.getOrElse(0) + 1
-    val vars = (maxId until (maxId + s.sort.depth)).map(i => Variable(Identifier("x", i), Ind))
-    val sApplied = vars.foldLeft(s)((f, arg) => f(arg))
-    val tApplied = vars.foldLeft(t)((f, arg) => f(arg))
-    val base =
-      if sApplied.sort == Prop then iff(sApplied)(tApplied)
-      else equality(sApplied)(tApplied)
-    vars.foldRight(base) { case (arg, acc) => forall(Lambda(arg, acc)) }
-
-  equalities.map(liftEquality)
 
 ///////////////////////////////////////////////////////////////////////////////
 // Proof Steps
@@ -728,87 +713,134 @@ case object RightRefl extends Step:
         else theorem(statement)
       case _ => Left(NotAnEquality(φ))
 
+
+/** Generic simultaneous substitution implementation for {Left, Right}Subst. */
+object Substitution:
+  sealed trait Error extends ProofError
+  case class ArityMismatch(variables: Int, replacements: Int, comparisons: Int) extends Error
+  case class InvalidArguments(expected: Seq[Sort], arguments: Seq[Variable]) extends Error
+  case class RepeatedArgument(argument: Variable) extends Error
+  case class ArgumentNotFresh(argument: Variable) extends Error
+  case class MissingComparison(premise: Thm, formula: Expression) extends Error
+  case class MissingContext(premise: Thm, statement: Sequent) extends Error
+  case class ExtraneousInPremise(premise: Thm, statement: Sequent, source: Expression) extends Error
+  case class MissingSubstitutedFormula(statement: Sequent, target: Expression) extends Error
+
+  private def argumentSorts(sort: Sort): List[Sort] = sort match
+    case Arrow(from, to) => from :: argumentSorts(to)
+    case _ => Nil
+
+  /**
+   * Check a single replacement pair for substitution violations.
+   */
+  private def checkComparison(using Step)(
+      statement: Sequent,
+      comparison: Thm,
+      replacement: (Expression, Expression, Seq[Variable]),
+      variable: Variable
+  ): Either[Error | GeneralError, Unit] =
+    val (source, target, arguments) = replacement
+    requireSort(source, variable.sort):
+      requireSort(target, variable.sort):
+        val expected = argumentSorts(variable.sort)
+        if arguments.map(_.sort) != expected then Left(InvalidArguments(expected, arguments))
+        else if arguments.toSet.size != arguments.size then
+          Left(RepeatedArgument(arguments.groupBy(identity).find(_._2.size > 1).get._1))
+        else
+          val appliedSource = arguments.foldLeft(source: Expression)(_(_))
+          val appliedTarget = arguments.foldLeft(target: Expression)(_(_))
+          val equation = if appliedSource.sort == Prop then iff(appliedSource)(appliedTarget) else equality(appliedSource)(appliedTarget)
+          val residual = comparison.right - equation
+          val notFresh = arguments.find(v =>
+            source.freeVariables.contains(v) || target.freeVariables.contains(v) ||
+              comparison.left.exists(_.freeVariables.contains(v)) || residual.exists(_.freeVariables.contains(v))
+          )
+          if notFresh.nonEmpty then Left(ArgumentNotFresh(notFresh.get))
+          else if !comparison.right.contains(equation) then Left(MissingComparison(comparison, equation))
+          else if !comparison.left.subsetOfEq(statement.left) || !residual.subsetOfEq(statement.right) then Left(MissingContext(comparison, statement))
+          else Right(())
+
+  private[proof] def prove(using theory: Theory, step: Step)(
+      statement: Sequent,
+      premise: Thm,
+      comparisons: Seq[Thm],
+      replacements: Seq[(Expression, Expression, Seq[Variable])],
+      context: (Seq[Variable], Expression),
+      onLeft: Boolean
+  ): Either[Error | GeneralError, Thm] =
+    val (variables, body) = context
+    requireFormula(body):
+      if variables.size != replacements.size || comparisons.size != replacements.size then
+        Left(ArityMismatch(variables.size, replacements.size, comparisons.size))
+      else
+        // check each replacement pair for well-formedness and freshness
+        val checked = replacements.zip(variables).zip(comparisons).foldLeft(Right(()): Either[Error | GeneralError, Unit]):
+          case (result, ((replacement, variable), comparison)) =>
+            result.flatMap(_ => checkComparison(statement, comparison, replacement, variable))
+        checked.flatMap: _ =>
+          // all the pairs were well-formed.
+          // now check the full substitution against the result
+          val before = substituteVariables(body, variables.zip(replacements.map(_._1)).toMap)
+          val after = substituteVariables(body, variables.zip(replacements.map(_._2)).toMap)
+          val from = if onLeft then premise.left else premise.right
+          val to = if onLeft then statement.left else statement.right
+          val untouched = if onLeft then premise.right.subsetOfEq(statement.right) else premise.left.subsetOfEq(statement.left)
+          if !untouched then Left(MissingContext(premise, statement))
+          else if !from.containedExcept(to, before) then Left(ExtraneousInPremise(premise, statement, before))
+          else if !to.containsEq(after) then Left(MissingSubstitutedFormula(statement, after))
+          else theorem(statement, premise +: comparisons)
+
 /**
-  *                     Γ, φ(s) |- Δ
-  * -----------------------------------------------------
-  *   Γ, ∀x,...,z. (s x ... z)=(t x ... z), φ(t) |- Δ
-  */
-case object LeftSubstEq extends Step:
-  type ErrorType = LeftSubstEqError | GeneralError
+ *
+ * ```
+ * Γ, φ(s_1,...,s_n) |- Δ    (Θ_i |- s_i(a_i1, ..., a_ik) ≈ t_i(a_i1, ..., a_ik), Ξ_i)_i
+ * --------------------------------------------------------------------------------------
+ *          Γ, ⋃ Θ_i, φ(t_1,...,t_n) |- Δ, ⋃ Ξ_i
+ * ```
+ *
+ * Simultaneous substitution in one context on the left. For each replacement
+ * (indexed by i), a pair of terms (s_i, t_i), a sequence of argument variables
+ * a_i, and a proof of Θ_i |- s_i(a_i) ≈ t_i(a_i), Ξ_i is expected. The
+ * variables {a_ij}_j must be fresh wrt s_i, t_i, Θ_i and Ξ_i, thus proving a
+ * universal equality. An equivalence (<=>) is expected if the replacement is
+ * propositional instead.
+ */
+case object LeftSubst extends Step:
+  type ErrorType = Substitution.Error | GeneralError
 
-  sealed trait LeftSubstEqError extends ProofError
-  case class ArityMismatch(statement: Sequent, equalities: Seq[(Expression, Expression)], lambdaArgs: Seq[Variable]) extends LeftSubstEqError
-  case class SubstitutionSortNotAllowed(argument: Variable) extends LeftSubstEqError
-  case class MissingFromPremise(premise: Thm, statement: Sequent) extends LeftSubstEqError
-  case class ExtraneousInPremise(premise: Thm, statement: Sequent, expectedFormula: Expression) extends LeftSubstEqError
-  case class MissingLiftedEquality(statement: Sequent, equality: Expression) extends LeftSubstEqError
-  case class MissingSubstitutedFormula(statement: Sequent, substitutedFormula: Expression) extends LeftSubstEqError
-
-  def apply(using theory: Theory)(statement: Sequent, premise: Thm, equals: Seq[(Expression, Expression)], lambdaφ: (Seq[Variable], Expression)): Result[Thm] =
-    val (sList, tList) = equals.unzip
-    val (φArgs, φBody) = lambdaφ
-    if φBody.sort != Prop then Left(SortMismatch(this, Prop, φBody.sort, φBody))
-    else if φArgs.size != sList.size then Left(ArityMismatch(statement, equals, φArgs))
-    else
-      val violation = equals.zip(φArgs).find { case ((s, t), arg) =>
-        s.sort != arg.sort || t.sort != arg.sort || (!arg.sort.isFunctional && !arg.sort.isPredicate)
-      }
-      violation match
-        case Some(((s, _), arg)) if s.sort != arg.sort => Left(SortMismatch(this, arg.sort, s.sort, s))
-        case Some(((s, t), arg)) if t.sort != arg.sort => Left(SortMismatch(this, arg.sort, t.sort, t))
-        case Some((_, arg)) => Left(SubstitutionSortNotAllowed(arg))
-        case None =>
-          val φs = substituteVariables(φBody, (φArgs zip sList).toMap)
-          val φt = substituteVariables(φBody, (φArgs zip tList).toMap)
-          val equalities = liftedEqualities(equals)
-          if !premise.right.subsetOfEq(statement.right) then Left(MissingFromPremise(premise, statement))
-          else if !premise.left.containedExcept(statement.left, φs) then Left(ExtraneousInPremise(premise, statement, φs))
-          else
-            equalities.find(!statement.left.containsEq(_)) match
-              case Some(eq) => Left(MissingLiftedEquality(statement, eq))
-              case None if !statement.left.containsEq(φt) => Left(MissingSubstitutedFormula(statement, φt))
-              case None => theorem(statement, Seq(premise))
+  def apply(using theory: Theory)(
+      statement: Sequent,
+      premise: Thm,
+      comparisons: Seq[Thm],
+      replacements: Seq[(Expression, Expression, Seq[Variable])],
+      context: (Seq[Variable], Expression)
+  ): Result[Thm] = Substitution.prove(statement, premise, comparisons, replacements, context, onLeft = true)
 
 /**
-  *                     Γ |- φ(s), Δ
-  * ------------------------------------------------------
-  *     Γ, ∀x,...,z. (s x ... z)=(t x ... z) |- φ(t), Δ
-  */
-case object RightSubstEq extends Step:
-  type ErrorType = RightSubstEqError | GeneralError
+ *
+ * ```
+ * Γ |- φ(s_1,...,s_n), Δ    (Θ_i |- s_i(a_i1, ..., a_ik) ≈ t_i(a_i1, ..., a_ik), Ξ_i)_i
+ * --------------------------------------------------------------------------------------
+ *          Γ, ⋃ Θ_i |- φ(t_1,...,t_n), Δ, ⋃ Ξ_i
+ * ```
+ *
+ * Simultaneous substitution in one context on the right. For each replacement
+ * (indexed by i), a pair of terms (s_i, t_i), a sequence of argument variables
+ * a_i, and a proof of Θ_i |- s_i(a_i) ≈ t_i(a_i), Ξ_i is expected. The
+ * variables {a_ij}_j must be fresh wrt s_i, t_i, Θ_i and Ξ_i, thus proving a
+ * universal equality. An equivalence (<=>) is expected if the replacement is
+ * propositional instead.
+ */
+case object RightSubst extends Step:
+  type ErrorType = Substitution.Error | GeneralError
 
-  sealed trait RightSubstEqError extends ProofError
-  case class ArityMismatch(statement: Sequent, equalities: Seq[(Expression, Expression)], lambdaArgs: Seq[Variable]) extends RightSubstEqError
-  case class SubstitutionSortNotAllowed(argument: Variable) extends RightSubstEqError
-  case class MissingFromPremise(premise: Thm, statement: Sequent) extends RightSubstEqError
-  case class MissingLiftedEquality(statement: Sequent, equality: Expression) extends RightSubstEqError
-  case class ExtraneousInPremise(premise: Thm, statement: Sequent, expectedFormula: Expression) extends RightSubstEqError
-  case class MissingSubstitutedFormula(statement: Sequent, substitutedFormula: Expression) extends RightSubstEqError
-
-  def apply(using theory: Theory)(statement: Sequent, premise: Thm, equals: Seq[(Expression, Expression)], lambdaφ: (Seq[Variable], Expression)): Result[Thm] =
-    val (sList, tList) = equals.unzip
-    val (φArgs, φBody) = lambdaφ
-    if φBody.sort != Prop then Left(SortMismatch(this, Prop, φBody.sort, φBody))
-    else if φArgs.size != sList.size then Left(ArityMismatch(statement, equals, φArgs))
-    else
-      val violation = equals.zip(φArgs).find { case ((s, t), arg) =>
-        s.sort != arg.sort || t.sort != arg.sort || (!arg.sort.isFunctional && !arg.sort.isPredicate)
-      }
-      violation match
-        case Some(((s, _), arg)) if s.sort != arg.sort => Left(SortMismatch(this, arg.sort, s.sort, s))
-        case Some(((s, t), arg)) if t.sort != arg.sort => Left(SortMismatch(this, arg.sort, t.sort, t))
-        case Some((_, arg)) => Left(SubstitutionSortNotAllowed(arg))
-        case None =>
-          val φs = substituteVariables(φBody, (φArgs zip sList).toMap)
-          val φt = substituteVariables(φBody, (φArgs zip tList).toMap)
-          val equalities = liftedEqualities(equals)
-          if !premise.left.subsetOfEq(statement.left) then Left(MissingFromPremise(premise, statement))
-          else
-            equalities.find(!statement.left.containsEq(_)) match
-              case Some(eq) => Left(MissingLiftedEquality(statement, eq))
-              case None if !premise.right.containedExcept(statement.right, φs) => Left(ExtraneousInPremise(premise, statement, φs))
-              case None if !statement.right.containsEq(φt) => Left(MissingSubstitutedFormula(statement, φt))
-              case None => theorem(statement, Seq(premise))
+  def apply(using theory: Theory)(
+      statement: Sequent,
+      premise: Thm,
+      comparisons: Seq[Thm],
+      replacements: Seq[(Expression, Expression, Seq[Variable])],
+      context: (Seq[Variable], Expression)
+  ): Result[Thm] = Substitution.prove(statement, premise, comparisons, replacements, context, onLeft = false)
 
 /**
   *         Γ |- Δ
