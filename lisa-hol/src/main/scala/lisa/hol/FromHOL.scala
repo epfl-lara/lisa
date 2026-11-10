@@ -29,15 +29,12 @@ object FromHOL extends lisa.Main:
         val (translated, equivalence) = boolean(term, typing, context)
         if translated == original then current
         else
-          val relation = original <=> translated
-          val withRelation =
-            if left then current.statement.copy(left = current.left - original + translated + relation)
-            else current.statement.copy(left = current.left + relation, right = current.right - original + translated)
+          val target =
+            if left then current.statement.copy(left = current.left - original + translated ++ equivalence.left)
+            else current.statement.copy(left = current.left ++ equivalence.left, right = current.right - original + translated)
           val pivot = Variable.fresh[Prop](current.left ++ current.right ++ equivalence.left, "hol")
-          val step =
-            if left then have(withRelation) by LeftSubstIff.withParameters(Seq(original -> translated), Seq(pivot) -> pivot)(current)
-            else have(withRelation) by RightSubstIff.withParameters(Seq(original -> translated), Seq(pivot) -> pivot)(current)
-          have(Discharge(equivalence)(step))
+          if left then have(target) by LeftSubst.withParameters(Seq((original, translated, Nil)), Seq(pivot) -> pivot)(current, Seq(equivalence))
+          else have(target) by RightSubst.withParameters(Seq((original, translated, Nil)), Seq(pivot) -> pivot)(current, Seq(equivalence))
       case _ => current
 
     val left = premise.left.foldLeft(premise)((current, formula) => rewrite(current, formula, left = true))
@@ -56,19 +53,21 @@ object FromHOL extends lisa.Main:
   private def reflexive(formula: Expr[Prop])(using Proof): Thm =
     have(formula <=> formula) by Restate
 
-  /** Replace known subformulas with explicit parameters, then cut their equivalences. */
+  /** Transport subformulas through their proved equivalences. */
   private def compose(source: Expr[Prop], base: Thm, pairs: Seq[(Expr[Prop], Expr[Prop], Thm)])(
       build: Seq[Expr[Prop]] => Expr[Prop]
   )(using Proof): Thm =
     val avoid = base.left ++ base.right ++ pairs.flatMap(pair => Seq(pair._1, pair._2))
     val variables = pairs.indices.foldLeft(Vector.empty[Variable[Prop]]): (variables, _) =>
       variables :+ Variable.fresh[Prop](avoid ++ variables, "hol")
-    val target = source <=> build(pairs.map(_._2))
-    val relations = pairs.map(pair => pair._1 <=> pair._2)
-    val substituted = have((base.left ++ relations) |- target) by RightSubstIff.withParameters(
-      pairs.map(pair => pair._1 -> pair._2), variables -> (source <=> build(variables))
-    )(base)
-    have(Discharge(pairs.map(_._3)*)(substituted))
+    pairs.indices.foldLeft(base): (current, index) =>
+      val (before, after, comparison) = pairs(index)
+      val children = pairs.indices.map: j =>
+        if j == index then variables(j) else if j < index then pairs(j)._2 else pairs(j)._1
+      val body = source <=> build(children)
+      val target = body.substitute(variables(index) := after)
+      have((current.left ++ comparison.left) |- target) by
+        RightSubst.withParameters(Seq((before, after, Nil)), Seq(variables(index)) -> body)(current, Seq(comparison))
 
   private def typed(term: Expr[Ind], typ: Expr[Ind], context: Set[Expr[Prop]])(using Proof): Thm =
     have(Typecheck.checkProof(using lisa.SetTheoryLibrary)(context ++ getContext(term), term, typ))
@@ -166,9 +165,9 @@ object FromHOL extends lisa.Main:
         val (translated, bodyProof) = boolean(body, context + (bound ∈ domain), avoid ++ context + (bound ∈ domain))
         val pointwise = beta.fold(bodyProof): beta =>
           val pivot = Variable.fresh[Ind](bodyProof.left ++ Set(source, translated), "hol")
-          val rewritten = have((bodyProof.left + (body === application)) |- (eqOne(application) <=> translated)) by
-            RightSubstEq.withParameters(Seq(body -> application), Seq(pivot) -> (eqOne(pivot) <=> translated))(bodyProof)
-          have(Discharge(beta)(rewritten))
+          val comparison = have(beta.left |- body === application) by Restate.from(beta)
+          have((bodyProof.left ++ beta.left) |- (eqOne(application) <=> translated)) by
+            RightSubst.withParameters(Seq((body, application, Nil)), Seq(pivot) -> (eqOne(pivot) <=> translated))(bodyProof, Seq(comparison))
         val lifted = quantified(quantifier == Forall, bound, domain, eqOne(application), translated, pointwise)
         val rule =
           if quantifier == Forall then FA.hforallCorrect.of(FA.A := domain, FA.P := predicate, FA.x := bound)

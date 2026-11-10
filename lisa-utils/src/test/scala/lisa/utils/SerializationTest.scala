@@ -136,6 +136,7 @@ class SerializationTest extends AnyFunSuite:
       ) == Seq(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28)
     )
     assert(Seq(Tag.axiom, Tag.assume, Tag.discharge, Tag.definition) == Seq(29, 30, 31, 32))
+    assert(Seq(Tag.leftSubst, Tag.rightSubst) == Seq(33, 34))
 
   test("one legacy Hypothesis proof has byte-identical payload"):
     val proof = LinearProof(Array(Hypothesis(Sequent(Set(p), Set(p)), p)), Array.empty)
@@ -175,10 +176,23 @@ class SerializationTest extends AnyFunSuite:
       Axiom(statement),
       Assume(statement),
       Discharge(statement, 0, -1),
-      Definition(statement, f, Seq(x), x)
+      Definition(statement, f, Seq(x), x),
+      LeftSubst(statement, 0, Seq(-1), Seq((x, y, Nil)), Seq(x) -> phi),
+      RightSubst(statement, 0, Seq(-1), Seq((f, f, Seq(x))), Seq(Variable(Identifier("F"), f.sort)) -> phi)
     )
     val original = LinearProof(steps, Array(statement))
     assert(proofsEqual(original, roundTrip(original)))
+
+  test("simultaneous substitutions round trip with independent argument lists"):
+    val functionHole = Variable(Identifier("function-hole"), f.sort)
+    val replacements = Seq((x, y, Seq.empty[Variable]), (f, f, Seq(x)))
+    val context = Seq(x, functionHole) -> equality(x)(functionHole(y))
+    val steps = Array[ProofStep](
+      LeftSubst(statement, -1, Seq(-2, -3), replacements, context),
+      RightSubst(statement, -1, Seq(-2, -3), replacements, context)
+    )
+    val proof = LinearProof(steps, Array(statement, statement, statement))
+    assert(proofsEqual(proof, roundTrip(proof)))
 
   test("legacy named-proof envelope round trip"):
     val original = LinearProof(Array(Sorry(statement)), Array(statement))

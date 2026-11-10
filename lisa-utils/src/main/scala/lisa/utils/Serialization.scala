@@ -52,6 +52,8 @@ object Serialization:
     inline val assume = 30
     inline val discharge = 31
     inline val definition = 32
+    inline val leftSubst = 33
+    inline val rightSubst = 34
 
     // Expression-tree tags.
     inline val variable = 0
@@ -231,6 +233,12 @@ object Serialization:
         proofDOS.writeInt(line(right))
       }
 
+    private def writeReplacements(replacements: Seq[(Expression, Expression, Seq[Variable])]): Unit =
+      proofDOS.writeShort(replacements.size)
+      replacements.foreach { (source, target, arguments) =>
+        proofDOS.writeInt(line(source)); proofDOS.writeInt(line(target)); writeExprs(arguments)
+      }
+
     private def writeLambda(lambdaPhi: (Seq[Variable], Expression)): Unit =
       proofDOS.writeShort(lambdaPhi._1.size)
       lambdaPhi._1.foreach(v => proofDOS.writeInt(line(v)))
@@ -303,6 +311,12 @@ object Serialization:
         proofDOS.writeByte(Tag.discharge); writeSequent(statement); proofDOS.writeInt(premise); proofDOS.writeInt(justification)
       case Definition(statement, cst, vars, exp) =>
         proofDOS.writeByte(Tag.definition); writeSequent(statement); proofDOS.writeInt(line(cst)); writeExprs(vars); proofDOS.writeInt(line(exp))
+      case LeftSubst(statement, premise, comparisons, replacements, context) =>
+        proofDOS.writeByte(Tag.leftSubst); writeSequent(statement); proofDOS.writeInt(premise); writePremises(comparisons.toArray)
+        writeReplacements(replacements); writeLambda(context)
+      case RightSubst(statement, premise, comparisons, replacements, context) =>
+        proofDOS.writeByte(Tag.rightSubst); writeSequent(statement); proofDOS.writeInt(premise); writePremises(comparisons.toArray)
+        writeReplacements(replacements); writeLambda(context)
 
     /**
      * Write one linear proof.
@@ -378,6 +392,14 @@ object Serialization:
       case Tag.assume => Assume(readSequent())
       case Tag.discharge => Discharge(readSequent(), proofDIS.readInt(), proofDIS.readInt())
       case Tag.definition => Definition(readSequent(), constant(), readVariables(), expr())
+      case tag @ (Tag.leftSubst | Tag.rightSubst) =>
+        val statement = readSequent()
+        val premise = proofDIS.readInt()
+        val comparisons = readPremises().toIndexedSeq
+        val replacements = Seq.fill(proofDIS.readShort())((expr(), expr(), readVariables()))
+        val context = readLambda()
+        if tag == Tag.leftSubst then LeftSubst(statement, premise, comparisons, replacements, context)
+        else RightSubst(statement, premise, comparisons, replacements, context)
       case tag => throw InvalidStepTag(tag)
 
     /**

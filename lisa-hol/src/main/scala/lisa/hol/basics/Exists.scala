@@ -302,7 +302,7 @@ object Exists extends lisa.HOL {
       // Replace only the outer implication term using its beta equality.
       val outerPredFOL = have((q :: 𝔹) |- outerPred * q <=> (allInner ==> q)) subproof:
         have((q :: 𝔹, outerPred * q === outerImp) |- outerPred * q <=> (allInner ==> q)) by
-          RightSubstEq.withParameters(Seq((outerImp, outerPred * q)), (Seq(x), (x === One) <=> (allInner ==> q)))(outerImpFOL)
+          RightSubstEq(Seq((outerImp, outerPred * q)), (Seq(x), (x === One) <=> (allInner ==> q)))(outerImpFOL)
         have(thesis) by Cut.withParameters(outerPred * q === outerImp)(outerBeta, lastStep)
 
       // Convert: ∀(q :: 𝔹, ∀(x :: A, P*x ==> q) ==> q) |- ∀(q :: 𝔹, outerPred * q)

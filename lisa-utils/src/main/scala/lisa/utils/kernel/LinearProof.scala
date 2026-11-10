@@ -10,6 +10,7 @@ case object EmptyProofError extends CheckError
 case class ForwardReferenceError(idx: Int) extends CheckError
 case class InvalidImportError(idx: Int) extends CheckError
 case class InvalidStepError(idx: Int, error: K.ProofError) extends CheckError
+case class InvalidSubstitutionError(idx: Int, message: String) extends CheckError
 
 case class LinearProof(
     steps: Array[ProofStep],
@@ -116,8 +117,12 @@ case class LinearProof(
         case RightRefl(statement, phi) =>
           checkedResult(K.RightRefl(statement, phi))
         case LeftSubstEq(statement, premise, equals, lambdaPhi) =>
-          checkedResult(K.LeftSubstEq(statement, resolve(premise), equals, lambdaPhi))
+          Substitution.simultaneous(statement, resolve(premise), equals, lambdaPhi, onLeft = true).left.map(InvalidSubstitutionError(idx, _))
         case RightSubstEq(statement, premise, equals, lambdaPhi) =>
-          checkedResult(K.RightSubstEq(statement, resolve(premise), equals, lambdaPhi))
+          Substitution.simultaneous(statement, resolve(premise), equals, lambdaPhi, onLeft = false).left.map(InvalidSubstitutionError(idx, _))
+        case LeftSubst(statement, premise, comparisons, replacements, context) =>
+          checkedResult(K.LeftSubst(statement, resolve(premise), comparisons.map(resolve), replacements, context))
+        case RightSubst(statement, premise, comparisons, replacements, context) =>
+          checkedResult(K.RightSubst(statement, resolve(premise), comparisons.map(resolve), replacements, context))
         case InstSchema(statement, premise, subst) =>
           checkedResult(K.InstSchema(statement, resolve(premise), subst))

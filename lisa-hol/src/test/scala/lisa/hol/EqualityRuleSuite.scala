@@ -28,6 +28,26 @@ class EqualityRuleSuite extends AnyFunSuite:
     assert(result.kernel.assumptions == premises.flatMap(_.kernel.assumptions).toSet)
     assert(isSameSet(result.thm.statement.right, Set(conclusion)))
 
+  test("TRANS transports variable, composite and reflexive equalities without new proof holes"):
+    for (left, middle, right) <- Seq((x, y, x), (f * x, g * y, f * y), (x, x, x)) do
+      HOLSteps.HOLProofType.resetCache()
+      val first = premise((left =:= middle) === One)
+      val second = premise((middle =:= right) === One)
+      checked(Proof.withContext(ExtendedHOLSteps._TRANS(first, second)), (left =:= right) === One, first, second)
+
+  test("TRANS does not reconstruct typing for the untouched first term"):
+    val source = variable[Ind](K.Identifier("rule-unannotated-trans-source"))
+    val first = premise((holeq(𝔹) * source * x) === One)
+    val second = premise((x =:= y) === One)
+    checked(Proof.withContext(ExtendedHOLSteps._TRANS(first, second)), (holeq(𝔹) * source * y) === One, first, second)
+
+  test("TRANS rejects unequal middle terms and unequal equality types"):
+    val first = premise((x =:= y) === One)
+    val unrelated = premise((x =:= x) === One)
+    assert(!Proof.withContext(ExtendedHOLSteps._TRANS(first, unrelated)).isValid)
+    val wrongType = premise((holeq(𝔹 ->: 𝔹) * y * x) === One)
+    assert(!Proof.withContext(ExtendedHOLSteps._TRANS(first, wrongType)).isValid)
+
   test("EQ_MP composes variable and composite propositions without new proof holes"):
     for (left, right) <- Seq((x, y), (f * x, g * y), (f * (g * x), g * (f * y))) do
       HOLSteps.HOLProofType.resetCache()

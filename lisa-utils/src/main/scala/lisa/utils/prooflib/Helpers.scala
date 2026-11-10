@@ -136,17 +136,7 @@ object Helpers:
    * Converts equal function heads into universally quantified pointwise equalities.
    */
   def liftedEqualities(equalities: Seq[(KF.Expression, KF.Expression)]): Seq[KF.Expression] =
-    def liftEquality(s: KF.Expression, t: KF.Expression): KF.Expression =
-      val maxId = (s.freeVariables ++ t.freeVariables).map(_.id.no).maxOption.getOrElse(0) + 1
-      val vars = (maxId until (maxId + s.sort.depth)).map(i => KF.Variable(KF.Identifier("x", i), KF.Ind))
-      val sApplied = vars.foldLeft(s)((f, arg) => f(arg))
-      val tApplied = vars.foldLeft(t)((f, arg) => f(arg))
-      val base =
-        if sApplied.sort == KF.Prop then KF.iff(sApplied)(tApplied)
-        else KF.equality(sApplied)(tApplied)
-      vars.foldRight(base) { case (arg, acc) => KF.forall(KF.Lambda(arg, acc)) }
-
-    equalities.map(liftEquality)
+    lisa.utils.kernel.Substitution.liftedEqualities(equalities)
 
   /**
    * Splits a fully applied expression into its head and ordered argument list.
@@ -196,65 +186,3 @@ object Helpers:
             t <- unappliedHead(right, args)
           yield s -> t
       case _ => None
-
-  /**
-   * Builds a common abstraction of source and target by replacing matching s/t differences with variable.
-   */
-  private def abstractDifference(source: KF.Expression, target: KF.Expression, s: KF.Expression, t: KF.Expression, variable: KF.Variable): Option[(KF.Expression, Boolean)] =
-    if source.sort != target.sort then None
-    else if source.sort == s.sort && target.sort == t.sort && KF.isSame(source, s) && KF.isSame(target, t) then Some(variable -> true)
-    else if KF.isSame(source, target) then Some(source -> false)
-    else
-      (source, target) match
-        case (KF.Application(sourceF, sourceArg), KF.Application(targetF, targetArg)) =>
-          for
-            (newF, changedF) <- abstractDifference(sourceF, targetF, s, t, variable)
-            (newArg, changedArg) <- abstractDifference(sourceArg, targetArg, s, t, variable)
-          yield KF.Application(newF, newArg) -> (changedF || changedArg)
-        case (KF.Lambda(sourceV, sourceBody), KF.Lambda(targetV, targetBody)) if sourceV == targetV =>
-          abstractDifference(sourceBody, targetBody, s, t, variable).map { case (body, changed) =>
-            KF.Lambda(sourceV, body) -> changed
-          }
-        case _ => None
-
-  /**
-   * Finds a one-variable formula abstraction whose substitution by s and t yields source and target.
-   */
-  def abstractReplacement(source: KF.Expression, target: KF.Expression, s: KF.Expression, t: KF.Expression): Option[(Seq[KF.Variable], KF.Expression)] =
-    if source.sort != KF.Prop || target.sort != KF.Prop || s.sort != t.sort then None
-    else
-      val maxId = (source.freeVariables ++ target.freeVariables ++ s.freeVariables ++ t.freeVariables).map(_.id.no).maxOption.getOrElse(0) + 1
-      val variable = KF.Variable(KF.Identifier("subst", maxId), s.sort)
-      abstractDifference(source, target, s, t, variable).flatMap { case (body, changed) =>
-        if !changed then None
-        else
-          val sourceCheck = KF.substituteVariables(body, Map(variable -> s))
-          val targetCheck = KF.substituteVariables(body, Map(variable -> t))
-          if KF.isSame(sourceCheck, source) && KF.isSame(targetCheck, target) then Some(Seq(variable) -> body)
-          else None
-      }
-
-  /**
-   * Enumerates single-substitution equality candidates from source/target formulas and available equalities.
-   */
-  def singleSubstEqCandidates(
-      sourceFormulas: Iterator[KF.Expression],
-      targetFormulas: Iterator[KF.Expression],
-      equalityFormulas: Iterable[KF.Expression]
-  ): Iterator[(Seq[(KF.Expression, KF.Expression)], (Seq[KF.Variable], KF.Expression))] =
-    val sources = distinctEq(sourceFormulas).filter(_.sort == KF.Prop)
-    val targets = distinctEq(targetFormulas).filter(_.sort == KF.Prop)
-    val equalities = equalityFormulas.iterator
-      .flatMap(unliftEquality)
-      .flatMap { case (s, t) =>
-        Iterator(s -> t, t -> s)
-      }
-      .toVector
-
-    sources.iterator.flatMap { source =>
-      targets.iterator.flatMap { target =>
-        equalities.iterator.flatMap { case (s, t) =>
-          abstractReplacement(source, target, s, t).map(lambdaPhi => Seq(s -> t) -> lambdaPhi)
-        }
-      }
-    }

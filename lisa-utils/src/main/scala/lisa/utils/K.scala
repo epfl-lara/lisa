@@ -43,8 +43,18 @@ object K {
   val Weakening = P.Weakening
   val LeftRefl = P.LeftRefl
   val RightRefl = P.RightRefl
-  val LeftSubstEq = P.LeftSubstEq
-  val RightSubstEq = P.RightSubstEq
+  val LeftSubst = P.LeftSubst
+  val RightSubst = P.RightSubst
+
+  object LeftSubstEq:
+    def apply(using theory: Theory)(statement: Sequent, premise: Thm, equalities: Seq[(Expression, Expression)], context: (Seq[Variable], Expression)):
+        lisa.utils.kernel.Substitution.Result =
+      lisa.utils.kernel.Substitution.simultaneous(statement, premise, equalities, context, onLeft = true)
+
+  object RightSubstEq:
+    def apply(using theory: Theory)(statement: Sequent, premise: Thm, equalities: Seq[(Expression, Expression)], context: (Seq[Variable], Expression)):
+        lisa.utils.kernel.Substitution.Result =
+      lisa.utils.kernel.Substitution.simultaneous(statement, premise, equalities, context, onLeft = false)
   val InstSchema = P.InstSchema
 
   def sequentToFormula(s: Sequent): Expression = P.sequentToFormula(s)

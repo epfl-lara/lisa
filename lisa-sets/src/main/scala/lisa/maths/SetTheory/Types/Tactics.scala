@@ -477,7 +477,7 @@ object Tactics:
                 val equality = have(sub === sup) by RightRefl.withParameters(sub === sup)
                 val reflexive = have(reflexivity of (x := sub))
                 val rewritten = have(sub === sup |- sub ⊆ sup) by
-                  RightSubstEq.withParameters(List((sub, sup)), (Seq(T), sub ⊆ T))(reflexive)
+                  RightSubstEq(List((sub, sup)), (Seq(T), sub ⊆ T))(reflexive)
                 have(Discharge(equality)(rewritten))
             else if (dSub == dSup - 1) then have(subsetOfUniverse of (A := sub))
             else

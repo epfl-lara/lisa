@@ -1108,130 +1108,95 @@ object BasicStep:
       val inferred = candidates.collectFirstDefined(eq => prove(underlying, eq).toOption)
       inferred.fold(inferenceFailure(file, line)("Could not infer a reflexive equality for RightRefl.", conclusion))(thm => successful(thm, conclusion))
 
-  object LeftSubstEq extends PremiseSequentTactic:
-    private def prove(conclusion: K.Sequent, premise: K.Thm, equalities: Seq[(KF.Expression, KF.Expression)], lambdaPhi: (Seq[KF.Variable], KF.Expression))(using
-        library: Library
-    ): K.LeftSubstEq.Result[K.Thm] =
-      K.LeftSubstEq(using library.theory)(conclusion, premise, equalities, lambdaPhi)
+  /** Share parameter recovery between left and right substitution. */
+  sealed abstract class SubstTactic private[BasicStep] (onLeft: Boolean):
+    private val name = if onLeft then "LeftSubst" else "RightSubst"
 
-    private def liftError(file: sourcecode.File, line: sourcecode.Line)(
-        conclusion: Sequent,
-        premise: K.Thm,
-        equalities: Seq[(Expr[?], Expr[?])],
-        lambdaPhi: (Seq[Variable[?]], Expr[Prop])
-    )(err: K.LeftSubstEq.ErrorType): ProofError =
-      err match
-        case _: K.LeftSubstEq.ArityMismatch =>
-          SoftError(withParams("LeftSubstEq equality count does not match lambda argument count.", "Equalities" -> equalities, "Lambda" -> lambdaPhi), file, line)
-        case _: K.LeftSubstEq.SubstitutionSortNotAllowed =>
-          SoftError(withParams("LeftSubstEq lambda argument sort is not substitutable.", "Lambda" -> lambdaPhi), file, line)
-        case _: K.LeftSubstEq.MissingFromPremise =>
-          SoftError(withParams("The premise right side is not contained in the LeftSubstEq conclusion.", "Premise" -> premise), file, line)
-        case _: K.LeftSubstEq.ExtraneousInPremise =>
-          SoftError(
-            withParams("The premise left side contains a formula other than φ(s) that is absent from the conclusion.", "Equalities" -> equalities, "Lambda" -> lambdaPhi),
-            file,
-            line
-          )
-        case _: K.LeftSubstEq.MissingLiftedEquality =>
-          SoftError(withParams("The LeftSubstEq conclusion is missing a lifted equality.", "Equalities" -> equalities), file, line)
-        case _: K.LeftSubstEq.MissingSubstitutedFormula =>
-          SoftError(withParams("The LeftSubstEq conclusion is missing φ(t).", "Equalities" -> equalities, "Lambda" -> lambdaPhi), file, line)
-        case e: K.GeneralError => liftGeneralError(file, line)("LeftSubstEq", e)
+    private def prove(
+        conclusion: K.Sequent, premise: K.Thm, comparisons: Seq[K.Thm],
+        replacements: Seq[(KF.Expression, KF.Expression, Seq[KF.Variable])], context: (Seq[KF.Variable], KF.Expression)
+    )(using library: Library): K.LeftSubst.Result[K.Thm] =
+      if onLeft then K.LeftSubst(using library.theory)(conclusion, premise, comparisons, replacements, context)
+      else K.RightSubst(using library.theory)(conclusion, premise, comparisons, replacements, context)
 
-    def withParameters(using
-        file: sourcecode.File,
-        line: sourcecode.Line
-    )(using
-        library: Library
-    )(
-        equalities: Seq[(Expr[?], Expr[?])],
-        lambdaPhi: (Seq[Variable[?]], Expr[Prop])
-    )(premise: K.Thm)(conclusion: Sequent): ProofJudgement =
-      val equalitiesK = equalities.map { case (s, t) => s.underlying -> t.underlying }
-      val lambdaPhiK = (lambdaPhi._1.map(_.underlying), lambdaPhi._2.underlying)
-      prove(conclusion.underlying, premise, equalitiesK, lambdaPhiK)
-        .mapLeft(liftError(file, line)(conclusion, premise, equalities, lambdaPhi))
-        .lift(conclusion)
+    private def lift(result: lisa.utils.kernel.Substitution.Result, conclusion: Sequent)(using
+        file: sourcecode.File, line: sourcecode.Line, library: Library
+    ): ProofJudgement =
+      result.mapLeft(message => SoftError(withParams(s"$name: $message", "Conclusion" -> conclusion), file, line)).lift(conclusion)
 
-    def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
-      val underlying = conclusion.underlying
-      val candidates = singleSubstEqCandidates(
-        differenceEq(premise.left, underlying.left),
-        differenceEq(underlying.left, premise.left),
-        underlying.left
-      )
-      val inferred = candidates.collectFirstDefined { case (equalities, lambdaPhi) =>
-        prove(underlying, premise, equalities, lambdaPhi).toOption
-      }
+    /** Apply the kernel rule with one pointwise comparison proof per replacement. */
+    def withParameters(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(
+        replacements: Seq[(Expr[?], Expr[?], Seq[Variable[?]])],
+        context: (Seq[Variable[?]], Expr[Prop])
+    )(premise: K.Thm, comparisons: Seq[K.Thm])(conclusion: Sequent): ProofJudgement =
+      val pairs = replacements.map((source, target, arguments) => (source.underlying, target.underlying, arguments.map(_.underlying)))
+      val holes = context._1.map(_.underlying) -> context._2.underlying
+      prove(conclusion.underlying, premise, comparisons, pairs, holes).mapLeft {
+        case error: K.GeneralError => liftGeneralError(file, line)(name, error)
+        case error => SoftError(withParams(s"$name: $error", "Conclusion" -> conclusion), file, line)
+      }.lift(conclusion)
 
-      inferred match
-        case Some(thm) => successful(thm, conclusion)
-        case None => inferenceFailure(file, line)("Could not infer LeftSubstEq equalities and lambda parameters.", conclusion, "Premise" -> premise)
+    private def assumed(
+        conclusion: K.Sequent, premise: K.Thm, equalities: Seq[(KF.Expression, KF.Expression)], context: (Seq[KF.Variable], KF.Expression)
+    )(using library: Library): lisa.utils.kernel.Substitution.Result =
+      import lisa.utils.kernel.Substitution.{assumeComparison, freshArguments, liftedEqualities}
+      given K.Theory = library.theory
+      if equalities.exists((s, t) => s.sort != t.sort || (!s.sort.isFunctional && !s.sort.isPredicate)) then
+        Left("Expected matching first-order function or predicate sorts.")
+      else
+        val assumptions = liftedEqualities(equalities).map(e => conclusion.left.find(_ == e).orElse(conclusion.left.find(KF.isSame(_, e))).getOrElse(e))
+        val replacements = equalities.zip(assumptions).map:
+          case ((s, t), assumption) => (s, t, freshArguments(s, t, assumption.freeVariables))
+        val comparisons = replacements.zip(assumptions).foldLeft(Right(Vector.empty[K.Thm]): Either[String, Vector[K.Thm]]):
+          case (result, (replacement, assumption)) =>
+            for
+              accumulated <- result
+              comparison <- assumeComparison(assumption, replacement)
+            yield accumulated :+ comparison
+        comparisons.flatMap(proofs => prove(conclusion, premise, proofs, replacements, context).left.map(_.toString))
 
-  object RightSubstEq extends PremiseSequentTactic:
-    private def prove(conclusion: K.Sequent, premise: K.Thm, equalities: Seq[(KF.Expression, KF.Expression)], lambdaPhi: (Seq[KF.Variable], KF.Expression))(using
-        library: Library
-    ): K.RightSubstEq.Result[K.Thm] =
-      K.RightSubstEq(using library.theory)(conclusion, premise, equalities, lambdaPhi)
-
-    private def liftError(file: sourcecode.File, line: sourcecode.Line)(
-        conclusion: Sequent,
-        premise: K.Thm,
-        equalities: Seq[(Expr[?], Expr[?])],
-        lambdaPhi: (Seq[Variable[?]], Expr[Prop])
-    )(err: K.RightSubstEq.ErrorType): ProofError =
-      err match
-        case _: K.RightSubstEq.ArityMismatch =>
-          SoftError(withParams("RightSubstEq equality count does not match lambda argument count.", "Equalities" -> equalities, "Lambda" -> lambdaPhi), file, line)
-        case _: K.RightSubstEq.SubstitutionSortNotAllowed =>
-          SoftError(withParams("RightSubstEq lambda argument sort is not substitutable.", "Lambda" -> lambdaPhi), file, line)
-        case _: K.RightSubstEq.MissingFromPremise =>
-          SoftError(withParams("The premise left side is not contained in the RightSubstEq conclusion.", "Premise" -> premise), file, line)
-        case _: K.RightSubstEq.MissingLiftedEquality =>
-          SoftError(withParams("The RightSubstEq conclusion is missing a lifted equality.", "Equalities" -> equalities), file, line)
-        case _: K.RightSubstEq.ExtraneousInPremise =>
-          SoftError(
-            withParams("The premise right side contains a formula other than φ(s) that is absent from the conclusion.", "Equalities" -> equalities, "Lambda" -> lambdaPhi),
-            file,
-            line
-          )
-        case _: K.RightSubstEq.MissingSubstitutedFormula =>
-          SoftError(withParams("The RightSubstEq conclusion is missing φ(t).", "Equalities" -> equalities, "Lambda" -> lambdaPhi), file, line)
-        case e: K.GeneralError => liftGeneralError(file, line)("RightSubstEq", e)
-
-    def withParameters(using
-        file: sourcecode.File,
-        line: sourcecode.Line
-    )(using
-        library: Library
-    )(
+    /** Derive simultaneous substitution, assuming the lifted equalities on the left. */
+    def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(
         equalities: Seq[(Expr[?], Expr[?])],
         lambdaPhi: (Seq[Variable[?]], Expr[Prop])
     )(premise: K.Thm)(conclusion: Sequent): ProofJudgement =
-      val equalitiesK = equalities.map { case (s, t) => s.underlying -> t.underlying }
-      val lambdaPhiK = (lambdaPhi._1.map(_.underlying), lambdaPhi._2.underlying)
-      prove(conclusion.underlying, premise, equalitiesK, lambdaPhiK)
-        .mapLeft(liftError(file, line)(conclusion, premise, equalities, lambdaPhi))
-        .lift(conclusion)
+      val pairs = equalities.map((s, t) => s.underlying -> t.underlying)
+      val context = lambdaPhi._1.map(_.underlying) -> lambdaPhi._2.underlying
+      lift(assumed(conclusion.underlying, premise, pairs, context), conclusion)
 
-    def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
-      val underlying = conclusion.underlying
-      val candidates = singleSubstEqCandidates(
-        differenceEq(premise.right, underlying.right),
-        differenceEq(underlying.right, premise.right),
-        underlying.left
-      )
-      val inferred = candidates.collectFirstDefined { case (equalities, lambdaPhi) =>
-        prove(underlying, premise, equalities, lambdaPhi).toOption
-      }
+    /** Recover one replacement from a proved equality or lifted pointwise comparison. */
+    def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(
+        comparison: Thm,
+        context: (Variable[?], Expr[Prop])
+    )(premise: K.Thm)(conclusion: Sequent): ProofJudgement =
+      val pair = comparison.right.headOption.filter(_ => comparison.right.size == 1).flatMap(f => unliftEquality(f.underlying))
+      pair match
+        case Some((source, target)) =>
+          import lisa.utils.kernel.Substitution.{assumeComparison, freshArguments}
+          given K.Theory = library.theory
+          val taken = comparison.kernel.left.flatMap(_.freeVariables) ++ comparison.kernel.right.flatMap(_.freeVariables)
+          val arguments = freshArguments(source, target, taken)
+          val replacement = (source, target, arguments)
+          val pointwise =
+            if arguments.isEmpty then Right(comparison.kernel)
+            else
+              for
+                bridge <- assumeComparison(comparison.right.head.underlying, replacement)
+                instantiated <- K.Cut(K.Sequent(comparison.kernel.left, bridge.right), comparison.kernel, bridge, comparison.right.head.underlying).left.map(_.toString)
+              yield instantiated
+          val result = pointwise.flatMap(proof =>
+            prove(conclusion.underlying, premise, Seq(proof), Seq(replacement), Seq(context._1.underlying) -> context._2.underlying).left.map(_.toString)
+          )
+          lift(result, conclusion)
+        case None => inferenceFailure(file, line)(s"$name requires a proof of one equality or equivalence.", conclusion)
 
-      inferred match
-        case Some(thm) => successful(thm, conclusion)
-        case None => inferenceFailure(file, line)("Could not infer RightSubstEq equalities and lambda parameters.", conclusion, "Premise" -> premise)
+  object LeftSubst extends SubstTactic(true)
+  object RightSubst extends SubstTactic(false)
 
-  val LeftSubstIff: LeftSubstEq.type = LeftSubstEq
-  val RightSubstIff: RightSubstEq.type = RightSubstEq
+  val LeftSubstEq: LeftSubst.type = LeftSubst
+  val RightSubstEq: RightSubst.type = RightSubst
+  val LeftSubstIff: LeftSubst.type = LeftSubst
+  val RightSubstIff: RightSubst.type = RightSubst
 
   object InstSchema:
     private def prove(conclusion: K.Sequent, premise: K.Thm, subst: Map[KF.Variable, KF.Expression])(using library: Library): K.InstSchema.Result[K.Thm] =

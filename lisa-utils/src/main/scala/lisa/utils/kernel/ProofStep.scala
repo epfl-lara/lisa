@@ -34,6 +34,8 @@ object ProofStep:
     case s: LeftRefl => s.copy(premise = f(s.premise))
     case s: LeftSubstEq => s.copy(premise = f(s.premise))
     case s: RightSubstEq => s.copy(premise = f(s.premise))
+    case s: LeftSubst => s.copy(premise = f(s.premise), comparisons = s.comparisons.map(f))
+    case s: RightSubst => s.copy(premise = f(s.premise), comparisons = s.comparisons.map(f))
     case s: InstSchema => s.copy(premise = f(s.premise))
     case _: Sorry | _: Axiom | _: Assume | _: Definition | _: RestateTrue | _: Hypothesis | _: RightRefl => step
 
@@ -142,3 +144,21 @@ case class RightSubstEq(
 
 case class InstSchema(statement: Sequent, premise: Int, subst: Map[Variable, Expression]) extends ProofStep:
   val premises: Array[Int] = Array(premise)
+
+case class LeftSubst(
+    statement: Sequent,
+    premise: Int,
+    comparisons: Seq[Int],
+    replacements: Seq[(Expression, Expression, Seq[Variable])],
+    context: (Seq[Variable], Expression)
+) extends ProofStep:
+  val premises: Array[Int] = (premise +: comparisons).toArray
+
+case class RightSubst(
+    statement: Sequent,
+    premise: Int,
+    comparisons: Seq[Int],
+    replacements: Seq[(Expression, Expression, Seq[Variable])],
+    context: (Seq[Variable], Expression)
+) extends ProofStep:
+  val premises: Array[Int] = (premise +: comparisons).toArray

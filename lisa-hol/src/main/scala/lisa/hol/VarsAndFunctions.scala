@@ -61,7 +61,7 @@ object VarsAndFunctions /*extends lisa.Main*/:
       Subproof {
         val s1 = have((left :: typ) |- holeq(typ) * left * left) by Weakening(eqRefl of (A := typ, x := left, y := left))
         val s2 = have(holeq(typ) * left * left) by Cut(thm, s1)
-        val s3 = have(left === right |- holeq(typ) * left * right) by RightSubstEq.withParameters(Seq((left, right)), (Seq(x), holeq(typ) * left * x))(s2)
+        val s3 = have(left === right |- holeq(typ) * left * right) by RightSubstEq(Seq((left, right)), (Seq(x), eqOne(holeq(typ) * left * x)))(s2)
         have(holeq(typ) * left * right) by Cut(theDefinition, s3)
       }.thm
   class HOLPolymorphicConstant[S: Sort](id: Identifier, override val typ: FunctionalClass, override val justif: Thm) extends TypedConstantFunctional[S](id, typ, justif):
@@ -88,7 +88,7 @@ object VarsAndFunctions /*extends lisa.Main*/:
           else have(nonEmpties |- (left :: otyp)) by InstantiateForall(typ.args*)(justif)
         val s1 = have((left :: otyp) |- holeq(otyp) * left * left) by Restate.from(eqRefl of (A := otyp, x := left, y := left))
         val s2 = have(nonEmpties |- holeq(otyp) * left * left) by Cut(typeJustif, s1)
-        val s3 = have((nonEmpties, left === right) |- holeq(otyp) * left * right) by RightSubstEq.withParameters(Seq((left, right)), (Seq(x), holeq(otyp) * left * x))(s2)
+        val s3 = have((nonEmpties, left === right) |- holeq(otyp) * left * right) by RightSubstEq(Seq((left, right)), (Seq(x), eqOne(holeq(otyp) * left * x)))(s2)
         have(nonEmpties |- holeq(otyp) * left * right) by Cut(theDefinition, s3)
       }.thm
 

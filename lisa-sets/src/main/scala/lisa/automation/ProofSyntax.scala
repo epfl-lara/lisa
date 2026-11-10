@@ -32,6 +32,7 @@ object ProofSyntax:
     LeftExists,
     LeftRefl,
     LeftSubstEq,
+    LeftSubst,
     RightAnd,
     RightOr,
     RightImplies,
@@ -42,6 +43,7 @@ object ProofSyntax:
     RightEpsilon,
     RightRefl,
     RightSubstEq,
+    RightSubst,
     InstSchema,
     Weakening
   }

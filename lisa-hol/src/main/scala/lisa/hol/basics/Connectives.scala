@@ -104,7 +104,7 @@ object Connectives extends lisa.HOL {
         have(HOLProofType(inner)),
         eqAlign of (A := 𝔹, x := lp * p * q, y := inner)
       )
-      thenHave(hand === lp |- hand * p * q === inner) by RightSubstEq.withParameters(Seq((lp, hand)), (Seq(x), x * p * q === inner))
+      thenHave(hand === lp |- hand * p * q === inner) by RightSubstEq(Seq((lp, hand)), (Seq(x), x * p * q === inner))
       have(hand * p * q === inner) by Cut(hand.definition, lastStep)
     }
 
@@ -169,12 +169,12 @@ object Connectives extends lisa.HOL {
         HOLHelperTheorems.eqRefl of (A := (𝔹 ->: 𝔹 ->: 𝔹) ->: 𝔹, x := fun(f, f * holT * holT))
       )
       have(fun(f, f * holT * holT) =:= fun(f, f * holT * holT)) by Cut(have(HOLProofType(fun(f, f * holT * holT))), rfl)
-      thenHave((p === holT, q === holT) |- fun(f, f * p * q) =:= fun(f, f * holT * holT)) by RightSubstEq.withParameters(
+      thenHave((p === holT, q === holT) |- fun(f, f * p * q) =:= fun(f, f * holT * holT)) by RightSubstEq(
         Seq(holT -> p, holT -> q),
-        (Seq(p, q), fun(f, f * p * q) =:= fun(f, f * holT * holT))
+        (Seq(p, q), eqOne(fun(f, f * p * q) =:= fun(f, f * holT * holT)))
       )
-      thenHave((holT === One, p === One, q === holT) |- fun(f, f * p * q) =:= fun(f, f * holT * holT)) by LeftSubstEq.withParameters(Seq(holT -> One), (Seq(x), p === x))
-      thenHave((holT === One, p === One, q === One) |- fun(f, f * p * q) =:= fun(f, f * holT * holT)) by LeftSubstEq.withParameters(Seq(holT -> One), (Seq(x), q === x))
+      thenHave((holT === One, p === One, q === holT) |- fun(f, f * p * q) =:= fun(f, f * holT * holT)) by LeftSubstEq(Seq(holT -> One), (Seq(x), p === x))
+      thenHave((holT === One, p === One, q === One) |- fun(f, f * p * q) =:= fun(f, f * holT * holT)) by LeftSubstEq(Seq(holT -> One), (Seq(x), q === x))
       have((p === One, q === One) |- fun(f, f * p * q) =:= fun(f, f * holT * holT)) by Cut(holTruth, lastStep)
       thenHave((p === One, q === One) |- hand * p * q === One) by Substitute(`beta hand`)
       have(Clean.all(lastStep))
@@ -242,7 +242,7 @@ object Connectives extends lisa.HOL {
 
       val `and true` = have(apq === One |- (apq === p) <=> (p ==> q)) subproof:
         have(apq === One |- (One === p) <=> (p ==> q)) by Tautology.from(handCorrect)
-        thenHave(apq === One |- (apq === p) <=> (p ==> q)) by RightSubstEq.withParameters(Seq(One -> apq), (Seq(x), (x === p) <=> (p ==> q)))
+        thenHave(apq === One |- (apq === p) <=> (p ==> q)) by RightSubstEq(Seq(One -> apq), (Seq(x), (x === p) <=> (p ==> q)))
 
       val `and false` = have(apq === Zero |- (apq === p) <=> (p ==> q)) subproof:
         have(apq === Zero |- (Zero === p) <=> (p ==> q)) by Tautology.from(
@@ -254,7 +254,7 @@ object Connectives extends lisa.HOL {
           boolZeroXorOne of (x := q),
           boolZeroXorOne of (x := apq)
         )
-        thenHave(apq === Zero |- (apq === p) <=> (p ==> q)) by RightSubstEq.withParameters(Seq(Zero -> apq), (Seq(x), (x === p) <=> (p ==> q)))
+        thenHave(apq === Zero |- (apq === p) <=> (p ==> q)) by RightSubstEq(Seq(Zero -> apq), (Seq(x), (x === p) <=> (p ==> q)))
 
       have(thesis) by Tautology.from(cases, `and true`, `and false`)
 
@@ -340,7 +340,7 @@ object Connectives extends lisa.HOL {
     val r = variable[Prop]
 
     val reflexive = have((p === One) <=> (p === One)) by Restate
-    val transported = have(nativeEquality |- relation) by RightSubstEq.withParameters(
+    val transported = have(nativeEquality |- relation) by RightSubstEq(
       Seq(p -> q), Seq(u) -> ((p === One) <=> (u === One))
     )(reflexive)
     val forward = have(nativeEquality ==> relation) by RightImplies.withParameters(nativeEquality, relation)(transported)
@@ -349,7 +349,7 @@ object Connectives extends lisa.HOL {
 
     val aligned = have(eqAlign of (A := 𝔹, x := p, y := q))
     val rewritten = have((nativeEquality <=> relation) |- (relation <=> (holeq(𝔹) * p * q === One))) by
-      RightSubstIff.withParameters(Seq(nativeEquality -> relation), Seq(r) -> (r <=> (holeq(𝔹) * p * q === One)))(aligned)
+      RightSubstIff(Seq(nativeEquality -> relation), Seq(r) -> (r <=> (holeq(𝔹) * p * q === One)))(aligned)
     have(Discharge(equivalence)(rewritten))
     thenHave(thesis) by Restate
 

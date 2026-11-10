@@ -128,7 +128,7 @@ object Inductive extends lisa.HOL {
       thenHave(inductive(y) |- inductive(ε(z, inductive(z)))) by RightEpsilon.withParameters(inductive(z), z, y)
       thenHave(inductive(y) |- ∅ ∈ ε(z, inductive(z))) by Weakening
 
-      thenHave((inductive(y), ind === ε(z, inductive(z))) |- ∅ ∈ ind) by RightSubstEq.withParameters(Seq((ε(z, inductive(z)), ind)), (Seq(z), ∅ ∈ z))
+      thenHave((inductive(y), ind === ε(z, inductive(z))) |- ∅ ∈ ind) by RightSubstEq(Seq((ε(z, inductive(z)), ind)), (Seq(z), ∅ ∈ z))
       have(inductive(y) |- ∅ ∈ ind) by Cut(ind.definition, lastStep)
 
       // an inductive set actually exists, so our choice is justified
@@ -144,7 +144,7 @@ object Inductive extends lisa.HOL {
     have(inductive(y) |- inductive(y)) by Restate
     thenHave(inductive(y) |- inductive(ε(z, inductive(z)))) by RightEpsilon.withParameters(inductive(z), z, y)
 
-    thenHave((inductive(y), ind === ε(z, inductive(z))) |- inductive(ind)) by RightSubstEq.withParameters(Seq((ε(z, inductive(z)), ind)), (Seq(z), inductive(z)))
+    thenHave((inductive(y), ind === ε(z, inductive(z))) |- inductive(ind)) by RightSubstEq(Seq((ε(z, inductive(z)), ind)), (Seq(z), inductive(z)))
     have(inductive(y) |- inductive(ind)) by Cut(ind.definition, lastStep)
 
     thenHave(∃(y, inductive(y)) |- inductive(ind)) by LeftExists
@@ -221,7 +221,7 @@ object Inductive extends lisa.HOL {
           // case w = y: x ∈ w gives x ∈ y
           val caseY =
             have((x ∈ w, w === y) |- (x ∈ w) \/ (x === w)) by Restate
-            have((x ∈ w, w === y) |- (x ∈ y) \/ (x === y)) by RightSubstEq.withParameters(Seq(w -> y), (Seq(w), (x ∈ w) \/ (x === w)))(lastStep)
+            have((x ∈ w, w === y) |- (x ∈ y) \/ (x === y)) by RightSubstEq(Seq(w -> y), (Seq(w), (x ∈ w) \/ (x === w)))(lastStep)
           // case w = {y,y}: x ∈ w gives x ∈ {y,y}, hence x = y
           val caseSingleton = have((x ∈ w, w === unorderedPair(y, y)) |- (x ∈ y) \/ (x === y)) subproof:
             have((x ∈ w, w === unorderedPair(y, y)) |- x ∈ unorderedPair(y, y)) by Congruence
@@ -238,7 +238,7 @@ object Inductive extends lisa.HOL {
 
         val xToy = have(expanded(x) === expanded(y) |- (x ∈ y) \/ (x === y)) subproof:
           have(x ∈ ⋃(ux) |- x ∈ ⋃(ux)) by Hypothesis
-          have((x ∈ ⋃(ux), ⋃(ux) === ⋃(uy)) |- x ∈ ⋃(uy)) by RightSubstEq.withParameters(
+          have((x ∈ ⋃(ux), ⋃(ux) === ⋃(uy)) |- x ∈ ⋃(uy)) by RightSubstEq(
             Seq((⋃(ux), ⋃(uy))),
             (Seq(w), x ∈ w)
           )(lastStep)
@@ -339,7 +339,7 @@ object Inductive extends lisa.HOL {
 
       // If expanded(x) = ∅, then x ∈ ∅ (since x ∈ expanded(x) and expanded(x) = ∅), contradiction
       have(x ∈ expanded(x) |- x ∈ expanded(x)) by Hypothesis
-      have((x ∈ expanded(x), expanded(x) === ∅) |- x ∈ ∅) by RightSubstEq.withParameters(
+      have((x ∈ expanded(x), expanded(x) === ∅) |- x ∈ ∅) by RightSubstEq(
         Seq((expanded(x), ∅)),
         (Seq(w), x ∈ w)
       )(lastStep)

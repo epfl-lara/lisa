@@ -30,6 +30,75 @@ class SimpleDerivedStepsSuite extends AnyFunSuite:
     assert(!judgement.isValid)
     assert(judgement.errors.nonEmpty)
 
+  test("RightSubst.withParameters delegates a single replacement directly to the proof-backed kernel rule"):
+    val premise = sorry(() |- P(a))
+    val comparison = sorry(Q(a) |- (a === b))
+    val result = BasicStep.RightSubst.withParameters(Seq((a, b, Nil)), Seq(x) -> P(x))(premise, Seq(comparison))(Q(a) |- P(b))
+    assertValid(result)
+    assert(result.kernel.rule == K.RightSubst)
+
+  test("RightSubst.withParameters delegates simultaneous replacements and checks all arities"):
+    val premise = sorry(() |- R(a)(b))
+    val first = sorry(() |- (a === b))
+    val second = sorry(() |- (b === a))
+    val replacements = Seq((a, b, Seq.empty[Variable[?]]), (b, a, Seq.empty[Variable[?]]))
+    val result = BasicStep.RightSubst.withParameters(replacements, Seq(x, y) -> R(x)(y))(premise, Seq(first, second))(() |- R(b)(a))
+    assertValid(result)
+    assert(result.kernel.rule == K.RightSubst)
+    assertInvalid(BasicStep.RightSubst.withParameters(replacements, Seq(x) -> R(x)(y))(premise, Seq(first, second))(() |- R(b)(a)))
+    assertInvalid(BasicStep.RightSubst.withParameters(replacements, Seq(x, y) -> R(x)(y))(premise, Seq(first))(() |- R(b)(a)))
+
+  test("explicit substitution accepts non-first-order argument sorts"):
+    val f = variable[Prop >>: Ind]
+    val g = variable[Prop >>: Ind]
+    val hole = variable[Prop >>: Ind]
+    val argument = variable[Prop]
+    val atom = variable[Prop]
+    val comparison = sorry(() |- (f(argument) === g(argument)))
+    val right = BasicStep.RightSubst.withParameters(Seq((f, g, Seq(argument))), Seq(hole) -> P(hole(atom)))(
+      sorry(() |- P(f(atom))), Seq(comparison)
+    )(() |- P(g(atom)))
+    val left = BasicStep.LeftSubst.withParameters(Seq((f, g, Seq(argument))), Seq(hole) -> P(hole(atom)))(
+      sorry(P(f(atom)) |- Q(a)), Seq(comparison)
+    )(P(g(atom)) |- Q(a))
+    assertValid(right)
+    assertValid(left)
+    assert(right.kernel.rule == K.RightSubst)
+    assert(left.kernel.rule == K.LeftSubst)
+
+  test("substitution recovers simultaneous pairs without sequentializing swaps"):
+    val premise = sorry(() |- R(a)(b))
+    val result = BasicStep.RightSubst(Seq(a -> b, b -> a), Seq(x, y) -> R(x)(y))(premise)((a === b, b === a) |- R(b)(a))
+    assertValid(result)
+    assert(result.kernel.rule == K.RightSubst)
+    assertInvalid(BasicStep.RightSubst(Seq(a -> b), Seq(x, y) -> R(x)(y))(premise)((a === b) |- R(b)(a)))
+
+  test("substitution accepts a proved equality or an assumed pair"):
+    val premise = sorry(() |- P(a))
+    val comparison = sorry(() |- (a === b))
+    assertValid(BasicStep.RightSubst(comparison, x -> P(x))(premise)(() |- P(b)))
+    assertValid(BasicStep.RightSubst(Seq(a -> b), Seq(x) -> P(x))(premise)((a === b) |- P(b)))
+    assertValid(BasicStep.LeftSubst(comparison, x -> P(x))(sorry(P(a) |- Q(a)))(P(b) |- Q(a)))
+
+  test("substitution instantiates a lifted equality proof"):
+    val premise = sorry(() |- P(F(a)))
+    val comparison = sorry(() |- forall(z, F(z) === G(z)))
+    assertValid(BasicStep.RightSubst(comparison, F -> P(F(a)))(premise)(() |- P(G(a))))
+
+  test("substitution keeps lifted comparison assumptions and chooses fresh arguments"):
+    val quantified = forall(z, F(z) === G(z))
+    val comparison = sorry(Q(z) |- quantified)
+    val result = BasicStep.RightSubst(comparison, F -> P(F(a)))(sorry(() |- P(F(a))))(Q(z) |- P(G(a)))
+    assertValid(result)
+    assert(result.kernel.rule == K.RightSubst)
+    assertInvalid(BasicStep.RightSubst(comparison, F -> P(F(a)))(sorry(() |- P(F(a))))(() |- P(G(a))))
+
+  test("substitution preserves OL-equivalent equality assumptions"):
+    val atom = variable[Prop]
+    val hole = variable[Prop]
+    val premise = sorry(() |- top)
+    assertValid(BasicStep.RightSubst(Seq(top -> atom), Seq(hole) -> hole)(premise)(atom |- atom))
+
   test("Generalize quantifies one right formula"):
     val premise = sorry(P(x) |- Q(y))
     assertValid(Generalize(P(x) |- forall(y, Q(y)), premise))

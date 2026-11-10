@@ -63,7 +63,7 @@ object Disjunction extends lisa.HOL:
     val native = have(quantified <=> disjunction) by RightIff(forward, backward)
     val proposition = variable[Prop]
     val translated = have((quantified <=> disjunction) |- ((body === One) <=> disjunction)) by
-      RightSubstIff.withParameters(Seq(quantified -> disjunction), Seq(proposition) -> ((body === One) <=> proposition))(expanded)
+      RightSubstIff(Seq(quantified -> disjunction), Seq(proposition) -> ((body === One) <=> proposition))(expanded)
     val aligned = have(Discharge(native)(translated))
 
     // Replay the two set-theoretic beta reductions of the defining lambda.
