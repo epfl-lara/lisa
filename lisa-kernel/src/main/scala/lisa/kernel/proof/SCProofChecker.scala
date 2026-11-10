@@ -79,31 +79,75 @@ object SCProofChecker {
     sequent.left.exists(_.freeVariables.contains(variable)) || sequent.right.exists(_.freeVariables.contains(variable))
   }
 
-  /**
-   * For a given list of equalities s1=t1, ..., sn=tn, produce "lifted"
-   * equalities of the form ∀x1...xn. (s1 x1 ... xn) = (t1 x1 ... xn) based on the
-   * expected sorts of the terms.
-   *
-   * See [[checkSingleSCStep]] at LeftSubstEq and RightSubstEq.
-   */
-  private def liftedEqualities(equalities: Seq[(Expression, Expression)]): Seq[Expression] = {
-    def liftEquality(s: Expression, t: Expression): Expression = {
-      val maxId = (s.freeVariables ++ t.freeVariables).map(_.id.no).maxOption.getOrElse(0) + 1
-      val vars = (maxId until (maxId + s.sort.depth)).map(i => Variable(Identifier("x", i), Ind))
+  private def argumentSorts(sort: Sort): List[Sort] = sort match {
+    case Arrow(from, to) => from :: argumentSorts(to)
+    case _ => Nil
+  }
 
-      val sApplied = vars.foldLeft(s)(_ apply _)
-      val tApplied = vars.foldLeft(t)(_ apply _)
-
-      val base =
-        if (sApplied.sort == Prop)
-          iff(sApplied)(tApplied)
-        else
-          equality(sApplied)(tApplied)
-
-      vars.foldRight(base) { case (arg, acc) => forall(Lambda(arg, acc)) }
+  private def checkDerivedSubstitution(step: SCProofStep, derived: Either[String, SCProof]): SCProofCheckerJudgement = derived match {
+    case Left(message) => error(step, message)
+    case Right(proof) => checkSCProof(proof) match {
+      case SCInvalidProof(_, _, message) => error(step, message)
+      case SCValidProof(_, usesSorry) => SCValidProof(SCProof(step), usesSorry)
     }
+  }
 
-    equalities.map { case (s, t) => liftEquality(s, t) }
+  private def checkComparison(
+      step: SCProofStep,
+      statement: Sequent,
+      comparison: Sequent,
+      replacement: (Expression, Expression, Seq[Variable]),
+      variable: Variable
+  ): Option[SCInvalidProof] = {
+    val (source, target, arguments) = replacement
+    if (source.sort != variable.sort) Some(sortMismatch(variable.sort, source.sort, step))
+    else if (target.sort != variable.sort) Some(sortMismatch(variable.sort, target.sort, step))
+    else if (arguments.map(_.sort) != argumentSorts(variable.sort)) Some(error(step, "Comparison arguments have incorrect sorts or arity."))
+    else if (arguments.toSet.size != arguments.size) Some(error(step, "Comparison arguments must be distinct."))
+    else {
+      val appliedSource = arguments.foldLeft(source: Expression)(_(_))
+      val appliedTarget = arguments.foldLeft(target: Expression)(_(_))
+      val equation = if (appliedSource.sort == Prop) iff(appliedSource)(appliedTarget) else equality(appliedSource)(appliedTarget)
+      val residual = comparison.right - equation
+      val notFresh = arguments.exists(v =>
+        source.freeVariables.contains(v) || target.freeVariables.contains(v) ||
+          comparison.left.exists(_.freeVariables.contains(v)) || residual.exists(_.freeVariables.contains(v))
+      )
+      if (notFresh) Some(error(step, "Comparison arguments must be fresh in the compared expressions and residual comparison contexts."))
+      else if (!comparison.right.contains(equation)) Some(error(step, "Comparison proof does not contain the specified equality or equivalence."))
+      else if (!subset(comparison.left, statement.left) || !subset(residual, statement.right)) Some(error(step, "Conclusion drops part of the comparison context."))
+      else None
+    }
+  }
+
+  private def checkSubstitution(
+      step: SCProofStep,
+      statement: Sequent,
+      premise: Sequent,
+      comparisons: Seq[Sequent],
+      replacements: Seq[(Expression, Expression, Seq[Variable])],
+      context: (Seq[Variable], Expression),
+      onLeft: Boolean
+  ): SCProofCheckerJudgement = {
+    val (variables, body) = context
+    if (body.sort != Prop) sortMismatch(Prop, body.sort, step)
+    else if (variables.size != replacements.size || comparisons.size != replacements.size)
+      error(step, "Substitution requires one context variable and comparison proof per replacement.")
+    else {
+      val invalid = replacements.zip(variables).zip(comparisons).iterator.map {
+        case ((replacement, variable), comparison) => checkComparison(step, statement, comparison, replacement, variable)
+      }.collectFirst { case Some(failure) => failure }
+      invalid.getOrElse {
+        val before = substituteVariables(body, variables.zip(replacements.map(_._1)).toMap)
+        val after = substituteVariables(body, variables.zip(replacements.map(_._2)).toMap)
+        val from = if (onLeft) premise.left else premise.right
+        val to = if (onLeft) statement.left else statement.right
+        val untouched = if (onLeft) subset(premise.right, statement.right) else subset(premise.left, statement.left)
+        if (!untouched || !allContainedExcept(from, to, before)) error(step, "Conclusion drops an untouched premise formula.")
+        else if (!containsEq(to, after)) error(step, "Conclusion is missing the substituted formula.")
+        else SCValidProof(SCProof(step))
+      }
+    }
   }
 
   /**
@@ -657,109 +701,14 @@ object SCProofChecker {
               case _ => error(step, "Given formula is not an equality.")
             }
 
-          /*
-           *                     Γ, φ(s_) |- Δ
-           * -----------------------------------------------------
-           *   Γ, (∀x,...,z. (s x ... z)=(t x ... z))_, φ(t_) |- Δ
-           */
-          case LeftSubstEq(b, t1, equals, lambdaPhi) =>
-            val (sList, tList) = equals.unzip
-            val (phiArgs, phiBody) = lambdaPhi
-            val violatingEquality = equals.zip(phiArgs).find { case ((s, t), arg) =>
-              // sorts mismatch
-              s.sort != arg.sort ||
-              t.sort != arg.sort ||
-              // sorts disallowed for substitution
-              (!arg.sort.isFunctional && !arg.sort.isPredicate)
-            }
-            // sort checks
-            if (phiBody.sort != Prop)
-              sortMismatch(Prop, phiBody.sort, step)
-            else if (phiArgs.size != sList.size)
-              error(step, "The number of arguments of φ is not the same as number of equalities.")
-            else if (violatingEquality.nonEmpty) {
-              // triage to find and report the problem
-              val ((s, t), arg) = violatingEquality.get
-              if (s.sort != arg.sort) error(step, s"An argument of φ has sort (${arg.sort}) which does not match the sort of the corresponding left-hand side of an equality (${s.sort}).")
-              else if (t.sort != arg.sort) error(step, s"An argument of φ has sort (${arg.sort}) which does not match the sort of the corresponding right-hand side of an equality (${t.sort}).")
-              else {
-                assert(!arg.sort.isFunctional && !arg.sort.isPredicate)
-                error(step, s"An argument of φ has sort (${arg.sort}) which is not a functional or predicate sort, and thus cannot be substituted for.")
-              }
-            }
-            // logical checks
-            else {
-              val prem1 = ref(t1)
-              val `φ(s_)` = substituteVariables(phiBody, (phiArgs zip sList).toMap)
-              val `φ(t_)` = substituteVariables(phiBody, (phiArgs zip tList).toMap)
-              val equalities = liftedEqualities(equals)
-
-              // these checks need to retain OL (at least α-eq)
-              // as substitution may rename binders deep in the term
-
-              if (!subset(prem1.right, b.right))
-                error(step, "Right-hand side of premise is not contained in the conclusion.")
-              else if (!allContainedExcept(prem1.left, b.left, `φ(s_)`))
-                error(step, "Left-hand side of premise contains a formula absent from the conclusion other than φ(s_).")
-              else if (!equalities.forall(containsEq(b.left, _)))
-                error(step, "Left-hand side of conclusion does not contain all lifted equalities.")
-              else if (!containsEq(b.left, `φ(t_)`))
-                error(step, "Left-hand side of conclusion does not contain φ(t_).")
-              else
-                SCValidProof(SCProof(step))
-            }
-
-          /*
-           *                     Γ |- φ(s_), Δ
-           * -------------------------------------------------------
-           *   Γ, (∀x,...,z. (s x ... z)=(t x ... z))_ |- φ(t_), Δ
-           */
-          case RightSubstEq(b, t1, equals, lambdaPhi) =>
-            val (sList, tList) = equals.unzip
-            val (phiArgs, phiBody) = lambdaPhi
-            val violatingEquality = equals.zip(phiArgs).find { case ((s, t), arg) =>
-              // sorts mismatch
-              s.sort != arg.sort ||
-              t.sort != arg.sort ||
-              // sorts disallowed for substitution
-              (!arg.sort.isFunctional && !arg.sort.isPredicate)
-            }
-            // sort checks
-            if (phiBody.sort != Prop)
-              sortMismatch(Prop, phiBody.sort, step)
-            else if (phiArgs.size != sList.size)
-              error(step, "The number of arguments of φ is not the same as number of equalities.")
-            else if (violatingEquality.nonEmpty) {
-              // triage to find and report the problem
-              val ((s, t), arg) = violatingEquality.get
-              if (s.sort != arg.sort) error(step, s"An argument of φ has sort (${arg.sort}) which does not match the sort of the corresponding left-hand side of an equality (${s.sort}).")
-              else if (t.sort != arg.sort) error(step, s"An argument of φ has sort (${arg.sort}) which does not match the sort of the corresponding right-hand side of an equality (${t.sort}).")
-              else {
-                assert(!arg.sort.isFunctional && !arg.sort.isPredicate)
-                error(step, s"An argument of φ has sort (${arg.sort}) which is not a functional or predicate sort, and thus cannot be substituted for.")
-              }
-            }
-            // logical checks
-            else {
-              val prem1 = ref(t1)
-              val `φ(s_)` = substituteVariables(phiBody, (phiArgs zip sList).toMap)
-              val `φ(t_)` = substituteVariables(phiBody, (phiArgs zip tList).toMap)
-              val equalities = liftedEqualities(equals)
-
-              // these checks need to retain OL (at least α-eq)
-              // as substitution may rename binders deep in the term
-
-              if (!subset(prem1.left, b.left))
-                error(step, "Left-hand side of premise is not contained in the conclusion.")
-              else if (!equalities.forall(containsEq(b.left, _)))
-                error(step, "Left-hand side of conclusion does not contain all lifted equalities.")
-              else if (!allContainedExcept(prem1.right, b.right, `φ(s_)`))
-                error(step, "Right-hand side of premise contains a formula absent from the conclusion other than φ(s_).")
-              else if (!containsEq(b.right, `φ(t_)`))
-                error(step, "Right-hand side of conclusion does not contain φ(t_).")
-              else
-                SCValidProof(SCProof(step))
-            }
+          case LeftSubstEq(b, t1, equals, context) =>
+            checkDerivedSubstitution(step, Substitution.simultaneous(b, ref(t1), equals, context, onLeft = true))
+          case RightSubstEq(b, t1, equals, context) =>
+            checkDerivedSubstitution(step, Substitution.simultaneous(b, ref(t1), equals, context, onLeft = false))
+          case LeftSubst(b, t1, comparisons, replacements, context) =>
+            checkSubstitution(step, b, ref(t1), comparisons.map(ref), replacements, context, onLeft = true)
+          case RightSubst(b, t1, comparisons, replacements, context) =>
+            checkSubstitution(step, b, ref(t1), comparisons.map(ref), replacements, context, onLeft = false)
 
           /*
            *         Γ |- Δ

@@ -287,7 +287,7 @@ object SequentCalculus {
    * -----------------------------------------------------
    *   Γ, ∀x,...,z. (s x ... z)=(t x ... z), φ(t) |- Δ
    * }}}
-   * equals elements must have type ... -> ... -> Ind
+   * Expand into comparison hypotheses and simultaneous substitution when checked.
    */
   case class LeftSubstEq(bot: Sequent, t1: Int, equals: Seq[(Expression, Expression)], lambdaPhi: (Seq[Variable], Expression)) extends SCProofStep { val premises = Seq(t1) }
 
@@ -297,8 +297,45 @@ object SequentCalculus {
    * ------------------------------------------------------
    *     Γ, ∀x,...,z. (s x ... z)=(t x ... z) |- φ(t), Δ
    * }}}
+   * Expand into comparison hypotheses and simultaneous substitution when checked.
    */
   case class RightSubstEq(bot: Sequent, t1: Int, equals: Seq[(Expression, Expression)], lambdaPhi: (Seq[Variable], Expression)) extends SCProofStep { val premises = Seq(t1) }
+
+  /**
+   *
+   * ```
+   * Γ, φ(s_1,...,s_n) |- Δ    (Θ_i |- s_i(a_i1, ..., a_ik) ≈ t_i(a_i1, ..., a_ik), Ξ_i)_i
+   * --------------------------------------------------------------------------------------
+   *          Γ, ⋃ Θ_i, φ(t_1,...,t_n) |- Δ, ⋃ Ξ_i
+   * ```
+   *
+   * Simultaneous substitution in one context on the left. For each replacement
+   * (indexed by i), a pair of terms (s_i, t_i), a sequence of argument variables
+   * a_i, and a proof of Θ_i |- s_i(a_i) ≈ t_i(a_i), Ξ_i is expected. The
+   * variables {a_ij}_j must be fresh wrt s_i, t_i, Θ_i and Ξ_i, thus proving a
+   * universal equality. An equivalence (<=>) is expected if the replacement is
+   * propositional instead.
+   */
+  case class LeftSubst(bot: Sequent, t1: Int, comparisons: Seq[Int], replacements: Seq[(Expression, Expression, Seq[Variable])], context: (Seq[Variable], Expression))
+      extends SCProofStep { val premises = t1 +: comparisons }
+
+  /**
+   *
+   * ```
+   * Γ |- φ(s_1,...,s_n), Δ    (Θ_i |- s_i(a_i1, ..., a_ik) ≈ t_i(a_i1, ..., a_ik), Ξ_i)_i
+   * --------------------------------------------------------------------------------------
+   *          Γ, ⋃ Θ_i |- φ(t_1,...,t_n), Δ, ⋃ Ξ_i
+   * ```
+   *
+   * Simultaneous substitution in one context on the right. For each replacement
+   * (indexed by i), a pair of terms (s_i, t_i), a sequence of argument variables
+   * a_i, and a proof of Θ_i |- s_i(a_i) ≈ t_i(a_i), Ξ_i is expected. The
+   * variables {a_ij}_j must be fresh wrt s_i, t_i, Θ_i and Ξ_i, thus proving a
+   * universal equality. An equivalence (<=>) is expected if the replacement is
+   * propositional instead.
+   */
+  case class RightSubst(bot: Sequent, t1: Int, comparisons: Seq[Int], replacements: Seq[(Expression, Expression, Seq[Variable])], context: (Seq[Variable], Expression))
+      extends SCProofStep { val premises = t1 +: comparisons }
 
   object LeftSubstIff {
     def apply(bot: Sequent, t1: Int, equals: Seq[(Expression, Expression)], lambdaPhi: (Seq[Variable], Expression)): LeftSubstEq = {
