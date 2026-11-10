@@ -165,7 +165,7 @@ object TypingTheorems extends lisa.Main:
           val before = have(y === T2(x)) by Tautology.from(both)
           val rewriteVar = variable[Ind]
           val rewritten = have(before.statement.copy(right = Set(y === T2(a))) +<< (x === a)) by
-            RightSubstEq.withParameters(Seq(x -> a), Seq(rewriteVar) -> (y === T2(rewriteVar)))(before)
+            RightSubstEq(Seq(x -> a), Seq(rewriteVar) -> (y === T2(rewriteVar)))(before)
           have(Discharge(s1)(rewritten))
           thenHave(thesis) by Restate
         }
@@ -438,7 +438,7 @@ object TypingTheorems extends lisa.Main:
               val before = thenHave(T2(a) ⊆ T2p(a)) by Tautology.fromLastStep()
               val rewriteVar = variable[Ind]
               val rewritten = have(before.statement.copy(right = Set(y ⊆ T2p(a))) +<< (T2(a) === y)) by
-                RightSubstEq.withParameters(Seq(T2(a) -> y), Seq(rewriteVar) -> (rewriteVar ⊆ T2p(a)))(before)
+                RightSubstEq(Seq(T2(a) -> y), Seq(rewriteVar) -> (rewriteVar ⊆ T2p(a)))(before)
               have(Discharge(equalFormula2)(rewritten))
               val stmt3 = thenHave(x ∈ T2p(a)) by Tautology.fromLastStep(Subset.membership of (x := y, y := T2p(a), z := x))
               have(T2p(a) === T2p(a)) by Congruence

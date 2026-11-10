@@ -65,7 +65,7 @@ object VarsAndFunctions /*extends lisa.Main*/:
       Theorem(using summon[OutputManager], sourcecode.FullName(s"lisa.hol.definition.${id.name}_${id.no}"))(holeq(typ) * left * right) {
         val s1 = lib.have((left :: typ) |- holeq(typ) * left * left) by Weakening(eqRefl of (A := typ, x := left, y := left))
         val s2 = lib.have(holeq(typ) * left * left) by Cut(thm, s1)
-        val s3 = lib.have(left === right |- holeq(typ) * left * right) by RightSubstEq.withParameters(Seq((left, right)), (Seq(x), holeq(typ) * left * x))(s2)
+        val s3 = lib.have(left === right |- holeq(typ) * left * right) by RightSubstEq(Seq((left, right)), (Seq(x), eqOne(holeq(typ) * left * x)))(s2)
         val s4 = lib.have(holeq(typ) * left * right) by Cut(theDefinition, s3)
       }
   class HOLPolymorphicConstant[S: Sort](id: Identifier, override val typ: FunctionalClass, override val justif: JUSTIFICATION) extends TypedConstantFunctional[S](id, typ, justif):
@@ -90,7 +90,7 @@ object VarsAndFunctions /*extends lisa.Main*/:
         val typeJustif = have(nonEmpties |- (left :: otyp)) by Weakening(justif.of(typ.args*))
         val s1 = lib.have((left :: otyp) |- holeq(otyp) * left * left) by Restate.from(eqRefl of (A := otyp, x := left, y := left))
         val s2 = lib.have(nonEmpties |- holeq(otyp) * left * left) by Cut(typeJustif, s1)
-        val s3 = lib.have((nonEmpties, left === right) |- holeq(otyp) * left * right) by RightSubstEq.withParameters(Seq((left, right)), (Seq(x), holeq(otyp) * left * x))(s2)
+        val s3 = lib.have((nonEmpties, left === right) |- holeq(otyp) * left * right) by RightSubstEq(Seq((left, right)), (Seq(x), eqOne(holeq(otyp) * left * x)))(s2)
         val s4 = lib.have(nonEmpties |- holeq(otyp) * left * right) by Cut(theDefinition, s3)
       }
 

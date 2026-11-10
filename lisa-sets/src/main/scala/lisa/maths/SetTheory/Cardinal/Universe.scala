@@ -87,7 +87,7 @@ object Universe extends lisa.Main:
     val pairTerm = variable[Ind]
     val reflexive = have(standardPair === standardPair) by RightRefl
     val unfolded = have(pairDefinition.statement.right |- standardPair === unorderedPair(singleton(a), unorderedPair(a, b))) by
-      RightSubstEq.withParameters(Seq(pairConstant -> pairBody), Seq(pairTerm) -> (standardPair === pairTerm))(reflexive)
+      RightSubstEq(Seq(pairConstant -> pairBody), Seq(pairTerm) -> (standardPair === pairTerm))(reflexive)
     have(Discharge(pairDefinition)(unfolded))
     thenHave(thesis) by Substitute(singleton.definition of (x := a))
   }
@@ -154,7 +154,7 @@ object Universe extends lisa.Main:
             val pairEq = rawPairEquivalence of (b := x)
             val pairMember = variable[Ind]
             val rewrittenPairInf = have((pairInf.statement.left + pairEq.statement.right.head) |- rawPair ∈ f) by
-              RightSubstEq.withParameters(Seq(standardPair -> rawPair), Seq(pairMember) -> (pairMember ∈ f))(pairInf)
+              RightSubstEq(Seq(standardPair -> rawPair), Seq(pairMember) -> (pairMember ∈ f))(pairInf)
             val underpairInf = have(Discharge(pairEq)(rewrittenPairInf))
             have(a ∈ A /\ x ∈ U) by Tautology.from(
               pairInf,
@@ -174,7 +174,7 @@ object Universe extends lisa.Main:
               val pairMember = variable[Ind]
               val standardPairInf = have(standardPair ∈ f |- standardPair ∈ f) by Hypothesis
               val rewrittenPairInf = have((rawPair ∈ f, pairEq.statement.right.head) |- standardPair ∈ f) by
-                LeftSubstEq.withParameters(Seq(standardPair -> rawPair), Seq(pairMember) -> (pairMember ∈ f))(standardPairInf)
+                LeftSubstEq(Seq(standardPair -> rawPair), Seq(pairMember) -> (pairMember ∈ f))(standardPairInf)
               have(Discharge(pairEq)(rewrittenPairInf))
               have(z === x) by Tautology.from(lastStep, stdUniq)
             }

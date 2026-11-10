@@ -38,16 +38,6 @@ object BasicStepTactic {
   @inline private def allContainedExceptEither(set: FormulaSet, target: FormulaSet, exception1: K.Expression, exception2: K.Expression): Boolean =
     set.forall(formula => target.contains(formula) || expEq(formula, exception1) || expEq(formula, exception2))
 
-  private def liftedEqualities(equalities: Seq[(K.Expression, K.Expression)]): Seq[K.Expression] =
-    equalities.map { case (s, t) =>
-      val no = (s.freeVariables ++ t.freeVariables).view.map(_.id.no).maxOption.getOrElse(0) + 1
-      val vars = (no until no + s.sort.depth).map(i => K.Variable(K.Identifier("x", i), K.Ind))
-      val sApplied = vars.foldLeft(s)(_(_))
-      val tApplied = vars.foldLeft(t)(_(_))
-      val base = if (sApplied.sort == K.Prop) K.iff(sApplied)(tApplied) else K.equality(sApplied)(tApplied)
-      vars.foldRight(base: K.Expression)((arg, acc) => K.forall(arg, acc))
-    }
-
   @inline private def diffEq(set: Set[F.Expr[F.Prop]], target: Set[F.Expr[F.Prop]]): Set[F.Expr[F.Prop]] =
     set.filterNot(formula => target.exists(F.isSame(formula, _)))
 
@@ -1221,126 +1211,65 @@ object BasicStepTactic {
     }
   }
 
-  /**
-   * <pre>
-   *   Γ, φ(s) |- Δ     Σ |- s=t, Π
-   * --------------------------------
-   *        Γ, Σ φ(t) |- Δ, Π
-   * </pre>
-   */
-  object LeftSubstEq extends ProofTactic {
-    @deprecated("Use withParameters instead", "0.9")
-    def withParametersSimple(using
-        lib: Library,
-        proof: lib.Proof
-    )(
-        equals: Seq[(F.Expr[F.Ind], F.Expr[F.Ind])],
-        lambdaPhi: (Seq[F.Variable[?]], F.Expr[F.Prop])
-    )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
-      withParameters(equals, lambdaPhi)(premise)(bot)
+  /** Instantiate lifted comparisons and expose proof-backed simultaneous substitution. */
+  sealed abstract class SubstTactic private[BasicStepTactic] (onLeft: Boolean) extends ProofTactic {
+    private def lift(using lib: Library, proof: lib.Proof)(result: Either[String, K.SCProof], imports: Seq[proof.Fact], bot: F.Sequent): proof.ProofTacticJudgement =
+      result match {
+        case Left(message) => proof.InvalidProofTactic(message)
+        case Right(certificate) =>
+          K.SCProofChecker.checkSCProof(certificate) match {
+            case K.SCProofCheckerJudgement.SCInvalidProof(_, _, message) => proof.InvalidProofTactic(message)
+            case _ => proof.ValidProofTactic(bot, certificate.steps, imports)
+          }
+      }
+
+    /** Apply the kernel rule with one pointwise comparison proof per replacement. */
+    def withParameters(using lib: Library, proof: lib.Proof)(
+        replacements: Seq[(F.Expr[?], F.Expr[?], Seq[F.Variable[?]])],
+        context: (Seq[F.Variable[?]], F.Expr[F.Prop])
+    )(premise: proof.Fact, comparisons: Seq[proof.Fact])(bot: F.Sequent): proof.ProofTacticJudgement = {
+      val pairs = replacements.map((source, target, arguments) => (source.underlying, target.underlying, arguments.map(_.underlying)))
+      val holes = context._1.map(_.underlying) -> context._2.underlying
+      val references = comparisons.indices.map(i => -i - 2)
+      val step =
+        if (onLeft) K.LeftSubst(bot.underlying, -1, references, pairs, holes)
+        else K.RightSubst(bot.underlying, -1, references, pairs, holes)
+      val imports = premise +: comparisons
+      proof.ValidProofTactic(bot, Seq(step), imports)
     }
 
-    def withParameters(using
-        lib: Library,
-        proof: lib.Proof
-    )(
+    /** Assume lifted equalities and preserve simultaneous replacement semantics. */
+    def apply(using lib: Library, proof: lib.Proof)(
         equals: Seq[(F.Expr[?], F.Expr[?])],
         lambdaPhi: (Seq[F.Variable[?]], F.Expr[F.Prop])
     )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
-      lazy val premiseSequent = proof.getSequent(premise).underlying
-      lazy val botK = bot.underlying
-      lazy val equalsK = equals.map(p => (p._1.underlying, p._2.underlying))
-      lazy val lambdaPhiK = (lambdaPhi._1.map(_.underlying), lambdaPhi._2.underlying)
-
-      val (s_es, t_es) = equalsK.unzip
-      val (phi_args, phi_body) = lambdaPhiK
-      if (phi_body.sort != K.Prop)
-        proof.InvalidProofTactic("φ must be a formula.")
-      else if (phi_args.size != s_es.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
-        proof.InvalidProofTactic("The number of arguments of φ must be the same as the number of equalities.")
-      else if (equalsK.zip(phi_args).exists { case ((s, t), arg) => s.sort != arg.sort || t.sort != arg.sort || (!arg.sort.isFunctional && !arg.sort.isPredicate) })
-        proof.InvalidProofTactic("The arities of symbols in φ must be the same as the arities of equalities.")
-      else {
-        val phi_s_for_f = K.substituteVariables(phi_body, (phi_args zip s_es).toMap)
-        val phi_t_for_f = K.substituteVariables(phi_body, (phi_args zip t_es).toMap)
-        val sEqT_es = liftedEqualities(equalsK)
-
-        if (!subset(premiseSequent.right, botK.right))
-          proof.InvalidProofTactic("Right-hand side of premise is not contained in the conclusion.")
-        else if (!allContainedExcept(premiseSequent.left, botK.left, phi_s_for_f))
-          proof.InvalidProofTactic("Left-hand side of premise contains a formula absent from the conclusion other than φ(s_).")
-        else if (!sEqT_es.forall(containsEq(botK.left, _)))
-          proof.InvalidProofTactic("Left-hand side of conclusion does not contain all lifted equalities.")
-        else if (!containsEq(botK.left, phi_t_for_f))
-          proof.InvalidProofTactic("Left-hand side of conclusion does not contain φ(t_).")
-        else
-          proof.ValidProofTactic(bot, Seq(K.LeftSubstEq(botK, -1, equalsK, lambdaPhiK)), Seq(premise))
-      }
+      val pairs = equals.map((s, t) => s.underlying -> t.underlying)
+      val hole = lambdaPhi._1.map(_.underlying) -> lambdaPhi._2.underlying
+      lift(lisa.kernel.proof.Substitution.simultaneous(bot.underlying, proof.getSequent(premise).underlying, pairs, hole, onLeft), Seq(premise), bot)
     }
+
+    /** Recover one replacement from a proved equality or lifted pointwise comparison. */
+    def apply(using lib: Library, proof: lib.Proof)(
+        comparison: proof.Fact,
+        context: (F.Variable[?], F.Expr[F.Prop])
+    )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement =
+      val statement = proof.getSequent(comparison).underlying
+      val pair = if (statement.right.size == 1) lisa.kernel.proof.Substitution.unliftEquality(statement.right.head) else None
+      pair match {
+        case None => proof.InvalidProofTactic("Expected a proof of one equality or equivalence.")
+        case Some(pair) =>
+          val certificate = lisa.kernel.proof.Substitution.withProof(bot.underlying, proof.getSequent(premise).underlying, statement, pair,
+            context._1.underlying -> context._2.underlying, onLeft)
+          lift(certificate, Seq(premise, comparison), bot)
+      }
   }
 
-  /**
-   * <pre>
-   *  Γ |- φ(s), Δ     Σ |- s=t, Π
-   * ---------------------------------
-   *         Γ, Σ |- φ(t), Δ, Π
-   * </pre>
-   */
-  object RightSubstEq extends ProofTactic {
-    @deprecated("Use withParameters instead", "0.9")
-    def withParametersSimple(using
-        lib: Library,
-        proof: lib.Proof
-    )(
-        equals: Seq[(F.Expr[F.Ind], F.Expr[F.Ind])],
-        lambdaPhi: (Seq[F.Variable[?]], F.Expr[F.Prop])
-    )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
-      withParameters(equals, lambdaPhi)(premise)(bot)
-    }
-
-    def withParameters(using
-        lib: Library,
-        proof: lib.Proof
-    )(
-        equals: Seq[(F.Expr[?], F.Expr[?])],
-        lambdaPhi: (Seq[F.Variable[?]], F.Expr[F.Prop])
-    )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
-      lazy val premiseSequent = proof.getSequent(premise).underlying
-      lazy val botK = bot.underlying
-      lazy val equalsK = equals.map(p => (p._1.underlying, p._2.underlying))
-      lazy val lambdaPhiK = (lambdaPhi._1.map(_.underlying), lambdaPhi._2.underlying)
-
-      val (s_es, t_es) = equalsK.unzip
-      val (phi_args, phi_body) = lambdaPhiK
-      if (phi_body.sort != K.Prop)
-        proof.InvalidProofTactic("φ must be a formula.")
-      else if (phi_args.size != s_es.size) // Not strictly necessary, but it's a good sanity check. To reactivate when tactics have been modified.
-        proof.InvalidProofTactic("The number of arguments of φ must be the same as the number of equalities.")
-      else if (equalsK.zip(phi_args).exists { case ((s, t), arg) => s.sort != arg.sort || t.sort != arg.sort || (!arg.sort.isFunctional && !arg.sort.isPredicate) })
-        proof.InvalidProofTactic("The arities of symbols in φ must be the same as the arities of equalities.")
-      else {
-        val phi_s_for_f = K.substituteVariables(phi_body, (phi_args zip s_es).toMap)
-        val phi_t_for_f = K.substituteVariables(phi_body, (phi_args zip t_es).toMap)
-        val sEqT_es = liftedEqualities(equalsK)
-
-        if (!subset(premiseSequent.left, botK.left))
-          proof.InvalidProofTactic("Left-hand side of premise is not contained in the conclusion.")
-        else if (!sEqT_es.forall(containsEq(botK.left, _)))
-          proof.InvalidProofTactic("Left-hand side of conclusion does not contain all lifted equalities.")
-        else if (!allContainedExcept(premiseSequent.right, botK.right, phi_s_for_f))
-          proof.InvalidProofTactic("Right-hand side of premise contains a formula absent from the conclusion other than φ(s_).")
-        else if (!containsEq(botK.right, phi_t_for_f))
-          proof.InvalidProofTactic("Right-hand side of conclusion does not contain φ(t_).")
-        else
-          proof.ValidProofTactic(bot, Seq(K.RightSubstEq(botK, -1, equalsK, lambdaPhiK)), Seq(premise))
-      }
-    }
-  }
-
-  @deprecated("Use LeftSubstEq instead", "0.9")
-  val LeftSubstIff = LeftSubstEq
-  @deprecated("Use RightSubstEq instead", "0.9")
-  val RightSubstIff = RightSubstEq
+  object LeftSubst extends SubstTactic(true)
+  object RightSubst extends SubstTactic(false)
+  val LeftSubstEq: LeftSubst.type = LeftSubst
+  val RightSubstEq: RightSubst.type = RightSubst
+  val LeftSubstIff: LeftSubst.type = LeftSubst
+  val RightSubstIff: RightSubst.type = RightSubst
 
   /**
    * <pre>

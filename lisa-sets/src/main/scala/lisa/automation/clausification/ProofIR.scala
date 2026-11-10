@@ -35,23 +35,23 @@ extension (step: ClausificationProofStep)
     case c: ClausificationSubproof => c.bot
 
 /**
- * Whether `sequent` has the shape an assumption import must take, `() ⊢ φ`.
+ * Whether `sequent` has the shape an assumption import must take, `() |- φ`.
  */
 private[clausification] def isAssumptionImport(sequent: Sequent): Boolean =
   sequent.left.isEmpty && sequent.right.size == 1
 
 /**
- * The assumed formula `φ` of an assumption import `() ⊢ φ`, which [[ClausificationSubproof]] checks the shape of.
+ * The assumed formula `φ` of an assumption import `() |- φ`, which [[ClausificationSubproof]] checks the shape of.
  */
 private[clausification] def assumedFormula(sequent: Sequent): Expression = sequent.right.head
 
 /**
  * A subproof that is itself a [[ClausificationProof]], converted to an [[SCSubproof]] by
  * [[clausificationProofToSCProof]]. Its inner imports split in two: the positions named by [[assumptions]], each
- * materialised inside the converted subproof by a `RestateTrue(… ⊢ φ)` and added to the left of every conclusion
+ * materialised inside the converted subproof by a `RestateTrue(... |- φ)` and added to the left of every conclusion
  * depending on it, and all other positions, discharged ba reference as usual in the kernel's SCProof.
  * From outside, this step's bot is the inner conclusion plus the assumed formulas
- * (see [[bot]]). Construction checks that each assumption names an import of the form `() ⊢ φ`.
+ * (see [[bot]]). Construction checks that each assumption names an import of the form `() |- φ`.
  *
  * A kernel `SCSubproof` inside a [[ClausificationProof]] is converted by the same code, as the case where
  * [[assumptions]] is empty, so everything below applies to it as well.
@@ -123,6 +123,7 @@ private[clausification] def rewriteStepBot(step: SCProofStep, newBot: Sequent): 
   case LeftOr(_, t, disjuncts) => LeftOr(newBot, t, disjuncts)
   case LeftRefl(_, t1, fa) => LeftRefl(newBot, t1, fa)
   case LeftSubstEq(_, t1, equals, lambdaPhi) => LeftSubstEq(newBot, t1, equals, lambdaPhi)
+  case LeftSubst(_, t1, comparisons, replacements, context) => LeftSubst(newBot, t1, comparisons, replacements, context)
   case Restate(_, t1) => Restate(newBot, t1)
   case RestateTrue(_) => RestateTrue(newBot)
   case RightAnd(_, t, conjuncts) => RightAnd(newBot, t, conjuncts)
@@ -135,6 +136,7 @@ private[clausification] def rewriteStepBot(step: SCProofStep, newBot: Sequent): 
   case RightOr(_, t1, phi, psi) => RightOr(newBot, t1, phi, psi)
   case RightRefl(_, fa) => RightRefl(newBot, fa)
   case RightSubstEq(_, t1, equals, lambdaPhi) => RightSubstEq(newBot, t1, equals, lambdaPhi)
+  case RightSubst(_, t1, comparisons, replacements, context) => RightSubst(newBot, t1, comparisons, replacements, context)
   case SCSubproof(sp, premises) =>
     val rewritten =
       if (sp.conclusion.left.size == newBot.left.size && sp.conclusion.right.size == newBot.right.size && isSameSequent(sp.conclusion, newBot))

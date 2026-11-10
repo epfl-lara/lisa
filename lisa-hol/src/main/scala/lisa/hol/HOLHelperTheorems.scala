@@ -93,8 +93,8 @@ object HOLHelperTheorems extends lisa.Main {
       thenHave((x === Zero) \/ (x === One)) by Substitute(Zero.definition, One.definition)
 
     val bwd = have((x === Zero) \/ (x === One) ==> x :: 𝔹) subproof:
-      val zEq = have(x === Zero |- x :: 𝔹) by RightSubstEq.withParameters(Seq((Zero, x)), (Seq(x), x :: 𝔹))(Zero.justif)
-      val oEq = have(x === One |- x :: 𝔹) by RightSubstEq.withParameters(Seq((One, x)), (Seq(x), x :: 𝔹))(One.justif)
+      val zEq = have(x === Zero |- x :: 𝔹) by RightSubstEq(Seq((Zero, x)), (Seq(x), x :: 𝔹))(Zero.justif)
+      val oEq = have(x === One |- x :: 𝔹) by RightSubstEq(Seq((One, x)), (Seq(x), x :: 𝔹))(One.justif)
       have(thesis) by Tautology.from(zEq, oEq)
 
     have(thesis) by RightAnd(fwd, bwd)
@@ -104,11 +104,11 @@ object HOLHelperTheorems extends lisa.Main {
     val cases = have((x === Zero) \/ (x === One)) by Tautology.from(boolBivalence of (x := x))
     val zeroCase = have(x === Zero |- (x === Zero) <=> !(x === One)) subproof:
       have(x === Zero |- (x === Zero) <=> !(Zero === One)) by Tautology.from(`0 != 1`)
-      thenHave(x === Zero |- (x === Zero) <=> !(x === One)) by RightSubstEq.withParameters(Seq((Zero, x)), (Seq(b), (x === Zero) <=> !(b === One)))
+      thenHave(x === Zero |- (x === Zero) <=> !(x === One)) by RightSubstEq(Seq((Zero, x)), (Seq(b), (x === Zero) <=> !(b === One)))
 
     val oneCase = have(x === One |- (x === Zero) <=> !(x === One)) subproof:
       have(x === One |- (One === Zero) <=> !(One === One)) by Tautology.from(`0 != 1`)
-      thenHave(x === One |- (x === Zero) <=> !(x === One)) by RightSubstEq.withParameters(Seq((One, x)), (Seq(b), (b === Zero) <=> !(b === One)))
+      thenHave(x === One |- (x === Zero) <=> !(x === One)) by RightSubstEq(Seq((One, x)), (Seq(b), (b === Zero) <=> !(b === One)))
 
     have(thesis) by Tautology.from(cases, zeroCase, oneCase)
 
@@ -190,7 +190,7 @@ object HOLHelperTheorems extends lisa.Main {
     assume(x :: A, y :: A)
     val fwd = have(x === y ==> (=:=(A) * x * y === One)) subproof:
       have(=:=(A) * x * x === One) by Weakening(eqRefl)
-      thenHave(x === y |- =:=(A) * x * y === One) by RightSubstEq.withParameters(Seq((x, y)), (Seq(y), =:=(A) * x * y === One))
+      thenHave(x === y |- =:=(A) * x * y === One) by RightSubstEq(Seq((x, y)), (Seq(y), =:=(A) * x * y === One))
 
     val bwd = have((=:=(A) * x * y === One) ==> (x === y)) subproof:
       have((eqTerm === One) ==> (x === y)) by Weakening(eqTermProperty)
@@ -235,7 +235,7 @@ object HOLHelperTheorems extends lisa.Main {
     val bwd = have((`x = y` === Zero) ==> (!(x === y))) subproof:
       assume(`x = y` === Zero)
       have(!(Zero === One)) by Weakening(`0 != 1`)
-      thenHave(!(`x = y` === One)) by RightSubstEq.withParameters(Seq((Zero, `x = y`)), (Seq(x), !(x === One)))
+      thenHave(!(`x = y` === One)) by RightSubstEq(Seq((Zero, `x = y`)), (Seq(x), !(x === One)))
       have(thesis) by Tautology.from(conv, lastStep)
 
     have(thesis) by RightAnd(fwd, bwd)
@@ -273,8 +273,7 @@ object HOLHelperTheorems extends lisa.Main {
     val `x = y` = have(x === y) by Weakening(eqAlign of (x := x, y := y))
     val `y = z` = have(y === z) by Weakening(eqAlign of (x := y, y := z))
 
-    have(y === z |- x === z) by RightSubstEq.withParameters(Seq((y, z)), (Seq(z), x === z))(`x = y`)
-    val `x = z` = have(x === z) by Cut(`y = z`, lastStep)
+    val `x = z` = have(x === z) by RightSubst.withParameters(Seq((y, z, Nil)), Seq(z) -> (x === z))(`x = y`, Seq(`y = z`))
 
     have(thesis) by Tautology.from(`x = z`, eqAlign of (x := x, y := z))
 
@@ -283,15 +282,16 @@ object HOLHelperTheorems extends lisa.Main {
 
     val `x = y` = have(x === y) by Weakening(eqAlign of (x := x, y := y))
 
-    have(f * x === f * x) by Restate
-    thenHave(x === y |- f * x === f * y) by RightSubstEq.withParameters(Seq((x, y)), (Seq(y), f * x === f * y))
-    val `f x = f y` = have(f * x === f * y) by Cut(`x = y`, lastStep)
+    val reflexivity = have(f * x === f * x) by Restate
+    val `f x = f y` = have(f * x === f * y) by RightSubst.withParameters(Seq((x, y, Nil)), Seq(y) -> (f * x === f * y))(reflexivity, Seq(`x = y`))
 
     val fxType = have(f * x :: B) by Typecheck.prove
     val fyType = have(f * y :: B) by Typecheck.prove
 
-    have((f * x === f * y) <=> (=:=(B) * (f * x) * (f * y) === One) |- =:=(B) * (f * x) * (f * y) === One) by RightSubstEq.withParameters(Seq((f * x === f * y, =:=(B) * (f * x) * (f * y) === One)), (Seq(P), P))(`f x = f y`)
-    have((f * x :: B, f * y :: B) |- =:=(B) * (f * x) * (f * y) === One) by Cut(eqAlign of (A := B, x := f * x, y := f * y), lastStep)
+    have((f * x :: B, f * y :: B) |- =:=(B) * (f * x) * (f * y) === One) by
+      RightSubst.withParameters(
+        Seq((f * x === f * y, =:=(B) * (f * x) * (f * y) === One, Nil)), Seq(P) -> P
+      )(`f x = f y`, Seq(eqAlign of (A := B, x := f * x, y := f * y)))
     have((f * x :: B) |- =:=(B) * (f * x) * (f * y) === One) by Cut(fyType, lastStep)
     have(=:=(B) * (f * x) * (f * y) === One) by Cut(fxType, lastStep)
 

@@ -86,7 +86,7 @@ object Congruence extends ProofTactic with ProofSequentTactic with ProofFactSequ
             val base = have(bot.left |- (bot.right + lf)) by Restate
             val eq = have(egraph.proveExpr(lf, rf, bot))
             val a = variable[Prop]
-            have((bot.left + (lf <=> rf)) |- (bot.right)) by RightSubstEq.withParameters(Seq((lf, rf)), (Seq(a), a))(base)
+            have((bot.left + (lf <=> rf)) |- (bot.right)) by RightSubstEq(Seq((lf, rf)), (Seq(a), a))(base)
             have(bot) by Cut(eq, lastStep)
             true
           else false
@@ -96,7 +96,7 @@ object Congruence extends ProofTactic with ProofSequentTactic with ProofFactSequ
             val base = have((bot.left + !lf) |- bot.right) by Restate
             val eq = have(egraph.proveExpr(lf, rf.asInstanceOf, bot))
             val a = variable[Prop]
-            have((bot.left + makeEq(lf, rf)) |- (bot.right)) by LeftSubstEq.withParameters(Seq((lf, rf)), (Seq(a), !a))(base)
+            have((bot.left + makeEq(lf, rf)) |- (bot.right)) by LeftSubstEq(Seq((lf, rf)), (Seq(a), !a))(base)
             have(bot) by Cut(eq, lastStep)
             true
           case _ => false
@@ -119,7 +119,7 @@ object Congruence extends ProofTactic with ProofSequentTactic with ProofFactSequ
             val base = have((bot.left) |- (bot.right + !rf)) by Restate
             val eq = have(egraph.proveExpr[Prop](lf.asInstanceOf, rf, bot))
             val a = variable[Prop]
-            have((bot.left + makeEq(lf, rf)) |- (bot.right)) by RightSubstEq.withParameters(Seq((rf, lf)), (Seq(a), !a))(base)
+            have((bot.left + makeEq(lf, rf)) |- (bot.right)) by RightSubstEq(Seq((rf, lf)), (Seq(a), !a))(base)
             have(bot) by Cut(eq, lastStep)
             true
           case _ => false
@@ -390,7 +390,7 @@ class EGraphExpr() {
             if l == id1 then have(goalSequent) by Restate
             else
               val x = variable(freshId(Seq(id1)), id1.sort)
-              have(goalSequent) by RightSubstEq.withParameters(List((l, r)), (Seq(x), makeEq(id1, x)))(lastStep)
+              have(goalSequent) by RightSubstEq(List((l, r)), (Seq(x), makeEq(id1, x)))(lastStep)
           case CongruenceStep((l, r)) =>
             val prev = if id1 != l then lastStep else null
             val leqr = have(base.left |- (base.right + (makeEq(l, r)))) subproof { sp ?=>
@@ -416,7 +416,7 @@ class EGraphExpr() {
                   have(base.left |- (base.right + makeEq(l, l))) by Restate
                   val eqs = zip.map((l, r) => makeEq(l, r))
                   val goal = have((base.left ++ eqs) |- (base.right + makeEq(l, r))).by.bot
-                  have((base.left ++ eqs) |- (base.right + makeEq(l, r))) by RightSubstEq.withParameters(zip, (vars, makeEq(l, Multiapp.unsafe(labelr, children))))(lastStep)
+                  have((base.left ++ eqs) |- (base.right + makeEq(l, r))) by RightSubstEq(zip, (vars, makeEq(l, Multiapp.unsafe(labelr, children))))(lastStep)
                   steps.foreach { s =>
                     have(
                       if s._2.bot.left.contains(s._1) then lastStep.bot else lastStep.bot -<< s._1
@@ -431,7 +431,7 @@ class EGraphExpr() {
             if id1 != l then
               val goalSequent = base.left |- (base.right + (makeEq(id1, r)))
               val x = variable(freshId(Seq(id1)), id1.sort)
-              have(goalSequent +<< makeEq(l, r)) by RightSubstEq.withParameters(List((l, r)), (Seq(x), makeEq(id1, x)))(prev)
+              have(goalSequent +<< makeEq(l, r)) by RightSubstEq(List((l, r)), (Seq(x), makeEq(id1, x)))(prev)
               have(goalSequent) by Cut(leqr, lastStep)
         }
     }

@@ -228,6 +228,8 @@ object ProofPrinter {
         sequentToFOFAnnotated(bot, s(no), role, premisesToAnnotations(Seq(t1), "left_refl"), strict)
       case K.LeftSubstEq(bot, t1, equals, lambdaPhi) =>
         sequentToFOFAnnotated(bot, s(no), role, premisesToAnnotations(Seq(t1), "left_subst_eq"), strict)
+      case K.LeftSubst(bot, t1, comparisons, _, _) =>
+        sequentToFOFAnnotated(bot, s(no), role, premisesToAnnotations(t1 +: comparisons, "left_subst"), strict)
       case K.Restate(bot, t1) =>
         sequentToFOFAnnotated(bot, s(no), role, premisesToAnnotations(Seq(t1), "restate"), strict)
       case K.RestateTrue(bot) =>
@@ -252,6 +254,8 @@ object ProofPrinter {
         sequentToFOFAnnotated(bot, s(no), role, premisesToAnnotations(Seq(), "right_refl"), strict)
       case K.RightSubstEq(bot, t1, equals, lambdaPhi) =>
         sequentToFOFAnnotated(bot, s(no), role, premisesToAnnotations(Seq(t1), "right_subst_eq"), strict)
+      case K.RightSubst(bot, t1, comparisons, _, _) =>
+        sequentToFOFAnnotated(bot, s(no), role, premisesToAnnotations(t1 +: comparisons, "right_subst"), strict)
       case K.SCSubproof(sp, premises) =>
         sequentToFOFAnnotated(step.bot, s(no), role, premisesToAnnotations(premises, "subproof"), strict)
       case K.Sorry(bot) =>

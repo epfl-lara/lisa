@@ -67,18 +67,15 @@ object ExtendedHOLSteps extends lisa._HOL {
           if isSame(ta, tb) then
             if isSame(aa, ab) then
               (s1.left ++ s2.left).foreach(ip.addAssumption)
-              val firstEquality = (holeq(aa) * s * ta) === One
               val secondEquality = (holeq(aa) * ta * u) === One
               val result = (holeq(aa) * s * u) === One
-              val typings = Set(s :: aa, ta :: aa, u :: aa)
-              val transitivity = HOLHelperTheorems.eqTrans of (x := s, y := ta, z := u, A := aa)
-              val r0 = have((s1.left ++ typings + secondEquality) |- result) by
-                Cut.withParameters(firstEquality)(t1, transitivity)
-              val r1 = have((s1.left ++ s2.left ++ typings) |- result) by
-                Cut.withParameters((holeq(aa) * ta * u) === One)(t2, r0)
-              val r2 = dischargeTyping(s, r1)
-              val r3 = dischargeTyping(ta, r2)
-              dischargeTyping(u, r3)
+              val typings = Set(ta :: aa, u :: aa)
+              val comparison = have((s2.left ++ typings) |- ta === u) by
+                Cut.withParameters(secondEquality)(t2, HOLHelperTheorems.eqFromHol of (x := ta, y := u, A := aa))
+              val hole = Variable.fresh[Ind](s1.freeVars ++ s2.freeVars, "subst")
+              val transported = have((s1.left ++ s2.left ++ typings) |- result) by
+                RightSubst.withParameters(Seq((ta, u, Nil)), Seq(hole) -> ((holeq(aa) * s * hole) === One))(t1, Seq(comparison))
+              dischargeTyping(u, dischargeTyping(ta, transported))
             else return proof.InvalidProofTactic(s"Types don't agree: $aa and $ab")
           else return proof.InvalidProofTactic(s"Middle elements don't agree: $ta and $tb")
 

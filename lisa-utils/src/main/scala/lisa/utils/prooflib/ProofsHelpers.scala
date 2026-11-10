@@ -335,7 +335,7 @@ trait ProofsHelpers {
       val eqStep = lastStep // appliedCst === body
       // j is exists(x, prop(x))
       val existsStep = ??? // have(propEpsilon) by // prop(body)
-      val s3 = have(appliedCst === body |- propCst) by RightSubstEq.withParameters(List((appliedCst, body)), (List(epsilonVar), inner))(lastStep)
+      val s3 = have(appliedCst === body |- propCst) by RightSubstEq(List((appliedCst, body)), (List(epsilonVar), inner))(lastStep)
       val s4 = have(propCst) by Cut(s3, j)
       ???
     }

@@ -126,11 +126,9 @@ object HOLSteps extends lisa._HOL {
 
     val j2 = have((p :: 𝔹, q :: 𝔹, (q === One) <=> (p === One), !(p === One), (q === Zero) <=> (p === Zero)) |- p === Zero) by Tautology.from(Bdef of (p := p))
     val j3 = have((p :: 𝔹, q :: 𝔹, (q === One) <=> (p === One), !(p === One), (q === Zero) <=> (p === Zero)) |- q === Zero) by Tautology.from(lastStep)
-    val j4WithEquality = have(
-      (p :: 𝔹, q :: 𝔹, (q === One) <=> (p === One), !(p === One), (q === Zero) <=> (p === Zero), q === Zero) |- (p === q)
-    ) by RightSubstEq.withParameters(Seq(Zero -> q), Seq(q) -> (p === q))(j2)
+    val qEquality = have(j3.bot.left |- Zero === q) by Restate.from(j3)
     val j4 = have((p :: 𝔹, q :: 𝔹, (q === One) <=> (p === One), !(p === One), (q === Zero) <=> (p === Zero)) |- (p === q)) by
-      Cut.withParameters(q === Zero)(j3, j4WithEquality)
+      RightSubst.withParameters(Seq((Zero, q, Nil)), Seq(q) -> (p === q))(j2, Seq(qEquality))
 
     have(thesis) by Tautology.from(j4, i3, h4)
 
@@ -140,12 +138,10 @@ object HOLSteps extends lisa._HOL {
   val eqMp = Theorem((p === One, q :: 𝔹, (holeq(𝔹) * p * q) === One) |- (q === One)) {
     val vt = variable[Ind]
     val sourceTyping = have(p === One |- (p :: 𝔹)) by
-      RightSubstEq.withParameters(Seq((One, p)), (Seq(vt), vt :: 𝔹))(One.justif)
+      RightSubstEq(Seq((One, p)), (Seq(vt), vt :: 𝔹))(One.justif)
     val equality = have(Discharge(sourceTyping)(eqFromHol of (x := p, y := q, A := 𝔹)))
     val source = have(p === One |- (p === One)) by Hypothesis
-    val transported = have((p === One, p === q) |- (q === One)) by
-      RightSubstEq.withParameters(Seq((p, q)), (Seq(vt), vt === One))(source)
-    have(thesis) by Cut.withParameters(p === q)(equality, transported)
+    have(thesis) by RightSubst.withParameters(Seq((p, q, Nil)), Seq(vt) -> (vt === One))(source, Seq(equality))
   }
 
   val deductAntisym = Theorem(
@@ -270,11 +266,8 @@ object HOLSteps extends lisa._HOL {
     val s2 = have((f :: typ1, g :: typ1) |- (f === g)) by Tautology.from(eqAlign of (HOLSteps.x := f, HOLSteps.y := g, A := typ1))
     val s3 = have((x :: typ2, y :: typ2) |- (x === y)) by Tautology.from(eqAlign of (HOLSteps.x := x, HOLSteps.y := y, A := typ2))
 
-    val s4 = have((x :: typ2, f :: typ1, x === y) |- (f * x =:= f * y) === One) by RightSubstEq.withParameters(List((x, y)), (Seq(vx), f * x =:= f * vx))(s1)
-    val s5 = have(((x :: typ2, f :: typ1, x === y, f === g)) |- (f * x =:= g * y) === One) by RightSubstEq.withParameters(List((f, g)), (Seq(vf), f * x =:= vf * y))(s4)
-
-    val s6 = have((x :: typ2, y :: typ2, f :: typ1, (f === g)) |- (f * x =:= g * y) === One) by Cut(s3, s5)
-    val s7 = have((x :: typ2, y :: typ2, f :: typ1, g :: typ1) |- (f * x =:= g * y) === One) by Cut(s2, s6)
+    val s7 = have((x :: typ2, y :: typ2, f :: typ1, g :: typ1) |- (f * x =:= g * y) === One) by
+      RightSubst.withParameters(Seq((f, g, Nil), (x, y, Nil)), Seq(vf, vx) -> ((f * x =:= vf * vx) === One))(s1, Seq(s2, s3))
 
     val witness = Variable.fresh[Ind](s7.statement.freeVars, "w")
     val bNonEmpty = have(p0.statement.left |- exists(witness, witness ∈ B)) by
@@ -590,8 +583,8 @@ object HOLSteps extends lisa._HOL {
               val vt = variable[Ind]
               val hp = have((assumptions + (t :: 𝔹) + (u :: 𝔹)) |- p.statement.right) by Weakening(p)
               val h1 = have((assumptions + (t :: 𝔹) + (u :: 𝔹)) |- t === u) by Tautology.from(eqAlign of (x := t, y := u, A := 𝔹), eq)
-              val hc = have((assumptions + (t :: 𝔹) + (u :: 𝔹) + (t === u)) |- (u === One)) by RightSubstEq.withParameters(List((t, u)), (Seq(vt), vt === One))(hp)
-              val h2 = have((assumptions + (t :: 𝔹) + (u :: 𝔹)) |- (u === One)) by Cut(h1, hc)
+              val h2 = have((assumptions + (t :: 𝔹) + (u :: 𝔹)) |- (u === One)) by
+                RightSubst.withParameters(Seq((t, u, Nil)), Seq(vt) -> (vt === One))(hp, Seq(h1))
               val pt = HOLProofType(t)
               val h3 = have(Discharge(pt)(h2))
               val h4 = have(Discharge(HOLProofType(u))(h3))
