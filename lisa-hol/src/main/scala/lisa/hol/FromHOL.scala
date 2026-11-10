@@ -174,6 +174,6 @@ object FromHOL extends lisa.Main:
           else E.hexistsCorrect.of(E.A := domain, E.P := predicate, E.x := bound)
         val correctness = have(Discharge(typed(predicate, domain ->: H.𝔹, context), have(TypeNonEmptyProof(domain)))(rule))
         val originalBody = if quantifier == Forall then ∀(bound ∈ domain, eqOne(application)) else ∃(bound ∈ domain, eqOne(application))
-        val target = if quantifier == Forall then ∀(bound ∈ domain, translated) else ∃(bound ∈ domain, translated)
+        val target = if quantifier == Forall then TypedForall(bound, domain, translated) else TypedExists(bound, domain, translated)
         finish(target, compose(source, correctness, Seq((originalBody, target, lifted)))(_.head))
       case _ => source -> reflexive(source)

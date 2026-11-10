@@ -304,20 +304,33 @@ object VarsAndFunctions /*extends lisa.Main*/:
             return None
   }
 
-  opaque type TypedForall <: Expr[Prop] & { val v: Variable[Ind]; val prop: Expr[Prop] } = TypedForallConcrete
-
-  private class TypedForallConcrete(val v: Variable[Ind], val vType: Typ, val prop: Expr[Prop]) extends App(forall, λ(v, (v is vType) ==> prop)) {
+  class TypedForall(val v: Variable[Ind], val vType: Typ, val prop: Expr[Prop]) extends App(forall, λ(v, (v is vType) ==> prop)) {
     override def toString = s"∀$v : $vType. $prop"
   }
 
   object TypedForall {
-    def apply(v: Variable[Ind], vType: Typ, prop: Expr[Prop]): TypedForall = new TypedForallConcrete(v, vType, prop)
+    def apply(v: Variable[Ind], vType: Typ, prop: Expr[Prop]): TypedForall = new TypedForall(v, vType, prop)
   }
 
   def tforall(v: Variable[Ind], vType: Typ, prop: Expr[Prop]): TypedForall = TypedForall(v, vType, prop)
   def tforall(v: TypeAssign[Variable[Ind]], prop: Expr[Prop]): TypedForall = TypedForall(v.vari, v.typ, prop)
+
   inline given Conversion[TypedForall, Expr[Prop]] with
     def apply(tf: TypedForall): Expr[Prop] = tf
+
+  class TypedExists(val v: Variable[Ind], val vType: Typ, val prop: Expr[Prop]) extends App(exists, λ(v, (v is vType) /\ prop)) {
+    override def toString = s"∃$v : $vType. $prop"
+  }
+
+  object TypedExists {
+    def apply(v: Variable[Ind], vType: Typ, prop: Expr[Prop]): TypedExists = new TypedExists(v, vType, prop)
+  }
+
+  def texists(v: Variable[Ind], vType: Typ, prop: Expr[Prop]): TypedExists = TypedExists(v, vType, prop)
+  def texists(v: TypeAssign[Variable[Ind]], prop: Expr[Prop]): TypedExists = TypedExists(v.vari, v.typ, prop)
+
+  inline given Conversion[TypedExists, Expr[Prop]] with
+    def apply(te: TypedExists): Expr[Prop] = te
 
   val holeq: TypedConstantFunctional[Ind >>: Ind] = HOLHelperTheorems.=:=
 

@@ -65,6 +65,18 @@ class FromHOLSuite extends AnyFunSuite:
     val result = check(FromHOL.fromHOL(source), getContext(source.statement) |- target, source)
     assert(result.left.forall(_.freeVars.forall(variable => variable != x && variable != y)))
 
+  test("translate universal quantifiers to typed binders"):
+    val source = premise(hforall(A) * fun(x, hforall(A) * fun(y, x =:= y)))
+    val target: Expr[Prop] = tforall(x, A, tforall(y, A, x === y))
+    val result = check(FromHOL.fromHOL(source), getContext(source.statement) |- target, source)
+    assert(result.right.head.isInstanceOf[TypedForall])
+
+  test("translate existential quantifiers to typed binders"):
+    val source = premise(hexists(A) * fun(x, hexists(A) * fun(y, x =:= y)))
+    val target: Expr[Prop] = texists(x :: A, texists(y, A, x === y))
+    val result = check(FromHOL.fromHOL(source), getContext(source.statement) |- target, source)
+    assert(result.right.head.isInstanceOf[TypedExists])
+
   test("translate a quantifier over a predicate without a lambda"):
     val source = premise(hforall(A) * P)
     check(FromHOL.fromHOL(source), getContext(source.statement) |- ∀(x, (x ∈ A) ==> eqOne(P * x)), source)
