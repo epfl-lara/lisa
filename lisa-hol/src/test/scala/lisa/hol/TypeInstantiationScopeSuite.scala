@@ -1,11 +1,11 @@
 package lisa.hol
 
 import lisa.SetTheoryLibrary
-import lisa.hol.Import.Transformers.*
-import lisa.hol.VarsAndFunctions.*
+import lisa.hol.Import.Transformers._
+import lisa.hol.VarsAndFunctions._
 import lisa.utils.K
 import lisa.utils.fol.FOL.{_, given}
-import lisa.utils.prooflib.BasicStepTactic.*
+import lisa.utils.prooflib.BasicStepTactic._
 import org.scalatest.funsuite.AnyFunSuite
 
 class TypeInstantiationScopeSuite extends AnyFunSuite:
@@ -22,9 +22,13 @@ class TypeInstantiationScopeSuite extends AnyFunSuite:
     val proof = new BaseProof(Owner.theorem.asInstanceOf[THMFromProof])
     given proof.type = proof
     // Admit the fixture's premise locally; never register it as a theorem.
-    val premise = proof.newProofStep(proof.ValidProofTactic(
-      statement, Seq(K.Sorry(statement.underlying)), Seq()
-    )(using Sorry))
+    val premise = proof.newProofStep(
+      proof.ValidProofTactic(
+        statement,
+        Seq(K.Sorry(statement.underlying)),
+        Seq()
+      )(using Sorry)
+    )
     ExtendedHOLSteps._INST_TYPE_RENAME(substitutions, premise) match
       case valid: proof.ValidProofTactic =>
         val imports = valid.imports.map(proof.sequentOfFact(_).underlying).toIndexedSeq
@@ -91,7 +95,9 @@ class TypeInstantiationScopeSuite extends AnyFunSuite:
   test("match HOL Light INST_TYPE 6156041 from the exported premise and substitution"):
     import lisa.hol.extractor.*
     val input = scala.io.Source.fromResource("inst-type-scope.jsonl")
-    val records = try input.getLines().toVector finally input.close()
+    val records =
+      try input.getLines().toVector
+      finally input.close()
     given context: ExtractorContext = new ExtractorContext(Iterator.empty, Iterator.empty)
     try
       new Import.StepStore // Register the standard HOL constants used by the fixture.

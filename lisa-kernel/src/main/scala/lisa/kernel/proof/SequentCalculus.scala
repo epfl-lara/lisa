@@ -302,7 +302,6 @@ object SequentCalculus {
   case class RightSubstEq(bot: Sequent, t1: Int, equals: Seq[(Expression, Expression)], lambdaPhi: (Seq[Variable], Expression)) extends SCProofStep { val premises = Seq(t1) }
 
   /**
-   *
    * ```
    * Γ, φ(s_1,...,s_n) |- Δ    (Θ_i |- s_i(a_i1, ..., a_ik) ≈ t_i(a_i1, ..., a_ik), Ξ_i)_i
    * --------------------------------------------------------------------------------------
@@ -316,11 +315,11 @@ object SequentCalculus {
    * universal equality. An equivalence (<=>) is expected if the replacement is
    * propositional instead.
    */
-  case class LeftSubst(bot: Sequent, t1: Int, comparisons: Seq[Int], replacements: Seq[(Expression, Expression, Seq[Variable])], context: (Seq[Variable], Expression))
-      extends SCProofStep { val premises = t1 +: comparisons }
+  case class LeftSubst(bot: Sequent, t1: Int, comparisons: Seq[Int], replacements: Seq[(Expression, Expression, Seq[Variable])], context: (Seq[Variable], Expression)) extends SCProofStep {
+    val premises = t1 +: comparisons
+  }
 
   /**
-   *
    * ```
    * Γ |- φ(s_1,...,s_n), Δ    (Θ_i |- s_i(a_i1, ..., a_ik) ≈ t_i(a_i1, ..., a_ik), Ξ_i)_i
    * --------------------------------------------------------------------------------------
@@ -334,8 +333,9 @@ object SequentCalculus {
    * universal equality. An equivalence (<=>) is expected if the replacement is
    * propositional instead.
    */
-  case class RightSubst(bot: Sequent, t1: Int, comparisons: Seq[Int], replacements: Seq[(Expression, Expression, Seq[Variable])], context: (Seq[Variable], Expression))
-      extends SCProofStep { val premises = t1 +: comparisons }
+  case class RightSubst(bot: Sequent, t1: Int, comparisons: Seq[Int], replacements: Seq[(Expression, Expression, Seq[Variable])], context: (Seq[Variable], Expression)) extends SCProofStep {
+    val premises = t1 +: comparisons
+  }
 
   object LeftSubstIff {
     def apply(bot: Sequent, t1: Int, equals: Seq[(Expression, Expression)], lambdaPhi: (Seq[Variable], Expression)): LeftSubstEq = {

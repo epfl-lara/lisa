@@ -1,7 +1,7 @@
 package lisa.hol
 
-import lisa.hol.HOLHelperTheorems.*
-import lisa.hol.VarsAndFunctions.*
+import lisa.hol.HOLHelperTheorems._
+import lisa.hol.VarsAndFunctions._
 import lisa.utils.K
 import org.scalatest.funsuite.AnyFunSuite
 

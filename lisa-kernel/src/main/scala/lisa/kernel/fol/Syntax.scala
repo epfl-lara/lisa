@@ -1,6 +1,5 @@
 package lisa.kernel.fol
 
-
 /**
  * Defines the syntax of statements Lisa's kernel
  *
@@ -172,7 +171,7 @@ private[fol] trait Syntax {
     require(Set("bounded", "ids", "hybrid").contains(mode), s"Unknown hashcons mode '$mode'")
     val enabled: Boolean =
       !sys.props.get("lisa.hashcons").exists(Set("false", "0")) &&
-      !sys.env.get("LISA_HASHCONS").exists(Set("false", "0"))
+        !sys.env.get("LISA_HASHCONS").exists(Set("false", "0"))
     val usesCanonicalIds: Boolean = enabled && mode != "bounded"
 
     private case class VariableKey(id: Identifier, sort: Sort)
@@ -210,13 +209,17 @@ private[fol] trait Syntax {
 
     def applicationId(f: Expression, arg: Expression): Long =
       if (!usesCanonicalIds) ExpressionCounters.getNewId
-      else applicationIds.getOrElseUpdate(f.uniqueNumber, mutable.LongMap.empty)
-        .getOrElseUpdate(arg.uniqueNumber, ExpressionCounters.getNewId)
+      else
+        applicationIds
+          .getOrElseUpdate(f.uniqueNumber, mutable.LongMap.empty)
+          .getOrElseUpdate(arg.uniqueNumber, ExpressionCounters.getNewId)
 
     def lambdaId(v: Variable, body: Expression): Long =
       if (!usesCanonicalIds) ExpressionCounters.getNewId
-      else lambdaIds.getOrElseUpdate(v.uniqueNumber, mutable.LongMap.empty)
-        .getOrElseUpdate(body.uniqueNumber, ExpressionCounters.getNewId)
+      else
+        lambdaIds
+          .getOrElseUpdate(v.uniqueNumber, mutable.LongMap.empty)
+          .getOrElseUpdate(body.uniqueNumber, ExpressionCounters.getNewId)
 
     private def cachedApplication(f: Expression, arg: Expression): Application = {
       def lookup(generation: Int) = generations(generation).applications.get(f.uniqueNumber).flatMap(_.get(arg.uniqueNumber))
@@ -250,19 +253,21 @@ private[fol] trait Syntax {
 
     def application(f: Expression, arg: Expression): Application =
       if (!enabled) new Application(f, arg)
-      else mode match {
-        case "bounded" => cachedApplication(f, arg)
-        case "ids" => new Application(f, arg)
-        case _ => cachedApplication(f, arg)
-      }
+      else
+        mode match {
+          case "bounded" => cachedApplication(f, arg)
+          case "ids" => new Application(f, arg)
+          case _ => cachedApplication(f, arg)
+        }
 
     def lambda(v: Variable, body: Expression): Lambda =
       if (!enabled) new Lambda(v, body)
-      else mode match {
-        case "bounded" => cachedLambda(v, body)
-        case "ids" => new Lambda(v, body)
-        case _ => cachedLambda(v, body)
-      }
+      else
+        mode match {
+          case "bounded" => cachedLambda(v, body)
+          case "ids" => new Lambda(v, body)
+          case _ => cachedLambda(v, body)
+        }
   }
 
   /**
@@ -328,7 +333,9 @@ private[fol] trait Syntax {
       case _ => None
     }
 
-    /** Compute the beta-eta normal form and whether the expression is already normal. */
+    /**
+     * Compute the beta-eta normal form and whether the expression is already normal.
+     */
     lazy val (betaNormalForm: Expression, isBetaNormal: Boolean) = this match {
       case Application(f, arg) =>
         f.betaNormalForm match {
@@ -346,7 +353,7 @@ private[fol] trait Syntax {
           case _ => (Lambda(x, nb), false)
         }
       case _ => (this, true)
-  }
+    }
 
     /**
      * @return The list of free variables in the expression.

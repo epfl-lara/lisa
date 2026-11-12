@@ -1,6 +1,10 @@
 package lisa.hol
 
-import lisa.hol.extractor.{ExtractorContext, ProofLine, RawSequent, TheoremRef, TheoremStatement}
+import lisa.hol.extractor.ExtractorContext
+import lisa.hol.extractor.ProofLine
+import lisa.hol.extractor.RawSequent
+import lisa.hol.extractor.TheoremRef
+import lisa.hol.extractor.TheoremStatement
 import lisa.utils.K
 import org.scalatest.funsuite.AnyFunSuite
 

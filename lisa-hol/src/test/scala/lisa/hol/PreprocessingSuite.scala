@@ -1,9 +1,11 @@
 package lisa.hol
 
-import java.io.ByteArrayOutputStream
-import java.nio.file.{Files, Path}
-import lisa.hol.extractor.*
+import lisa.hol.extractor._
 import org.scalatest.funsuite.AnyFunSuite
+
+import java.io.ByteArrayOutputStream
+import java.nio.file.Files
+import java.nio.file.Path
 
 class PreprocessingSuite extends AnyFunSuite:
   test("retain startup preprocessing settings after properties change"):
@@ -27,8 +29,10 @@ class PreprocessingSuite extends AnyFunSuite:
     val equalityType = "c[fun][[c[bool][]][c[fun][[c[bool][]][c[bool][]]]]]"
     val equality = s"C(C(c(=)($equalityType))($variable))($variable)"
     val proofs = Seq(
-      ProofLine(1000, REFL(variable)), ProofLine(1001, TRANS(1000, 1000)),
-      ProofLine(1003, TRANS(1001, 1001)), ProofLine(1007, TRANS(1001, 1003))
+      ProofLine(1000, REFL(variable)),
+      ProofLine(1001, TRANS(1000, 1000)),
+      ProofLine(1003, TRANS(1001, 1001)),
+      ProofLine(1007, TRANS(1001, 1003))
     )
     val names = Seq(TheoremRef(1003, s"preprocessing_${Config.precomputeLemmas}_first"), TheoremRef(1007, s"preprocessing_${Config.precomputeLemmas}_second"))
     try
@@ -38,10 +42,14 @@ class PreprocessingSuite extends AnyFunSuite:
       val output = new ByteArrayOutputStream
       var preprocessing = Option.empty[LemmaSelection.Timing]
       val timings = Console.withOut(output):
-        Import.importFromPrefix(prefix, 2, onPreprocessing = timing => {
-          assert(!output.toString.contains("Last theorem"))
-          preprocessing = Some(timing)
-        })
+        Import.importFromPrefix(
+          prefix,
+          2,
+          onPreprocessing = timing => {
+            assert(!output.toString.contains("Last theorem"))
+            preprocessing = Some(timing)
+          }
+        )
       val measured = preprocessing.get
       assert(measured.enabled == Config.precomputeLemmas)
       assert(measured.selectedLemmas == (if Config.precomputeLemmas then 1 else 0))

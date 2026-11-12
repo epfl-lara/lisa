@@ -1,7 +1,7 @@
 package lisa.hol
 
-import lisa.hol.HOLHelperTheorems.*
-import lisa.hol.VarsAndFunctions.*
+import lisa.hol.HOLHelperTheorems._
+import lisa.hol.VarsAndFunctions._
 import lisa.utils.K
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -68,7 +68,9 @@ class HOLRegressionSuite extends AnyFunSuite:
       val typed = have(totalCarrier(A) ∈ 𝔹) by lisa.automation.Substitution.Apply(totalCarrier.definition)(One.justif)
       have(thesis) by RightForall.withParameters(totalCarrier(A) ∈ 𝔹, A)(typed)
     val totalConstant = new lisa.maths.SetTheory.Types.TypingHelpers.TypedConstantFunctional[Ind >>: Ind](
-      totalCarrier.id, FunctionalClass(List(None), List(A), 𝔹), totalTyping
+      totalCarrier.id,
+      FunctionalClass(List(None), List(A), 𝔹),
+      totalTyping
     )
 
     def check(theorem: lisa.SetTheoryLibrary.THM): Unit =
@@ -87,9 +89,10 @@ class HOLRegressionSuite extends AnyFunSuite:
 
   test("check closure and transfinite recursion without admitted dependencies"):
     for theorem <- Seq(
-      lisa.maths.SetTheory.Relations.Operations.Closure.reflexiveClosureValid,
-      lisa.maths.SetTheory.Ordinals.TransfiniteRecursion.transfiniteRecursion
-    ) do assert(!theorem.withSorry, theorem.fullName)
+        lisa.maths.SetTheory.Relations.Operations.Closure.reflexiveClosureValid,
+        lisa.maths.SetTheory.Ordinals.TransfiniteRecursion.transfiniteRecursion
+      )
+    do assert(!theorem.withSorry, theorem.fullName)
 
   test("distinguish HOL variable types when their printed names agree"):
     val first = Import.Transformers.mkTypedVar("same-name", Proofs.A)

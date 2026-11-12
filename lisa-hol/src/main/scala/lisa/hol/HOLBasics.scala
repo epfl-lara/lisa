@@ -4,20 +4,20 @@ import lisa.automation.Substitution.{Apply => Substitute}
 import lisa.hol.HOLHelperTheorems._
 import lisa.hol.HOLSteps._
 import lisa.hol.VarsAndFunctions._
-import lisa.hol.basics.Truth._
-import lisa.hol.basics.Forall._
-import lisa.hol.basics.False._
 import lisa.hol.basics.Connectives._
 import lisa.hol.basics.Exists._
-import lisa.hol.basics.Select._
+import lisa.hol.basics.False._
+import lisa.hol.basics.Forall._
 import lisa.hol.basics.Inductive._
+import lisa.hol.basics.Select._
+import lisa.hol.basics.Truth._
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
 import lisa.maths.SetTheory.Types.TypingRules.TAbs
 import lisa.utils.prooflib.BasicStepTactic._
 import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.SimpleDeducedSteps.*
-import lisa.utils.prooflib.SimpleDeducedSteps.*
+import lisa.utils.prooflib.SimpleDeducedSteps._
+import lisa.utils.prooflib.SimpleDeducedSteps._
 
 /**
  * HOL Light axioms: ETA_AX, INFINITY_AX, SELECT_AX.

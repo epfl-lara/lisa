@@ -86,10 +86,11 @@ object SCProofChecker {
 
   private def checkDerivedSubstitution(step: SCProofStep, derived: Either[String, SCProof]): SCProofCheckerJudgement = derived match {
     case Left(message) => error(step, message)
-    case Right(proof) => checkSCProof(proof) match {
-      case SCInvalidProof(_, _, message) => error(step, message)
-      case SCValidProof(_, usesSorry) => SCValidProof(SCProof(step), usesSorry)
-    }
+    case Right(proof) =>
+      checkSCProof(proof) match {
+        case SCInvalidProof(_, _, message) => error(step, message)
+        case SCValidProof(_, usesSorry) => SCValidProof(SCProof(step), usesSorry)
+      }
   }
 
   private def checkComparison(
@@ -134,9 +135,14 @@ object SCProofChecker {
     else if (variables.size != replacements.size || comparisons.size != replacements.size)
       error(step, "Substitution requires one context variable and comparison proof per replacement.")
     else {
-      val invalid = replacements.zip(variables).zip(comparisons).iterator.map {
-        case ((replacement, variable), comparison) => checkComparison(step, statement, comparison, replacement, variable)
-      }.collectFirst { case Some(failure) => failure }
+      val invalid = replacements
+        .zip(variables)
+        .zip(comparisons)
+        .iterator
+        .map { case ((replacement, variable), comparison) =>
+          checkComparison(step, statement, comparison, replacement, variable)
+        }
+        .collectFirst { case Some(failure) => failure }
       invalid.getOrElse {
         val before = substituteVariables(body, variables.zip(replacements.map(_._1)).toMap)
         val after = substituteVariables(body, variables.zip(replacements.map(_._2)).toMap)

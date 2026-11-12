@@ -1,12 +1,13 @@
 package lisa.hol
 
 import lisa.SetTheoryLibrary
-import lisa.hol.HOLHelperTheorems.{One, 𝔹}
-import lisa.hol.VarsAndFunctions.*
-import lisa.maths.SetTheory.Functions.Predef.*
-import lisa.maths.SetTheory.Types.TypingHelpers.*
+import lisa.hol.HOLHelperTheorems.One
+import lisa.hol.HOLHelperTheorems.𝔹
+import lisa.hol.VarsAndFunctions._
+import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.K
-import lisa.utils.fol.FOL.{*, given}
+import lisa.utils.fol.FOL.{_, given}
 import org.scalatest.funsuite.AnyFunSuite
 
 class InstantiationTypingSuite extends AnyFunSuite:

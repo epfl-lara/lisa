@@ -1,7 +1,6 @@
 package lisa.hol.basics
 
 import lisa.automation.Congruence
-
 import lisa.automation.Substitution.{Apply => Substitute}
 import lisa.hol.HOLHelperTheorems._
 import lisa.hol.HOLSteps._
@@ -11,8 +10,8 @@ import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
 import lisa.maths.SetTheory.Types.TypingRules.TAbs
 import lisa.utils.prooflib.BasicStepTactic._
 import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.SimpleDeducedSteps.*
-import lisa.utils.prooflib.SimpleDeducedSteps.*
+import lisa.utils.prooflib.SimpleDeducedSteps._
+import lisa.utils.prooflib.SimpleDeducedSteps._
 
 /**
  * HOL Light choice operator (select / epsilon).

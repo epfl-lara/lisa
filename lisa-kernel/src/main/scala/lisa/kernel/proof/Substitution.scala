@@ -5,16 +5,22 @@ import lisa.kernel.proof.SequentCalculus._
 
 import scala.collection.mutable.ArrayBuffer
 
-/** Instantiate lifted comparisons for proof-backed simultaneous substitution. */
+/**
+ * Instantiate lifted comparisons for proof-backed simultaneous substitution.
+ */
 object Substitution {
-  /** Recover the heads compared by an equality, possibly under universal quantifiers. */
+
+  /**
+   * Recover the heads compared by an equality, possibly under universal quantifiers.
+   */
   def unliftEquality(formula: Expression): Option[(Expression, Expression)] = {
     def head(expression: Expression, arguments: List[Variable]): Option[Expression] = arguments match {
       case Nil => Some(expression)
-      case argument :: rest => expression match {
-        case Application(function, actual) if actual == argument => head(function, rest)
-        case _ => None
-      }
+      case argument :: rest =>
+        expression match {
+          case Application(function, actual) if actual == argument => head(function, rest)
+          case _ => None
+        }
     }
     def loop(expression: Expression, arguments: List[Variable]): Option[(Expression, Expression)] = expression match {
       case forall(Lambda(v, body)) => loop(body, v :: arguments)
@@ -40,7 +46,9 @@ object Substitution {
     if (left.sort == Prop) iff(left)(right) else equality(left)(right)
   }
 
-  /** Lift first-order function equality to a universally quantified pointwise comparison. */
+  /**
+   * Lift first-order function equality to a universally quantified pointwise comparison.
+   */
   def liftedEqualities(equalities: Seq[(Expression, Expression)]): Seq[Expression] = equalities.map { case (source, target) =>
     val arguments = freshArguments(source, target)
     arguments.foldRight(pointwise(source, target, arguments))((v, body) => forall(Lambda(v, body)))
@@ -70,7 +78,9 @@ object Substitution {
     }
   }
 
-  /** Instantiate a lifted equality proof and transport one formula through it. */
+  /**
+   * Instantiate a lifted equality proof and transport one formula through it.
+   */
   def withProof(statement: Sequent, premise: Sequent, comparison: Sequent, pair: (Expression, Expression), context: (Variable, Expression), onLeft: Boolean): Either[String, SCProof] = {
     val (source, target) = pair
     if (source.sort != target.sort || source.sort != context._1.sort || (!source.sort.isFunctional && !source.sort.isPredicate))
@@ -95,7 +105,9 @@ object Substitution {
     }
   }
 
-  /** Preserve simultaneous replacement without rewriting terms inserted by earlier replacements. */
+  /**
+   * Preserve simultaneous replacement without rewriting terms inserted by earlier replacements.
+   */
   def simultaneous(statement: Sequent, premise: Sequent, equalities: Seq[(Expression, Expression)], context: (Seq[Variable], Expression), onLeft: Boolean): Either[String, SCProof] = {
     val (parameters, body) = context
     if (body.sort != Prop || parameters.size != equalities.size) Left("Substitution requires a formula and one equality per parameter.")
@@ -106,8 +118,7 @@ object Substitution {
       if (parameters.isEmpty) {
         if (to.contains(body) || to.exists(isSame(_, body))) Right(SCProof(Vector(Weakening(statement, -1)), Vector(premise)))
         else Left("Substitution conclusion is missing the substituted formula.")
-      }
-      else {
+      } else {
         val assumptions = liftedEqualities(equalities).map(e => statement.left.find(_ == e).orElse(statement.left.find(isSame(_, e))))
         if (assumptions.exists(_.isEmpty)) Left("Substitution conclusion is missing a lifted equality.")
         else {

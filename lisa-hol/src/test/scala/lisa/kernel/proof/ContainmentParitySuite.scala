@@ -1,7 +1,7 @@
 package lisa.kernel.proof
 
-import lisa.kernel.fol.FOL.*
-import lisa.kernel.proof.SequentCalculus.*
+import lisa.kernel.fol.FOL._
+import lisa.kernel.proof.SequentCalculus._
 import org.scalatest.funsuite.AnyFunSuite
 
 class ContainmentParitySuite extends AnyFunSuite:
@@ -11,8 +11,7 @@ class ContainmentParitySuite extends AnyFunSuite:
   private val p = Constant(Identifier("membership-p"), Prop)
   private val q = Constant(Identifier("membership-q"), Prop)
   private val predicate = Constant(Identifier("membership-predicate"), Ind -> Prop)
-  private val formulas = Vector(p, q, and(p)(q), and(q)(p), predicate(a), Lambda(x, predicate(x))(a),
-    forall(Lambda(x, predicate(x))), forall(Lambda(y, predicate(y))))
+  private val formulas = Vector(p, q, and(p)(q), and(q)(p), predicate(a), Lambda(x, predicate(x))(a), forall(Lambda(x, predicate(x))), forall(Lambda(y, predicate(y))))
   private val contexts = Vector(Set.empty[Expression], formulas.toSet) ++ formulas.map(Set(_)) ++ formulas.combinations(2).map(_.toSet)
   private val empty = Sequent(Set.empty, Set.empty)
 

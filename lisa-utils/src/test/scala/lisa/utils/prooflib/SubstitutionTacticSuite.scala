@@ -1,8 +1,9 @@
 package lisa.utils.prooflib
 
-import lisa.kernel.proof.{RunningTheory, SCProofChecker}
-import lisa.utils.fol.FOL.*
-import lisa.utils.prooflib.BasicStepTactic.*
+import lisa.kernel.proof.RunningTheory
+import lisa.kernel.proof.SCProofChecker
+import lisa.utils.fol.FOL._
+import lisa.utils.prooflib.BasicStepTactic._
 import org.scalatest.funsuite.AnyFunSuite
 
 class SubstitutionTacticSuite extends AnyFunSuite:
@@ -73,7 +74,8 @@ class SubstitutionTacticSuite extends AnyFunSuite:
     val comparison = have(() |- (f(argument) === g(argument))) by Sorry
     val premise = have(() |- P(f(p))) by Sorry
     val result = have(() |- P(g(p))) by RightSubst.withParameters(using TestLibrary, proof)(
-      Seq((f, g, Seq(argument))), Seq(hole) -> P(hole(p))
+      Seq((f, g, Seq(argument))),
+      Seq(hole) -> P(hole(p))
     )(premise, Seq(comparison))
     assert(result.scps.isInstanceOf[SC.RightSubst])
     assert(SCProofChecker.checkSCProof(proof.toSCProof).isValid)

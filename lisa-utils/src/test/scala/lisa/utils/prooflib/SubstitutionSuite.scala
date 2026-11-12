@@ -1,8 +1,10 @@
 package lisa.utils.prooflib
 
-import lisa.kernel.fol.FOL.*
-import lisa.kernel.proof.{SCProof, SCProofChecker, Substitution}
-import lisa.kernel.proof.SequentCalculus.*
+import lisa.kernel.fol.FOL._
+import lisa.kernel.proof.SCProof
+import lisa.kernel.proof.SCProofChecker
+import lisa.kernel.proof.SequentCalculus._
+import lisa.kernel.proof.Substitution
 import org.scalatest.funsuite.AnyFunSuite
 
 class SubstitutionSuite extends AnyFunSuite:
@@ -18,27 +20,22 @@ class SubstitutionSuite extends AnyFunSuite:
   private def valid(step: SCProofStep, imports: Sequent*): Boolean =
     SCProofChecker.checkSCProof(SCProof(Vector(step), imports.toVector)).isValid
 
-  private def right(statement: Sequent, premise: Int, comparison: Int, replacement: (Expression, Expression),
-      context: (Variable, Expression), arguments: Seq[Variable] = Nil): RightSubst =
+  private def right(statement: Sequent, premise: Int, comparison: Int, replacement: (Expression, Expression), context: (Variable, Expression), arguments: Seq[Variable] = Nil): RightSubst =
     RightSubst(statement, premise, Seq(comparison), Seq((replacement._1, replacement._2, arguments)), Seq(context._1) -> context._2)
 
-  private def left(statement: Sequent, premise: Int, comparison: Int, replacement: (Expression, Expression),
-      context: (Variable, Expression), arguments: Seq[Variable] = Nil): LeftSubst =
+  private def left(statement: Sequent, premise: Int, comparison: Int, replacement: (Expression, Expression), context: (Variable, Expression), arguments: Seq[Variable] = Nil): LeftSubst =
     LeftSubst(statement, premise, Seq(comparison), Seq((replacement._1, replacement._2, arguments)), Seq(context._1) -> context._2)
 
   test("transport both ways, retaining all residual contexts"):
     val comparison = Sequent(Set(alpha), Set(equality(x)(y), beta))
-    assert(valid(right(Sequent(Set(alpha, gamma), Set(p(y), beta)), -1, -2, x -> y, x -> p(x)),
-      Sequent(Set(gamma), Set(p(x))), comparison))
-    assert(valid(left(Sequent(Set(alpha, gamma, p(y)), Set(beta)), -1, -2, x -> y, x -> p(x)),
-      Sequent(Set(gamma, p(x)), Set.empty), comparison))
+    assert(valid(right(Sequent(Set(alpha, gamma), Set(p(y), beta)), -1, -2, x -> y, x -> p(x)), Sequent(Set(gamma), Set(p(x))), comparison))
+    assert(valid(left(Sequent(Set(alpha, gamma, p(y)), Set(beta)), -1, -2, x -> y, x -> p(x)), Sequent(Set(gamma, p(x)), Set.empty), comparison))
     for target <- Seq(Sequent(Set(gamma), Set(p(y), beta)), Sequent(Set(alpha, gamma), Set(p(y))), Sequent(Set(alpha), Set(p(y), beta))) do
       assert(!valid(right(target, -1, -2, x -> y, x -> p(x)), Sequent(Set(gamma), Set(p(x))), comparison))
 
   test("use equivalence for propositions"):
     val hole = Variable(Identifier("prop"), Prop)
-    assert(valid(right(Sequent(Set.empty, Set(beta)), -1, -2, alpha -> beta, hole -> hole),
-      Sequent(Set.empty, Set(alpha)), Sequent(Set.empty, Set(iff(alpha)(beta)))))
+    assert(valid(right(Sequent(Set.empty, Set(beta)), -1, -2, alpha -> beta, hole -> hole), Sequent(Set.empty, Set(alpha)), Sequent(Set.empty, Set(iff(alpha)(beta)))))
 
   test("allow comparison arguments in the main premise, but not residual comparison contexts"):
     val f = Constant(Identifier("f"), Ind -> Prop)
@@ -72,20 +69,34 @@ class SubstitutionSuite extends AnyFunSuite:
     val hole = Variable(Identifier("higher-hole"), sort)
     val argument = Variable(Identifier("higher-argument"), Ind -> Prop)
     val observer = Constant(Identifier("observer"), sort -> Prop)
-    assert(valid(right(Sequent(Set.empty, Set(observer(g))), -1, -2, f -> g, hole -> observer(hole), Seq(argument)),
-      Sequent(Set.empty, Set(observer(f))), Sequent(Set.empty, Set(equality(f(argument))(g(argument))))))
+    assert(
+      valid(
+        right(Sequent(Set.empty, Set(observer(g))), -1, -2, f -> g, hole -> observer(hole), Seq(argument)),
+        Sequent(Set.empty, Set(observer(f))),
+        Sequent(Set.empty, Set(equality(f(argument))(g(argument))))
+      )
+    )
     val binary = Ind -> (Ind -> Ind)
     val ff = Constant(Identifier("binary-f"), binary)
     val gg = Constant(Identifier("binary-g"), binary)
     val v = Variable(Identifier("binary-hole"), binary)
     val observe = Constant(Identifier("binary-observer"), binary -> Prop)
-    assert(!valid(right(Sequent(Set.empty, Set(observe(gg))), -1, -2, ff -> gg, v -> observe(v), Seq(x, x)),
-      Sequent(Set.empty, Set(observe(ff))), Sequent(Set.empty, Set(equality(ff(x)(x))(gg(x)(x))))))
+    assert(
+      !valid(
+        right(Sequent(Set.empty, Set(observe(gg))), -1, -2, ff -> gg, v -> observe(v), Seq(x, x)),
+        Sequent(Set.empty, Set(observe(ff))),
+        Sequent(Set.empty, Set(equality(ff(x)(x))(gg(x)(x))))
+      )
+    )
 
   test("derive simultaneous swaps, overlaps and duplicate parameters on both sides"):
-    for onLeft <- Seq(false, true); (pairs, holes) <- Seq(
-      Seq(x -> y, y -> x) -> Seq(x, y), Seq(x -> y, y -> z) -> Seq(x, x)
-    ) do
+    for
+      onLeft <- Seq(false, true);
+      (pairs, holes) <- Seq(
+        Seq(x -> y, y -> x) -> Seq(x, y),
+        Seq(x -> y, y -> z) -> Seq(x, x)
+      )
+    do
       val body = q(x)(y)
       val before = substituteVariables(body, holes.zip(pairs.map(_._1)).toMap)
       val after = substituteVariables(body, holes.zip(pairs.map(_._2)).toMap)
@@ -212,9 +223,12 @@ class SubstitutionSuite extends AnyFunSuite:
     val steps = new java.io.ByteArrayOutputStream()
     val certificate = SCProof(Vector(step), Vector(premise, first, second))
     lisa.utils.Serialization.proofsToDataStream(new java.io.DataOutputStream(trees), new java.io.DataOutputStream(steps), Seq(("simultaneous", certificate, Nil)))
-    val restored = lisa.utils.Serialization.proofsFromDataStream(
-      new java.io.DataInputStream(new java.io.ByteArrayInputStream(trees.toByteArray)),
-      new java.io.DataInputStream(new java.io.ByteArrayInputStream(steps.toByteArray))
-    ).head._2
+    val restored = lisa.utils.Serialization
+      .proofsFromDataStream(
+        new java.io.DataInputStream(new java.io.ByteArrayInputStream(trees.toByteArray)),
+        new java.io.DataInputStream(new java.io.ByteArrayInputStream(steps.toByteArray))
+      )
+      .head
+      ._2
     assert(restored == certificate)
     assert(SCProofChecker.checkSCProof(restored).isValid)

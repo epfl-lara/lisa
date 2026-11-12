@@ -445,19 +445,27 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
     }
   }
 
-  /** Retain an application when both transformed children are unchanged. */
+  /**
+   * Retain an application when both transformed children are unchanged.
+   */
   @inline private def reuseApplication(e: SimpleApplication, f: SimpleExpression, arg: SimpleExpression): SimpleExpression =
     if ((e.f eq f) && (e.arg eq arg)) e else SimpleApplication(f, arg, e.polarity)
 
-  /** Retain an abstraction when its transformed body is unchanged. */
+  /**
+   * Retain an abstraction when its transformed body is unchanged.
+   */
   @inline private def reuseLambda(e: SimpleLambda, body: SimpleExpression): SimpleExpression =
     if (e.body eq body) e else SimpleLambda(body)(e.v)
 
-  /** Flatten conjunctions and disjunctions if `lisa.ol.flatten` is `true`. */
+  /**
+   * Flatten conjunctions and disjunctions if `lisa.ol.flatten` is `true`.
+   */
   private val flattenPolarConnectives: Boolean =
     sys.props.get("lisa.ol.flatten").fold(true)(_.toBoolean)
 
-  /** Accumulate conjunction children to flatten, preserving polarity. */
+  /**
+   * Accumulate conjunction children to flatten, preserving polarity.
+   */
   private def polarizeConnective(left: Expression, right: Expression, childPolarity: Boolean, polarity: Boolean): SimpleExpression =
     if (!flattenPolarConnectives) SimpleAnd(Seq(polarize(left, childPolarity), polarize(right, childPolarity)), polarity)
     else {
@@ -611,7 +619,9 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
     }
   }
 
-  /** Check a positive conjunction represented by two sequences without joining or wrapping them. */
+  /**
+   * Check a positive conjunction represented by two sequences without joining or wrapping them.
+   */
   private def conjunctionLEQ(first: Seq[SimpleExpression], second: Seq[SimpleExpression], right: SimpleExpression): Boolean =
     right match {
       case SimpleLiteral(true) => true
@@ -619,8 +629,8 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
         children.forall(conjunctionLEQ(first, second, _))
       case SimpleAnd(children, false) =>
         first.exists(latticesLEQUnchecked(_, right)) ||
-          second.exists(latticesLEQUnchecked(_, right)) ||
-          children.exists(child => conjunctionLEQ(first, second, getInversePolar(child)))
+        second.exists(latticesLEQUnchecked(_, right)) ||
+        children.exists(child => conjunctionLEQ(first, second, getInversePolar(child)))
       case _ =>
         first.exists(latticesLEQUnchecked(_, right)) || second.exists(latticesLEQUnchecked(_, right))
     }
@@ -688,7 +698,9 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
     latticesLEQUnchecked(e1, e2)
   }
 
-  /** Compare well-sorted propositional subexpressions after the entry-point sort check. */
+  /**
+   * Compare well-sorted propositional subexpressions after the entry-point sort check.
+   */
   private def latticesLEQUnchecked(e1: SimpleExpression, e2: SimpleExpression): Boolean = {
     if (e1.uniqueKey == e2.uniqueKey) true
     else
@@ -738,7 +750,9 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
     else if (e1.sort == Prop) latticesLEQ(e1, e2) && latticesLEQ(e2, e1)
     else latticesEQUnchecked(e1, e2)
 
-  /** Compare well-sorted term subexpressions, including embedded propositions. */
+  /**
+   * Compare well-sorted term subexpressions, including embedded propositions.
+   */
   private def latticesEQUnchecked(e1: SimpleExpression, e2: SimpleExpression): Boolean =
     if (e1.uniqueKey == e2.uniqueKey) true
     else if (e1.sort == Prop) latticesLEQUnchecked(e1, e2) && latticesLEQUnchecked(e2, e1)

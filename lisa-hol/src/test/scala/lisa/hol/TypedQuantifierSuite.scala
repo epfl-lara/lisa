@@ -1,9 +1,9 @@
 package lisa.hol
 
-import lisa.hol.VarsAndFunctions.*
+import lisa.hol.VarsAndFunctions._
 import lisa.maths.SetTheory.Base.Predef.∈
-import lisa.maths.SetTheory.Types.TypingHelpers.*
-import lisa.utils.fol.FOL.{*, given}
+import lisa.maths.SetTheory.Types.TypingHelpers._
+import lisa.utils.fol.FOL.{_, given}
 import org.scalatest.funsuite.AnyFunSuite
 
 class TypedQuantifierSuite extends AnyFunSuite:

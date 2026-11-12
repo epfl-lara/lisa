@@ -1,6 +1,8 @@
 package lisa.hol
 
-/** Close all resources in order, propagating the last close failure. */
+/**
+ * Close all resources in order, propagating the last close failure.
+ */
 private[hol] inline def closeAll(resources: List[AutoCloseable]): Unit =
   def close(remaining: List[AutoCloseable]): Unit = remaining match
     case Nil => ()

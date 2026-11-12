@@ -1,6 +1,8 @@
 package lisa.hol
 
-/** Run a bounded import, including the dependencies of any skipped names. */
+/**
+ * Run a bounded import, including the dependencies of any skipped names.
+ */
 object ImportBenchmark:
   def main(args: Array[String]): Unit =
     require(args.length == 2 || args.length == 3, "Usage: ImportBenchmark <export-prefix> <theorem-count> [start-index]")

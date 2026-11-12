@@ -1,15 +1,21 @@
 package lisa.hol.extractor
 
+import org.scalatest.funsuite.AnyFunSuite
+
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files
-import org.scalatest.funsuite.AnyFunSuite
 
 class TraceReaderSuite extends AnyFunSuite:
   test("align arbitrary byte positions without decoding partial UTF-8 or splitting CRLF"):
     val text = "α😀\r\nβ\r終\nlast"
     val bytes = text.getBytes(UTF_8)
-    val starts = Seq(0L, "α😀\r\n".getBytes(UTF_8).length.toLong, "α😀\r\nβ\r".getBytes(UTF_8).length.toLong,
-      "α😀\r\nβ\r終\n".getBytes(UTF_8).length.toLong, bytes.length.toLong)
+    val starts = Seq(
+      0L,
+      "α😀\r\n".getBytes(UTF_8).length.toLong,
+      "α😀\r\nβ\r".getBytes(UTF_8).length.toLong,
+      "α😀\r\nβ\r終\n".getBytes(UTF_8).length.toLong,
+      bytes.length.toLong
+    )
     val path = Files.createTempFile("lisa-trace-seek", ".json")
     try
       Files.write(path, bytes)

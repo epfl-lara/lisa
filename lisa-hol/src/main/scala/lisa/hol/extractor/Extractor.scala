@@ -2,18 +2,19 @@ package lisa
 package hol
 package extractor
 
-import lisa.hol.core.*
-import upickle.default.{ReadWriter => RW, *}
+import lisa.hol.core._
+import upickle.default.{ReadWriter => RW, _}
 import upickle.implicits.key
 
-import java.io.{BufferedReader, File}
+import java.io.BufferedReader
+import java.io.File
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files
 import scala.collection.mutable
 import scala.util.Using
 import scala.util.control.NonFatal
 
-import Parser.*
+import Parser._
 
 sealed trait ExtractorException extends Exception
 case class UnknownProofStepException(name: String) extends ExtractorException
@@ -481,7 +482,6 @@ object JSONParser:
 
   /**
    * Open a lazy, file-backed ProofTrace context.
-   *
    *
    * @throws java.io.FileNotFoundException if either file does not exist
    * @throws java.io.IOException if either file cannot be read

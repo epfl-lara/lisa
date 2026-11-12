@@ -1,16 +1,26 @@
 package lisa.hol.basics
 
 import lisa.automation.Congruence
-
 import lisa.automation.Substitution.{Apply => Substitute}
 import lisa.hol.HOLHelperTheorems
 import lisa.hol.HOLHelperTheorems._
 import lisa.hol.HOLSteps._
 import lisa.hol.VarsAndFunctions._
-import lisa.hol.basics.Truth.{holT, holTruth, SYM}
-import lisa.hol.basics.Forall.{hforall, hforallCorrect}
-import lisa.hol.basics.Connectives.{hand, handCorrect, himp, himpCorrect, hnot, hnotCorrect, p, q}
-import lisa.hol.basics.Exists.{hexists, hexistsCorrect}
+import lisa.hol.basics.Connectives.hand
+import lisa.hol.basics.Connectives.handCorrect
+import lisa.hol.basics.Connectives.himp
+import lisa.hol.basics.Connectives.himpCorrect
+import lisa.hol.basics.Connectives.hnot
+import lisa.hol.basics.Connectives.hnotCorrect
+import lisa.hol.basics.Connectives.p
+import lisa.hol.basics.Connectives.q
+import lisa.hol.basics.Exists.hexists
+import lisa.hol.basics.Exists.hexistsCorrect
+import lisa.hol.basics.Forall.hforall
+import lisa.hol.basics.Forall.hforallCorrect
+import lisa.hol.basics.Truth.SYM
+import lisa.hol.basics.Truth.holT
+import lisa.hol.basics.Truth.holTruth
 import lisa.maths.SetTheory.Base.FoundationAxiom
 import lisa.maths.SetTheory.Base.Pair.given
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
@@ -18,8 +28,8 @@ import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
 import lisa.maths.SetTheory.Types.TypingRules.TAbs
 import lisa.utils.prooflib.BasicStepTactic._
 import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.SimpleDeducedSteps.*
-import lisa.utils.prooflib.SimpleDeducedSteps.*
+import lisa.utils.prooflib.SimpleDeducedSteps._
+import lisa.utils.prooflib.SimpleDeducedSteps._
 
 /**
  * HOL Light inductive type, successor, ONE_ONE, ONTO,

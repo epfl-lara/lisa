@@ -1211,7 +1211,9 @@ object BasicStepTactic {
     }
   }
 
-  /** Instantiate lifted comparisons and expose proof-backed simultaneous substitution. */
+  /**
+   * Instantiate lifted comparisons and expose proof-backed simultaneous substitution.
+   */
   sealed abstract class SubstTactic private[BasicStepTactic] (onLeft: Boolean) extends ProofTactic {
     private def lift(using lib: Library, proof: lib.Proof)(result: Either[String, K.SCProof], imports: Seq[proof.Fact], bot: F.Sequent): proof.ProofTacticJudgement =
       result match {
@@ -1223,8 +1225,13 @@ object BasicStepTactic {
           }
       }
 
-    /** Apply the kernel rule with one pointwise comparison proof per replacement. */
-    def withParameters(using lib: Library, proof: lib.Proof)(
+    /**
+     * Apply the kernel rule with one pointwise comparison proof per replacement.
+     */
+    def withParameters(using
+        lib: Library,
+        proof: lib.Proof
+    )(
         replacements: Seq[(F.Expr[?], F.Expr[?], Seq[F.Variable[?]])],
         context: (Seq[F.Variable[?]], F.Expr[F.Prop])
     )(premise: proof.Fact, comparisons: Seq[proof.Fact])(bot: F.Sequent): proof.ProofTacticJudgement = {
@@ -1238,8 +1245,13 @@ object BasicStepTactic {
       proof.ValidProofTactic(bot, Seq(step), imports)
     }
 
-    /** Assume lifted equalities and preserve simultaneous replacement semantics. */
-    def apply(using lib: Library, proof: lib.Proof)(
+    /**
+     * Assume lifted equalities and preserve simultaneous replacement semantics.
+     */
+    def apply(using
+        lib: Library,
+        proof: lib.Proof
+    )(
         equals: Seq[(F.Expr[?], F.Expr[?])],
         lambdaPhi: (Seq[F.Variable[?]], F.Expr[F.Prop])
     )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
@@ -1248,8 +1260,13 @@ object BasicStepTactic {
       lift(lisa.kernel.proof.Substitution.simultaneous(bot.underlying, proof.getSequent(premise).underlying, pairs, hole, onLeft), Seq(premise), bot)
     }
 
-    /** Recover one replacement from a proved equality or lifted pointwise comparison. */
-    def apply(using lib: Library, proof: lib.Proof)(
+    /**
+     * Recover one replacement from a proved equality or lifted pointwise comparison.
+     */
+    def apply(using
+        lib: Library,
+        proof: lib.Proof
+    )(
         comparison: proof.Fact,
         context: (F.Variable[?], F.Expr[F.Prop])
     )(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement =
@@ -1258,8 +1275,7 @@ object BasicStepTactic {
       pair match {
         case None => proof.InvalidProofTactic("Expected a proof of one equality or equivalence.")
         case Some(pair) =>
-          val certificate = lisa.kernel.proof.Substitution.withProof(bot.underlying, proof.getSequent(premise).underlying, statement, pair,
-            context._1.underlying -> context._2.underlying, onLeft)
+          val certificate = lisa.kernel.proof.Substitution.withProof(bot.underlying, proof.getSequent(premise).underlying, statement, pair, context._1.underlying -> context._2.underlying, onLeft)
           lift(certificate, Seq(premise, comparison), bot)
       }
   }

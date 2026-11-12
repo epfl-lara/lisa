@@ -1,19 +1,25 @@
 package lisa.hol.basics
 
 import lisa.automation.Congruence
-
 import lisa.automation.Substitution.{Apply => Substitute}
 import lisa.hol.HOLHelperTheorems._
 import lisa.hol.HOLSteps._
-import lisa.hol.basics.Truth.{holT, holTruth, SYM}
-import lisa.hol.basics.Forall.{hforall, hforallCorrect}
-import lisa.hol.basics.Connectives.{himp, himpCorrect, hnot, hnotCorrect, p}
 import lisa.hol.VarsAndFunctions._
+import lisa.hol.basics.Connectives.himp
+import lisa.hol.basics.Connectives.himpCorrect
+import lisa.hol.basics.Connectives.hnot
+import lisa.hol.basics.Connectives.hnotCorrect
+import lisa.hol.basics.Connectives.p
+import lisa.hol.basics.Forall.hforall
+import lisa.hol.basics.Forall.hforallCorrect
+import lisa.hol.basics.Truth.SYM
+import lisa.hol.basics.Truth.holT
+import lisa.hol.basics.Truth.holTruth
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.utils.prooflib.BasicStepTactic._
 import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.SimpleDeducedSteps.*
-import lisa.utils.prooflib.SimpleDeducedSteps.*
+import lisa.utils.prooflib.SimpleDeducedSteps._
+import lisa.utils.prooflib.SimpleDeducedSteps._
 
 /**
  * HOL Light existential quantifier.

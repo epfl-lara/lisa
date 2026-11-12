@@ -1,7 +1,7 @@
 package lisa.kernel.proof
 
-import lisa.kernel.fol.FOL.*
-import lisa.kernel.proof.SequentCalculus.*
+import lisa.kernel.fol.FOL._
+import lisa.kernel.proof.SequentCalculus._
 import org.scalatest.funsuite.AnyFunSuite
 
 class ImportMatchingSuite extends AnyFunSuite:

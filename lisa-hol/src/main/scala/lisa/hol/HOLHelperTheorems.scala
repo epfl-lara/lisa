@@ -1,26 +1,23 @@
 package lisa.hol
+import lisa.automation.Substitution.{Apply => Substitute}
+import lisa.maths.SetTheory.Base.Predef._
 import lisa.maths.SetTheory.Base.Predef.singleton
 import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Types.TypingHelpers.TypedConstant
 import lisa.maths.SetTheory.Types.TypingHelpers.TypedConstantFunctional
 import lisa.maths.SetTheory.Types.TypingHelpers._
-import lisa.maths.SetTheory.Types.TypingRules.{TAbs, BetaReduction}
-import lisa.maths.SetTheory.Base.Predef.*
-
-import lisa.automation.Substitution.{Apply => Substitute}
-
-import VarsAndFunctions.HOLConstantType
+import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
+import lisa.maths.SetTheory.Types.TypingRules.TAbs
+import lisa.utils.prooflib.BasicStepTactic.LeftExists
 import lisa.utils.prooflib.BasicStepTactic.LeftOr
+import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.BasicStepTactic.RightAnd
 import lisa.utils.prooflib.BasicStepTactic.RightSubstEq
 import lisa.utils.prooflib.BasicStepTactic.Weakening
-import lisa.utils.prooflib.BasicStepTactic.Restate
-import lisa.utils.prooflib.BasicStepTactic.RightSubstEq
-import lisa.utils.prooflib.BasicStepTactic.RightSubstEq
 import lisa.utils.unification.UnificationUtils.Substitution
-import lisa.utils.prooflib.BasicStepTactic.RightSubstEq
-import lisa.utils.prooflib.BasicStepTactic.LeftExists
+
+import VarsAndFunctions.HOLConstantType
 
 object HOLHelperTheorems extends lisa.Main {
   given lisa.SetTheoryLibrary.type = lisa.SetTheoryLibrary
@@ -140,7 +137,6 @@ object HOLHelperTheorems extends lisa.Main {
     have(fun(x :: A, fun(y :: A, eqTerm)) * x * y === fun(x :: A, fun(y :: A, eqTerm)) * x * y) by Restate
     thenHave(fun(x :: A, fun(y :: A, eqTerm)) * x * y === fun(y :: A, eqTerm) * y) by Substitute(beta2)
     thenHave(fun(x :: A, fun(y :: A, eqTerm)) * x * y === eqTerm) by Substitute(beta1)
-
 
   val =:= : TypedConstantFunctional[Ind >>: Ind] = {
     val =:= = DEF(λ(A, fun(x :: A, fun(y :: A, ε(b, (b :: 𝔹) /\ ((b === One) <=> (x === y)))))))
@@ -290,7 +286,8 @@ object HOLHelperTheorems extends lisa.Main {
 
     have((f * x :: B, f * y :: B) |- =:=(B) * (f * x) * (f * y) === One) by
       RightSubst.withParameters(
-        Seq((f * x === f * y, =:=(B) * (f * x) * (f * y) === One, Nil)), Seq(P) -> P
+        Seq((f * x === f * y, =:=(B) * (f * x) * (f * y) === One, Nil)),
+        Seq(P) -> P
       )(`f x = f y`, Seq(eqAlign of (A := B, x := f * x, y := f * y)))
     have((f * x :: B) |- =:=(B) * (f * x) * (f * y) === One) by Cut(fyType, lastStep)
     have(=:=(B) * (f * x) * (f * y) === One) by Cut(fxType, lastStep)
