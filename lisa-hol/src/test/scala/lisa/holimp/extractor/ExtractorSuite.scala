@@ -2,10 +2,10 @@ package lisa
 package hol
 package extractor
 
+import org.scalatest.funsuite.AnyFunSuite
+
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
-
-import org.scalatest.funsuite.AnyFunSuite
 
 import core._
 import core.Parser._

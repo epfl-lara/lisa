@@ -1,7 +1,8 @@
 package lisa.hol.extractor
 
-import java.nio.file.Files
 import org.scalatest.funsuite.AnyFunSuite
+
+import java.nio.file.Files
 
 class LemmaSelectionSuite extends AnyFunSuite:
   test("report disabled preprocessing without opening the proof file"):
@@ -53,8 +54,7 @@ class LemmaSelectionSuite extends AnyFunSuite:
       Seq(ProofLine(0, TRANS(1, 1)), ProofLine(1, REFL("unparsed"))) -> Set(1L),
       Seq(ProofLine(0, REFL("unparsed")), ProofLine(0, REFL("unparsed")), ProofLine(1, REFL("unparsed"))) -> Set(1L)
     )
-    for (records, roots) <- invalid do
-      assertThrows[IllegalArgumentException](analyze(records, roots))
+    for (records, roots) <- invalid do assertThrows[IllegalArgumentException](analyze(records, roots))
 
   test("empty selection does not scan the proof file"):
     assert(LemmaSelection.analyze(new java.io.File("missing-lemma-trace"), Set.empty) == LemmaSelection.Result(Set.empty, 0, 0))

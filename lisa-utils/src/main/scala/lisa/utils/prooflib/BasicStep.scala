@@ -1108,55 +1108,84 @@ object BasicStep:
       val inferred = candidates.collectFirstDefined(eq => prove(underlying, eq).toOption)
       inferred.fold(inferenceFailure(file, line)("Could not infer a reflexive equality for RightRefl.", conclusion))(thm => successful(thm, conclusion))
 
-  /** Share parameter recovery between left and right substitution. */
+  /**
+   * Share parameter recovery between left and right substitution.
+   */
   sealed abstract class SubstTactic private[BasicStep] (onLeft: Boolean):
     private val name = if onLeft then "LeftSubst" else "RightSubst"
 
     private def prove(
-        conclusion: K.Sequent, premise: K.Thm, comparisons: Seq[K.Thm],
-        replacements: Seq[(KF.Expression, KF.Expression, Seq[KF.Variable])], context: (Seq[KF.Variable], KF.Expression)
+        conclusion: K.Sequent,
+        premise: K.Thm,
+        comparisons: Seq[K.Thm],
+        replacements: Seq[(KF.Expression, KF.Expression, Seq[KF.Variable])],
+        context: (Seq[KF.Variable], KF.Expression)
     )(using library: Library): K.LeftSubst.Result[K.Thm] =
       if onLeft then K.LeftSubst(using library.theory)(conclusion, premise, comparisons, replacements, context)
       else K.RightSubst(using library.theory)(conclusion, premise, comparisons, replacements, context)
 
     private def lift(result: lisa.utils.kernel.Substitution.Result, conclusion: Sequent)(using
-        file: sourcecode.File, line: sourcecode.Line, library: Library
+        file: sourcecode.File,
+        line: sourcecode.Line,
+        library: Library
     ): ProofJudgement =
       result.mapLeft(message => SoftError(withParams(s"$name: $message", "Conclusion" -> conclusion), file, line)).lift(conclusion)
 
-    /** Apply the kernel rule with one pointwise comparison proof per replacement. */
-    def withParameters(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(
+    /**
+     * Apply the kernel rule with one pointwise comparison proof per replacement.
+     */
+    def withParameters(using
+        file: sourcecode.File,
+        line: sourcecode.Line
+    )(using
+        library: Library
+    )(
         replacements: Seq[(Expr[?], Expr[?], Seq[Variable[?]])],
         context: (Seq[Variable[?]], Expr[Prop])
     )(premise: K.Thm, comparisons: Seq[K.Thm])(conclusion: Sequent): ProofJudgement =
       val pairs = replacements.map((source, target, arguments) => (source.underlying, target.underlying, arguments.map(_.underlying)))
       val holes = context._1.map(_.underlying) -> context._2.underlying
-      prove(conclusion.underlying, premise, comparisons, pairs, holes).mapLeft {
-        case error: K.GeneralError => liftGeneralError(file, line)(name, error)
-        case error => SoftError(withParams(s"$name: $error", "Conclusion" -> conclusion), file, line)
-      }.lift(conclusion)
+      prove(conclusion.underlying, premise, comparisons, pairs, holes)
+        .mapLeft {
+          case error: K.GeneralError => liftGeneralError(file, line)(name, error)
+          case error => SoftError(withParams(s"$name: $error", "Conclusion" -> conclusion), file, line)
+        }
+        .lift(conclusion)
 
     private def assumed(
-        conclusion: K.Sequent, premise: K.Thm, equalities: Seq[(KF.Expression, KF.Expression)], context: (Seq[KF.Variable], KF.Expression)
+        conclusion: K.Sequent,
+        premise: K.Thm,
+        equalities: Seq[(KF.Expression, KF.Expression)],
+        context: (Seq[KF.Variable], KF.Expression)
     )(using library: Library): lisa.utils.kernel.Substitution.Result =
       import lisa.utils.kernel.Substitution.{assumeComparison, freshArguments, liftedEqualities}
       given K.Theory = library.theory
-      if equalities.exists((s, t) => s.sort != t.sort || (!s.sort.isFunctional && !s.sort.isPredicate)) then
-        Left("Expected matching first-order function or predicate sorts.")
+      if equalities.exists((s, t) => s.sort != t.sort || (!s.sort.isFunctional && !s.sort.isPredicate)) then Left("Expected matching first-order function or predicate sorts.")
       else
         val assumptions = liftedEqualities(equalities).map(e => conclusion.left.find(_ == e).orElse(conclusion.left.find(KF.isSame(_, e))).getOrElse(e))
-        val replacements = equalities.zip(assumptions).map:
-          case ((s, t), assumption) => (s, t, freshArguments(s, t, assumption.freeVariables))
-        val comparisons = replacements.zip(assumptions).foldLeft(Right(Vector.empty[K.Thm]): Either[String, Vector[K.Thm]]):
-          case (result, (replacement, assumption)) =>
-            for
-              accumulated <- result
-              comparison <- assumeComparison(assumption, replacement)
-            yield accumulated :+ comparison
+        val replacements = equalities
+          .zip(assumptions)
+          .map:
+            case ((s, t), assumption) => (s, t, freshArguments(s, t, assumption.freeVariables))
+        val comparisons = replacements
+          .zip(assumptions)
+          .foldLeft(Right(Vector.empty[K.Thm]): Either[String, Vector[K.Thm]]):
+            case (result, (replacement, assumption)) =>
+              for
+                accumulated <- result
+                comparison <- assumeComparison(assumption, replacement)
+              yield accumulated :+ comparison
         comparisons.flatMap(proofs => prove(conclusion, premise, proofs, replacements, context).left.map(_.toString))
 
-    /** Derive simultaneous substitution, assuming the lifted equalities on the left. */
-    def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(
+    /**
+     * Derive simultaneous substitution, assuming the lifted equalities on the left.
+     */
+    def apply(using
+        file: sourcecode.File,
+        line: sourcecode.Line
+    )(using
+        library: Library
+    )(
         equalities: Seq[(Expr[?], Expr[?])],
         lambdaPhi: (Seq[Variable[?]], Expr[Prop])
     )(premise: K.Thm)(conclusion: Sequent): ProofJudgement =
@@ -1164,8 +1193,15 @@ object BasicStep:
       val context = lambdaPhi._1.map(_.underlying) -> lambdaPhi._2.underlying
       lift(assumed(conclusion.underlying, premise, pairs, context), conclusion)
 
-    /** Recover one replacement from a proved equality or lifted pointwise comparison. */
-    def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(
+    /**
+     * Recover one replacement from a proved equality or lifted pointwise comparison.
+     */
+    def apply(using
+        file: sourcecode.File,
+        line: sourcecode.Line
+    )(using
+        library: Library
+    )(
         comparison: Thm,
         context: (Variable[?], Expr[Prop])
     )(premise: K.Thm)(conclusion: Sequent): ProofJudgement =
@@ -1184,9 +1220,7 @@ object BasicStep:
                 bridge <- assumeComparison(comparison.right.head.underlying, replacement)
                 instantiated <- K.Cut(K.Sequent(comparison.kernel.left, bridge.right), comparison.kernel, bridge, comparison.right.head.underlying).left.map(_.toString)
               yield instantiated
-          val result = pointwise.flatMap(proof =>
-            prove(conclusion.underlying, premise, Seq(proof), Seq(replacement), Seq(context._1.underlying) -> context._2.underlying).left.map(_.toString)
-          )
+          val result = pointwise.flatMap(proof => prove(conclusion.underlying, premise, Seq(proof), Seq(replacement), Seq(context._1.underlying) -> context._2.underlying).left.map(_.toString))
           lift(result, conclusion)
         case None => inferenceFailure(file, line)(s"$name requires a proof of one equality or equivalence.", conclusion)
 

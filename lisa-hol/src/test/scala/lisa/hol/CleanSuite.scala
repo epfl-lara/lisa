@@ -2,11 +2,11 @@ package lisa.hol
 
 import lisa.SetTheoryLibrary
 import lisa.SetTheoryLibrary.∈
-import lisa.hol.VarsAndFunctions.*
+import lisa.hol.VarsAndFunctions._
 import lisa.maths.SetTheory.Types.TypingHelpers.TypeAssign
 import lisa.utils.K
 import lisa.utils.fol.FOL.{_, given}
-import lisa.utils.prooflib.*
+import lisa.utils.prooflib._
 import org.scalatest.funsuite.AnyFunSuite
 
 class CleanSuite extends AnyFunSuite:

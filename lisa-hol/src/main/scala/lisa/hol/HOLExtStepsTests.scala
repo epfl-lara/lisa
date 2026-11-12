@@ -1,12 +1,11 @@
 package lisa.hol
 
-import lisa.utils.prooflib.Substitute
 import lisa.hol.ExtendedHOLSteps._INST_TYPE_RENAME
-import lisa.hol.basics.Truth.SYM
 import lisa.hol.HOLHelperTheorems._
 import lisa.hol.HOLSteps._
 import lisa.hol.Import.Transformers.mkTypedVar
 import lisa.hol.VarsAndFunctions._
+import lisa.hol.basics.Truth.SYM
 import lisa.maths.SetTheory.Base.Pair.given
 import lisa.maths.SetTheory.Base.Replacement.|
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
@@ -18,10 +17,11 @@ import lisa.utils.prooflib.BasicStep.RightAnd
 import lisa.utils.prooflib.BasicStep.RightSubstEq
 import lisa.utils.prooflib.BasicStep.Weakening
 import lisa.utils.prooflib.BasicStep._
-import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.Exports.*
 import lisa.utils.prooflib.Discharge
-import lisa.utils.prooflib.Exports.*
+import lisa.utils.prooflib.Exports._
+import lisa.utils.prooflib.Exports._
+import lisa.utils.prooflib.Library
+import lisa.utils.prooflib.Substitute
 import lisa.utils.unification.UnificationUtils.Substitution
 
 object HOLExtStepsTests extends lisa.HOL {

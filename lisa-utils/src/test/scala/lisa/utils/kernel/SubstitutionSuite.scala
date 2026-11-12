@@ -1,6 +1,6 @@
 package lisa.utils.kernel
 
-import lisa.kernel.fol.FOL.*
+import lisa.kernel.fol.FOL._
 import lisa.kernel.{proof => K}
 import org.scalatest.funsuite.AnyFunSuite
 

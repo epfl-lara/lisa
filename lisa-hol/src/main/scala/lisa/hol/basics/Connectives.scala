@@ -1,26 +1,29 @@
 package lisa.hol.basics
 
-import lisa.hol.HOLLogicalSymbols
-
-import lisa.utils.prooflib.Substitute
 import lisa.hol.HOLHelperTheorems
 import lisa.hol.HOLHelperTheorems._
+import lisa.hol.HOLLogicalSymbols
 import lisa.hol.HOLSteps._
-import lisa.hol.basics.Truth.{holT, holTruth, SYM}
-import lisa.hol.basics.Forall.{hforall, hforallCorrect}
-import lisa.hol.basics.False.{holF, holFalseZero}
 import lisa.hol.VarsAndFunctions._
+import lisa.hol.basics.False.holF
+import lisa.hol.basics.False.holFalseZero
+import lisa.hol.basics.Forall.hforall
+import lisa.hol.basics.Forall.hforallCorrect
+import lisa.hol.basics.Truth.SYM
+import lisa.hol.basics.Truth.holT
+import lisa.hol.basics.Truth.holTruth
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.utils.prooflib.BasicStep.LeftSubstEq
-import lisa.utils.prooflib.BasicStep.RightSubstEq
-import lisa.utils.prooflib.BasicStep.RightAnd
 import lisa.utils.prooflib.BasicStep.Restate
+import lisa.utils.prooflib.BasicStep.RightAnd
+import lisa.utils.prooflib.BasicStep.RightSubstEq
 import lisa.utils.prooflib.BasicStep.Weakening
 import lisa.utils.prooflib.BasicStep._
-import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.Exports.*
 import lisa.utils.prooflib.Discharge
-import lisa.utils.prooflib.Exports.*
+import lisa.utils.prooflib.Exports._
+import lisa.utils.prooflib.Exports._
+import lisa.utils.prooflib.Library
+import lisa.utils.prooflib.Substitute
 
 /**
  * HOL Light logical connectives: conjunction, implication, negation.
@@ -58,8 +61,7 @@ object Connectives extends lisa.HOL {
       thenHave(thesis) by Substitute(hand.definition)
     }
 
-    HOLLogicalSymbols.register(HOLLogicalSymbols.Symbol.And,
-      HOLPolymorphicConstant[Ind](hand.id, FunctionalClass(List(), List(), (𝔹 ->: 𝔹 ->: 𝔹)), typing_of_and))
+    HOLLogicalSymbols.register(HOLLogicalSymbols.Symbol.And, HOLPolymorphicConstant[Ind](hand.id, FunctionalClass(List(), List(), (𝔹 ->: 𝔹 ->: 𝔹)), typing_of_and))
   }
 
   val handCorrect = HOLTheorem(
@@ -201,8 +203,7 @@ object Connectives extends lisa.HOL {
       thenHave(thesis) by Substitute(himp.definition)
     }
 
-    HOLLogicalSymbols.register(HOLLogicalSymbols.Symbol.Implies,
-      HOLPolymorphicConstant[Ind](himp.id, FunctionalClass(List(), List(), (𝔹 ->: 𝔹 ->: 𝔹)), typing_of_imp))
+    HOLLogicalSymbols.register(HOLLogicalSymbols.Symbol.Implies, HOLPolymorphicConstant[Ind](himp.id, FunctionalClass(List(), List(), (𝔹 ->: 𝔹 ->: 𝔹)), typing_of_imp))
   }
 
   val himpCorrect = HOLTheorem(
@@ -281,8 +282,7 @@ object Connectives extends lisa.HOL {
       thenHave(thesis) by Substitute(hnot.definition)
     }
 
-    HOLLogicalSymbols.register(HOLLogicalSymbols.Symbol.Not,
-      HOLPolymorphicConstant[Ind](hnot.id, FunctionalClass(List(), List(), (𝔹 ->: 𝔹)), typing_of_not))
+    HOLLogicalSymbols.register(HOLLogicalSymbols.Symbol.Not, HOLPolymorphicConstant[Ind](hnot.id, FunctionalClass(List(), List(), (𝔹 ->: 𝔹)), typing_of_not))
   }
 
   val hnotCorrect = HOLTheorem(
@@ -329,7 +329,9 @@ object Connectives extends lisa.HOL {
     thenHave((himp * p * holF) <=> !(p === One)) by Substitute(impCorrect)
     thenHave((hnot * p) <=> !(p === One)) by Substitute(beta)
 
-  /** Relate Boolean HOL equality to equivalence of the represented propositions. */
+  /**
+   * Relate Boolean HOL equality to equivalence of the represented propositions.
+   */
   val hiffCorrect = HOLTheorem(
     (holeq(𝔹) * p * q === One) <=> ((p === One) <=> (q === One))
   ):
@@ -341,7 +343,8 @@ object Connectives extends lisa.HOL {
 
     val reflexive = have((p === One) <=> (p === One)) by Restate
     val transported = have(nativeEquality |- relation) by RightSubstEq(
-      Seq(p -> q), Seq(u) -> ((p === One) <=> (u === One))
+      Seq(p -> q),
+      Seq(u) -> ((p === One) <=> (u === One))
     )(reflexive)
     val forward = have(nativeEquality ==> relation) by RightImplies.withParameters(nativeEquality, relation)(transported)
     val backward = have(relation ==> nativeEquality) by Restate.from(lisa.hol.HOLSteps.propExt)

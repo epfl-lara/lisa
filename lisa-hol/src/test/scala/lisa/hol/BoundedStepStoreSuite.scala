@@ -1,8 +1,9 @@
 package lisa.hol
 
-import lisa.hol.extractor.*
+import lisa.hol.extractor._
 import lisa.utils.K
 import org.scalatest.funsuite.AnyFunSuite
+
 import java.nio.file.Files
 
 class BoundedStepStoreSuite extends AnyFunSuite:
@@ -114,10 +115,12 @@ class BoundedStepStoreSuite extends AnyFunSuite:
       val constName = s"bounded_const_$file"
       val c = s"c($constName)($bool)"
       val records = Seq(
-        ProofLine(0, REFL(witness)), ProofLine(1, TYPE_DEFINITION(0, absStatement, name)),
+        ProofLine(0, REFL(witness)),
+        ProofLine(1, TYPE_DEFINITION(0, absStatement, name)),
         ProofLine(2, TYPE_DEFINITION(0, repStatement, name)),
         ProofLine(3, DEFINITION(equal(bool, c, witness), constName)),
-        ProofLine(7, REFL(a)), ProofLine(9, REFL(c))
+        ProofLine(7, REFL(a)),
+        ProofLine(9, REFL(c))
       )
       withContext(file, records): context =>
         given ExtractorContext = context

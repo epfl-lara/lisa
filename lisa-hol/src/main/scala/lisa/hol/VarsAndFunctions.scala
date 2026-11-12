@@ -8,11 +8,17 @@ import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.K
 import lisa.utils.fol.FOL._
-import lisa.utils.prooflib.BasicStep._
-import lisa.utils.prooflib.Exports.*
-import lisa.utils.prooflib.TacticHelpers.failWith
-import lisa.utils.prooflib.{Discharge, Library, Proof, ProofJudgement, Subproof, Theorem, Thm}
 import lisa.utils.prooflib.BasicStep.Weakening
+import lisa.utils.prooflib.BasicStep._
+import lisa.utils.prooflib.Discharge
+import lisa.utils.prooflib.Exports._
+import lisa.utils.prooflib.Library
+import lisa.utils.prooflib.Proof
+import lisa.utils.prooflib.ProofJudgement
+import lisa.utils.prooflib.Subproof
+import lisa.utils.prooflib.TacticHelpers.failWith
+import lisa.utils.prooflib.Theorem
+import lisa.utils.prooflib.Thm
 
 object VarsAndFunctions /*extends lisa.Main*/:
 

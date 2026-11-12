@@ -1,6 +1,6 @@
 package lisa.kernel
 
-import lisa.kernel.fol.FOL.*
+import lisa.kernel.fol.FOL._
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.immutable.HashSet
@@ -23,12 +23,14 @@ class SimpleExpressionHashSuite extends AnyFunSuite:
     )
 
   test("equal simple expressions with distinct IDs share hashes and hash-set entries"):
-    expressions().zip(expressions()).foreach: (left, right) =>
-      assert(left.uniqueKey != right.uniqueKey)
-      assert(left == right)
-      assert(left.hashCode == right.hashCode)
-      assert(HashSet(left).contains(right))
-      assert(HashSet(left, right).size == 1)
+    expressions()
+      .zip(expressions())
+      .foreach: (left, right) =>
+        assert(left.uniqueKey != right.uniqueKey)
+        assert(left == right)
+        assert(left.hashCode == right.hashCode)
+        assert(HashSet(left).contains(right))
+        assert(HashSet(left, right).size == 1)
 
   test("structural hash collisions do not identify different expressions"):
     val left = SimpleVariable(Identifier("Aa"), Prop, true)

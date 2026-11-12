@@ -181,9 +181,9 @@ private[fol] trait Syntax {
 
     val enabled: Boolean =
       !sys.props.get("lisa.hashcons").contains("false") &&
-      !sys.props.get("lisa.hashcons").contains("0") &&
-      !sys.env.get("LISA_HASHCONS").contains("false") &&
-      !sys.env.get("LISA_HASHCONS").contains("0")
+        !sys.props.get("lisa.hashcons").contains("0") &&
+        !sys.env.get("LISA_HASHCONS").contains("false") &&
+        !sys.env.get("LISA_HASHCONS").contains("0")
 
     val usesCanonicalIds: Boolean =
       enabled && compositeMode != CompositeMode.BoundedTrees
@@ -278,17 +278,19 @@ private[fol] trait Syntax {
 
     def application(f: Expression, arg: Expression): Application =
       if !enabled then new Application(f, arg)(ExpressionCounters.getNewId)
-      else compositeMode match
-        case CompositeMode.BoundedTrees => cacheApplication(f, arg, ExpressionCounters.getNewId)
-        case CompositeMode.IdsOnly => new Application(f, arg)(applicationId(f, arg))
-        case CompositeMode.BoundedTreesAndIds => cacheApplication(f, arg, applicationId(f, arg))
+      else
+        compositeMode match
+          case CompositeMode.BoundedTrees => cacheApplication(f, arg, ExpressionCounters.getNewId)
+          case CompositeMode.IdsOnly => new Application(f, arg)(applicationId(f, arg))
+          case CompositeMode.BoundedTreesAndIds => cacheApplication(f, arg, applicationId(f, arg))
 
     def lambda(v: Variable, body: Expression): Lambda =
       if !enabled then new Lambda(v, body)(ExpressionCounters.getNewId)
-      else compositeMode match
-        case CompositeMode.BoundedTrees => cacheLambda(v, body, ExpressionCounters.getNewId)
-        case CompositeMode.IdsOnly => new Lambda(v, body)(lambdaId(v, body))
-        case CompositeMode.BoundedTreesAndIds => cacheLambda(v, body, lambdaId(v, body))
+      else
+        compositeMode match
+          case CompositeMode.BoundedTrees => cacheLambda(v, body, ExpressionCounters.getNewId)
+          case CompositeMode.IdsOnly => new Lambda(v, body)(lambdaId(v, body))
+          case CompositeMode.BoundedTreesAndIds => cacheLambda(v, body, lambdaId(v, body))
   }
 
   /**

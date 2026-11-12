@@ -1,6 +1,5 @@
 package lisa.hol.basics
 
-import lisa.utils.prooflib.Substitute
 import lisa.hol.HOLHelperTheorems._
 import lisa.hol.HOLSteps._
 import lisa.hol.VarsAndFunctions._
@@ -8,9 +7,10 @@ import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
 import lisa.maths.SetTheory.Types.TypingRules.TAbs
 import lisa.utils.prooflib.BasicStep._
+import lisa.utils.prooflib.Exports._
+import lisa.utils.prooflib.Exports._
 import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.Exports.*
-import lisa.utils.prooflib.Exports.*
+import lisa.utils.prooflib.Substitute
 
 /**
  * HOL Light choice operator (select / epsilon).

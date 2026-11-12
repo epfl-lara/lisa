@@ -1,24 +1,37 @@
 package lisa.hol
-import lisa.utils.prooflib.Substitute
 import lisa.hol.VarsAndFunctions._
 import lisa.maths.SetTheory.Base.Singleton
 import lisa.maths.SetTheory.Functions.BasicTheorems.absBodyEq
 import lisa.maths.SetTheory.Functions.BasicTheorems.funcBetweenEqInFuncSpace
 import lisa.maths.SetTheory.Functions.BasicTheorems.functionalExtentionality
-import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
+import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
+import lisa.utils.K
 import lisa.utils.fol.{FOL => F}
 import lisa.utils.prooflib.BasicStep._
-import lisa.utils.prooflib.Exports.*
-import lisa.utils.prooflib.TacticHelpers.failWith
-import lisa.utils.prooflib.{Proof, ProofJudgement, Subproof, Theorem, Thm}
-import scala.collection.mutable
+import lisa.utils.prooflib.Exports._
 import lisa.utils.prooflib.OutputManager
-import lisa.utils.K
+import lisa.utils.prooflib.Proof
+import lisa.utils.prooflib.ProofJudgement
+import lisa.utils.prooflib.Subproof
+import lisa.utils.prooflib.Substitute
+import lisa.utils.prooflib.TacticHelpers.failWith
+import lisa.utils.prooflib.Theorem
+import lisa.utils.prooflib.Thm
+
+import scala.collection.mutable
 
 import F.{_, given}
 import Singleton.singleton
-import HOLHelperTheorems.{nonEmptyCodomain, nonEmptyTypeExists, nonEmptyFuncSpace, eqAlign, eqRefl, eqFromHol, eqToHol, eqTrans, eqSym}
+import HOLHelperTheorems.nonEmptyCodomain
+import HOLHelperTheorems.nonEmptyTypeExists
+import HOLHelperTheorems.nonEmptyFuncSpace
+import HOLHelperTheorems.eqAlign
+import HOLHelperTheorems.eqRefl
+import HOLHelperTheorems.eqFromHol
+import HOLHelperTheorems.eqToHol
+import HOLHelperTheorems.eqTrans
+import HOLHelperTheorems.eqSym
 
 /**
  * Here we define and implement all the basic steps from HOL Light
@@ -136,7 +149,9 @@ object HOLSteps extends lisa._HOL {
 
   }
 
-  /** Transport a true Boolean through HOL equality without re-inferring its type. */
+  /**
+   * Transport a true Boolean through HOL equality without re-inferring its type.
+   */
   val eqMp = Theorem((p === One, q :: 𝔹, (holeq(𝔹) * p * q) === One) |- (q === One)) {
     val vt = variable[Ind]
     val sourceTyping = have(p === One |- (p :: 𝔹)) by
@@ -469,12 +484,12 @@ object HOLSteps extends lisa._HOL {
           case source: TypedVariable if prem.statement.hasFree(source) =>
             val typ = t match
               case variable: TypedVariable => variable.typ
-              case _ => typing.get.statement.right.head match
-                case term ∈ typ if term == t => typ
-                case _ => failWith(s"Could not compute type of $t")
+              case _ =>
+                typing.get.statement.right.head match
+                  case term ∈ typ if term == t => typ
+                  case _ => failWith(s"Could not compute type of $t")
             // Instantiation can rename the unused binders in function types.
-            if source.typ != typ && !isSame(source.typ, typ) then
-              failWith(s"Type mismatch in instantiation: ${source} has type ${source.typ} but term ${t} has type $typ")
+            if source.typ != typ && !isSame(source.typ, typ) then failWith(s"Type mismatch in instantiation: ${source} has type ${source.typ} but term ${t} has type $typ")
           case _ => ()
         typing
       val result = typings.foldLeft(k: Thm): (h, typing) =>
@@ -518,13 +533,14 @@ object HOLSteps extends lisa._HOL {
     def cacheSize = cache.size
     def resetCache() = cache.clear()
 
-    /** Reuse canonical subterm typings for non-dependent applications. */
+    /**
+     * Reuse canonical subterm typings for non-dependent applications.
+     */
     private def application(using proof: Proof)(t: Expr[Ind]): Option[ProofJudgement] = t match
       case Sapp(function: Expr[Ind], argument: Expr[Ind]) =>
         val functionTyping = apply(function)
         functionTyping.statement.right.head match
-          case _ ∈ (functionType @ SPi(domain: Expr[Ind], Abs(bound: Variable[Ind], codomain: Expr[Ind])))
-              if !codomain.underlying.freeVariables.contains(bound.underlying) =>
+          case _ ∈ (functionType @ SPi(domain: Expr[Ind], Abs(bound: Variable[Ind], codomain: Expr[Ind]))) if !codomain.underlying.freeVariables.contains(bound.underlying) =>
             val argumentTyping = apply(argument)
             argumentTyping.statement.right.head match
               case _ ∈ argumentType if isSame(argumentType, domain) =>
@@ -533,7 +549,9 @@ object HOLSteps extends lisa._HOL {
           case _ => None
       case _ => None
 
-    /** Reuse body typing for HOL abstractions whose annotated binder matches the domain. */
+    /**
+     * Reuse body typing for HOL abstractions whose annotated binder matches the domain.
+     */
     private def abstraction(using proof: Proof)(t: Expr[Ind]): Option[ProofJudgement] = t match
       case Sabs(domain: Expr[Ind], Abs(bound: TypedVariable, body: Expr[Ind])) if isSame(bound.typ, domain) =>
         val bodyTyping = apply(body)
@@ -597,8 +615,7 @@ object HOLSteps extends lisa._HOL {
     // Match non-emptiness assumptions directly, independently of frontend sugar.
     private object NonEmpty:
       def unapply(formula: Expr[Prop]): Option[(Variable[Ind], Expr[Ind], Expr[Ind])] = formula match
-        case App(quantifier, Abs(bound: Variable[Ind] @unchecked, App(App(membership, element), typ)))
-            if isSame(quantifier, exists) && isSame(membership, ∈) =>
+        case App(quantifier, Abs(bound: Variable[Ind] @unchecked, App(App(membership, element), typ))) if isSame(quantifier, exists) && isSame(membership, ∈) =>
           Some((bound, element.asInstanceOf[Expr[Ind]], typ.asInstanceOf[Expr[Ind]]))
         case _ => None
 
@@ -635,7 +652,9 @@ object HOLSteps extends lisa._HOL {
       have(Discharge(nonEmptyTypeExists)(p2))
     }
 
-    /** Discharge type non-emptiness using a typed term already in the context. */
+    /**
+     * Discharge type non-emptiness using a typed term already in the context.
+     */
     private def inhabitedType(using proof: Proof)(net: Expr[Prop], bound: Variable[Ind], assignment: TypeAssign[Variable[Ind]])(prem: Thm): ProofJudgement =
       Subproof { ip ?=>
         val witnessTyping = have(assignment |- assignment) by Hypothesis.withParameters(assignment)
@@ -643,24 +662,27 @@ object HOLSteps extends lisa._HOL {
         have(prem.statement -<? net) by Cut.withParameters(net)(nonEmpty, prem)
       }
 
-    /** Remove every non-emptiness premise already witnessed by a typed variable. */
+    /**
+     * Remove every non-emptiness premise already witnessed by a typed variable.
+     */
     private def allInhabited(using proof: Proof)(prem: Thm): ProofJudgement = Subproof { ip ?=>
-      val removable = prem.statement.left.iterator.flatMap:
-        case net @ NonEmpty(bound, element, typ) if isSame(bound, element) =>
-          val exact = prem.statement.left.collectFirst:
-            case TypeAssign(v: Variable[Ind], assignedType) if isSame(assignedType, typ) =>
-              Left((net, bound, v :: assignedType))
-          exact.orElse:
-            prem.statement.left.iterator.flatMap:
-              case TypeAssign(function: Variable[Ind], domain ->: codomain) if isSame(codomain, typ) =>
-                prem.statement.left.collectFirst:
-                  case domainNet @ NonEmpty(domainBound, domainElement, domainType)
-                      if !isSame(domainNet, net) && isSame(domainBound, domainElement) && isSame(domainType, domain) =>
-                    Right((net, function, domain, codomain))
-              case _ => None
-            .nextOption()
-        case _ => None
-      .nextOption()
+      val removable = prem.statement.left.iterator
+        .flatMap:
+          case net @ NonEmpty(bound, element, typ) if isSame(bound, element) =>
+            val exact = prem.statement.left.collectFirst:
+              case TypeAssign(v: Variable[Ind], assignedType) if isSame(assignedType, typ) =>
+                Left((net, bound, v :: assignedType))
+            exact.orElse:
+              prem.statement.left.iterator
+                .flatMap:
+                  case TypeAssign(function: Variable[Ind], domain ->: codomain) if isSame(codomain, typ) =>
+                    prem.statement.left.collectFirst:
+                      case domainNet @ NonEmpty(domainBound, domainElement, domainType) if !isSame(domainNet, net) && isSame(domainBound, domainElement) && isSame(domainType, domain) =>
+                        Right((net, function, domain, codomain))
+                  case _ => None
+                .nextOption()
+          case _ => None
+        .nextOption()
 
       removable match
         case Some(Left((net, bound, assignment))) =>
@@ -675,14 +697,15 @@ object HOLSteps extends lisa._HOL {
 
     def allTypeVars(using proof: Proof)(prem: Thm): ProofJudgement = Subproof { ip ?=>
       val statement = prem.statement
-      val typ = statement.left.iterator.flatMap:
-        case f @ NonEmpty(x, y, tv: Variable[Ind]) if isSame(x, y) =>
-          val witness = statement.left.collectFirst:
-            case TypeAssign(v: Variable[Ind], typ) if isSame(typ, tv) => v :: typ
-          if witness.nonEmpty || !(statement -<? f).hasFree(tv) then Some((f, x, tv, witness))
-          else None
-        case _ => None
-      .nextOption()
+      val typ = statement.left.iterator
+        .flatMap:
+          case f @ NonEmpty(x, y, tv: Variable[Ind]) if isSame(x, y) =>
+            val witness = statement.left.collectFirst:
+              case TypeAssign(v: Variable[Ind], typ) if isSame(typ, tv) => v :: typ
+            if witness.nonEmpty || !(statement -<? f).hasFree(tv) then Some((f, x, tv, witness))
+            else None
+          case _ => None
+        .nextOption()
 
       typ match {
         case Some((f, x, _, Some(assignment))) =>

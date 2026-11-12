@@ -1,12 +1,12 @@
 package lisa.hol
 
 import lisa.SetTheoryLibrary
-import lisa.hol.VarsAndFunctions.*
-import lisa.maths.SetTheory.Types.TypingHelpers.*
+import lisa.hol.VarsAndFunctions._
+import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.K
-import lisa.utils.fol.FOL.{*, given}
-import lisa.utils.prooflib.*
-import lisa.utils.prooflib.ProofHelpers.*
+import lisa.utils.fol.FOL.{_, given}
+import lisa.utils.prooflib.ProofHelpers._
+import lisa.utils.prooflib._
 import org.scalatest.funsuite.AnyFunSuite
 
 class TypingCacheKeySuite extends AnyFunSuite:
@@ -39,10 +39,8 @@ class TypingCacheKeySuite extends AnyFunSuite:
     try
       for terms <- Seq(Seq(first -> xId, second -> yId), Seq(second -> yId, first -> xId)) do
         HOLSteps.HOLProofType.resetCache()
-        for (term, expected) <- terms do
-          assert(occurrences(term) == Vector(expected))
+        for (term, expected) <- terms do assert(occurrences(term) == Vector(expected))
         val size = HOLSteps.HOLProofType.cacheSize
-        for (term, expected) <- terms do
-          assert(occurrences(term) == Vector(expected))
+        for (term, expected) <- terms do assert(occurrences(term) == Vector(expected))
         assert(HOLSteps.HOLProofType.cacheSize == size)
     finally HOLSteps.HOLProofType.resetCache()

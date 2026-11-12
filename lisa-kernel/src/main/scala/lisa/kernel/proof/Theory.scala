@@ -1,6 +1,6 @@
 package lisa.kernel.proof
 
-import lisa.kernel.fol.FOL.*
+import lisa.kernel.fol.FOL._
 
 import scala.collection.mutable
 
@@ -9,19 +9,19 @@ sealed trait Theory:
   def contains(expression: Expression): Boolean
 
   // definitions can only be registered by the respective kernel step
-  protected [proof] def registerDefinition(cst: Constant, definition: Thm): Unit
+  protected[proof] def registerDefinition(cst: Constant, definition: Thm): Unit
 
   def contains(sequent: Sequent): Boolean =
     sequent.left.forall(contains) && sequent.right.forall(contains)
 
   /**
-    * Add a symbol to the theory.
-    *
-    * However, the use of this method precludes the symbol from being defined in
-    * the future.
-    *
-    * @param cst the symbol to add
-    */
+   * Add a symbol to the theory.
+   *
+   * However, the use of this method precludes the symbol from being defined in
+   * the future.
+   *
+   * @param cst the symbol to add
+   */
   def addSymbol(cst: Constant): Unit
 
   def makeSequentBelongToTheory(sequent: Sequent): Unit =
@@ -52,14 +52,13 @@ private final class MutableTheory(
     case Lambda(_, body) => contains(body)
 
   // definitions can only be registered by the respective kernel step
-  protected [proof] def registerDefinition(cst: Constant, definition: Thm): Unit =
+  protected[proof] def registerDefinition(cst: Constant, definition: Thm): Unit =
     require(!defines(cst), s"Constant ${cst.id} is already defined in the theory")
     symbolTable.update(cst.id, cst)
     definitionTable.update(cst, Some(definition))
 
   def addSymbol(cst: Constant): Unit =
-    if !symbolTable.contains(cst.id) then
-      symbolTable.update(cst.id, cst)
+    if !symbolTable.contains(cst.id) then symbolTable.update(cst.id, cst)
 
   def getDefinition(cst: Constant): Option[Thm] =
     definitionTable.get(cst).flatten

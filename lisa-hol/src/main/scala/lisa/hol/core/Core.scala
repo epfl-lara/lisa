@@ -49,10 +49,10 @@ case class Abstraction(absVar: Variable, inner: Term) extends Term:
     FunType(absVar.tpe, inner.tpe)
 
 /**
-  * Construct and destruct equality terms ***unsafely***.
-  * 
-  * Type equality of the LHS and RHS is not checked.
-  */
+ * Construct and destruct equality terms ***unsafely***.
+ *
+ * Type equality of the LHS and RHS is not checked.
+ */
 object Eq:
   def apply(left: Term, right: Term): Term =
     val eq = Constant("=", FunType(left.tpe, FunType(right.tpe, BoolType)))

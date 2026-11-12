@@ -1,6 +1,6 @@
 package lisa.hol
 
-import lisa.hol.Import.Transformers.*
+import lisa.hol.Import.Transformers._
 import org.scalatest.funsuite.AnyFunSuite
 
 class VariableConversionSuite extends AnyFunSuite:

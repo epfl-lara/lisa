@@ -1,9 +1,10 @@
 package lisa.hol
 
-import lisa.hol.Import.Transformers.*
-import lisa.hol.HOLHelperTheorems.{One, 𝔹}
+import lisa.hol.HOLHelperTheorems.One
+import lisa.hol.HOLHelperTheorems.𝔹
+import lisa.hol.Import.Transformers._
 import lisa.hol.{core => h}
-import lisa.maths.SetTheory.Functions.Predef.*
+import lisa.maths.SetTheory.Functions.Predef._
 import lisa.utils.fol.FOL.{_, given}
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -19,8 +20,7 @@ class ConversionReuseSuite extends AnyFunSuite:
     val first = h.FunType(a, h.BoolType).toLisaType
     assert(isSame(first, a.toLisaType ->: 𝔹))
     assert(!isSame(first, h.FunType(h.BoolType, a).toLisaType))
-    if Config.typeCacheCapacity > 0 then
-      assert(first eq h.FunType(a, h.BoolType).toLisaType)
+    if Config.typeCacheCapacity > 0 then assert(first eq h.FunType(a, h.BoolType).toLisaType)
 
   test("reuse constant instances without confusing polymorphic types"):
     resetConversionCache()

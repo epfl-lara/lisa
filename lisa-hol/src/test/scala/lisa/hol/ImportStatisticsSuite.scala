@@ -1,7 +1,8 @@
 package lisa.hol
 
-import java.nio.file.Files
 import org.scalatest.funsuite.AnyFunSuite
+
+import java.nio.file.Files
 
 class ImportStatisticsSuite extends AnyFunSuite:
   test("filter step shapes by named target, allocation and selected rule without evaluating rejected metadata"):

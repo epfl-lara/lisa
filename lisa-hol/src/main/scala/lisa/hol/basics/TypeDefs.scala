@@ -1,15 +1,18 @@
 package lisa.hol.basics
 
-import lisa.hol.HOLHelperTheorems.*
+import lisa.hol.HOLHelperTheorems._
 import lisa.hol.HOLSteps.HOLProofType
-import lisa.hol.VarsAndFunctions.*
-import lisa.hol.basics.Exists.{hexists, hexistsCorrect}
-import lisa.hol.basics.Truth.{holT, holTruth}
-import lisa.maths.SetTheory.Base.Comprehension.*
+import lisa.hol.VarsAndFunctions._
+import lisa.hol.basics.Exists.hexists
+import lisa.hol.basics.Exists.hexistsCorrect
+import lisa.hol.basics.Truth.holT
+import lisa.hol.basics.Truth.holTruth
+import lisa.maths.SetTheory.Base.Comprehension._
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
-import lisa.maths.SetTheory.Types.TypingRules.{BetaReduction, TAbs}
-import lisa.utils.prooflib.BasicStep.*
-import lisa.utils.prooflib.Exports.*
+import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
+import lisa.maths.SetTheory.Types.TypingRules.TAbs
+import lisa.utils.prooflib.BasicStep._
+import lisa.utils.prooflib.Exports._
 
 /**
  * HOL Light basic type-definition justifications.

@@ -1,5 +1,6 @@
 package lisa.hol
 import lisa.SetTheoryLibrary
+import lisa.hol.HOLSteps.HOLProofType
 import lisa.hol.Import.Transformers.mkTypedVar
 import lisa.hol.VarsAndFunctions._
 import lisa.maths.SetTheory.Base.Predef.∈
@@ -9,15 +10,18 @@ import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.utils.K
 import lisa.utils.fol.FOL._
 import lisa.utils.prooflib.BasicStep._
-import lisa.utils.prooflib.Exports.*
+import lisa.utils.prooflib.Discharge
+import lisa.utils.prooflib.Exports._
+import lisa.utils.prooflib.Proof
+import lisa.utils.prooflib.ProofJudgement
+import lisa.utils.prooflib.Subproof
 import lisa.utils.prooflib.TacticHelpers.failWith
-import lisa.utils.prooflib.{Discharge, Proof, ProofJudgement, Subproof, Thm}
-import lisa.hol.HOLSteps.{HOLProofType}
+import lisa.utils.prooflib.Thm
 
 object ExtendedHOLSteps extends lisa._HOL {
 
   import lisa.hol.HOLHelperTheorems.{One, nonEmptyFuncSpace, assume, eqRefl}
-  
+
   private val A = typevar
   private val B = typevar
   private val t, u = variable[Ind >>: Ind]
@@ -37,7 +41,9 @@ object ExtendedHOLSteps extends lisa._HOL {
   private val q = typedvar(𝔹)
   private val r = typedvar(𝔹)
 
-  /** Discharge a derived typing fact, retaining an explicit variable assignment. */
+  /**
+   * Discharge a derived typing fact, retaining an explicit variable assignment.
+   */
   private def dischargeTyping(using proof: Proof)(term: Expr[Ind], from: Thm): Thm =
     term match
       case _: TypedVariable => from
@@ -152,8 +158,7 @@ object ExtendedHOLSteps extends lisa._HOL {
             RightForall.withParameters(xta ==> (uu :: typ1), x)(uuImp)
           val h5 = have(h2.statement -<? h3.statement.right.head ++<< h3.statement) by
             Cut.withParameters(h3.statement.right.head)(h3, h2)
-          if h5.statement.left.exists(isSame(_, h4.statement.right.head)) then
-            have(h5.statement -<? h4.statement.right.head ++<< h4.statement) by Cut.withParameters(h4.statement.right.head)(h4, h5)
+          if h5.statement.left.exists(isSame(_, h4.statement.right.head)) then have(h5.statement -<? h4.statement.right.head ++<< h4.statement) by Cut.withParameters(h4.statement.right.head)(h4, h5)
           else h5
 
         case _ =>
@@ -204,7 +209,9 @@ object ExtendedHOLSteps extends lisa._HOL {
       val lxtx = λ(x, t * x)
       val restype = computeType(t * x)
       val ttype = x.typ ->: restype
-      val s1 = have((t :: ttype, x :: x.typ, ∃(x, x :: x.typ), ∃(x, x :: restype)) |- holeq(ttype) * (fun(x :: x.typ, t * x)) * t) by Weakening(HOLSteps.etaConv of (ExtendedHOLSteps.x := x, f := t, A := x.typ, B := restype))
+      val s1 = have((t :: ttype, x :: x.typ, ∃(x, x :: x.typ), ∃(x, x :: restype)) |- holeq(ttype) * (fun(x :: x.typ, t * x)) * t) by Weakening(
+        HOLSteps.etaConv of (ExtendedHOLSteps.x := x, f := t, A := x.typ, B := restype)
+      )
       have(Discharge(HOLProofType(t))(s1))
     }
   }
@@ -212,8 +219,7 @@ object ExtendedHOLSteps extends lisa._HOL {
   object _ASSUME {
     def apply(using proof: Proof)(t: Expr[Ind]): ProofJudgement = Subproof {
       val typ = computeType(t)
-      if typ == 𝔹 then
-        have(t |- t) by Hypothesis.withParameters(eqOne(t))
+      if typ == 𝔹 then have(t |- t) by Hypothesis.withParameters(eqOne(t))
       else failWith(s"Expr[Ind] $t is not a boolean")
     }
 
@@ -267,14 +273,19 @@ object ExtendedHOLSteps extends lisa._HOL {
   }
 
   object _INST_TYPE_RENAME {
-    /** Restore canonical free-variable identifiers without merging bound scopes. */
+
+    /**
+     * Restore canonical free-variable identifiers without merging bound scopes.
+     */
     def variableTypesNames(using proof: Proof)(prem: Thm): ProofJudgement = Subproof { ip ?=>
       // Type substitution can identify previously distinct HOL variables. Bound
       // variables must stay scoped; schema substitution avoids capturing free ones.
-      val renamings = prem.statement.freeVars.iterator.collect { case v: TypedVariable => v }
-          .map(v => v -> mkTypedVar(v.id.name, v.typ))
-          .collect { case (v, target) if v.id != target.id => v -> target }
-          .map((from, to) => from := to).toSeq
+      val renamings = prem.statement.freeVars.iterator
+        .collect { case v: TypedVariable => v }
+        .map(v => v -> mkTypedVar(v.id.name, v.typ))
+        .collect { case (v, target) if v.id != target.id => v -> target }
+        .map((from, to) => from := to)
+        .toSeq
       if renamings.isEmpty then prem else prem.of(renamings*)
     }
 

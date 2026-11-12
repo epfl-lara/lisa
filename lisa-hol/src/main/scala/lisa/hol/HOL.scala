@@ -3,7 +3,10 @@ package lisa
 import lisa.SetTheoryLibrary
 import lisa.hol.HOLSteps
 import lisa.utils.fol.FOL.{_, given}
-import lisa.utils.prooflib.{OutputManager, Proof, Theorem, Thm}
+import lisa.utils.prooflib.OutputManager
+import lisa.utils.prooflib.Proof
+import lisa.utils.prooflib.Theorem
+import lisa.utils.prooflib.Thm
 
 import SetTheoryLibrary._
 
@@ -39,7 +42,7 @@ trait _HOL extends Main {
   }
   export lisa.hol.HOLHelperTheorems.{𝔹, Zero, One, =:=}
   export lisa.maths.SetTheory.Types.Tactics.Typecheck.*
-  
+
   val library: SetTheoryLibrary.type = SetTheoryLibrary
   given SetTheoryLibrary.type = library
 
@@ -49,7 +52,9 @@ trait _HOL extends Main {
   def withCTX(s: F.Sequent): F.Sequent =
     s ++<? (getContext(s) |- ())
 
-  /** Prove an HOL statement with its typing context and first-order display notation. */
+  /**
+   * Prove an HOL statement with its typing context and first-order display notation.
+   */
   def HOLTheorem(using
       om: OutputManager,
       fullName: sourcecode.FullName,

@@ -2,14 +2,14 @@ package lisa.hol
 
 import lisa.SetTheoryLibrary
 import lisa.hol.HOLHelperTheorems.𝔹
-import lisa.hol.VarsAndFunctions.*
+import lisa.hol.VarsAndFunctions._
 import lisa.maths.SetTheory.Base.Predef.∈
-import lisa.maths.SetTheory.Functions.Predef.*
-import lisa.maths.SetTheory.Types.TypingHelpers.*
+import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.K
 import lisa.utils.fol.FOL.{_, given}
-import lisa.utils.prooflib.*
-import lisa.utils.prooflib.ProofHelpers.*
+import lisa.utils.prooflib.ProofHelpers._
+import lisa.utils.prooflib._
 import org.scalatest.funsuite.AnyFunSuite
 
 class ApplicationTypingSuite extends AnyFunSuite:

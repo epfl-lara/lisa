@@ -1,18 +1,21 @@
 package lisa.hol
 
 import lisa.SetTheoryLibrary
-import lisa.hol.HOLHelperTheorems.{One, 𝔹}
-import lisa.hol.VarsAndFunctions.*
-import lisa.hol.basics.Connectives.{hand, himp, hnot}
+import lisa.hol.HOLHelperTheorems.One
+import lisa.hol.HOLHelperTheorems.𝔹
+import lisa.hol.VarsAndFunctions._
+import lisa.hol.basics.Connectives.hand
+import lisa.hol.basics.Connectives.himp
+import lisa.hol.basics.Connectives.hnot
 import lisa.hol.basics.Disjunction.hor
 import lisa.hol.basics.Exists.hexists
 import lisa.hol.basics.Forall.hforall
-import lisa.maths.SetTheory.Functions.Predef.*
-import lisa.maths.SetTheory.Types.TypingHelpers.{fun as _, *, given}
+import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.Types.TypingHelpers.{fun => _, _, given}
 import lisa.utils.K
-import lisa.utils.fol.FOL.{*, given}
-import lisa.utils.prooflib.*
-import lisa.utils.prooflib.ProofHelpers.*
+import lisa.utils.fol.FOL.{_, given}
+import lisa.utils.prooflib.ProofHelpers._
+import lisa.utils.prooflib._
 import org.scalatest.funsuite.AnyFunSuite
 
 class FromHOLSuite extends AnyFunSuite:
@@ -146,7 +149,9 @@ class FromHOLSuite extends AnyFunSuite:
     assert(output.toString.contains(" ∧ "), output.toString)
     assert(!output.toString.contains("hand("), output.toString)
 
-/** Exercise real imported statements without keeping exported traces in the test suite. */
+/**
+ * Exercise real imported statements without keeping exported traces in the test suite.
+ */
 object FromHOLImportCheck extends lisa.HOL:
   override def main(args: Array[String]): Unit =
     require(args.length == 1, "FromHOLImportCheck <export-prefix>")

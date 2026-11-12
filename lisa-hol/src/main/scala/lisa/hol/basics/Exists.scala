@@ -1,19 +1,25 @@
 package lisa.hol.basics
 
-import lisa.hol.HOLLogicalSymbols
-
-import lisa.utils.prooflib.Substitute
 import lisa.hol.HOLHelperTheorems._
+import lisa.hol.HOLLogicalSymbols
 import lisa.hol.HOLSteps._
-import lisa.hol.basics.Truth.{holT, holTruth, SYM}
-import lisa.hol.basics.Forall.{hforall, hforallCorrect}
-import lisa.hol.basics.Connectives.{himp, himpCorrect, hnot, hnotCorrect, p}
 import lisa.hol.VarsAndFunctions._
+import lisa.hol.basics.Connectives.himp
+import lisa.hol.basics.Connectives.himpCorrect
+import lisa.hol.basics.Connectives.hnot
+import lisa.hol.basics.Connectives.hnotCorrect
+import lisa.hol.basics.Connectives.p
+import lisa.hol.basics.Forall.hforall
+import lisa.hol.basics.Forall.hforallCorrect
+import lisa.hol.basics.Truth.SYM
+import lisa.hol.basics.Truth.holT
+import lisa.hol.basics.Truth.holTruth
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.utils.prooflib.BasicStep._
+import lisa.utils.prooflib.Exports._
+import lisa.utils.prooflib.Exports._
 import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.Exports.*
-import lisa.utils.prooflib.Exports.*
+import lisa.utils.prooflib.Substitute
 
 /**
  * HOL Light existential quantifier.
@@ -65,8 +71,7 @@ object Exists extends lisa.HOL {
       have(nonEmpty(A) ==> hexists(A) :: ((A ->: 𝔹) ->: 𝔹)) by Tautology.from(lastStep, faJustif, fbJustif, himp.justif, 𝔹.nonEmptyThm)
       thenHave(thesis) by RightForall
 
-    HOLLogicalSymbols.register(HOLLogicalSymbols.Symbol.Exists,
-      HOLPolymorphicConstant[Ind >>: Ind](hexists.id, FunctionalClass(List(None), List(A), ((A ->: 𝔹) ->: 𝔹)), typing_of_exists))
+    HOLLogicalSymbols.register(HOLLogicalSymbols.Symbol.Exists, HOLPolymorphicConstant[Ind >>: Ind](hexists.id, FunctionalClass(List(None), List(A), ((A ->: 𝔹) ->: 𝔹)), typing_of_exists))
   }
 
   val hexistsCorrect = HOLTheorem(

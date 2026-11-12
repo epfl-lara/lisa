@@ -1,22 +1,35 @@
 package lisa.hol
 
-import lisa.hol.{HOLHelperTheorems as H}
-import lisa.hol.VarsAndFunctions.*
-import lisa.hol.basics.{Connectives as C, Disjunction as D, Exists as E, False as F, Forall as FA, Truth as T}
-import lisa.maths.SetTheory.Functions.Predef.*
+import lisa.hol.VarsAndFunctions._
+import lisa.hol.basics.{Connectives => C}
+import lisa.hol.basics.{Disjunction => D}
+import lisa.hol.basics.{Exists => E}
+import lisa.hol.basics.{False => F}
+import lisa.hol.basics.{Forall => FA}
+import lisa.hol.basics.{Truth => T}
+import lisa.hol.{HOLHelperTheorems => H}
+import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
-import lisa.maths.SetTheory.Types.TypingHelpers.*
+import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.maths.SetTheory.Types.TypingRules
-import lisa.utils.prooflib.{Discharge, Proof, ProofJudgement, Subproof, Thm}
+import lisa.utils.prooflib.Discharge
+import lisa.utils.prooflib.Proof
+import lisa.utils.prooflib.ProofJudgement
+import lisa.utils.prooflib.Subproof
+import lisa.utils.prooflib.Thm
 
-/** Translate the first-order spine using proved equivalences, without unfolding arbitrary HOL constants. */
+/**
+ * Translate the first-order spine using proved equivalences, without unfolding arbitrary HOL constants.
+ */
 object FromHOL extends lisa.Main:
   import HOLLogicalSymbols.{Logical, Symbol, symbol}
   import Symbol.*
 
   private val A, x, y = variable[Ind]
 
-  /** Translate Boolean formulas on both sides; leave unknown constants and higher-order arguments opaque. */
+  /**
+   * Translate Boolean formulas on both sides; leave unknown constants and higher-order arguments opaque.
+   */
   def fromHOL(premise: Thm)(using sourcecode.File, sourcecode.Line): ProofJudgement = Subproof:
     val context = premise.left ++ getContext(premise.statement)
     val typing = context.filter:
@@ -41,11 +54,15 @@ object FromHOL extends lisa.Main:
     val result = premise.right.foldLeft(left)((current, formula) => rewrite(current, formula, left = false))
     have(result)
 
-  /** Look up and translate an HOL theorem, propagating lookup failures from the store. */
+  /**
+   * Look up and translate an HOL theorem, propagating lookup failures from the store.
+   */
   def fromHOL(name: String, store: String => Thm)(using sourcecode.File, sourcecode.Line): ProofJudgement =
     fromHOL(store(name))
 
-  /** Certify a Boolean formula's translation independently of any theorem using it. */
+  /**
+   * Certify a Boolean formula's translation independently of any theorem using it.
+   */
   private[hol] def equivalence(term: Expr[Ind], context: Set[Expr[Prop]]): ProofJudgement = Subproof:
     val (_, proof) = boolean(term, context, context + eqOne(term))
     have(proof)
@@ -53,7 +70,9 @@ object FromHOL extends lisa.Main:
   private def reflexive(formula: Expr[Prop])(using Proof): Thm =
     have(formula <=> formula) by Restate
 
-  /** Transport subformulas through their proved equivalences. */
+  /**
+   * Transport subformulas through their proved equivalences.
+   */
   private def compose(source: Expr[Prop], base: Thm, pairs: Seq[(Expr[Prop], Expr[Prop], Thm)])(
       build: Seq[Expr[Prop]] => Expr[Prop]
   )(using Proof): Thm =
@@ -72,9 +91,16 @@ object FromHOL extends lisa.Main:
   private def typed(term: Expr[Ind], typ: Expr[Ind], context: Set[Expr[Prop]])(using Proof): Thm =
     have(Typecheck.checkProof(using lisa.SetTheoryLibrary)(context ++ getContext(term), term, typ))
 
-  /** Discharge the binder's typing before generalizing the pointwise equivalence. */
+  /**
+   * Discharge the binder's typing before generalizing the pointwise equivalence.
+   */
   private def quantified(
-      universal: Boolean, bound: Variable[Ind], domain: Expr[Ind], before: Expr[Prop], after: Expr[Prop], pointwise: Thm
+      universal: Boolean,
+      bound: Variable[Ind],
+      domain: Expr[Ind],
+      before: Expr[Prop],
+      after: Expr[Prop],
+      pointwise: Thm
   )(using Proof): Thm =
     val guard = bound ∈ domain
     val context = pointwise.left - guard
@@ -129,8 +155,7 @@ object FromHOL extends lisa.Main:
         finish(⊤, if term == H.One then reflexive(source) else T.holTruth.thm)
       case Logical(Falsehood, Seq()) =>
         val zero = have((H.Zero === H.One) <=> ⊥) by Weakening(H.`0 != 1`)
-        val proof = if term == H.Zero then zero else
-          have((term === H.One) <=> ⊥) by Substitute(F.holFalseZero)(zero)
+        val proof = if term == H.Zero then zero else have((term === H.One) <=> ⊥) by Substitute(F.holFalseZero)(zero)
         finish(⊥, proof)
       case Sapp(Sapp(Logical(And, Seq()), left), right) =>
         binary(left, right, C.handCorrect.of(C.p := left, C.q := right))(_ /\ _)
@@ -145,8 +170,7 @@ object FromHOL extends lisa.Main:
       case Sapp(Sapp(Logical(Equality, Seq(domain)), left), right) if symbol(domain).contains(Bool) =>
         binary(left, right, C.hiffCorrect.of(C.p := left, C.q := right))(_ <=> _)
       case Sapp(Sapp(Logical(Equality, Seq(domain: Expr[Ind] @unchecked)), left), right) =>
-        val correctness = have(Discharge(typed(left, domain, context), typed(right, domain, context))(
-          H.eqAlign.of(A := domain, x := left, y := right)))
+        val correctness = have(Discharge(typed(left, domain, context), typed(right, domain, context))(H.eqAlign.of(A := domain, x := left, y := right)))
         finish(left === right, correctness)
       case Sapp(Logical(quantifier @ (Forall | Exists), Seq(domain: Expr[Ind] @unchecked)), predicate) =>
         val identifier = predicate match

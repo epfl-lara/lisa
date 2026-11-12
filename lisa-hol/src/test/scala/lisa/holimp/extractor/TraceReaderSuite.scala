@@ -1,8 +1,9 @@
 package lisa.hol.extractor
 
+import org.scalatest.funsuite.AnyFunSuite
+
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files
-import org.scalatest.funsuite.AnyFunSuite
 import scala.util.Using
 
 class TraceReaderSuite extends AnyFunSuite:

@@ -1,6 +1,6 @@
 package lisa.hol
 
-import lisa.hol.extractor.*
+import lisa.hol.extractor._
 import org.scalatest.funsuite.AnyFunSuite
 
 class LemmaStepStoreSuite extends AnyFunSuite:

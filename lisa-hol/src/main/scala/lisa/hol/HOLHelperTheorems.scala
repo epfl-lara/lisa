@@ -1,26 +1,23 @@
 package lisa.hol
+import lisa.maths.SetTheory.Base.Predef._
 import lisa.maths.SetTheory.Base.Predef.singleton
 import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Types.TypingHelpers.TypedConstant
 import lisa.maths.SetTheory.Types.TypingHelpers.TypedConstantFunctional
 import lisa.maths.SetTheory.Types.TypingHelpers._
-import lisa.maths.SetTheory.Types.TypingRules.{TAbs, BetaReduction}
-import lisa.maths.SetTheory.Base.Predef.*
-
-import lisa.utils.prooflib.Substitute
-
-import VarsAndFunctions.HOLConstantType
+import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
+import lisa.maths.SetTheory.Types.TypingRules.TAbs
+import lisa.utils.prooflib.BasicStep.LeftExists
 import lisa.utils.prooflib.BasicStep.LeftOr
+import lisa.utils.prooflib.BasicStep.Restate
 import lisa.utils.prooflib.BasicStep.RightAnd
 import lisa.utils.prooflib.BasicStep.RightSubstEq
 import lisa.utils.prooflib.BasicStep.Weakening
-import lisa.utils.prooflib.BasicStep.Restate
-import lisa.utils.prooflib.BasicStep.RightSubstEq
-import lisa.utils.prooflib.BasicStep.RightSubstEq
+import lisa.utils.prooflib.Substitute
 import lisa.utils.unification.UnificationUtils.Substitution
-import lisa.utils.prooflib.BasicStep.RightSubstEq
-import lisa.utils.prooflib.BasicStep.LeftExists
+
+import VarsAndFunctions.HOLConstantType
 
 object HOLHelperTheorems extends lisa.Main {
   given lisa.SetTheoryLibrary.type = lisa.SetTheoryLibrary
@@ -134,13 +131,12 @@ object HOLHelperTheorems extends lisa.Main {
     val e2 = variable[Ind]
     val T = variable[Ind]
 
-    val beta1 = have(fun(y :: A, eqTerm) * y === eqTerm) by Weakening(BetaReduction of (T := A, e2 := y, e := λ(y, eqTerm))) 
-    val beta2 = have(fun(x :: A, fun(y :: A, eqTerm)) * x === fun(y :: A, eqTerm)) by Weakening(BetaReduction of (T := A, e2 := x, e := λ(x, fun(y :: A, eqTerm)))) 
-    
+    val beta1 = have(fun(y :: A, eqTerm) * y === eqTerm) by Weakening(BetaReduction of (T := A, e2 := y, e := λ(y, eqTerm)))
+    val beta2 = have(fun(x :: A, fun(y :: A, eqTerm)) * x === fun(y :: A, eqTerm)) by Weakening(BetaReduction of (T := A, e2 := x, e := λ(x, fun(y :: A, eqTerm))))
+
     have(fun(x :: A, fun(y :: A, eqTerm)) * x * y === fun(x :: A, fun(y :: A, eqTerm)) * x * y) by Restate
     thenHave(fun(x :: A, fun(y :: A, eqTerm)) * x * y === fun(y :: A, eqTerm) * y) by Substitute(beta2)
     thenHave(fun(x :: A, fun(y :: A, eqTerm)) * x * y === eqTerm) by Substitute(beta1)
-
 
   val =:= : TypedConstantFunctional[Ind >>: Ind] = {
     val =:= = DEF(λ(A, fun(x :: A, fun(y :: A, ε(b, (b :: 𝔹) /\ ((b === One) <=> (x === y)))))))
@@ -166,13 +162,12 @@ object HOLHelperTheorems extends lisa.Main {
         TAbs of (T1 := A, T2 := λ(x, A ->: 𝔹), e := λ(y, fun(x :: A, theEp)))
       )
 
-      // use this to conclude 
+      // use this to conclude
       thenHave(epType |- =:=(A) :: (A ->: (A ->: 𝔹))) by Substitute(=:=.definition)
       have(=:=(A) :: (A ->: (A ->: 𝔹))) by Cut(epProof, lastStep)
       thenHave(thesis) by RightForall
-    
-    HOLLogicalSymbols.register(HOLLogicalSymbols.Symbol.Equality,
-      TypedConstantFunctional[Ind >>: Ind](=:=.id, FunctionalClass(List(None), List(A), (A ->: (A ->: 𝔹))), typing_of_eq))
+
+    HOLLogicalSymbols.register(HOLLogicalSymbols.Symbol.Equality, TypedConstantFunctional[Ind >>: Ind](=:=.id, FunctionalClass(List(None), List(A), (A ->: (A ->: 𝔹))), typing_of_eq))
   }
 
   val eqRefl = Theorem((x :: A |- (=:=(A) * x * x) === One)):
@@ -267,7 +262,7 @@ object HOLHelperTheorems extends lisa.Main {
 
     have(=:=(A) * x * y === One) by Restate
     thenHave(thesis) by Substitute(eqSymEq)
-  
+
   val eqTrans = Theorem((x :: A, y :: A, z :: A, =:=(A) * x * y === One, =:=(A) * y * z === One) |- =:=(A) * x * z === One):
     assume(x :: A, y :: A, z :: A, =:=(A) * x * y === One, =:=(A) * y * z === One)
 
@@ -282,7 +277,7 @@ object HOLHelperTheorems extends lisa.Main {
     assume(x :: A, y :: A, f :: A ->: B, =:=(A) * x * y === One)
 
     val `x = y` = have(x === y) by Weakening(eqAlign of (x := x, y := y))
-    
+
     val reflexivity = have(f * x === f * x) by Restate
     val `f x = f y` = have(f * x === f * y) by RightSubst.withParameters(Seq((x, y, Nil)), Seq(y) -> (f * x === f * y))(reflexivity, Seq(`x = y`))
 
@@ -291,7 +286,8 @@ object HOLHelperTheorems extends lisa.Main {
 
     have((f * x :: B, f * y :: B) |- =:=(B) * (f * x) * (f * y) === One) by
       RightSubst.withParameters(
-        Seq((f * x === f * y, =:=(B) * (f * x) * (f * y) === One, Nil)), Seq(P) -> P
+        Seq((f * x === f * y, =:=(B) * (f * x) * (f * y) === One, Nil)),
+        Seq(P) -> P
       )(`f x = f y`, Seq(eqAlign of (A := B, x := f * x, y := f * y)))
     have((f * x :: B) |- =:=(B) * (f * x) * (f * y) === One) by Cut(fyType, lastStep)
     have(=:=(B) * (f * x) * (f * y) === One) by Cut(fxType, lastStep)

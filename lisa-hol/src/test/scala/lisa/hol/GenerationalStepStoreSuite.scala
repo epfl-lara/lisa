@@ -1,8 +1,9 @@
 package lisa.hol
 
-import lisa.hol.extractor.*
+import lisa.hol.extractor._
 import lisa.utils.K
 import org.scalatest.funsuite.AnyFunSuite
+
 import java.nio.file.Files
 
 class GenerationalStepStoreSuite extends AnyFunSuite:
@@ -116,10 +117,12 @@ class GenerationalStepStoreSuite extends AnyFunSuite:
       val constName = s"bounded_const_${file}_g${generations}"
       val c = s"c($constName)($bool)"
       val records = Seq(
-        ProofLine(0, REFL(witness)), ProofLine(1, TYPE_DEFINITION(0, absStatement, name)),
+        ProofLine(0, REFL(witness)),
+        ProofLine(1, TYPE_DEFINITION(0, absStatement, name)),
         ProofLine(2, TYPE_DEFINITION(0, repStatement, name)),
         ProofLine(3, DEFINITION(equal(bool, c, witness), constName)),
-        ProofLine(7, REFL(a)), ProofLine(9, REFL(c))
+        ProofLine(7, REFL(a)),
+        ProofLine(9, REFL(c))
       )
       withContext(file, records): context =>
         given ExtractorContext = context
@@ -132,19 +135,20 @@ class GenerationalStepStoreSuite extends AnyFunSuite:
         Seq(1L, 2L, 3L).zip(definitions).foreach((id, original) => assert(store(id) eq original))
         assert(store.size == count)
 
-  for generations <- Seq(1, 2, 3) do test(s"step-shape statistics survive generation rotation ($generations generations)"):
-    val directory = Files.createTempDirectory("bounded-step-stats")
-    val path = directory.resolve("steps.csv")
-    val statistics = new ImportStatistics(stepOutput = Some(path))
-    try
-      withContext(true, Seq(ProofLine(0, REFL(p)), ProofLine(1, ASSUME(p)), ProofLine(3, EQ_MP(0, 1)))): context =>
-        given ExtractorContext = context
-        val store = new Import.StepStore(statistics, capacity = 1, generations = generations)
-        statistics.begin(3)
-        assert(store(3).isValid)
-        statistics.finish(3, "bounded-shapes")
-        assert(Files.readString(path).linesIterator.exists(_.startsWith("3,EQ_MP,")))
-    finally
-      statistics.close()
-      Files.deleteIfExists(path)
-      Files.delete(directory)
+  for generations <- Seq(1, 2, 3) do
+    test(s"step-shape statistics survive generation rotation ($generations generations)"):
+      val directory = Files.createTempDirectory("bounded-step-stats")
+      val path = directory.resolve("steps.csv")
+      val statistics = new ImportStatistics(stepOutput = Some(path))
+      try
+        withContext(true, Seq(ProofLine(0, REFL(p)), ProofLine(1, ASSUME(p)), ProofLine(3, EQ_MP(0, 1)))): context =>
+          given ExtractorContext = context
+          val store = new Import.StepStore(statistics, capacity = 1, generations = generations)
+          statistics.begin(3)
+          assert(store(3).isValid)
+          statistics.finish(3, "bounded-shapes")
+          assert(Files.readString(path).linesIterator.exists(_.startsWith("3,EQ_MP,")))
+      finally
+        statistics.close()
+        Files.deleteIfExists(path)
+        Files.delete(directory)

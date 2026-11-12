@@ -1,17 +1,20 @@
 package lisa.hol.basics
 
-import lisa.hol.HOLLogicalSymbols
-
-import lisa.utils.prooflib.Substitute
 import lisa.hol.HOLHelperTheorems._
+import lisa.hol.HOLLogicalSymbols
 import lisa.hol.HOLSteps._
-import lisa.hol.basics.Truth.{_SYM, SYM, holT, holTruth, oneTrue}
 import lisa.hol.VarsAndFunctions._
+import lisa.hol.basics.Truth.SYM
+import lisa.hol.basics.Truth._SYM
+import lisa.hol.basics.Truth.holT
+import lisa.hol.basics.Truth.holTruth
+import lisa.hol.basics.Truth.oneTrue
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.utils.prooflib.BasicStep._
+import lisa.utils.prooflib.Exports._
+import lisa.utils.prooflib.Exports._
 import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.Exports.*
-import lisa.utils.prooflib.Exports.*
+import lisa.utils.prooflib.Substitute
 
 /**
  * HOL Light universal quantifier.
@@ -52,8 +55,7 @@ object Forall extends lisa.HOL {
       thenHave(thesis) by RightForall
     }
 
-    HOLLogicalSymbols.register(HOLLogicalSymbols.Symbol.Forall,
-      HOLPolymorphicConstant[Ind >>: Ind](hforall.id, FunctionalClass(List(None), List(A), ((A ->: 𝔹) ->: 𝔹)), typing_of_forall))
+    HOLLogicalSymbols.register(HOLLogicalSymbols.Symbol.Forall, HOLPolymorphicConstant[Ind >>: Ind](hforall.id, FunctionalClass(List(None), List(A), ((A ->: 𝔹) ->: 𝔹)), typing_of_forall))
   }
 
   val hforallCorrect = HOLTheorem(

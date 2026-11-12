@@ -5,7 +5,8 @@ import lisa.hol.ExtendedHOLSteps._INST_TYPE_RENAME
 import lisa.hol.HOLHelperTheorems._
 import lisa.hol.HOLSteps.HOLProofType
 import lisa.hol.VarsAndFunctions._
-import lisa.hol.basics.Exists.{hexists, hexistsCorrect}
+import lisa.hol.basics.Exists.hexists
+import lisa.hol.basics.Exists.hexistsCorrect
 import lisa.hol.basics.TypeDefs
 import lisa.hol.extractor.ExtractorException
 import lisa.hol.extractor.TheoremRef
@@ -13,10 +14,17 @@ import lisa.hol.extractor._
 import lisa.hol.{core => h}
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.utils.K
-import lisa.utils.collection.VecSet
 import lisa.utils.collection.BoundedCache
+import lisa.utils.collection.VecSet
 import lisa.utils.prooflib.BasicStep.Restate
-import lisa.utils.prooflib.{Discharge, FatalCarrierDestructionException, OutputManager, Proof, ProofCarrier, ProofJudgement, Subproof, Thm}
+import lisa.utils.prooflib.Discharge
+import lisa.utils.prooflib.FatalCarrierDestructionException
+import lisa.utils.prooflib.OutputManager
+import lisa.utils.prooflib.Proof
+import lisa.utils.prooflib.ProofCarrier
+import lisa.utils.prooflib.ProofJudgement
+import lisa.utils.prooflib.Subproof
+import lisa.utils.prooflib.Thm
 import lisa.utils.unification.UnificationUtils.RewriteContext
 import lisa.utils.unification.UnificationUtils.matchExpr
 
@@ -34,21 +42,20 @@ object Import extends lisa.HOL:
   case class InvalidDefinitionException(name: String, term: h.Term) extends Exception(s"Invalid definition for constant $name: $term. Expected a term of the form 'name = body'.") with ImportException
   case class MalformedConstantInstance(name: String, tpe: Expr[Ind]) extends Exception(s"Malformed instance of constant $name with type $tpe. No matching definition found.") with ImportException
   case class UnknownAxiom(expr: Expr[Ind]) extends Exception(s"Unknown axiom: $expr. No matching HOL Light axiom found.") with ImportException
-  case class OutOfOrderException(currentIndex: Long, targetIndex: Long) extends Exception(s"Theorem reference out of order: current index $currentIndex relies on target index $targetIndex.") with ImportException
-  case class FailedPremiseException(currentIdx: Long, premIdx: Long, subproof: ProofCarrier[?]) extends Exception(s"Failed premise $premIdx while reconstructing step $currentIdx. Carrier: $subproof") with ImportException
+  case class OutOfOrderException(currentIndex: Long, targetIndex: Long)
+      extends Exception(s"Theorem reference out of order: current index $currentIndex relies on target index $targetIndex.")
+      with ImportException
+  case class FailedPremiseException(currentIdx: Long, premIdx: Long, subproof: ProofCarrier[?])
+      extends Exception(s"Failed premise $premIdx while reconstructing step $currentIdx. Carrier: $subproof")
+      with ImportException
   case class StepMismatchException(index: Long, expected: Sequent, actual: Sequent)
       extends Exception(s"Step $index produced a different sequent.\nExpected: $expected\nActual: $actual")
       with ImportException
-  case class FailedStepException(index: Long, step: String, errors: Seq[String])
-      extends Exception(s"Step $index ($step) produced proof errors:\n${errors.mkString("\n")}")
-      with ImportException
-  case class FailedTheoremException(index: Long, name: String, errors: Seq[String])
-      extends Exception(s"Theorem $index ($name) produced proof errors:\n${errors.mkString("\n")}")
-      with ImportException
+  case class FailedStepException(index: Long, step: String, errors: Seq[String]) extends Exception(s"Step $index ($step) produced proof errors:\n${errors.mkString("\n")}") with ImportException
+  case class FailedTheoremException(index: Long, name: String, errors: Seq[String]) extends Exception(s"Theorem $index ($name) produced proof errors:\n${errors.mkString("\n")}") with ImportException
   // type def specific
   case class MalformedTypeDefinition(index: Long, term: h.Term) extends Exception(s"Malformed type definition at index $index: $term") with ImportException
   case class MalformedNonEmptinessThm(index: Long, thm: Thm) extends Exception(s"Malformed non-emptiness theorem at index $index: $thm") with ImportException
-
 
   // logging
 
@@ -94,7 +101,9 @@ object Import extends lisa.HOL:
     private val typeNumbers = mutable.Map.empty[K.Expression, Int]
     private var nextTypeNumber = 1
 
-    /** Count distinct HOL types retained by the variable-identifier registry. */
+    /**
+     * Count distinct HOL types retained by the variable-identifier registry.
+     */
     private[hol] def typeCount: Int = typeNumbers.size
 
     private def typeNumber(tpe: Expr[Ind]): Int =
@@ -379,7 +388,9 @@ object Import extends lisa.HOL:
 
   private lazy val initializedDefinitions: Unit = Initialization.initializeDefinitions()
 
-  /** Reconstruct reachable steps and share their judgements; keep named steps and definitions across evictions. */
+  /**
+   * Reconstruct reachable steps and share their judgements; keep named steps and definitions across evictions.
+   */
   private[hol] final class StepStore(
       val statistics: ImportStatistics = new ImportStatistics,
       val capacity: Int = Config.stepCacheCapacity,
@@ -405,20 +416,28 @@ object Import extends lisa.HOL:
 
     initializedDefinitions
 
-    /** Count the reconstructed steps, including repeated work after eviction. */
+    /**
+     * Count the reconstructed steps, including repeated work after eviction.
+     */
     def size: Int = computed
 
-    /** Count retained results, including permanently pinned steps. */
+    /**
+     * Count retained results, including permanently pinned steps.
+     */
     def retainedSize: Int = steps.fold(unbounded.size)(_.size) + pinned.size
     def pinnedSize: Int = pinned.size
     def evictions: Long = steps.fold(0L)(_.evictions)
     def lemmaCount: Int = lemmas
 
-    /** Count distinct reconstructed IDs when exact replay tracking is enabled. */
+    /**
+     * Count distinct reconstructed IDs when exact replay tracking is enabled.
+     */
     def uniqueSteps: Option[Int] = seen.map(_.size)
     def recomputedSteps: Option[Int] = uniqueSteps.map(computed - _)
 
-    /** Count lookups that reused a reconstructed judgement. */
+    /**
+     * Count lookups that reused a reconstructed judgement.
+     */
     def cacheHits: Long = hits
 
     private def lookup(index: Long): Option[ProofJudgement] =
@@ -434,25 +453,33 @@ object Import extends lisa.HOL:
         if lemmaSteps(index) && !definition && !pinnedIds(index) && judgement.isValid then registerLemma(index, judgement)
         else judgement
       if definition || pinnedIds(index) || lemmaSteps(index) then pinned(index) = result
-      else steps match
-        case Some(cache) => cache.put(index, result)
-        case None => unbounded(index) = result
+      else
+        steps match
+          case Some(cache) => cache.put(index, result)
+          case None => unbounded(index) = result
       result
 
-    /** Register a selected result under its synthetic name without trusting the selection. */
+    /**
+     * Register a selected result under its synthetic name without trusting the selection.
+     */
     private def registerLemma(index: Long, judgement: ProofJudgement): ProofJudgement =
       val name = s"lemma_$index"
       val theorem = lisa.utils.prooflib.Theorem(using
-        lib, summon[OutputManager], summon[sourcecode.File], summon[sourcecode.Line],
-        sourcecode.FullName(s"Import.$name"), sourcecode.Name(name)
+        lib,
+        summon[OutputManager],
+        summon[sourcecode.File],
+        summon[sourcecode.Line],
+        sourcecode.FullName(s"Import.$name"),
+        sourcecode.Name(name)
       )(judgement.thm.statement):
         have(judgement)
-      if theorem.errors.nonEmpty then
-        throw FailedTheoremException(index, name, theorem.errors.toSeq.map(_.message))
+      if theorem.errors.nonEmpty then throw FailedTheoremException(index, name, theorem.errors.toSeq.map(_.message))
       lemmas += 1
       theorem.judgement
 
-    /** Retrieve a step, reconstructing its dependencies and preceding definitions as needed. */
+    /**
+     * Retrieve a step, reconstructing its dependencies and preceding definitions as needed.
+     */
     def apply(index: Long): ProofJudgement =
       lookup(index) match
         case Some(judgement) =>
@@ -464,7 +491,9 @@ object Import extends lisa.HOL:
             val step = statistics.measure("read", index)(extractor.getProof(index))
             remember(index, step, reconstruct(index, step))
 
-    /** Require a strictly earlier premise and retrieve its shared judgement. */
+    /**
+     * Require a strictly earlier premise and retrieve its shared judgement.
+     */
     def premise(index: Long, target: Long): ProofJudgement =
       if target >= index then throw OutOfOrderException(index, target)
       active.headOption.flatMap(_.get(target)).getOrElse(apply(target))
@@ -487,20 +516,24 @@ object Import extends lisa.HOL:
 
     private def defineThrough(index: Long): Unit =
       if index > definitionsThrough then
-        statistics.measure("read", index)(extractor.getDefinitionsBetween(definitionsThrough, index)).foreach: (definitionIndex, definition) =>
-          definitionsThrough = definitionIndex
-          if lookup(definitionIndex).isEmpty then
-            definition match
-              case _: h.DEFINITION =>
-                // Some exported constant definitions are unusable; demand for that step must still fail.
-                try remember(definitionIndex, definition, reconstruct(definitionIndex, definition))
-                catch case exception: Exception => debug(s"Skipping unusable definition at $definitionIndex: ${exception.getMessage}")
-              case _: h.TYPE_DEFINITION =>
-                remember(definitionIndex, definition, reconstruct(definitionIndex, definition))
-              case _ => ()
+        statistics
+          .measure("read", index)(extractor.getDefinitionsBetween(definitionsThrough, index))
+          .foreach: (definitionIndex, definition) =>
+            definitionsThrough = definitionIndex
+            if lookup(definitionIndex).isEmpty then
+              definition match
+                case _: h.DEFINITION =>
+                  // Some exported constant definitions are unusable; demand for that step must still fail.
+                  try remember(definitionIndex, definition, reconstruct(definitionIndex, definition))
+                  catch case exception: Exception => debug(s"Skipping unusable definition at $definitionIndex: ${exception.getMessage}")
+                case _: h.TYPE_DEFINITION =>
+                  remember(definitionIndex, definition, reconstruct(definitionIndex, definition))
+                case _ => ()
         definitionsThrough = index
 
-    /** Check and register a name for an already reconstructed step. */
+    /**
+     * Check and register a name for an already reconstructed step.
+     */
     def theorem(ref: TheoremRef): Justification =
       val TheoremRef(index, name) = ref
       // named theorems must survive cache eviction
@@ -525,8 +558,7 @@ object Import extends lisa.HOL:
       )(goal):
         have(HOLSteps.Clean.all(have(judgement)))
 
-      if theorem.errors.nonEmpty then
-        throw FailedTheoremException(index, name, theorem.errors.toSeq.map(_.message))
+      if theorem.errors.nonEmpty then throw FailedTheoremException(index, name, theorem.errors.toSeq.map(_.message))
 
       theorem.thm
 
@@ -576,31 +608,31 @@ object Import extends lisa.HOL:
     /**
      * Pattern match a type definition abstraction theorem of the form:
      *   |- abs (rep a) = a
-     * 
+     *
      * where `abs: rty -> aty`, and `rep: aty -> rty`.
-     * 
+     *
      * `aty` is the type being defined from a subset of `rty`.
-     * 
+     *
      * returning `(aty, rty, abs, rep, a)`
      */
     object AbsTh:
       def unapply(conclusion: h.Term): Option[(h.Type, h.Type, h.Constant, h.Constant, h.Variable)] =
         conclusion match
           case Eq(
-            Comb(abs @ Cst(_, FunType(rty, aty)), Comb(rep @ Cst(_, _), a @ Var(_, _))),
-            a2
-          ) if a == a2 =>
+                Comb(abs @ Cst(_, FunType(rty, aty)), Comb(rep @ Cst(_, _), a @ Var(_, _))),
+                a2
+              ) if a == a2 =>
             Some((aty, rty, abs, rep, a))
           case _ => None
 
     /**
      * Pattern match a type definition representation theorem of the form:
      *   |- P r <=> rep (abs r) = r
-     * 
+     *
      * where `abs: rty -> aty`, and `rep: aty -> rty`.
-     * 
+     *
      * `aty` is the type being defined from a subset of `rty`.
-     * 
+     *
      * returning `(aty, rty, abs, rep, P, r)`
      */
     object RepTh:
@@ -608,12 +640,12 @@ object Import extends lisa.HOL:
         import h.{Constant => Cst, Variable => Var, FunType, Eq}
         conclusion match
           case Eq(
-            Comb(p, r @ Var(_, _)),
-            Eq(
-              Comb(rep @ Cst(_, FunType(aty, rty)), Comb(abs @ Cst(_, _), r2)), 
-              r3
-            )
-          ) if r == r2 && r == r3 =>
+                Comb(p, r @ Var(_, _)),
+                Eq(
+                  Comb(rep @ Cst(_, FunType(aty, rty)), Comb(abs @ Cst(_, _), r2)),
+                  r3
+                )
+              ) if r == r2 && r == r3 =>
             Some((aty, rty, abs, rep, p, r))
           case _ => None
 
@@ -626,8 +658,7 @@ object Import extends lisa.HOL:
     object NonEmptyThm:
       def unapply(thm: Justification): Option[(Expr[Ind], Expr[Ind])] =
         val right = thm.statement.right
-        if right.size != 1 then
-          None
+        if right.size != 1 then None
         else
           right.head match
             case equality(applied, `One`) =>
@@ -665,8 +696,7 @@ object Import extends lisa.HOL:
         // Recover the HOL witness and the predicate whose inhabited subset defines the type.
         val nonEmptinessCarrier = Subproof: proof ?=>
           have(HOLSteps.Clean.all(have(store.premise(index, just))))
-        if !nonEmptinessCarrier.isValid then
-          throw FailedPremiseException(index, just, nonEmptinessCarrier)
+        if !nonEmptinessCarrier.isValid then throw FailedPremiseException(index, just, nonEmptinessCarrier)
         val nonEmptinessThm = nonEmptinessCarrier.justification.getOrElse:
           throw FailedPremiseException(index, just, nonEmptinessCarrier)
         val (p, t) = nonEmptinessThm match
@@ -675,7 +705,8 @@ object Import extends lisa.HOL:
 
         // Translate the type parameters and formulate their local non-emptiness context.
         val typeArgs = aty match
-          case h.TypeApplication(_, arguments) => arguments.map:
+          case h.TypeApplication(_, arguments) =>
+            arguments.map:
               case variable: h.TypeVariable => variable.toLisaVar
               case _ => throw MalformedTypeDefinition(index, term)
           case h.TypeVariable(_) => throw MalformedTypeDefinition(index, term)
@@ -698,11 +729,15 @@ object Import extends lisa.HOL:
             RightAnd(witnessTyping, nonEmptinessThm)
           val existence = ∃(witnessVariable, witnessBody)
           val witness = have(typedWitness.left |- existence) by RightExists.withParameters(witnessBody, witnessVariable, t)(typedWitness)
-          val correctness = have(HOLSteps.Clean.all(hexistsCorrect.of(
-            lisa.hol.basics.Exists.A := representationType,
-            lisa.hol.basics.Exists.P := p,
-            lisa.hol.basics.Exists.x := witnessVariable
-          )))
+          val correctness = have(
+            HOLSteps.Clean.all(
+              hexistsCorrect.of(
+                lisa.hol.basics.Exists.A := representationType,
+                lisa.hol.basics.Exists.P := p,
+                lisa.hol.basics.Exists.x := witnessVariable
+              )
+            )
+          )
           val implication = have((correctness.left + existence) |- existsP) by Weakening(correctness)
           have((witness.left ++ correctness.left) |- existsP) by Cut.withParameters(existence)(witness, implication)
           val discharged = have(Discharge(predicateTyping)(lastStep))
@@ -863,16 +898,14 @@ object Import extends lisa.HOL:
 
     ifDebug:
       val newErrors = ctx.errors.toSet
-      if newErrors.nonEmpty then
-        throw FailedStepException(index, proofStep.getClass.getSimpleName, newErrors.toSeq.map(_.message))
+      if newErrors.nonEmpty then throw FailedStepException(index, proofStep.getClass.getSimpleName, newErrors.toSeq.map(_.message))
 
     ifDebug:
       val expected = withCTX(extractor.getStatement(index).toLisaSequent)
       val matchesExpected =
         K.isSameSequent(result.kernel.statement, expected.underlying) ||
           K.Weakening(using lib.theory)(expected.underlying, result.kernel).isRight
-      if !matchesExpected then
-        throw StepMismatchException(index, expected, result.statement)
+      if !matchesExpected then throw StepMismatchException(index, expected, result.statement)
 
     result
 
@@ -880,16 +913,16 @@ object Import extends lisa.HOL:
 
   object ExportConfig:
     val header = """
-    |//> using scala "3.7.2"
-    |//> using options -experimental
-    |//> using dep "ch.epfl.lara::lisa::0.9.3,url=https://github.com/epfl-lara/lisa/releases/download/0.9.3/lisa_3-0.9.3.jar"
-    |
-    |object ImportedHOLTheorems extends lisa.HOL { 
-    |
+                   |//> using scala "3.7.2"
+                   |//> using options -experimental
+                   |//> using dep "ch.epfl.lara::lisa::0.9.3,url=https://github.com/epfl-lara/lisa/releases/download/0.9.3/lisa_3-0.9.3.jar"
+                   |
+                   |object ImportedHOLTheorems extends lisa.HOL {
+                   |
     """.stripMargin
 
     val footer = """
-    |}
+                   |}
     """.stripMargin
 
     import java.nio.file.{Files, Path, FileAlreadyExistsException}
@@ -897,7 +930,7 @@ object Import extends lisa.HOL:
 
     class OpenExport(inner: java.io.Writer, header: String, footer: String) extends java.io.Writer {
 
-      def close(): Unit = 
+      def close(): Unit =
         inner.write(footer)
         inner.close()
 
@@ -914,20 +947,17 @@ object Import extends lisa.HOL:
       def write(cs: Array[Char], x: Int, y: Int) = ()
     }
 
-
     def initialize(fileName: String, overwrite: Boolean): OpenExport =
       val path = Path.of(fileName)
-      if !overwrite && Files.exists(path) then
-        throw new FileAlreadyExistsException(s"Output file already exists: $fileName")
-      else 
-        if !Files.isWritable(path) then
-          throw new IOException(s"Output file is not writable: $fileName")
-        else
-          val writer = Files.newBufferedWriter(path)
-          OpenExport(writer, header, footer)
-          
+      if !overwrite && Files.exists(path) then throw new FileAlreadyExistsException(s"Output file already exists: $fileName")
+      else if !Files.isWritable(path) then throw new IOException(s"Output file is not writable: $fileName")
+      else
+        val writer = Files.newBufferedWriter(path)
+        OpenExport(writer, header, footer)
 
-  /** Record new work for one named theorem, including reading, reconstruction, and checking. */
+  /**
+   * Record new work for one named theorem, including reading, reconstruction, and checking.
+   */
   final case class TheoremTiming(
       theorem: TheoremRef,
       steps: Int,
@@ -946,10 +976,14 @@ object Import extends lisa.HOL:
     def elapsedSeconds: Double = elapsedNanos / 1e9
     def totalSeconds: Double = totalElapsedNanos / 1e9
 
-    /** Compute throughput for this attempt, including steps reconstructed after eviction. */
+    /**
+     * Compute throughput for this attempt, including steps reconstructed after eviction.
+     */
     def stepsPerSecond: Double = if elapsedNanos == 0 then 0d else steps / elapsedSeconds
 
-    /** Compute cumulative throughput, including time spent reporting earlier attempts. */
+    /**
+     * Compute cumulative throughput, including time spent reporting earlier attempts.
+     */
     def totalStepsPerSecond: Double = if totalElapsedNanos == 0 then 0d else totalSteps / totalSeconds
 
   /**
@@ -969,20 +1003,22 @@ object Import extends lisa.HOL:
     require(startAt >= 0, s"Cannot start at theorem $startAt. Expected a non-negative index.")
     val precomputeLemmas = Config.precomputeLemmas
     val (extractor, names) = JSONParser.initializeFromPrefix(prefix)
-    val (requested, selected, preprocessingNanos) = try
-      val requested = names.drop(startAt).take(limit).toVector
-      val (selected, timing) = LemmaSelection.prepare(new java.io.File(s"$prefix.proofs"), requested.iterator.map(_.id).toSet, precomputeLemmas)(onPreprocessing)
-      (requested, selected, timing.elapsedNanos)
-    catch
-      case error: Exception =>
-        extractor.close()
-        throw error
+    val (requested, selected, preprocessingNanos) =
+      try
+        val requested = names.drop(startAt).take(limit).toVector
+        val (selected, timing) = LemmaSelection.prepare(new java.io.File(s"$prefix.proofs"), requested.iterator.map(_.id).toSet, precomputeLemmas)(onPreprocessing)
+        (requested, selected, timing.elapsedNanos)
+      catch
+        case error: Exception =>
+          extractor.close()
+          throw error
 
-    val statistics = try new ImportStatistics(Config.statisticsPath, Config.stepStatisticsPath,
-      Config.stepStatisticsMinBytes, Config.stepStatisticsFromTheorem, Config.stepStatisticsRules) catch
-      case error: Exception =>
-        extractor.close()
-        throw error
+    val statistics =
+      try new ImportStatistics(Config.statisticsPath, Config.stepStatisticsPath, Config.stepStatisticsMinBytes, Config.stepStatisticsFromTheorem, Config.stepStatisticsRules)
+      catch
+        case error: Exception =>
+          extractor.close()
+          throw error
     val store = new StepStore(statistics, namedSteps = requested.iterator.map(_.id).toSet, lemmaSteps = selected.ids)(using extractor)
     val timings = mutable.ArrayBuffer.empty[TheoremTiming]
     var imported = 0
@@ -1006,7 +1042,8 @@ object Import extends lisa.HOL:
       val perStep = if resources.allocatedBytes < 0 || timing.steps == 0 then "n/a" else f"${resources.allocatedBytes / 1024d / timing.steps}%.1f KiB/step"
       val resourceString = s"Last theorem: CPU $cpu; allocated $allocation ($perStep); GC ${resources.gcMillis} ms; reused ${timing.cacheHits} steps."
       val reader = timing.reader
-      val readString = f"Reader: ${reader.proofHeaders} headers; ${reader.proofRecords} proofs, ${reader.statementRecords} statements parsed; ${(reader.proofBytes + reader.statementBytes) / 1e6}%.2f MB fetched."
+      val readString =
+        f"Reader: ${reader.proofHeaders} headers; ${reader.proofRecords} proofs, ${reader.statementRecords} statements parsed; ${(reader.proofBytes + reader.statementBytes) / 1e6}%.2f MB fetched."
       val cacheString = s"Caches: ${timing.typingCacheEntries} typing results this theorem; ${timing.distinctTypes} distinct HOL types."
       val replayString = timing.recomputedSteps.fold("")(count => s" Replay: $count repeated / ${timing.totalSteps} reconstructions; ${store.lemmaCount} lemmas pinned.")
       println(s"\r[INFO] $progressString $usedSteps $rates $memoryString $resourceString $readString $cacheString$replayString")
@@ -1017,8 +1054,7 @@ object Import extends lisa.HOL:
         case None => ExportConfig.dummyWriter
 
     try
-      if precomputeLemmas then
-        println(f"[INFO] Selected ${selected.ids.size} lemma IDs from ${selected.records} records (${selected.reachable} reachable) in ${preprocessingNanos / 1e9}%.3fs.")
+      if precomputeLemmas then println(f"[INFO] Selected ${selected.ids.size} lemma IDs from ${selected.records} records (${selected.reachable} reachable) in ${preprocessingNanos / 1e9}%.3fs.")
       requested.foreach: ref =>
         statistics.begin(ref.id)
         val stepsBefore = store.size
@@ -1034,7 +1070,8 @@ object Import extends lisa.HOL:
           imported += 1
           maxStep = maxStep.max(ref.id)
           succeeded = true
-        catch e =>
+        catch
+          e =>
             if failFast then throw e
             debug(e.getStackTrace.mkString("\n"))
             val errorMessage = e match
@@ -1044,16 +1081,29 @@ object Import extends lisa.HOL:
                   .mkString("\n")
               case _ => e.getMessage
             print(f"""
-                  | [INFO] Extracted $imported theorems so far in ${time()}%.2f.
-                  | [ERROR] Encountered an error while reconstructing further.
-                  | [ERROR] Error message: $errorMessage
-                  | """.stripMargin)
+                     | [INFO] Extracted $imported theorems so far in ${time()}%.2f.
+                     | [ERROR] Encountered an error while reconstructing further.
+                     | [ERROR] Error message: $errorMessage
+                     | """.stripMargin)
         finally
           // Retain only scalar measurements and the name, never the proof or its context.
           val finished = System.nanoTime()
           val resources = ImportStatistics.sample() - resourcesBefore
-          val timing = TheoremTiming(ref, store.size - stepsBefore, finished - theoremStart, store.size, finished - startTime, succeeded, resources, store.cacheHits - hitsBefore,
-            extractor.statistics - readerBefore, HOLProofType.cacheSize, Transformers.typeCount, store.uniqueSteps, store.recomputedSteps)
+          val timing = TheoremTiming(
+            ref,
+            store.size - stepsBefore,
+            finished - theoremStart,
+            store.size,
+            finished - startTime,
+            succeeded,
+            resources,
+            store.cacheHits - hitsBefore,
+            extractor.statistics - readerBefore,
+            HOLProofType.cacheSize,
+            Transformers.typeCount,
+            store.uniqueSteps,
+            store.recomputedSteps
+          )
           timings += timing
           statistics.finish(ref.id, ref.name)
           printProgress(timing)
@@ -1063,20 +1113,22 @@ object Import extends lisa.HOL:
       Transformers.resetConversionCache()
       closeAll(List(extractor, exporter, statistics))
     println(s"[INFO] Successfully imported $imported theorems with ${store.size} reconstructed steps through index $maxStep in ${time()}s.")
-    println("HOL_IMPORT_METRICS " + ujson.Obj(
-      "precompute_lemmas" -> precomputeLemmas,
-      "cache_capacity" -> store.capacity,
-      "cache_generations" -> store.generations,
-      "preprocessing_seconds" -> preprocessingNanos / 1e9,
-      "selected_lemmas" -> selected.ids.size,
-      "registered_lemmas" -> store.lemmaCount,
-      "reconstructed_steps" -> store.size,
-      "unique_steps" -> store.uniqueSteps.fold[ujson.Value](ujson.Null)(ujson.Num(_)),
-      "recomputed_steps" -> store.recomputedSteps.fold[ujson.Value](ujson.Null)(ujson.Num(_)),
-      "retained_steps" -> store.retainedSize,
-      "pinned_steps" -> store.pinnedSize,
-      "evictions" -> store.evictions.toDouble
-    ))
+    println(
+      "HOL_IMPORT_METRICS " + ujson.Obj(
+        "precompute_lemmas" -> precomputeLemmas,
+        "cache_capacity" -> store.capacity,
+        "cache_generations" -> store.generations,
+        "preprocessing_seconds" -> preprocessingNanos / 1e9,
+        "selected_lemmas" -> selected.ids.size,
+        "registered_lemmas" -> store.lemmaCount,
+        "reconstructed_steps" -> store.size,
+        "unique_steps" -> store.uniqueSteps.fold[ujson.Value](ujson.Null)(ujson.Num(_)),
+        "recomputed_steps" -> store.recomputedSteps.fold[ujson.Value](ujson.Null)(ujson.Num(_)),
+        "retained_steps" -> store.retainedSize,
+        "pinned_steps" -> store.pinnedSize,
+        "evictions" -> store.evictions.toDouble
+      )
+    )
     timings.toVector
 
   @main

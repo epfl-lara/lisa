@@ -32,8 +32,8 @@ object Example extends lisa.Main:
 
   /**
    * The empty set is a subset of every set: `⊢ ∅ ⊆ x`.
-   * 
-   * Similar to infix `subset` above, we have also defined `⊆` 
+   *
+   * Similar to infix `subset` above, we have also defined `⊆`
    */
   val emptySetSubset = Theorem(∅ ⊆ x):
     have((y ∈ ∅) ==> (y ∈ x)) by Weakening(emptySetAxiom of (x := y))

@@ -49,8 +49,11 @@ class PolarizeFlatteningSuite extends AnyFunSuite {
     assert(mixed.children(1).asInstanceOf[SimpleAnd].polarity == false)
     val unfolded = and(p)(neg(implies(q)(or(p)(r))))
     checkShape(unfolded, true, 4)
-    if (enabled) assert(polarize(unfolded, true).asInstanceOf[SimpleAnd].children ==
-      Seq(polarize(p, true), polarize(q, true), polarize(p, false), polarize(r, false)))
+    if (enabled)
+      assert(
+        polarize(unfolded, true).asInstanceOf[SimpleAnd].children ==
+          Seq(polarize(p, true), polarize(q, true), polarize(p, false), polarize(r, false))
+      )
   }
 
   test("retain quantified scope and normalize formulas embedded in terms") {

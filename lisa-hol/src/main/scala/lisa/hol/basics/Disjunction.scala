@@ -1,16 +1,20 @@
 package lisa.hol.basics
 
-import lisa.hol.{FromHOL, HOLLogicalSymbols}
-import lisa.hol.HOLHelperTheorems.*
+import lisa.hol.FromHOL
+import lisa.hol.HOLHelperTheorems._
+import lisa.hol.HOLLogicalSymbols
 import lisa.hol.HOLSteps.HOLProofType
-import lisa.hol.VarsAndFunctions.*
+import lisa.hol.VarsAndFunctions._
 import lisa.hol.basics.Connectives.himp
 import lisa.hol.basics.Forall.hforall
-import lisa.maths.SetTheory.Types.TypingHelpers.{fun as _, *, given}
+import lisa.maths.SetTheory.Types.TypingHelpers.{fun => _, _, given}
 import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
-import lisa.utils.prooflib.{Discharge, Thm}
+import lisa.utils.prooflib.Discharge
+import lisa.utils.prooflib.Thm
 
-/** Define HOL Light disjunction and relate its Boolean elimination rule to native disjunction. */
+/**
+ * Define HOL Light disjunction and relate its Boolean elimination rule to native disjunction.
+ */
 object Disjunction extends lisa.HOL:
   val p, q = typedvar(𝔹)
   private val r = typedvar(𝔹)
@@ -22,8 +26,7 @@ object Disjunction extends lisa.HOL:
     val typing = Theorem(hor :: (𝔹 ->: 𝔹 ->: 𝔹)):
       val typed = have(HOLProofType(expression))
       have(thesis) by Substitute(hor.definition)(typed)
-    HOLLogicalSymbols.register(HOLLogicalSymbols.Symbol.Or,
-      HOLPolymorphicConstant[Ind](hor.id, FunctionalClass(Nil, Nil, 𝔹 ->: 𝔹 ->: 𝔹), typing))
+    HOLLogicalSymbols.register(HOLLogicalSymbols.Symbol.Or, HOLPolymorphicConstant[Ind](hor.id, FunctionalClass(Nil, Nil, 𝔹 ->: 𝔹 ->: 𝔹), typing))
 
   val horCorrect = HOLTheorem((hor * p * q === One) <=> ((p === One) \/ (q === One))):
     assumeAll

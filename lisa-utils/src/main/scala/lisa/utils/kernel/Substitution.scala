@@ -1,9 +1,11 @@
 package lisa.utils.kernel
 
-import lisa.kernel.fol.FOL.*
+import lisa.kernel.fol.FOL._
 import lisa.kernel.{proof => K}
 
-/** Derive assumed and lifted equality substitution from proof-backed substitution. */
+/**
+ * Derive assumed and lifted equality substitution from proof-backed substitution.
+ */
 object Substitution:
   type Result = Either[String, K.Thm]
 
@@ -21,7 +23,9 @@ object Substitution:
     val right = arguments.foldLeft(target: Expression)(_(_))
     if left.sort == Prop then iff(left)(right) else equality(left)(right)
 
-  /** Lift first-order function equality to a universally quantified pointwise comparison. */
+  /**
+   * Lift first-order function equality to a universally quantified pointwise comparison.
+   */
   def liftedEqualities(equalities: Seq[(Expression, Expression)]): Seq[Expression] =
     equalities.map: (source, target) =>
       val arguments = freshArguments(source, target)
@@ -42,16 +46,26 @@ object Substitution:
             checked(K.LeftForall(K.Sequent(Set(antecedent), Set(equation)), current, body, argument, argument))
 
   private def transport(
-      statement: K.Sequent, premise: K.Thm, comparisons: Seq[K.Thm],
-      replacements: Seq[(Expression, Expression, Seq[Variable])], context: (Seq[Variable], Expression), onLeft: Boolean
+      statement: K.Sequent,
+      premise: K.Thm,
+      comparisons: Seq[K.Thm],
+      replacements: Seq[(Expression, Expression, Seq[Variable])],
+      context: (Seq[Variable], Expression),
+      onLeft: Boolean
   )(using K.Theory): Result =
     if onLeft then checked(K.LeftSubst(statement, premise, comparisons, replacements, context))
     else checked(K.RightSubst(statement, premise, comparisons, replacements, context))
 
-  /** Use an equality proof directly, or discharge its lifted equality after substitution. */
+  /**
+   * Use an equality proof directly, or discharge its lifted equality after substitution.
+   */
   def withProof(
-      statement: K.Sequent, premise: K.Thm, comparison: K.Thm,
-      replacement: (Expression, Expression), context: (Variable, Expression), onLeft: Boolean
+      statement: K.Sequent,
+      premise: K.Thm,
+      comparison: K.Thm,
+      replacement: (Expression, Expression),
+      context: (Variable, Expression),
+      onLeft: Boolean
   )(using K.Theory): Result =
     val (source, target) = replacement
     if source.sort != target.sort || source.sort != context._1.sort || (!source.sort.isFunctional && !source.sort.isPredicate) then
@@ -59,8 +73,7 @@ object Substitution:
     else
       val equation = liftedEqualities(Seq(replacement)).head
       val variables = Seq(context._1) -> context._2
-      if source.sort.depth == 0 && comparison.right.contains(equation) then
-        transport(statement, premise, Seq(comparison), Seq((source, target, Nil)), variables, onLeft)
+      if source.sort.depth == 0 && comparison.right.contains(equation) then transport(statement, premise, Seq(comparison), Seq((source, target, Nil)), variables, onLeft)
       else if comparison.right.size != 1 then Left("Expected exactly one lifted comparison on the right.")
       else
         for
@@ -68,10 +81,15 @@ object Substitution:
           result <- checked(K.Cut(statement, comparison, assumed, equation))
         yield result
 
-  /** Assume lifted equalities and preserve simultaneous replacement semantics. */
+  /**
+   * Assume lifted equalities and preserve simultaneous replacement semantics.
+   */
   def simultaneous(
-      statement: K.Sequent, premise: K.Thm, equalities: Seq[(Expression, Expression)],
-      context: (Seq[Variable], Expression), onLeft: Boolean
+      statement: K.Sequent,
+      premise: K.Thm,
+      equalities: Seq[(Expression, Expression)],
+      context: (Seq[Variable], Expression),
+      onLeft: Boolean
   )(using K.Theory): Result =
     val (parameters, body) = context
     if body.sort != Prop then Left("Substitution context must be a formula.")
@@ -89,12 +107,16 @@ object Substitution:
       if assumptions.exists(_.isEmpty) then Left("Substitution conclusion is missing a lifted equality.")
       else
         val retained = assumptions.flatten
-        val replacements = equalities.zip(retained).map:
-          case ((source, target), assumption) => (source, target, freshArguments(source, target, assumption.freeVariables))
-        val comparisons = replacements.zip(retained).foldLeft(Right(Vector.empty[K.Thm]): Either[String, Vector[K.Thm]]):
-          case (result, (replacement, assumption)) =>
-            for
-              accumulated <- result
-              comparison <- assumeComparison(assumption, replacement)
-            yield accumulated :+ comparison
+        val replacements = equalities
+          .zip(retained)
+          .map:
+            case ((source, target), assumption) => (source, target, freshArguments(source, target, assumption.freeVariables))
+        val comparisons = replacements
+          .zip(retained)
+          .foldLeft(Right(Vector.empty[K.Thm]): Either[String, Vector[K.Thm]]):
+            case (result, (replacement, assumption)) =>
+              for
+                accumulated <- result
+                comparison <- assumeComparison(assumption, replacement)
+              yield accumulated :+ comparison
         comparisons.flatMap(proofs => transport(statement, premise, proofs, replacements, context, onLeft))

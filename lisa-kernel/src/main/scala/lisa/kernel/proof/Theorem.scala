@@ -1,32 +1,32 @@
 package lisa.kernel.proof
 
-import lisa.kernel.fol.FOL.*
+import lisa.kernel.fol.FOL._
 
 ///////////////////////////////////////////////////////////////////////////////
 // Basic Proof Objects
 ///////////////////////////////////////////////////////////////////////////////
 
 /**
-  * A proven statement and its metadata.
-  * 
-  * New objects can only be constructed in the current module
-  * by proof-checking functions.
-  * 
-  * `Thm`s from different `theory`s are incompatible. 
-  *
-  * @param statement the statement this `Thm` is a witness of
-  * @param rule the (last) rule used to justify this statement
-  * @param theory the (running) theory under which this statement was proven
-  * @param axioms the cumulative set of axioms used in the justification of this `Thm`
-  * @param usesSorry whether this `Thm` transitively depends on a trusted `Sorry` step
-  */
-case class Thm private [proof] (
-  statement: Sequent,
-  rule: Step,
-  theory: Theory,
-  axioms: Set[Sequent],
-  assumptions: Set[Sequent],
-  usesSorry: Boolean = false
+ * A proven statement and its metadata.
+ *
+ * New objects can only be constructed in the current module
+ * by proof-checking functions.
+ *
+ * `Thm`s from different `theory`s are incompatible.
+ *
+ * @param statement the statement this `Thm` is a witness of
+ * @param rule the (last) rule used to justify this statement
+ * @param theory the (running) theory under which this statement was proven
+ * @param axioms the cumulative set of axioms used in the justification of this `Thm`
+ * @param usesSorry whether this `Thm` transitively depends on a trusted `Sorry` step
+ */
+case class Thm private[proof] (
+    statement: Sequent,
+    rule: Step,
+    theory: Theory,
+    axioms: Set[Sequent],
+    assumptions: Set[Sequent],
+    usesSorry: Boolean = false
 ):
   inline def left: Set[Expression] = statement.left
   inline def right: Set[Expression] = statement.right
@@ -37,7 +37,7 @@ sealed trait GeneralError extends ProofError
 case class SortMismatch(step: Step, expected: Sort, actual: Sort, expression: Expression) extends GeneralError
 case class TheoryMismatch(step: Step, expected: Theory, actual: Theory) extends GeneralError
 
-sealed trait Step: 
+sealed trait Step:
   protected given Step = this
   type ErrorType <: ProofError
   type Result[+T] = Either[ErrorType, T]
@@ -72,10 +72,10 @@ private[proof] object Helpers:
       set.forall(formula =>
         // fast checks
         target.contains(formula) ||
-        formula == exception ||
-        // weakened checks
-        simplifiedTarget.containsSimple(formula) ||
-        expEq(formula, exception)
+          formula == exception ||
+          // weakened checks
+          simplifiedTarget.containsSimple(formula) ||
+          expEq(formula, exception)
       )
 
     inline def containedExceptEither(target: Set[Expression], exception1: Expression, exception2: Expression): Boolean =
@@ -98,12 +98,12 @@ private def theorem(using theory: Theory, rule: Step)(statement: Sequent, premis
     if acc.isEmpty then premise.axioms else acc union premise.axioms
   val allAssumptions = premises.foldLeft(Set.empty[Sequent]): (acc, premise) =>
     if acc.isEmpty then premise.assumptions else acc union premise.assumptions
-  
+
   // the last check for any theorem, its premises must be from the same theory context
   val violatingPremise = premises.find(prem => !(theory eq prem.theory))
 
   if violatingPremise.isDefined then
-    Left: 
+    Left:
       TheoryMismatch(rule, theory, violatingPremise.get.theory)
   else
     Right:
@@ -128,15 +128,14 @@ private inline def requireTerm[E, T](using step: Step)(e: Expression)(body: => E
 private def variableIsFreeInSequent(sequent: Sequent, variable: Variable): Boolean =
   sequent.left.exists(_.freeVariables.contains(variable)) || sequent.right.exists(_.freeVariables.contains(variable))
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // Proof Steps
 ///////////////////////////////////////////////////////////////////////////////
 
 case object Sorry extends Step:
   type ErrorType = Nothing // Sorry does not throw its own errors
- 
-  def apply(using theory: Theory)(statement: Sequent): Result[Thm] = 
+
+  def apply(using theory: Theory)(statement: Sequent): Result[Thm] =
     Right(Thm(statement, this, theory, Set.empty, Set.empty, usesSorry = true))
 
 /**
@@ -149,7 +148,7 @@ def sorry(using theory: Theory)(statement: Sequent): Thm =
 case object Axiom extends Step:
   type ErrorType = Nothing // Axiom does not throw its own errors
 
-  def apply(using theory: Theory)(statement: Sequent): Result[Thm] = 
+  def apply(using theory: Theory)(statement: Sequent): Result[Thm] =
     Right(Thm(statement, this, theory, Set(statement), Set.empty))
 
 // assumption handling
@@ -157,7 +156,7 @@ case object Axiom extends Step:
 case object Assume extends Step:
   type ErrorType = Nothing // Assume does not throw its own errors
 
-  def apply(using theory: Theory)(statement: Sequent): Result[Thm] = 
+  def apply(using theory: Theory)(statement: Sequent): Result[Thm] =
     Right(Thm(statement, this, theory, Set.empty, Set(statement)))
 
 case object Discharge extends Step:
@@ -165,13 +164,12 @@ case object Discharge extends Step:
 
   def apply(using theory: Theory)(premise: Thm, justification: Thm): Result[Thm] =
     val statement = justification.statement
-    val finalAssumptions = 
+    val finalAssumptions =
       premise.assumptions.filterNot(isSameSequent(_, statement)) `union` justification.assumptions
 
     // the result is just the premise with an assumption discharged, and axioms/sorry accumulated
     theorem(premise.statement, Seq(premise, justification), Set.empty)
       .map(thm => thm.copy(assumptions = finalAssumptions))
-
 
 case object Definition extends Step:
   type ErrorType = DefinitionError
@@ -184,25 +182,20 @@ case object Definition extends Step:
   case class ArityMismatch(cst: Constant, expected: Int, actual: Int) extends DefinitionError
   case class DefinitionSortMismatch(expected: Sort, actual: Sort, exp: Expression) extends DefinitionError
 
-  def apply(using theory: Theory)(cst: Constant, vars: Seq[Variable], exp: Expression): Result[Thm] = 
-    if theory.getSymbol(cst.id).nonEmpty then
-      Left(AlreadyDefined(cst))
-    else if !theory.contains(exp) then
-      Left(ExpressionNotInTheory(exp))
-    else if exp.freeVariables.nonEmpty then
-      Left(ContainsSchematic(exp))
-    else if cst.sort.depth != vars.length then
-      Left(ArityMismatch(cst, cst.sort.depth, vars.length))
+  def apply(using theory: Theory)(cst: Constant, vars: Seq[Variable], exp: Expression): Result[Thm] =
+    if theory.getSymbol(cst.id).nonEmpty then Left(AlreadyDefined(cst))
+    else if !theory.contains(exp) then Left(ExpressionNotInTheory(exp))
+    else if exp.freeVariables.nonEmpty then Left(ContainsSchematic(exp))
+    else if cst.sort.depth != vars.length then Left(ArityMismatch(cst, cst.sort.depth, vars.length))
     else if flatTypeParameters(cst.sort) != vars.map(_.sort) then
       val violation = flatTypeParameters(cst.sort).zip(vars).find { case (expected, variable) => expected != variable.sort }
       val (expected, variable) = violation.get
       Left(VariableSortMismatch(variable, expected, variable.sort))
-    else if cst.sort != exp.sort then
-      Left(DefinitionSortMismatch(cst.sort, exp.sort, exp))
+    else if cst.sort != exp.sort then Left(DefinitionSortMismatch(cst.sort, exp.sort, exp))
     else
       val appliedCst = vars.foldLeft(cst: Expression)((f, arg) => f(arg))
       val appliedExp = vars.foldLeft(exp)((f, arg) => f(arg))
-      val formula = 
+      val formula =
         if appliedCst.sort == Prop then iff(appliedCst)(appliedExp)
         else equality(appliedCst)(appliedExp)
       val sequent = Sequent(Set.empty, Set(formula))
@@ -215,10 +208,10 @@ case object Definition extends Step:
       Right(definition)
 
 /**
-  *    Γ |- Δ
-  * ------------
-  *    Γ |- Δ
-  */
+ *    Γ |- Δ
+ * ------------
+ *    Γ |- Δ
+ */
 case object Restate extends Step:
   type ErrorType = RestateError | GeneralError
 
@@ -230,10 +223,9 @@ case object Restate extends Step:
     else Left(NotImplying(premise, statement))
 
 /**
-  *
-  * ------------
-  *    Γ |- Γ
-  */
+ * ------------
+ *    Γ |- Γ
+ */
 case object RestateTrue extends Step:
   type ErrorType = RestateTrueError
 
@@ -241,14 +233,13 @@ case object RestateTrue extends Step:
   case class NotTrivial(statement: Sequent) extends RestateTrueError
 
   def apply(using theory: Theory)(statement: Sequent): Result[Thm] =
-    if isSameSequent(statement, Sequent(Set.empty, Set(top))) then 
-      Right(Thm(statement, this, theory, Set.empty, Set.empty))
+    if isSameSequent(statement, Sequent(Set.empty, Set(top))) then Right(Thm(statement, this, theory, Set.empty, Set.empty))
     else Left(NotTrivial(statement))
 
 /**
-  * --------------
-  *   Γ, φ |- φ, Δ
-  */
+ * --------------
+ *   Γ, φ |- φ, Δ
+ */
 case object Hypothesis extends Step:
   type ErrorType = HypothesisError | GeneralError
 
@@ -256,21 +247,18 @@ case object Hypothesis extends Step:
   case class MissingFromLeft(statement: Sequent, phi: Expression) extends HypothesisError
   case class MissingFromRight(statement: Sequent, phi: Expression) extends HypothesisError
 
-  def apply(using theory: Theory)(statement: Sequent, φ: Expression): Result[Thm] = 
+  def apply(using theory: Theory)(statement: Sequent, φ: Expression): Result[Thm] =
     requireFormula(φ):
       val Sequent(left, right) = statement
-      if !left.containsEq(φ) then
-        Left(MissingFromLeft(statement, φ))
-      else if !right.containsEq(φ) then
-        Left(MissingFromRight(statement, φ))
-      else
-        theorem(statement)
+      if !left.containsEq(φ) then Left(MissingFromLeft(statement, φ))
+      else if !right.containsEq(φ) then Left(MissingFromRight(statement, φ))
+      else theorem(statement)
 
 /**
-  *  Γ |- Δ, φ    φ, Σ |- Π
-  * ------------------------
-  *       Γ, Σ |- Δ, Π
-  */
+ *  Γ |- Δ, φ    φ, Σ |- Π
+ * ------------------------
+ *       Γ, Σ |- Δ, Π
+ */
 case object Cut extends Step:
   type ErrorType = CutError | GeneralError
 
@@ -289,10 +277,10 @@ case object Cut extends Step:
       else theorem(statement, Seq(prem1, prem2))
 
 /**
-  *   Γ, φ |- Δ                Γ, φ, ψ |- Δ
-  * --------------     or     --------------
-  *  Γ, φ∧ψ |- Δ               Γ, φ∧ψ |- Δ
-  */
+ *   Γ, φ |- Δ                Γ, φ, ψ |- Δ
+ * --------------     or     --------------
+ *  Γ, φ∧ψ |- Δ               Γ, φ∧ψ |- Δ
+ */
 case object LeftAnd extends Step:
   type ErrorType = LeftAndError | GeneralError
 
@@ -311,10 +299,10 @@ case object LeftAnd extends Step:
         else theorem(statement, Seq(premise))
 
 /**
-  *  Γ, φ |- Δ    Σ, ψ |- Π    ...
-  * --------------------------------
-  *    Γ, Σ, φ∨ψ∨... |- Δ, Π
-  */
+ *  Γ, φ |- Δ    Σ, ψ |- Π    ...
+ * --------------------------------
+ *    Γ, Σ, φ∨ψ∨... |- Δ, Π
+ */
 case object LeftOr extends Step:
   type ErrorType = LeftOrError | GeneralError
 
@@ -340,10 +328,10 @@ case object LeftOr extends Step:
             else Left(MissingDisjunction(statement, disjunction))
 
 /**
-  *  Γ |- φ, Δ    Σ, ψ |- Π
-  * ------------------------
-  *    Γ, Σ, φ⇒ψ |- Δ, Π
-  */
+ *  Γ |- φ, Δ    Σ, ψ |- Π
+ * ------------------------
+ *    Γ, Σ, φ⇒ψ |- Δ, Π
+ */
 case object LeftImplies extends Step:
   type ErrorType = LeftImpliesError | GeneralError
 
@@ -366,10 +354,10 @@ case object LeftImplies extends Step:
         else theorem(statement, Seq(prem1, prem2))
 
 /**
-  *  Γ, φ⇒ψ |- Δ               Γ, φ⇒ψ, ψ⇒φ |- Δ
-  * --------------    or     --------------------
-  *  Γ, φ⇔ψ |- Δ                 Γ, φ⇔ψ |- Δ
-  */
+ *  Γ, φ⇒ψ |- Δ               Γ, φ⇒ψ, ψ⇒φ |- Δ
+ * --------------    or     --------------------
+ *  Γ, φ⇔ψ |- Δ                 Γ, φ⇔ψ |- Δ
+ */
 case object LeftIff extends Step:
   type ErrorType = LeftIffError | GeneralError
 
@@ -390,10 +378,10 @@ case object LeftIff extends Step:
         else theorem(statement, Seq(premise))
 
 /**
-  *   Γ |- φ, Δ
-  * --------------
-  *   Γ, ¬φ |- Δ
-  */
+ *   Γ |- φ, Δ
+ * --------------
+ *   Γ, ¬φ |- Δ
+ */
 case object LeftNot extends Step:
   type ErrorType = LeftNotError | GeneralError
 
@@ -411,10 +399,10 @@ case object LeftNot extends Step:
       else theorem(statement, Seq(premise))
 
 /**
-  *   Γ, φ[t/x] |- Δ
-  * -------------------
-  *  Γ, ∀x. φ |- Δ
-  */
+ *   Γ, φ[t/x] |- Δ
+ * -------------------
+ *  Γ, ∀x. φ |- Δ
+ */
 case object LeftForall extends Step:
   type ErrorType = LeftForallError | GeneralError
 
@@ -435,10 +423,10 @@ case object LeftForall extends Step:
           else theorem(statement, Seq(premise))
 
 /**
-  *    Γ, φ |- Δ
-  * ------------------- if x is not free in the resulting sequent
-  *  Γ, ∃x. φ |- Δ
-  */
+ *    Γ, φ |- Δ
+ * ------------------- if x is not free in the resulting sequent
+ *  Γ, ∃x. φ |- Δ
+ */
 case object LeftExists extends Step:
   type ErrorType = LeftExistsError | GeneralError
 
@@ -459,10 +447,10 @@ case object LeftExists extends Step:
         else theorem(statement, Seq(premise))
 
 /**
-  *  Γ |- φ, Δ    Σ |- ψ, Π     ...
-  * ------------------------------------
-  *    Γ, Σ |- φ∧ψ∧..., Π, Δ
-  */
+ *  Γ |- φ, Δ    Σ |- ψ, Π     ...
+ * ------------------------------------
+ *    Γ, Σ |- φ∧ψ∧..., Π, Δ
+ */
 case object RightAnd extends Step:
   type ErrorType = RightAndError | GeneralError
 
@@ -488,10 +476,10 @@ case object RightAnd extends Step:
             else Left(MissingConjunction(statement, conjunction))
 
 /**
-  *   Γ |- φ, Δ                Γ |- φ, ψ, Δ
-  * --------------    or    ---------------
-  *  Γ |- φ∨ψ, Δ              Γ |- φ∨ψ, Δ
-  */
+ *   Γ |- φ, Δ                Γ |- φ, ψ, Δ
+ * --------------    or    ---------------
+ *  Γ |- φ∨ψ, Δ              Γ |- φ∨ψ, Δ
+ */
 case object RightOr extends Step:
   type ErrorType = RightOrError | GeneralError
 
@@ -510,10 +498,10 @@ case object RightOr extends Step:
         else theorem(statement, Seq(premise))
 
 /**
-  *  Γ, φ |- ψ, Δ
-  * --------------
-  *  Γ |- φ⇒ψ, Δ
-  */
+ *  Γ, φ |- ψ, Δ
+ * --------------
+ *  Γ |- φ⇒ψ, Δ
+ */
 case object RightImplies extends Step:
   type ErrorType = RightImpliesError | GeneralError
 
@@ -532,10 +520,10 @@ case object RightImplies extends Step:
         else theorem(statement, Seq(premise))
 
 /**
-  *  Γ |- φ⇒ψ, Δ    Σ |- ψ⇒φ, Π
-  * ----------------------------
-  *      Γ, Σ |- φ⇔ψ, Π, Δ
-  */
+ *  Γ |- φ⇒ψ, Δ    Σ |- ψ⇒φ, Π
+ * ----------------------------
+ *      Γ, Σ |- φ⇔ψ, Π, Δ
+ */
 case object RightIff extends Step:
   type ErrorType = RightIffError | GeneralError
 
@@ -560,10 +548,10 @@ case object RightIff extends Step:
         else theorem(statement, Seq(prem1, prem2))
 
 /**
-  *  Γ, φ |- Δ
-  * --------------
-  *   Γ |- ¬φ, Δ
-  */
+ *  Γ, φ |- Δ
+ * --------------
+ *   Γ |- ¬φ, Δ
+ */
 case object RightNot extends Step:
   type ErrorType = RightNotError | GeneralError
 
@@ -581,10 +569,10 @@ case object RightNot extends Step:
       else theorem(statement, Seq(premise))
 
 /**
-  *    Γ |- φ, Δ
-  * ------------------- if x is not free in the resulting sequent
-  *  Γ |- ∀x. φ, Δ
-  */
+ *    Γ |- φ, Δ
+ * ------------------- if x is not free in the resulting sequent
+ *  Γ |- ∀x. φ, Δ
+ */
 case object RightForall extends Step:
   type ErrorType = RightForallError | GeneralError
 
@@ -605,10 +593,10 @@ case object RightForall extends Step:
         else theorem(statement, Seq(premise))
 
 /**
-  *   Γ |- φ[t/x], Δ
-  * -------------------
-  *  Γ |- ∃x. φ, Δ
-  */
+ *   Γ |- φ[t/x], Δ
+ * -------------------
+ *  Γ |- ∃x. φ, Δ
+ */
 case object RightExists extends Step:
   type ErrorType = RightExistsError | GeneralError
 
@@ -629,10 +617,10 @@ case object RightExists extends Step:
           else theorem(statement, Seq(premise))
 
 /**
-  *       Γ |- φ[t/x], Δ
-  * -------------------------- if y is not free in φ
-  *    Γ|- φ[(εx. φ)/x],  Δ
-  */
+ *       Γ |- φ[t/x], Δ
+ * -------------------------- if y is not free in φ
+ *    Γ|- φ[(εx. φ)/x],  Δ
+ */
 case object RightEpsilon extends Step:
   type ErrorType = RightEpsilonError | GeneralError
 
@@ -654,10 +642,10 @@ case object RightEpsilon extends Step:
           else theorem(statement, Seq(premise))
 
 /**
-  *     Γ |- Δ
-  * --------------
-  *   Γ, Σ |- Δ, Π
-  */
+ *     Γ |- Δ
+ * --------------
+ *   Γ, Σ |- Δ, Π
+ */
 case object Weakening extends Step:
   type ErrorType = WeakeningError | GeneralError
 
@@ -670,10 +658,10 @@ case object Weakening extends Step:
     else Left(NotImplying(premise, statement))
 
 /**
-  *  Γ, s=s |- Δ
-  * --------------
-  *     Γ |- Δ
-  */
+ *  Γ, s=s |- Δ
+ * --------------
+ *     Γ |- Δ
+ */
 case object LeftRefl extends Step:
   type ErrorType = LeftReflError | GeneralError
 
@@ -693,10 +681,9 @@ case object LeftRefl extends Step:
       case _ => Left(NotAnEquality(φ))
 
 /**
-  *
-  * --------------
-  *     |- s=s
-  */
+ * --------------
+ *     |- s=s
+ */
 case object RightRefl extends Step:
   type ErrorType = RightReflError | GeneralError
 
@@ -713,8 +700,9 @@ case object RightRefl extends Step:
         else theorem(statement)
       case _ => Left(NotAnEquality(φ))
 
-
-/** Generic simultaneous substitution implementation for {Left, Right}Subst. */
+/**
+ * Generic simultaneous substitution implementation for {Left, Right}Subst.
+ */
 object Substitution:
   sealed trait Error extends ProofError
   case class ArityMismatch(variables: Int, replacements: Int, comparisons: Int) extends Error
@@ -733,7 +721,9 @@ object Substitution:
   /**
    * Check a single replacement pair for substitution violations.
    */
-  private def checkComparison(using Step)(
+  private def checkComparison(using
+      Step
+  )(
       statement: Sequent,
       comparison: Thm,
       replacement: (Expression, Expression, Seq[Variable]),
@@ -744,8 +734,7 @@ object Substitution:
       requireSort(target, variable.sort):
         val expected = argumentSorts(variable.sort)
         if arguments.map(_.sort) != expected then Left(InvalidArguments(expected, arguments))
-        else if arguments.toSet.size != arguments.size then
-          Left(RepeatedArgument(arguments.groupBy(identity).find(_._2.size > 1).get._1))
+        else if arguments.toSet.size != arguments.size then Left(RepeatedArgument(arguments.groupBy(identity).find(_._2.size > 1).get._1))
         else
           val appliedSource = arguments.foldLeft(source: Expression)(_(_))
           val appliedTarget = arguments.foldLeft(target: Expression)(_(_))
@@ -760,7 +749,10 @@ object Substitution:
           else if !comparison.left.subsetOfEq(statement.left) || !residual.subsetOfEq(statement.right) then Left(MissingContext(comparison, statement))
           else Right(())
 
-  private[proof] def prove(using theory: Theory, step: Step)(
+  private[proof] def prove(using
+      theory: Theory,
+      step: Step
+  )(
       statement: Sequent,
       premise: Thm,
       comparisons: Seq[Thm],
@@ -770,13 +762,15 @@ object Substitution:
   ): Either[Error | GeneralError, Thm] =
     val (variables, body) = context
     requireFormula(body):
-      if variables.size != replacements.size || comparisons.size != replacements.size then
-        Left(ArityMismatch(variables.size, replacements.size, comparisons.size))
+      if variables.size != replacements.size || comparisons.size != replacements.size then Left(ArityMismatch(variables.size, replacements.size, comparisons.size))
       else
         // check each replacement pair for well-formedness and freshness
-        val checked = replacements.zip(variables).zip(comparisons).foldLeft(Right(()): Either[Error | GeneralError, Unit]):
-          case (result, ((replacement, variable), comparison)) =>
-            result.flatMap(_ => checkComparison(statement, comparison, replacement, variable))
+        val checked = replacements
+          .zip(variables)
+          .zip(comparisons)
+          .foldLeft(Right(()): Either[Error | GeneralError, Unit]):
+            case (result, ((replacement, variable), comparison)) =>
+              result.flatMap(_ => checkComparison(statement, comparison, replacement, variable))
         checked.flatMap: _ =>
           // all the pairs were well-formed.
           // now check the full substitution against the result
@@ -791,7 +785,6 @@ object Substitution:
           else theorem(statement, premise +: comparisons)
 
 /**
- *
  * ```
  * Γ, φ(s_1,...,s_n) |- Δ    (Θ_i |- s_i(a_i1, ..., a_ik) ≈ t_i(a_i1, ..., a_ik), Ξ_i)_i
  * --------------------------------------------------------------------------------------
@@ -808,7 +801,9 @@ object Substitution:
 case object LeftSubst extends Step:
   type ErrorType = Substitution.Error | GeneralError
 
-  def apply(using theory: Theory)(
+  def apply(using
+      theory: Theory
+  )(
       statement: Sequent,
       premise: Thm,
       comparisons: Seq[Thm],
@@ -817,7 +812,6 @@ case object LeftSubst extends Step:
   ): Result[Thm] = Substitution.prove(statement, premise, comparisons, replacements, context, onLeft = true)
 
 /**
- *
  * ```
  * Γ |- φ(s_1,...,s_n), Δ    (Θ_i |- s_i(a_i1, ..., a_ik) ≈ t_i(a_i1, ..., a_ik), Ξ_i)_i
  * --------------------------------------------------------------------------------------
@@ -834,7 +828,9 @@ case object LeftSubst extends Step:
 case object RightSubst extends Step:
   type ErrorType = Substitution.Error | GeneralError
 
-  def apply(using theory: Theory)(
+  def apply(using
+      theory: Theory
+  )(
       statement: Sequent,
       premise: Thm,
       comparisons: Seq[Thm],
@@ -843,10 +839,10 @@ case object RightSubst extends Step:
   ): Result[Thm] = Substitution.prove(statement, premise, comparisons, replacements, context, onLeft = false)
 
 /**
-  *         Γ |- Δ
-  * --------------------------
-  *     Γ[ψ/?p] |- Δ[ψ/?p]
-  */
+ *         Γ |- Δ
+ * --------------------------
+ *     Γ[ψ/?p] |- Δ[ψ/?p]
+ */
 case object InstSchema extends Step:
   type ErrorType = InstSchemaError | GeneralError
 

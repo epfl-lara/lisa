@@ -1,9 +1,11 @@
 package lisa.hol
 
-import java.io.ByteArrayOutputStream
-import java.nio.file.{Files, Path}
-import lisa.hol.extractor.*
+import lisa.hol.extractor._
 import org.scalatest.funsuite.AnyFunSuite
+
+import java.io.ByteArrayOutputStream
+import java.nio.file.Files
+import java.nio.file.Path
 
 class ImportTimingSuite extends AnyFunSuite:
   private val p = "v(timing_p)(c[bool][])"
@@ -60,10 +62,15 @@ class ImportTimingSuite extends AnyFunSuite:
       val output = new ByteArrayOutputStream
       var preprocessing = Option.empty[LemmaSelection.Timing]
       val timings = Console.withOut(output):
-        Import.importFromPrefix(prefix, 2, failFast = true, onPreprocessing = timing => {
-          assert(!output.toString.contains("Last theorem"))
-          preprocessing = Some(timing)
-        })
+        Import.importFromPrefix(
+          prefix,
+          2,
+          failFast = true,
+          onPreprocessing = timing => {
+            assert(!output.toString.contains("Last theorem"))
+            preprocessing = Some(timing)
+          }
+        )
       assert(timings.forall(_.succeeded))
       val measured = preprocessing.get
       assert(measured.enabled == Config.precomputeLemmas)
@@ -75,8 +82,7 @@ class ImportTimingSuite extends AnyFunSuite:
         assert(last.uniqueSteps.contains(4))
         val replay = if !Config.precomputeLemmas && Config.stepCacheCapacity == 1 && Config.stepCacheGenerations <= 1 then 2 else 0
         assert(last.recomputedSteps.contains(replay))
-      else
-        assert(last.uniqueSteps.isEmpty && last.recomputedSteps.isEmpty)
+      else assert(last.uniqueSteps.isEmpty && last.recomputedSteps.isEmpty)
       val line = output.toString.linesIterator.find(_.startsWith("HOL_IMPORT_METRICS ")).get
       val metrics = ujson.read(line.stripPrefix("HOL_IMPORT_METRICS "))
       assert(metrics("precompute_lemmas").bool == Config.precomputeLemmas)

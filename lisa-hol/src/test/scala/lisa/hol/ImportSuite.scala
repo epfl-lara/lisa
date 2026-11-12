@@ -1,7 +1,8 @@
 package lisa.hol
 
-import lisa.hol.extractor.*
+import lisa.hol.extractor._
 import org.scalatest.funsuite.AnyFunSuite
+
 import java.nio.file.Files
 
 class ImportSuite extends AnyFunSuite:

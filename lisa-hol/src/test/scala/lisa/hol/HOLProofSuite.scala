@@ -3,7 +3,9 @@ package lisa.hol
 import lisa.SetTheoryLibrary
 import org.scalatest.funsuite.AnyFunSuite
 
-/** Check the proof registry as well as module initialization. */
+/**
+ * Check the proof registry as well as module initialization.
+ */
 class HOLProofSuite extends AnyFunSuite:
   private def check(name: String)(initialize: => lisa.Main): Unit =
     test(name):
@@ -35,5 +37,4 @@ class HOLProofSuite extends AnyFunSuite:
     assert(!basics.Connectives.hnot.holDefinition.kernel.usesSorry)
 
   test("existence and type-definition proofs do not inherit Sorry"):
-    for theorem <- Seq(basics.Exists.hexistsCorrect, basics.TypeDefs.typeNonEmpty, basics.TypeDefs.absTyping, basics.TypeDefs.repThm) do
-      assert(!theorem.kernel.usesSorry, theorem.fullName.value)
+    for theorem <- Seq(basics.Exists.hexistsCorrect, basics.TypeDefs.typeNonEmpty, basics.TypeDefs.absTyping, basics.TypeDefs.repThm) do assert(!theorem.kernel.usesSorry, theorem.fullName.value)

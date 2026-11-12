@@ -2,10 +2,13 @@ package lisa.hol
 
 import lisa.hol.VarsAndFunctions.eqOne
 import lisa.maths.SetTheory.Functions.Predef.Sabs
-import lisa.maths.SetTheory.Types.TypingHelpers.{Sapp, TypeAssign}
-import lisa.utils.fol.FOL.{*, given}
+import lisa.maths.SetTheory.Types.TypingHelpers.Sapp
+import lisa.maths.SetTheory.Types.TypingHelpers.TypeAssign
+import lisa.utils.fol.FOL.{_, given}
 
-/** Identify logical constants without initializing their defining modules while printing. */
+/**
+ * Identify logical constants without initializing their defining modules while printing.
+ */
 private[hol] object HOLLogicalSymbols:
   enum Symbol:
     case Truth, Falsehood, Bool, Equality, And, Or, Implies, Not, Forall, Exists
@@ -13,7 +16,9 @@ private[hol] object HOLLogicalSymbols:
   import Symbol.*
   @volatile private var symbols = Map.empty[Identifier, Symbol]
 
-  /** Record only the identifier; retain neither the constant nor its proofs. */
+  /**
+   * Record only the identifier; retain neither the constant nor its proofs.
+   */
   def register[C <: Constant[?]](symbol: Symbol, constant: C): C = synchronized:
     require(symbols.get(constant.id).forall(_ == symbol), s"Conflicting HOL notation for ${constant.id}")
     symbols = symbols.updated(constant.id, symbol)
@@ -28,7 +33,9 @@ private[hol] object HOLLogicalSymbols:
       val (head, arguments) = unfoldAllApp(expression)
       symbol(head).map(_ -> arguments)
 
-/** Print the first-order spine of HOL formulas, leaving higher-order arguments as terms. */
+/**
+ * Print the first-order spine of HOL formulas, leaving higher-order arguments as terms.
+ */
 object HOLPrinting:
   import HOLLogicalSymbols.{Logical, Symbol, symbol}
   import Symbol.*
@@ -39,7 +46,9 @@ object HOLPrinting:
     case Sabs(domain, Abs(bound, body: Expr[Ind])) => s"λ(${bound.id}: ${term(domain)}. ${term(body)})"
     case _ => expression.toString
 
-  /** Render a Boolean HOL term as a formula, not as an equality to One. */
+  /**
+   * Render a Boolean HOL term as a formula, not as an equality to One.
+   */
   def boolean(expression: Expr[Ind]): String = expression match
     case Logical(Truth, Seq()) => "⊤"
     case Logical(Falsehood, Seq()) => "⊥"
@@ -61,7 +70,9 @@ object HOLPrinting:
           s"$quantifierName(${bound.id}: ${term(domain)}, ${boolean(application)})"
     case _ => term(expression)
 
-  /** Render native connectives and embedded HOL formulas on either side of a sequent. */
+  /**
+   * Render native connectives and embedded HOL formulas on either side of a sequent.
+   */
   def formula(expression: Expr[Prop]): String = expression match
     case eqOne(body) => boolean(body)
     case left /\ right => s"(${formula(left)} ∧ ${formula(right)})"
@@ -75,14 +86,18 @@ object HOLPrinting:
     case left === right => s"${term(left)} = ${term(right)}"
     case _ => expression.toString
 
-  /** Keep typing and non-emptiness premises visible alongside logical hypotheses. */
+  /**
+   * Keep typing and non-emptiness premises visible alongside logical hypotheses.
+   */
   def sequent(statement: Sequent): String =
     def side(formulas: Set[Expr[Prop]]): String =
       val rendered = formulas.iterator.map(formula).toVector
       if rendered.size <= 1 then rendered.mkString else rendered.mkString("( ", ", ", " )")
     s"${side(statement.left)} ⊢ ${side(statement.right)}"
 
-  /** Attach HOL notation without changing the formulas or their kernel representation. */
+  /**
+   * Attach HOL notation without changing the formulas or their kernel representation.
+   */
   private[lisa] def displayed(statement: Sequent): Sequent =
     new Sequent(statement.left, statement.right):
       override def toString: String = sequent(this)

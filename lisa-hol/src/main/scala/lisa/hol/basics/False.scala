@@ -1,18 +1,19 @@
 package lisa.hol.basics
 
-import lisa.hol.HOLLogicalSymbols
-
-import lisa.utils.prooflib.Substitute
 import lisa.hol.HOLHelperTheorems._
+import lisa.hol.HOLLogicalSymbols
 import lisa.hol.HOLSteps._
-import lisa.hol.basics.Truth.{holT, holTruth}
-import lisa.hol.basics.Forall.{hforall, hforallCorrect}
 import lisa.hol.VarsAndFunctions._
+import lisa.hol.basics.Forall.hforall
+import lisa.hol.basics.Forall.hforallCorrect
+import lisa.hol.basics.Truth.holT
+import lisa.hol.basics.Truth.holTruth
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.utils.prooflib.BasicStep._
+import lisa.utils.prooflib.Exports._
+import lisa.utils.prooflib.Exports._
 import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.Exports.*
-import lisa.utils.prooflib.Exports.*
+import lisa.utils.prooflib.Substitute
 
 /**
  * HOL Light false constant and related proofs.

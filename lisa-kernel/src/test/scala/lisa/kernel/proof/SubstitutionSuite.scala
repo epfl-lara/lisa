@@ -1,6 +1,6 @@
 package lisa.kernel.proof
 
-import lisa.kernel.fol.FOL.*
+import lisa.kernel.fol.FOL._
 import org.scalatest.funsuite.AnyFunSuite
 
 class SubstitutionSuite extends AnyFunSuite:
@@ -22,12 +22,10 @@ class SubstitutionSuite extends AnyFunSuite:
   private val delta = Constant(Identifier("subst-delta"), Prop)
   private def proof(left: Set[Expression], right: Set[Expression]): Thm = Axiom(Sequent(left, right)).toOption.get
 
-  private def right(statement: Sequent, premise: Thm, comparison: Thm, replacement: (Expression, Expression),
-      context: (Variable, Expression), arguments: Seq[Variable] = Nil): RightSubst.Result[Thm] =
+  private def right(statement: Sequent, premise: Thm, comparison: Thm, replacement: (Expression, Expression), context: (Variable, Expression), arguments: Seq[Variable] = Nil): RightSubst.Result[Thm] =
     RightSubst(statement, premise, Seq(comparison), Seq((replacement._1, replacement._2, arguments)), Seq(context._1) -> context._2)
 
-  private def left(statement: Sequent, premise: Thm, comparison: Thm, replacement: (Expression, Expression),
-      context: (Variable, Expression), arguments: Seq[Variable] = Nil): LeftSubst.Result[Thm] =
+  private def left(statement: Sequent, premise: Thm, comparison: Thm, replacement: (Expression, Expression), context: (Variable, Expression), arguments: Seq[Variable] = Nil): LeftSubst.Result[Thm] =
     LeftSubst(statement, premise, Seq(comparison), Seq((replacement._1, replacement._2, arguments)), Seq(context._1) -> context._2)
 
   test("transport on the right and retain both premises' contexts and dependencies"):
@@ -96,8 +94,7 @@ class SubstitutionSuite extends AnyFunSuite:
     val argument = Variable(Identifier("higher-argument"), Ind -> Prop)
     val observer = Constant(Identifier("higher-observer"), sort -> Prop)
     val comparison = proof(Set.empty, Set(equality(source(argument))(target(argument))))
-    assert(right(Sequent(Set.empty, Set(observer(target))), proof(Set.empty, Set(observer(source))), comparison,
-      source -> target, hole -> observer(hole), Seq(argument)).isRight)
+    assert(right(Sequent(Set.empty, Set(observer(target))), proof(Set.empty, Set(observer(source))), comparison, source -> target, hole -> observer(hole), Seq(argument)).isRight)
 
   test("reject mismatched sorts, wrong argument arity and repeated comparison arguments"):
     val premise = proof(Set.empty, Set(p(s)))
@@ -176,8 +173,15 @@ class SubstitutionSuite extends AnyFunSuite:
     val quantified = forall(Lambda(y, equality(x)(y)))
     val before = forall(Lambda(y, equality(s)(y)))
     val after = substituteVariables(quantified, Map(x -> y))
-    assert(RightSubst(Sequent(Set.empty, Set(after)), proof(Set.empty, Set(before)),
-      Seq(proof(Set.empty, Set(equality(s)(y)))), Seq((s: Expression, y: Expression, Seq.empty[Variable])), Seq(x) -> quantified).isRight)
+    assert(
+      RightSubst(
+        Sequent(Set.empty, Set(after)),
+        proof(Set.empty, Set(before)),
+        Seq(proof(Set.empty, Set(equality(s)(y)))),
+        Seq((s: Expression, y: Expression, Seq.empty[Variable])),
+        Seq(x) -> quantified
+      ).isRight
+    )
 
   test("check every comparison including its residual context and theory"):
     val body = and(p(x))(h(v))
@@ -188,7 +192,6 @@ class SubstitutionSuite extends AnyFunSuite:
     val wrong = proof(Set.empty, Set(iff(f(a))(f(a))))
     val residual = proof(Set.empty, Set(iff(f(a))(g(a)), beta))
     val notFresh = proof(Set(p(a)), Set(iff(f(a))(g(a))))
-    for second <- Seq(wrong, residual, notFresh) do
-      assert(RightSubst(target, premise, Seq(first, second), replacements, Seq(x, v) -> body).isLeft)
+    for second <- Seq(wrong, residual, notFresh) do assert(RightSubst(target, premise, Seq(first, second), replacements, Seq(x, v) -> body).isLeft)
     val foreign = Axiom(using Theory.empty)(Sequent(Set.empty, Set(iff(f(a))(g(a))))).toOption.get
     assert(RightSubst(target, premise, Seq(first, foreign), replacements, Seq(x, v) -> body).left.exists(_.isInstanceOf[TheoryMismatch]))

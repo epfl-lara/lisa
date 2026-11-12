@@ -56,10 +56,12 @@ class SimpleDerivedStepsSuite extends AnyFunSuite:
     val atom = variable[Prop]
     val comparison = sorry(() |- (f(argument) === g(argument)))
     val right = BasicStep.RightSubst.withParameters(Seq((f, g, Seq(argument))), Seq(hole) -> P(hole(atom)))(
-      sorry(() |- P(f(atom))), Seq(comparison)
+      sorry(() |- P(f(atom))),
+      Seq(comparison)
     )(() |- P(g(atom)))
     val left = BasicStep.LeftSubst.withParameters(Seq((f, g, Seq(argument))), Seq(hole) -> P(hole(atom)))(
-      sorry(P(f(atom)) |- Q(a)), Seq(comparison)
+      sorry(P(f(atom)) |- Q(a)),
+      Seq(comparison)
     )(P(g(atom)) |- Q(a))
     assertValid(right)
     assertValid(left)

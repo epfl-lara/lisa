@@ -1,7 +1,7 @@
 package lisa.kernel
 
-import lisa.kernel.fol.FOL.*
-import lisa.kernel.proof.*
+import lisa.kernel.fol.FOL._
+import lisa.kernel.proof._
 import org.scalatest.funsuite.AnyFunSuite
 
 class DependencyReuseSuite extends AnyFunSuite:

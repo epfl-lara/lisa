@@ -385,19 +385,27 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
     }
   }
 
-  /** Retain an application when both transformed children are unchanged. */
+  /**
+   * Retain an application when both transformed children are unchanged.
+   */
   private inline def reuseApplication(e: SimpleApplication, f: SimpleExpression, arg: SimpleExpression): SimpleExpression =
     if (e.f eq f) && (e.arg eq arg) then e else SimpleApplication(f, arg, e.polarity)
 
-  /** Retain an abstraction when its transformed body is unchanged. */
+  /**
+   * Retain an abstraction when its transformed body is unchanged.
+   */
   private inline def reuseLambda(e: SimpleLambda, body: SimpleExpression): SimpleExpression =
     if e.body eq body then e else SimpleLambda(e.boundSort, body)(e.v)
 
-  /** Flatten conjunctions and disjunctions if `lisa.ol.flatten` is `true`. */
+  /**
+   * Flatten conjunctions and disjunctions if `lisa.ol.flatten` is `true`.
+   */
   private val flattenPolarConnectives: Boolean =
     sys.props.get("lisa.ol.flatten").fold(true)(_.toBoolean)
 
-  /** Accumulate conjunction children to flatten, preserving polarity. */
+  /**
+   * Accumulate conjunction children to flatten, preserving polarity.
+   */
   private def polarizeConnective(left: Expression, right: Expression, childPolarity: Boolean, polarity: Boolean): SimpleExpression =
     if (!flattenPolarConnectives) SimpleAnd(Seq(polarize(left, childPolarity), polarize(right, childPolarity)), polarity)
     else {
@@ -495,40 +503,40 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
       case Some(value) => value
       case None =>
         val r: SimpleExpression = e match {
-        case SimpleAnd(children, polarity) =>
-          val newChildren = children map computeNormalForm
-          val simp = reduce(newChildren, polarity)
-          simp match {
-            case conj: SimpleAnd if checkForContradiction(conj) => SimpleLiteral(!polarity)
-            case _ => simp
-          }
+          case SimpleAnd(children, polarity) =>
+            val newChildren = children map computeNormalForm
+            val simp = reduce(newChildren, polarity)
+            simp match {
+              case conj: SimpleAnd if checkForContradiction(conj) => SimpleLiteral(!polarity)
+              case _ => simp
+            }
 
-        case e: SimpleApplication if e.polarity => reuseApplication(e, computeNormalForm(e.f), computeNormalForm(e.arg))
+          case e: SimpleApplication if e.polarity => reuseApplication(e, computeNormalForm(e.f), computeNormalForm(e.arg))
 
-        case SimpleBoundVariable(no, sort, true) => e
+          case SimpleBoundVariable(no, sort, true) => e
 
-        case SimpleVariable(id, sort, true) => e
+          case SimpleVariable(id, sort, true) => e
 
-        case SimpleConstant(id, sort, true) => e
+          case SimpleConstant(id, sort, true) => e
 
-        case SimpleEquality(left, right, true) =>
-          val l = computeNormalForm(left)
-          val r = computeNormalForm(right)
-          if (latticesEQUnchecked(l, r)) SimpleLiteral(true)
-          else if (l.uniqueKey >= r.uniqueKey) SimpleEquality(l, r, true)
-          else SimpleEquality(r, l, true)
+          case SimpleEquality(left, right, true) =>
+            val l = computeNormalForm(left)
+            val r = computeNormalForm(right)
+            if (latticesEQUnchecked(l, r)) SimpleLiteral(true)
+            else if (l.uniqueKey >= r.uniqueKey) SimpleEquality(l, r, true)
+            else SimpleEquality(r, l, true)
 
-        case sf @ SimpleForall(body, true) =>
-          val inner = computeNormalForm(body)
-          if (inner == SimpleLiteral(true)) SimpleLiteral(true)
-          else if (inner == SimpleLiteral(false)) SimpleLiteral(false)
-          else SimpleForall(inner, true)(sf.id)
+          case sf @ SimpleForall(body, true) =>
+            val inner = computeNormalForm(body)
+            if (inner == SimpleLiteral(true)) SimpleLiteral(true)
+            else if (inner == SimpleLiteral(false)) SimpleLiteral(false)
+            else SimpleForall(inner, true)(sf.id)
 
-        case e: SimpleLambda => reuseLambda(e, computeNormalForm(e.body))
+          case e: SimpleLambda => reuseLambda(e, computeNormalForm(e.body))
 
-        case SimpleLiteral(polarity) => e
+          case SimpleLiteral(polarity) => e
 
-        case _ => getInversePolar(computeNormalForm(getInversePolar(e)))
+          case _ => getInversePolar(computeNormalForm(getInversePolar(e)))
 
         }
         e.normalForm = Some(r)
@@ -548,7 +556,9 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
     }
   }
 
-  /** Checks a positive conjunction represented by two existing sequences without joining or wrapping them. */
+  /**
+   * Checks a positive conjunction represented by two existing sequences without joining or wrapping them.
+   */
   private def conjunctionLEQ(first: Seq[SimpleExpression], second: Seq[SimpleExpression], right: SimpleExpression): Boolean =
     right match
       case SimpleLiteral(true) => true
@@ -556,8 +566,8 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
         children.forall(conjunctionLEQ(first, second, _))
       case SimpleAnd(children, false) =>
         first.exists(latticesLEQUnchecked(_, right)) ||
-          second.exists(latticesLEQUnchecked(_, right)) ||
-          children.exists(child => conjunctionLEQ(first, second, getInversePolar(child)))
+        second.exists(latticesLEQUnchecked(_, right)) ||
+        children.exists(child => conjunctionLEQ(first, second, getInversePolar(child)))
       case _ =>
         first.exists(latticesLEQUnchecked(_, right)) || second.exists(latticesLEQUnchecked(_, right))
 
@@ -624,7 +634,9 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
     latticesLEQUnchecked(e1, e2)
   }
 
-  /** Recursive OL containment after callers have established propositional sorts. */
+  /**
+   * Recursive OL containment after callers have established propositional sorts.
+   */
   private def latticesLEQUnchecked(e1: SimpleExpression, e2: SimpleExpression): Boolean = {
     if (e1.uniqueKey == e2.uniqueKey) true
     else
@@ -635,8 +647,8 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
 
         case (SimpleEquality(l1, r1, pol1), SimpleEquality(l2, r2, pol2)) =>
           pol1 == pol2 &&
-            ((latticesEQUnchecked(l1, l2) && latticesEQUnchecked(r1, r2)) ||
-              (latticesEQUnchecked(l1, r2) && latticesEQUnchecked(r1, l2)))
+          ((latticesEQUnchecked(l1, l2) && latticesEQUnchecked(r1, r2)) ||
+            (latticesEQUnchecked(l1, r2) && latticesEQUnchecked(r1, l2)))
 
         case (SimpleForall(body1, polarity1), SimpleForall(body2, polarity2)) =>
           polarity1 == polarity2 && (if (polarity1) latticesLEQUnchecked(body1, body2) else latticesLEQUnchecked(body2, body1))
@@ -676,7 +688,9 @@ private[fol] trait OLEquivalenceChecker extends Syntax {
     else if (e1.sort == Prop) latticesLEQ(e1, e2) && latticesLEQ(e2, e1)
     else latticesEQUnchecked(e1, e2)
 
-  /** Recursive OL equality over already well-sorted subexpressions. */
+  /**
+   * Recursive OL equality over already well-sorted subexpressions.
+   */
   private def latticesEQUnchecked(e1: SimpleExpression, e2: SimpleExpression): Boolean =
     if (e1.uniqueKey == e2.uniqueKey) true
     else if (e1.sort == Prop) latticesLEQUnchecked(e1, e2) && latticesLEQUnchecked(e2, e1)
