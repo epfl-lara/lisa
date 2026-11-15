@@ -134,7 +134,7 @@ object UnificationUtils:
    */
   class Substitution private (
       protected val assignments: Map[Variable[?], Expr[?]],
-      protected val freeVariables: Set[Variable[?]]
+      protected[UnificationUtils] val freeVariables: Set[Variable[?]]
   ):
     // invariant:
     // require(
@@ -170,6 +170,9 @@ object UnificationUtils:
     def substitutes[A](v: Variable[A]): Boolean =
       freeVariables(v)
 
+    /** Return the underlying immutable, well-sorted assignment map without copying it. */
+    def toMap: Map[Variable[?], Expr[?]] = assignments
+
     def asSubstPair: Seq[SubstPair] =
       assignments.map((v, e) => v := e.asInstanceOf).toSeq
 
@@ -197,10 +200,20 @@ object UnificationUtils:
     // chosen equality: ortholattice equivalence
     inline def eq(l: Expr[A], r: Expr[A]) = isSame(l, r)
 
-    if eq(expr, pattern) then
-      // trivial, done
-      Some(subst)
-    else
+    def keepFixed[B](v: Variable[B], current: Substitution): Option[Substitution] =
+      current(v) match
+        case Some(value) => Option.when(isSame(value, v))(current)
+        case None => Some(current + (v -> v))
+
+    // Only shared assignable variables must stay fixed to preserve this equivalence.
+    val equivalent =
+      if eq(expr, pattern) then
+        (expr.freeVars intersect pattern.freeVars).filter(ctx.isFree(_)).foldLeft(Option(subst)) { (result, v) =>
+          result.flatMap(current => keepFixed(v, current))
+        }
+      else None
+
+    equivalent.orElse {
       (expr, pattern) match
         case (v @ Variable(_), _) if ctx.isFree(v) =>
           subst(v) match
@@ -218,7 +231,8 @@ object UnificationUtils:
             .flatMap(subst => matchExpr(arge, argp.asInstanceOf, subst))
 
         case (Abs(ve, fe), Abs(vp, fp)) =>
-          val freshVar = ve.freshRename(Seq(fe, fp))
+          // Existing assignments must not be mistaken for escapes from this binder.
+          val freshVar = ve.freshRename(Seq(fe, fp) ++ subst.freeVariables ++ ctx.boundVariables)
           matchExpr(using ctx.withBound(freshVar))(
             fe.substitute(ve := freshVar),
             fp.substitute(vp := freshVar),
@@ -226,6 +240,7 @@ object UnificationUtils:
           ).filterNot(_.substitutes(freshVar))
 
         case _ => None
+    }
 
   sealed trait RewriteRule:
     type Base
