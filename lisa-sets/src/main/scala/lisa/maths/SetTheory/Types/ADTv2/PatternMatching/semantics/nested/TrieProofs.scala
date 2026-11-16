@@ -6,7 +6,7 @@ import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
 import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
 import lisa.utils.prooflib.QuantifiersIntro
 import lisa.utils.prooflib.InstantiateForallSeq
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.nested.NestedTrie.{allConstructors, peelApp}
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.PatternValidation
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.altEqualityTransitivity
@@ -37,30 +37,37 @@ private[semantics] object NestedTrieProofs {
     case RCon(c: Constructor[?], args: List[RPat])
   import RPat.*
 
-  type Ty = (ADT[?], Seq[Expr[Ind]])
+  /** The type of a pattern node, including opaque types at variable leaves. */
+  type Ty = Expr[Ind]
 
+  /** Resolves the datatype inspected by a constructor split. */
+  def adtType(typ: Ty): (ADT[?], Seq[Expr[Ind]]) =
+    ADT.unapply(typ).getOrElse(throw new IllegalArgumentException(s"Cannot split a constructor pattern at non-ADT type $typ."))
+
+  /** Resolves a constructor's type arguments in the expected datatype. */
+  def typeArguments(c: Constructor[?], typ: Ty): Seq[Expr[Ind]] =
+    val (adt, args) = adtType(typ)
+    require(c.adt.id == adt.id, s"Constructor ${c.name} does not belong to $typ.")
+    args
+
+  /** Parses variables and fully applied constructors, rejecting other expressions. */
   def parse(term: Expr[Ind]): RPat =
     term match
       case v: Variable[Ind] @unchecked => RVar(v)
       case _ =>
-        val (h, valueArgs) = peelApp(term)
-        h match
-          case Multiapp(c: Constant[?] @unchecked, _) =>
-            allConstructors.find(_.id == c.id) match
-              case Some(ctor) => RCon(ctor, valueArgs.takeRight(ctor.semantic.arity).map(parse))
-              case None => RVar(variable[Ind])
-          case _ => RVar(variable[Ind])
+        val (constructor, _, args) = PatternValidation.constructorApplication(term).fold(message => throw new IllegalArgumentException(message), identity)
+        RCon(constructor, args.map(parse))
 
-  private def childTypes(c: Constructor[?], targs: Seq[Expr[Ind]]): Seq[Option[Ty]] =
+  private def childTypes(c: Constructor[?], targs: Seq[Expr[Ind]]): Seq[Ty] =
     val subst = c.semantic.typeVariablesSeq.zip(targs).map((v, a) => v := a)
     c.semantic.semanticSignature2.map { case (_, tyTerm) =>
-      ADT.unapply(tyTerm.substitute(subst*).asInstanceOf[Expr[Ind]])
+      tyTerm.substitute(subst*)
     }
 
-  def resolvedChildTypes(c: Constructor[?], targs: Seq[Expr[Ind]]): Seq[Option[Ty]] =
+  def resolvedChildTypes(c: Constructor[?], targs: Seq[Expr[Ind]]): Seq[Ty] =
     childTypes(c, targs)
 
-  // Resolved ADT type of a constructor's guarded argument position, after applying
+  // Type of a constructor's guarded argument position, after applying
   // the pattern's type substitutions. Used wherever a guard term must be parsed
   // and proved against its own argument type.
   private def guardTypeAt(
@@ -68,13 +75,14 @@ private[semantics] object NestedTrieProofs {
       pos: Int,
       typeSubst: Seq[lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution]
   ): Ty =
-    ADT.unapply(cSem.semanticSignature2(pos)._2.substitute(typeSubst*).asInstanceOf[Expr[Ind]]).get
+    cSem.semanticSignature2(pos)._2.substitute(typeSubst*)
 
   def termOf(p: RPat, ty: Ty): Expr[Ind] = p match
     case RVar(v) => v
     case RCon(c, args) =>
-      val cts = childTypes(c, ty._2)
-      appSeq(c.semantic.term(ty._2))(args.zip(cts).map((a, ct) => termOf(a, ct.get)))
+      val targs = typeArguments(c, ty)
+      val cts = childTypes(c, targs)
+      appSeq(c.semantic.term(targs))(args.zip(cts).map((a, ct) => termOf(a, ct)))
 
   private def caseArgs(pp: NestedConstructorPattern): Seq[Expr[Ind]] =
     (0 until pp.arity).map(i => pp.guards.find(_.position == i).map(_.guardTerm).getOrElse(pp.topBinders(i)))
@@ -98,15 +106,17 @@ private[semantics] object NestedTrieProofs {
     have(instantiated) by InstantiateForallSeq(terms)(source)
 
   private def typeProof(p: RPat, ty: Ty)(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
-    val goal = termOf(p, ty) :: ty._1.termAt(ty._2)
+    val goal = termOf(p, ty) :: ty
     p match
       case RVar(_) => have(goal) by Tautology
       case RCon(c, args) =>
-        val cts = childTypes(c, ty._2)
-        val argFacts = args.zip(cts).map((a, t) => typeProof(a, t.get))
+        val targs = typeArguments(c, ty)
+        val cts = childTypes(c, targs)
+        val argFacts = args.zip(cts).map((a, t) => typeProof(a, t))
+        val argTerms = args.zip(cts).map((a, t) => termOf(a, t))
         val substs =
-          c.typeVariablesSeq.zip(ty._2).map((v, t) => v := t) ++
-            c.semantic.variables.zip(args.map(termOf(_, ty))).map((v, t) => v := t)
+          c.typeVariablesSeq.zip(targs).map((v, t) => v := t) ++
+            c.semantic.variables.zip(argTerms).map((v, t) => v := t)
         val introInst: proof.Fact = if substs.isEmpty then c.introApp else c.introApp.of(substs*)
         have(goal) by Tautology.from((introInst +: argFacts)*)
 
@@ -157,10 +167,10 @@ private[semantics] object NestedTrieProofs {
 
   // (variable, typeTerm) for every binder of a pattern — the typing hypotheses.
   private def bindersTyped(p: RPat, ty: Ty): Seq[(Expr[Ind], Expr[Ind])] = p match
-    case RVar(v) => Seq((v, ty._1.termAt(ty._2)))
+    case RVar(v) => Seq((v, ty))
     case RCon(c, args) =>
-      val cts = childTypes(c, ty._2)
-      args.zip(cts).flatMap((a, ct) => bindersTyped(a, ct.get))
+      val cts = childTypes(c, typeArguments(c, ty))
+      args.zip(cts).flatMap((a, ct) => bindersTyped(a, ct))
 
   /**
    * Free variables appearing inside a (possibly non-nullary, possibly nested)
@@ -169,9 +179,7 @@ private[semantics] object NestedTrieProofs {
    * empty sequence for nullary / ground guards (`tru`, `succ(zero)`, …).
    */
   def guardBinders(term: Expr[Ind], argType: Expr[Ind]): Seq[(Variable[Ind], Expr[Ind])] =
-    ADT.unapply(argType) match
-      case Some(ty) => bindersTyped(parse(term), ty).map((t, tp) => (t.asInstanceOf[Variable[Ind]], tp))
-      case None => Seq.empty
+    bindersTyped(parse(term), argType).map((t, tp) => (t.asInstanceOf[Variable[Ind]], tp))
 
   def divergePath(p: RPat, q: RPat): Option[List[Int]] = (p, q) match
     case (RCon(c, _), RCon(d, _)) if c.id != d.id => Some(Nil)
@@ -217,30 +225,31 @@ private[semantics] object NestedTrieProofs {
     Lemma((typedHyps |- !(tp === tq))) { sp ?=>
       typedHyps.foreach(h => assume(h))
 
-      def typings(args: List[RPat], cts: Seq[Option[Ty]]): Seq[sp.Fact] =
-        args.zip(cts).map((a, t) => typeProof(a, t.get))
+      def typings(args: List[RPat], cts: Seq[Ty]): Seq[sp.Fact] =
+        args.zip(cts).map((a, t) => typeProof(a, t))
 
       // Leaves `¬(termOf(p) === termOf(q))` as the latest fact.
       def disprove(p: RPat, q: RPat, ty: Ty, path: List[Int]): Unit =
+        val (adt, targs) = adtType(ty)
         val tpc = termOf(p, ty); val tqc = termOf(q, ty)
         // Build each argument's term at its OWN (child) type, not the parent's.
-        def argTermsAt(args: List[RPat], cts: Seq[Option[Ty]]): Seq[Expr[Ind]] =
-          args.zip(cts).map((a, t) => termOf(a, t.get))
+        def argTermsAt(args: List[RPat], cts: Seq[Ty]): Seq[Expr[Ind]] =
+          args.zip(cts).map((a, t) => termOf(a, t))
         (p, q) match
           case (RCon(c, as), RCon(d, bs)) if path.isEmpty =>
             // cross-constructor injectivity:  typed ⇒ ¬(c(..) === d(..))
-            val ctsC = childTypes(c, ty._2); val ctsD = childTypes(d, ty._2)
-            instAll(crossInj(ty._1, c, d), ty._2 ++ argTermsAt(as, ctsC) ++ argTermsAt(bs, ctsD))
+            val ctsC = childTypes(c, targs); val ctsD = childTypes(d, targs)
+            instAll(crossInj(adt, c, d), targs ++ argTermsAt(as, ctsC) ++ argTermsAt(bs, ctsD))
             val injInst = lastStep
             val argTypings = typings(as, ctsC) ++ typings(bs, ctsD)
             have(!(tpc === tqc)) by Tautology.from((injInst +: argTypings)*)
           case (RCon(c, as), RCon(_, bs)) =>
             val i = path.head
-            val cts = childTypes(c, ty._2)
-            disprove(as(i), bs(i), cts(i).get, path.tail)
+            val cts = childTypes(c, targs)
+            disprove(as(i), bs(i), cts(i), path.tail)
             val argDiseq = lastStep
             // same-head injectivity:  typed ⇒ ((c(as) === c(bs)) <=> (as === bs))
-            instAll(c.injectivity, ty._2 ++ argTermsAt(as, cts) ++ argTermsAt(bs, cts))
+            instAll(c.injectivity, targs ++ argTermsAt(as, cts) ++ argTermsAt(bs, cts))
             val injInst = lastStep
             val argTypings = typings(as, cts) ++ typings(bs, cts)
             have(!(tpc === tqc)) by Tautology.from((injInst +: argDiseq +: argTypings)*)
@@ -323,7 +332,7 @@ private[semantics] object NestedTrieProofs {
     val j = switchIdx(cols, rows).getOrElse(
       throw new IllegalArgumentException("coverSwitchBranch requires a switchable column.")
     )
-    val col = cols(j); val (adt, targs) = col.ty; val v = col.value
+    val col = cols(j); val (adt, targs) = adtType(col.ty); val v = col.value
     val elimThm: proof.Fact = if targs.isEmpty then adt.elim else adt.elim.of(targs*)
     val implForm = (elimThm.statement.right.head: @unchecked) match
       case forall(y, body) => body.substitute(y := v)
@@ -337,7 +346,7 @@ private[semantics] object NestedTrieProofs {
       val freshArg = (0 until c.semantic.arity).map(i => fv(col.occ :+ i)).toList
       val rename = evars.zip(freshArg).toMap.asInstanceOf[Map[Variable[?], Expr[?]]]
       val bodyR = if rename.isEmpty then body else body.substituteUnsafe(rename).asInstanceOf[Expr[Prop]]
-      val childCols = freshArg.indices.map(i => ColP(col.occ :+ i, fv(col.occ :+ i), cts(i).get)).toList
+      val childCols = freshArg.indices.map(i => ColP(col.occ :+ i, fv(col.occ :+ i), cts(i))).toList
       val childRows = rows.flatMap { rr =>
         rr.pats(j) match
           case RCon(cc, as) if cc.id == c.id => Some(RowP(rr.pats.patch(j, as, 1), rr.clause))
@@ -377,7 +386,7 @@ private[semantics] object NestedTrieProofs {
 
   def coverageProof(domain: Ty, clauses: Seq[(Constructor[?], Seq[Expr[Ind]])]): THM =
     val x = Variable[Ind]("scrutX")
-    val dTerm = domain._1.termAt(domain._2)
+    val dTerm = domain
     val pats = clauses.map((c, args) => RCon(c, args.map(parse).toList)).toList
 
     // Deterministic, per-occurrence fresh variable (distinct names, no capture).
@@ -388,8 +397,9 @@ private[semantics] object NestedTrieProofs {
     def recon(p: RPat, ty: Ty, occ: List[Int]): Expr[Ind] = p match
       case RVar(_) => fv(occ)
       case RCon(c, args) =>
-        val cts = childTypes(c, ty._2)
-        appSeq(c.semantic.term(ty._2))(args.zip(cts).zipWithIndex.map { case ((a, ct), i) => recon(a, ct.get, occ :+ i) })
+        val targs = typeArguments(c, ty)
+        val cts = childTypes(c, targs)
+        appSeq(c.semantic.term(targs))(args.zip(cts).zipWithIndex.map { case ((a, ct), i) => recon(a, ct, occ :+ i) })
     def binderVars(p: RPat, occ: List[Int]): List[Variable[Ind]] = p match
       case RVar(_) => List(fv(occ))
       case RCon(_, args) => args.zipWithIndex.flatMap((a, i) => binderVars(a, occ :+ i))
@@ -430,7 +440,7 @@ private[semantics] object NestedTrieProofs {
       patterns: Seq[Pattern]
   ): THM =
     val x = Variable[Ind]("scrutX")
-    val dTerm = domain._1.termAt(domain._2)
+    val dTerm = domain
     val pats = clauses.map((c, args) => RCon(c, args.map(parse).toList)).toList
 
     val fvMemo = scala.collection.mutable.Map[List[Int], Variable[Ind]]()
@@ -483,7 +493,7 @@ private[semantics] object NestedTrieProofs {
     val guardPositions: List[Int] =
       patterns.flatMap(_.guards.map(_.position)).distinct.sorted.toList
     val typedPart = wellTypedFormula(cSem.semanticSignature2).substitute(typeSubst*).asInstanceOf[Expr[Prop]]
-    val inputEqC = (term === cSem.appliedTerm2).substitute(typeSubst*).asInstanceOf[Expr[Prop]]
+    val inputEqC = term === cSem.appliedTerm2.substitute(typeSubst*)
 
     // Each clause's (fresh) guard terms, keyed by argument position. A clause that
     // does not guard a column carries the constructor's own binder there (an RVar,
@@ -681,15 +691,16 @@ private[semantics] object NestedTrieProofs {
         (rp1, rp2) match
           case (RVar(vl), RVar(vr)) => Map((vl, vr) -> eqFact.asInstanceOf[proof.Fact])
           case (RCon(c, as1), RCon(_, as2)) =>
-            val cts = childTypes(c, ty._2)
-            val t1 = as1.zip(cts).map((a, t) => termOf(a, t.get))
-            val t2 = as2.zip(cts).map((a, t) => termOf(a, t.get))
-            instAll(c.injectivity, ty._2 ++ t1 ++ t2)
+            val targs = typeArguments(c, ty)
+            val cts = childTypes(c, targs)
+            val t1 = as1.zip(cts).map((a, t) => termOf(a, t))
+            val t2 = as2.zip(cts).map((a, t) => termOf(a, t))
+            instAll(c.injectivity, targs ++ t1 ++ t2)
             val injInst = lastStep
-            val tys = as1.zip(cts).map((a, t) => typeProof(a, t.get)) ++ as2.zip(cts).map((a, t) => typeProof(a, t.get))
+            val tys = as1.zip(cts).map((a, t) => typeProof(a, t)) ++ as2.zip(cts).map((a, t) => typeProof(a, t))
             as1.indices.toList.foldLeft(Map.empty[(Variable[Ind], Variable[Ind]), proof.Fact]) { (acc, i) =>
               val argEq = have(t1(i) === t2(i)) by Tautology.from((injInst +: eqFact.asInstanceOf[proof.Fact] +: tys)*)
-              acc ++ injectEq(as1(i), as2(i), cts(i).get, argEq.asInstanceOf[lisa.SetTheoryLibrary.Proof#Fact])
+              acc ++ injectEq(as1(i), as2(i), cts(i), argEq.asInstanceOf[lisa.SetTheoryLibrary.Proof#Fact])
             }
           case _ => throw new IllegalArgumentException("injectEq: mismatched guard structure.")
 

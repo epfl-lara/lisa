@@ -8,7 +8,6 @@ import lisa.maths.SetTheory.Types.ADTv2.recursion.FunSpec
 import lisa.maths.SetTheory.Types.ADTv2.recursion.Witness
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.specializedConstructors
 import lisa.utils.prooflib.InstantiateForallSeq
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeFormula
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Cut
@@ -23,9 +22,6 @@ private[recursion] final class WitnessAgreement(
   private val rightFun = variable[Ind]
   private val nVar = variable[Ind]
   private val vVar = variable[Ind]
-
-  private def isHeightPred(hh: Expr[Ind]): Expr[Prop] =
-    specializeFormula(spec.adt.height.predicate(hh), spec.typeSubstitutions)
 
   private val heightFun: Expr[Ind] = spec.heightFun
   private val heightFunValid: THM = spec.heightFunValid
@@ -49,7 +45,7 @@ private[recursion] final class WitnessAgreement(
         val nInN = assume(nVar ∈ N)
         assume(agreeOnSlice)
 
-        val hValid = have(isHeightPred(heightFun)) by Weakening(heightFunValid)
+        val hValid = have(spec.isHeightPred(heightFun)) by Weakening(heightFunValid)
 
         val goalW = app(recWitness(leftFun))(a) === app(recWitness(rightFun))(a)
 

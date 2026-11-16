@@ -40,7 +40,7 @@ private[PatternMatching] final case class ConstructorPatternSystem(
     )
     val coveredTerm = variable[Ind]
     Lemma(∀(coveredTerm :: specializedAdtTerm, simplify(caseCoverage(coveredTerm)))) { sp ?=>
-      have(coveredTerm :: domain.term ==> simplify(caseCoverage(coveredTerm))) by
+      have(coveredTerm :: specializedAdtTerm ==> simplify(caseCoverage(coveredTerm))) by
         InstantiateForall(coveredTerm)(ConstructorPatternSystem.domainElim(domain, specializedAdtTerm))
       thenHave(thesis) by RightForall
     }
@@ -91,7 +91,7 @@ private[PatternMatching] final case class ConstructorPatternSystem(
         Lemma(
           forallSeq(
             constructor.variables2,
-            (wellTypedFormula(constructor.semanticSignature2) /\ (term === constructor.appliedTerm2)) ==>
+            (pattern.typingFormulaAt(constructor.variables2) /\ (term === pattern.inputTermAt(constructor.variables2))) ==>
               (pattern.freshBranchCondition /\ (term === pattern.freshInputTerm))
           )
         ) {

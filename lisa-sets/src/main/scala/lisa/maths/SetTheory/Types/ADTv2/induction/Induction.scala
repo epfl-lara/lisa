@@ -92,17 +92,10 @@ class Induction(
   )(
       rawCaseProof: proof.Fact,
       binders: Seq[Variable[Ind]],
-      constructor: Constructor[?],
-      adt: SpecializedADT[?],
-      prop: Expr[Ind >>: Prop]
+      assumptions: Seq[Expr[Prop]],
+      context: Set[Expr[Prop]]
   ): proof.Fact =
-    val perBinder   = caseHypotheses(constructor, adt, binders, prop)
-    val assumptions = perBinder.flatMap(_._2)
-    val lifted = assumptions.foldRight[proof.Fact](rawCaseProof) { (assumption, acc2) =>
-      val accRight = acc2.statement.right.head
-      have((acc2.statement -<? assumption).left |- assumption ==> accRight) by
-        RightImplies.withParameters(assumption, accRight)(acc2)
-    }
+    val lifted = have(context |- seqAnd(assumptions) ==> rawCaseProof.statement.right.head) by Tautology.from(rawCaseProof)
     binders.reverse.foldLeft[proof.Fact](lifted) { (acc2, binder) =>
       have(acc2.statement.left |- forall(binder, acc2.statement.right.head)) by RightForall(acc2)
     }
@@ -114,9 +107,8 @@ class Induction(
    *  Each branch carries a payload proving the property for its pattern (possibly under a
    *  guard, when several branches share the constructor, e.g. `cons(tru, tl)` vs
    *  `cons(fals, tl)`). The branch payloads are normalized, instantiated at the
-   *  constructor's variables, and combined: with a single branch the payload is used
-   *  directly; with several, the pattern system's branch-selection theorem discharges the
-   *  guards by case analysis. The combined generic-case proof is then abstracted back into
+   *  constructor's variables and fresh inner witnesses. Branch selection discharges the
+   *  existential guards by case analysis. The combined generic-case proof is abstracted into
    *  the quantified, hypothesis-laden form the induction principle consumes.
    *
    *  @tparam N the arity of the ADT
@@ -148,51 +140,37 @@ class Induction(
     val recursiveAssumptions = hyps.collect { case (_, Seq(_, ih)) => ih }
     val genericGoal = prop(inputTerm)
 
-    val guardedConclusions = branches.map { branch =>
-      val guarded = branch.guardAssumptions.foldRight[proof.Fact](branch.payload) { (guard, acc2) =>
-        val accRight = acc2.statement.right.head
-        have((acc2.statement -<? guard).left |- guard ==> accRight) by Weakening(acc2)
+    val localContext = context ++ typingAssumptions ++ recursiveAssumptions
+    val guardedImplications = branches.map { branch =>
+      val (topBinders, innerBinders) = branch.binders.splitAt(constructor.semantic.arity)
+      val innerTyping = branch.typingAssumptions.drop(constructor.semantic.arity)
+      val assumptions = caseHypotheses(constructor, adt, topBinders, prop).flatMap(_._2) ++ innerTyping ++ branch.guardAssumptions
+      val abstracted = normalizeConstructorCase(branch.payload, branch.binders, assumptions, context)
+      val innerVars = innerBinders.foldLeft(Vector.empty[Variable[Ind]]) { (acc, binder) =>
+        acc :+ Variable[Ind](freshId(localContext.toSeq ++ Seq(genericGoal) ++ vars ++ acc, binder.id.name))
       }
-      val abstracted = normalizeConstructorCase(guarded, branch.binders, branch.constructor, adt, prop)
-      val instantiated = have(instantiateForallSeq(abstracted.statement.right.head, vars)) by
-        InstantiateForallSeq(vars)(abstracted)
-      val guardSubstitutions = branch.binders.zip(vars).map((from, to) => from := to)
-      val instantiatedGuards = branch.guardAssumptions.map(
-        _.substitute(guardSubstitutions*).asInstanceOf[Expr[Prop]]
-      )
-      val guardFormula = instantiatedGuards match
-        case Nil => True: Expr[Prop]
-        case head +: tail => tail.foldLeft(head)(_ /\ _)
-      val guardedConclusion = have(
-        (context ++ typingAssumptions ++ recursiveAssumptions ++ instantiatedGuards.toSet) |- genericGoal
-        ) by Tautology.from(instantiated)
-      (guardFormula, guardedConclusion)
-    }
-    val genericCaseProof = have((context ++ typingAssumptions ++ recursiveAssumptions) |- genericGoal) subproof {
+      val arguments = vars ++ innerVars
+      val instantiated = have(context |- instantiateForallSeq(abstracted.statement.right.head, arguments)) by
+        InstantiateForallSeq(arguments)(abstracted)
+      val substitutions = branch.binders.zip(arguments).map((from, to) => from := to)
+      val guard = seqAnd(innerTyping ++ branch.guardAssumptions).substitute(substitutions*)
+      val guarded = have((localContext + guard) |- genericGoal) by Tautology.from(instantiated)
 
-      if guardedConclusions.size == 1 then
-        have((context ++ typingAssumptions ++ recursiveAssumptions) |- genericGoal) by
-          Tautology.from(guardedConclusions.head._2)
-      else
-        val selectorSchema = patternSystem.branchSelectionFor(constructor.semantic, inputTerm)
-        val selectorAtConstructor = have(instantiateForallSeq(selectorSchema.statement.right.head, vars)) by
-          InstantiateForallSeq(vars)(selectorSchema)
-        val branchGuardDisjunction = selectorAtConstructor.statement.right.head match
-          case premise ==> consequent =>
-            val localContext = context ++ typingAssumptions ++ recursiveAssumptions
-            val typingFacts = typingAssumptions.map(assumption => have(localContext |- assumption) by Hypothesis)
-            val inputEqInContext = have(localContext |- inputTerm === inputTerm) by Restate
-            val selectorPremise = have(localContext |- premise) by Tautology.from((inputEqInContext +: typingFacts)*)
-            have(localContext |- consequent) by Tautology.from(selectorAtConstructor, selectorPremise)
-          case _ => throw UnreachableException
-          
-        val guardedImplications = guardedConclusions.map((guard, fact) =>
-          have((fact.statement -<? guard).left |- guard ==> genericGoal) by
-            RightImplies.withParameters(guard, genericGoal)(fact)
-        )
-        have((context ++ typingAssumptions ++ recursiveAssumptions) |- genericGoal) by
-          Tautology.from((branchGuardDisjunction +: guardedImplications)*)
+      // Inner pattern variables are witnesses supplied by branch selection.
+      val (selection, selectedProof) = innerVars.foldRight((guard, guarded: proof.Fact)) { case (v, (condition, fact)) =>
+        val existential = ∃(v, condition)
+        val lifted = have((localContext + existential) |- genericGoal) by LeftExists(fact)
+        (existential, lifted)
+      }
+      have(localContext |- selection ==> genericGoal) by RightImplies.withParameters(selection, genericGoal)(selectedProof)
     }
+    val selectorSchema = patternSystem.branchSelectionFor(constructor.semantic, inputTerm)
+    val selectorAtConstructor = have(instantiateForallSeq(selectorSchema.statement.right.head, vars)) by
+      InstantiateForallSeq(vars)(selectorSchema)
+    val branchGuardDisjunction = selectorAtConstructor.statement.right.head match
+      case _ ==> consequent => have(localContext |- consequent) by Tautology.from(selectorAtConstructor)
+      case _ => throw UnreachableException
+    val genericCaseProof = have(localContext |- genericGoal) by Tautology.from((branchGuardDisjunction +: guardedImplications)*)
 
     abstractConstructorCase(genericCaseProof, vars, constructor, adt, prop)
     
@@ -215,7 +193,7 @@ class Induction(
   )(
       cases: CaseAccumulator[
         proof.ProofStep,
-        (Sequent, Seq[Expr[Ind]], Variable[Ind])
+        (Sequent, SpecializedADT[?], Variable[Ind])
       ] ?=> Unit
   )(bot: Sequent): proof.ProofTacticJudgement = {
     Induction.inferArguments(bot, expectedVar, expectedADT) match
@@ -240,8 +218,8 @@ class Induction(
         else
           val context = (if inferedProp.isDefined then bot else bot -<< assignment).left
           val builder =
-            CaseAccumulator[proof.ProofStep, (Sequent, Seq[Expr[Ind]], Variable[Ind])](
-              (context |- body, inferedADT.typeArgs, inferedVar)
+            CaseAccumulator[proof.ProofStep, (Sequent, SpecializedADT[?], Variable[Ind])](
+              (context |- body, inferedADT, inferedVar)
             )
           cases(using builder)
 

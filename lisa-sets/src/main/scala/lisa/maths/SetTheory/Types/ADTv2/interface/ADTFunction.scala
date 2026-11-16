@@ -5,7 +5,7 @@ import lisa.maths.SetTheory.Types.ADTv2.functions.SemanticFunction
 
 final class ADTFunction[S](using line: sourcecode.Line, file: sourcecode.File, sort: Sort[S])(
     semantic: SemanticFunction,
-    adt: ADT[S]
+    adt: ADT[?]
 ) extends AbstractFunction[S](semantic, adt) {
 
   protected def kindLabel: String = "function"

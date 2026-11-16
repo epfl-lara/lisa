@@ -3,59 +3,117 @@ package lisa.maths.SetTheory.Types.ADTv2.API
 import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.syntax.CaseAccumulator
 import lisa.maths.SetTheory.Types.ADTv2.functions.SemanticFunction
-import lisa.maths.SetTheory.Types.ADTv2.interface.ADTFunction
-import lisa.maths.SetTheory.Types.ADTv2.interface.RecFunction
-import lisa.maths.SetTheory.Types.ADTv2.interface.SpecializedADT
+import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, ADTFunction, RecFunction, SpecializedADT}
 import lisa.maths.SetTheory.Types.ADTv2.recursion
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.substitutionsFromArgs
 
-def fun[S: Sort](adt: SpecializedADT[S], returnType: Expr[Ind])(using
+private def buildFunction[S: Sort](parameters: Seq[Variable[Ind]], adt: SpecializedADT[?], returnType: Expr[Ind])(using
     name: sourcecode.Name
 )(
     cases: CaseAccumulator[Expr[Ind], Unit] ?=> Unit
 ): ADTFunction[S] = {
   val builder = CaseAccumulator[Expr[Ind], Unit](())
   cases(using builder)
-
-  builder.compile(adt) match
-    case Right(patternSystem) =>
-      val semantic = SemanticFunction(
-        name.value,
-        adt.base.semantic,
-        adt.term,
-        patternSystem,
-        returnType
-      )
-      new ADTFunction[S](semantic, adt.base)
-    case Left(msg) => throw new IllegalArgumentException(msg)
+  val patterns = builder.compile(adt).fold(msg => throw new IllegalArgumentException(msg), identity)
+  val semantic = SemanticFunction(name.value, parameters, adt.base.semantic, adt.term, patterns, returnType)
+  new ADTFunction[S](semantic, adt.base)
 }
 
-def recFun[S: Sort](adt: SpecializedADT[S], returnType: Expr[Ind])(using
+private def buildRecursiveFunction[S: Sort](parameters: Seq[Variable[Ind]], adt: SpecializedADT[?], returnType: Expr[Ind])(using
     name: sourcecode.Name
 )(
     cases: Expr[Ind] => (CaseAccumulator[Expr[Ind], Unit] ?=> Unit)
 ): RecFunction[S] = {
   val builder = CaseAccumulator[Expr[Ind], Unit](())
-  val self = RecFunction.selfPlaceholder(name.value)
+  val self = Variable[Ind](freshId(parameters ++ Seq(adt.term, returnType), RecFunction.selfReferenceName(name.value)))
   cases(self)(using builder)
-
-  val effectiveTypeSubstitutions =
-    substitutionsFromArgs("ADT", adt.base.name, adt.base.typeVariablesSeq, adt.typeArgs)
-      .filter(substitution => substitution._2.asInstanceOf[Expr[Ind]] != substitution._1.asInstanceOf[Variable[Ind]])
-
-  builder.compile(adt) match
-    case Right(patternSystem) =>
-      val semantic = (
-        recursion.SemanticFunction(
-          name.value,
-          adt.base.semantic,
-          adt.term,
-          effectiveTypeSubstitutions,
-          self,
-          patternSystem,
-          returnType
-        )
-      )
-      new RecFunction[S](semantic, adt.base)
-    case Left(msg) => throw new IllegalArgumentException(msg)
+  val substitutions = substitutionsFromArgs("ADT", adt.base.name, adt.base.typeVariablesSeq, adt.typeArgs)
+    .filter(substitution => substitution._2 != substitution._1)
+  val patterns = builder.compile(adt).fold(msg => throw new IllegalArgumentException(msg), identity)
+  val semantic = recursion.SemanticFunction(name.value, parameters, adt.base.semantic, adt.term, substitutions, self, patterns, returnType)
+  new RecFunction[S](semantic, adt.base)
 }
+
+/** Defines a function using the generic ADT's parameters. */
+def fun[S: Sort](adt: ADT[S], returnType: Expr[Ind])(using name: sourcecode.Name)(
+    cases: CaseAccumulator[Expr[Ind], Unit] ?=> Unit
+): ADTFunction[S] =
+  buildFunction[S](adt.typeVariablesSeq, new SpecializedADT(adt, adt.typeVariablesSeq), returnType)(cases)
+
+/** Defines a function on a specialized domain without parameters. */
+def fun(adt: SpecializedADT[?], returnType: Expr[Ind])(using name: sourcecode.Name)(
+    cases: CaseAccumulator[Expr[Ind], Unit] ?=> Unit
+): ADTFunction[Ind] =
+  buildFunction[Ind](Seq.empty, adt, returnType)(cases)
+
+/** Defines a function with 1 explicit parameter in the supplied order. */
+def fun(parameters: Variable[Ind])(adt: SpecializedADT[?], returnType: Expr[Ind])(using name: sourcecode.Name)(
+    cases: CaseAccumulator[Expr[Ind], Unit] ?=> Unit
+): ADTFunction[Ind >>: Ind] =
+  buildFunction[Ind >>: Ind](Seq(parameters), adt, returnType)(cases)
+
+/** Defines a function with 2 explicit parameters in the supplied order. */
+def fun(parameters: (Variable[Ind], Variable[Ind]))(adt: SpecializedADT[?], returnType: Expr[Ind])(using name: sourcecode.Name)(
+    cases: CaseAccumulator[Expr[Ind], Unit] ?=> Unit
+): ADTFunction[Ind >>: Ind >>: Ind] =
+  buildFunction[Ind >>: Ind >>: Ind](Seq(parameters._1, parameters._2), adt, returnType)(cases)
+
+/** Defines a function with 3 explicit parameters in the supplied order. */
+def fun(parameters: (Variable[Ind], Variable[Ind], Variable[Ind]))(adt: SpecializedADT[?], returnType: Expr[Ind])(using name: sourcecode.Name)(
+    cases: CaseAccumulator[Expr[Ind], Unit] ?=> Unit
+): ADTFunction[Ind >>: Ind >>: Ind >>: Ind] =
+  buildFunction[Ind >>: Ind >>: Ind >>: Ind](Seq(parameters._1, parameters._2, parameters._3), adt, returnType)(cases)
+
+/** Defines a function with 4 explicit parameters in the supplied order. */
+def fun(parameters: (Variable[Ind], Variable[Ind], Variable[Ind], Variable[Ind]))(adt: SpecializedADT[?], returnType: Expr[Ind])(using name: sourcecode.Name)(
+    cases: CaseAccumulator[Expr[Ind], Unit] ?=> Unit
+): ADTFunction[Ind >>: Ind >>: Ind >>: Ind >>: Ind] =
+  buildFunction[Ind >>: Ind >>: Ind >>: Ind >>: Ind](Seq(parameters._1, parameters._2, parameters._3, parameters._4), adt, returnType)(cases)
+
+/** Defines a function with 5 explicit parameters in the supplied order. */
+def fun(parameters: (Variable[Ind], Variable[Ind], Variable[Ind], Variable[Ind], Variable[Ind]))(adt: SpecializedADT[?], returnType: Expr[Ind])(using name: sourcecode.Name)(
+    cases: CaseAccumulator[Expr[Ind], Unit] ?=> Unit
+): ADTFunction[Ind >>: Ind >>: Ind >>: Ind >>: Ind >>: Ind] =
+  buildFunction[Ind >>: Ind >>: Ind >>: Ind >>: Ind >>: Ind](Seq(parameters._1, parameters._2, parameters._3, parameters._4, parameters._5), adt, returnType)(cases)
+
+/** Defines a recursive function using the generic ADT's parameters. */
+def recFun[S: Sort](adt: ADT[S], returnType: Expr[Ind])(using name: sourcecode.Name)(
+    cases: Expr[Ind] => (CaseAccumulator[Expr[Ind], Unit] ?=> Unit)
+): RecFunction[S] =
+  buildRecursiveFunction[S](adt.typeVariablesSeq, new SpecializedADT(adt, adt.typeVariablesSeq), returnType)(cases)
+
+/** Defines a recursive function on a specialized domain without parameters. */
+def recFun(adt: SpecializedADT[?], returnType: Expr[Ind])(using name: sourcecode.Name)(
+    cases: Expr[Ind] => (CaseAccumulator[Expr[Ind], Unit] ?=> Unit)
+): RecFunction[Ind] =
+  buildRecursiveFunction[Ind](Seq.empty, adt, returnType)(cases)
+
+/** Defines a recursive function with 1 explicit parameter in the supplied order. */
+def recFun(parameters: Variable[Ind])(adt: SpecializedADT[?], returnType: Expr[Ind])(using name: sourcecode.Name)(
+    cases: Expr[Ind] => (CaseAccumulator[Expr[Ind], Unit] ?=> Unit)
+): RecFunction[Ind >>: Ind] =
+  buildRecursiveFunction[Ind >>: Ind](Seq(parameters), adt, returnType)(cases)
+
+/** Defines a recursive function with 2 explicit parameters in the supplied order. */
+def recFun(parameters: (Variable[Ind], Variable[Ind]))(adt: SpecializedADT[?], returnType: Expr[Ind])(using name: sourcecode.Name)(
+    cases: Expr[Ind] => (CaseAccumulator[Expr[Ind], Unit] ?=> Unit)
+): RecFunction[Ind >>: Ind >>: Ind] =
+  buildRecursiveFunction[Ind >>: Ind >>: Ind](Seq(parameters._1, parameters._2), adt, returnType)(cases)
+
+/** Defines a recursive function with 3 explicit parameters in the supplied order. */
+def recFun(parameters: (Variable[Ind], Variable[Ind], Variable[Ind]))(adt: SpecializedADT[?], returnType: Expr[Ind])(using name: sourcecode.Name)(
+    cases: Expr[Ind] => (CaseAccumulator[Expr[Ind], Unit] ?=> Unit)
+): RecFunction[Ind >>: Ind >>: Ind >>: Ind] =
+  buildRecursiveFunction[Ind >>: Ind >>: Ind >>: Ind](Seq(parameters._1, parameters._2, parameters._3), adt, returnType)(cases)
+
+/** Defines a recursive function with 4 explicit parameters in the supplied order. */
+def recFun(parameters: (Variable[Ind], Variable[Ind], Variable[Ind], Variable[Ind]))(adt: SpecializedADT[?], returnType: Expr[Ind])(using name: sourcecode.Name)(
+    cases: Expr[Ind] => (CaseAccumulator[Expr[Ind], Unit] ?=> Unit)
+): RecFunction[Ind >>: Ind >>: Ind >>: Ind >>: Ind] =
+  buildRecursiveFunction[Ind >>: Ind >>: Ind >>: Ind >>: Ind](Seq(parameters._1, parameters._2, parameters._3, parameters._4), adt, returnType)(cases)
+
+/** Defines a recursive function with 5 explicit parameters in the supplied order. */
+def recFun(parameters: (Variable[Ind], Variable[Ind], Variable[Ind], Variable[Ind], Variable[Ind]))(adt: SpecializedADT[?], returnType: Expr[Ind])(using name: sourcecode.Name)(
+    cases: Expr[Ind] => (CaseAccumulator[Expr[Ind], Unit] ?=> Unit)
+): RecFunction[Ind >>: Ind >>: Ind >>: Ind >>: Ind >>: Ind] =
+  buildRecursiveFunction[Ind >>: Ind >>: Ind >>: Ind >>: Ind >>: Ind](Seq(parameters._1, parameters._2, parameters._3, parameters._4, parameters._5), adt, returnType)(cases)

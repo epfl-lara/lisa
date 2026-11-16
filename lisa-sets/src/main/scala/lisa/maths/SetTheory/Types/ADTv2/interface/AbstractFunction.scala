@@ -29,7 +29,7 @@ abstract class AbstractFunction[S](using
     sort: Sort[S]
 )(
     val semantic: FunctionSemanticsBase,
-    val adt: ADT[S]
+    val adt: ADT[?]
 ) extends TypedConstantFunctional[S](
       semantic.id,
       FunctionalClass(
@@ -152,7 +152,9 @@ abstract class AbstractFunction[S](using
         )
       )
 
+  /** Applies exactly the declared type arguments and returns the set-theoretic function. */
   def termAt(args: Seq[Expr[Ind]]): Expr[Ind] =
+    require(args.size == typeVariablesSeq.size, s"Function $name expects ${typeVariablesSeq.size} type argument(s), got ${args.size}.")
     (this #@@ args).asInstanceOf[Expr[Ind]]
 
   def applySeq(args: Seq[Expr[Ind]]): Expr[Ind] = termAt(args)

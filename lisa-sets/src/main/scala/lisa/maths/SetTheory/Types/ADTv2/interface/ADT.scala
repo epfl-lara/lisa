@@ -17,7 +17,9 @@ final class ADT[S](using val line: sourcecode.Line, val file: sourcecode.File, s
   val name: String = semantic.name
   val typeVariablesSeq: Seq[Variable[Ind]] = semantic.typeVariablesSeq
 
+  /** Applies exactly the declared type arguments and returns a set. */
   def termAt(args: Seq[Expr[Ind]]): Expr[Ind] =
+    require(args.size == typeVariablesSeq.size, s"ADT $name expects ${typeVariablesSeq.size} type argument(s), got ${args.size}.")
     (this #@@ args).asInstanceOf[Expr[Ind]]
 
   val term: Expr[Ind] = termAt(typeVariablesSeq)

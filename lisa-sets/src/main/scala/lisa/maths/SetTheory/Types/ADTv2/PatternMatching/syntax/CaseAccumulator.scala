@@ -1,6 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.syntax
 
 import lisa.maths.SetTheory.SetTheory._
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.PatternValidation
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.induction.InductionBranchSystem
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.induction.PatternToInduction
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.constructor.ConstructorPattern
@@ -8,7 +9,6 @@ import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.constructor.Co
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.nested.NestedPatternSystem
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.nested.NestedConstructorPattern
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
-import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
 import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
 import lisa.maths.SetTheory.Types.ADTv2.interface.SpecializedADT
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.substitutionsFromArgs
@@ -40,37 +40,27 @@ class CaseAccumulator[T, R](val comp: R) {
    * term argument (e.g. `cons(tru, tl)`).
    */
   def compile(adt: SpecializedADT[?])(using ev: T =:= Expr[Ind]): Either[String, PatternSystem] =
-    validateCoverage(adt.base) match
-      case Some(err) => Left(err)
-      case None => Right(buildPatternSystem(adt, bodyAt = ev))
+    validateCases(adt).map(_ => buildPatternSystem(adt, bodyAt = ev))
 
   def compileForInduction(
       adt: SpecializedADT[?]
   ): Either[String, InductionBranchSystem[T]] =
-    validateCoverage(adt.base) match
-      case Some(err) => Left(err)
-      case None => PatternToInduction.compile(
-          adt,
-          buildPatternSystem(adt, bodyAt = _ => ∅),
-          underlying.toSeq.map(_._3)
-        )
+    validateCases(adt).flatMap { _ =>
+      PatternToInduction.compile(adt, buildPatternSystem(adt, bodyAt = _ => ∅), underlying.toSeq.map(_._3))
+    }
 
-  private def validateCoverage(adt: ADT[?]): Option[String] =
-    val constructors: Set[Constructor[?]] = adt.constructors.toSet
-    val caseConstructors: Set[Constructor[?]] = underlying.map(_._1).toSet
-
-    val missing = constructors -- caseConstructors
-    val unknown = caseConstructors -- constructors
-
-    if missing.nonEmpty then Some(s"Case for ${missing.head.name} is missing.")
-    else if unknown.nonEmpty then Some(s"${unknown.head.name} is not a constructor of ${adt.name}.")
-    else
-      underlying.foldLeft[Option[String]](None) { case (acc, (cons, args, _)) =>
-        acc.orElse(
-          Option.when(args.size != cons.semantic.arity)(
-            s"Case ${cons.name}: ${args.size} argument(s) provided but constructor arity is ${cons.semantic.arity}."
-          )
-        )
+  private def validateCases(adt: SpecializedADT[?]): Either[String, Unit] =
+    underlying.iterator.map { (cons, args, _) => PatternValidation.validateCase(cons, args, adt) }
+      .collectFirst { case Left(error) => error }.toLeft(()).flatMap { _ =>
+        val present = underlying.map(_._1).toSet
+        val missing = adt.base.constructors.find(c => !present.contains(c))
+        val unconditional = underlying.collect { case (cons, args, _) if args.forall(_.isInstanceOf[Variable[Ind]]) => cons }
+        missing match
+          case Some(cons) => Left(s"Case for ${cons.name} is missing.")
+          case None =>
+            unconditional.groupBy(identity).collectFirst {
+              case (cons, cases) if cases.size > 1 => s"Overlapping unconditional cases for ${cons.name}."
+            }.toLeft(())
       }
 
   private def buildConstructorSystem(
@@ -84,7 +74,7 @@ class CaseAccumulator[T, R](val comp: R) {
         ConstructorPattern(
           cons.semantic,
           args.map(_.asInstanceOf[Variable[Ind]]),
-          bodyAt(body).substitute(typeSubstitutions*),
+          bodyAt(body),
           typeSubstitutions = typeSubstitutions,
           specializedAdtTerm = adt.term
         )
@@ -102,9 +92,9 @@ class CaseAccumulator[T, R](val comp: R) {
         cons.semantic,
         args.map {
           case v: Variable[Ind] => Left(v)
-          case t => Right(t.substitute(typeSubstitutions*).asInstanceOf[Expr[Ind]])
+          case t => Right(t)
         },
-        bodyAt(body).substitute(typeSubstitutions*).asInstanceOf[Expr[Ind]],
+        bodyAt(body),
         typeSubstitutions,
         adt.term
       )

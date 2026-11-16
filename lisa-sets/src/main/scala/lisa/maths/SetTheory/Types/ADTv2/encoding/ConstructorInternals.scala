@@ -23,9 +23,12 @@ private[encoding] final class ConstructorInternals(
     structuralTerm: Expr[Ind],
     typ: Expr[Ind]
 ) {
-  val untypedDefinition: Expr[Prop] = (c :: typ) /\ forallSeq(
+  /** A function placeholder distinct from the constructor's parameters and arguments. */
+  val placeholder: Variable[Ind] = Variable[Ind](freshId(variables ++ Seq(typ, structuralTerm, x, y), "c"))
+
+  val untypedDefinition: Expr[Prop] = (placeholder :: typ) /\ forallSeq(
     variables,
-    wellTypedFormula(semanticSignature) ==> (appSeq(c)(variables) === structuralTerm)
+    wellTypedFormula(semanticSignature) ==> (appSeq(placeholder)(variables) === structuralTerm)
   )
 
   private def nestedAbstraction(
@@ -120,7 +123,7 @@ private[encoding] final class ConstructorInternals(
     thenHave(thesis) by QuantifiersIntro(variables)
   }
 
-  val existence: THM = Lemma(∃(c, untypedDefinition)) {
+  val existence: THM = Lemma(∃(placeholder, untypedDefinition)) {
     have(
       (witness :: typ) /\
         forallSeq(
@@ -131,8 +134,8 @@ private[encoding] final class ConstructorInternals(
     thenHave(thesis) by RightExists
   }
 
-  private val xDef = untypedDefinition.substitute(c := x)
-  private val yDef = untypedDefinition.substitute(c := y)
+  private val xDef = untypedDefinition.substitute(placeholder := x)
+  private val yDef = untypedDefinition.substitute(placeholder := y)
 
   /**
    * Curried extensionality specialised to the case where `left` and `right` both reduce, on every
@@ -159,13 +162,15 @@ private[encoding] final class ConstructorInternals(
     // Built through a fresh placeholder and a capture-avoiding substitution, so the schema matches
     // the caller's even when `fn`'s name clashes with one of the bound argument variables.
     def schemaFor(fn: Expr[Ind]): Expr[Prop] =
-      val placeholder = variable[Ind]("curriedfn")
+      val placeholder = Variable[Ind](freshId(vars ++ domains ++ Seq(fn, commonValue), "curriedfn"))
       forallSeq(vars, wellTypedFormula(semanticSignature) ==> (appSeq(placeholder)(vars) === commonValue)).substitute(placeholder := fn)
     val leftSchema = schemaFor(left)
     val rightSchema = schemaFor(right)
 
     // One fresh point per argument position, and the partial applications they induce.
-    val points = semanticSignature.indices.map(i => variable[Ind](s"pointarg$i"))
+    val points = semanticSignature.indices.foldLeft(Vector.empty[Variable[Ind]]) { (acc, i) =>
+      acc :+ Variable[Ind](freshId(vars ++ domains ++ Seq(left, right, commonValue, resultType) ++ acc, s"pointarg$i"))
+    }
     val pointTyped = points.zip(domains).map((p, d) => (p :: d): Expr[Prop])
     def leftAt(k: Int): Expr[Ind] = appSeq(left)(points.take(k))
     def rightAt(k: Int): Expr[Ind] = appSeq(right)(points.take(k))

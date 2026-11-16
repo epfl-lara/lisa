@@ -16,14 +16,14 @@ object NestedPatternInduction extends lisa.Main {
   section("Proof example: non-existence of a true in a list implies zero count")
 
   val nonExistsImpliesZeroCount = Lemma(
-    l :: list.termAt(Seq(bool.term)) |- (existsTrue(bool) * l === fals) ==> (countTrue(bool) * l === zero)
+    l :: list.termAt(Seq(bool.term)) |- (existsTrue * l === fals) ==> (countTrue * l === zero)
   ) {
     have(thesis) by Induction(l, boolList) {
 
       Case(nil) subproof {
         // existsTrue[list/nil[bool/term1]] = bool/fals ⇒ countTrue[list/nil[bool/term1]] = nat/zero
 
-        have(thesis) by Tautology.from((countTrue.elim(nil) of bool))
+        have(thesis) by Tautology.from(countTrue.elim(nil))
       }
       Case(cons, tru, tl) subproof {
         // ( cons/arg0 ∈ bool/term1, tl ∈ list/term2[bool/term1], existsTrue[tl] = bool/fals ⇒ countTrue[tl] = nat/zero, cons/arg0 = bool/tru )
@@ -34,23 +34,23 @@ object NestedPatternInduction extends lisa.Main {
         assume(
           arg0 :: bool.term,
           tl :: list.termAt(Seq(bool.term)),
-          (existsTrue(bool) * tl === fals) ==> (countTrue(bool) * tl === zero),
+          (existsTrue * tl === fals) ==> (countTrue * tl === zero),
           arg0 === tru
         )
 
-        val existsAtTru = have(existsTrue(bool) * listAtArg0 === tru) by
-          Tautology.from((existsTrue.elim(Case(cons, tru, tl)) of bool))
+        val existsAtTru = have(existsTrue * listAtArg0 === tru) by
+          Tautology.from(existsTrue.elim(Case(cons, tru, tl)))
 
         have(thesis) subproof {
-          assume(existsTrue(bool) * listAtArg0 === fals)
+          assume(existsTrue * listAtArg0 === fals)
           val truEqFals = have(tru === fals) by Congruence.from(lastStep, existsAtTru)
-          have(countTrue(bool) * listAtArg0 === zero) by Tautology.from(
+          have(countTrue * listAtArg0 === zero) by Tautology.from(
             truEqFals,
             bool.disjointness(tru, fals)
           )
           thenHave(thesis) by RightImplies.withParameters(
-            existsTrue(bool) * listAtArg0 === fals,
-            countTrue(bool) * listAtArg0 === zero
+            existsTrue * listAtArg0 === fals,
+            countTrue * listAtArg0 === zero
           )
         }
       }
@@ -63,23 +63,23 @@ object NestedPatternInduction extends lisa.Main {
         assume(
           arg0 :: bool.term,
           tl :: list.termAt(Seq(bool.term)),
-          (existsTrue(bool) * tl === fals) ==> (countTrue(bool) * tl === zero),
+          (existsTrue * tl === fals) ==> (countTrue * tl === zero),
           arg0 === fals
         )
 
-        val existsAtFals = have(existsTrue(bool) * listAtArg0 === existsTrue(bool) * tl) by
-          Tautology.from((existsTrue.elim(Case(cons, fals, tl)) of bool))
-        val countAtFals = have(countTrue(bool) * listAtArg0 === countTrue(bool) * tl) by
-          Tautology.from((countTrue.elim(Case(cons, fals, tl)) of bool))
+        val existsAtFals = have(existsTrue * listAtArg0 === existsTrue * tl) by
+          Tautology.from(existsTrue.elim(Case(cons, fals, tl)))
+        val countAtFals = have(countTrue * listAtArg0 === countTrue * tl) by
+          Tautology.from(countTrue.elim(Case(cons, fals, tl)))
 
         have(thesis) subproof {
-          assume(existsTrue(bool) * listAtArg0 === fals)
-          val noTrueTail = have(existsTrue(bool) * tl === fals) by Congruence.from(lastStep, existsAtFals)
-          val zeroTail = have(countTrue(bool) * tl === zero) by Tautology.from(noTrueTail)
-          have(countTrue(bool) * listAtArg0 === zero) by Congruence.from(countAtFals, zeroTail)
+          assume(existsTrue * listAtArg0 === fals)
+          val noTrueTail = have(existsTrue * tl === fals) by Congruence.from(lastStep, existsAtFals)
+          val zeroTail = have(countTrue * tl === zero) by Tautology.from(noTrueTail)
+          have(countTrue * listAtArg0 === zero) by Congruence.from(countAtFals, zeroTail)
           thenHave(thesis) by RightImplies.withParameters(
-            existsTrue(bool) * listAtArg0 === fals,
-            countTrue(bool) * listAtArg0 === zero
+            existsTrue * listAtArg0 === fals,
+            countTrue * listAtArg0 === zero
           )
         }
       }
@@ -87,14 +87,14 @@ object NestedPatternInduction extends lisa.Main {
   }
 
   val nonExistsImpliesZeroCount2 = Lemma(
-    l :: list.termAt(Seq(bool.term)) |- (existsTrue(bool) * l === fals) ==> (countTrue(bool) * l === zero)
+    l :: list.termAt(Seq(bool.term)) |- (existsTrue * l === fals) ==> (countTrue * l === zero)
   ) {
     have(thesis) by Induction(l, boolList) {
 
       Case(nil) subproof {
         // existsTrue[list/nil[bool/term1]] = bool/fals ⇒ countTrue[list/nil[bool/term1]] = nat/zero
 
-        have(thesis) by Tautology.from((countTrue.elim(nil) of bool))
+        have(thesis) by Tautology.from(countTrue.elim(nil))
       }
       Case(cons, tru, tl) subproof {
         // ( cons/arg0 ∈ bool/term1, tl ∈ list/term2[bool/term1], existsTrue[tl] = bool/fals ⇒ countTrue[tl] = nat/zero, cons/arg0 = bool/tru )
@@ -105,23 +105,23 @@ object NestedPatternInduction extends lisa.Main {
         assume(
           arg0 :: bool.term,
           tl :: list.termAt(Seq(bool.term)),
-          (existsTrue(bool) * tl === fals) ==> (countTrue(bool) * tl === zero),
+          (existsTrue * tl === fals) ==> (countTrue * tl === zero),
           arg0 === tru
         )
 
-        val existsAtTru = have(existsTrue(bool) * listAtArg0 === tru) by
-          Tautology.from((existsTrue.elim(Case(cons, tru, tl)) of bool))
+        val existsAtTru = have(existsTrue * listAtArg0 === tru) by
+          Tautology.from(existsTrue.elim(Case(cons, tru, tl)))
 
         have(thesis) subproof {
-          assume(existsTrue(bool) * listAtArg0 === fals)
+          assume(existsTrue * listAtArg0 === fals)
           val truEqFals = have(tru === fals) by Congruence.from(lastStep, existsAtTru)
-          have(countTrue(bool) * listAtArg0 === zero) by Tautology.from(
+          have(countTrue * listAtArg0 === zero) by Tautology.from(
             truEqFals,
             bool.disjointness(tru, fals)
           )
           thenHave(thesis) by RightImplies.withParameters(
-            existsTrue(bool) * listAtArg0 === fals,
-            countTrue(bool) * listAtArg0 === zero
+            existsTrue * listAtArg0 === fals,
+            countTrue * listAtArg0 === zero
           )
         }
       }
@@ -134,23 +134,23 @@ object NestedPatternInduction extends lisa.Main {
         assume(
           arg0 :: bool.term,
           tl :: list.termAt(Seq(bool.term)),
-          (existsTrue(bool) * tl === fals) ==> (countTrue(bool) * tl === zero),
+          (existsTrue * tl === fals) ==> (countTrue * tl === zero),
           arg0 === fals
         )
 
-        val existsAtFals = have(existsTrue(bool) * listAtArg0 === existsTrue(bool) * tl) by
-          Tautology.from((existsTrue.elim(Case(cons, fals, tl)) of bool))
-        val countAtFals = have(countTrue(bool) * listAtArg0 === countTrue(bool) * tl) by
-          Tautology.from((countTrue.elim(Case(cons, fals, tl)) of bool))
+        val existsAtFals = have(existsTrue * listAtArg0 === existsTrue * tl) by
+          Tautology.from(existsTrue.elim(Case(cons, fals, tl)))
+        val countAtFals = have(countTrue * listAtArg0 === countTrue * tl) by
+          Tautology.from(countTrue.elim(Case(cons, fals, tl)))
 
         have(thesis) subproof {
-          assume(existsTrue(bool) * listAtArg0 === fals)
-          val noTrueTail = have(existsTrue(bool) * tl === fals) by Congruence.from(lastStep, existsAtFals)
-          val zeroTail = have(countTrue(bool) * tl === zero) by Tautology.from(noTrueTail)
-          have(countTrue(bool) * listAtArg0 === zero) by Congruence.from(countAtFals, zeroTail)
+          assume(existsTrue * listAtArg0 === fals)
+          val noTrueTail = have(existsTrue * tl === fals) by Congruence.from(lastStep, existsAtFals)
+          val zeroTail = have(countTrue * tl === zero) by Tautology.from(noTrueTail)
+          have(countTrue * listAtArg0 === zero) by Congruence.from(countAtFals, zeroTail)
           thenHave(thesis) by RightImplies.withParameters(
-            existsTrue(bool) * listAtArg0 === fals,
-            countTrue(bool) * listAtArg0 === zero
+            existsTrue * listAtArg0 === fals,
+            countTrue * listAtArg0 === zero
           )
         }
       }

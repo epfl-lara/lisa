@@ -135,7 +135,6 @@ private[PatternMatching] final case class NestedConstructorPattern(
       ._2
       .substitute(typeSubstitutions*)
       .asInstanceOf[Expr[Ind]]
-    val guardTy = ADT.unapply(guardType).get
     val binderInHeight = have(guard.binder ∈ app(heightFun)(currentIndex)) by Tautology.from(argsTypedAtHeight)
     val guardEq = have(guard.binder === guard.guardTerm) by Tautology.from(patternGuard)
     val guardInHeight = have(guard.guardTerm ∈ app(heightFun)(currentIndex)) by Congruence.from(binderInHeight, guardEq)
@@ -149,7 +148,7 @@ private[PatternMatching] final case class NestedConstructorPattern(
         currentIndexInN = currentIndexInN,
         leafTyping = leafTyping,
         currentPat = NestedTrieProofs.parse(guard.guardTerm),
-        currentTy = guardTy,
+        currentTy = guardType,
         currentInHeight = guardInHeight,
         target = target
       )
@@ -250,15 +249,16 @@ private[PatternMatching] object NestedConstructorPattern {
       p: RPat,
       ty: Ty
   ): proof.Fact =
-    val goal = NestedTrieProofs.termOf(p, ty) :: ty._1.termAt(ty._2)
+    val goal = NestedTrieProofs.termOf(p, ty) :: ty
     p match
       case RVar(_) => have(goal) by Tautology.from(leafTyping)
       case RCon(c, args) =>
-        val cts = NestedTrieProofs.resolvedChildTypes(c, ty._2)
-        val argFacts = args.zip(cts).map((a, t) => typeProof(leafTyping, a, t.get))
-        val argTerms = args.zip(cts).map((a, t) => NestedTrieProofs.termOf(a, t.get))
+        val targs = NestedTrieProofs.typeArguments(c, ty)
+        val cts = NestedTrieProofs.resolvedChildTypes(c, targs)
+        val argFacts = args.zip(cts).map((a, t) => typeProof(leafTyping, a, t))
+        val argTerms = args.zip(cts).map((a, t) => NestedTrieProofs.termOf(a, t))
         val substs =
-          c.typeVariablesSeq.zip(ty._2).map((v, t) => v := t) ++
+          c.typeVariablesSeq.zip(targs).map((v, t) => v := t) ++
             c.semantic.variables.zip(argTerms).map((v, t) => v := t)
         val introInst: proof.Fact = if substs.isEmpty then c.introApp else c.introApp.of(substs*)
         have(goal) by Tautology.from((introInst +: argFacts)*)
@@ -285,13 +285,14 @@ private[PatternMatching] object NestedConstructorPattern {
         currentInHeight
 
       case RCon(c, args) =>
+        val (currentAdt, targs) = NestedTrieProofs.adtType(currentTy)
         val predVar = Variable[Ind](freshId(Seq(currentIndex, target, heightFun), "predVar"))
         val currentTerm = NestedTrieProofs.termOf(currentPat, currentTy)
-        val levelSubsts = currentTy._1.semantic.typeVariablesSeq.zip(currentTy._2).map((v, a) => v := a)
+        val levelSubsts = currentAdt.semantic.typeVariablesSeq.zip(targs).map((v, a) => v := a)
         val currentInZero = {
           have(!(currentTerm ∈ app(heightFun)(∅))) by Tautology.from(
             hValid,
-            currentTy._1.semantic.height.zeroAt(levelSubsts).of(h := heightFun, x := currentTerm)
+            currentAdt.semantic.height.zeroAt(levelSubsts).of(h := heightFun, x := currentTerm)
           )
         }
 
@@ -326,10 +327,10 @@ private[PatternMatching] object NestedConstructorPattern {
             currentEqSucc
           )
 
-          val cts = NestedTrieProofs.resolvedChildTypes(c, currentTy._2)
-          val argTerms: Seq[Expr[Ind]] = args.zip(cts).map((a, t) => NestedTrieProofs.termOf(a, t.get))
-          val argTypings = args.zip(cts).map((a, t) => typeProof(leafTyping, a, t.get))
-          val semanticSubsts = c.semantic.typeVariablesSeq.zip(currentTy._2).map((v, a) => v := a)
+          val cts = NestedTrieProofs.resolvedChildTypes(c, targs)
+          val argTerms: Seq[Expr[Ind]] = args.zip(cts).map((a, t) => NestedTrieProofs.termOf(a, t))
+          val argTypings = args.zip(cts).map((a, t) => typeProof(leafTyping, a, t))
+          val semanticSubsts = c.semantic.typeVariablesSeq.zip(targs).map((v, a) => v := a)
           val semanticSigAtArgs =
             argTerms.zip(c.semantic.semanticSignature2.map(_._2.substitute(semanticSubsts*).asInstanceOf[Expr[Ind]]))
           val argsTypedSemantic = { have(wellTypedFormula(semanticSigAtArgs)) by Tautology.from(argTypings*) }
@@ -350,7 +351,7 @@ private[PatternMatching] object NestedConstructorPattern {
           }
 
           val childIdx = childIndexForBinder(args, target)
-          val childTy = cts(childIdx).get
+          val childTy = cts(childIdx)
           val childTerm = argTerms(childIdx)
           val childInPred = have(childTerm ∈ app(heightFun)(predVar)) by Tautology.from(childTypingsAtPred)
           val innerAtPred = descendToBinder(

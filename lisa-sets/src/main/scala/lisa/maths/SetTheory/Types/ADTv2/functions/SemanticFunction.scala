@@ -8,6 +8,7 @@ import lisa.maths.SetTheory.Types.ADTv2.encoding._
 
 final class SemanticFunction(
     semanticName: String,
+    parameters: Seq[Variable[Ind]],
     semanticAdt: SemanticADT,
     semanticArgType: Expr[Ind],
     patternMatching: PatternSystem,
@@ -17,6 +18,7 @@ final class SemanticFunction(
 
         val spec: FunSpec = new FunSpec(
           functionName = semanticName,
+          typeVariablesSeq = parameters,
           adt = semanticAdt,
           argType = semanticArgType,
           patternMatching = patternMatching,

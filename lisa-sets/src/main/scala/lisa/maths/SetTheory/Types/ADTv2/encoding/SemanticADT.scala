@@ -46,6 +46,12 @@ class SemanticADT(
 
   final class HeightAdapter private[SemanticADT] () {
     def predicate(h: Expr[Ind]): Expr[Prop] = underlying.isHeight(h)
+    private lazy val heightArgument = Variable[Ind](freshId(typeVariablesSeq, s"$name/heightArgument"))
+
+    /** Specializes the height predicate without substituting inside its argument. */
+    def predicateAt(substitutions: Seq[TypeSubstitution])(h: Expr[Ind]): Expr[Prop] =
+      predicate(heightArgument).substitute((substitutions :+ (heightArgument := h))*)
+
     val function: Expr[Ind] = underlying.height
     
     def validAt(

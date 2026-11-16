@@ -18,13 +18,13 @@ private def ADTBuilder[S](using Sort[S])(
       (String, Seq[(String, String | ConstructorArg)])
     ]
 ): ADT[S] = {
-
+  require(name.trim.nonEmpty, "An ADT must have a nonempty name.")
+  require(typeVars.forall(_.trim.nonEmpty), s"ADT $name has an empty type variable name.")
   require(
     typeVars.distinct.size == typeVars.size,
     s"ADT $name has duplicate type variables: ${typeVars.mkString(", ")}."
   )
 
-  // TODO: verify that args name are not in the form x and x2 (reserved)
   // TODO: verify that their is no other reserved name (CF Variables.scala)
   def validateArgName(argName: String): Unit =
     val reserved_names = Set("n", "m", "h")
@@ -33,42 +33,49 @@ private def ADTBuilder[S](using Sort[S])(
       s"Constructor argument name '$argName' is reserved; choose another name"
     )
 
-  def resolveArgType(argType: String): ConstructorArg =
-    if argType == name then SelfRef
-    else if typeVars.contains(argType) then TypeArg(argType)
-    else
-      require(
-        typeVars.contains(argType),
-        s"Constructor argument type '$argType' must be one of ${typeVars.mkString(", ")} or '$name'"
-      )
-      TypeArg(argType)
-
   val constructorsName = constructors.map(_._1)
-  val constructorsArgs = constructors.map { case (_, args) =>
+  require(constructorsName.forall(_.trim.nonEmpty), s"ADT $name has an empty constructor name.")
+  require(constructorsName.distinct.size == constructorsName.size, s"ADT $name has duplicate constructor names.")
+  val constructorsArgs = constructors.map { case (constructorName, args) =>
+    val owner = s"Constructor $name/$constructorName"
+    require(args.map(_._1).distinct.size == args.size, s"$owner has duplicate argument names.")
     args.map { case (argName, argType) =>
+      require(argName.trim.nonEmpty, s"$owner has an empty argument name.")
       validateArgName(argName)
-      argType match
-        case s: String => (argName, resolveArgType(s))
-        case c: ConstructorArg => (argName, c)
+      val resolved = argType match
+        case s: String => if s == name then SelfRef else TypeArg(s)
+        case c: ConstructorArg => c
+      resolved match
+        case TypeArg(parameter) =>
+          require(typeVars.contains(parameter), s"$owner argument '$argName' refers to undeclared type parameter '$parameter'.")
+        case SelfRef => ()
+      (argName, resolved)
     }
   }
 
   // Tags are the constructor's position in this declaration, so they stay small and
   // independent of what else has been declared elsewhere in the program.
-  val constructorsSyntactic = constructorsArgs.zipWithIndex.map((args, index) =>
+  val typeVariables = typeVars.map(Variable[Ind](_))
+  val constructorsSyntactic = constructorsArgs.zipWithIndex.map { (args, index) =>
+    val variables = args.foldLeft(Vector.empty[Variable[Ind]]) { case (acc, (argName, _)) =>
+      acc :+ Variable[Ind](freshId(typeVariables ++ acc, argName))
+    }
+    val variables2 = args.foldLeft(Vector.empty[Variable[Ind]]) { case (acc, (argName, _)) =>
+      acc :+ Variable[Ind](freshId(typeVariables ++ variables ++ acc, s"${argName}2"))
+    }
     SyntacticConstructor(
       args.map(arg => arg._2),
-      args.map(arg => Variable[Ind](arg._1)),
-      args.map(arg => Variable[Ind](s"${arg._1}2")),
+      variables,
+      variables2,
       tag = index,
       owner = name
     )
-  )
+  }
 
   val adtSyntactic = SyntacticADT(
     name,
     constructorsSyntactic,
-    typeVars.map(Variable[Ind](_))
+    typeVariables
   )
 
   val constructorsSemantic = constructorsSyntactic.zip(constructorsName).map { case (ctor, name) =>

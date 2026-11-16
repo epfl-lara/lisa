@@ -239,7 +239,7 @@ private[recursion] final class Existence(
 
     ).toSeq
 
-    have((spec.typeConstraint(f),recWitness(f) === f) |- spec.equationConstraint(f)) by RightAnd(caseFacts*)
+    have((spec.typeConstraint(f),recWitness(f) === f) |- spec.equationConstraint(f)) by Tautology.from(caseFacts*)
     have((spec.typeConstraint(f), recWitness(f) === f) |- spec.definitionAt(f)) by RightAnd(fTyped, lastStep)
     have(spec.definitionAt(limitFun)) by Cuts(lastStep of (f := limitFun))(limitHasType, limitIsFixedPoint)
     thenHave(thesis) by RightExists

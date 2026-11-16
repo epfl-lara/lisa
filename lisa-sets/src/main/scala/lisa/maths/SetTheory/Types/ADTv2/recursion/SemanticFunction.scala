@@ -9,6 +9,7 @@ import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitutio
 
 final class SemanticFunction(
     semanticName: String,
+    parameters: Seq[Variable[Ind]],
     semanticAdt: SemanticADT,
     semanticArgType: Expr[Ind],
     typeSubstitutions: Seq[TypeSubstitution],
@@ -20,6 +21,7 @@ final class SemanticFunction(
 
         val spec: FunSpec = new FunSpec(
           functionName = semanticName,
+          typeVariablesSeq = parameters,
           adt = semanticAdt,
           argType = semanticArgType,
           typeSubstitutions = typeSubstitutions,

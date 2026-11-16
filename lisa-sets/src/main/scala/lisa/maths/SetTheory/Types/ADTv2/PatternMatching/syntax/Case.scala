@@ -2,8 +2,10 @@ package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.syntax
 
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
+import lisa.maths.SetTheory.Types.ADTv2.interface.SpecializedADT
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.PatternValidation
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.nested.NestedConstructorPattern
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.appSeq
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.wellTypedSet
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 
 case class Case(cons: Constructor[?], args: Expr[Ind]*) {
@@ -21,30 +23,27 @@ case class Case(cons: Constructor[?], args: Expr[Ind]*) {
       proof: Proof,
       line: sourcecode.Line,
       file: sourcecode.File,
-      builder: CaseAccumulator[proof.ProofStep, (Sequent, Seq[Expr[Ind]], Variable[Ind])]
+      builder: CaseAccumulator[proof.ProofStep, (Sequent, SpecializedADT[?], Variable[Ind])]
   )(subproof: proof.InnerProof ?=> Unit): Unit =
-    val vars: Seq[Variable[Ind]] = args.zipWithIndex.map {
-      case (v: Variable[Ind], _) => v
-      case (_, i) => variable[Ind](s"${cons.semantic.name}/arg$i")
-    }
-
-    val (bot, typeArgs, adtVar) = builder.comp
+    val (bot, adt, adtVar) = builder.comp
+    PatternValidation.validateCase(cons, args, adt).fold(message => throw new IllegalArgumentException(message), identity)
+    val typeArgs = adt.typeArgs
+    val pattern = NestedConstructorPattern.fromArgs(
+      cons.semantic,
+      args.map {
+        case v: Variable[Ind] => Left(v)
+        case term => Right(term)
+      },
+      ∅,
+      cons.semantic.typeVariablesSeq.zip(typeArgs).map((v, typ) => v := typ),
+      adt.term
+    )
+    val vars = pattern.topBinders
     val prop = bot.right.head
     val consTerm = appSeq(cons.semantic.term(typeArgs))(vars)
     val subst = adtVar -> consTerm
 
-    val assumptions = wellTypedSet(
-      cons.semantic
-        .semanticSignature(vars)
-        .map(p =>
-          (
-            p._1,
-            p._2.substitute(cons.semantic.typeVariablesSeq.zip(typeArgs).map(SubstPair(_, _))*)
-          )
-        )
-    ) ++ cons.semantic
-      .recursiveBinders(vars)
-      .map(v => v :: cons.adt.termAt(typeArgs))
+    val assumptions = pattern.typingPremises
       ++ cons.semantic
         .recursiveBinders(vars)
         .map(v => prop.substitute(adtVar -> v))

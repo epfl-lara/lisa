@@ -45,7 +45,7 @@ private[PatternMatching] final case class NestedPatternSystem(
 
   override lazy val coverage: THM =
     {
-      NestedTrieProofs.coverageCaseShape((adt, targs), clauses, patterns)
+      NestedTrieProofs.coverageCaseShape(specializedAdtTerm, clauses, patterns)
     }
 
   override def incompatible(pattern1: Pattern, pattern2: Pattern): THM =
@@ -69,7 +69,7 @@ private[PatternMatching] final case class NestedPatternSystem(
           val target = forallSeq(
             constructor.variables2,
             (wellTypedFormula(constructor.semanticSignature2).substitute(typeSubstitutions*) /\
-              (term === constructor.appliedTerm2).substitute(typeSubstitutions*)) ==>
+              (term === constructor.appliedTerm2.substitute(typeSubstitutions*))) ==>
               seqOr(pats.map(p => p.branchSelectionDisjunct(term)))
           )
           Lemma(target.asInstanceOf[Expr[Prop]]) { have(thesis) by Tautology }

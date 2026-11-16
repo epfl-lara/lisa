@@ -2,7 +2,6 @@ package lisa.maths.SetTheory.Types.ADTv2.recursion
 
 import lisa.maths.Quantifiers
 import lisa.maths.SetTheory.Functions.BasicTheorems
-import lisa.maths.SetTheory.Functions.Function.abs
 import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.Functions.Predef.app
 import lisa.maths.SetTheory.Functions.Predef.functionOn
@@ -16,7 +15,7 @@ import lisa.maths.SetTheory.Ordinals.TransfiniteRecursion
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.tactics.Cuts
-import lisa.maths.SetTheory.Types.Tactics.Typecheck
+import lisa.maths.SetTheory.Types.TypingRules.functionSpaceInhabited
 import lisa.maths.SetTheory.Types.TypingHelpers._
 
 /**
@@ -55,18 +54,7 @@ private[recursion] final class ApproxSequence(
   // ─────────────────────────────────────────────────────────────────────────
 
   private val seedExists: THM = Lemma(∃(f0, f0 :: spec.typ)) {
-    spec.cases.find(_.binders.isEmpty) match {
-
-      case Some(pattern) =>
-        val body = pattern.body
-        val seedArg = variable[Ind]
-        val seed = abs(spec.argType)(λ(seedArg, body))
-        have(seed :: spec.typ) by Typecheck.prove
-        thenHave(thesis) by RightExists
-
-      case None =>
-        throw new IllegalArgumentException("Cannot construct seed function for approximant sequence: no nullary constructor case found.")
-    }
+    have(thesis) by Tautology.from(recWitness.targetInhabited, functionSpaceInhabited of (A := spec.argType, B := spec.returnType))
   }
 
   /**

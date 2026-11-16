@@ -3,7 +3,7 @@ package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.nested
 import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
 import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
-import lisa.maths.SetTheory.Types.TypingHelpers
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.PatternValidation
 
 private[semantics] object NestedTrie {
 
@@ -29,34 +29,14 @@ private[semantics] object NestedTrie {
     case Fail(occ: Occ, missing: List[String])
   import Tree.*
 
-  // All registered constructors, keyed by their term-level identifier. Mirrors
-  // NestedConstructorPattern.resolveNullaryGuard's global lookup.
-  private[semantics] def allConstructors: Seq[Constructor[?]] =
-    ADT.allADTs.toSeq.flatMap(_.constructors)
+  export PatternValidation.peelApp
 
-  // Peel a set-application spine `c * a0 * a1 * …` (built by the `*` DSL operator,
-  // i.e. nested `app(...)`) into its head and value arguments, using the `*`
-  // extractor from TypingHelpers.
-  private[semantics] def peelApp(t: Expr[Ind]): (Expr[Ind], List[Expr[Ind]]) =
-    TypingHelpers.`*`.unapply(t) match
-      case Some((f, x)) => val (h, as) = peelApp(f); (h, as :+ x)
-      case None => (t, Nil)
-
-  // ── Parse an Expr[Ind] argument into a Pat ─────────────────────────────────
-  // A variable becomes a binder; a constructor application becomes a PCon. The
-  // head is the constructor symbol (optionally applied to type args); we keep
-  // only the constructor's value arity (rightmost args).
-  def parsePat(term: Expr[Ind]): Pat =
-    val (h, valueArgs) = peelApp(term)
-    val headSym = h match { case Multiapp(hd, _) => hd }
-    headSym match
-      case c: Constant[?] @unchecked =>
-        allConstructors.find(_.id == c.id) match
-          case Some(ctor) =>
-            val vs = valueArgs.takeRight(ctor.semantic.arity)
-            PCon(ctor.name, vs.map(parsePat))
-          case None => PVar(term.toString)
-      case _ => PVar(term.toString)
+  /** Parses variables and fully applied constructors, rejecting other expressions. */
+  def parsePat(term: Expr[Ind]): Pat = term match
+    case v: Variable[Ind] @unchecked => PVar(v.toString)
+    case _ =>
+      val (constructor, _, args) = PatternValidation.constructorApplication(term).fold(message => throw new IllegalArgumentException(message), identity)
+      PCon(constructor.name, args.map(parsePat))
 
   // ── Column model carrying the resolved ADT + its type arguments ────────────
   final case class Col(occ: Occ, ty: Option[(ADT[?], Seq[Expr[Ind]])])

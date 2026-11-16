@@ -155,12 +155,8 @@ private[proofs] trait WitnessFunctionProofs extends WitnessBranchMembership {
         val rawCaseToNamedDisjunction = rawCaseToNamedCases.map(fact => have(fact.statement.left.head |- witnessMembership) by Restate.from(fact))
 
         val casesToNamed =
-          if rawCaseToNamedDisjunction.size == 1 then
-            have(patternMatching.caseMembership(pair(inputTerm, outputTerm)) |- witnessMembership) by
-              Restate.from(rawCaseToNamedDisjunction.head)
-          else
-            have(patternMatching.caseMembership(pair(inputTerm, outputTerm)) |- witnessMembership) by
-              LeftOr(rawCaseToNamedDisjunction*)
+          have(patternMatching.caseMembership(pair(inputTerm, outputTerm)) |- witnessMembership) by
+            Tautology.from(rawCaseToNamedDisjunction*)
 
         val witnessToCasesSequent = have(
           (pair(inputTerm, outputTerm) ∈ witness, inputTerm ∈ argType) |- patternMatching.caseMembership(pair(inputTerm, outputTerm))
@@ -441,6 +437,7 @@ private[proofs] trait WitnessFunctionProofs extends WitnessBranchMembership {
         ∀(inputTerm ∈ argType, ∃(outputTerm, pair(inputTerm, outputTerm) ∈ witness))
       )
     ) {
+      if contextPremises.nonEmpty then assume(contextPremise)
 
       val branchExistenceFacts = patternMatching.patterns.map(pattern =>
 
@@ -448,7 +445,6 @@ private[proofs] trait WitnessFunctionProofs extends WitnessBranchMembership {
           if contextPremises.isEmpty then
             have(witnessMembership(pattern).statement.right.head) by Tautology.from(witnessMembership(pattern))
           else
-            assume(contextPremise)
             witnessMembership(pattern).statement.right.head match
               case _ ==> consequent =>
                 have(consequent) by Tautology.from(witnessMembership(pattern))
@@ -486,10 +482,8 @@ private[proofs] trait WitnessFunctionProofs extends WitnessBranchMembership {
       )
 
       val coverageToWitness =
-        have(simplify(patternMatching.caseCoverage(inputTerm)) |- ∃(outputTerm, pair(inputTerm, outputTerm) ∈ witness)) by (
-          if branchExistenceFacts.size == 1 then Restate.from(branchExistenceFacts.head)
-          else LeftOr(branchExistenceFacts*)
-        )
+        have(simplify(patternMatching.caseCoverage(inputTerm)) |- ∃(outputTerm, pair(inputTerm, outputTerm) ∈ witness)) by
+          Tautology.from(branchExistenceFacts*)
 
       have(
         (inputTerm ∈ argType) ==> simplify(patternMatching.caseCoverage(inputTerm))
@@ -557,19 +551,13 @@ private[proofs] trait WitnessFunctionProofs extends WitnessBranchMembership {
             have(
               (namedBranch, patternMatching.caseMembership(pair(inputTerm, alternateOutputTerm))) 
               |- (outputTerm === alternateOutputTerm)
-            ) by (
-              if freshBranchToGoal.size == 1 then Tautology.from(freshBranchToGoal.head)
-              else LeftOr(freshBranchToGoal*)
-            )
+            ) by Tautology.from(freshBranchToGoal*)
 
           have(namedBranch |- (outputTerm === alternateOutputTerm)) by Cut(freshCases, freshDisjunctionToGoal)
         )
 
         val namedDisjunctionToGoal =
-          have(witnessMembership |- (outputTerm === alternateOutputTerm)) by (
-            if namedBranchToGoal.size == 1 then Restate.from(namedBranchToGoal.head)
-            else LeftOr(namedBranchToGoal*)
-          )
+          have(witnessMembership |- (outputTerm === alternateOutputTerm)) by Tautology.from(namedBranchToGoal*)
 
         have(
           pair(inputTerm, outputTerm) ∈ witness ==> witnessMembership

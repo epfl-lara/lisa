@@ -3,6 +3,7 @@ package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics
 import lisa.maths.SetTheory.Functions.Pi.->:
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.nested.NestedTrie.peelApp
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.instantiatedSemanticSignature
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
@@ -27,11 +28,31 @@ private[PatternMatching] trait ConstructorHeadPattern extends Pattern {
 
   override def arity: Int = semanticConstructor.arity
 
+  /** Compares constructor patterns modulo a bijective renaming of their value binders. */
   override def matchesConstructorCase(constructor: SemanticConstructor, args: Seq[Expr[Ind]]): Boolean =
-    semanticConstructor == constructor &&
-      guardSignature == args.zipWithIndex.collect {
-        case (t, i) if !t.isInstanceOf[Variable[Ind]] => (i, t)
-      }.toSet
+    if semanticConstructor != constructor || args.size != arity then false
+    else
+      val renaming = collection.mutable.Map.empty[Variable[Ind], Variable[Ind]]
+      val renamedBinders = collection.mutable.Set.empty[Variable[Ind]]
+
+      def matches(pattern: Expr[Ind], query: Expr[Ind]): Boolean = (pattern, query) match
+        case (from: Variable[Ind], to: Variable[Ind]) =>
+          renaming.get(from) match
+            case Some(mapped) => mapped == to
+            case None if renamedBinders.add(to) =>
+              renaming(from) = to
+              true
+            case _ => false
+        case (_: Variable[Ind], _) | (_, _: Variable[Ind]) => false
+        case _ =>
+          val (patternHead, patternArgs) = peelApp(pattern)
+          val (queryHead, queryArgs) = peelApp(query)
+          // Type arguments belong to the rigid head, not to the pattern's binders.
+          patternHead == queryHead && patternArgs.size == queryArgs.size &&
+            patternArgs.iterator.zip(queryArgs).forall((p, q) => matches(p, q))
+
+      val guards = guardSignature.toMap
+      args.indices.forall(i => matches(guards.getOrElse(i, binders(i)), args(i)))
 
   def hasSameHeadAs(other: ConstructorHeadPattern): Boolean =
     semanticConstructor == other.semanticConstructor

@@ -9,7 +9,6 @@ import lisa.maths.SetTheory.Types.ADTv2.encoding._
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.specializedConstructors
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.LimitKernel
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeFormula
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.specializeTerm
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers._
@@ -151,7 +150,7 @@ private[recursion] object RecFunctionInduction {
 
       
 
-      val hValid = have(specializeFormula(adt.height.predicate(heightFun), typeSubstitutions)) by
+      val hValid = have(adt.height.predicateAt(typeSubstitutions)(heightFun)) by
         Weakening(adt.height.validAt(typeSubstitutions))
 
       val noElemAtEmpty = have(!(slicePoint ∈ app(heightFun)(∅))) by Cut(

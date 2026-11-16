@@ -63,7 +63,9 @@ final class Constructor[S](using val line: sourcecode.Line, val file: sourcecode
   lazy val injectivity: THM =
     generalTheorem(name, typeVariablesSeq, "injectivity", semantic.injectivity)
 
+  /** Applies exactly the declared type arguments and returns the set-theoretic constructor. */
   def termAt(args: Seq[Expr[Ind]]): Expr[Ind] =
+    require(args.size == typeVariablesSeq.size, s"Constructor $name expects ${typeVariablesSeq.size} type argument(s), got ${args.size}.")
     (this #@@ args).asInstanceOf[Expr[Ind]]
 
   def applySeq(args: Seq[Expr[Ind]]): Expr[Ind] = termAt(args)

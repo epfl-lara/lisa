@@ -57,9 +57,10 @@ class DefinedSymbol[S](
   val definition: JUSTIFICATION = classFunction.definition
   val id: Identifier = classFunction.id
 
-  // Parameters are always `Ind`; only the *result* sort `S` varies (`Ind` for a
-  // class function, `Prop` for a defined predicate).
-  def term(args: Seq[Expr[Ind]]): Expr[S] = (classFunction #@@ args).asInstanceOf[Expr[S]]
+  /** Instantiates every declared parameter, preserving the body's result sort. */
+  def term(args: Seq[Expr[Ind]]): Expr[S] =
+    require(args.size == parametersSeq.size, s"Symbol $name expects ${parametersSeq.size} parameter argument(s), got ${args.size}.")
+    (classFunction #@@ args).asInstanceOf[Expr[S]]
 
   val term: Expr[S] = term(parametersSeq)
 

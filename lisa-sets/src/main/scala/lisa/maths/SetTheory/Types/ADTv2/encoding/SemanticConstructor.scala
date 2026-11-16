@@ -194,8 +194,8 @@ class SemanticConstructor(using line: sourcecode.Line, file: sourcecode.File)(
   private val definedClassFunction = UniqueCharacterizedSymbol.fromParts(
     name = fullName,
     typeVariablesSeq = typeVariablesSeq,
-    witnessVar = c,
-    definitionAt = c0 => internals.untypedDefinition.substitute(c := c0)
+    witnessVar = internals.placeholder,
+    definitionAt = c0 => internals.untypedDefinition.substitute(internals.placeholder := c0)
   )(internals.existence, internals.pairwiseUniqueness)
 
   val id = definedClassFunction.id
@@ -502,6 +502,10 @@ class SemanticConstructor(using line: sourcecode.Line, file: sourcecode.File)(
       )
     }
 
+  private val heightArgument = Variable[Ind](freshId(typeVariablesSeq ++ variables1 ++ variables2, s"$fullName/heightArgument"))
+  private val indexArgument = Variable[Ind](freshId(typeVariablesSeq ++ variables1 ++ variables2 :+ heightArgument, s"$fullName/indexArgument"))
+  private val termArgument = Variable[Ind](freshId(typeVariablesSeq ++ variables1 ++ variables2 ++ Seq(heightArgument, indexArgument), s"$fullName/termArgument"))
+
   def semanticTypingFromHeightAt(
       substitutions: Seq[TypeSubstitution]
   )(heightFun: Expr[Ind], n: Expr[Ind])(using sourcecode.Line, sourcecode.File): THM = {
@@ -509,8 +513,8 @@ class SemanticConstructor(using line: sourcecode.Line, file: sourcecode.File)(
     instantiatedTheorem(
       theoremOwner = renderAppliedSymbol(fullName, typeVariablesSeq.size, normalizedTypeArguments(normalized)),
       suffix = "semanticTypingFromHeight",
-      substitutions = normalized,
-      baseTheorem = semanticTypingFromHeight(heightFun, n)
+      substitutions = normalized ++ Seq(heightArgument := heightFun, indexArgument := n),
+      baseTheorem = semanticTypingFromHeight(heightArgument, indexArgument)
     )
   }
 
@@ -522,8 +526,8 @@ class SemanticConstructor(using line: sourcecode.Line, file: sourcecode.File)(
     instantiatedTheorem(
       theoremOwner = renderAppliedSymbol(fullName, typeVariablesSeq.size, normalizedTypeArguments(normalized)),
       suffix = "recursiveArgInHeight",
-      substitutions = normalized ++ valueSubstitutions,
-      baseTheorem = recursiveArgInHeight(heightFun, heightIndex)
+      substitutions = normalized ++ valueSubstitutions ++ Seq(heightArgument := heightFun, indexArgument := heightIndex),
+      baseTheorem = recursiveArgInHeight(heightArgument, indexArgument)
     )
   }
 
@@ -534,8 +538,8 @@ class SemanticConstructor(using line: sourcecode.Line, file: sourcecode.File)(
     instantiatedTheorem(
       theoremOwner = renderAppliedSymbol(fullName, typeVariablesSeq.size, normalizedTypeArguments(normalized)),
       suffix = "appliedEqualityFromStructural",
-      substitutions = normalized,
-      baseTheorem = appliedEqualityFromStructural(heightFun, n, term0)
+      substitutions = normalized ++ Seq(heightArgument := heightFun, indexArgument := n, termArgument := term0),
+      baseTheorem = appliedEqualityFromStructural(heightArgument, indexArgument, termArgument)
     )
   }
 

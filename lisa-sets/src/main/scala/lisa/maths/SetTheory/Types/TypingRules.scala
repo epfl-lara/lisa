@@ -188,6 +188,20 @@ object TypingRules extends lisa.Main:
     thenHave(thesis) by Substitute(Pi.definition)
   }
 
+  /** A function space is inhabited if its domain being inhabited implies its codomain is inhabited. */
+  val functionSpaceInhabited = Theorem(
+    ∀(x ∈ A, ∃(y, y ∈ B)) |- ∃(f, f ∈ (A ->: B))
+  ) {
+    val value = ε(y, y ∈ B)
+    val seed = abs(A)(λ(x, value))
+    assume(∀(x ∈ A, ∃(y, y ∈ B)))
+    have(x ∈ A ==> ∃(y, y ∈ B)) by InstantiateForall
+    thenHave(x ∈ A ==> value ∈ B) by Tautology.fromLastStep(existsEpsilon of (x := y, P := λ(y, y ∈ B)))
+    thenHave(∀(x ∈ A, value ∈ B)) by RightForall
+    thenHave(seed ∈ (A ->: B)) by Tautology.fromLastStep(TAbs of (T1 := A, T2 := λ(x, B), e := λ(x, value)))
+    thenHave(thesis) by RightExists
+  }
+
   /**
    *    e1: Π(x: T1).T2, e2: T1
    *    ────────────────────────── (T-App)

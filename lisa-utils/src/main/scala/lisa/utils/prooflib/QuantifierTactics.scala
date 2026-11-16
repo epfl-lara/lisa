@@ -24,6 +24,8 @@ object InstantiateForallSeq extends ProofTactic {
   )(
       args: Seq[Expr[Ind]]
   )(fact: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = boundary:
+    if fact.statement.right.size != 1 then
+      break(proof.InvalidProofTactic("InstantiateForallSeq requires exactly one formula on the right of its input fact."))
     TacticSubproof { sp ?=>
       val initialCurrent = TacticErrors.attemptOrInvalid(using lib)(proof)(
         tacticName = "InstantiateForallSeq",
@@ -51,7 +53,7 @@ object InstantiateForallSeq extends ProofTactic {
               "Current intermediate statement" -> current.statement.toString,
               "Current quantified variable" -> v.toString
             ) {
-              lib.have(phi.substitute(v := arg).asInstanceOf[Expr[Prop]]) by InstantiateForall(arg)(current)
+              lib.have(current.statement.left |- phi.substitute(v := arg)) by InstantiateForall(arg)(current)
             } match
               case Left(judgement) => break(judgement)
               case Right(value)    => value

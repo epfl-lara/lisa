@@ -208,8 +208,7 @@ private[recursion] object PointwiseAgreementStep {
             }
 
             val branchesToGoal =
-              if patternEqualities.size == 1 then have(selectedBranch.statement.right.head |- goalEqAt) by Restate.from(patternEqualities.head)
-              else have(selectedBranch.statement.right.head |- goalEqAt) by LeftOr(patternEqualities*)
+              have(selectedBranch.statement.right.head |- goalEqAt) by Tautology.from(patternEqualities*)
 
             have(goalEqAt) by Cut(selectedBranch, branchesToGoal)
           }
@@ -225,8 +224,7 @@ private[recursion] object PointwiseAgreementStep {
         }
 
         val branchesToGoal =
-          if branchEqualities.size == 1 then have(constructorDisjunction |- goalEqAt) by Restate.from(branchEqualities.head)
-          else have(constructorDisjunction |- goalEqAt) by LeftOr(branchEqualities*)
+          have(constructorDisjunction |- goalEqAt) by Tautology.from(branchEqualities*)
 
         have(goalEqAt) by Cut(decomposeAtA, branchesToGoal)
         thenHave(ambientTerm ∈ app(heightFun)(S(currentIndex)) ==> goalEqAt) by 
