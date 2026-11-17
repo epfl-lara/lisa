@@ -1,16 +1,16 @@
 package lisa.maths.SetTheory.Types.ADTv2.height.proofs
 
+import lisa.maths.SetTheory.Base.Subset.supersetNotEmpty
 import lisa.maths.SetTheory.Functions.BasicTheorems.functionOnDomain
 import lisa.maths.SetTheory.Functions.BasicTheorems.functionOnIsFunction
 import lisa.maths.SetTheory.Functions.Operations.Restriction.setMonotonic
 import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.Functions.UnionRange.unionRangeMonotonic
-import lisa.maths.SetTheory.Base.Subset.supersetNotEmpty
-import lisa.maths.SetTheory.Ordinals.TransfiniteRecursion
+import lisa.maths.SetTheory.Ordinals.OmegaFacts
 import lisa.maths.SetTheory.Ordinals.Ordinal.ordinal
+import lisa.maths.SetTheory.Ordinals.TransfiniteRecursion
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
-import lisa.maths.SetTheory.Ordinals.OmegaFacts
 
 private[height] object CoreFacts {
 
@@ -40,12 +40,14 @@ private[height] object CoreFacts {
   val stageSetSpec: Expr[Prop] =
     ∀(f, ∀(x, x ∈ stageSet(f) <=> inExtIntroImage(f)(x)))
 
-  private val heightExists = Lemma(stageSetSpec |- exists(h, isHeightCore(h))) {
-    val Func = variable[Ind >>: Ind >>: Ind]
-    val stepFunc: Expr[Ind >>: Ind >>: Ind] = λ(n, stageSet)
-    val recFun = TransfiniteRecursion.transfiniteRecursionFunction(stepFunc)(N)
-    assume(stageSetSpec)
+  private val stepFunction: Expr[Ind >>: Ind >>: Ind] = λ(n, stageSet)
+  private val heightFunction: Expr[Ind] = TransfiniteRecursion.transfiniteRecursionFunction(stepFunction)(N)
 
+  private val heightFunctionSpec = Lemma(stageSetSpec |- isHeightCore(heightFunction)) {
+    val Func = variable[Ind >>: Ind >>: Ind]
+    val stepFunc = stepFunction
+    val recFun = heightFunction
+    assume(stageSetSpec)
 
     val recSpec0 = have(
       ordinal(N) |-
@@ -55,7 +57,7 @@ private[height] object CoreFacts {
       TransfiniteRecursion.transfiniteRecursionFunctionSpec.of(Func := stepFunc, α := N)
     )
     val recSpec = have(
-      functionOn(recFun)(N) /\ ∀(n ∈ N, app(recFun,n) === stepFunc(n)(recFun ↾ n))
+      functionOn(recFun)(N) /\ ∀(n ∈ N, app(recFun, n) === stepFunc(n)(recFun ↾ n))
     ) by Cut(OmegaFacts.isOrdinal, recSpec0)
 
     have(
@@ -103,9 +105,12 @@ private[height] object CoreFacts {
       stageAll
     )
 
-
-    thenHave(∃(h, isHeightCore(h))) by RightExists
     thenHave(thesis) by Restate
+  }
+
+  private lazy val heightExists = Lemma(stageSetSpec |- exists(h, isHeightCore(h))) {
+    have(stageSetSpec |- isHeightCore(heightFunction)) by Restate.from(heightFunctionSpec)
+    thenHave(thesis) by RightExists
   }
 
   val isConstructorMonotonic = Lemma(
@@ -131,8 +136,7 @@ private[height] object CoreFacts {
     assume(introFunctionMono, f ⊆ g)
 
     val introMono = have(introFunctionMono) by Hypothesis
-    have((⋃(range(f)) ⊆ ⋃(range(g))) ==> ∀(x, introUnionF ==> introUnionG)
-    ) by InstantiateForall(⋃(range(f)), ⋃(range(g)))(introMono)
+    have((⋃(range(f)) ⊆ ⋃(range(g))) ==> ∀(x, introUnionF ==> introUnionG)) by InstantiateForall(⋃(range(f)), ⋃(range(g)))(introMono)
     thenHave((⋃(range(f)) ⊆ ⋃(range(g))) |- ∀(x, introUnionF ==> introUnionG)) by Restate
     have(f ⊆ g |- ∀(x, introUnionF ==> introUnionG)) by
       Cut(unionRangeMonotonic, lastStep)
@@ -178,10 +182,10 @@ private[height] object CoreFacts {
       setMonotonic of (x := m, y := n, f := h),
       extIntroMonotonic of (f := h ↾ m, g := h ↾ n)
     )
-    have((x ∈ app(h, m)) ==> (x ∈ app(h, n))) by 
+    have((x ∈ app(h, m)) ==> (x ∈ app(h, n))) by
       Substitute(heightApplication of (n := m), heightApplication)(lastStep)
     thenHave(∀(x, (x ∈ app(h, m)) ==> (x ∈ app(h, n)))) by RightForall
-    
+
     have(thesis) by Congruence.from(
       lastStep,
       subsetAxiom of (x := app(h, m), y := app(h, n))
@@ -194,6 +198,21 @@ private[height] object CoreFacts {
   )(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
     heightExists.of(stageSet := stageSet0, isConstructor := isConstructor0)
 
+  /**
+   * Returns the explicit height function for a stage operation.
+   */
+  def heightFunctionAt(stageSet0: Expr[Ind >>: Ind]): Expr[Ind] =
+    heightFunction.substitute(stageSet := stageSet0)
+
+  /**
+   * Instantiates the specification of the constructed height function.
+   */
+  def heightFunctionSpecAt(
+      stageSet0: Expr[Ind >>: Ind],
+      isConstructor0: Expr[Ind >>: Ind >>: Prop]
+  )(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+    heightFunctionSpec.of(stageSet := stageSet0, isConstructor := isConstructor0)
+
   def heightMonotonicAt(
       isConstructor0: Expr[Ind >>: Ind >>: Prop],
       h0: Expr[Ind],
@@ -203,7 +222,7 @@ private[height] object CoreFacts {
     heightMonotonic.of(isConstructor := isConstructor0, h := h0, n := n0, m := m0)
 
   def initialize(): Unit = {
-    val _ = heightExists
+    val _ = heightFunctionSpec
     val _ = isConstructorMonotonic
     val _ = extIntroMonotonic
     val _ = heightApplication

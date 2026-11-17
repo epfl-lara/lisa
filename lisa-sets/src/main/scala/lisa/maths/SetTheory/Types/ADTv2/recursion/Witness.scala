@@ -1,74 +1,89 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
+import lisa.maths.SetTheory.Base.CartesianProduct.×
+import lisa.maths.SetTheory.Base.Comprehension.|
 import lisa.maths.SetTheory.SetTheory.{_, given}
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
-import lisa.maths.SetTheory.Types.ADTv2.FunctionCore.WitnessBase
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.proofs.CaseDefinedWitness
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Clause
+import lisa.maths.SetTheory.Types.ADTv2.support.DefinedSymbol
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.InstantiateForallSeq
 
 /**
- * Layer 2 — Witness construction.
- *
- * Defines the witness set
- *   W(g) = { p ∈ A×T | caseMembership_g(p) }
- * where `g` = [[spec.selfPlaceholder]] stands for the recursive self-reference.
- *
- * The case-defined witness proof core is shared with ordinary semantic functions
- * through [[CaseDefinedWitness]]. This class keeps only the recursion-specific shell:
- *   - the free self-reference [[spec.selfPlaceholder]]
- *   - the contextual typing premise `selfPlaceholder :: A→T`
- *   - branch return-type checks, without that premise for base constructors
+ * The case-defined graph W(g), with g supplying the recursive calls.
  */
-private[recursion] final class Witness(spec: FunSpec)
-    extends WitnessBase(
-      functionName = spec.functionName,
-      adt = spec.adt,
-      argType = spec.argType,
-      patternMatching = spec.patternMatching,
-      returnType = spec.returnType,
-      typ = spec.typ,
-      typeVariablesSeq = spec.typeVariablesSeq
-    ) {
-
-  private val selfPlaceholder: Variable[Ind] = spec.selfPlaceholder
+private[recursion] final class Witness(spec: FunSpec) {
+  private val pairWitness = spec.proofVariable("pairWitness")
+  private val witnessBound = spec.argType × spec.returnType
+  private val caseMembership: Expr[Ind] => Expr[Prop] = spec.patternMatching.caseMembership
+  private val witnessClass = new DefinedSymbol(
+    name = s"${spec.functionName}/witness",
+    parametersSeq = spec.typeVariablesSeq :+ spec.selfPlaceholder,
+    body = { pairWitness ∈ witnessBound | caseMembership(pairWitness) }
+  )
 
   /**
-   * typingPremise = selfPlaceholder :: A→T (the induction hypothesis on the self-reference).
+   * The graph's defining equality.
    */
-  val typingPremise: Expr[Prop] = selfPlaceholder :: spec.typ
+  val witnessDef: JUSTIFICATION = witnessClass.definition
 
   /**
-   * Definitional equation for the witness: W(selfPlaceholder) = witnessBody.
+   * Instantiates the graph with a candidate recursive function.
    */
-  val witnessDef: JUSTIFICATION = witnessDefCore
-
   def apply(g: Expr[Ind]): Expr[Ind] =
-    witness.substitute(spec.selfPlaceholder := g)
+    witnessClass.term.substitute(spec.selfPlaceholder := g)
 
-  override protected def witnessParametersSeq: Seq[Variable[Ind]] =
-    spec.typeVariablesSeq :+ selfPlaceholder
+  /**
+   * The typing assumption on the candidate recursive function.
+   */
+  val typingPremise: Expr[Prop] = spec.selfPlaceholder :: spec.typ
 
-  override protected def contextPremises: Seq[Expr[Prop]] =
-    Seq(typingPremise)
-
-  private val basePatterns: Set[Pattern] = spec.adt.constructors
+  private val basePatterns: Set[Clause[Expr[Ind]]] = spec.adt.constructors
     .filter(_.selfRefVariables2.isEmpty)
-    .flatMap(spec.patternMatching.patternsFor)
+    .flatMap(spec.patternMatching.clausesFor)
     .toSet
 
-  protected val checkReturnType: Map[Pattern, JUSTIFICATION] =
-    WitnessBase.returnTypeChecks(
-      patterns = spec.cases,
-      returnType = spec.returnType,
-      bodyAt = _.body,
-      extraPremisesAt = pattern => if basePatterns.contains(pattern) then Set.empty else Set(typingPremise)
-    )
+  private val checkReturnType: Map[Clause[Expr[Ind]], JUSTIFICATION] =
+    spec.cases.map { pattern =>
+      val premises = if basePatterns.contains(pattern) then Set.empty[Expr[Prop]] else Set(typingPremise)
+      pattern -> Lemma((pattern.typingPremises ++ premises) |- (pattern.body :: spec.returnType)) {
+        have(thesis) by Typecheck.prove
+      }
+    }.toMap
 
-  /** An input provides a target inhabitant, by induction on the input ADT. */
+  private lazy val witnessSemantics = new CaseDefinedWitness(
+    adt = spec.adt,
+    argType = spec.argType,
+    patternMatching = spec.patternMatching,
+    returnType = spec.returnType,
+    typ = spec.typ,
+    witness = witnessClass.term,
+    witnessDef = witnessDef,
+    witnessBound = witnessBound,
+    pairWitness = pairWitness,
+    caseMembership = caseMembership,
+    checkReturnType = checkReturnType,
+    contextPremises = Seq(typingPremise)
+  )
+
+  /**
+   * The graph has the declared function type under the candidate's typing assumption.
+   */
+  lazy val witnessHasType: THM = witnessSemantics.witnessHasType
+
+  /**
+   * The graph satisfies the given case equation.
+   */
+  def witnessCase(pattern: Clause[Expr[Ind]]): THM = witnessSemantics.witnessCase(pattern)
+
+  /**
+   * An input provides a target inhabitant, by induction on the input ADT.
+   */
   val targetInhabited: THM = {
-    val point = Variable[Ind](freshId(Seq(spec.argType, spec.returnType), "input"))
-    val value = Variable[Ind](freshId(Seq(spec.returnType), "inhabitant"))
+    val point = spec.proofVariable("input")
+    val value = spec.proofVariable("inhabitant")
     val inhabited = ∃(value, value :: spec.returnType)
     val predicate = λ(point, inhabited)
 
@@ -80,10 +95,10 @@ private[recursion] final class Witness(spec: FunSpec)
             // Any recursive argument supplies the same constant induction hypothesis.
             have(thesis) by Tautology
           else
-            val vars = constructor.variables2
-            val input = constructor.appliedTerm2.substitute(spec.typeSubstitutions*)
-            val typing = constructor.semanticSignature2.map((v, t) => v :: t.substitute(spec.typeSubstitutions*))
-            val patterns = spec.patternMatching.patternsFor(constructor)
+            val patterns = spec.patternMatching.clausesFor(constructor)
+            val vars = patterns.head.variables2.take(constructor.arity)
+            val input = constructor.appliedTerm(vars).substitute(spec.typeSubstitutions*)
+            val typing = constructor.semanticSignature(vars).map((v, t) => v :: t.substitute(spec.typeSubstitutions*))
             val branches = patterns.map { pattern =>
               val guard = pattern.branchSelectionBody(input)
               val branch = have((typing.toSet + guard) |- inhabited) subproof {
@@ -93,11 +108,10 @@ private[recursion] final class Witness(spec: FunSpec)
                 thenHave(pattern.freshTypingFormula |- inhabited) by RightExists
                 thenHave(thesis) by Tautology
               }
-              val (selection, selected) = pattern.variables2.drop(pattern.arity).foldRight((guard, branch)) {
-                case (v, (condition, fact)) =>
-                  val existential = ∃(v, condition)
-                  val lifted = have((typing.toSet + existential) |- inhabited) by LeftExists(fact)
-                  (existential, lifted)
+              val (selection, selected) = pattern.variables2.drop(pattern.arity).foldRight((guard, branch)) { case (v, (condition, fact)) =>
+                val existential = ∃(v, condition)
+                val lifted = have((typing.toSet + existential) |- inhabited) by LeftExists(fact)
+                (existential, lifted)
               }
               have(typing.toSet |- selection ==> inhabited) by RightImplies.withParameters(selection, inhabited)(selected)
             }

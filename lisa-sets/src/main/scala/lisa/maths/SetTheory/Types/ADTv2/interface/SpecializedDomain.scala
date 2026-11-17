@@ -1,13 +1,8 @@
 package lisa.maths.SetTheory.Types.ADTv2.interface
 
 import lisa.maths.SetTheory.SetTheory._
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.instantiatedSemanticSignature
-
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.introAppTheorem
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.appSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.renderAppliedSymbol
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.wellTypedSet
-import lisa.maths.SetTheory.Types.TypingHelpers.::
 
 object SpecializedADT {
   given adtToSpecialized[S](using sourcecode.Line, sourcecode.File): Conversion[ADT[S], SpecializedADT[S]] =

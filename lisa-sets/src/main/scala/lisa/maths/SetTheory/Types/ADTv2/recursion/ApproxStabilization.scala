@@ -1,7 +1,8 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
 import lisa.maths.SetTheory.Functions.Predef._
-import lisa.maths.SetTheory.Ordinals.Integer.{omegaSuccessorInduction, successorInOmega}
+import lisa.maths.SetTheory.Ordinals.Integer.omegaSuccessorInduction
+import lisa.maths.SetTheory.Ordinals.Integer.successorInOmega
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
@@ -26,14 +27,17 @@ private[recursion] final class ApproxStabilization(
     val witnessAgreement: helpers.WitnessAgreement
 ) {
 
-  private val nVar = variable[Ind]
+  private val nVar = spec.proofVariable("nVar")
+  private val a = spec.proofVariable("a")
   import approxSeq.G
 
   /**
    * Instantiates a `∀(x ∈ N, φ(x))` theorem at `m` and discharges the `m ∈ N` premise,
    * yielding `φ(m)`. `consequent` is the expected `φ(m)`.
    */
-  private def instantiateAt(using proof: lisa.SetTheoryLibrary.Proof)(
+  private def instantiateAt(using
+      proof: lisa.SetTheoryLibrary.Proof
+  )(
       forallThm: THM,
       m: Expr[Ind],
       mInN: proof.Fact,
@@ -58,7 +62,7 @@ private[recursion] final class ApproxStabilization(
 
       val noElemAtEmpty = have(!(a ∈ app(spec.heightFun)(∅))) by Cut(
         hValid,
-        spec.heightZero of (h := spec.heightFun, x := a)
+        spec.heightZero(a)
       )
 
       have(a ∈ app(spec.heightFun)(∅) |- app(G(∅))(a) === app(G(S(∅)))(a)) by
@@ -70,7 +74,6 @@ private[recursion] final class ApproxStabilization(
         ∀(a, (a ∈ app(spec.heightFun)(∅)) ==> (app(G(∅))(a) === app(G(S(∅)))(a)))
       ) by RightForall
       val base = thenHave(prop(∅)) by Restate
-      
 
       val goalAtA = app(G(S(nVar)))(a) === app(G(S(S(nVar))))(a)
       val pointwiseAtSucc = have(
@@ -89,9 +92,14 @@ private[recursion] final class ApproxStabilization(
 
         val witnessSuccAtARev = have(
           app(recWitness(G(S(nVar))))(a) === app(G(S(S(nVar))))(a)
-        ) by Congruence.from(instantiateAt(
-          approxSeq.approxSucc, S(nVar), succInN, G(S(S(nVar))) === recWitness(G(S(nVar)))
-        ))
+        ) by Congruence.from(
+          instantiateAt(
+            approxSeq.approxSucc,
+            S(nVar),
+            succInN,
+            G(S(S(nVar))) === recWitness(G(S(nVar)))
+          )
+        )
 
         // The induction hypothesis `ih = prop(n)` is exactly the slice-agreement premise of
         // WitnessAgreement.witnessAgreementAtSucc at leftFun := G(n), rightFun := G(Succ n).
@@ -112,11 +120,12 @@ private[recursion] final class ApproxStabilization(
           )
         )
       }
-      
-      have( ((nVar ∈ N), prop(nVar)) |- (a ∈ app(spec.heightFun)(S(nVar))) ==> goalAtA) by 
+
+      have(((nVar ∈ N), prop(nVar)) |- (a ∈ app(spec.heightFun)(S(nVar))) ==> goalAtA) by
         Restate.from(pointwiseAtSucc)
-      have( ((nVar ∈ N), prop(nVar)) |-
-        ∀(a ∈ app(spec.heightFun)(S(nVar)), goalAtA)
+      have(
+        ((nVar ∈ N), prop(nVar)) |-
+          ∀(a ∈ app(spec.heightFun)(S(nVar)), goalAtA)
       ) by RightForall(lastStep)
       have((nVar ∈ N) ==> (prop(nVar) ==> prop(S(nVar)))) by Restate.from(lastStep)
       val step = have(∀(nVar ∈ N, prop(nVar) ==> prop(S(nVar)))) by RightForall(lastStep)

@@ -4,11 +4,11 @@ import lisa.maths.SetTheory.Base.Pair.given
 import lisa.maths.SetTheory.Ordinals.Integer.omegaSuccessorInduction
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory._
-import lisa.utils.prooflib.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts._
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
 import lisa.utils.prooflib.BasicStepTactic.Restate
+import lisa.utils.prooflib.QuantifiersIntro
 
 private[encoding] trait SyntacticADTInduction extends SyntacticADTTerm {
   this: SyntacticADT =>
@@ -24,7 +24,7 @@ private[encoding] trait SyntacticADTInduction extends SyntacticADTTerm {
     )
     .toMap
 
-  val induction = (
+  lazy val induction = (
     Lemma(using name = s"${name}/induction")(
       constructors.foldRight[Expr[Prop]](forall(x, x ∈ term ==> P(x)))((c, f) => inductiveCase(c) ==> f)
     ) {

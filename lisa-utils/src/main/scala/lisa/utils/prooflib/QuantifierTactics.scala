@@ -32,9 +32,9 @@ object InstantiateForallSeq extends ProofTactic {
         summary = "failed before any instantiation while importing the original fact",
         factStatement = fact.statement,
         bot = bot,
-        "Arguments requested" -> args.mkString(", ")
+        entries = Seq("Arguments requested" -> args.mkString(", "))
       ) {
-        lib.have(fact.statement) by Restate.from(fact)
+        lib.have(fact.statement) by Weakening(fact)
       } match
         case Left(judgement) => break(judgement)
         case Right(value)    => value
@@ -49,9 +49,11 @@ object InstantiateForallSeq extends ProofTactic {
               summary = s"failed while instantiating argument #${index + 1} with `$arg`",
               factStatement = fact.statement,
               bot = bot,
-              "Arguments requested" -> args.mkString(", "),
-              "Current intermediate statement" -> current.statement.toString,
-              "Current quantified variable" -> v.toString
+              entries = Seq(
+                "Arguments requested" -> args.mkString(", "),
+                "Current intermediate statement" -> current.statement.toString,
+                "Current quantified variable" -> v.toString
+              )
             ) {
               lib.have(current.statement.left |- phi.substitute(v := arg)) by InstantiateForall(arg)(current)
             } match
@@ -74,8 +76,10 @@ object InstantiateForallSeq extends ProofTactic {
         summary = "failed while closing the instantiated theorem",
         factStatement = fact.statement,
         bot = bot,
-        "Arguments requested" -> args.mkString(", "),
-        "Current intermediate statement" -> current.statement.toString
+        entries = Seq(
+          "Arguments requested" -> args.mkString(", "),
+          "Current intermediate statement" -> current.statement.toString
+        )
       ) {
         lib.have(bot) by Weakening(current)
       } match
@@ -104,7 +108,7 @@ object QuantifiersIntro extends ProofTactic {
         summary = summary,
         factStatement = fact.statement,
         bot = bot,
-        "Variables requested" -> vars.mkString(", ")
+        entries = Seq("Variables requested" -> vars.mkString(", "))
       ) {
         lib.have(bot) by Restate.from(fact)
       } match
@@ -127,10 +131,12 @@ object QuantifiersIntro extends ProofTactic {
             summary = s"${tactic.name} failed while introducing `$v` on the $side side",
             factStatement = fact.statement,
             bot = bot,
-            "Variables requested" -> vars.mkString(", "),
-            "Side" -> side,
-            "Current formula" -> accFormula.toString,
-            "Target formula" -> newFormula.toString
+            entries = Seq(
+              "Variables requested" -> vars.mkString(", "),
+              "Side" -> side,
+              "Current formula" -> accFormula.toString,
+              "Target formula" -> newFormula.toString
+            )
           ) {
             lib.have(mkBot(newFormula)) by tactic(accFact)
           },
@@ -142,14 +148,15 @@ object QuantifiersIntro extends ProofTactic {
       restateDirectly("no variables were requested, so the tactic expected a direct restatement")
     else
       val diff: Sequent = bot -- fact.statement
+      val sourceDiff: Sequent = fact.statement -- bot
 
       diff match
-        case Sequent(s, _) if s.size == 1 =>
+        case Sequent(s, t) if s.size == 1 && t.isEmpty && sourceDiff.left.size == 1 && sourceDiff.right.isEmpty =>
           val diffRest = bot.left -- s
           val changedFormula = s.head
 
           foldQuantifiers(
-            (fact.statement.left -- diffRest).head,
+            sourceDiff.left.head,
             newFormula => diffRest + newFormula |- bot.right,
             "left",
             changedFormula match
@@ -168,12 +175,12 @@ object QuantifiersIntro extends ProofTactic {
                 )
           )
 
-        case Sequent(_, s) if s.size == 1 =>
+        case Sequent(t, s) if s.size == 1 && t.isEmpty && sourceDiff.right.size == 1 && sourceDiff.left.isEmpty =>
           val diffRest = bot.right -- s
           val changedFormula = s.head
 
           foldQuantifiers(
-            (fact.statement.right -- diffRest).head,
+            sourceDiff.right.head,
             newFormula => bot.left |- diffRest + newFormula,
             "right",
             changedFormula match
@@ -192,16 +199,17 @@ object QuantifiersIntro extends ProofTactic {
                 )
           )
 
-        case Sequent(s1, s2) if s1.isEmpty && s2.isEmpty =>
+        case Sequent(s1, s2) if s1.isEmpty && s2.isEmpty && sourceDiff.left.isEmpty && sourceDiff.right.isEmpty =>
           restateDirectly("the target sequent is identical to the source sequent, so the tactic expected a direct restatement")
         case _ =>
           return TacticErrors.invalid(using lib)(proof)(
             tacticName = "QuantifiersIntro",
-            summary = "expected exactly one changed formula between the source and target sequents",
+            summary = "expected exactly one source formula to be replaced by a quantified formula on the same side",
             factStatement = fact.statement,
             bot = bot,
             "Variables requested" -> vars.mkString(", "),
-            "Diff" -> diff.toString
+            "Added formulas" -> diff.toString,
+            "Removed formulas" -> sourceDiff.toString
           )
 
   }

@@ -3,17 +3,17 @@ package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.proofs
 import lisa.maths.SetTheory.Functions.BasicTheorems
 import lisa.maths.SetTheory.Functions.Function
 import lisa.maths.SetTheory.SetTheory.{_, given}
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
-import lisa.utils.prooflib.InstantiateForallSeq
-import lisa.utils.prooflib.QuantifiersIntro
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Clause
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Restate
+import lisa.utils.prooflib.InstantiateForallSeq
+import lisa.utils.prooflib.QuantifiersIntro
 
 private[proofs] trait WitnessApplicationProofs extends WitnessFunctionProofs {
 
-  val witnessCaseByPattern: Map[Pattern, THM] =
-    patternMatching.patterns
+  val witnessCaseByPattern: Map[Clause[Expr[Ind]], THM] =
+    patternMatching.clauses
       .map(pattern =>
         val vars = pattern.binders
         val body = pattern.body
@@ -118,6 +118,6 @@ private[proofs] trait WitnessApplicationProofs extends WitnessFunctionProofs {
       )
       .toMap
 
-  def witnessCase(pattern: Pattern): THM =
+  def witnessCase(pattern: Clause[Expr[Ind]]): THM =
     witnessCaseByPattern(pattern)
 }

@@ -1,18 +1,17 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion.helpers
 
-import lisa.maths.SetTheory.Functions.BasicTheorems
-import lisa.maths.SetTheory.Functions.Function.Sabs
 import lisa.maths.SetTheory.SetTheory.{_, given}
-import lisa.utils.prooflib.BasicStepTactic.Cut
-import lisa.utils.prooflib.BasicStepTactic.RightForall
-import lisa.utils.prooflib.BasicStepTactic.RightImplies
-import lisa.utils.prooflib.BasicStepTactic.Weakening
+import lisa.maths.SetTheory.Types.ADTv2.support.tactics.Cuts
+import lisa.utils.prooflib.BasicStepTactic.RightSubstEq
 
+/**
+ * Transports recursive-call equalities through branch bodies, including nested binders.
+ */
 private[recursion] object LambdaBodyEquality {
 
-  private val A = variable[Ind]
-  private val Gf, Hf = variable[Ind >>: Ind]
-
+  /**
+   * Proves body equality by simultaneous substitution of the available recursive-call equalities.
+   */
   def prove(using
       proof: lisa.SetTheoryLibrary.Proof
   )(
@@ -21,37 +20,31 @@ private[recursion] object LambdaBodyEquality {
       rightBody: Expr[Ind],
       equalityFacts: Seq[proof.Fact]
   ): proof.Fact =
-    if leftBody == rightBody then
-      val refl = have(leftBody === rightBody) by RightRefl
-      have(assumptions |- leftBody === rightBody) by Weakening(refl)
+    if leftBody == rightBody then have(assumptions |- leftBody === rightBody) by RightRefl
     else if equalityFacts.nonEmpty then
-      (leftBody, rightBody) match
-        case (
-              Sabs(domain1, Abs(boundVar1: Variable[Ind], innerBody1: Expr[Ind])),
-              Sabs(domain2, Abs(boundVar2: Variable[Ind], innerBody2: Expr[Ind]))
-            ) if domain1 == domain2 && boundVar1 == boundVar2 =>
-          val innerBodyEq = have(assumptions |- innerBody1 === innerBody2) by
-            Congruence.from(equalityFacts*)
-          val pointwiseEq = have(
-            assumptions |- forall(boundVar1, (boundVar1 ∈ domain1) ==> (innerBody1 === innerBody2))
-          ) subproof {
-            // Add the `boundVar ∈ domain` antecedent with Weakening + RightImplies instead
-            // of Tautology: `assumptions` carries the deep ~1.5k-char branchSelectionBody,
-            // and Tautology would decompose it (≈13s). Weakening/RightImplies leave it atomic.
-            have((assumptions + (boundVar1 ∈ domain1)) |- (innerBody1 === innerBody2)) by Weakening(innerBodyEq)
-            thenHave(assumptions |- (boundVar1 ∈ domain1) ==> (innerBody1 === innerBody2)) by RightImplies
-            thenHave(thesis) by RightForall
-          }
-          have(assumptions |- leftBody === rightBody) by Cut(
-            pointwiseEq,
-            BasicTheorems.absBodyEq of (
-              A := domain1,
-              Gf := λ(boundVar1, innerBody1),
-              Hf := λ(boundVar1, innerBody2)
-            )
-          )
-        case _ =>
-          have(assumptions |- leftBody === rightBody) by Congruence.from(equalityFacts*)
+      val equalities = equalityFacts
+        .map { fact =>
+          require(fact.statement.right.size == 1, "A recursive-call equality must have exactly one conclusion.")
+          val formula = fact.statement.right.head
+          asIndEquality(formula) match
+            case Some(pair) => pair -> fact
+            case None => throw IllegalArgumentException(s"Expected a recursive-call equality, got $formula.")
+        }
+        .distinctBy(_._1)
+      val pairs = equalities.map(_._1)
+      val reserved: Seq[Expr[?]] = Seq(leftBody, rightBody) ++ assumptions ++
+        equalityFacts.flatMap(fact => fact.statement.left ++ fact.statement.right)
+      val firstHole = freshId(reserved, "recursiveValue")
+      val holes = pairs.indices.map(i => Variable[Ind](Identifier(firstHole.name, firstHole.no + i)))
+      // Expr.rewrite abstracts exact call occurrences without capturing variables under binders.
+      val template = pairs.zip(holes).foldLeft(leftBody) { case (body, ((left, _), hole)) =>
+        body.rewrite(left, hole)
+      }
+      val equations = pairs.map((left, right) => left === right).toSet
+      val refl = have(leftBody === leftBody) by RightRefl
+      val transported = have((assumptions ++ equations) |- leftBody === rightBody) by
+        RightSubstEq.withParameters(pairs, holes -> (leftBody === template))(refl)
+      have(assumptions |- leftBody === rightBody) by Cuts(transported)(equalities.map(_._2)*)
     else
       throw IllegalArgumentException(
         s"Cannot prove body equality without recursive equalities: $leftBody vs $rightBody."

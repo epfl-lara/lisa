@@ -2,112 +2,183 @@ package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics
 
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
+import lisa.maths.SetTheory.Types.ADTv2.interface.SpecializedADT
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.instantiate
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 
+/**
+ * A resolved branch paired with its function body or induction proof.
+ */
+final case class Clause[A](pattern: Pattern, payload: A) {
+  export pattern.*
+
+  /**
+   * Changes the payload while retaining the exact pattern and its binders.
+   */
+  def map[B](f: A => B): Clause[B] = Clause(pattern, f(payload))
+
+  /**
+   * The expression carried by a function clause.
+   */
+  def body(using ev: A =:= Expr[Ind]): Expr[Ind] = ev(payload)
+
+  /**
+   * Instantiates the body at the supplied binder values.
+   */
+  def bodySubstituted(substitutions: Seq[(Variable[Ind], Expr[Ind])])(using A =:= Expr[Ind]): Expr[Ind] =
+    body.substitute(substitutions.map((v, term) => v := term)*)
+
+  /**
+   * Instantiates the body at the supplied proof variables.
+   */
+  def bodyAt(vars: Seq[Variable[Ind]])(using A =:= Expr[Ind]): Expr[Ind] =
+    bodySubstituted(binders.zip(vars))
+
+  /**
+   * The body at the second tuple of proof variables.
+   */
+  def bodyAtFreshVars2(using A =:= Expr[Ind]): Expr[Ind] = bodyAt(variables2)
+
+  /**
+   * Membership in this clause's graph, with its witnesses existentially bound.
+   */
+  private[ADTv2] def caseMembership(value: Expr[Ind])(using A =:= Expr[Ind]): Expr[Prop] =
+    existsSeq(variables2, freshBranchPremise /\ (value === pair(freshInputTerm, bodyAtFreshVars2)))
+}
 
 /**
- * Generic semantic template for a compiled pattern-matching family.
+ * Ordered clauses with one validated tree and shared pattern theorems.
  */
-trait PatternSystem {
+final class PatternSystem[A] private (
+    val clauses: Seq[Clause[A]],
+    private val proofs: PatternSystem.Proofs
+) {
 
-  def patterns: Seq[Pattern]
+  /**
+   * The specialized datatype matched by the clauses.
+   */
+  def domain: SpecializedADT[?] = proofs.domain
 
-  def constructors: Seq[SemanticConstructor]
+  /**
+   * The branch patterns in source order.
+   */
+  def patterns: Seq[Pattern] = proofs.patterns
 
-  def patternsFor(constructor: SemanticConstructor): Seq[Pattern]
+  /**
+   * The retained tree, whose leaf indices refer to the source clause order.
+   */
+  private[ADTv2] def decisionTree: DecisionTree = proofs.decisionTree
 
-  def patternFor(constructor: SemanticConstructor): Pattern =
-    patternsFor(constructor) match
-      case Seq(pattern) => pattern
-      case Seq() =>
-        throw new IllegalArgumentException(
-          s"No pattern registered for constructor ${constructor.name}."
-        )
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Constructor ${constructor.name} has several patterns; use patternsFor instead of patternFor."
-        )
+  /**
+   * Changes payloads without recompiling patterns or regenerating their theorems.
+   */
+  def map[B](f: A => B): PatternSystem[B] =
+    new PatternSystem(clauses.map(_.map(f)), proofs)
 
-  def caseMembership(p: Expr[Ind]): Expr[Prop] =
-    seqOr(
-      patterns.map(pattern =>
-        existsSeq(
-          pattern.variables2,
-          pattern.freshBranchPremise /\ (p === pair(pattern.freshInputTerm, pattern.bodyAtFreshVars2))
-        )
-      )
-    )
+  /**
+   * The constructors of the matched datatype.
+   */
+  def constructors: Seq[SemanticConstructor] = domain.base.semantic.constructors
 
+  /**
+   * Selects clauses headed by the given constructor, retaining source order.
+   */
+  def clausesFor(constructor: SemanticConstructor): Seq[Clause[A]] =
+    clauses.filter(_.semanticConstructor == constructor)
+
+  /**
+   * Membership in the graph described by function clauses.
+   */
+  def caseMembership(value: Expr[Ind])(using A =:= Expr[Ind]): Expr[Prop] =
+    seqOr(clauses.map(_.caseMembership(value)))
+
+  /**
+   * The disjunction asserting that some pattern matches the input.
+   */
   def caseCoverage(term: Expr[Ind]): Expr[Prop] =
-    seqOr(
-      patterns.map(pattern =>
-        existsSeq(
-          pattern.variables2,
-          pattern.freshBranchPremise /\ (term === pattern.freshInputTerm)
-        )
-      )
+    seqOr(patterns.map(pattern => existsSeq(pattern.variables2, pattern.freshBranchPremise /\ (term === pattern.freshInputTerm))))
+
+  /**
+   * Every member of the domain matches a clause.
+   */
+  def coverage: THM = proofs.coverage
+
+  /**
+   * The cached branch-selection theorem with a schematic input.
+   */
+  private[ADTv2] def branchSelectionSchema(constructor: SemanticConstructor): THM =
+    proofs.branchSelectionCache.getOrElseUpdate(
+      constructor,
+      PatternProofs.branchSelectionForCaseShape(decisionTree, constructor, proofs.selectionInput, patterns)
     )
 
-  def supportsAutomaticCoverage: Boolean =
-    patterns.forall(pattern => simplify(pattern.branchCondition) == ⊤) &&
-      constructors.forall(constructor => patternsFor(constructor).size == 1)
+  /**
+   * Instantiates branch selection for a known constructor without rebuilding its proof.
+   */
+  def branchSelectionFor(constructor: SemanticConstructor, term: Expr[Ind])(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+    instantiate(branchSelectionSchema(constructor), Seq(proofs.selectionInput := term))
 
-  protected val incompatibleCache = collection.mutable.Map.empty[(Pattern, Pattern), THM]
-  protected val branchSelectionCache = collection.mutable.Map.empty[(SemanticConstructor, Expr[Ind]), THM]
+  /**
+   * Distinct clauses cannot match the same input.
+   */
+  def incompatible(first: Pattern, second: Pattern): THM =
+    proofs.incompatibleCache.getOrElseUpdate((first, second), PatternProofs.incompatibleCaseShape(first, second))
 
-  lazy val coverage: THM
-
-  def branchSelectionFor(constructor: SemanticConstructor, term: Expr[Ind]): THM
-
-  def incompatible(pattern1: Pattern, pattern2: Pattern): THM
-
-  lazy val debugTheorems: Seq[(String, Either[String, THM])] = {
-    val coverageFact = "coverage" -> Right(coverage)
-    val selectorFacts = constructors.map(constructor =>
-      val term = variable[Ind](s"${constructor.name}/debugTerm")
-      s"branchSelectionFor(${constructor.name})" -> Right(branchSelectionFor(constructor, term))
-    )
-    val incompatibilityFacts = patterns.zipWithIndex.flatMap { case (pattern1, index1) =>
-      patterns.zipWithIndex.collect {
-        case (pattern2, index2) if index1 < index2 =>
-          val label = s"incompatible(${pattern1.name}#$index1, ${pattern2.name}#$index2)"
-          try label -> Right(incompatible(pattern1, pattern2))
-          catch case exception: IllegalArgumentException => label -> Left(exception.getMessage)
+  /**
+   * The pattern theorems collected for inspection.
+   */
+  lazy val debugTheorems: Seq[(String, THM)] = {
+    val selectors = constructors.map { constructor =>
+      ("branchSelectionFor(" + constructor.name + ")", branchSelectionSchema(constructor))
+    }
+    val incompatibilities = patterns.zipWithIndex.flatMap { (first, index) =>
+      patterns.drop(index + 1).zipWithIndex.map { (second, offset) =>
+        ("incompatible(" + index + "," + (index + offset + 1) + ")", incompatible(first, second))
       }
     }
-    coverageFact +: (selectorFacts ++ incompatibilityFacts)
+    ("coverage", coverage) +: (selectors ++ incompatibilities)
   }
 
+  /**
+   * Prints the retained tree and its pattern theorems.
+   */
   lazy val debugDump: Unit = {
-    println(s"===== PatternSystem Debug (${getClass.getSimpleName}) =====")
-    println(s"constructors: ${constructors.map(_.name).mkString(", ")}")
-    println(s"patterns: ${patterns.map(_.name).mkString(", ")}")
-    debugTheorems.foreach {
-      case (label, Right(theorem)) =>
-        println(s"[$label] ${theorem.statement}")
-      case (label, Left(message)) =>
-        println(s"[$label] skipped: $message")
-    }
-    println("")
+    println(DecisionTree.render(decisionTree))
+    debugTheorems.foreach((label, theorem) => println("[" + label + "] " + theorem.statement))
   }
 }
 
+/**
+ * Compiles collections of clauses and owns their body-independent proof caches.
+ */
 object PatternSystem {
-  def constructorCases(
-      patterns: Seq[Pattern]
-  ): Map[SemanticConstructor, Seq[Pattern]] =
-    patterns
-      .foldLeft(Map.empty[SemanticConstructor, Vector[Pattern]]) { case (acc, pattern) =>
-        pattern match
-          case constructorHead: ConstructorHeadPattern =>
-            val c = constructorHead.semanticConstructor
-            acc.updated(c, acc.getOrElse(c, Vector.empty) :+ pattern)
-          case _ =>
-            throw new IllegalArgumentException(
-              s"Pattern ${pattern.name} is not constructor-headed."
-            )
-      }
-      .iterator
-      .map((c, ps) => c -> ps.toSeq)
-      .toMap
+  private final class Proofs(
+      val domain: SpecializedADT[?],
+      val patterns: Seq[Pattern],
+      val decisionTree: DecisionTree
+  ) {
+    lazy val coverage: THM = PatternProofs.coverageCaseShape(decisionTree, patterns)
+    val incompatibleCache = collection.mutable.Map.empty[(Pattern, Pattern), THM]
+    val selectionInput = Variable[Ind](
+      freshId(
+        patterns.flatMap(p => p.binders ++ p.variables2 ++ Seq(p.resolved.term, p.specializedAdtTerm)) :+ domain.term,
+        "branchInput"
+      )
+    )
+    val branchSelectionCache = collection.mutable.Map.empty[SemanticConstructor, THM]
+  }
+
+  /**
+   * Validates the collection once before any pattern theorems are constructed.
+   */
+  def compile[A](domain: SpecializedADT[?], clauses: Seq[Clause[A]]): Either[String, PatternSystem[A]] = {
+    val ordered = clauses.toVector
+    ordered.find(clause => clause.resolved.constructor.adt.id != domain.base.id || !isSame(clause.specializedAdtTerm, domain.term)) match
+      case Some(clause) => Left("Pattern " + clause.name + " was compiled for " + clause.specializedAdtTerm + ", expected " + domain.term + ".")
+      case None =>
+        val patterns = ordered.map(_.pattern)
+        DecisionTree.compile(domain, patterns.map(_.resolved)).map { tree =>
+          new PatternSystem(ordered, new Proofs(domain, patterns, tree))
+        }
+  }
 }

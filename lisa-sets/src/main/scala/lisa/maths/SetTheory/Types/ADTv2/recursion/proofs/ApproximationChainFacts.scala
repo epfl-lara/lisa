@@ -4,12 +4,15 @@ import lisa.maths.SetTheory.Base.Subset
 import lisa.maths.SetTheory.Base.Union
 import lisa.maths.SetTheory.Base.Union.∪
 import lisa.maths.SetTheory.Functions.Predef._
-import lisa.maths.SetTheory.Ordinals.Integer.{omegaSuccessorInduction, subsetBelowSucc, unionInOmega}
+import lisa.maths.SetTheory.Ordinals.Integer.omegaSuccessorInduction
+import lisa.maths.SetTheory.Ordinals.Integer.subsetBelowSucc
+import lisa.maths.SetTheory.Ordinals.Integer.unionInOmega
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.altEqualityTransitivity
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.equivalenceApply
+import lisa.utils.fol.FOL.SubstPair
 import lisa.utils.prooflib.BasicStepTactic.Cut
 import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.BasicStepTactic.RightImplies
@@ -27,14 +30,20 @@ private[recursion] object ApproximationChainFacts {
   private val pointVar = variable[Ind]
   private val stabVar = variable[Ind]
 
-  private[proofs] def stabilizationSchema(heightFun0: Expr[Ind], G0: Expr[Ind >>: Ind]): Expr[Prop] =
-    ∀(stabVar, (stabVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun0)(stabVar)) ==> (app(G0(stabVar))(pointVar) === app(G0(S(stabVar)))(pointVar))))
+  private val stabilizationFormula =
+    ∀(stabVar, (stabVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun)(stabVar)) ==> (app(G(stabVar))(pointVar) === app(G(S(stabVar)))(pointVar))))
 
-  private[proofs] def heightMembershipMonotonicSchema(heightFun0: Expr[Ind]): Expr[Prop] =
+  private val heightMembershipMonotonicFormula =
     ∀(
       upperVar,
-      (upperVar ∈ N) ==> ∀(lowerVar, (lowerVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun0)(lowerVar)) ==> ((lowerVar ⊆ upperVar) ==> (pointVar ∈ app(heightFun0)(upperVar)))))
+      (upperVar ∈ N) ==> ∀(lowerVar, (lowerVar ∈ N) ==> ∀(pointVar, (pointVar ∈ app(heightFun)(lowerVar)) ==> ((lowerVar ⊆ upperVar) ==> (pointVar ∈ app(heightFun)(upperVar)))))
     )
+
+  private[proofs] def stabilizationSchema(heightFun0: Expr[Ind], G0: Expr[Ind >>: Ind]): Expr[Prop] =
+    stabilizationFormula.substitute(heightFun := heightFun0, G := G0)
+
+  private[proofs] def heightMembershipMonotonicSchema(heightFun0: Expr[Ind]): Expr[Prop] =
+    heightMembershipMonotonicFormula.substitute(heightFun := heightFun0)
 
   private val approximantsAgreeFromSubset: THM = (
     Lemma(
@@ -251,16 +260,22 @@ private[recursion] object ApproximationChainFacts {
     }
   )
 
-  private[proofs] def heightMembershipMonotonicSchemaAt(using proof: lisa.SetTheoryLibrary.Proof)(
+  private[proofs] def heightMembershipMonotonicSchemaAt(using
+      proof: lisa.SetTheoryLibrary.Proof
+  )(
       heightFun0: Expr[Ind],
-      heightMembershipMonotonic0: THM,
-      isHeightPredFact: THM
+      heightMembershipMonotonic0: Seq[SubstPair] => proof.Fact,
+      isHeightPredFact: proof.Fact
   ): proof.Fact = {
+    val context = Seq(heightFun0) ++ isHeightPredFact.statement.left ++ isHeightPredFact.statement.right
+    val upperVar = Variable[Ind](freshId(context, "upperVar"))
+    val lowerVar = Variable[Ind](freshId(context, "lowerVar"))
+    val pointVar = Variable[Ind](freshId(context, "pointVar"))
     val monoAtVars = have(
       (upperVar ∈ N, lowerVar ∈ N, lowerVar ⊆ upperVar, pointVar ∈ app(heightFun0)(lowerVar)) |- pointVar ∈ app(heightFun0)(upperVar)
     ) by Cut(
       isHeightPredFact,
-      heightMembershipMonotonic0.of(h := heightFun0, n := upperVar, m := lowerVar, x := pointVar)
+      heightMembershipMonotonic0(Seq(h := heightFun0, n := upperVar, m := lowerVar, x := pointVar))
     )
 
     val monoImp = have(
@@ -291,15 +306,16 @@ private[recursion] object ApproximationChainFacts {
   }
 
   def approximantsAgreeFromSubsetAt(using
-      proof: lisa.SetTheoryLibrary.Proof)(
+      proof: lisa.SetTheoryLibrary.Proof
+  )(
       heightFun0: Expr[Ind],
       G0: Expr[Ind >>: Ind],
       n0: Expr[Ind],
       m0: Expr[Ind],
       point0: Expr[Ind],
       stabilization0: proof.Fact,
-      heightMembershipMonotonic: THM,
-      heightFunValid: THM
+      heightMembershipMonotonic: Seq[SubstPair] => proof.Fact,
+      heightFunValid: proof.Fact
   ): proof.Fact =
     val heightMembershipMonotonic0 = heightMembershipMonotonicSchemaAt(
       heightFun0,
@@ -314,8 +330,9 @@ private[recursion] object ApproximationChainFacts {
       approximantsAgreeFromSubset.of(heightFun := heightFun0, G := G0, nVar := n0, mVar := m0, a := point0)
     )
 
-  
-  def approximantsAgreeAcrossHeightsAt(using proof: lisa.SetTheoryLibrary.Proof)(
+  def approximantsAgreeAcrossHeightsAt(using
+      proof: lisa.SetTheoryLibrary.Proof
+  )(
       heightFun0: Expr[Ind],
       G0: Expr[Ind >>: Ind],
       n0: Expr[Ind],

@@ -49,6 +49,7 @@ object TacticErrors {
   ): proof.ProofTacticJudgement =
     proof.InvalidProofTactic(message(tacticName, summary, factStatement, bot, entries))
 
+  /** Runs a tactic body, evaluating diagnostic context only if it fails. */
   def attemptOrInvalid[P <: Library#Proof, A](using
       lib: Library,
       tactic: ProofTactic
@@ -56,10 +57,10 @@ object TacticErrors {
       proof: P
   )(
       tacticName: String,
-      summary: String,
-      factStatement: Sequent,
-      bot: Sequent,
-      entries: (String, String)*
+      summary: => String,
+      factStatement: => Sequent,
+      bot: => Sequent,
+      entries: => Seq[(String, String)] = Seq.empty
   )(body: => A): Either[proof.ProofTacticJudgement, A] =
     try Right(body)
     catch
@@ -72,6 +73,7 @@ object TacticErrors {
           (entries :+ ("Underlying error" -> exception.getMessage))*
         ))
 
+  /** Adds diagnostic context to a tactic failure without building it on success. */
   def wrapUnapplicable[P <: Library#Proof, A](using
       lib: Library,
       currentTactic: ProofTactic
@@ -79,10 +81,10 @@ object TacticErrors {
       proof: P
   )(
       tactic: ProofTactic,
-      summary: String,
-      factStatement: Sequent,
-      bot: Sequent,
-      entries: (String, String)*
+      summary: => String,
+      factStatement: => Sequent,
+      bot: => Sequent,
+      entries: => Seq[(String, String)] = Seq.empty
   )(body: => A): A =
     try body
     catch

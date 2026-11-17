@@ -9,9 +9,7 @@ import lisa.utils.fol.FOL.{Expr => FExpr}
 import lisa.utils.fol.FOL.{Ind => FInd}
 import lisa.utils.fol.FOL.{Prop => FProp}
 
-import scala.compiletime.summonFrom
-
-private object MyVariables {
+private object SchematicVariables {
 
   // Variables
   val a, b, c, d = variable[Ind]
@@ -21,7 +19,7 @@ private object MyVariables {
   val x, y, z = variable[Ind]
   val α, β = variable[Ind]
 
-  var h: Variable[Ind] = variable[Ind]
+  val h = variable[Ind]
 
   val A, B = variable[Ind]
 
@@ -41,27 +39,11 @@ private object MyVariables {
 
 object Utils {
 
-  export MyVariables.*
-
-  // Variables used
-
-  // Some useful constants and functions
+  export SchematicVariables.*
   object UnreachableException
       extends Exception(
         "This code should not be accessed. If you see this message, please report it to the library maintainers."
       )
-
-  inline def registerConstant(c: lisa.utils.fol.FOL.Constant[?]): Unit = summonFrom {
-    case lib: lisa.utils.prooflib.Library =>
-      try lib.addSymbol(c)
-      catch { case _: Throwable => () }
-    case _ => ()
-  }
-
-  // Some useful shorthands for readability
-
-  // ∀ ∃ ∈ ⊆ λ
-  // ADTv2/**/*.scala
 
   def pair(x: Expr[Ind], y: Expr[Ind]): Expr[Ind] =
     Pair.pair(x)(y)
@@ -87,8 +69,7 @@ object Utils {
     .getOrElse(True: Expr[Prop])
 
   def seqEq(s1: Seq[Expr[Ind]], s2: Seq[Expr[Ind]]): Expr[Prop] =
-    val eqs = s1.zip(s2).map((a, b) => a === b)
-    eqs.reduceOption(_ /\ _).getOrElse(True: Expr[Prop])
+    seqAnd(s1.zip(s2).map((a, b) => a === b))
 
   extension (s1: Seq[Expr[Ind]])
     def ===(s2: Seq[Expr[Ind]]): Expr[Prop] =

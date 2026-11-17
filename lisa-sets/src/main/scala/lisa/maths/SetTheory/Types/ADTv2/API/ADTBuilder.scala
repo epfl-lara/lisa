@@ -11,7 +11,9 @@ import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
  * writes its own sort down, and the sort evidence comes from LISA's own `Sort`
  * derivation rather than anything computed here.
  */
-private def ADTBuilder[S](using Sort[S])(
+private def ADTBuilder[S](using
+    Sort[S]
+)(
     name: String,
     typeVars: Seq[String],
     constructors: Seq[
@@ -25,18 +27,19 @@ private def ADTBuilder[S](using Sort[S])(
     s"ADT $name has duplicate type variables: ${typeVars.mkString(", ")}."
   )
 
-  // TODO: verify that their is no other reserved name (CF Variables.scala)
+  // These names are still used as fixed variables in the encoding proofs.
+  val reservedArgumentNames = Set("n", "m", "h")
+  val declaredTypeNames = typeVars.toSet
   def validateArgName(argName: String): Unit =
-    val reserved_names = Set("n", "m", "h")
     require(
-      !reserved_names.contains(argName),
+      !reservedArgumentNames.contains(argName),
       s"Constructor argument name '$argName' is reserved; choose another name"
     )
 
-  val constructorsName = constructors.map(_._1)
-  require(constructorsName.forall(_.trim.nonEmpty), s"ADT $name has an empty constructor name.")
-  require(constructorsName.distinct.size == constructorsName.size, s"ADT $name has duplicate constructor names.")
-  val constructorsArgs = constructors.map { case (constructorName, args) =>
+  val constructorNames = constructors.map(_._1)
+  require(constructorNames.forall(_.trim.nonEmpty), s"ADT $name has an empty constructor name.")
+  require(constructorNames.distinct.size == constructorNames.size, s"ADT $name has duplicate constructor names.")
+  val constructorArguments = constructors.map { case (constructorName, args) =>
     val owner = s"Constructor $name/$constructorName"
     require(args.map(_._1).distinct.size == args.size, s"$owner has duplicate argument names.")
     args.map { case (argName, argType) =>
@@ -47,7 +50,7 @@ private def ADTBuilder[S](using Sort[S])(
         case c: ConstructorArg => c
       resolved match
         case TypeArg(parameter) =>
-          require(typeVars.contains(parameter), s"$owner argument '$argName' refers to undeclared type parameter '$parameter'.")
+          require(declaredTypeNames.contains(parameter), s"$owner argument '$argName' refers to undeclared type parameter '$parameter'.")
         case SelfRef => ()
       (argName, resolved)
     }
@@ -56,7 +59,7 @@ private def ADTBuilder[S](using Sort[S])(
   // Tags are the constructor's position in this declaration, so they stay small and
   // independent of what else has been declared elsewhere in the program.
   val typeVariables = typeVars.map(Variable[Ind](_))
-  val constructorsSyntactic = constructorsArgs.zipWithIndex.map { (args, index) =>
+  val syntacticConstructors = constructorArguments.zipWithIndex.map { (args, index) =>
     val variables = args.foldLeft(Vector.empty[Variable[Ind]]) { case (acc, (argName, _)) =>
       acc :+ Variable[Ind](freshId(typeVariables ++ acc, argName))
     }
@@ -72,21 +75,21 @@ private def ADTBuilder[S](using Sort[S])(
     )
   }
 
-  val adtSyntactic = SyntacticADT(
+  val syntacticADT = SyntacticADT(
     name,
-    constructorsSyntactic,
+    syntacticConstructors,
     typeVariables
   )
 
-  val constructorsSemantic = constructorsSyntactic.zip(constructorsName).map { case (ctor, name) =>
+  val semanticConstructors = syntacticConstructors.zip(constructorNames).map { case (constructor, constructorName) =>
     SemanticConstructor(
-      name,
-      ctor,
-      adtSyntactic
+      constructorName,
+      constructor,
+      syntacticADT
     )
   }
 
-  new ADT[S](SemanticADT(adtSyntactic, constructorsSemantic))
+  new ADT[S](SemanticADT(syntacticADT, semanticConstructors))
 }
 
 def adt(

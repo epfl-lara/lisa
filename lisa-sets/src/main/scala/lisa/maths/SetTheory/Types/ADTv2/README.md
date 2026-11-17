@@ -1,73 +1,75 @@
-# Add ADTv2: algebraic data types, pattern matching, and recursion over set theory
+# ADTv2: algebraic data types over set theory
 
-## Summary
+ADTv2 provides declarations of polymorphic algebraic data types, functions defined by pattern matching, and structural induction. Its encoding and generated proofs are checked by LISA's kernel without admitted proofs.
 
-This PR adds **ADTv2**, a from-scratch reimplementation of LISA's algebraic-data-type support. It provides a declarative DSL for defining (polymorphic) ADTs, total and recursive functions defined by pattern matching, an induction tactic, and a small prebuilt datatype library — all encoded into LISA set theory with machine-checked injectivity, induction, existence and uniqueness theorems.
+## Declaring a datatype and a function
 
-Everything is **`Sorry`-free** (no admitted proofs), covered by a 17-file worked-example suite.
-
-## What's included
-
-- **Declarative ADT DSL** — `adt(name, typeVars, constructors)` producing a typed `ADT[N]` with its constructors
-- **Functions** — function `fun` on ADTs
-- **Recursion** — recursive functions `recFun` are constructed as the limit of approximants over a transfinite "height" stage construction, with existence + uniqueness proved by well-founded induction.
-- **Induction tactic** — structural induction over any declared ADT.
-- **Pattern matching** — `Case` syntax, simple, nested, and multi-layer nested patterns. Used to define functions and prove theorems by induction.
-- **Prebuilt library** — `Nat`, `List`, `Bool`, `Option`, `Product`, `Union`, `Box`, `Unit`, `Void`.
-
-A datatype and a recursive function over it are declared directly in the DSL:
+Import the public DSL and declare pattern variables explicitly. This example defines natural numbers and a nonrecursive predecessor function:
 
 ```scala
-val nat = adt(
-  name = "nat",
-  constructors = Seq(
-    ("zero", Seq.empty),
-    ("succ", Seq(("k", SelfRef)))
-  )
-)
-val zero = nat.constructors(0)
-val succ = nat.constructors(1)
+import lisa.maths.SetTheory.Types.ADTv2.*
 
-val pred = fun(nat, nat) {
-  Case(zero):
-    zero
-  Case(succ, n):
-    n
+object Example extends lisa.Main {
+  val nat = adt(
+    name = "nat",
+    constructors = Seq(
+      ("zero", Seq.empty),
+      ("succ", Seq(("k", SelfRef)))
+    )
+  )
+  val zero = nat.constructors(0)
+  val succ = nat.constructors(1)
+  val previous = variable[Ind]
+
+  val pred = fun(nat, nat) {
+    Case(zero):
+      zero
+    Case(succ, previous):
+      previous
+  }
 }
 ```
 
-The builder discharges the injectivity, induction, existence, and uniqueness obligations, exposing them as ordinary LISA theorems (`nat.injectivity`, `nat.induction`, `pred.intro`, `pred.elim`, …).
+The generated theorems are available through the corresponding objects: `succ.injectivity`, `nat.induction`, `nat.elim`, `pred.intro`, and `pred.elim(succ)`. Distinct constructors have a disjointness theorem, obtained with `nat.disjointness(zero, succ)`.
 
+`fun` and `recFun` share the same construction using height-indexed approximants. `recFun` additionally supplies a self-reference to the case-building function. Both support nested patterns; cases must be exhaustive and nonoverlapping. The [examples](../../../../../../../../../lisa-examples/src/main/scala/ADTv2Examples/) demonstrate recursion, specialization, computation, and induction.
 
-## Project structure
+## Parameters and declaration limits
 
-The package is organized into 12 folders forming a clean layered architecture, from the surface syntax down to the set-theoretic encoding and back up to the user-facing API:
+`adt(name, "A", constructors)` declares one type parameter; overloads accept tuples of up to five names. The Scala parameter of `ADT[S]` is the LISA sort of the symbol: `ADT[Ind]` for a monomorphic datatype and `ADT[Ind >>: Ind]` for one type parameter. Use `adt.specialize(typeArgs*)` when defining a function on a particular specialization. Functions can also declare their own parameters, independently of the domain's parameters, through `fun(parameters)(specializedDomain, returnType)` and `recFun(parameters)(specializedDomain, returnType)`.
 
-| Folder             | Role |
-|--------------------|----------------------------|
-| [syntax/](syntax/)          | Surface AST (`ConstructorArg`, `TypeArg`, `SelfRef`, `TypeExpr`). |
-| [support/](support/)         | ADTv2-specific foundation: proof utilities, remaining lemmas, symbol-definition builders, dev tooling. |
-| [encoding/](encoding/)        | Syntactic → semantic encoding of an ADT into set theory (carrier set, constructors, injectivity, induction). |
-| [height/](height/)          | Transfinite "height" stage construction justifying recursion well-foundedness. |
-| [PatternMatching/](PatternMatching/) | Pattern engine: `Case` syntax, `Pattern`/nested/trie semantics, induction translation, proofs. |
-| [FunctionCore/](FunctionCore/)    | Shared semantic core unifying recursive and non-recursive functions. |
-| [functions/](functions/)       | Non-recursive (total) function specialization on top of `FunctionCore`. |
-| [recursion/](recursion/)       | Recursive-function semantics: approximants, limit construction, existence/uniqueness. |
-| [interface/](interface/)       | Typed user wrappers: `ADT`, `Constructor`, `ADTFunction`, `RecFunction`. |
-| [tactics/](tactics/)         | The `Induction` proof tactic. |
-| [API/](API/)             | DSL entry points: `adt`, `fun`, `recFun`, builder overloads. |
-| [library/](library/)         | Prebuilt datatypes (`Nat`, `List`, `Bool`, `Option`, …). |
+Constructor fields currently have one of two forms:
 
-The single public entry point is the `ADTv2` package object, which re-exports `adt`, `fun`, `recFun`, `Case`, `Pattern`, and `Induction`.
+- `SelfRef` refers directly to the datatype being declared.
+- `TypeArg("A")` refers to a declared type parameter. Import it from `lisa.maths.SetTheory.Types.ADTv2.syntax.AST` when using this explicit form.
 
+A string naming the datatype is shorthand for `SelfRef`; a string naming a parameter is shorthand for `TypeArg`. Arbitrary type expressions and nested recursive occurrences are not supported in constructor declarations. Constructor declaration argument names `n`, `m`, and `h` are reserved by the encoding proofs. Constructor arguments and pattern binders must have distinct names within their respective declarations or cases.
 
-## Changes outside the ADTv2 folder
+## Package structure
 
-This PR is intentionally not confined to the new package:
+| Folder | Role |
+|---|---|
+| [API/](API/) | `adt`, `fun`, and `recFun` builders. |
+| [syntax/](syntax/) | Constructor field syntax: `ConstructorArg`, `TypeArg`, and `SelfRef`. |
+| [interface/](interface/) | User-facing `ADT`, `Constructor`, and `ADTFunction` wrappers; `RecFunction` is an alias. |
+| [encoding/](encoding/) | Set-theoretic carriers, constructors, injectivity, and induction. |
+| [height/](height/) | Height stages and their well-foundedness proofs. |
+| [PatternMatching/](PatternMatching/) | `Case`, validated patterns, decision trees, and shared branch proofs. |
+| [recursion/](recursion/) | Function specifications, graph witnesses, approximants, existence, and uniqueness. |
+| [induction/](induction/) | The `Induction` tactic. |
+| [support/](support/) | Shared proof utilities and symbol-definition helpers. |
+| [library/](library/) | Prebuilt natural numbers, lists, trees, Booleans, options, products, unions, boxes, unit, and void. |
 
-- **General theory upstreamed into core LISA** (reusable beyond ADTs): `Ordinals/Integer.scala`, `Ordinals/OmegaFacts`, `Ordinals/TransfiniteRecursion`, `Functions/UnionRange.scala`, `Functions/Operations/Restriction.scala`, `Base/Union`, `Base/Subset`, plus additions to `Functions/BasicTheorems` and `Types/TypingTheorems`.
-- **`lisa-utils`** gains a small `debug/Time` profiler and `prooflib` helpers (`QuantifierTactics`, `TacticErrors`, `Exports`).
+The public package exports the DSL, `SelfRef`, `Case`, `Pattern`, `Clause`, and `Induction`. General iteration, ordinal, function, and set lemmas used by the encoding live in the corresponding set-theory library modules. Quantifier tactics live in `lisa-utils`.
 
 ## Testing
 
-17 example files under `lisa-examples/ADTv2Examples` (builder / functions / proofs / end-to-end / overview) with a [RunAll.scala](../../../../../../../../../lisa-examples/src/main/scala/ADTv2Examples/RunAll.scala) driver, doubling as integration coverage.
+Run these commands from the repository root:
+
+```text
+sbt "lisa-utils/testOnly lisa.utils.prooflib.QuantifierTacticsSuite"
+sbt "lisa-sets/testOnly lisa.maths.SetTheory.Types.ADTRegressionSuite lisa.maths.SetTheory.Types.ADTv2.* lisa.maths.SetTheory.Ordinals.IntegerSuite"
+sbt "lisa-examples/runMain ADTv2Examples.RunAll"
+```
+
+The regression suites cover successful declarations and proofs, invalid inputs, specialization, nested patterns, binder freshness, theorem reuse, and lazy proof construction. [RunAll.scala](../../../../../../../../../lisa-examples/src/main/scala/ADTv2Examples/RunAll.scala) executes all worked examples and both shared proof initializers. Compilation alone does not execute these proof-generating objects.

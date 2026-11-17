@@ -1,18 +1,20 @@
 package lisa.maths.SetTheory.Types
 
 import lisa.SetTheoryLibrary
-import lisa.SetTheoryLibrary.*
+import lisa.SetTheoryLibrary._
 import lisa.maths.SetTheory.Cardinal.Predef.universeOf
-import lisa.maths.SetTheory.Functions.Predef.*
+import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
-import lisa.maths.SetTheory.Types.TypingHelpers.*
+import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.K
-import lisa.utils.fol.FOL.*
-import lisa.utils.prooflib.BasicStepTactic.*
+import lisa.utils.fol.FOL._
+import lisa.utils.prooflib.BasicStepTactic._
 import lisa.utils.prooflib.OutputManager
 import org.scalatest.funsuite.AnyFunSuite
 
-/** Check the same typing cases through SC proofs, without LCF test fixtures. */
+/**
+ * Check the same typing cases through SC proofs, without LCF test fixtures.
+ */
 class TypecheckSuite extends AnyFunSuite:
   private given SetTheoryLibrary.type = SetTheoryLibrary
   private given OutputManager = new OutputManager:
@@ -27,9 +29,11 @@ class TypecheckSuite extends AnyFunSuite:
     val proof = new BaseProof(anchor.asInstanceOf[THMFromProof])
     given proof.type = proof
     val result = Typecheck.checkProof(context, term, typ)
-    assert(result.isValid, result match
-      case invalid: proof.InvalidProofTactic => invalid.message
-      case _ => "Expected a valid typing derivation"
+    assert(
+      result.isValid,
+      result match
+        case invalid: proof.InvalidProofTactic => invalid.message
+        case _ => "Expected a valid typing derivation"
     )
     val step = have(result)
     assert(step.statement == expected)

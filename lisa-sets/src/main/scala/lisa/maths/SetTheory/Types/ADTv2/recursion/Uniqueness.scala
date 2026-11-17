@@ -1,79 +1,36 @@
 package lisa.maths.SetTheory.Types.ADTv2.recursion
 
+import lisa.maths.SetTheory.Functions.BasicTheorems
 import lisa.maths.SetTheory.SetTheory.{_, given}
-import lisa.maths.SetTheory.Types.ADTv2.FunctionCore.UniquenessProof
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.PatternSchemas
 import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.RecFunctionInduction
-import lisa.maths.SetTheory.Types.ADTv2.recursion.helpers.asIndEquality
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.A
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.B
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.f
+import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.g
 import lisa.maths.SetTheory.Types.ADTv2.support.semantics.DefinedProperty
 import lisa.maths.SetTheory.Types.ADTv2.support.tactics.Cuts
 import lisa.maths.SetTheory.Types.TypingHelpers._
 
 private[recursion] final class Uniqueness(
-    override protected val spec: FunSpec
-) extends UniquenessProof {
+    spec: FunSpec
+) {
 
   private val adt = spec.adt
   private val argType = spec.argType
 
-  private def splitConjunctions(formula: Expr[Prop]): Seq[Expr[Prop]] = formula match
-    case left /\ right => splitConjunctions(left) ++ splitConjunctions(right)
-    case other => Seq(other)
+  /**
+   * The fresh candidates compared by the uniqueness theorem.
+   */
+  val comparisonVariables: (Variable[Ind], Variable[Ind]) = (spec.proofVariable("x"), spec.proofVariable("y"))
+  private val (x, y) = comparisonVariables
 
-  private def stripForalls(formula: Expr[Prop]): (Seq[Variable[Ind]], Expr[Prop]) = formula match
-    case forall(v, phi) =>
-      val (restVars, core) = stripForalls(phi)
-      (v +: restVars, core)
-    case other => (Seq.empty, other)
+  private def patternSchemas(functionHead: Expr[Ind]): PatternSchemas =
+    spec.cases.map(pattern => pattern -> (pattern.binders, spec.patternConstraint(pattern, functionHead))).toMap
 
-  private def extractPatternCaseSchema(
-      definition: Expr[Prop],
-      functionHead: Expr[Ind],
-      pattern: Pattern
-  ): (Seq[Variable[Ind]], Expr[Prop]) = {
-    val maybeSchema = splitConjunctions(definition).iterator
-      .flatMap(candidate =>
-        val (vars, core) = stripForalls(candidate)
-        val (antecedent, conclusion) = core match
-          case antecedent ==> consequent =>
-            (
-              simplify(antecedent.asInstanceOf[Expr[Prop]]),
-              consequent.asInstanceOf[Expr[Prop]]
-            )
-          case other => (⊤, other)
-        val maybeEquality = asIndEquality(conclusion)
-
-        maybeEquality.flatMap((lhs, rhs) =>
-          val expectedApplication = functionHead * pattern.inputTerm
-          val expectedPremise = pattern.branchPremise
-          if (lhs == expectedApplication || rhs == expectedApplication) && antecedent == expectedPremise then Some(vars -> candidate)
-          else None
-        )
-      )
-      .toSeq
-      .headOption
-
-    maybeSchema.getOrElse(
-      throw IllegalArgumentException(
-        s"Unable to extract pattern case schema for pattern ${pattern.name} and function ${functionHead}."
-      )
-    )
-  }
-
-  private def extractPatternSchemas(
-      definition: Expr[Prop],
-      functionHead: Expr[Ind]
-  ): PatternSchemas =
-    spec.patternMatching.patterns.map(pattern => pattern -> extractPatternCaseSchema(definition, functionHead, pattern)).toMap
-
-  // Opaque view of the (~1.5k-char) function-definition formula. Used as the ambient
-  // assumption inside `pointwiseUniquenessAt`, so every sequent there carries a small
-  // atom instead of the full `definitionAt`; we unfold only where the per-case
-  // schema is extracted (`instantiateCaseFromDefinition`). `definition` shape from `DEF`
-  // is `Def(v) <=> definitionAt(v)`.
-  private val defVar = variable[Ind]
+  // Keep the defining predicate opaque in ambient assumptions; unfold it only
+  // when deriving a clause equation.
+  private val defVar = spec.proofVariable("defVar")
   private val defSym = DefinedProperty(
     s"${spec.functionName}/def",
     spec.typeVariablesSeq,
@@ -82,37 +39,32 @@ private[recursion] final class Uniqueness(
   )
   private def Def(v: Expr[Ind]): Expr[Prop] = defSym.term #@ v
 
-
-  protected val pointwiseAgreement: THM =
+  private val pointwiseAgreement: THM =
     val xDefFormula = spec.definitionAt(x)
     val yDefFormula = spec.definitionAt(y)
-    val pointInput = variable[Ind]
+    val pointInput = spec.proofVariable("pointInput")
     Lemma(
       xDefFormula /\ yDefFormula |- ∀(pointInput, pointInput ∈ argType ==> (x * pointInput === y * pointInput))
     ) {
 
-      val pointwiseCoreLemma = {
-        RecFunctionInduction.pointwiseUniquenessAt(
-          adt = adt,
-          patternMatching = spec.patternMatching,
-          argType = argType,
-          typeSubstitutions = spec.typeSubstitutions,
-          inductionVariable = pointInput,
-          assumptions = Set(Def(x), Def(y)),
-          propertyAt = t => x * t === y * t,
-          xFun = x,
-          yFun = y,
-          xDefinitionFormula = xDefFormula,
-          yDefinitionFormula = yDefFormula,
-          xPatternSchemas = extractPatternSchemas(xDefFormula, x),
-          yPatternSchemas = extractPatternSchemas(yDefFormula, y),
-          xDefUnfold = defSym.unfoldAt(x),
-          yDefUnfold = defSym.unfoldAt(y)
-        )
-      }
+      val pointwiseCoreLemma = RecFunctionInduction.pointwiseUniquenessAt(
+        adt = adt,
+        patternMatching = spec.patternMatching,
+        argType = argType,
+        typeSubstitutions = spec.typeSubstitutions,
+        inductionVariable = pointInput,
+        assumptions = Set(Def(x), Def(y)),
+        propertyAt = t => x * t === y * t,
+        xFun = x,
+        yFun = y,
+        xDefinitionFormula = xDefFormula,
+        yDefinitionFormula = yDefFormula,
+        xPatternSchemas = patternSchemas(x),
+        yPatternSchemas = patternSchemas(y),
+        definitionProperty = defSym
+      )
 
-      // `pointwiseCoreLemma` is stated over the opaque `Def(x)`, `Def(y)`; discharge them
-      // by folding the ambient `untypedDefinition(x)`, `untypedDefinition(y)`.
+      // Fold the two defining formulas to discharge the opaque hypotheses.
       val hyp = assume(xDefFormula /\ yDefFormula)
 
       val xDefinition = have(xDefFormula) by Weakening(hyp)
@@ -120,9 +72,35 @@ private[recursion] final class Uniqueness(
       val yDefinition = have(yDefFormula) by Weakening(hyp)
       val defY = have(Def(y)) by Cut(yDefinition, defSym.foldAt(y))
 
-      have(
-        ∀(pointInput, pointInput ∈ argType ==> (x * pointInput === y * pointInput))
-      ) by Cuts(pointwiseCoreLemma)(defX, defY)
-      thenHave(thesis) by Restate
+      have(thesis) by Cuts(pointwiseCoreLemma)(defX, defY)
+    }
+
+  /**
+   * Any two solutions of the defining predicate are equal.
+   */
+  lazy val pointwiseUniqueness: THM =
+    val xDef = spec.definitionAt(x)
+    val yDef = spec.definitionAt(y)
+    Lemma(xDef /\ yDef ==> (x === y)) {
+
+      have(thesis) by Tautology.from(
+        BasicTheorems.functionalExtentionality of (
+          f := x,
+          g := y,
+          A := spec.argType,
+          B := spec.returnType
+        ),
+        BasicTheorems.funcBetweenEqInFuncSpace of (
+          f := x,
+          A := spec.argType,
+          B := spec.returnType
+        ),
+        BasicTheorems.funcBetweenEqInFuncSpace of (
+          f := y,
+          A := spec.argType,
+          B := spec.returnType
+        ),
+        pointwiseAgreement
+      )
     }
 }

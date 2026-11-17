@@ -5,83 +5,21 @@ import lisa.maths.SetTheory.Ordinals.Integer.successorInOmega
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.height.HeightTerms
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.instantiate
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts._
-import lisa.maths.SetTheory.Types.ADTv2.support.semantics.UniqueDefinedSymbol
+import lisa.maths.SetTheory.Types.ADTv2.support.semantics.DefinedSymbol
+import lisa.utils.fol.FOL.SubstPair
 import lisa.utils.prooflib.BasicStepTactic.Restate
-import lisa.utils.prooflib.BasicStepTactic.RightForall
-import lisa.maths.Quantifiers.∃!
 
 private[encoding] trait SyntacticADTTerm extends SyntacticADTBase {
   this: SyntacticADT =>
 
-  private[encoding] def termDefinitionFormula(adt: Expr[Ind]): Expr[Prop] =
-    forall(t, t ∈ adt <=> forall(h, isHeight(h) ==> t ∈ ⋃(range(h))))
-
-  private[encoding] val termExistence = Lemma(∃!(z, termDefinitionFormula(z))) {
-    // `termDefinitionFormula(adt)` reads: t ∈ adt iff t belongs to the union of every height
-    // approximation. The witness is the union of the range of a height function; because that
-    // function is unique, "belongs to every height" collapses to "belongs to this one".
-    val belongsToEveryHeight = forall(h, isHeight(h) ==> t ∈ ⋃(range(h)))
-    val inUnionRangeF = t ∈ ⋃(range(f))
-
-    // STEP 1: existence — `⋃(range(f))` satisfies the definition for any height function `f`.
-    val existence = have(exists(z, termDefinitionFormula(z))) subproof {
-      // Forward: membership in f's union implies membership in every height's union (heights are equal).
-      have(inUnionRangeF |- inUnionRangeF) by Hypothesis
-      thenHave((f === h, inUnionRangeF) |- t ∈ ⋃(range(h))) by
-        RightSubstEq.withParameters(List((f, h)), (Seq(f), inUnionRangeF))
-      have((isHeight(f), isHeight(h), inUnionRangeF) |- t ∈ ⋃(range(h))) by Cut(heightUniqueness, lastStep)
-      thenHave((isHeight(f), inUnionRangeF) |- isHeight(h) ==> t ∈ ⋃(range(h))) by RightImplies
-      thenHave((isHeight(f), inUnionRangeF) |- belongsToEveryHeight) by RightForall
-      val forward = thenHave(isHeight(f) |- inUnionRangeF ==> belongsToEveryHeight) by RightImplies
-
-      // Backward: membership in every height's union specializes to f's union.
-      have(belongsToEveryHeight |- belongsToEveryHeight) by Hypothesis
-      thenHave(belongsToEveryHeight |- isHeight(f) ==> inUnionRangeF) by InstantiateForall(f)
-      val backward = thenHave(isHeight(f) |- belongsToEveryHeight ==> inUnionRangeF) by Restate
-
-      // Some height function exists, so the witness exists.
-      have(isHeight(f) |- inUnionRangeF <=> belongsToEveryHeight) by RightIff(forward, backward)
-      thenHave(isHeight(f) |- forall(t, inUnionRangeF <=> belongsToEveryHeight)) by RightForall
-      thenHave(isHeight(f) |- exists(z, forall(t, t ∈ z <=> belongsToEveryHeight))) by RightExists
-      thenHave(exists(f, isHeight(f)) |- exists(z, forall(t, t ∈ z <=> belongsToEveryHeight))) by LeftExists
-      have(exists(z, forall(t, t ∈ z <=> belongsToEveryHeight))) by Cut(heightExists of (h := f), lastStep)
-      thenHave(thesis) by Restate
-    }
-
-    // STEP 2: uniqueness — two sets satisfying the definition have the same members, so by
-    // extensionality they are equal.
-    val uniqueness = have((termDefinitionFormula(x), termDefinitionFormula(y)) |- x === y) subproof {
-      assume(termDefinitionFormula(x), termDefinitionFormula(y))
-      have(termDefinitionFormula(x)) by Restate
-      val xDef = thenHave(t ∈ x <=> belongsToEveryHeight) by InstantiateForall(t)
-      have(termDefinitionFormula(y)) by Restate
-      val yDef = thenHave(t ∈ y <=> belongsToEveryHeight) by InstantiateForall(t)
-
-      have(t ∈ x <=> t ∈ y) by Congruence.from(xDef, yDef)
-      thenHave(forall(t, t ∈ x <=> t ∈ y)) by RightForall
-      have(thesis) by Tautology.from(lastStep, extensionalityAxiom of (x := x, y := y, z := t))
-    }
-
-    // STEP 3: package existence and uniqueness into ∃!.
-    have(termDefinitionFormula(x) /\ termDefinitionFormula(y) ==> (x === y)) by Restate.from(uniqueness)
-    thenHave(forall(y, termDefinitionFormula(x) /\ termDefinitionFormula(y) ==> (x === y))) by RightForall
-    val uniquenessAll = thenHave(forall(x, forall(y, termDefinitionFormula(x) /\ termDefinitionFormula(y) ==> (x === y)))) by RightForall
-
-    have(thesis) by Tautology.from(
-      existence,
-      uniquenessAll,
-      lisa.maths.Quantifiers.existsOneAlternativeDefinition of (x := z, P := λ(z, termDefinitionFormula(z)))
-    )
-  }
-
-  private val definedClassFunction = UniqueDefinedSymbol(
+  private val definedClassFunction = new DefinedSymbol(
     name = s"${name}/term",
-    typeVariablesSeq = typeVariablesSeq,
-    witnessVar = z,
-    definitionAt = termDefinitionFormula
-  )(termExistence)
+    parametersSeq = typeVariablesSeq,
+    body = ⋃(range(height))
+  )
 
   val polymorphicTerm: Constant[?] = definedClassFunction.symbol
 
@@ -94,32 +32,36 @@ private[encoding] trait SyntacticADTTerm extends SyntacticADTBase {
 
   val term: Expr[Ind] = termAt(typeVariablesSeq)
 
-  private[encoding] val termDefinition: Expr[Prop] = termDefinitionFormula(term)
-
-  private[encoding] lazy val termSatisfiesDefinition: THM = definedClassFunction.definitionFact
+  /**
+   * The carrier is the union of the stages of any valid height function.
+   */
+  private val termEqualsUnion: THM = Lemma(isHeight(h) |- term === ⋃(range(h))) {
+    val sameHeight = have(isHeight(h) |- height === h) by Cut(heightValid, heightUniqueness.of(f := height))
+    have(thesis) by Congruence.from(sameHeight, definedClassFunction.definition)
+  }
 
   private val heightTermsTHY = HeightTerms(
     heightTHY,
     heightConstructorsTHY,
     heightConstructorData,
     term,
-    termSatisfiesDefinition
+    termEqualsUnion
   )
 
   val termHasHeight = heightTermsTHY.termHasHeight
-  private[encoding] val termsHaveHeight =
-    constructors
-      .zip(heightConstructorData)
-      .map((c, d) =>
-        c -> {
-          val substitution = c.variables2.zip(c.variables).map((from, to) => from := to)
-          val fact = heightTermsTHY.termsHaveHeight(d)
-          Lemma(fact.statement.substitute(substitution*)) {
-            have(thesis) by Restate.from(fact.of(substitution*))
-          }
-        }
-      )
-      .toMap
+  private val commonHeightTheorems = constructors
+    .zip(heightConstructorData)
+    .map((c, data) => c -> heightTermsTHY.termsHaveHeight(data))
+    .toMap
+
+  /**
+   * Instantiates common height, composing argument renaming with the caller's simultaneous substitution.
+   */
+  private[encoding] def termsHaveHeight(c: SyntacticConstructor, substitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact = {
+    val renaming = c.variables2.zip(c.variables).map((from, to) => from := to.substitute(substitutions*))
+    val remaining = substitutions.filterNot(substitution => c.variables2.contains(substitution._1))
+    instantiate(commonHeightTheorems(c), remaining ++ renaming)
+  }
 
   val intro = constructors
     .map(c =>

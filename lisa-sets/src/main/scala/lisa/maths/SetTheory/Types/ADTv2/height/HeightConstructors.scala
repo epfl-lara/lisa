@@ -1,8 +1,11 @@
 package lisa.maths.SetTheory.Types.ADTv2.height
 
+import lisa.maths.Quantifiers.existsOneAlternativeDefinition
+import lisa.maths.Quantifiers.∃!
 import lisa.maths.SetTheory.Base.Pair.given
 import lisa.maths.SetTheory.Base.Subset
-import lisa.maths.SetTheory.Ordinals.Integer.{subsetSuccessor, successorInOmega}
+import lisa.maths.SetTheory.Ordinals.Integer.subsetSuccessor
+import lisa.maths.SetTheory.Ordinals.Integer.successorInOmega
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.height.proofs.CoreFacts
@@ -11,8 +14,6 @@ import lisa.maths.SetTheory.Types.ADTv2.height.proofs.UniquenessFacts
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.tactics.Cuts
 import lisa.utils.prooflib.QuantifiersIntro
-import lisa.maths.Quantifiers.∃!
-import lisa.maths.Quantifiers.existsOneAlternativeDefinition
 
 final class HeightConstructors(
     base: HeightADT,
@@ -26,7 +27,6 @@ final class HeightConstructors(
 
   private def inIntroImage(s: Expr[Ind])(y: Expr[Ind]): Expr[Prop] =
     base.inIntroImage(s)(y)
-
 
   /**
    *  Lemma --- If two functions are the height function then they are the same.
@@ -42,7 +42,7 @@ final class HeightConstructors(
     )
   }
 
-  val heightExistsOne = Lemma(∃!(h, base.isHeight(h))) {
+  lazy val heightExistsOne = Lemma(∃!(h, base.isHeight(h))) {
 
     val existencePart = have(∃(h, base.isHeight(h))) by
       Restate.from(heightStageSet.heightExists of (h := h))
@@ -89,7 +89,6 @@ final class HeightConstructors(
       Tautology.from(ctorMono, memMono)
     thenHave(s ⊆ t |- forall(x, inIntroImage(s)(x) ==> inIntroImage(t)(x))) by RightForall
 
-
     thenHave(s ⊆ t ==> forall(x, inIntroImage(s)(x) ==> inIntroImage(t)(x))) by RightImplies
     thenHave(thesis) by Generalize
   }
@@ -109,8 +108,7 @@ final class HeightConstructors(
         val varsWellTypedS = wellTypedFormula(c.signature)(s)
         val varsWellTypedT = wellTypedFormula(c.signature)(t)
 
-        if c.arity == 0 then
-          have((subsetST, isConstructorCXS) |- isConstructorXT) by Restate
+        if c.arity == 0 then have((subsetST, isConstructorCXS) |- isConstructorXT) by Restate
         else
           have(s ⊆ t |- forall(z, z ∈ s ==> z ∈ t)) by
             Congruence.from(subsetAxiom of (x := s, y := t))
@@ -136,7 +134,7 @@ final class HeightConstructors(
     val constructorBranch =
       if constructors.isEmpty then have((subsetST, isConstructorXS) |- isConstructorXT) by Restate
       else
-        have((subsetST, isConstructorXS) |- isConstructorXT) by 
+        have((subsetST, isConstructorXS) |- isConstructorXT) by
           LeftOr(isConstructorXSImpliesT*)
 
     have(s ⊆ t ==> (isConstructor(x)(s) ==> isConstructor(x)(t))) by Restate.from(constructorBranch)

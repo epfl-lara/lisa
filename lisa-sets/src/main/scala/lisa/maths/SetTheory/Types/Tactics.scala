@@ -1,17 +1,17 @@
 package lisa.maths.SetTheory.Types
 
 import lisa.SetTheoryLibrary
-import lisa.utils.K
 import lisa.maths.SetTheory.Base.Subset.reflexivity
 import lisa.maths.SetTheory.Base.Subset.transitivity
 import lisa.maths.SetTheory.Cardinal.Predef.isUniverse
 import lisa.maths.SetTheory.Cardinal.Predef.universeOf
 import lisa.maths.SetTheory.Cardinal.Predef.universeOfIsUniverse
 import lisa.maths.SetTheory.Functions.Predef._
+import lisa.utils.K
 import lisa.utils.fol.{FOL => F}
 import lisa.utils.prooflib.BasicStepTactic._
-import lisa.utils.prooflib.SimpleDeducedSteps._
 import lisa.utils.prooflib.ProofTacticLib._
+import lisa.utils.prooflib.SimpleDeducedSteps._
 
 import scala.collection.Set
 
@@ -50,20 +50,29 @@ object Tactics:
   private val p: Variable[Prop] = variable[Prop]
 
   object Typecheck extends ProofTactic:
-    /** Collect matching typing assumptions and their types in deterministic structural order. */
+    /**
+     * Collect matching typing assumptions and their types in deterministic structural order.
+     */
     private def contextTypings(context: Set[Expr[Prop]], term: Expr[Ind]): List[(Expr[Prop], Expr[Ind])] =
-      context.iterator.collect {
-        case assumption @ typeOf(member, typ) if isSame(member, term) => assumption -> typ
-      }.toList.sortBy(_._1.underlying.toString)
+      context.iterator
+        .collect {
+          case assumption @ typeOf(member, typ) if isSame(member, term) => assumption -> typ
+        }
+        .toList
+        .sortBy(_._1.underlying.toString)
 
-    /** Freshen a binder when its name already occurs in the typing context. */
+    /**
+     * Freshen a binder when its name already occurs in the typing context.
+     */
     private def openBinder(context: Seq[Expr[?]], binder: Variable[Ind], body: Expr[Ind]): (Variable[Ind], Expr[Ind]) =
       if context.exists(_.freeVars.contains(binder)) then
         val fresh = binder.freshRename(context :+ body)
         fresh -> body.substitute(binder := fresh)
       else binder -> body
 
-    /** Extract a proved conjunct with explicit sequent steps. */
+    /**
+     * Extract a proved conjunct with explicit sequent steps.
+     */
     private def conjunct(using lib: SetTheoryLibrary.type, proof: lib.Proof)(fact: proof.Fact, takeLeft: Boolean): proof.Fact =
       import lib.*
       fact.statement.right.head match
@@ -75,13 +84,20 @@ object Tactics:
           have(fact.statement.left |- selected) by Cut.withParameters(conjunction)(fact, fromConjunction)
         case _ => throw new IllegalArgumentException(s"Expected a proved conjunction, got ${fact.statement}")
 
-    /** Cache only derivations whose imports are reusable library justifications. */
+    /**
+     * Cache only derivations whose imports are reusable library justifications.
+     */
     private final class Memo:
       private case class Fragment(bot: F.Sequent, steps: Seq[K.SCProofStep], imports: Seq[SetTheoryLibrary.JUSTIFICATION])
       private val entries = scala.collection.mutable.HashMap.empty[(Set[Long], Long, Option[Long]), Fragment]
 
-      def reuse(using lib: SetTheoryLibrary.type, proof: lib.Proof)(
-          context: Set[Expr[Prop]], term: Expr[Ind], expected: Option[Expr[Ind]]
+      def reuse(using
+          lib: SetTheoryLibrary.type,
+          proof: lib.Proof
+      )(
+          context: Set[Expr[Prop]],
+          term: Expr[Ind],
+          expected: Option[Expr[Ind]]
       )(compute: => proof.ProofTacticJudgement): proof.ProofTacticJudgement =
         val key = (context.map(_.underlying.uniqueNumber), term.underlying.uniqueNumber, expected.map(_.underlying.uniqueNumber))
         entries.get(key) match
@@ -96,7 +112,9 @@ object Tactics:
               case _ => ()
             result
 
-    /** Count leading universeOf applications, assigning depth one to any other expression. */
+    /**
+     * Count leading universeOf applications, assigning depth one to any other expression.
+     */
     def getDepth(e: Expr[Ind]): Int = e match
       case App(`universeOf`, inner: Expr[Ind]) => 1 + getDepth(inner)
       case _ => 1
@@ -129,9 +147,16 @@ object Tactics:
           case _ => return proof.InvalidProofTactic("Type check can only check type relation(∈)")
       }
 
-    /** Derive application typing from proved function and argument typings. */
-    def applicationProof(using lib: SetTheoryLibrary.type, proof: lib.Proof)(
-        function: Expr[Ind], argument: Expr[Ind], functionType: Expr[Ind]
+    /**
+     * Derive application typing from proved function and argument typings.
+     */
+    def applicationProof(using
+        lib: SetTheoryLibrary.type,
+        proof: lib.Proof
+    )(
+        function: Expr[Ind],
+        argument: Expr[Ind],
+        functionType: Expr[Ind]
     )(functionTyping: proof.Fact, argumentTyping: proof.Fact): proof.ProofTacticJudgement =
       import lib.*
       TacticSubproof:
@@ -150,9 +175,17 @@ object Tactics:
             have(statement) by Restate.from(applied)
           case _ => return proof.InvalidProofTactic(s"Expected a Π-type with a lambda codomain, got $functionType")
 
-    /** Derive abstraction typing from a proved body typing. */
-    def abstractionProof(using lib: SetTheoryLibrary.type, proof: lib.Proof)(
-        bound: Variable[Ind], domain: Expr[Ind], body: Expr[Ind], bodyType: Expr[Ind]
+    /**
+     * Derive abstraction typing from a proved body typing.
+     */
+    def abstractionProof(using
+        lib: SetTheoryLibrary.type,
+        proof: lib.Proof
+    )(
+        bound: Variable[Ind],
+        domain: Expr[Ind],
+        body: Expr[Ind],
+        bodyType: Expr[Ind]
     )(bodyTyping: proof.Fact): proof.ProofTacticJudgement =
       import lib.*
       TacticSubproof:
@@ -290,9 +323,18 @@ object Tactics:
     private def checkMemo(using lib: SetTheoryLibrary.type, proof: lib.Proof)(localContext: Set[Expr[Prop]], tm: Expr[Ind], ty: Expr[Ind], memo: Memo): proof.ProofTacticJudgement =
       memo.reuse(localContext, tm, Some(ty))(checkUncached(localContext, tm, ty, memo))
 
-    /** Try one context typing in an isolated subproof, retaining its original assumption. */
-    private def checkContextTyping(using lib: SetTheoryLibrary.type, proof: lib.Proof)(
-        localContext: Set[Expr[Prop]], tm: Expr[Ind], ty: Expr[Ind], assumption: Expr[Prop], actual: Expr[Ind]
+    /**
+     * Try one context typing in an isolated subproof, retaining its original assumption.
+     */
+    private def checkContextTyping(using
+        lib: SetTheoryLibrary.type,
+        proof: lib.Proof
+    )(
+        localContext: Set[Expr[Prop]],
+        tm: Expr[Ind],
+        ty: Expr[Ind],
+        assumption: Expr[Prop],
+        actual: Expr[Ind]
     ): proof.ProofTacticJudgement =
       import lib.*
       TacticSubproof { ip ?=>
@@ -349,8 +391,7 @@ object Tactics:
             val inferredType = h1.bot.right.head match
               case typeOf(tm, ty) => ty
               case _ => return proof.InvalidProofTactic(s"Failed to extract the inferred type from valid proof")
-            if isSame(inferredType, ty) then
-              have((tm ∈ ty) ++<< h1.bot) by Restate.from(h1)
+            if isSame(inferredType, ty) then have((tm ∈ ty) ++<< h1.bot) by Restate.from(h1)
             else
               val convProof = subsetProof(using SetTheoryLibrary)(localContext, inferredType, ty)
               if !convProof.isValid then return proof.InvalidProofTactic(s"Failed to construct the equivalence proof for $inferredType and $ty")

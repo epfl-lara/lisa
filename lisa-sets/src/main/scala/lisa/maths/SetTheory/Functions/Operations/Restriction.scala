@@ -379,21 +379,13 @@ object Restriction extends lisa.Main {
   val notEmpty = Theorem(
     (function(f), x ∈ dom(f), x ∈ d) |- !((f ↾ d) === ∅)
   ) {
-    val pairTerm = Pair.pair(x)(app(f)(x))
-
-    val pairInF = have((function(f), x ∈ dom(f)) |- (pairTerm ∈ f)) by
-      Tautology.from(BasicTheorems.appDefinition of (x := x, y := app(f)(x)))
-
-    val pairInRestriction = have(
-      (function(f), x ∈ dom(f), x ∈ d) |- (pairTerm ∈ (f ↾ d))
-    ) by Tautology.from(
-      pairInF,
-      pairMembership of (A := d, x := x, y := app(f)(x))
-    )
-
+    assume(function(f), x ∈ dom(f), x ∈ d)
+    have(x ∈ (dom(f) ∩ d)) by Tautology.from(Intersection.membership of (z := x, x := dom(f), y := d))
+    val inRestrictedDomain = thenHave(x ∈ dom(f ↾ d)) by Substitute(domain of (A := d))
     have(thesis) by Tautology.from(
-      pairInRestriction,
-      EmptySet.setWithElementNonEmpty of (x := pairTerm, y := f ↾ d)
+      inRestrictedDomain,
+      EmptySet.setWithElementNonEmpty of (x := x, y := dom(f ↾ d)),
+      BasicTheorems.nonEmptyDomain of (h := f ↾ d)
     )
   }
 
@@ -404,13 +396,8 @@ object Restriction extends lisa.Main {
   val setMonotonic = Theorem(
     x ⊆ y |- (f ↾ x) ⊆ (f ↾ y)
   ) {
-    val subsetAsForall = have(x ⊆ y |- forall(z, (z ∈ x) ==> (z ∈ y))) by
-      Tautology.from(subsetAxiom of (x := x, y := y))
-    val subsetAtFst = have(x ⊆ y |- (fst(z) ∈ x) ==> (fst(z) ∈ y)) by
-      InstantiateForall(fst(z))(subsetAsForall)
-
     have((x ⊆ y, z ∈ (f ↾ x)) |- z ∈ (f ↾ y)) by Tautology.from(
-      subsetAtFst,
+      Subset.membership of (z := fst(z)),
       membership of (A := x, z := z),
       membership of (A := y, z := z)
     )

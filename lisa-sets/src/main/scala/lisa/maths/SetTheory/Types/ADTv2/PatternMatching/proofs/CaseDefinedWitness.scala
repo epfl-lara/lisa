@@ -1,7 +1,7 @@
 package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.proofs
 
 import lisa.maths.SetTheory.SetTheory._
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Clause
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
 import lisa.maths.SetTheory.Types.ADTv2.encoding._
 
@@ -30,7 +30,7 @@ import lisa.maths.SetTheory.Types.ADTv2.encoding._
 final class CaseDefinedWitness(
     protected val adt: SemanticADT,
     protected val argType: Expr[Ind],
-    protected val patternMatching: PatternSystem,
+    protected val patternMatching: PatternSystem[Expr[Ind]],
     protected val returnType: Expr[Ind],
     protected val typ: Expr[Ind],
     protected val witness: Expr[Ind],
@@ -38,6 +38,6 @@ final class CaseDefinedWitness(
     protected val witnessBound: Expr[Ind],
     protected val pairWitness: Variable[Ind],
     protected val caseMembership: Expr[Ind] => Expr[Prop],
-    protected val checkReturnType: Map[Pattern, JUSTIFICATION],
+    protected val checkReturnType: Map[Clause[Expr[Ind]], JUSTIFICATION],
     protected val contextPremises: Seq[Expr[Prop]] = Seq.empty
 ) extends WitnessApplicationProofs

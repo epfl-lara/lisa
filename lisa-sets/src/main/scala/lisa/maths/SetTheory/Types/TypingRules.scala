@@ -188,7 +188,9 @@ object TypingRules extends lisa.Main:
     thenHave(thesis) by Substitute(Pi.definition)
   }
 
-  /** A function space is inhabited if its domain being inhabited implies its codomain is inhabited. */
+  /**
+   * A function space is inhabited if its domain being inhabited implies its codomain is inhabited.
+   */
   val functionSpaceInhabited = Theorem(
     ∀(x ∈ A, ∃(y, y ∈ B)) |- ∃(f, f ∈ (A ->: B))
   ) {

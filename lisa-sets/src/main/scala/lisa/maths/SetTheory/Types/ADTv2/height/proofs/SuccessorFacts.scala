@@ -1,11 +1,15 @@
 package lisa.maths.SetTheory.Types.ADTv2.height.proofs
 
+import lisa.maths.SetTheory.Functions.Operations.Restriction.emptyRestriction
+import lisa.maths.SetTheory.Functions.Operations.Restriction.notEmpty
 import lisa.maths.SetTheory.Functions.Predef._
+import lisa.maths.SetTheory.Ordinals.Integer.emptyInOmega
+import lisa.maths.SetTheory.Ordinals.Integer.omegaSuccessorInduction
+import lisa.maths.SetTheory.Ordinals.Integer.selfInSuccessor
+import lisa.maths.SetTheory.Ordinals.Integer.subsetSuccessor
+import lisa.maths.SetTheory.Ordinals.Integer.successorInOmega
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
-import lisa.maths.SetTheory.Functions.Operations.Restriction.notEmpty
-import lisa.maths.SetTheory.Ordinals.Integer.{emptyInOmega, omegaSuccessorInduction, selfInSuccessor, subsetSuccessor, successorInOmega}
-import lisa.maths.SetTheory.Functions.Operations.Restriction.emptyRestriction
 import lisa.maths.SetTheory.Types.ADTv2.height.proofs.CoreFacts._
 import lisa.maths.SetTheory.Types.ADTv2.height.proofs.UnionRangeCollapse.unionRangeCollapse
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
@@ -42,18 +46,18 @@ private[height] object SuccessorFacts {
     val nInNFact = have(n ∈ N) by Hypothesis
     val domEq = have(dom(h) === N) by Restate
     val nInDomH = have(n ∈ dom(h)) by Congruence.from(nInNFact, domEq)
-    
+
     val hIsFunc = have(function(h)) by Restate
 
     have(heightResNonEmpty) by
       Cuts(notEmpty of (f := h, x := n, d := S(n)))(hIsFunc, nInDomH, selfInSuccessor)
-    val heightResNonEmptyLemma = have(heightResNonEmpty <=> ⊤) by 
+    val heightResNonEmptyLemma = have(heightResNonEmpty <=> ⊤) by
       Restate.from(lastStep)
 
-    have(m ∈ N ==> (m ⊆ n ==> app(h, m) ⊆ app(h, n))) by 
+    have(m ∈ N ==> (m ⊆ n ==> app(h, m) ⊆ app(h, n))) by
       Restate.from(CoreFacts.heightMonotonic)
     val monotonicityForall = thenHave(
-      ∀(m ∈ N, (m ⊆ n ==> app(h, m) ⊆app(h, n)))
+      ∀(m ∈ N, (m ⊆ n ==> app(h, m) ⊆ app(h, n)))
     ) by RightForall
     val unionRangeRes = have(
       ⋃(range(h ↾ S(n))) === app(h, n)
@@ -83,78 +87,31 @@ private[height] object SuccessorFacts {
     (isConstructorMono, introFunctionMono, isHeightCore(h), n ∈ N) |-
       x ∈ app(h, S(n)) <=> isConstructor(x)(app(h, n))
   ) {
-
     assume(isConstructorMono, introFunctionMono, isHeightCore(h))
 
-    def inductionFormula(k: Expr[Ind]): Expr[Prop] =
+    def introImageIsConstructor(k: Expr[Ind]): Expr[Prop] =
       inIntroImage(app(h, k))(x) ==> isConstructor(x)(app(h, k))
-    val inductionFormulaN: Expr[Prop] = inductionFormula(n)
-    val inductionFormulaSuccN: Expr[Prop] = inductionFormula(S(n))
 
-    // Abbreviations
-    val cXn = isConstructor(x)(app(h, n)) // constructor at height n
-    val cXsn = isConstructor(x)(app(h, S(n))) // constructor at height S(n)
-    val iiN = inIntroImage(app(h, n))(x) // x in the intro-image at height n
-    val iiSn = inIntroImage(app(h, S(n)))(x) // x in the intro-image at height S(n)
-
-    // === Base case: inductionFormula(∅) ===
-    // inIntroImage(app(h, ∅))(x) = isConstructor(x)(app(h, ∅)) ∨ x ∈ app(h, ∅)
-    val baseLeft = have(isConstructor(x)(app(h, ∅)) |- isConstructor(x)(app(h, ∅))) by Hypothesis
-    val baseRight = have(x ∈ app(h, ∅) |- ()) by LeftNot(heightZero)
-    have(inIntroImage(app(h, ∅))(x) |- isConstructor(x)(app(h, ∅))) by LeftOr(baseLeft, baseRight)
-    val zeroCase = thenHave(inductionFormula(∅)) by RightImplies
-
-    // === Induction principle, instantiated at P := λk. inductionFormula(k) ===
-    val inductionInstance = have(
-      (inductionFormula(∅), ∀(n ∈ N, (inductionFormulaN ==> inductionFormulaSuccN))) |-
-        ∀(n ∈ N, inductionFormulaN)
-    ) by Weakening(omegaSuccessorInduction of (P := λ(n, inductionFormulaN)))
-    val allN = have(
-      ∀(n ∈ N, (inductionFormulaN ==> inductionFormulaSuccN)) |- ∀(n ∈ N, inductionFormulaN)
-    ) by Cut(zeroCase, inductionInstance)
-
-    // === Successor case ingredients ===
-    val succInN = have(n ∈ N |- S(n) ∈ N) by Weakening(successorInOmega)
-    val monotonicity = have(
-      (n ∈ N, n ⊆ S(n), S(n) ∈ N) |- app(h, n) ⊆ app(h, S(n))
-    ) by Weakening(CoreFacts.heightMonotonic.of(n := S(n), m := n))
-    have((app(h, n) ⊆ app(h, S(n))) |- cXn ==> cXsn) by
-      Weakening(CoreFacts.isConstructorMonotonic.of(s := app(h, n), t := app(h, S(n))))
-    val liftImpl = have(n ∈ N |- cXn ==> cXsn) by Cuts(lastStep)(
-      monotonicity, subsetSuccessor, succInN
+    val base = have(introImageIsConstructor(∅)) by Tautology.from(heightZero)
+    have(n ∈ N ==> (introImageIsConstructor(n) ==> introImageIsConstructor(S(n)))) subproof {
+      assume(n ∈ N)
+      val inclusion = have(app(h, n) ⊆ app(h, S(n))) by Tautology.from(
+        CoreFacts.heightMonotonic.of(m := n, n := S(n)),
+        subsetSuccessor,
+        successorInOmega
+      )
+      val constructorMonotonicity = have(isConstructor(x)(app(h, n)) ==> isConstructor(x)(app(h, S(n)))) by
+        Tautology.from(inclusion, CoreFacts.isConstructorMonotonic.of(s := app(h, n), t := app(h, S(n))))
+      have(thesis) by Tautology.from(constructorMonotonicity, heightSuccessorWeak)
+    }
+    val step = thenHave(∀(n ∈ N, introImageIsConstructor(n) ==> introImageIsConstructor(S(n)))) by RightForall
+    have(∀(n ∈ N, introImageIsConstructor(n))) by Tautology.from(
+      base,
+      step,
+      omegaSuccessorInduction of (P := λ(n, introImageIsConstructor(n)))
     )
-
-    // === Successor case: (n ∈ N, inductionFormulaN) |- inductionFormulaSuccN ===
-    // Right branch: from x ∈ app(h, S(n)) derive cXsn, chaining three implications.
-
-    val mpIH = have((inductionFormulaN, iiN) |- cXn) by Restate
-    have((n ∈ N) |- (x ∈ app(h, S(n))) ==> iiN) by Weakening(heightSuccessorWeak)
-    val applyWeak = have((n ∈ N, x ∈ app(h, S(n))) |- iiN) by Restate.from(lastStep)
-    val getCXn = have((n ∈ N, x ∈ app(h, S(n)), inductionFormulaN) |- cXn) by Cut(applyWeak, mpIH)
-    val getCXsn = have((n ∈ N, cXn) |- cXsn) by Restate.from(liftImpl)
-    val rightBranch = have((n ∈ N, x ∈ app(h, S(n)), inductionFormulaN) |- cXsn) by
-      Cut(getCXn, getCXsn)
-
-    // Left branch and case split on iiSn = cXsn ∨ x ∈ app(h, S(n))
-    val leftBranch = have(cXsn |- cXsn) by Hypothesis
-    have((n ∈ N, inductionFormulaN, iiSn) |- cXsn) by LeftOr(leftBranch, rightBranch)
-    val succCase = thenHave((n ∈ N, inductionFormulaN) |- inductionFormulaSuccN) by RightImplies
-
-    // === Assemble the induction ===
-    have(n ∈ N |- inductionFormulaN ==> inductionFormulaSuccN) by RightImplies(succCase)
-    thenHave(n ∈ N ==> (inductionFormulaN ==> inductionFormulaSuccN)) by RightImplies
-    thenHave(∀(n ∈ N, (inductionFormulaN ==> inductionFormulaSuccN))) by RightForall
-    have(∀(n ∈ N, inductionFormulaN)) by Cut(lastStep, allN)
-    thenHave(n ∈ N ==> inductionFormulaN) by InstantiateForall(n)
-    val forward = thenHave(n ∈ N |- iiN ==> cXn) by Restate
-
-    // backward : isConstructor  ⟹  intro-image (trivial, since cXn is a disjunct of iiN)
-    val backward = have(n ∈ N |- cXn ==> iiN) by Restate
-
-
-    have(n ∈ N |- iiN <=> cXn) by RightIff(forward, backward)
-    have(n ∈ N |- (x ∈ app(h, S(n)) <=> cXn)) by Congruence.from(heightSuccessorWeak,lastStep)
-    have(thesis) by Restate.from(lastStep)
+    thenHave(n ∈ N ==> introImageIsConstructor(n)) by InstantiateForall(n)
+    have(thesis) by Tautology.from(lastStep, heightSuccessorWeak)
   }
 
   def heightZeroAt(

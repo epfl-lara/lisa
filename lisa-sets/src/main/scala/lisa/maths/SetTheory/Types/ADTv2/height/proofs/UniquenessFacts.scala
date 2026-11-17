@@ -3,12 +3,14 @@ package lisa.maths.SetTheory.Types.ADTv2.height.proofs
 import lisa.maths.SetTheory.Base.Extensionality
 import lisa.maths.SetTheory.Functions.BasicTheorems.extensionality
 import lisa.maths.SetTheory.Functions.BasicTheorems.functionOnIffFunctionWithDomain
+import lisa.maths.SetTheory.Functions.Function.dom
+import lisa.maths.SetTheory.Functions.Function.function
+import lisa.maths.SetTheory.Functions.Function.functionOn
 import lisa.maths.SetTheory.Ordinals.Integer.omegaSuccessorInduction
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.tactics.Cuts
-import lisa.maths.SetTheory.Functions.Function.{function, functionOn, dom}
 
 private[height] object UniquenessFacts {
 

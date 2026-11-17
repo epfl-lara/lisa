@@ -1,6 +1,5 @@
 package lisa.maths.SetTheory.Ordinals
 
-import Ordinal._
 import lisa.maths.Quantifiers.existsEpsilon
 import lisa.maths.SetTheory.Base.EmptySet
 import lisa.maths.SetTheory.Base.FoundationAxiom
@@ -10,6 +9,8 @@ import lisa.maths.SetTheory.Base.Union
 import lisa.maths.SetTheory.Base.Union.∪
 import lisa.maths.SetTheory.Ordinals.TransfiniteInduction.transfiniteInductionCases
 import lisa.maths.SetTheory.SetTheory
+
+import Ordinal._
 
 /**
  * This file defines integers as ordinals whose elements are either zero
@@ -41,6 +42,24 @@ object Integer extends lisa.Main {
    * Its existence is guaranteed by the [[infinityAxiom]].
    */
   val ω = DEF(ε(x, ∀(α, α ∈ x <=> integer(α))))
+
+  /**
+   * Membership in a successor is membership in its predecessor or equality to it.
+   */
+  val succMembership = Theorem((k ∈ S(n)) <=> (k ∈ n) \/ (k === n)) {
+    have(k ∈ (n ∪ Singleton.singleton(n)) <=> (k ∈ n) \/ (k === n)) by Tautology.from(
+      Union.membership of (x := n, y := Singleton.singleton(n), z := k),
+      Singleton.membership of (x := n, y := k)
+    )
+    thenHave(thesis) by Substitute(S.definition of (α := n))
+  }
+
+  /**
+   * A set belongs to its own successor.
+   */
+  val selfInSuccessor = Lemma(n ∈ S(n)) {
+    have(thesis) by Tautology.from(succMembership of (k := n))
+  }
 
   /**
    * Lemma --- The empty set (zero) is an integer.
@@ -98,18 +117,8 @@ object Integer extends lisa.Main {
   ) {
     assume(integer(α))
 
-    have(β <= S(α) |- (β ∈ α) \/ (β === α) \/ (β === S(α))) subproof {
-      assume(β <= S(α))
-      thenHave(β ∈ S(α) \/ (β === S(α))) by Tautology
-      val inSuccSplit = thenHave(β ∈ Union.∪(α)(Singleton.singleton(α)) \/ (β === S(α))) by Substitute(S.definition)
-      val inUnionToLeft = have(β ∈ Union.∪(α)(Singleton.singleton(α)) ==> (β ∈ α) \/ (β === α)) by Tautology.from(
-        Union.membership of (x := α, y := Singleton.singleton(α), z := β),
-        Singleton.membership of (x := α, y := β)
-      )
-      have(thesis) by Tautology.from(inSuccSplit, inUnionToLeft)
-    }
-
-    val splitCases = lastStep
+    val splitCases = have(β <= S(α) |- (β ∈ α) \/ (β === α) \/ (β === S(α))) by
+      Tautology.from(succMembership of (k := β, n := α))
 
     val intAll = have(∀(β, β <= α ==> (β === ∅) \/ successorOrdinal(β))) by
       Tautology.from(integer.definition)
@@ -148,47 +157,32 @@ object Integer extends lisa.Main {
   }
 
   /**
-   * Lemma --- If a successor `S(α)` is an integer, then so is `α`.
+   * Every element of an integer is an integer.
    */
-  private val integerPredecessor = Theorem(
-    integer(S(α)) |- integer(α)
-  ) {
-    assume(integer(S(α)))
+  val integerHereditary = Theorem((integer(α), β ∈ α) |- integer(β)) {
+    assume(integer(α), β ∈ α)
+    val memberCase = have(γ ∈ β |- γ ∈ α) by Tautology.from(
+      integerIsOrdinal,
+      Ordinal.transitivity of (α := γ, β := β, γ := α)
+    )
+    val equalityCase = have(γ === β |- γ ∈ α) by Congruence
+    val belowAlpha = have(γ <= β |- γ <= α) by Tautology.from(memberCase, equalityCase)
 
-    val alphaInSucc = have(α ∈ S(α)) subproof {
-      have(α ∈ Singleton.singleton(α)) by Tautology.from(
-        Singleton.membership of (x := α, y := α)
-      )
-      have(α ∈ Union.∪(α)(Singleton.singleton(α))) by Tautology.from(lastStep, Union.membership of (x := α, y := Singleton.singleton(α), z := α))
-      have(thesis) by Congruence.from(lastStep, S.definition)
-    }
+    have(∀(γ, γ <= α ==> (γ === ∅) \/ successorOrdinal(γ))) by Tautology.from(integer.definition)
+    thenHave(γ <= α ==> (γ === ∅) \/ successorOrdinal(γ)) by InstantiateForall(γ)
+    have(γ <= β ==> (γ === ∅) \/ successorOrdinal(γ)) by Tautology.from(lastStep, belowAlpha)
+    thenHave(∀(γ, γ <= β ==> (γ === ∅) \/ successorOrdinal(γ))) by RightForall
+    thenHave(thesis) by Substitute(integer.definition of (α := β))
+  }
 
-    val inAlphaToLeqSucc = have(β ∈ α |- β <= S(α)) subproof {
-      assume(β ∈ α)
-      have(β ∈ Union.∪(α)(Singleton.singleton(α))) by Tautology.from(
-        lastStep,
-        Union.membership of (x := α, y := Singleton.singleton(α), z := β)
-      )
-      have(β ∈ S(α)) by Congruence.from(lastStep, S.definition)
-      have(thesis) by Tautology.from(lastStep)
-    }
-
-    val eqAlphaToLeqSucc = have((β === α) |- β <= S(α)) subproof {
-      assume(β === α)
-      have(β ∈ S(α)) by Congruence.from(alphaInSucc)
-      have(thesis) by Tautology.from(lastStep)
-    }
-    val betaLeqSucc = have(β <= α |- β <= S(α)) by Tautology.from(inAlphaToLeqSucc, eqAlphaToLeqSucc)
-
-    have(∀(β, β <= S(α) ==> (β === ∅) \/ successorOrdinal(β))) by
-      Tautology.from(integer.definition of (α := S(α)))
-    thenHave(β <= S(α) ==> (β === ∅) \/ successorOrdinal(β)) by InstantiateForall(β)
-    val predAtBeta = lastStep
-
-    have(β <= α |- (β === ∅) \/ successorOrdinal(β)) by Tautology.from(betaLeqSucc, predAtBeta)
-    thenHave((β <= α) ==> (β === ∅) \/ successorOrdinal(β)) by RightImplies
-    thenHave(∀(β, (β <= α) ==> (β === ∅) \/ successorOrdinal(β))) by RightForall
-    thenHave(thesis) by Substitute(integer.definition)
+  /**
+   * If a successor is an integer, its predecessor is an integer.
+   */
+  private val integerPredecessor = Theorem(integer(S(α)) |- integer(α)) {
+    have(thesis) by Tautology.from(
+      integerHereditary of (α := S(α), β := α),
+      selfInSuccessor of (n := α)
+    )
   }
 
   /**
@@ -515,110 +509,22 @@ object Integer extends lisa.Main {
   }
 
   /**
-   * Lemma --- A set is a member of its own successor: `n ∈ S(n)`.
-   */
-  val selfInSuccessor = Lemma(n ∈ S(n)) {
-    val sn = ∪(n)(Singleton.singleton(n))
-    have(n ∈ Singleton.singleton(n)) by
-      Tautology.from(Singleton.membership of (x := n, y := n))
-    have(n ∈ sn) by
-      Tautology
-        .from(lastStep, Union.membership of (x := n, y := Singleton.singleton(n), z := n))
-    have(thesis) by Congruence.from(lastStep, S.definition of (α := n))
-  }
-
-  /**
    * Lemma --- The successor is injective: `n = m ⇔ S(n) = S(m)`.
    */
   val successorInjectivity = Lemma((n === m) <=> (S(n) === S(m))) {
-
     val forward = have(n === m |- S(n) === S(m)) by Congruence
-
-    val hyp = S(n) === S(m)
-    val eq = have(hyp |- S(n) === S(m)) by Hypothesis
-
-    val inSuccN = have(z ∈ S(n) <=> z ∈ n \/ (z === n)) subproof {
-      val succDef = have(S(n) === (n ∪ Singleton.singleton(n))) by
-        Tautology.from(S.definition of (α := n))
-      val unionMem = have(
-        z ∈ (n ∪ Singleton.singleton(n)) <=> ((z ∈ n) \/ (z ∈ Singleton.singleton(n)))
-      ) by
-        Tautology.from(Union.membership of (x := n, y := Singleton.singleton(n), z := z))
-      val singletonMem = have(z ∈ Singleton.singleton(n) <=> (z === n)) by
-        Tautology.from(Singleton.membership of (x := n, y := z))
-
-      val forward = have(z ∈ S(n) ==> (z ∈ n \/ (z === n))) subproof {
-        assume(z ∈ S(n))
-        have(z ∈ (n ∪ Singleton.singleton(n))) by Congruence.from(succDef)
-        have((z ∈ n) \/ (z ∈ Singleton.singleton(n))) by Tautology.from(lastStep, unionMem)
-        have((z ∈ n) \/ (z === n)) by Tautology.from(lastStep, singletonMem)
-        thenHave(thesis) by Tautology
-      }
-
-      val backward = have((z ∈ n \/ (z === n)) ==> z ∈ S(n)) subproof {
-        assume(z ∈ n \/ (z === n))
-        have((z ∈ n) \/ (z ∈ Singleton.singleton(n))) by Tautology.from(lastStep, singletonMem)
-        have(z ∈ (n ∪ Singleton.singleton(n))) by Tautology.from(lastStep, unionMem)
-        have(z ∈ S(n)) by Congruence.from(lastStep, succDef)
-        thenHave(thesis) by Tautology
-      }
-
-      have(thesis) by Tautology.from(forward, backward)
-    }
-    val inSuccM = have(z ∈ S(m) <=> z ∈ m \/ (z === m)) by
-      Restate.from(inSuccN of (n := m))
-    val nInSuccMChar = have(n ∈ S(m) <=> n ∈ m \/ (n === m)) by
-      Restate.from(inSuccN of (n := m, z := n))
-
-    have(hyp /\ z ∈ n |- z ∈ S(n)) by Tautology.from(inSuccN)
-    have(hyp /\ z ∈ n |- z ∈ S(m)) by Congruence.from(lastStep, eq)
-    val zInMSplit = have(hyp /\ z ∈ n |- z ∈ m \/ (z === m)) by
-      Tautology.from(lastStep, inSuccM)
-
-    val zEqMCase = have((hyp /\ z ∈ n, z === m) |- z ∈ m) subproof {
-      assume(hyp /\ z ∈ n)
-      assume(z === m)
-
-      val zInN = have(z ∈ n) by Tautology
-      val zEqM = have(z === m) by Hypothesis
-      val mInN = have(m ∈ n) by Congruence.from(zInN, zEqM)
-
-      val nInSuccM = have(hyp |- n ∈ S(m)) by Congruence.from(selfInSuccessor of (n := n), eq)
-      have(n ∈ S(m)) by Tautology.from(nInSuccM)
-      val nInMSplit = have(n ∈ m \/ (n === m)) by Tautology.from(lastStep, nInSuccMChar)
-
-      val cycleContradiction = have((m ∈ n, n ∈ m) |- ()) by Tautology.from(
-        FoundationAxiom.membershipAsymmetric of (x := m, y := n)
+    val backward = have(S(n) === S(m) |- n === m) subproof {
+      assume(S(n) === S(m))
+      val nInSuccessor = have(n ∈ S(m)) by Congruence.from(selfInSuccessor)
+      val mInSuccessor = have(m ∈ S(n)) by Congruence.from(selfInSuccessor of (n := m))
+      have(thesis) by Tautology.from(
+        nInSuccessor,
+        mInSuccessor,
+        succMembership of (k := n, n := m),
+        succMembership of (k := m),
+        FoundationAxiom.membershipAsymmetric of (x := n, y := m)
       )
-      val eqContradiction = have((m ∈ n, n === m) |- ()) subproof {
-        assume(m ∈ n)
-        assume(n === m)
-        have(n ∈ n) by Congruence
-        thenHave(thesis) by Tautology.fromLastStep(FoundationAxiom.selfNonInclusion of (x := n))
-      }
-
-      val contradiction = have((hyp /\ z ∈ n, z === m) |- ()) by
-        Tautology.from(mInN, nInMSplit, cycleContradiction, eqContradiction)
-      have(thesis) by Tautology.from(contradiction)
     }
-
-    val zInMCase = have((hyp /\ z ∈ n, z ∈ m) |- z ∈ m) by Hypothesis
-    val splitToInM = have((hyp /\ z ∈ n, z ∈ m \/ (z === m)) |- z ∈ m) by
-      LeftOr(zInMCase, zEqMCase)
-
-    have(hyp /\ z ∈ n |- z ∈ m) by Cut(zInMSplit, splitToInM)
-    have(hyp |- z ∈ n ==> z ∈ m) by Tautology.from(lastStep)
-    thenHave(hyp |- forall(z, z ∈ n ==> z ∈ m)) by RightForall
-    val incl = have(hyp |- n ⊆ m) by
-      Tautology.from(lastStep, subsetAxiom of (x := n, y := m))
-
-    thenHave(hyp ==> n ⊆ m) by Restate
-    thenHave(forall(n, forall(m, hyp ==> n ⊆ m))) by Generalize
-    val revIncl = thenHave(hyp |- m ⊆ n) by InstantiateForall(m, n)
-
-    val backward = have(hyp |- n === m) by
-      Tautology.from(Subset.doubleInclusion of (x := n, y := m), incl, revIncl)
-
     have(thesis) by Tautology.from(forward, backward)
   }
 
@@ -626,51 +532,23 @@ object Integer extends lisa.Main {
    * Lemma --- A successor is never empty: `S(n) ≠ ∅`.
    */
   val zeroIsNotSucc = Lemma(!(S(n) === ∅)) {
-    val sn = ∪(n)(Singleton.singleton(n))
-    have(n ∈ Singleton.singleton(n)) by
-      Tautology.from(Singleton.membership of (x := n, y := n))
-    have(n ∈ sn) by
-      Tautology
-        .from(lastStep, Union.membership of (x := n, y := Singleton.singleton(n), z := n))
-    have(sn =/= ∅) by
-      Tautology.from(lastStep, EmptySet.setWithElementNonEmpty of (x := n, y := sn))
-    have(S(n) =/= ∅) by
-      Congruence.from(lastStep, S.definition of (α := n))
+    have(thesis) by Tautology.from(selfInSuccessor, EmptySet.setWithElementNonEmpty of (x := n, y := S(n)))
   }
 
   /**
    * Lemma --- A set is a subset of its successor: `n ⊆ S(n)`.
    */
   val subsetSuccessor = Lemma(n ⊆ S(n)) {
-    val succExpanded = ∪(n)(Singleton.singleton(n))
-
-    have(n ⊆ succExpanded) by
-      Tautology.from(Union.leftSubset of (x := n, y := Singleton.singleton(n)))
-    have(n ⊆ n |- n ⊆ S(n)) by
-      Congruence.from(lastStep, S.definition of (α := n))
-    have(thesis) by Cut(Subset.reflexivity of (x := n), lastStep)
+    have(n ⊆ (n ∪ Singleton.singleton(n))) by Restate.from(Union.leftSubset of (x := n, y := Singleton.singleton(n)))
+    thenHave(thesis) by Substitute(S.definition of (α := n))
   }
 
   /**
    * Lemma --- Zero is a natural number: `∅ ∈ ω`.
    */
   val emptyInOmega = Lemma(∅ ∈ ω) {
-    val nullCharacterization = have((∅ ∈ ω) <=> integer(∅)) by
-      InstantiateForall(∅)(omegaCharacterization)
-
-    val leqSplit = have((b <= ∅) |- ((b ∈ ∅) \/ (b === ∅))) by Tautology
-    val inEmptyCase = have((b ∈ ∅) |- (b === ∅) \/ successorOrdinal(b)) by
-      Tautology.from(EmptySet.definition of (x := b))
-    val eqEmptyCase = have((b === ∅) |- (b === ∅) \/ successorOrdinal(b)) by Tautology
-    val fromSplit = have(((b ∈ ∅) \/ (b === ∅)) |- (b === ∅) \/ successorOrdinal(b)) by
-      LeftOr(inEmptyCase, eqEmptyCase)
-    have((b <= ∅) |- (b === ∅) \/ successorOrdinal(b)) by Cut(leqSplit, fromSplit)
-    thenHave((b <= ∅) ==> (b === ∅) \/ successorOrdinal(b)) by RightImplies
-    thenHave(forall(b, (b <= ∅) ==> (b === ∅) \/ successorOrdinal(b))) by RightForall
-
-    have(integer(∅)) by Tautology.from(lastStep, integer.definition of (α := ∅, β := b))
-    have(∅ ∈ ω) by Tautology.from(lastStep, nullCharacterization)
-    have(thesis) by Restate.from(lastStep)
+    have(∅ ∈ ω <=> integer(∅)) by InstantiateForall(∅)(omegaCharacterization)
+    have(thesis) by Tautology.from(lastStep, zeroIsInteger)
   }
 
   /**
@@ -697,131 +575,48 @@ object Integer extends lisa.Main {
    * Lemma --- Induction over `ω`: if `P(∅)` holds and `P` is preserved by the
    * successor on `ω`, then `P` holds on all of `ω`.
    */
-  val omegaSuccessorInduction = Lemma(
-    (P(∅), forall(m, m ∈ ω ==> (P(m) ==> P(S(m))))) |-
-      forall(n, n ∈ ω ==> P(n))
-  ) {
-    val stepS = have(
-      forall(m, m ∈ ω ==> (P(m) ==> P(S(m)))) |-
-        forall(m, m ∈ ω ==> (P(m) ==> P(S(m))))
-    ) by Restate
-
-    have(thesis) by Tautology.from(omegaInduction, stepS)
-  }
+  val omegaSuccessorInduction = omegaInduction
 
   /**
    * Lemma --- `ω` is downward closed (transitive): any element of an element of
    * `ω` is itself in `ω`.
    */
   val omegaDownwardClosed = Lemma(y ∈ ω |- x ∈ y ==> x ∈ ω) {
-
-    val Q = λ(y, x ∈ y ==> x ∈ ω)
-
-    val zeroCase = have(Q(∅)) subproof {
-      have(x ∈ ∅ |- ()) by Tautology.from(EmptySet.definition of (x := x))
-      thenHave(x ∈ ∅ ==> x ∈ ω) by Tautology
-      thenHave(thesis) by Restate
-    }
-
-    val recCase = have(y ∈ ω /\ Q(y) |- Q(S(y))) subproof {
-      assume(y ∈ ω /\ Q(y))
-      val yInN = have(y ∈ ω) by Tautology
-      val ih = have(x ∈ y ==> x ∈ ω) by Tautology
-
-      val inSuccY = have(x ∈ S(y) ==> x ∈ y \/ (x === y)) subproof {
-        assume(x ∈ S(y))
-        val succDef = have(S(y) === (y ∪ Singleton.singleton(y))) by
-          Tautology.from(S.definition of (α := y))
-        val unionMem = have(x ∈ (y ∪ Singleton.singleton(y)) <=> ((x ∈ y) \/ (x ∈ Singleton.singleton(y)))) by
-          Tautology.from(Union.membership of (x := y, y := Singleton.singleton(y), z := x))
-        val singletonMem = have(x ∈ Singleton.singleton(y) <=> (x === y)) by
-          Tautology.from(Singleton.membership of (x := y, y := x))
-
-        have(x ∈ (y ∪ Singleton.singleton(y))) by Congruence.from(succDef)
-        have((x ∈ y) \/ (x ∈ Singleton.singleton(y))) by Tautology.from(lastStep, unionMem)
-        have((x ∈ y) \/ (x === y)) by Tautology.from(lastStep, singletonMem)
-        thenHave(thesis) by Tautology
-      }
-
-      val inCase = have(x ∈ y |- x ∈ ω) by Tautology.from(ih)
-      val eqCase = have(x === y |- x ∈ ω) by Congruence.from(yInN)
-
-      have(x ∈ S(y) |- x ∈ ω) by Tautology.from(inSuccY, inCase, eqCase)
-      thenHave(x ∈ S(y) ==> x ∈ ω) by RightImplies
-      thenHave(thesis) by Restate
-    }
-
-    have(y ∈ ω ==> (Q(y) ==> Q(S(y)))) by Tautology.from(recCase)
-    thenHave(forall(y, y ∈ ω ==> (Q(y) ==> Q(S(y))))) by RightForall
-    have(Q(∅) /\ forall(y, y ∈ ω ==> (Q(y) ==> Q(S(y))))) by
-      Tautology.from(zeroCase, lastStep)
-
-    have(forall(k, k ∈ ω ==> Q(k))) by
-      Tautology.from(lastStep, omegaSuccessorInduction of (P := Q, m := y, n := k))
-    thenHave(y ∈ ω ==> Q(y)) by InstantiateForall(y)
-    thenHave(thesis) by Tautology
+    val yCharacterization = have(y ∈ ω <=> integer(y)) by InstantiateForall(y)(omegaCharacterization)
+    val xCharacterization = have(x ∈ ω <=> integer(x)) by InstantiateForall(x)(omegaCharacterization)
+    have(thesis) by Tautology.from(yCharacterization, xCharacterization, integerHereditary of (α := y, β := x))
   }
 
   /**
    * Lemma --- `ω` is closed under binary union: if `a, b ∈ ω` then `a ∪ b ∈ ω`.
    */
   val unionInOmega = Lemma((a ∈ ω /\ b ∈ ω) |- (a ∪ b) ∈ ω) {
+    assume(a ∈ ω, b ∈ ω)
+    val equalCase = have(a === b |- (a ∪ b) ∈ ω) by
+      Congruence.from(Union.idempotence of (x := b))
 
-    // get ordinals from ω-membership
-    have(a ∈ ω <=> integer(a)) by InstantiateForall(a)(omegaCharacterization)
-    val aIsOrdinal = have(a ∈ ω |- Ordinal.ordinal(a)) by
-      Tautology.from(integerIsOrdinal of (α := a), lastStep)
-    have(b ∈ ω <=> integer(b)) by InstantiateForall(b)(omegaCharacterization)
-    val bIsOrdinal = have(b ∈ ω |- Ordinal.ordinal(b)) by
-      Tautology.from(integerIsOrdinal of (α := b), lastStep)
-
-    // comparability: either a = b or a ∈ b or b ∈ a
-    val comp = have((Ordinal.ordinal(a), Ordinal.ordinal(b)) |- (a === b) \/ (a < b) \/ (b < a)) by
-      Tautology.from(Ordinal.comparability of (α := a, β := b))
-
-    // case analysis on the disjunction
-    // Case a === b
-    val caseEq = have((a === b, a ∈ ω, b ∈ ω) |- (a ∪ b) ∈ ω) subproof {
-      have((a === b, a ∪ b === b) |- a ∪ b === b) by Hypothesis
-      have((a === b, b ∪ b === b) |- a ∪ b === b) by Congruence.from(lastStep)
-      have((a === b) |- a ∪ b === b) by Congruence.from(lastStep, Union.idempotence of (x := b))
-      have((a === b, b ∈ ω) |- (a ∪ b) ∈ ω) by Congruence.from(lastStep)
-      have(thesis) by Tautology.from(lastStep)
-    }
-
-    // Case a < b  (i.e. a ∈ b)
-    val caseALtB = have((a < b, a ∈ ω, b ∈ ω) |- (a ∪ b) ∈ ω) subproof {
-
-      assume((a < b) /\ a ∈ ω /\ b ∈ ω)
-
+    val leftCase = have(a ∈ b |- (a ∪ b) ∈ ω) subproof {
+      assume(a ∈ b)
       have(TransitiveSet.transitiveSet(b)) by
-        Tautology.from(bIsOrdinal, Ordinal.ordinal.definition of (α := b))
-      have(a ⊆ b) by
+        Tautology.from(elementIsOrdinal of (α := b), ordinal.definition of (α := b))
+      val included = have(a ⊆ b) by
         Tautology.from(lastStep, TransitiveSet.elementIsSubset of (x := a, A := b))
-      have((a ∪ b) ⊆ (b ∪ b)) by
-        Tautology.from(lastStep, Union.leftMonotonic of (x := a, y := b, z := b))
-      val unionSubset = have(a ∪ b ⊆ b) by
-        Congruence.from(lastStep, Union.idempotence of (x := b))
-
-      have(b ⊆ (a ∪ b)) by
-        Tautology.from(Union.rightSubset of (x := a, y := b))
-      have((a ∪ b) === b) by
-        Tautology.from(unionSubset, lastStep, Subset.antisymmetry of (x := a ∪ b, y := b))
+      have((a ∪ b) ⊆ b) by Tautology.from(
+        included,
+        Subset.reflexivity of (x := b),
+        Union.leftUnionSubset of (x := a, y := b, z := b)
+      )
+      have((a ∪ b) === b) by Tautology.from(
+        lastStep,
+        Union.rightSubset of (x := a, y := b),
+        Subset.antisymmetry of (x := a ∪ b, y := b)
+      )
       have(thesis) by Congruence.from(lastStep)
     }
+    val rightCase = have(b ∈ a |- (a ∪ b) ∈ ω) by
+      Congruence.from(leftCase of (a := b, b := a), Union.commutativity of (x := a, y := b))
 
-    // Symmetric case b < a
-    val caseBLtA = have((b < a, a ∈ ω, b ∈ ω) |- (a ∪ b) ∈ ω) subproof {
-      have(thesis) by Congruence.from(
-        caseALtB of (a := b, b := a),
-        Union.commutativity of (x := a, y := b)
-      )
-    }
-
-    // Combine the cases coming from comparability
-    have((a ∈ ω, b ∈ ω) |- (a ∪ b) ∈ ω) by
-      Tautology.from(comp, caseEq, caseALtB, caseBLtA, aIsOrdinal, bIsOrdinal)
-    thenHave(thesis) by Restate
+    have(thesis) by Tautology.from(comparability of (m := a, n := b), equalCase, leftCase, rightCase)
   }
 
   /**
@@ -829,26 +624,6 @@ object Integer extends lisa.Main {
    */
   val existsInOmega = Lemma(exists(n, n ∈ ω)) {
     have(thesis) by RightExists(emptyInOmega)
-  }
-
-  /**
-   * Theorem --- Membership in a S: `k ∈ S(n) ⇔ k ∈ n ∨ k = n`.
-   */
-  val succMembership = Theorem((k ∈ S(n)) <=> (k ∈ n) \/ (k === n)) {
-    val memSucc = have(k ∈ S(n) <=> (k ∈ n) \/ (k === n)) by Tautology.from(
-      have(k ∈ S(n) <=> (k ∈ n) \/ (k === n)) by Tautology.from(
-        have(k ∈ S(n) <=> k ∈ (n ∪ Singleton.singleton(n))) by
-          Congruence.from(S.definition of (α := n)),
-        have(
-          k ∈ (n ∪ Singleton.singleton(n)) <=> (k ∈ n) \/ (k ∈ Singleton.singleton(n))
-        ) by
-          Tautology
-            .from(Union.membership of (x := n, y := Singleton.singleton(n), z := k)),
-        have(k ∈ Singleton.singleton(n) <=> (k === n)) by
-          Tautology.from(Singleton.membership of (x := n, y := k))
-      )
-    )
-    have(thesis) by Restate.from(memSucc)
   }
 
   /**

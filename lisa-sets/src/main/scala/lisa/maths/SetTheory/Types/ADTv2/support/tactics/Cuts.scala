@@ -3,6 +3,7 @@ package lisa.maths.SetTheory.Types.ADTv2.support.tactics
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.utils.prooflib.BasicStepTactic.Cut
 import lisa.utils.prooflib.ProofTacticLib.UnapplicableProofTactic
+
 import scala.util.boundary
 
 /**

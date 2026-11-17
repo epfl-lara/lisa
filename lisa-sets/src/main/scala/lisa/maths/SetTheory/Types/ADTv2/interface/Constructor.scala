@@ -2,9 +2,7 @@ package lisa.maths.SetTheory.Types.ADTv2.interface
 
 import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADTv2.encoding.SemanticConstructor
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.instantiatedSemanticSignature
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.generalTheorem
-
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.introAppTheorem
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.renderAppliedSymbol
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.wellTypedSet
@@ -63,7 +61,9 @@ final class Constructor[S](using val line: sourcecode.Line, val file: sourcecode
   lazy val injectivity: THM =
     generalTheorem(name, typeVariablesSeq, "injectivity", semantic.injectivity)
 
-  /** Applies exactly the declared type arguments and returns the set-theoretic constructor. */
+  /**
+   * Applies exactly the declared type arguments and returns the set-theoretic constructor.
+   */
   def termAt(args: Seq[Expr[Ind]]): Expr[Ind] =
     require(args.size == typeVariablesSeq.size, s"Constructor $name expects ${typeVariablesSeq.size} type argument(s), got ${args.size}.")
     (this #@@ args).asInstanceOf[Expr[Ind]]

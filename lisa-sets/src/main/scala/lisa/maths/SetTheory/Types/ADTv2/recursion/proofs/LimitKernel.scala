@@ -7,6 +7,7 @@ import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts.altEqualityTransitivity
 import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
+import lisa.utils.fol.FOL.SubstPair
 
 private[recursion] object LimitKernel {
 
@@ -20,14 +21,23 @@ private[recursion] object LimitKernel {
   private val nVar = variable[Ind]
   private val mVar = variable[Ind]
 
+  private val pointHeightFormula =
+    (pointVar ∈ argType) <=> ∃(nVar, nVar ∈ N /\ pointVar ∈ app(heightFun)(nVar))
+
+  private val limitIndexFormula =
+    limitIndex(pointVar) === ε(nVar, (nVar ∈ N) /\ (pointVar ∈ app(heightFun)(nVar)))
+
+  private val limitFunFormula =
+    limitFun === abs(argType)(λ(pointVar, app(G(limitIndex(pointVar)))(pointVar)))
+
   def pointHeightCharAt(argType0: Expr[Ind], heightFun0: Expr[Ind], point0: Expr[Ind]): Expr[Prop] =
-    (point0 ∈ argType0) <=> ∃(nVar, nVar ∈ N /\ point0 ∈ app(heightFun0)(nVar))
+    pointHeightFormula.substitute(argType := argType0, heightFun := heightFun0, pointVar := point0)
 
   def limitIndexWitnessAt(heightFun0: Expr[Ind], limitIndex0: Expr[Ind >>: Ind], point0: Expr[Ind]): Expr[Prop] =
     (limitIndex0(point0) ∈ N) /\ (point0 ∈ app(heightFun0)(limitIndex0(point0)))
 
   private def limitIndexDefinitionAt(heightFun0: Expr[Ind], limitIndex0: Expr[Ind >>: Ind], point0: Expr[Ind]): Expr[Prop] =
-    limitIndex0(point0) === ε(nVar, (nVar ∈ N) /\ (point0 ∈ app(heightFun0)(nVar)))
+    limitIndexFormula.substitute(heightFun := heightFun0, limitIndex := limitIndex0, pointVar := point0)
 
   def limitFunDefinition(
       argType0: Expr[Ind],
@@ -35,8 +45,7 @@ private[recursion] object LimitKernel {
       G0: Expr[Ind >>: Ind],
       limitIndex0: Expr[Ind >>: Ind]
   ): Expr[Prop] =
-    limitFun0 === abs(argType0)(λ(pointVar, app(G0(limitIndex0(pointVar)))(pointVar)))
-
+    limitFunFormula.substitute(argType := argType0, limitFun := limitFun0, G := G0, limitIndex := limitIndex0)
 
   private val pointHasSomeHeight: THM = Lemma(
     (pointHeightCharAt(argType, heightFun, pointVar), pointVar ∈ argType) |- ∃(nVar, (nVar ∈ N) /\ (pointVar ∈ app(heightFun)(nVar)))
@@ -220,7 +229,9 @@ private[recursion] object LimitKernel {
       pointVar := point0
     )
 
-  def limitAtHeightAt(
+  def limitAtHeightAt(using
+      proof: lisa.SetTheoryLibrary.Proof
+  )(
       argType0: Expr[Ind],
       heightFun0: Expr[Ind],
       limitFun0: Expr[Ind],
@@ -229,11 +240,13 @@ private[recursion] object LimitKernel {
       point0: Expr[Ind],
       n0: Expr[Ind],
       stabilization0: THM,
-      heightMembershipMonotonic: THM,
-      heightFunValid: THM
-  )(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+      heightMembershipMonotonic: Seq[SubstPair] => proof.Fact,
+      heightFunValid: proof.Fact
+  ): proof.Fact =
     val monoSchema = ApproximationChainFacts.heightMembershipMonotonicSchemaAt(
-      heightFun0, heightMembershipMonotonic, heightFunValid
+      heightFun0,
+      heightMembershipMonotonic,
+      heightFunValid
     )
     have(
       (

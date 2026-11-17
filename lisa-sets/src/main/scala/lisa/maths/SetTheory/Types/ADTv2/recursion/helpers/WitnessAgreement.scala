@@ -3,30 +3,30 @@ package lisa.maths.SetTheory.Types.ADTv2.recursion.helpers
 import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Clause
 import lisa.maths.SetTheory.Types.ADTv2.recursion.FunSpec
 import lisa.maths.SetTheory.Types.ADTv2.recursion.Witness
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.specializedConstructors
-import lisa.utils.prooflib.InstantiateForallSeq
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.prooflib.BasicStepTactic.Cut
 import lisa.utils.prooflib.BasicStepTactic.Weakening
+import lisa.utils.prooflib.InstantiateForallSeq
 
 private[recursion] final class WitnessAgreement(
     val spec: FunSpec,
     val recWitness: Witness
 ) {
 
-  private val leftFun = variable[Ind]
-  private val rightFun = variable[Ind]
-  private val nVar = variable[Ind]
-  private val vVar = variable[Ind]
+  private val leftFun = spec.proofVariable("leftFun")
+  private val rightFun = spec.proofVariable("rightFun")
+  private val nVar = spec.proofVariable("nVar")
+  private val vVar = spec.proofVariable("vVar")
+  private val a = spec.proofVariable("a")
 
   private val heightFun: Expr[Ind] = spec.heightFun
-  private val heightFunValid: THM = spec.heightFunValid
-  private val heightSuccStrong = spec.adt.height.successorStrongAt(spec.typeSubstitutions)
-  private val constructorsAt = specializedConstructors(spec.adt.constructors, spec.typeSubstitutions)
+  private def heightFunValid(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact = spec.heightFunValid
+  private val constructorsAt = specializedConstructors(spec.patternMatching, spec.typeSubstitutions)
 
   private val agreeOnSlice = ∀(vVar ∈ app(heightFun)(nVar), app(leftFun)(vVar) === app(rightFun)(vVar))
 
@@ -61,11 +61,10 @@ private[recursion] final class WitnessAgreement(
           currentIndex = nVar,
           currentIndexInN = nInN,
           hValid = hValid,
-          heightSuccStrong = heightSuccStrong,
+          heightSuccStrong = spec.adt.height.successorStrongAt(spec.typeSubstitutions, Seq(h := heightFun, n := nVar, x := a)),
           goalEqAt = goalW
         )(new PointwiseAgreementStep.PatternCaseEquations {
           val recursiveType: Expr[Ind] = spec.argType
-          val heightMembershipMonotonic: THM = spec.adt.height.membershipMonotonicAt(spec.typeSubstitutions)
           val sliceLeft: Expr[Ind] = leftFun
           val sliceRight: Expr[Ind] = rightFun
 
@@ -78,13 +77,17 @@ private[recursion] final class WitnessAgreement(
 
           // Witness case equations carry their own contexts, so body equality needs no extra
           // ambient assumptions.
-          def bodyEqAssumptions(using proof: lisa.SetTheoryLibrary.Proof)(
-              pattern: Pattern,
+          def bodyEqAssumptions(using
+              proof: lisa.SetTheoryLibrary.Proof
+          )(
+              pattern: Clause[Expr[Ind]],
               patternGuard: proof.Fact
           ): Set[Expr[Prop]] = Set.empty
 
-          def caseEquation(using proof: lisa.SetTheoryLibrary.Proof)(
-              pattern: Pattern,
+          def caseEquation(using
+              proof: lisa.SetTheoryLibrary.Proof
+          )(
+              pattern: Clause[Expr[Ind]],
               slice: Expr[Ind],
               patternPremise: proof.Fact,
               patternGuard: proof.Fact,
@@ -122,21 +125,24 @@ private[recursion] final class WitnessAgreement(
     }
   )
 
-  /** Specializes [[witnessAgreementAtSucc]] to the ambient point `a` and chains the
-    * resulting witness agreement `app(recWitness(lhs))(a) === app(recWitness(rhs))(a)`
-    * through the caller-supplied `bridges` to prove the equation `goal`.
-    *
-    * `goal` is the endpoint equation to prove; `bridges` are the remaining equalities
-    * that, together with the derived witness agreement, connect its two sides. A
-    * single `Congruence` closes the chain from those equality facts, so the bridges
-    * need no particular order or orientation.
-    *
-    * This packages both the four-step witness-agreement ritual (instantiate the
-    * lemma, discharge its premises, instantiate the `∀` at `a`, discharge the height
-    * membership) and the equational chaining shared by the limit step in `Existence`
-    * and the successor step in `ApproxStabilization`.
-    */
-  def witnessesAgreeAt(using proof: lisa.SetTheoryLibrary.Proof)(
+  /**
+   * Specializes [[witnessAgreementAtSucc]] to the ambient point `a` and chains the
+   * resulting witness agreement `app(recWitness(lhs))(a) === app(recWitness(rhs))(a)`
+   * through the caller-supplied `bridges` to prove the equation `goal`.
+   *
+   * `goal` is the endpoint equation to prove; `bridges` are the remaining equalities
+   * that, together with the derived witness agreement, connect its two sides. A
+   * single `Congruence` closes the chain from those equality facts, so the bridges
+   * need no particular order or orientation.
+   *
+   * This packages both the four-step witness-agreement ritual (instantiate the
+   * lemma, discharge its premises, instantiate the `∀` at `a`, discharge the height
+   * membership) and the equational chaining shared by the limit step in `Existence`
+   * and the successor step in `ApproxStabilization`.
+   */
+  def witnessesAgreeAt(using
+      proof: lisa.SetTheoryLibrary.Proof
+  )(
       lhs: Expr[Ind],
       rhs: Expr[Ind],
       index: Expr[Ind],

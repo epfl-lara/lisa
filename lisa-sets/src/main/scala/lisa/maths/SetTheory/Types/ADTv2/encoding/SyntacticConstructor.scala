@@ -1,7 +1,8 @@
 package lisa.maths.SetTheory.Types.ADTv2.encoding
 
 import lisa.maths.SetTheory.Base.Pair
-import lisa.maths.SetTheory.Ordinals.Integer.{successorInjectivity, zeroIsNotSucc}
+import lisa.maths.SetTheory.Ordinals.Integer.successorInjectivity
+import lisa.maths.SetTheory.Ordinals.Integer.zeroIsNotSucc
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
@@ -224,7 +225,7 @@ class SyntacticConstructor(
    *  successors via injectivity reduces the equality to `S^(maxTag - minTag)(∅) = ∅`,
    *  which is false.
    */
-  private def tagDisequality(other: SyntacticConstructor): THM = {
+  private[encoding] def tagDisequality(other: SyntacticConstructor): THM = {
     val minTag = Math.min(tag, other.tag)
     val maxTag = Math.max(tag, other.tag)
     Lemma(!(tagTerm === other.tagTerm)) {

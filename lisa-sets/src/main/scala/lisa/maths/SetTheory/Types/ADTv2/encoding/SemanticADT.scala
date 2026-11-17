@@ -3,14 +3,13 @@ package lisa.maths.SetTheory.Types.ADTv2.encoding
 import lisa.maths.Quantifiers.universalEquivalenceDistribution
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.TypeSubstitution
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.instantiatedTheorem
+import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.instantiate
 import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.normalizeTypeSubstitutions
-import lisa.maths.SetTheory.Types.ADTv2.support.InterfaceHelpers.resolvedTypeArguments
-import lisa.utils.prooflib.QuantifiersIntro
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.proofs.PropositionalFacts._
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
 import lisa.maths.SetTheory.Types.TypingHelpers.::
+import lisa.utils.fol.FOL.SubstPair
 import lisa.utils.prooflib.BasicStepTactic.Restate
 import lisa.utils.prooflib.BasicStepTactic.RightForall
 import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
@@ -36,120 +35,96 @@ class SemanticADT(
     val constructors: Seq[SemanticConstructor]
 ) {
 
-  private def normalizedTypeArguments(
-      substitutions: Seq[TypeSubstitution]
-  ): Seq[Expr[Ind]] =
-    resolvedTypeArguments(
-      typeVariablesSeq,
-      normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions)
-    )
-
+  /**
+   * Height predicates and theorem instances with simultaneous type and value substitutions.
+   */
   final class HeightAdapter private[SemanticADT] () {
+
+    /**
+     * The unspecialized height predicate.
+     */
     def predicate(h: Expr[Ind]): Expr[Prop] = underlying.isHeight(h)
     private lazy val heightArgument = Variable[Ind](freshId(typeVariablesSeq, s"$name/heightArgument"))
 
-    /** Specializes the height predicate without substituting inside its argument. */
+    /**
+     * Specializes the height predicate without substituting inside its argument.
+     */
     def predicateAt(substitutions: Seq[TypeSubstitution])(h: Expr[Ind]): Expr[Prop] =
       predicate(heightArgument).substitute((substitutions :+ (heightArgument := h))*)
 
+    /**
+     * The datatype's general height function.
+     */
     val function: Expr[Ind] = underlying.height
-    
-    def validAt(
-        substitutions: Seq[TypeSubstitution]
-    )(using sourcecode.Line, sourcecode.File): THM =
-      instantiatedTheorem(
-        theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
-        suffix = "height/valid",
-        substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
-        baseTheorem = underlying.heightValid
-      )
 
-    def existsAt(
-        substitutions: Seq[TypeSubstitution]
-    )(using sourcecode.Line, sourcecode.File): THM =
-      instantiatedTheorem(
-        theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
-        suffix = "height/exists",
-        substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
-        baseTheorem = underlying.heightExists
-      )
+    private def specialize(base: THM, substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair])(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+      instantiate(base, normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions) ++ valueSubstitutions)
 
-    def monotonicAt(
-        substitutions: Seq[TypeSubstitution]
-    )(using sourcecode.Line, sourcecode.File): THM =
-      instantiatedTheorem(
-        theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
-        suffix = "height/monotonic",
-        substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
-        baseTheorem = underlying.heightMonotonic
-      )
+    /**
+     * Instantiates validity of the height function in the current proof.
+     */
+    def validAt(substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+      specialize(underlying.heightValid, substitutions, valueSubstitutions)
 
-    def zeroAt(
-        substitutions: Seq[TypeSubstitution]
-    )(using sourcecode.Line, sourcecode.File): THM =
-      instantiatedTheorem(
-        theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
-        suffix = "height/zero",
-        substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
-        baseTheorem = underlying.heightZero
-      )
+    /**
+     * Instantiates existence of a height function in the current proof.
+     */
+    def existsAt(substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+      specialize(underlying.heightExists, substitutions, valueSubstitutions)
 
-    def membershipMonotonicAt(
-        substitutions: Seq[TypeSubstitution]
-    )(using sourcecode.Line, sourcecode.File): THM =
-      instantiatedTheorem(
-        theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
-        suffix = "height/membershipMonotonic",
-        substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
-        baseTheorem = underlying.heightMembershipMonotonic
-      )
+    /**
+     * Instantiates monotonicity of height stages in the current proof.
+     */
+    def monotonicAt(substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+      specialize(underlying.heightMonotonic, substitutions, valueSubstitutions)
 
-    def successorInclusionAt(
-        substitutions: Seq[TypeSubstitution]
-    )(using sourcecode.Line, sourcecode.File): THM =
-      instantiatedTheorem(
-        theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
-        suffix = "height/successorInclusion",
-        substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
-        baseTheorem = underlying.heightSuccessorInclusion
-      )
+    /**
+     * Instantiates emptiness of the zero height stage in the current proof.
+     */
+    def zeroAt(substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+      specialize(underlying.heightZero, substitutions, valueSubstitutions)
 
-    def successorStrongAt(
-        substitutions: Seq[TypeSubstitution]
-    )(using sourcecode.Line, sourcecode.File): THM =
-      instantiatedTheorem(
-        theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
-        suffix = "height/successorStrong",
-        substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
-        baseTheorem = underlying.heightSuccessorStrong
-      )
+    /**
+     * Instantiates preservation of stage membership in the current proof.
+     */
+    def membershipMonotonicAt(substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+      specialize(underlying.heightMembershipMonotonic, substitutions, valueSubstitutions)
 
-    def termHasHeightAt(
-        substitutions: Seq[TypeSubstitution]
-    )(using sourcecode.Line, sourcecode.File): THM =
-      instantiatedTheorem(
-        theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
-        suffix = "height/termHasHeight",
-        substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
-        baseTheorem = underlying.termHasHeight
-      )
+    /**
+     * Instantiates inclusion in the successor stage in the current proof.
+     */
+    def successorInclusionAt(substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+      specialize(underlying.heightSuccessorInclusion, substitutions, valueSubstitutions)
 
-    def termsHaveHeightAt(
-        c: SyntacticConstructor,
-        substitutions: Seq[TypeSubstitution]
-    )(using sourcecode.Line, sourcecode.File): THM =
-      instantiatedTheorem(
-        theoremOwner = renderAppliedSymbol(name, typeVariablesSeq.size, normalizedTypeArguments(substitutions)),
-        suffix = "height/termsHaveHeight",
-        substitutions = normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions),
-        baseTheorem = underlying.termsHaveHeight(c)
-      )
+    /**
+     * Instantiates the successor-stage characterization in the current proof.
+     */
+    def successorStrongAt(substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+      specialize(underlying.heightSuccessorStrong, substitutions, valueSubstitutions)
 
-    def termsHaveHeightAt(
-        c: SemanticConstructor,
-        substitutions: Seq[TypeSubstitution]
-    )(using sourcecode.Line, sourcecode.File): THM =
+    /**
+     * Instantiates existence of a height for a datatype member in the current proof.
+     */
+    def termHasHeightAt(substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+      specialize(underlying.termHasHeight, substitutions, valueSubstitutions)
+
+    /**
+     * Instantiates a common height for a syntactic constructor's arguments.
+     */
+    def termsHaveHeightAt(c: SyntacticConstructor, substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+      underlying.termsHaveHeight(c, normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions) ++ valueSubstitutions)
+
+    /**
+     * Instantiates a common height for a semantic constructor's arguments.
+     */
+    def termsHaveHeightAt(c: SemanticConstructor, substitutions: Seq[TypeSubstitution])(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
       termsHaveHeightAt(c.underlying, substitutions)
+
+    /**
+     * Instantiates type and value parameters of a semantic constructor's common-height theorem together.
+     */
+    def termsHaveHeightAt(c: SemanticConstructor, substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair])(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+      termsHaveHeightAt(c.underlying, substitutions, valueSubstitutions)
   }
 
   val height = HeightAdapter()
@@ -192,108 +167,21 @@ class SemanticADT(
   val term: Expr[Ind] = underlying.term
 
   /**
-   *  Theorem --- Injectivity of constructors.
-   *
-   *  Two instances of different construcors are always different.
-   *
-   *  e.g. Nil != Cons(head, tail)
+   * Returns cached disjointness, with the first constructor's arguments quantified first.
    */
-  def disjointness(c1: SemanticConstructor, c2: SemanticConstructor) =
-
-    val vars1WellTyped: Set[Expr[Prop]] = wellTypedSet(c1.semanticSignature1)
-    val vars2WellTyped: Set[Expr[Prop]] = wellTypedSet(c2.semanticSignature2)
-    val typedAssumption =
-      simplify(wellTypedFormula(c1.semanticSignature1 ++ c2.semanticSignature2))
-
-    Lemma(
-      forallSeq(
-        c1.variables1 ++ c2.variables2,
-        typedAssumption ==> !(c1.appliedTerm1 === c2.appliedTerm2)
-      )
-    ) {
-
-      val defUnfolding = have(
-        (vars1WellTyped ++ vars2WellTyped) + (c1.appliedTerm1 === c2.appliedTerm2) |-
-          c1.structuralTerm1 === c2.structuralTerm2
-      ) subproof {
-        have(
-          forallSeq(
-            c1.variables1,
-            wellTypedFormula(c1.semanticSignature1) ==>
-              (c1.appliedTerm1 === c1.structuralTerm1)
-          )
-        ) by Restate.from(c1.shortDefinition)
-
-        c1.variables1.foldLeft(lastStep)((fact, v) =>
-          fact.statement.right.head match
-            case forall(_, phi) => thenHave(phi) by InstantiateForall(v)
-            case _ => throw UnreachableException
-        )
-
-        val tappTerm1Def =
-          thenHave(vars1WellTyped |- c1.structuralTerm1 === c1.appliedTerm1) by Restate
-
-        have(
-          forallSeq(
-            c2.variables2,
-            wellTypedFormula(c2.semanticSignature2) ==>
-              (c2.appliedTerm2 === c2.structuralTerm2)
-          )
-        ) by Restate.from(c2.shortDefinition)
-
-        c2.variables2.foldLeft(lastStep)((fact, v) =>
-          fact.statement.right.head match
-            case forall(_, phi) => thenHave(phi) by InstantiateForall(v)
-            case _ => throw UnreachableException
-        )
-        val tappTerm2Def =
-          thenHave(vars2WellTyped |- c2.appliedTerm2 === c2.structuralTerm2) by Restate
-
-        val s0 = have(
-          vars2WellTyped + (c1.appliedTerm1 === c2.appliedTerm2) |-
-            c1.appliedTerm1 === c2.structuralTerm2
-        ) by Cut(
-          tappTerm2Def,
-          altEqualityTransitivity of
-            (x := c1.appliedTerm1, y := c2.appliedTerm2, z := c2.structuralTerm2)
-        )
-        have(
-          vars1WellTyped + (c1.appliedTerm1 === c2.structuralTerm2) |-
-            c1.structuralTerm1 === c2.structuralTerm2
-        ) by Cut(
-          tappTerm1Def,
-          altEqualityTransitivity of
-            (x := c1.structuralTerm1, y := c1.appliedTerm1, z := c2.structuralTerm2)
-        )
-        have(thesis) by Cut(s0, lastStep)
-      }
-
-      have(!(c1.structuralTerm1 === c2.structuralTerm2)) by
-        Restate.from(c1.underlying.disjointness(c2.underlying))
-      thenHave(c1.structuralTerm1 === c2.structuralTerm2 |- ()) by Restate
-
-      have(
-        (vars1WellTyped ++ vars2WellTyped) + (c1.appliedTerm1 === c2.appliedTerm2) |- ()
-      ) by Cut(defUnfolding, lastStep)
-
-      val disjointness = thenHave(
-        vars1WellTyped ++ vars2WellTyped |- !(c1.appliedTerm1 === c2.appliedTerm2)
-      ) by Restate
-
-      have(typedAssumption ==> !(c1.appliedTerm1 === c2.appliedTerm2)) subproof {
-        assume(typedAssumption)
-        val typed = have(typedAssumption) by Hypothesis
-        have(!(c1.appliedTerm1 === c2.appliedTerm2)) by Tautology.from(disjointness, typed)
-      }
-      thenHave(thesis) by QuantifiersIntro(c1.variables1 ++ c2.variables2)
-    }
+  def disjointness(c1: SemanticConstructor, c2: SemanticConstructor): THM =
+    require(
+      constructors.contains(c1) && constructors.contains(c2) && c1 != c2,
+      s"Disjointness requires two distinct constructors of $name."
+    )
+    c1.disjointnessSchema(c2)
 
   /**
    *  Theorem --- Structural induction principle for this ADT.
    *
    *  `base cases => inductive cases => ∀x ∈ ADT. P(x)`
    */
-  val induction = Lemma(
+  lazy val induction = Lemma(
     constructors.foldRight[Expr[Prop]](forall(x, x :: term ==> P(x)))((c, f) => c.inductiveCase ==> f)
   ) { sp ?=>
     constructors.foldRight[(Expr[Prop], Expr[Prop], sp.Fact)] {
@@ -438,139 +326,35 @@ class SemanticADT(
    *
    *  `∀x. x ∈ ADT ==> x = c * x1 * ... * xn for some constructor c and xi, ..., xj ∈ ADT`
    */
-  lazy val elim = Lemma(forall(x, x :: term ==> simplify(isConstructor))) {
+  lazy val elim = Lemma(forall(x, x :: term ==> simplify(isConstructor))) { sp ?=>
+    val property = lambda(x, isConstructor)
+    val cases = constructors.map { c =>
+      val typings = wellTypedSet(c.semanticSignature)
+      val branch = isConstructorMap(c).substitute(x := c.appliedTerm)
 
-    // Induction preconditions with P(z) = z != x
-    val inductionPreconditionIneq = constructors
-      .map(c => c -> betaReduce(c.inductiveCase.substitute(P -> lambda(z, !(x === z)))))
-      .toMap
-    val inductionPreconditionsIneq = seqAnd(inductionPreconditionIneq.map(_._2))
+      // Supply this constructor's arguments as witnesses for its own disjunct.
+      def introduceWitnesses(formula: Expr[Prop], arguments: List[Expr[Ind]]): sp.Fact = arguments match
+        case Nil => have(typings |- formula) by Restate
+        case scala.collection.immutable.::(argument, rest) =>
+          formula match
+            case exists(v, body) =>
+              val premise = introduceWitnesses(body.substitute(v := argument), rest)
+              have(typings |- formula) by RightExists.withParameters(body, v, argument)(premise)
+            case _ => throw UnreachableException
 
-    // Weakening of the negation of the induction preconditions
-    val weakNegInductionPreconditionIneq: Map[SemanticConstructor, Expr[Prop]] =
-      constructors
-        .map(c =>
-          c -> c.semanticSignature2.foldRight[Expr[Prop]](x === c.appliedTerm2)((el, fc) =>
-            val (v, t) = el
-            exists(v, (v :: t) /\ fc)
-          )
-        )
-        .toMap
+      val witness = introduceWitnesses(branch, c.variables.toList)
+      val constructorCase = have(typings |- isConstructor.substitute(x := c.appliedTerm)) by Weakening(witness)
 
-    // STEP 1: Prove that if the induction preconditions with P(z) = z != x do not hold then x is the instance of some constructor
-    val strengtheningOfInductionPreconditions =
-      have(!inductionPreconditionsIneq |- isConstructor) subproof {
-        if constructors.isEmpty then have(thesis) by Restate
-        else
-
-          // STEP 1.1: Prove the claim for each constructor
-          val negInductionPreconditionsOrSequence =
-            for c <- constructors yield
-
-              // STEP 1.1.1: Prove the strengthening of the negations of the induction preconditions
-              val conditionStrenghtening = have(
-                !inductionPreconditionIneq(c) |- weakNegInductionPreconditionIneq(c)
-              ) subproof {
-
-                val baseF = !(x === c.appliedTerm2)
-                val baseW = x === c.appliedTerm2
-                val seed = (baseF, baseW, have(!baseF |- baseW) by Restate)
-
-                val (_, _, finalFact) = c
-                  .syntacticSignature(c.variables2)
-                  .foldRight(seed)((el, acc) =>
-                    val (v, ty) = el
-                    val (currF, currW, currFact) = acc
-                    val argType = ty.getOrElse(term)
-
-                    have(!currF |- currW) by Restate.from(currFact)
-
-                    val nextF = ty match
-                      case SelfRef =>
-                        thenHave(!(!(x === v) ==> currF) |- currW) by Tautology
-                        (!(x === v) ==> currF)
-                      case _ =>
-                        currF
-
-                    val nextF2 = (v :: argType) ==> nextF
-                    thenHave(!nextF2 |- currW) by Tautology
-
-                    val newW = exists(v, (v :: argType) /\ currW)
-                    thenHave(!nextF2 |- (v :: argType) /\ currW) by Restate
-                    thenHave(!nextF2 |- newW) by RightExists
-
-                    val newF = forall(v, nextF2)
-                    thenHave(exists(v, !(nextF2)) |- newW) by LeftExists
-
-                    val newFact = have(!newF |- newW) by Restate.from(lastStep)
-
-                    (newF, newW, newFact)
-                  )
-
-                have(thesis) by Restate.from(finalFact)
-              }
-
-              // STEP 1.1.2: Conclude
-              // `weakNegInductionPreconditionIneq(c)` is the *nested* existential
-              //   ∃v1.((v1::t1) ∧ ∃v2.((v2::t2) ∧ … ∧ (x = c(v1,…,vk)))),
-              // while `isConstructorMap(c)` is the *flat* one
-              //   ∃v1…∃vk.((v1::t1) ∧ … ∧ (vk::tk) ∧ (x = c(v1,…,vk))).
-              // They are first-order equivalent; rather than calling `Tableau`, peel the
-              // nested ∃ accumulating the typing hypotheses, rebuild the flat ∃ with
-              // `RightExists`, then fold the typings back in with `LeftExists`.
-              have(weakNegInductionPreconditionIneq(c) |- isConstructorMap(c)) subproof {
-                val sig = c.semanticSignature2
-                val vars = c.variables2
-                val base = x === c.appliedTerm2
-                val typings: Seq[Expr[Prop]] = sig.map((v, t) => v :: t)
-                val flatBody = wellTypedFormula(sig) /\ base
-
-                // core: all typing hypotheses + base entail the flat existential.
-                val coreFact = have((typings.toSet + base) |- isConstructorMap(c)) subproof {
-                  assume((typings :+ base)*)
-                  have(flatBody) by Restate
-                  vars.indices.reverse.foreach { i =>
-                    val phi = existsSeq(vars.drop(i + 1), flatBody)
-                    thenHave(∃(vars(i), phi)) by RightExists.withParameters(phi, vars(i), vars(i))
-                  }
-                }
-
-                // Fold each typing hypothesis back under its existential, rebuilding the
-                // nested `weakNeg` formula incrementally as we go.
-                var nested: Expr[Prop] = base
-                var fact = coreFact
-                for (i <- (vars.size - 1) to 0 by -1) {
-                  val combined = (vars(i) :: sig(i)._2) /\ nested
-                  val outer = typings.take(i).toSet
-                  have((outer + combined) |- isConstructorMap(c)) by Restate.from(fact)
-                  nested = ∃(vars(i), combined)
-                  fact = thenHave((outer + nested) |- isConstructorMap(c)) by LeftExists
-                }
-                have(thesis) by Restate.from(fact)
-              }
-              have(!inductionPreconditionIneq(c) |- isConstructorMap(c)) by
-                Cut(conditionStrenghtening, lastStep)
-              thenHave(!inductionPreconditionIneq(c) |- isConstructor) by Weakening
-
-          have(thesis) by LeftOr(negInductionPreconditionsOrSequence*)
+      // Abstract the typed arguments; recursive induction hypotheses are unused.
+      c.syntacticSignature.foldRight[sp.Fact](constructorCase) { case ((v, ty), fact) =>
+        val withHypothesis = ty match
+          case SelfRef => have(fact.statement.left |- isConstructor.substitute(x := v) ==> fact.statement.right.head) by Weakening(fact)
+          case TypeArg(_) => fact
+        val typing = v :: ty.getOrElse(term)
+        val implication = have((withHypothesis.statement.left - typing) |- typing ==> withHypothesis.statement.right.head) by Restate.from(withHypothesis)
+        have(implication.statement.left |- forall(v, implication.statement.right.head)) by RightForall(implication)
       }
-
-    // STEP 2: Conclude
-    have(inductionPreconditionsIneq |- forall(z, z :: term ==> !(x === z))) by
-      Restate.from(induction of (P := lambda(z, !(x === z))))
-    thenHave(inductionPreconditionsIneq |- x :: term ==> !(x === x)) by
-      InstantiateForall(x)
-    thenHave(x :: term |- !inductionPreconditionsIneq) by Restate
-    val eliminationCase = have(x :: term |- isConstructor) by
-      Cut(lastStep, strengtheningOfInductionPreconditions)
-
-    have(x :: term ==> simplify(isConstructor)) subproof {
-      assume(x :: term)
-      val xTyped = have(x :: term) by Hypothesis
-      have(simplify(isConstructor)) by Tautology.from(eliminationCase, xTyped)
     }
-    thenHave(thesis) by RightForall
+    have(thesis) by Tautology.from((Seq[sp.Fact](induction of (P := property)) ++ cases)*)
   }
-
-
 }

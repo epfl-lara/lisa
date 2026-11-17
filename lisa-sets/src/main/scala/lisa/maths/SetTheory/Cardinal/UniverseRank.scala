@@ -1,12 +1,14 @@
 package lisa.maths.SetTheory.Cardinal
 
-import lisa.maths.SetTheory.Base.Predef.{_, given}
 import lisa.maths.Quantifiers.existsEpsilon
-import lisa.maths.SetTheory.Ordinals.Ordinal
-import lisa.maths.SetTheory.Ordinals.Ordinal.{ordinal, elementOfOrdinal, comparability}
-import lisa.maths.SetTheory.Ordinals.TransitiveSet
+import lisa.maths.SetTheory.Base.Predef.{_, given}
 import lisa.maths.SetTheory.Order.Predef._
 import lisa.maths.SetTheory.Order.WellOrders.WellOrder
+import lisa.maths.SetTheory.Ordinals.Ordinal
+import lisa.maths.SetTheory.Ordinals.Ordinal.comparability
+import lisa.maths.SetTheory.Ordinals.Ordinal.elementOfOrdinal
+import lisa.maths.SetTheory.Ordinals.Ordinal.ordinal
+import lisa.maths.SetTheory.Ordinals.TransitiveSet
 import lisa.maths.SetTheory.Relations.BasicTheorems
 import lisa.maths.SetTheory.Relations.Examples.MembershipRelation
 import lisa.maths.SetTheory.Relations.Predef._
@@ -31,7 +33,9 @@ object UniverseRank extends lisa.Main:
    */
   val level = DEF(λ(U, ε(k, ∀(x, x ∈ k <=> (x ∈ U /\ ordinal(x))))))
 
-  /** Membership in the set of ordinals contained in U. */
+  /**
+   * Membership in the set of ordinals contained in U.
+   */
   val levelMembership = Theorem(
     x ∈ level(U) <=> (x ∈ U /\ ordinal(x))
   ) {
@@ -85,7 +89,9 @@ object UniverseRank extends lisa.Main:
 
     val totalRelation = have(total(r)(L)) subproof {
       have((x ∈ L, y ∈ L) |- ((x, y) ∈ r) \/ ((y, x) ∈ r) \/ (x === y)) by Tautology.from(
-        levelMembership, levelMembership of (x := y), comparability of (α := x, β := y),
+        levelMembership,
+        levelMembership of (x := y),
+        comparability of (α := x, β := y),
         MembershipRelation.membership of (A := L),
         MembershipRelation.membership of (x := y, y := x, A := L)
       )
@@ -121,7 +127,10 @@ object UniverseRank extends lisa.Main:
     }
 
     have(ordinal(L)) by Tautology.from(
-      transitiveLevel, transitiveRelation, totalRelation, foundedRelation,
+      transitiveLevel,
+      transitiveRelation,
+      totalRelation,
+      foundedRelation,
       MembershipRelation.irreflexivity of (A := L),
       MembershipRelation.isRelation of (A := L),
       BasicTheorems.relationOnIsRelation of (R := r, X := L),

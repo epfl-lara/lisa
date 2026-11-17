@@ -1,12 +1,10 @@
 package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.syntax
 
 import lisa.maths.SetTheory.SetTheory.{_, given}
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.PatternValidation
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
 import lisa.maths.SetTheory.Types.ADTv2.interface.Constructor
 import lisa.maths.SetTheory.Types.ADTv2.interface.SpecializedADT
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.PatternValidation
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.nested.NestedConstructorPattern
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.appSeq
-import lisa.maths.SetTheory.Types.TypingHelpers.::
 
 case class Case(cons: Constructor[?], args: Expr[Ind]*) {
 
@@ -26,30 +24,21 @@ case class Case(cons: Constructor[?], args: Expr[Ind]*) {
       builder: CaseAccumulator[proof.ProofStep, (Sequent, SpecializedADT[?], Variable[Ind])]
   )(subproof: proof.InnerProof ?=> Unit): Unit =
     val (bot, adt, adtVar) = builder.comp
-    PatternValidation.validateCase(cons, args, adt).fold(message => throw new IllegalArgumentException(message), identity)
-    val typeArgs = adt.typeArgs
-    val pattern = NestedConstructorPattern.fromArgs(
-      cons.semantic,
-      args.map {
-        case v: Variable[Ind] => Left(v)
-        case term => Right(term)
-      },
-      ∅,
-      cons.semantic.typeVariablesSeq.zip(typeArgs).map((v, typ) => v := typ),
-      adt.term
+    val resolved = PatternValidation.resolveCase(cons, args, adt).fold(message => throw new IllegalArgumentException(message), identity)
+    val pattern = Pattern.fromResolved(
+      resolved,
+      bot.left.toSeq ++ bot.right.toSeq :+ adtVar
     )
     val vars = pattern.topBinders
     val prop = bot.right.head
-    val consTerm = appSeq(cons.semantic.term(typeArgs))(vars)
+    val consTerm = pattern.inputTerm
     val subst = adtVar -> consTerm
 
     val assumptions = pattern.typingPremises
       ++ cons.semantic
         .recursiveBinders(vars)
         .map(v => prop.substitute(adtVar -> v))
-      ++ args.zip(vars).collect {
-        case (t, v) if !t.isInstanceOf[Variable[Ind]] => v === t
-      }
+      ++ pattern.guards.map(guard => guard.binder === guard.guardTerm)
 
     val botWithAssumptions = bot.substitute(subst) ++ (assumptions |- ())
 
@@ -66,7 +55,7 @@ case class Case(cons: Constructor[?], args: Expr[Ind]*) {
       else return proof.InvalidProofTactic(s"Proof of case ${cons.name} is invalid.\nExpected: ${botWithAssumptions}.")
     }
 
-    builder += (cons, args, subproofWithExtraStep.validate(line, file))
+    builder.addResolved(pattern, subproofWithExtraStep.validate(line, file))
 
   /**
    *  Used in the context of a function definition. Adds the body of the case to a

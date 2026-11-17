@@ -3,8 +3,6 @@ package lisa.maths.SetTheory.Types.ADTv2.support
 import lisa.maths.SetTheory.Functions.Function.app
 import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.SetTheory.{_, given}
-import lisa.utils.prooflib.QuantifiersIntro
-import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.UnreachableException
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.a
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.b
@@ -14,11 +12,15 @@ import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.x
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.maths.SetTheory.Types.TypingTheorems.arrowElim
 import lisa.utils.fol.FOL.SubstPair
+import lisa.utils.prooflib.QuantifiersIntro
 
 object InterfaceHelpers {
 
   type TypeSubstitution = SubstPair { type S = Ind }
 
+  /**
+   * Validates type substitutions and orders them by the owner's declared parameters.
+   */
   def normalizeTypeSubstitutions(
       ownerKind: String,
       ownerName: String,
@@ -26,33 +28,25 @@ object InterfaceHelpers {
       substitutions: Seq[TypeSubstitution]
   ): Seq[TypeSubstitution] = {
     val allowed = typeVariables.toSet
-    val grouped = scala.collection.mutable.LinkedHashMap.empty[Variable[Ind], TypeSubstitution]
+    val byVariable = scala.collection.mutable.Map.empty[Variable[Ind], Expr[Ind]]
 
     substitutions.foreach { substitution =>
-      val variable = substitution._1.asInstanceOf[Variable[Ind]]
-      val value = substitution._2.asInstanceOf[Expr[Ind]]
+      val variable = substitution._1
+      val value = substitution._2
       require(
         allowed.contains(variable),
         s"$ownerKind $ownerName cannot substitute non-type variable $variable."
       )
-      if grouped.contains(variable) then
-        val previous = grouped(variable)
-        require(
-          previous._2.asInstanceOf[Expr[Ind]] == value,
-          s"$ownerKind $ownerName received incompatible substitutions for $variable."
-        )
-      else grouped.update(variable, variable := value)
+      byVariable.get(variable) match
+        case Some(previous) =>
+          require(
+            previous == value,
+            s"$ownerKind $ownerName received incompatible substitutions for $variable."
+          )
+        case None => byVariable.update(variable, value)
     }
 
-    typeVariables.flatMap(grouped.get)
-  }
-
-  def getRemainingTypeVariables(
-      typeVariables: Seq[Variable[Ind]],
-      substitutions: Seq[TypeSubstitution]
-  ): Seq[Variable[Ind]] = {
-    val substituted = substitutions.map(_._1.asInstanceOf[Variable[Ind]]).toSet
-    typeVariables.filterNot(substituted.contains)
+    typeVariables.flatMap(variable => byVariable.get(variable).map(value => variable := value))
   }
 
   def substitutionsFromArgs(
@@ -68,37 +62,8 @@ object InterfaceHelpers {
     typeVariables.zip(args).map((variable, arg) => variable := arg)
   }
 
-  def substitutionMap(
-      substitutions: Seq[TypeSubstitution]
-  ): Map[Variable[Ind], Expr[Ind]] =
-    substitutions.map(substitution => substitution._1.asInstanceOf[Variable[Ind]] -> substitution._2.asInstanceOf[Expr[Ind]]).toMap
-
-  def resolvedTypeArguments(
-      typeVariables: Seq[Variable[Ind]],
-      substitutions: Seq[TypeSubstitution]
-  ): Seq[Expr[Ind]] = {
-    val mapping = substitutionMap(substitutions)
-    typeVariables.map(variable => mapping.getOrElse(variable, variable))
-  }
-
   def specializeTerm(term: Expr[Ind], substitutions: Seq[TypeSubstitution]): Expr[Ind] =
     term.substitute(substitutions*)
-
-  def specializeFormula(
-      formula: Expr[Prop],
-      substitutions: Seq[TypeSubstitution]
-  ): Expr[Prop] =
-    formula.substitute(substitutions*)
-
-  def quantifiedTypeFormula(
-      formula: Expr[Prop],
-      typeVariables: Seq[Variable[Ind]],
-      substitutions: Seq[TypeSubstitution]
-  ): Expr[Prop] =
-    forallSeq(
-      getRemainingTypeVariables(typeVariables, substitutions),
-      specializeFormula(formula, substitutions)
-    )
 
   def formulaOf(statement: Sequent, owner: String): Expr[Prop] = {
     require(
@@ -107,20 +72,6 @@ object InterfaceHelpers {
     )
     statement.right.head
   }
-
-  def quantifiedTypeStatement(
-      statement: Sequent,
-      typeVariables: Seq[Variable[Ind]],
-      substitutions: Seq[TypeSubstitution],
-      owner: String
-  ): Expr[Prop] =
-    quantifiedTypeFormula(formulaOf(statement, owner), typeVariables, substitutions)
-
-  def requireMonomorphicAccess(ownerKind: String, ownerName: String, typeVariables: Seq[Variable[Ind]]): Unit =
-    require(
-      typeVariables.isEmpty,
-      s"$ownerKind $ownerName expects ${typeVariables.size} type argument(s)."
-    )
 
   def instantiatedSemanticSignature(
       signature: Seq[(Variable[Ind], Expr[Ind])],
@@ -141,7 +92,8 @@ object InterfaceHelpers {
         accType match
           case domainType ->: codomainType =>
             val argumentTyping = assume(argument :: domainType)
-            val nextFact = have(app(accTerm)(argument) :: codomainType) by Tautology.from(
+            val appliedTerm = app(accTerm)(argument)
+            val nextFact = have(appliedTerm :: codomainType) by Tautology.from(
               accFact,
               arrowElim of (
                 f := accTerm,
@@ -151,18 +103,13 @@ object InterfaceHelpers {
               ),
               argumentTyping
             )
-            (nextFact, app(accTerm)(argument), codomainType)
+            (nextFact, appliedTerm, codomainType)
           case _ => throw UnreachableException
       }
       ._1
 
   /**
-   * The general form of `baseTheorem`, universally closed over the owner's type
-   * variables. A caller wanting it at specific type arguments instantiates this with
-   * `of` rather than asking for a separately proved copy.
-   *
-   * A monomorphic owner has nothing to close over, so the base theorem is returned
-   * unchanged and no derived theorem is created at all.
+   * Closes a theorem over the type parameters, returning the original when there are none.
    */
   def generalTheorem(using
       line: sourcecode.Line,
@@ -188,38 +135,20 @@ object InterfaceHelpers {
       }
 
   /**
-   * A copy of `baseTheorem` with type variables substituted away.
-   *
-   * Unlike the user-facing accessors, which expose one general theorem and let callers
-   * instantiate it with `of`, the internal height machinery needs a standalone theorem
-   * outside any proof, so it still pays for a derived copy per instantiation.
+   * Instantiates a theorem in the current proof, preserving the original for identity substitutions.
    */
-  def instantiatedTheorem(using
-      line: sourcecode.Line,
-      file: sourcecode.File
+  def instantiate(using
+      proof: lisa.SetTheoryLibrary.Proof
   )(
-      theoremOwner: String,
-      suffix: String,
-      substitutions: Seq[TypeSubstitution],
-      baseTheorem: THM
-  ): THM = {
-    val theoremName = s"$theoremOwner/$suffix"
-    THM(
-      baseTheorem.statement.substitute(substitutions*),
-      theoremName,
-      line.value,
-      file.value,
-      Theorem
-    ) {
-      have(thesis) by Restate.from(baseTheorem.of(substitutions*))
-    }
+      baseTheorem: THM,
+      substitutions: Seq[SubstPair]
+  ): proof.Fact = {
+    if substitutions.forall(substitution => substitution._1 == substitution._2) then baseTheorem
+    else baseTheorem.of(substitutions*)
   }
 
   /**
-   * The applied ("curried") form of a typing introduction rule. Unlike
-   * [[generalTheorem]] this is a genuinely derived statement rather than an instance of
-   * the base one, so it is proved once, in general form, over the owner's type
-   * variables; callers instantiate it with `of`.
+   * Derives typing for the symbol applied to its arguments, under their typing assumptions.
    */
   def introAppTheorem(using
       line: sourcecode.Line,

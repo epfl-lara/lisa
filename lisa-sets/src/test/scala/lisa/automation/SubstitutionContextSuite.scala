@@ -1,10 +1,10 @@
 package lisa.automation
 
 import lisa.SetTheoryLibrary
-import lisa.SetTheoryLibrary.*
+import lisa.SetTheoryLibrary._
 import lisa.utils.K
-import lisa.utils.fol.FOL.*
-import lisa.utils.prooflib.BasicStepTactic.*
+import lisa.utils.fol.FOL._
+import lisa.utils.prooflib.BasicStepTactic._
 import lisa.utils.prooflib.OutputManager
 import org.scalatest.funsuite.AnyFunSuite
 

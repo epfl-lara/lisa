@@ -3,14 +3,14 @@ package lisa.maths.SetTheory.Types.ADTv2.recursion.helpers
 import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.Ordinals.Ordinal.S
 import lisa.maths.SetTheory.SetTheory.{_, given}
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Clause
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.SpecializedConstructorFacts
-import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.constructorDisjunctionAtHeight
 import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.constructorBranchAtHeight
-import lisa.utils.prooflib.InstantiateForallSeq
+import lisa.maths.SetTheory.Types.ADTv2.recursion.proofs.ConstructorSemanticFacts.constructorDisjunctionAtHeight
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADTv2.support.tactics.Cuts
+import lisa.utils.prooflib.InstantiateForallSeq
 
 /**
  * Shared structural core of a "pointwise agreement at the S height"
@@ -41,8 +41,7 @@ private[recursion] object PointwiseAgreementStep {
    *
    *   - `sliceLeft`/`sliceRight` — the functions the slice-agreement hypothesis relates
    *     (recursion threads through these); the case bodies substitute them.
-   *   - `recursiveType`/`heightMembershipMonotonic` — locate and type the nested recursive
-   *     agreement points.
+   *   - `recursiveType` — locates and types the nested recursive agreement points.
    *   - `sliceAgreement` — the `∀(v ∈ h(currentIndex), sliceLeft(v) === sliceRight(v))` hypothesis.
    *   - `bodyEqAssumptions` — the assumption set under which body equality is proved
    *     (kept atomic to control proof cost).
@@ -51,16 +50,19 @@ private[recursion] object PointwiseAgreementStep {
    */
   trait PatternCaseEquations {
     def recursiveType: Expr[Ind]
-    def heightMembershipMonotonic: THM
     def sliceLeft: Expr[Ind]
     def sliceRight: Expr[Ind]
     def sliceAgreement(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact
-    def bodyEqAssumptions(using proof: lisa.SetTheoryLibrary.Proof)(
-        pattern: Pattern,
+    def bodyEqAssumptions(using
+        proof: lisa.SetTheoryLibrary.Proof
+    )(
+        pattern: Clause[Expr[Ind]],
         patternGuard: proof.Fact
     ): Set[Expr[Prop]]
-    def caseEquation(using proof: lisa.SetTheoryLibrary.Proof)(
-        pattern: Pattern,
+    def caseEquation(using
+        proof: lisa.SetTheoryLibrary.Proof
+    )(
+        pattern: Clause[Expr[Ind]],
         slice: Expr[Ind],
         patternPremise: proof.Fact,
         patternGuard: proof.Fact,
@@ -68,7 +70,9 @@ private[recursion] object PointwiseAgreementStep {
     ): (Expr[Ind], proof.Fact)
   }
 
-  private def agreementAt(using proof: lisa.SetTheoryLibrary.Proof)(
+  private def agreementAt(using
+      proof: lisa.SetTheoryLibrary.Proof
+  )(
       heightFun: Expr[Ind],
       currentIndex: Expr[Ind],
       leftFun: Expr[Ind],
@@ -88,14 +92,14 @@ private[recursion] object PointwiseAgreementStep {
   def pointwiseAgreementOnSucc(using
       proof: lisa.SetTheoryLibrary.Proof
   )(
-      patternMatching: PatternSystem,
+      patternMatching: PatternSystem[Expr[Ind]],
       heightFun: Expr[Ind],
       constructorsAt: Seq[SpecializedConstructorFacts],
       ambientTerm: Variable[Ind],
       currentIndex: Expr[Ind],
       currentIndexInN: proof.Fact,
       hValid: proof.Fact,
-      heightSuccStrong: THM,
+      heightSuccStrong: proof.Fact,
       goalEqAt: Expr[Prop]
   )(
       caseEqs: PatternCaseEquations
@@ -112,7 +116,7 @@ private[recursion] object PointwiseAgreementStep {
         // height-membership hypothesis through it to land on the constructor disjunction.
         val heightSuccIff = have(
           (ambientTerm ∈ app(heightFun)(S(currentIndex))) <=> constructorDisjunction
-        ) by Cuts(heightSuccStrong of (h := heightFun, n := currentIndex, x := ambientTerm))(
+        ) by Cuts(heightSuccStrong)(
           hValid,
           currentIndexInN
         )
@@ -120,7 +124,7 @@ private[recursion] object PointwiseAgreementStep {
 
         val branchEqualities = constructorsAt.map { sc =>
           val c = sc.underlying
-          val constructorPatterns = patternMatching.patternsFor(c)
+          val constructorPatterns = patternMatching.clausesFor(c)
           val branchPremise = sc.branchPremiseAtHeight(app(heightFun)(currentIndex), ambientTerm)
 
           val directBranch = have(branchPremise |- goalEqAt) subproof {
@@ -143,7 +147,7 @@ private[recursion] object PointwiseAgreementStep {
             // The per-pattern agreement proof, shared between the witness and uniqueness
             // steps; only `caseEqs.caseEquation` (how `goalFun * input === body` is obtained
             // for each side) is function-specific.
-            val rawEqFor = (pattern: Pattern) =>
+            val rawEqFor = (pattern: Clause[Expr[Ind]]) =>
               have(pattern.branchSelectionBody(ambientTerm) |- goalEqAt) subproof {
                 val selectedPattern = assume(pattern.branchSelectionBody(ambientTerm))
                 val patternGuard = have(pattern.freshBranchCondition) by Weakening(selectedPattern)
@@ -154,12 +158,11 @@ private[recursion] object PointwiseAgreementStep {
                 val patternPremise = have(pattern.freshBranchPremise) by Weakening(patternPremiseConj)
 
                 val innerAgreements = pattern.recursiveAgreementPoints(caseEqs.recursiveType).map { point =>
-                  val pointInHeight = pattern.recursiveAgreementPointInHeight(
+                  val pointInHeight = pattern.pattern.recursiveAgreementPointInHeight(
                     target = point,
                     recursiveType = caseEqs.recursiveType,
                     heightFun = heightFun,
                     hValid = hValid,
-                    heightMembershipMonotonic = caseEqs.heightMembershipMonotonic,
                     currentIndex = currentIndex,
                     currentIndexInN = currentIndexInN,
                     argsTypedAtHeight = argsTypedAtHeight,
@@ -168,7 +171,6 @@ private[recursion] object PointwiseAgreementStep {
                   )
                   agreementAt(heightFun, currentIndex, caseEqs.sliceLeft, caseEqs.sliceRight, sliceAgreement, point, pointInHeight)
                 }
-
 
                 val bodyEqAssumptions = caseEqs.bodyEqAssumptions(pattern, patternGuard)
                 val (leftBody, leftEq) = caseEqs.caseEquation(pattern, caseEqs.sliceLeft, patternPremise, patternGuard, bodyEqAssumptions)
@@ -185,7 +187,7 @@ private[recursion] object PointwiseAgreementStep {
             val selectionAtCtorVars = have(
               (wellTypedFormula(sc.semanticSignature2) /\ (ambientTerm === sc.appliedTerm2)) |-
                 seqOr(constructorPatterns.map(pattern => pattern.branchSelectionDisjunct(ambientTerm)))
-            ) by InstantiateForallSeq(c.variables2)(selectionSchemaInContext)
+            ) by InstantiateForallSeq(sc.variables2)(selectionSchemaInContext)
             val selectionConjunction = have(
               wellTypedFormula(sc.semanticSignature2) /\ (ambientTerm === sc.appliedTerm2)
             ) by RightAnd(argsTypedSemantic, aEqApplied)
@@ -213,7 +215,7 @@ private[recursion] object PointwiseAgreementStep {
             have(goalEqAt) by Cut(selectedBranch, branchesToGoal)
           }
 
-          val rawBranch = sc.underlying.variables2.reverse.foldLeft(directBranch -> branchPremise) { case ((fact, premise), v) =>
+          val rawBranch = sc.variables2.reverse.foldLeft(directBranch -> branchPremise) { case ((fact, premise), v) =>
             val wrappedPremise = ∃(v, premise)
             val lifted = have(fact.statement -<? premise +<? wrappedPremise) by
               LeftExists.withParameters(premise, v)(fact)
@@ -227,7 +229,7 @@ private[recursion] object PointwiseAgreementStep {
           have(constructorDisjunction |- goalEqAt) by Tautology.from(branchEqualities*)
 
         have(goalEqAt) by Cut(decomposeAtA, branchesToGoal)
-        thenHave(ambientTerm ∈ app(heightFun)(S(currentIndex)) ==> goalEqAt) by 
+        thenHave(ambientTerm ∈ app(heightFun)(S(currentIndex)) ==> goalEqAt) by
           RightImplies.withParameters(ambientTerm ∈ app(heightFun)(S(currentIndex)), goalEqAt)
       }
 

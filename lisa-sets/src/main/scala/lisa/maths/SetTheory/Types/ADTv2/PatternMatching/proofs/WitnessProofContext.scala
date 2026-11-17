@@ -2,8 +2,7 @@ package lisa.maths.SetTheory.Types.ADTv2.PatternMatching.proofs
 
 import lisa.maths.SetTheory.Base.Comprehension.|
 import lisa.maths.SetTheory.SetTheory.{_, given}
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.ConstructorHeadPattern
-import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Pattern
+import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.Clause
 import lisa.maths.SetTheory.Types.ADTv2.PatternMatching.semantics.PatternSystem
 import lisa.maths.SetTheory.Types.ADTv2.encoding._
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
@@ -12,7 +11,7 @@ private[proofs] trait WitnessProofContext {
 
   protected val adt: SemanticADT
   protected val argType: Expr[Ind]
-  protected val patternMatching: PatternSystem
+  protected val patternMatching: PatternSystem[Expr[Ind]]
   protected val returnType: Expr[Ind]
   protected val typ: Expr[Ind]
   protected val witness: Expr[Ind]
@@ -20,7 +19,7 @@ private[proofs] trait WitnessProofContext {
   protected val witnessBound: Expr[Ind]
   protected val pairWitness: Variable[Ind]
   protected val caseMembership: Expr[Ind] => Expr[Prop]
-  protected val checkReturnType: Map[Pattern, JUSTIFICATION]
+  protected val checkReturnType: Map[Clause[Expr[Ind]], JUSTIFICATION]
   protected val contextPremises: Seq[Expr[Prop]]
 
   protected val inputTerm: Variable[Ind] = variable[Ind]
@@ -42,6 +41,4 @@ private[proofs] trait WitnessProofContext {
   protected def contextualize(formula: Expr[Prop]): Expr[Prop] =
     if contextPremises.isEmpty then formula else simplify(contextPremise ==> formula)
 
-  protected def constructorHead(pattern: Pattern): ConstructorHeadPattern =
-    ConstructorHeadPattern.require(pattern)
 }
