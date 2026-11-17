@@ -1,5 +1,6 @@
 package lisa.hol
 import lisa.SetTheoryLibrary
+import lisa.hol.HOLSteps.HOLProofType
 import lisa.hol.Import.Transformers.mkTypedVar
 import lisa.hol.VarsAndFunctions._
 import lisa.maths.SetTheory.Base.Predef.∈
@@ -9,9 +10,12 @@ import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.utils.K
 import lisa.utils.fol.FOL._
 import lisa.utils.prooflib.BasicStepTactic._
-import lisa.utils.prooflib.SimpleDeducedSteps.*
-import SetTheoryLibrary.{have, thenHave, lastStep, Proof}
-import lisa.hol.HOLSteps.{HOLProofType}
+import lisa.utils.prooflib.SimpleDeducedSteps._
+
+import SetTheoryLibrary.have
+import SetTheoryLibrary.thenHave
+import SetTheoryLibrary.lastStep
+import SetTheoryLibrary.Proof
 
 object ExtendedHOLSteps extends lisa._HOL {
 
@@ -36,7 +40,9 @@ object ExtendedHOLSteps extends lisa._HOL {
   private val q = typedvar(𝔹)
   private val r = typedvar(𝔹)
 
-  /** Discharge a derived typing fact, retaining an explicit variable assignment. */
+  /**
+   * Discharge a derived typing fact, retaining an explicit variable assignment.
+   */
   private def dischargeTyping(using proof: Proof)(term: Expr[Ind], from: proof.Fact): proof.Fact =
     term match
       case _: TypedVariable => from
@@ -67,18 +73,15 @@ object ExtendedHOLSteps extends lisa._HOL {
           if isSame(ta, tb) then
             if isSame(aa, ab) then
               (s1.left ++ s2.left).foreach(ip.addAssumption)
-              val firstEquality = (holeq(aa) * s * ta) === One
               val secondEquality = (holeq(aa) * ta * u) === One
               val result = (holeq(aa) * s * u) === One
-              val typings = Set(s :: aa, ta :: aa, u :: aa)
-              val transitivity = HOLHelperTheorems.eqTrans of (x := s, y := ta, z := u, A := aa)
-              val r0 = have((s1.left ++ typings + secondEquality) |- result) by
-                Cut.withParameters(firstEquality)(t1, transitivity)
-              val r1 = have((s1.left ++ s2.left ++ typings) |- result) by
-                Cut.withParameters((holeq(aa) * ta * u) === One)(t2, r0)
-              val r2 = dischargeTyping(s, r1)
-              val r3 = dischargeTyping(ta, r2)
-              dischargeTyping(u, r3)
+              val typings = Set(ta :: aa, u :: aa)
+              val comparison = have((s2.left ++ typings) |- ta === u) by
+                Cut.withParameters(secondEquality)(t2, HOLHelperTheorems.eqFromHol of (x := ta, y := u, A := aa))
+              val hole = Variable.fresh[Ind](s1.freeVars ++ s2.freeVars, "subst")
+              val transported = have((s1.left ++ s2.left ++ typings) |- result) by
+                RightSubst.withParameters(Seq((ta, u, Nil)), Seq(hole) -> ((holeq(aa) * s * hole) === One))(t1, Seq(comparison))
+              dischargeTyping(u, dischargeTyping(ta, transported))
             else return proof.InvalidProofTactic(s"Types don't agree: $aa and $ab")
           else return proof.InvalidProofTactic(s"Middle elements don't agree: $ta and $tb")
 
@@ -157,8 +160,7 @@ object ExtendedHOLSteps extends lisa._HOL {
             RightForall.withParameters(xta ==> (uu :: typ1), x)(uuImp)
           val h5 = have(h2.statement -<? h3.statement.right.head ++<< h3.statement) by
             Cut.withParameters(h3.statement.right.head)(h3, h2)
-          if h5.statement.left.exists(isSame(_, h4.statement.right.head)) then
-            have(h5.statement -<? h4.statement.right.head ++<< h4.statement) by Cut.withParameters(h4.statement.right.head)(h4, h5)
+          if h5.statement.left.exists(isSame(_, h4.statement.right.head)) then have(h5.statement -<? h4.statement.right.head ++<< h4.statement) by Cut.withParameters(h4.statement.right.head)(h4, h5)
           else () // h5 already concludes the subproof.
 
         case _ =>
@@ -209,7 +211,9 @@ object ExtendedHOLSteps extends lisa._HOL {
       val lxtx = λ(x, t * x)
       val restype = computeType(t * x)
       val ttype = x.typ ->: restype
-      val s1 = have((t :: ttype, x :: x.typ, ∃(x, x :: x.typ), ∃(x, x :: restype)) |- holeq(ttype) * (fun(x :: x.typ, t * x)) * t) by Weakening(HOLSteps.etaConv of (ExtendedHOLSteps.x := x, f := t, A := x.typ, B := restype))
+      val s1 = have((t :: ttype, x :: x.typ, ∃(x, x :: x.typ), ∃(x, x :: restype)) |- holeq(ttype) * (fun(x :: x.typ, t * x)) * t) by Weakening(
+        HOLSteps.etaConv of (ExtendedHOLSteps.x := x, f := t, A := x.typ, B := restype)
+      )
       have(Discharge(HOLProofType(t))(s1))
     }
   }
@@ -217,8 +221,7 @@ object ExtendedHOLSteps extends lisa._HOL {
   object _ASSUME {
     def apply(using proof: Proof)(t: Expr[Ind]): proof.ProofTacticJudgement = TacticSubproof {
       val typ = computeType(t)
-      if typ == 𝔹 then
-        have(t |- t) by Hypothesis
+      if typ == 𝔹 then have(t |- t) by Hypothesis
       else return proof.InvalidProofTactic(s"Expr[Ind] $t is not a boolean")
     }
 
@@ -272,13 +275,18 @@ object ExtendedHOLSteps extends lisa._HOL {
   }
 
   object _INST_TYPE_RENAME {
-    /** Canonicalize free variables without merging distinct bound scopes. */
+
+    /**
+     * Canonicalize free variables without merging distinct bound scopes.
+     */
     def variableTypesNames(using proof: Proof)(prem: proof.Fact): proof.ProofTacticJudgement = TacticSubproof { ip ?=>
       // Type instantiation can merge free HOL variables; binders must remain scoped.
-      val renamings = prem.statement.freeVars.iterator.collect { case v: TypedVariable => v }
-          .map(v => v -> mkTypedVar(v.id.name, v.typ))
-          .collect { case (v, target) if v.id != target.id => v -> target }
-          .map((from, to) => from := to).toSeq
+      val renamings = prem.statement.freeVars.iterator
+        .collect { case v: TypedVariable => v }
+        .map(v => v -> mkTypedVar(v.id.name, v.typ))
+        .collect { case (v, target) if v.id != target.id => v -> target }
+        .map((from, to) => from := to)
+        .toSeq
       if renamings.isEmpty then have(prem.statement) by Restate.from(prem)
       else
         val renamed = prem.of(renamings*)

@@ -41,7 +41,7 @@ object Iteration {
     )
     val equality = have(recursion === seq) by Congruence.from(sequence.definition)
     val transported = have(recursion === seq |- specification(seq)) by
-      RightSubstEq.withParameters(Seq(recursion -> seq), Seq(g) -> specification(g))(raw)
+      RightSubst(Seq(recursion -> seq), Seq(g) -> specification(g))(raw)
     have(thesis) by Cut(equality, transported)
   }
 

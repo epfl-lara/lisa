@@ -28,7 +28,7 @@ private[height] object SuccessorFacts {
     ) by Tautology.from(emptyInOmega, CoreFacts.heightApplication.of(n := ∅))
     thenHave(
       (h ↾ ∅ === ∅, isHeightCore(h)) |- !(x ∈ app(h, ∅))
-    ) by RightSubstEq.withParameters(
+    ) by RightSubst(
       List((h ↾ ∅, ∅)),
       (Seq(s), x ∈ app(h, ∅) <=> inExtIntroImage(s)(x))
     )

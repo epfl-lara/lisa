@@ -2,7 +2,7 @@ package lisa.maths.SetTheory.Types.ADTv2.recursion.helpers
 
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.tactics.Cuts
-import lisa.utils.prooflib.BasicStepTactic.RightSubstEq
+import lisa.utils.prooflib.BasicStepTactic.RightSubst
 
 /**
  * Transports recursive-call equalities through branch bodies, including nested binders.
@@ -43,7 +43,7 @@ private[recursion] object LambdaBodyEquality {
       val equations = pairs.map((left, right) => left === right).toSet
       val refl = have(leftBody === leftBody) by RightRefl
       val transported = have((assumptions ++ equations) |- leftBody === rightBody) by
-        RightSubstEq.withParameters(pairs, holes -> (leftBody === template))(refl)
+        RightSubst(pairs, holes -> (leftBody === template))(refl)
       have(assumptions |- leftBody === rightBody) by Cuts(transported)(equalities.map(_._2)*)
     else
       throw IllegalArgumentException(

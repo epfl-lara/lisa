@@ -5,11 +5,15 @@ import java.util.Arrays
 import scala.collection.mutable
 import scala.util.Using
 
-/** Select shared proof boundaries without decoding terms or theorem statements. */
+/**
+ * Select shared proof boundaries without decoding terms or theorem statements.
+ */
 object LemmaSelection:
   final case class Result(ids: Set[Long], records: Int, reachable: Int)
 
-  /** Record preprocessing cost independently of theorem reconstruction. */
+  /**
+   * Record preprocessing cost independently of theorem reconstruction.
+   */
   final case class Timing(enabled: Boolean, elapsedNanos: Long, records: Int, reachable: Int, selectedLemmas: Int):
     def elapsedSeconds: Double = elapsedNanos / 1e9
 
@@ -25,13 +29,15 @@ object LemmaSelection:
     val started = System.nanoTime()
     val result = if enabled then analyze(proofs, roots) else Result(Set.empty, 0, 0)
     val timing = Timing(enabled, if enabled then System.nanoTime() - started else 0L, result.records, result.reachable, result.ids.size)
-    println("HOL_PREPROCESSING_METRICS " + ujson.Obj(
-      "precompute_lemmas" -> enabled,
-      "preprocessing_seconds" -> timing.elapsedSeconds,
-      "selected_lemmas" -> timing.selectedLemmas,
-      "records" -> timing.records,
-      "reachable" -> timing.reachable
-    ))
+    println(
+      "HOL_PREPROCESSING_METRICS " + ujson.Obj(
+        "precompute_lemmas" -> enabled,
+        "preprocessing_seconds" -> timing.elapsedSeconds,
+        "selected_lemmas" -> timing.selectedLemmas,
+        "records" -> timing.records,
+        "reachable" -> timing.reachable
+      )
+    )
     onComplete(timing)
     (result, timing)
 

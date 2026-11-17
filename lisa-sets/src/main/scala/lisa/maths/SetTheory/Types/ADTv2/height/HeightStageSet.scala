@@ -198,7 +198,7 @@ final class HeightStageSet(
     val stageEquality = have(stageBody === stageSetTerm(f)) by Restate.from(definedStage.definition)
     val replacement = Variable[Ind](freshId(Seq(stageBody, stageSetTerm, base.inExtIntroImage(f)(x)), "stageReplacement"))
     val namedMembership = have((stageBody === stageSetTerm(f)) |- (x ∈ stageSetTerm(f) <=> base.inExtIntroImage(f)(x))) by
-      RightSubstEq.withParameters(
+      RightSubst(
         Seq(stageBody -> stageSetTerm(f)),
         Seq(replacement) -> (x ∈ replacement <=> base.inExtIntroImage(f)(x))
       )(stageMembership)

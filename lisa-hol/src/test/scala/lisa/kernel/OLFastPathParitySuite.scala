@@ -1,6 +1,6 @@
 package lisa.kernel
 
-import lisa.kernel.fol.FOL.*
+import lisa.kernel.fol.FOL._
 import org.scalatest.funsuite.AnyFunSuite
 
 class OLFastPathParitySuite extends AnyFunSuite:
@@ -34,8 +34,7 @@ class OLFastPathParitySuite extends AnyFunSuite:
       literals.map(Seq(_)) ++
       (for a <- literals; b <- literals; c <- literals yield Seq(a, b, c)) ++
       (for a <- nested; b <- literals yield Seq(a, b, getInversePolar(a)))
-    for children <- contexts; polarity <- Vector(true, false) do
-      assert(reduceList(children, polarity) == originalReduceList(children, polarity), s"$children, $polarity")
+    for children <- contexts; polarity <- Vector(true, false) do assert(reduceList(children, polarity) == originalReduceList(children, polarity), s"$children, $polarity")
 
   test("identity shortcuts retain negative comparisons and beta equivalence"):
     val x = Variable(Identifier("fast-x"), Ind)

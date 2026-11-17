@@ -42,6 +42,8 @@ object Serialization {
     inline val instSchema = 26
     inline val scSubproof = 27
     inline val sorry = 28
+    inline val leftSubst = 33
+    inline val rightSubst = 34
 
     // tree tags
     inline val variable = 0
@@ -208,6 +210,23 @@ object Serialization {
       proofDOS.writeShort(sequent.right.size)
       sequent.right.foreach(f => proofDOS.writeInt(lineOfExpr(f)))
 
+    def substitutionToProofDOS(tag: Int, bot: Sequent, premise: Int, comparisons: Seq[Int], replacements: Seq[(Expression, Expression, Seq[Variable])], context: (Seq[Variable], Expression)): Unit =
+      proofDOS.writeByte(tag)
+      sequentToProofDOS(bot)
+      proofDOS.writeInt(premise)
+      proofDOS.writeShort(comparisons.size)
+      comparisons.foreach(proofDOS.writeInt)
+      proofDOS.writeShort(replacements.size)
+      replacements.foreach { (source, target, arguments) =>
+        proofDOS.writeInt(lineOfExpr(source))
+        proofDOS.writeInt(lineOfExpr(target))
+        proofDOS.writeShort(arguments.size)
+        arguments.foreach(v => proofDOS.writeInt(lineOfExpr(v)))
+      }
+      proofDOS.writeShort(context._1.size)
+      context._1.foreach(v => proofDOS.writeInt(lineOfExpr(v)))
+      proofDOS.writeInt(lineOfExpr(context._2))
+
     /**
      * Write a proof step to the proof file.
      * First write the code describing the proof step, then the "bot" sequent, then the various parameters in order.
@@ -366,6 +385,10 @@ object Serialization {
           proofDOS.writeShort(lambdaPhi._1.size)
           lambdaPhi._1.foreach(stl => proofDOS.writeInt(lineOfExpr(stl)))
           proofDOS.writeInt(lineOfExpr(lambdaPhi._2))
+        case LeftSubst(bot, premise, comparisons, replacements, context) =>
+          substitutionToProofDOS(Tag.leftSubst, bot, premise, comparisons, replacements, context)
+        case RightSubst(bot, premise, comparisons, replacements, context) =>
+          substitutionToProofDOS(Tag.rightSubst, bot, premise, comparisons, replacements, context)
         case InstSchema(bot, t1, m) =>
           proofDOS.writeByte(Tag.instSchema)
           sequentToProofDOS(bot)
@@ -505,6 +528,20 @@ object Serialization {
             (1 to proofDIS.readShort()).map(_ => (exprMap(proofDIS.readInt()), exprMap(proofDIS.readInt()))).toList,
             ((1 to proofDIS.readShort()).map(_ => exprMap(proofDIS.readInt()).asInstanceOf[Variable]).toList, exprMap(proofDIS.readInt()))
           )
+        case tag @ (Tag.leftSubst | Tag.rightSubst) =>
+          val statement = sequentFromProofDIS()
+          val premise = proofDIS.readInt()
+          val comparisons = (1 to proofDIS.readShort()).map(_ => proofDIS.readInt())
+          val replacements = (1 to proofDIS.readShort()).map { _ =>
+            val source = exprMap(proofDIS.readInt())
+            val target = exprMap(proofDIS.readInt())
+            val arguments = (1 to proofDIS.readShort()).map(_ => exprMap(proofDIS.readInt()).asInstanceOf[Variable])
+            (source, target, arguments)
+          }
+          val variables = (1 to proofDIS.readShort()).map(_ => exprMap(proofDIS.readInt()).asInstanceOf[Variable])
+          val context = variables -> exprMap(proofDIS.readInt())
+          if tag == Tag.leftSubst then LeftSubst(statement, premise, comparisons, replacements, context)
+          else RightSubst(statement, premise, comparisons, replacements, context)
         case Tag.instSchema =>
           InstSchema(
             sequentFromProofDIS(),

@@ -1,6 +1,6 @@
 package lisa.hol
 
-import lisa.hol.VarsAndFunctions.*
+import lisa.hol.VarsAndFunctions._
 import lisa.utils.K
 import lisa.utils.fol.FOL.{_, given}
 import org.scalatest.funsuite.AnyFunSuite

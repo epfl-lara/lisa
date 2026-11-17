@@ -2,10 +2,10 @@ package lisa
 package hol
 package extractor
 
+import org.scalatest.funsuite.AnyFunSuite
+
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
-
-import org.scalatest.funsuite.AnyFunSuite
 
 import core._
 import core.Parser._
@@ -167,8 +167,12 @@ class ExtractorSuite extends AnyFunSuite:
 
   test("definitions are discovered in order without parsing unused ordinary terms"):
     val term = "v(p)(c[bool][])"
-    val lines = Seq(ProofLine(2, extractor.REFL("invalid")), ProofLine(7, extractor.DEFINITION(term, "P")),
-      ProofLine(12, extractor.TYPE_DEFINITION(7, term, "T")), ProofLine(99, extractor.REFL(term)))
+    val lines = Seq(
+      ProofLine(2, extractor.REFL("invalid")),
+      ProofLine(7, extractor.DEFINITION(term, "P")),
+      ProofLine(12, extractor.TYPE_DEFINITION(7, term, "T")),
+      ProofLine(99, extractor.REFL(term))
+    )
     withFiles(lines.map(upickle.default.write(_)).mkString("\n"), ""): context =>
       assert(context.getDefinitionsBetween(-1, 8).map(_._1) == Seq(7))
       assert(context.getDefinitionsBetween(8, 99).map(_._1) == Seq(12))
@@ -190,13 +194,15 @@ class ExtractorSuite extends AnyFunSuite:
 
   test("reject truncated, overflowing, reordered, and unknown proof headers"):
     val lines = Seq(
-      "", "{", "{\"id\":", "{\"id\":-1,\"pr\":{\"step\":\"REFL\",",
+      "",
+      "{",
+      "{\"id\":",
+      "{\"id\":-1,\"pr\":{\"step\":\"REFL\",",
       "{\"id\":9223372036854775808,\"pr\":{\"step\":\"REFL\",",
       "{\"pr\":{\"step\":\"REFL\"},\"id\":0}",
       "{\"id\":0,\"pr\":{\"step\":\"FUTURE_RULE\",\"term\":\"x\"}}"
     )
-    for line <- lines.tail do
-      withFiles(line, "")(context => assertThrows[IllegalArgumentException](context.getDefinitionsBetween(-1, 0)))
+    for line <- lines.tail do withFiles(line, "")(context => assertThrows[IllegalArgumentException](context.getDefinitionsBetween(-1, 0)))
 
   test("exhaustive validation detects unmatched tails and malformed unused payloads"):
     val proof = upickle.default.write(ProofLine(0, extractor.REFL("v(p)(c[bool][])")))
@@ -216,8 +222,7 @@ class ExtractorSuite extends AnyFunSuite:
       val eager = new ExtractorContext(proofs.iterator, statements.iterator)
       val expected = eager.toMap.toMap
       val random = new scala.util.Random(42)
-      for (id, _) <- random.shuffle(entries).take(160) ++ entries.take(2) ++ entries.takeRight(2) do
-        assert(context.getTheorem(id) == expected(id))
+      for (id, _) <- random.shuffle(entries).take(160) ++ entries.take(2) ++ entries.takeRight(2) do assert(context.getTheorem(id) == expected(id))
       assertThrows[NoSuchElementException](context.getProof(1))
       assertThrows[NoSuchElementException](context.getStatement(Long.MaxValue))
       assert(context.toMap.toMap == expected)

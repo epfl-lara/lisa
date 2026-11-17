@@ -1,11 +1,11 @@
 import lisa.automation.Congruence
 import lisa.automation.Substitution.{Apply => Substitute}
-import lisa.automation.Tableau
 import lisa.automation.Superpose
+import lisa.automation.Tableau
 
 object Example extends lisa.Main:
   // draft mode; only proofs from the current file are checked
-  //draft()
+  // draft()
 
   // first-order variables
   val x = variable[Ind]
@@ -20,8 +20,7 @@ object Example extends lisa.Main:
   val f = variable[Ind >>: Ind]
 
   // we can use scala extensions to define custom syntax
-  extension (x: Expr[Ind])
-    inline infix def subset(y: Expr[Ind]): Expr[Prop] = App(App(⊆, x), y)
+  extension (x: Expr[Ind]) inline infix def subset(y: Expr[Ind]): Expr[Prop] = App(App(⊆, x), y)
 
   // a simple proof with Lisa's DSL
   val fixedPointDoubleApplication = Theorem(∀(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x)))) {
@@ -31,10 +30,10 @@ object Example extends lisa.Main:
 
   // Example of set theoretic development
   /**
-    * Theorem --- a set is a subset of itself.
-    * 
-    *  `|- x ⊆ x`
-    */
+   * Theorem --- a set is a subset of itself.
+   *
+   *  `|- x ⊆ x`
+   */
   val union = Theorem(
     x ⊆ x
   ) {
@@ -46,18 +45,18 @@ object Example extends lisa.Main:
 
   /**
    * Theorem --- The empty set is a subset of every set.
-   * 
+   *
    *   `|- ∅ ⊆ x`
    */
   val leftEmpty = Theorem(∅ ⊆ x): // braceless syntax is also fine!
     have((y ∈ ∅) ==> (y ∈ x)) by Weakening(emptySetAxiom of (x := y))
     thenHave(∀(y, (y ∈ ∅) ==> (y ∈ x))) by RightForall
-    
+
     have(thesis) by Tautology.from(lastStep, subsetAxiom of (x := ∅, y := x))
-  
+
   /**
    * Theorem --- If a set has an element, then it is not the empty set.
-   * 
+   *
    *   `y ∈ x ⊢ ! x = ∅`
    */
   val setWithElementNonEmpty = Theorem(
@@ -69,7 +68,7 @@ object Example extends lisa.Main:
 
   /**
    * Theorem --- the power set of any set is non-empty.
-   * 
+   *
    *  `|- 𝒫(x) =/= ∅`
    */
   val powerSetNonEmpty = Theorem(
@@ -87,8 +86,7 @@ object Example extends lisa.Main:
     have(thesis) by Tableau
   }
 
-    // example showing the Superpose tactic
+  // example showing the Superpose tactic
   val buveurs2 = Theorem(exists(x, P(x) ==> forall(y, P(y)))) {
     have(thesis) by Superpose
   }
-

@@ -118,7 +118,7 @@ class UniqueDefinedSymbol(
     val replacementVar = Variable[Ind](freshId(Seq(witnessDefinition, epsilonWitness, term) ++ typeVariablesSeq, "replacementVar"))
     val definitionAtTerm =
       have((epsilonWitness === term) |- definitionAt(term)) by
-        RightSubstEq.withParameters(
+        RightSubst(
           List((epsilonWitness, term)),
           (Seq(replacementVar), definitionAt(replacementVar))
         )(definitionAtEpsilonWithEq)

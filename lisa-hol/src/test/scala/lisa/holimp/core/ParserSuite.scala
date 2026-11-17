@@ -93,7 +93,9 @@ class ParserSuite extends AnyFunSuite:
     assert(parseAll("c(x)(v[A])", variable(using _)).isInstanceOf[fastparse.Parsed.Failure])
     assert(parseAll("v[A]suffix", typeVariable(using _)).isInstanceOf[fastparse.Parsed.Failure])
 
-/** Keep the former grammar as an independent oracle for parser compatibility tests. */
+/**
+ * Keep the former grammar as an independent oracle for parser compatibility tests.
+ */
 private object ReferenceParser extends scala.util.parsing.combinator.RegexParsers:
   def typ: Parser[Type] = typeVariable ||| typeApplication
   def term: Parser[Term] = variable ||| constant ||| combination ||| abstraction

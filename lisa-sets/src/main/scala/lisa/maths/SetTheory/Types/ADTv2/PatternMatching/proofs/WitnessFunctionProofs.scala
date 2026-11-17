@@ -203,7 +203,7 @@ private[proofs] trait WitnessFunctionProofs extends WitnessBranchMembership {
               val reflexive = have(left.body === left.body) by RightRefl
               // The known substitution also works when the body contains lambdas.
               val transported = have(equations.toSet |- left.body === right.body) by
-                RightSubstEq.withParameters(pairs, (right.variables, left.body === right.body))(reflexive)
+                RightSubst(pairs, (right.variables, left.body === right.body))(reflexive)
               val bodiesEqual = have(left.body === right.body) by Tautology.from((transported +: argumentsEqual)*)
               val leftOutput = have(outputTerm === left.body) by Weakening(left.outputEquality)
               val rightOutput = have(alternateOutputTerm === right.body) by Weakening(right.outputEquality.of(outputTerm := alternateOutputTerm))

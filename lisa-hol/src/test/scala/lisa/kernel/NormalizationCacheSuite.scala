@@ -1,6 +1,6 @@
 package lisa.kernel
 
-import lisa.kernel.fol.FOL.*
+import lisa.kernel.fol.FOL._
 import org.scalatest.funsuite.AnyFunSuite
 
 class NormalizationCacheSuite extends AnyFunSuite:

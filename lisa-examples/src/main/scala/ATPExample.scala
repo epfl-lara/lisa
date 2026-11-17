@@ -1,4 +1,3 @@
-
 import lisa.automation.atp.Egg
 import lisa.automation.atp.Goeland
 
@@ -8,7 +7,7 @@ import lisa.automation.atp.Goeland
  */
 object ATPExample extends lisa.Main:
   draft()
-  
+
   val x = variable[Ind]
   val y = variable[Ind]
   val P = variable[Ind >>: Prop]

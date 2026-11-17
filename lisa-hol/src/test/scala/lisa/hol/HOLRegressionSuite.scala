@@ -1,7 +1,7 @@
 package lisa.hol
 
-import lisa.hol.HOLHelperTheorems.*
-import lisa.hol.VarsAndFunctions.*
+import lisa.hol.HOLHelperTheorems._
+import lisa.hol.VarsAndFunctions._
 import lisa.utils.K
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -18,12 +18,26 @@ class HOLRegressionSuite extends AnyFunSuite:
 
   private object Proofs extends lisa.HOL:
     val A, B = typevar
-    val x = typedvar(A)
+    val x, y, z = typedvar(A)
     val f = typedvar(A ->: B)
 
     val reflexivity = HOLTheorem(x =:= x):
       val result = have(ExtendedHOLSteps._REFL(x))
       have(thesis) by Weakening(result)
+
+    val transitivity = HOLTheorem((x =:= y, y =:= z) |- (x =:= z)):
+      val first = HOLassume(x =:= y)
+      val second = HOLassume(y =:= z)
+      have(ExtendedHOLSteps._TRANS(first, second))
+
+    val compositeTransitivity = HOLTheorem((f * x =:= f * y, f * y =:= f * z) |- (f * x =:= f * z)):
+      val first = HOLassume(f * x =:= f * y)
+      val second = HOLassume(f * y =:= f * z)
+      have(ExtendedHOLSteps._TRANS(first, second))
+
+    val reflexiveTransitivity = HOLTheorem(x =:= x):
+      val reflexivity = have(ExtendedHOLSteps._REFL(x))
+      have(ExtendedHOLSteps._TRANS(reflexivity, reflexivity))
 
     val abstraction = HOLTheorem(fun(x, f * x) =:= fun(x, f * x)):
       val body = have(ExtendedHOLSteps._REFL(f * x))
@@ -54,7 +68,9 @@ class HOLRegressionSuite extends AnyFunSuite:
       val typed = have(totalCarrier(A) ∈ 𝔹) by lisa.automation.Substitution.Apply(totalCarrier.definition)(One.justif)
       have(thesis) by RightForall.withParameters(totalCarrier(A) ∈ 𝔹, A)(typed)
     val totalConstant = new lisa.maths.SetTheory.Types.TypingHelpers.TypedConstantFunctional[Ind >>: Ind](
-      totalCarrier.id, FunctionalClass(List(None), List(A), 𝔹), totalTyping
+      totalCarrier.id,
+      FunctionalClass(List(None), List(A), 𝔹),
+      totalTyping
     )
 
     def check(theorem: lisa.SetTheoryLibrary.THM): Unit =
@@ -66,11 +82,17 @@ class HOLRegressionSuite extends AnyFunSuite:
     Proofs.check(Proofs.abstraction)
     Proofs.check(Proofs.beta)
 
+  test("check proof-backed TRANS on variable, composite and reflexive equalities"):
+    Proofs.check(Proofs.transitivity)
+    Proofs.check(Proofs.compositeTransitivity)
+    Proofs.check(Proofs.reflexiveTransitivity)
+
   test("check closure and transfinite recursion without admitted dependencies"):
     for theorem <- Seq(
-      lisa.maths.SetTheory.Relations.Operations.Closure.reflexiveClosureValid,
-      lisa.maths.SetTheory.Ordinals.TransfiniteRecursion.transfiniteRecursion
-    ) do assert(!theorem.withSorry, theorem.fullName)
+        lisa.maths.SetTheory.Relations.Operations.Closure.reflexiveClosureValid,
+        lisa.maths.SetTheory.Ordinals.TransfiniteRecursion.transfiniteRecursion
+      )
+    do assert(!theorem.withSorry, theorem.fullName)
 
   test("distinguish HOL variable types when their printed names agree"):
     val first = Import.Transformers.mkTypedVar("same-name", Proofs.A)
