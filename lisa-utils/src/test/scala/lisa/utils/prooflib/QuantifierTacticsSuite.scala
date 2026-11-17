@@ -1,12 +1,16 @@
 package lisa.utils.prooflib
 
-import lisa.kernel.proof.{RunningTheory, SCProofChecker}
-import lisa.utils.fol.FOL.*
-import lisa.utils.prooflib.BasicStepTactic.*
-import lisa.utils.prooflib.ProofTacticLib.{ProofTactic, UnapplicableProofTactic}
+import lisa.kernel.proof.RunningTheory
+import lisa.kernel.proof.SCProofChecker
+import lisa.utils.fol.FOL._
+import lisa.utils.prooflib.BasicStepTactic._
+import lisa.utils.prooflib.ProofTacticLib.ProofTactic
+import lisa.utils.prooflib.ProofTacticLib.UnapplicableProofTactic
 import org.scalatest.funsuite.AnyFunSuite
 
-/** Executes quantifier tactics and checks their deferred failure diagnostics. */
+/**
+ * Executes quantifier tactics and checks their deferred failure diagnostics.
+ */
 class QuantifierTacticsSuite extends AnyFunSuite:
   private object TestLibrary extends Library:
     val theory = new RunningTheory
@@ -126,12 +130,18 @@ class QuantifierTacticsSuite extends AnyFunSuite:
     given ProofTactic = InstantiateForallSeq
     def unexpected: Nothing = fail("Successful tactics must not evaluate diagnostics")
     val attempted = TacticErrors.attemptOrInvalid(using TestLibrary)(proof)(
-      tacticName = "test", summary = unexpected, factStatement = unexpected,
-      bot = unexpected, entries = unexpected
+      tacticName = "test",
+      summary = unexpected,
+      factStatement = unexpected,
+      bot = unexpected,
+      entries = unexpected
     ) { 42 }
     val wrapped = TacticErrors.wrapUnapplicable(using TestLibrary)(proof)(
-      tactic = InstantiateForallSeq, summary = unexpected, factStatement = unexpected,
-      bot = unexpected, entries = unexpected
+      tactic = InstantiateForallSeq,
+      summary = unexpected,
+      factStatement = unexpected,
+      bot = unexpected,
+      entries = unexpected
     ) { 43 }
     assert(attempted == Right(42))
     assert(wrapped == 43)

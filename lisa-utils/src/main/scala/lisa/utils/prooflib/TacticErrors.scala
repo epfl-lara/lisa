@@ -1,6 +1,7 @@
 package lisa.utils.prooflib
 
-import lisa.utils.fol.FOL.{Sequent, _}
+import lisa.utils.fol.FOL.Sequent
+import lisa.utils.fol.FOL._
 import lisa.utils.prooflib.ProofTacticLib.ProofTactic
 import lisa.utils.prooflib.ProofTacticLib.UnapplicableProofTactic
 
@@ -9,10 +10,12 @@ object TacticErrors {
   private def formatEntries(entries: Seq[(String, String)]): String =
     if entries.isEmpty then ""
     else
-      entries.map { case (label, value) =>
-        s"""$label:
-           |  $value""".stripMargin
-      }.mkString("\n\n")
+      entries
+        .map { case (label, value) =>
+          s"""$label:
+             |  $value""".stripMargin
+        }
+        .mkString("\n\n")
 
   def message(
       tacticName: String,
@@ -49,7 +52,9 @@ object TacticErrors {
   ): proof.ProofTacticJudgement =
     proof.InvalidProofTactic(message(tacticName, summary, factStatement, bot, entries))
 
-  /** Runs a tactic body, evaluating diagnostic context only if it fails. */
+  /**
+   * Runs a tactic body, evaluating diagnostic context only if it fails.
+   */
   def attemptOrInvalid[P <: Library#Proof, A](using
       lib: Library,
       tactic: ProofTactic
@@ -65,15 +70,19 @@ object TacticErrors {
     try Right(body)
     catch
       case exception: UnapplicableProofTactic =>
-        Left(invalid(using lib)(proof)(
-          tacticName = tacticName,
-          summary = summary,
-          factStatement = factStatement,
-          bot = bot,
-          (entries :+ ("Underlying error" -> exception.getMessage))*
-        ))
+        Left(
+          invalid(using lib)(proof)(
+            tacticName = tacticName,
+            summary = summary,
+            factStatement = factStatement,
+            bot = bot,
+            (entries :+ ("Underlying error" -> exception.getMessage))*
+          )
+        )
 
-  /** Adds diagnostic context to a tactic failure without building it on success. */
+  /**
+   * Adds diagnostic context to a tactic failure without building it on success.
+   */
   def wrapUnapplicable[P <: Library#Proof, A](using
       lib: Library,
       currentTactic: ProofTactic

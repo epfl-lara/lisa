@@ -4,8 +4,8 @@ import lisa.maths.SetTheory.Functions.Pi.->:
 import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers
-import lisa.maths.SetTheory.Types.TypingHelpers.*
 import lisa.maths.SetTheory.Types.TypingHelpers.::
+import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
 import lisa.maths.SetTheory.Types.TypingRules.TAbs
 import lisa.utils.prooflib.BasicStepTactic.RightForall

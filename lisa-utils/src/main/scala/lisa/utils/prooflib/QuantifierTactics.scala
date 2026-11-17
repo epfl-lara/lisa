@@ -1,8 +1,15 @@
 package lisa.utils.prooflib
 
 import lisa.utils.fol.FOL.{_, given}
-import lisa.utils.prooflib.BasicStepTactic.{LeftExists, LeftForall, Restate, RightExists, RightForall, TacticSubproof, Weakening}
-import lisa.utils.prooflib.ProofTacticLib.{ProofFactSequentTactic, ProofTactic}
+import lisa.utils.prooflib.BasicStepTactic.LeftExists
+import lisa.utils.prooflib.BasicStepTactic.LeftForall
+import lisa.utils.prooflib.BasicStepTactic.Restate
+import lisa.utils.prooflib.BasicStepTactic.RightExists
+import lisa.utils.prooflib.BasicStepTactic.RightForall
+import lisa.utils.prooflib.BasicStepTactic.TacticSubproof
+import lisa.utils.prooflib.BasicStepTactic.Weakening
+import lisa.utils.prooflib.ProofTacticLib.ProofFactSequentTactic
+import lisa.utils.prooflib.ProofTacticLib.ProofTactic
 import lisa.utils.prooflib.SimpleDeducedSteps.InstantiateForall
 
 import scala.util.boundary
@@ -24,8 +31,7 @@ object InstantiateForallSeq extends ProofTactic {
   )(
       args: Seq[Expr[Ind]]
   )(fact: proof.Fact)(bot: Sequent): proof.ProofTacticJudgement = boundary:
-    if fact.statement.right.size != 1 then
-      break(proof.InvalidProofTactic("InstantiateForallSeq requires exactly one formula on the right of its input fact."))
+    if fact.statement.right.size != 1 then break(proof.InvalidProofTactic("InstantiateForallSeq requires exactly one formula on the right of its input fact."))
     TacticSubproof { sp ?=>
       val initialCurrent = TacticErrors.attemptOrInvalid(using lib)(proof)(
         tacticName = "InstantiateForallSeq",
@@ -37,7 +43,7 @@ object InstantiateForallSeq extends ProofTactic {
         lib.have(fact.statement) by Weakening(fact)
       } match
         case Left(judgement) => break(judgement)
-        case Right(value)    => value
+        case Right(value) => value
 
       var current = initialCurrent
 
@@ -58,18 +64,20 @@ object InstantiateForallSeq extends ProofTactic {
               lib.have(current.statement.left |- phi.substitute(v := arg)) by InstantiateForall(arg)(current)
             } match
               case Left(judgement) => break(judgement)
-              case Right(value)    => value
+              case Right(value) => value
           case _ =>
-            break(TacticErrors.invalid(using lib)(proof)(
-              tacticName = "InstantiateForallSeq",
-              summary = s"expected a universally quantified formula while instantiating argument #${index + 1}",
-              factStatement = fact.statement,
-              bot = bot,
-              "Argument" -> arg.toString,
-              "Arguments requested" -> args.mkString(", "),
-              "Current intermediate statement" -> current.statement.toString,
-              "Current right-hand formula" -> current.statement.right.head.toString
-            ))
+            break(
+              TacticErrors.invalid(using lib)(proof)(
+                tacticName = "InstantiateForallSeq",
+                summary = s"expected a universally quantified formula while instantiating argument #${index + 1}",
+                factStatement = fact.statement,
+                bot = bot,
+                "Argument" -> arg.toString,
+                "Arguments requested" -> args.mkString(", "),
+                "Current intermediate statement" -> current.statement.toString,
+                "Current right-hand formula" -> current.statement.right.head.toString
+              )
+            )
 
       TacticErrors.attemptOrInvalid(using lib)(proof)(
         tacticName = "InstantiateForallSeq",
@@ -84,8 +92,8 @@ object InstantiateForallSeq extends ProofTactic {
         lib.have(bot) by Weakening(current)
       } match
         case Left(judgement) => break(judgement)
-        case Right(_)        => ()
-  }
+        case Right(_) => ()
+    }
 }
 
 object QuantifiersIntro extends ProofTactic {
@@ -113,7 +121,7 @@ object QuantifiersIntro extends ProofTactic {
         lib.have(bot) by Restate.from(fact)
       } match
         case Left(judgement) => judgement
-        case Right(value)    => value
+        case Right(value) => value
 
     def foldQuantifiers(
         fWithoutQuant: Expr[Prop],
@@ -144,8 +152,7 @@ object QuantifiersIntro extends ProofTactic {
         )
       }
 
-    if vars.isEmpty then
-      restateDirectly("no variables were requested, so the tactic expected a direct restatement")
+    if vars.isEmpty then restateDirectly("no variables were requested, so the tactic expected a direct restatement")
     else
       val diff: Sequent = bot -- fact.statement
       val sourceDiff: Sequent = fact.statement -- bot
