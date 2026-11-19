@@ -3,7 +3,7 @@ package lisa.hol
 import lisa.SetTheoryLibrary
 import lisa.hol.HOLHelperTheorems.One
 import lisa.hol.HOLHelperTheorems.𝔹
-import lisa.hol.VarsAndFunctions._
+import lisa.hol.VarsAndFunctions.{_, given}
 import lisa.hol.basics.Connectives.hand
 import lisa.hol.basics.Connectives.himp
 import lisa.hol.basics.Connectives.hnot
@@ -24,6 +24,15 @@ class FromHOLSuite extends AnyFunSuite:
   private val p, q = typedvar(𝔹)
   private val x, y = typedvar(A)
   private val P = typedvar(A ->: 𝔹)
+
+  test("convert typed quantifier tuples without treating formulas as HOL terms"):
+    summon[TypedForall <:< Expr[Prop]]
+    summon[TypedExists <:< Expr[Prop]]
+    val universal = tforall(x, A, eqOne(p))
+    val existential = texists(x, A, eqOne(p))
+    assert(((universal, universal, universal) |- existential) == Sequent(Set(universal), Set(existential)))
+    assert(((universal, existential, x) |- eqOne(p)) == Sequent(Set(universal, existential, eqOne(x)), Set(eqOne(p))))
+    assert((Seq(x) |- Seq(universal, existential)) == Sequent(Set(eqOne(x)), Set(universal, existential)))
 
   private def premise(term: Expr[Ind], hypotheses: Set[Expr[Ind]] = Set.empty): Thm =
     val encoded = HOLSequent(hypotheses, term)
