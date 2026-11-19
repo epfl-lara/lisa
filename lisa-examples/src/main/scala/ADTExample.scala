@@ -1,15 +1,15 @@
-package ADTv2Examples
+package ADTExamples
 
 import lisa.maths.SetTheory.Functions.Pi.->:
-import lisa.maths.SetTheory.Types.ADTv2.InductiveInfixSyntax.SelfRef
-import lisa.maths.SetTheory.Types.ADTv2.InductiveInfixSyntax.inductive
-import lisa.maths.SetTheory.Types.ADTv2.InductiveInfixSyntax.|
-import lisa.maths.SetTheory.Types.ADTv2._
+import lisa.maths.SetTheory.Types.ADT.InductiveInfixSyntax.SelfRef
+import lisa.maths.SetTheory.Types.ADT.InductiveInfixSyntax.inductive
+import lisa.maths.SetTheory.Types.ADT.InductiveInfixSyntax.|
+import lisa.maths.SetTheory.Types.ADT._
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Types.TypingHelpers
 
 /**
- * Run with: sbt "lisa-examples/runMain ADTv2Examples.Example".
+ * Run with: sbt "lisa-examples/runMain ADTExamples.Example".
  */
 object Example extends lisa.Main {
 

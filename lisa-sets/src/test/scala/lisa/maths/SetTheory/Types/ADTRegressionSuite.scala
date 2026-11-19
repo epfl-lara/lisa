@@ -2,29 +2,29 @@ package lisa.maths.SetTheory.Types
 
 import lisa.maths.SetTheory.Functions.Pi.->:
 import lisa.maths.SetTheory.SetTheory.{_, given}
-import lisa.maths.SetTheory.Types.ADTv2._
-import lisa.maths.SetTheory.Types.ADTv2.interface.ADT
-import lisa.maths.SetTheory.Types.ADTv2.interface.ADTFunction
-import lisa.maths.SetTheory.Types.ADTv2.interface.RecFunction
-import lisa.maths.SetTheory.Types.ADTv2.interface.SpecializedADT
-import lisa.maths.SetTheory.Types.ADTv2.library.bool
-import lisa.maths.SetTheory.Types.ADTv2.library.box
-import lisa.maths.SetTheory.Types.ADTv2.library.cons
-import lisa.maths.SetTheory.Types.ADTv2.library.fals
-import lisa.maths.SetTheory.Types.ADTv2.library.list
-import lisa.maths.SetTheory.Types.ADTv2.library.nat
-import lisa.maths.SetTheory.Types.ADTv2.library.nil
-import lisa.maths.SetTheory.Types.ADTv2.library.pack
-import lisa.maths.SetTheory.Types.ADTv2.library.product
-import lisa.maths.SetTheory.Types.ADTv2.library.succ
-import lisa.maths.SetTheory.Types.ADTv2.library.tru
-import lisa.maths.SetTheory.Types.ADTv2.library.void
-import lisa.maths.SetTheory.Types.ADTv2.library.zero
-import lisa.maths.SetTheory.Types.ADTv2.library.{pair => productPair}
-import lisa.maths.SetTheory.Types.ADTv2.library.{union => unionType}
-import lisa.maths.SetTheory.Types.ADTv2.support.semantics.DefinedSymbol
-import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.ConstructorArg
-import lisa.maths.SetTheory.Types.ADTv2.syntax.AST.TypeArg
+import lisa.maths.SetTheory.Types.ADT._
+import lisa.maths.SetTheory.Types.ADT.interface.ADT
+import lisa.maths.SetTheory.Types.ADT.interface.ADTFunction
+import lisa.maths.SetTheory.Types.ADT.interface.RecFunction
+import lisa.maths.SetTheory.Types.ADT.interface.SpecializedADT
+import lisa.maths.SetTheory.Types.ADT.library.bool
+import lisa.maths.SetTheory.Types.ADT.library.box
+import lisa.maths.SetTheory.Types.ADT.library.cons
+import lisa.maths.SetTheory.Types.ADT.library.fals
+import lisa.maths.SetTheory.Types.ADT.library.list
+import lisa.maths.SetTheory.Types.ADT.library.nat
+import lisa.maths.SetTheory.Types.ADT.library.nil
+import lisa.maths.SetTheory.Types.ADT.library.pack
+import lisa.maths.SetTheory.Types.ADT.library.product
+import lisa.maths.SetTheory.Types.ADT.library.succ
+import lisa.maths.SetTheory.Types.ADT.library.tru
+import lisa.maths.SetTheory.Types.ADT.library.void
+import lisa.maths.SetTheory.Types.ADT.library.zero
+import lisa.maths.SetTheory.Types.ADT.library.{pair => productPair}
+import lisa.maths.SetTheory.Types.ADT.library.{union => unionType}
+import lisa.maths.SetTheory.Types.ADT.support.semantics.DefinedSymbol
+import lisa.maths.SetTheory.Types.ADT.syntax.AST.ConstructorArg
+import lisa.maths.SetTheory.Types.ADT.syntax.AST.TypeArg
 import lisa.utils.prooflib.OutputManager
 import org.scalatest.funsuite.AnyFunSuite
 

@@ -1,9 +1,9 @@
 package lisa.maths.SetTheory.Types
 
 import lisa.maths.SetTheory.SetTheory.{_, given}
-import lisa.maths.SetTheory.Types.ADTv2.*
-import lisa.maths.SetTheory.Types.ADTv2.InductiveInfixSyntax.{inductive, SelfRef, |}
-import lisa.maths.SetTheory.Types.ADTv2.interface.{ADT, Constructor}
+import lisa.maths.SetTheory.Types.ADT.*
+import lisa.maths.SetTheory.Types.ADT.InductiveInfixSyntax.{inductive, SelfRef, |}
+import lisa.maths.SetTheory.Types.ADT.interface.{ADT, Constructor}
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.utils.prooflib.OutputManager
 import org.scalatest.funsuite.AnyFunSuite
@@ -20,13 +20,13 @@ class InductiveInfixSyntaxSuite extends AnyFunSuite {
   private val A, B, C, D, E, n, head, tail, x, xs, y, z = variable[Ind]
 
   private val InfixNat = inductive(
-    | zero(),
-    | succ(n :: SelfRef)
+    | zero (),
+    | succ (n :: SelfRef)
   )
 
   private val InfixList = inductive(A)(
-    | nil(),
-    | cons(head :: A, tail :: SelfRef)
+    | nil (),
+    | cons (head :: A, tail :: SelfRef)
   )
 
   test("constructor names, binders, and sorts survive infix declarations") {
@@ -83,10 +83,10 @@ class InductiveInfixSyntaxSuite extends AnyFunSuite {
     }
     val identity = Theorem(xs :: InfixList(A) |- infixListCopy(A) * xs === xs) {
       have(thesis) by Induction(xs, InfixList.specialize(A)) {
-        Case(InfixList.nil) subproof{
+        Case(InfixList.nil) subproof {
           have(thesis) by Restate.from(infixListCopy.elim(InfixList.nil).of(A))
         }
-        Case(InfixList.cons, head, tail) subproof{
+        Case(InfixList.cons, head, tail) subproof {
           lisa.maths.SetTheory.SetTheory.assume(head :: A, tail :: InfixList(A), infixListCopy(A) * tail === tail)
           val step = have(infixListCopy(A) * (InfixList.cons(A) * head * tail) === InfixList.cons(A) * head * (infixListCopy(A) * tail)) by
             Tautology.from(infixListCopy.elim(InfixList.cons).of(A))
@@ -99,8 +99,8 @@ class InductiveInfixSyntaxSuite extends AnyFunSuite {
 
   test("field tuples preserve order and recursive fields use every parameter") {
     val InfixTree = inductive((A, B))(
-      | leaf(head :: A, tail :: B),
-      | node(x :: SelfRef, y :: SelfRef, z :: SelfRef)
+      | leaf (head :: A, tail :: B),
+      | node (x :: SelfRef, y :: SelfRef, z :: SelfRef)
     )
     assert(InfixTree.typeVariablesSeq == Seq(A, B))
     assert(InfixTree.node.semantic.variables == Seq(x, y, z))
@@ -146,21 +146,21 @@ class InductiveInfixSyntaxSuite extends AnyFunSuite {
 
   test("duplicate binders and undeclared or duplicate parameters fail before proof construction") {
     intercept[IllegalArgumentException] {
-      val InfixDuplicateFields = inductive(| pair(x :: SelfRef, x :: SelfRef))
+      val InfixDuplicateFields = inductive(| pair (x :: SelfRef, x :: SelfRef))
     }
     intercept[IllegalArgumentException] {
-      val InfixUndeclaredType = inductive(A)(| bad(x :: B))
+      val InfixUndeclaredType = inductive(A)(| bad (x :: B))
     }
     intercept[IllegalArgumentException] {
-      val InfixDuplicateParameters = inductive((A, A))(| empty())
+      val InfixDuplicateParameters = inductive((A, A))(| empty ())
     }
   }
 
   test("recursive markers remain distinct from identically named type parameters") {
     val parameter = Variable[Ind]("inductiveSelf")
     val InfixMarkerList = inductive(parameter)(
-      | nil(),
-      | cons(head :: parameter, tail :: SelfRef)
+      | nil (),
+      | cons (head :: parameter, tail :: SelfRef)
     )
     val value = InfixMarkerList.cons(InfixNat) * InfixNat.zero * InfixMarkerList.nil(InfixNat)
     val typing = Theorem(value :: InfixMarkerList(InfixNat)) {
@@ -171,7 +171,7 @@ class InductiveInfixSyntaxSuite extends AnyFunSuite {
 
   test("indexed type parameters retain their identity") {
     val indexed = Variable[Ind](Identifier("A", 1))
-    val InfixIndexedBox = inductive(indexed)(| box(x :: indexed))
+    val InfixIndexedBox = inductive(indexed)(| box (x :: indexed))
     assert(InfixIndexedBox.typeVariablesSeq == Seq(indexed))
     val typing = Theorem(x :: indexed |- InfixIndexedBox.box(indexed) * x :: InfixIndexedBox(indexed)) {
       have(thesis) by Typecheck.prove
@@ -181,7 +181,7 @@ class InductiveInfixSyntaxSuite extends AnyFunSuite {
 
   test("declarations can be used during their enclosing object's initialization") {
     object Enclosing {
-      val InfixLocalNat = inductive(| zero(), | succ(n :: SelfRef))
+      val InfixLocalNat = inductive(| zero (), | succ (n :: SelfRef))
       val typing = Theorem(InfixLocalNat.succ * InfixLocalNat.zero :: InfixLocalNat) {
         have(thesis) by Typecheck.prove
       }
