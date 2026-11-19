@@ -1,7 +1,7 @@
 package lisa.hol
 
-import lisa.hol.Import.Transformers.*
-import lisa.hol.extractor.*
+import lisa.hol.Import.Transformers._
+import lisa.hol.extractor._
 import lisa.utils.K
 import org.scalatest.funsuite.AnyFunSuite
 

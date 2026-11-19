@@ -747,7 +747,7 @@ object BasicTheorems extends lisa.Main {
           // Transport back to e1 using e1 = x
           val x_eq_e1 = have(x === e1) by Tautology.from(e1_eq_x)
           val base = have((x === e1, ∃!(e2, (x, e2) ∈ Rext)) |- ∃!(e2, (x, e2) ∈ Rext)) by Hypothesis
-          val transported = have((x === e1, ∃!(e2, (x, e2) ∈ Rext)) |- ∃!(e2, (e1, e2) ∈ Rext)) by RightSubstEq.withParameters(
+          val transported = have((x === e1, ∃!(e2, (x, e2) ∈ Rext)) |- ∃!(e2, (e1, e2) ∈ Rext)) by RightSubstEq(
             List((x, e1)),
             (Seq(T), ∃!(e2, (T, e2) ∈ Rext))
           )(base)
@@ -829,8 +829,8 @@ object BasicTheorems extends lisa.Main {
         val xG_eq_xH = have((x, Gf(x)) === (x, Hf(x))) by Tautology.from(xH_eq_xG)
 
         val base_eq = have(((x, Gf(x)) === z, (x, Gf(x)) === (x, Hf(x))) |- (x, Gf(x)) === z) by Hypothesis
-        val xH_eq_z_from = have(((x, Gf(x)) === z, (x, Gf(x)) === (x, Hf(x))) |- (x, Hf(x)) === z) by RightSubstEq.withParameters(
-          List(((x, Gf(x)), (x, Hf(x)))),
+        val xH_eq_z_from = have(((x, Gf(x)) === z, (x, Gf(x)) === (x, Hf(x))) |- (x, Hf(x)) === z) by RightSubstEq(
+          List[(Expr[Ind], Expr[Ind])](((x, Gf(x)), (x, Hf(x)))),
           (Seq(e1), e1 === z)
         )(base_eq)
         val xH_eq_z = have((x, Hf(x)) === z) by Tautology.from(xH_eq_z_from, xG_eq_z, xG_eq_xH)
@@ -843,8 +843,8 @@ object BasicTheorems extends lisa.Main {
         val xH_in_abs = thenHave((x, Hf(x)) ∈ abs(A)(Hf)) by Substitute(abs.definition of (T := A, e := Hf))
 
         val mem_base = have(((x, Hf(x)) ∈ abs(A)(Hf), (x, Hf(x)) === z) |- (x, Hf(x)) ∈ abs(A)(Hf)) by Hypothesis
-        val z_in_abs_from = have(((x, Hf(x)) ∈ abs(A)(Hf), (x, Hf(x)) === z) |- z ∈ abs(A)(Hf)) by RightSubstEq.withParameters(
-          List(((x, Hf(x)), z)),
+        val z_in_abs_from = have(((x, Hf(x)) ∈ abs(A)(Hf), (x, Hf(x)) === z) |- z ∈ abs(A)(Hf)) by RightSubstEq(
+          List[(Expr[Ind], Expr[Ind])](((x, Hf(x)), z)),
           (Seq(e1), e1 ∈ abs(A)(Hf))
         )(mem_base)
 

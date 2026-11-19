@@ -1,9 +1,11 @@
 package lisa.hol.extractor
 
-import java.io.{ByteArrayOutputStream, File}
+import java.io.ByteArrayOutputStream
+import java.io.File
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
-import java.nio.charset.{Charset, StandardCharsets}
+import java.nio.charset.Charset
+import java.nio.charset.StandardCharsets
 import java.nio.file.StandardOpenOption.READ
 import scala.util.Using
 import scala.util.control.NonFatal

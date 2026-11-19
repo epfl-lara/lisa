@@ -1,16 +1,26 @@
 package lisa.hol.basics
 
 import lisa.automation.Congruence
-
 import lisa.automation.Substitution.{Apply => Substitute}
 import lisa.hol.HOLHelperTheorems
 import lisa.hol.HOLHelperTheorems._
 import lisa.hol.HOLSteps._
 import lisa.hol.VarsAndFunctions._
-import lisa.hol.basics.Truth.{holT, holTruth, SYM}
-import lisa.hol.basics.Forall.{hforall, hforallCorrect}
-import lisa.hol.basics.Connectives.{hand, handCorrect, himp, himpCorrect, hnot, hnotCorrect, p, q}
-import lisa.hol.basics.Exists.{hexists, hexistsCorrect}
+import lisa.hol.basics.Connectives.hand
+import lisa.hol.basics.Connectives.handCorrect
+import lisa.hol.basics.Connectives.himp
+import lisa.hol.basics.Connectives.himpCorrect
+import lisa.hol.basics.Connectives.hnot
+import lisa.hol.basics.Connectives.hnotCorrect
+import lisa.hol.basics.Connectives.p
+import lisa.hol.basics.Connectives.q
+import lisa.hol.basics.Exists.hexists
+import lisa.hol.basics.Exists.hexistsCorrect
+import lisa.hol.basics.Forall.hforall
+import lisa.hol.basics.Forall.hforallCorrect
+import lisa.hol.basics.Truth.SYM
+import lisa.hol.basics.Truth.holT
+import lisa.hol.basics.Truth.holTruth
 import lisa.maths.SetTheory.Base.FoundationAxiom
 import lisa.maths.SetTheory.Base.Pair.given
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
@@ -18,8 +28,8 @@ import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
 import lisa.maths.SetTheory.Types.TypingRules.TAbs
 import lisa.utils.prooflib.BasicStepTactic._
 import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.SimpleDeducedSteps.*
-import lisa.utils.prooflib.SimpleDeducedSteps.*
+import lisa.utils.prooflib.SimpleDeducedSteps._
+import lisa.utils.prooflib.SimpleDeducedSteps._
 
 /**
  * HOL Light inductive type, successor, ONE_ONE, ONTO,
@@ -130,7 +140,7 @@ object Inductive extends lisa.HOL {
       thenHave(inductive(y) |- inductive(ε(z, inductive(z)))) by RightEpsilon.withParameters(inductive(z), z, y)
       thenHave(inductive(y) |- ∅ ∈ ε(z, inductive(z))) by Weakening
 
-      thenHave((inductive(y), ind === ε(z, inductive(z))) |- ∅ ∈ ind) by RightSubstEq.withParameters(Seq((ε(z, inductive(z)), ind)), (Seq(z), ∅ ∈ z))
+      thenHave((inductive(y), ind === ε(z, inductive(z))) |- ∅ ∈ ind) by RightSubstEq(Seq((ε(z, inductive(z)), ind)), (Seq(z), ∅ ∈ z))
       have(inductive(y) |- ∅ ∈ ind) by Cut(ind.definition, lastStep)
 
       // an inductive set actually exists, so our choice is justified
@@ -146,7 +156,7 @@ object Inductive extends lisa.HOL {
     have(inductive(y) |- inductive(y)) by Restate
     thenHave(inductive(y) |- inductive(ε(z, inductive(z)))) by RightEpsilon.withParameters(inductive(z), z, y)
 
-    thenHave((inductive(y), ind === ε(z, inductive(z))) |- inductive(ind)) by RightSubstEq.withParameters(Seq((ε(z, inductive(z)), ind)), (Seq(z), inductive(z)))
+    thenHave((inductive(y), ind === ε(z, inductive(z))) |- inductive(ind)) by RightSubstEq(Seq((ε(z, inductive(z)), ind)), (Seq(z), inductive(z)))
     have(inductive(y) |- inductive(ind)) by Cut(ind.definition, lastStep)
 
     thenHave(∃(y, inductive(y)) |- inductive(ind)) by LeftExists
@@ -223,7 +233,7 @@ object Inductive extends lisa.HOL {
           // case w = y: x ∈ w gives x ∈ y
           val caseY =
             have((x ∈ w, w === y) |- (x ∈ w) \/ (x === w)) by Restate
-            have((x ∈ w, w === y) |- (x ∈ y) \/ (x === y)) by RightSubstEq.withParameters(Seq(w -> y), (Seq(w), (x ∈ w) \/ (x === w)))(lastStep)
+            have((x ∈ w, w === y) |- (x ∈ y) \/ (x === y)) by RightSubstEq(Seq(w -> y), (Seq(w), (x ∈ w) \/ (x === w)))(lastStep)
           // case w = {y,y}: x ∈ w gives x ∈ {y,y}, hence x = y
           val caseSingleton = have((x ∈ w, w === unorderedPair(y, y)) |- (x ∈ y) \/ (x === y)) subproof:
             have((x ∈ w, w === unorderedPair(y, y)) |- x ∈ unorderedPair(y, y)) by Congruence
@@ -240,7 +250,7 @@ object Inductive extends lisa.HOL {
 
         val xToy = have(expanded(x) === expanded(y) |- (x ∈ y) \/ (x === y)) subproof:
           have(x ∈ ⋃(ux) |- x ∈ ⋃(ux)) by Hypothesis
-          have((x ∈ ⋃(ux), ⋃(ux) === ⋃(uy)) |- x ∈ ⋃(uy)) by RightSubstEq.withParameters(
+          have((x ∈ ⋃(ux), ⋃(ux) === ⋃(uy)) |- x ∈ ⋃(uy)) by RightSubstEq(
             Seq((⋃(ux), ⋃(uy))),
             (Seq(w), x ∈ w)
           )(lastStep)
@@ -341,7 +351,7 @@ object Inductive extends lisa.HOL {
 
       // If expanded(x) = ∅, then x ∈ ∅ (since x ∈ expanded(x) and expanded(x) = ∅), contradiction
       have(x ∈ expanded(x) |- x ∈ expanded(x)) by Hypothesis
-      have((x ∈ expanded(x), expanded(x) === ∅) |- x ∈ ∅) by RightSubstEq.withParameters(
+      have((x ∈ expanded(x), expanded(x) === ∅) |- x ∈ ∅) by RightSubstEq(
         Seq((expanded(x), ∅)),
         (Seq(w), x ∈ w)
       )(lastStep)

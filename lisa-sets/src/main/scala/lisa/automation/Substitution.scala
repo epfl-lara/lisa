@@ -181,7 +181,7 @@ object Substitution:
             val leftLambda = andAllOrTrue(leftRewrites.map(_.lambda))
             thenHave(andAllOrTrue(preLeft) |- premise.right) by Restate
             thenHave(leftFormulas + andAllOrTrue(preLeft) |- premise.right) by Weakening
-            thenHave(leftFormulas + andAllOrTrue(postLeft) |- premise.right) by LeftSubstEq.withParameters(leftRules.map(r => r.l -> r.r).toSeq, leftVars -> leftLambda)
+            thenHave(leftFormulas + andAllOrTrue(postLeft) |- premise.right) by LeftSubstEq(leftRules.map(r => r.l -> r.r).toSeq, leftVars -> leftLambda)
 
             val rpremise = lastStep.bot
 
@@ -193,7 +193,7 @@ object Substitution:
             val rightLambda = orAllOrFalse(rightRewrites.map(_.lambda))
             thenHave(rpremise.left |- orAllOrFalse(preRight)) by Restate
             thenHave(rightFormulas ++ rpremise.left |- orAllOrFalse(preRight)) by Weakening
-            thenHave(rightFormulas ++ rpremise.left |- orAllOrFalse(postRight)) by RightSubstEq.withParameters(rightRules.map(r => r.l -> r.r).toSeq, rightVars -> rightLambda)
+            thenHave(rightFormulas ++ rpremise.left |- orAllOrFalse(postRight)) by RightSubstEq(rightRules.map(r => r.l -> r.r).toSeq, rightVars -> rightLambda)
 
             // rewrite to destruct sequent
             thenHave(postLeft ++ leftFormulas ++ rightFormulas |- postRight) by Restate

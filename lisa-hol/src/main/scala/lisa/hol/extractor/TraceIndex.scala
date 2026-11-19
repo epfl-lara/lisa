@@ -1,10 +1,12 @@
 package lisa.hol.extractor
 
+import fastparse.NoWhitespace._
+import fastparse._
+
 import java.io.File
-import fastparse.*
-import fastparse.NoWhitespace.*
 import scala.annotation.tailrec
-import scala.collection.Searching.{Found, InsertionPoint}
+import scala.collection.Searching.Found
+import scala.collection.Searching.InsertionPoint
 import scala.collection.mutable
 import scala.util.Using
 

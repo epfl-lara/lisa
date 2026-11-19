@@ -1,10 +1,10 @@
 package lisa.hol
 
-import lisa.SetTheoryLibrary.*
-import lisa.hol.VarsAndFunctions.*
-import lisa.maths.SetTheory.Types.TypingHelpers.*
+import lisa.SetTheoryLibrary._
+import lisa.hol.VarsAndFunctions._
+import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.K
-import lisa.utils.fol.FOL.{*, given}
+import lisa.utils.fol.FOL.{_, given}
 import org.scalatest.funsuite.AnyFunSuite
 
 class TypingCacheKeySuite extends AnyFunSuite:
@@ -38,9 +38,7 @@ class TypingCacheKeySuite extends AnyFunSuite:
     assert(first == second)
     for terms <- Seq(Seq(first -> xId, second -> yId), Seq(second -> yId, first -> xId)) do
       val proof = new BaseProof(Owner.theorem.asInstanceOf[THMFromProof])
-      for (term, expected) <- terms do
-        assert(occurrences(proof)(term) == Vector(expected))
+      for (term, expected) <- terms do assert(occurrences(proof)(term) == Vector(expected))
       val size = proof.cachedRootStepCount
-      for (term, expected) <- terms do
-        assert(occurrences(proof)(term) == Vector(expected))
+      for (term, expected) <- terms do assert(occurrences(proof)(term) == Vector(expected))
       assert(proof.cachedRootStepCount == size)

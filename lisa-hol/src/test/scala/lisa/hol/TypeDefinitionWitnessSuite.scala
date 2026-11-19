@@ -1,7 +1,7 @@
 package lisa.hol
 
+import lisa.hol.extractor._
 import lisa.hol.{core => h}
-import lisa.hol.extractor.*
 import lisa.utils.K
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -34,18 +34,29 @@ class TypeDefinitionWitnessSuite extends AnyFunSuite:
 
       // Reverse beta equality by congruence, then transport witness reflexivity.
       val steps = Seq(
-        REFL(encode(witness)), BETA(encode(applied)), REFL(encode(equality)),
-        MK_COMB(2, 1), REFL(encode(applied)), MK_COMB(3, 4),
-        EQ_MP(5, 4), EQ_MP(6, 0),
+        REFL(encode(witness)),
+        BETA(encode(applied)),
+        REFL(encode(equality)),
+        MK_COMB(2, 1),
+        REFL(encode(applied)),
+        MK_COMB(3, 4),
+        EQ_MP(5, 4),
+        EQ_MP(6, 0),
         TYPE_DEFINITION(7, encode(absGoal), carrier.name),
         TYPE_DEFINITION(7, encode(repGoal), carrier.name)
       )
       val reflexiveWitness = h.Eq(witness, witness)
       val goals = Seq(
-        reflexiveWitness, h.Eq(applied, reflexiveWitness), h.Eq(equality, equality),
+        reflexiveWitness,
+        h.Eq(applied, reflexiveWitness),
+        h.Eq(equality, equality),
         h.Eq(h.Combination(equality, applied), h.Combination(equality, reflexiveWitness)),
-        h.Eq(applied, applied), h.Eq(h.Eq(applied, applied), h.Eq(reflexiveWitness, applied)),
-        h.Eq(reflexiveWitness, applied), applied, absGoal, repGoal
+        h.Eq(applied, applied),
+        h.Eq(h.Eq(applied, applied), h.Eq(reflexiveWitness, applied)),
+        h.Eq(reflexiveWitness, applied),
+        applied,
+        absGoal,
+        repGoal
       )
       given ExtractorContext = new ExtractorContext(
         steps.iterator.zipWithIndex.map((step, id) => ProofLine(id, step)),

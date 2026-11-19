@@ -1,9 +1,11 @@
 package lisa.hol.core
 
-import fastparse.*
-import fastparse.NoWhitespace.*
+import fastparse.NoWhitespace._
+import fastparse._
 
-/** Parse HOL Light terms and types in ProofTrace export syntax. */
+/**
+ * Parse HOL Light terms and types in ProofTrace export syntax.
+ */
 object Parser:
   private def whitespace[$: P]: P[Unit] = P(CharsWhileIn(" \t\r\n\f\u000b", 0))
 
@@ -29,9 +31,13 @@ object Parser:
     P(whitespace ~ "c[" ~/ identifier ~ "][" ~ typeArg.rep ~ whitespace ~ "]").map((name, args) => TypeApplication(name, args.toList))
   private def typeArg[$: P]: P[Type] = P(whitespace ~ "[" ~/ typ ~ whitespace ~ "]")
 
-  /** Parse the complete input, allowing trailing whitespace but rejecting trailing tokens. */
+  /**
+   * Parse the complete input, allowing trailing whitespace but rejecting trailing tokens.
+   */
   def parseAll[T](input: String, parser: P[?] => P[T]): Parsed[T] =
-    fastparse.parse(input, context =>
-      given P[?] = context
-      P(parser(context) ~ whitespace ~ End)
+    fastparse.parse(
+      input,
+      context =>
+        given P[?] = context
+        P(parser(context) ~ whitespace ~ End)
     )
