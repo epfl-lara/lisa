@@ -2,7 +2,7 @@ package lisa.maths.SetTheory.Relations
 package Examples
 
 import lisa.maths.SetTheory.Base.Predef.{_, given}
-import lisa.maths.SetTheory.Relations.Predef._
+import lisa.maths.SetTheory.Relations.Properties.reflexive
 
 /**
  * The identity or diagonal relation `Δ(X)` on `X` is the set of pairs `(x, x)`

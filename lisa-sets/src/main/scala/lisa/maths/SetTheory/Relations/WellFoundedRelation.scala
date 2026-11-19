@@ -1,7 +1,6 @@
 package lisa.maths.SetTheory.Relations
 
 import lisa.maths.SetTheory.Base.Predef.{_, given}
-import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.Order.Extrema.minimal
 
 import Relation.R
@@ -24,14 +23,7 @@ object WellFoundedRelation extends lisa.Main {
 
   private val m = variable[Ind]
   private val S = variable[Ind]
-
   private val < = variable[Ind]
-  private val F = variable[Ind >>: Ind >>: Ind]
-  private val G, G1, G2 = variable[Ind]
-
-  extension (x: Expr[Ind]) {
-    private inline def apply(y: Expr[Ind]): Expr[Ind] = app(x)(y)
-  }
 
   /**
    * Well-founded Relation --- A relation `R` on `X` is said to be well-founded if
