@@ -6,6 +6,18 @@ import lisa.utils.fol.FOL._
 import lisa.utils.prooflib.Helpers.withParams
 
 sealed trait TheoremKind:
+  /**
+   * Proves a runtime-generated theorem under a fresh name derived from its source location.
+   */
+  def generated(using library: Library, output: OutputManager, file: sourcecode.File, line: sourcecode.Line, fullName: sourcecode.FullName)(statement: Sequent)(computeProof: Proof ?=> Any): Theorem =
+    named(library.theorems.freshName(fullName.value))(statement)(computeProof)
+
+  /**
+   * Declares a theorem with an explicit name for generated developments.
+   */
+  def named(using library: Library, output: OutputManager, file: sourcecode.File, line: sourcecode.Line)(fullName: String)(statement: Sequent)(computeProof: Proof ?=> Any): Theorem =
+    apply(using library, output, file, line, sourcecode.FullName(fullName), sourcecode.Name(fullName.split('.').last))(statement)(computeProof)
+
   def apply(using
       library: Library,
       output: OutputManager,

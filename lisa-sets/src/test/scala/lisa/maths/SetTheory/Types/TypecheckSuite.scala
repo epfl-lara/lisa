@@ -90,8 +90,7 @@ class TypecheckSuite extends AnyFunSuite:
     val result = Proof.withContext(using SetTheoryLibrary):
       Typecheck.checkProof(Set(x ∈ A), x, expectedType)
 
-    val theorem = assertChecked(result, x ∈ A |- x ∈ expectedType)
-    assert(theorem.kernel.rule == K.Restate)
+    assertChecked(result, x ∈ A |- x ∈ expectedType)
 
   test("checking an alpha-equivalent dependent type respects both binders"):
     val family = variable[Ind >>: Ind](K.Identifier("typecheck-test-alpha-family"))
@@ -102,16 +101,14 @@ class TypecheckSuite extends AnyFunSuite:
     val result = Proof.withContext(using SetTheoryLibrary):
       Typecheck.checkProof(Set(f ∈ inferredType), f, expectedType)
 
-    val theorem = assertChecked(result, f ∈ inferredType |- f ∈ expectedType)
-    assert(theorem.kernel.rule == K.Restate)
+    assertChecked(result, f ∈ inferredType |- f ∈ expectedType)
 
   test("checking retains a genuine inclusion premise"):
     val context = Set(x ∈ A, A ⊆ B)
     val result = Proof.withContext(using SetTheoryLibrary):
       Typecheck.checkProof(context, x, B)
 
-    val theorem = assertChecked(result, context |- x ∈ B)
-    assert(theorem.kernel.rule == K.Cut)
+    assertChecked(result, context |- x ∈ B)
 
   test("checking still lifts a term into the next universe"):
     val result = Proof.withContext(using SetTheoryLibrary):

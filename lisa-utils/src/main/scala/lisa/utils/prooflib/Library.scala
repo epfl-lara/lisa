@@ -209,6 +209,13 @@ class Library:
    * Provides access to theorems in the library.
    */
   object theorems:
+    private var generatedIndex = 0L
+
+    private[prooflib] def freshName(base: String): String =
+      generatedIndex += 1
+      val candidate = s"$base/generated/$generatedIndex"
+      if theoremByFullName.contains(candidate) then freshName(base) else candidate
+
     /**
      * Mutably update the named theorem registry.
      *
