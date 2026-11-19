@@ -423,7 +423,7 @@ class SemanticConstructor(using line: sourcecode.Line, file: sourcecode.File)(
       ) by RightExists
 
       have(thesis) by Tautology.from(
-        adt.termsHaveHeight(underlying, Seq(h := heightFun) ++ underlying.variables.zip(underlying.variables2).map((from, to) => from := to)),
+        adt.termsHaveHeight(underlying, heightFun, underlying.variables.zip(underlying.variables2).map((from, to) => from := to)),
         exTypedAtHeight
       )
     }

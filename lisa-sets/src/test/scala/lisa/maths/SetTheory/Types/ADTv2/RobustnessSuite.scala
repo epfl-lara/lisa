@@ -26,6 +26,53 @@ class RobustnessSuite extends AnyFunSuite:
 
   private val ignored, point, inner, u, v = variable[Ind]
 
+  for name <- Seq("n", "m", "h") do
+    test(s"constructor field $name is independent of carrier and height proof variables"):
+      val A = variable[Ind]
+      val field = Variable[Ind](name)
+      val declaration = adt(
+        s"robustConstructor/$name",
+        "A",
+        Seq(
+          ("leaf", Seq((name, "A"))),
+          ("branch", Seq((name, SelfRef), ("other", SelfRef)))
+        )
+      )
+      val Seq(leaf, branch) = declaration.constructors: @unchecked
+      val defined = recFun(declaration, declaration(A))(using sourcecode.Name(s"robustConstructorCopy/$name")) { self =>
+        Case(leaf, field):
+          leaf(A) * field
+        Case(branch, field, inner):
+          branch(A) * (self * field) * (self * inner)
+      }
+      val leafValue = leaf(bool) * tru
+      val typing = Theorem(branch(bool) * leafValue * leafValue :: declaration(bool)) {
+        have(thesis) by Tactics.Typecheck.prove
+      }
+      val computation = Theorem(defined(bool) * leafValue === leafValue) {
+        have(thesis) by Tautology.from(defined.elim(leaf).of(bool).of(field := tru), tru.intro)
+      }
+      assert(!typing.withSorry && !computation.withSorry && !defined.intro.withSorry)
+      assert(!declaration.elim.withSorry && !declaration.induction.withSorry)
+      assert(!leaf.injectivity.withSorry && !branch.injectivity.withSorry)
+      assert(!declaration.disjointness(leaf, branch).withSorry)
+
+  test("formerly reserved names and suffixed names can coexist in one constructor"):
+    val names = Seq("n", "n1", "n2", "m", "m1", "h", "h1", "h2")
+    val declaration = adt(
+      "robustConstructorHeightNames",
+      "A",
+      Seq(
+        ("leaf", names.map(_ -> "A")),
+        ("branch", names.map(_ -> SelfRef))
+      )
+    )
+    val Seq(leaf, branch) = declaration.constructors: @unchecked
+    assert(!leaf.intro.withSorry && !branch.intro.withSorry)
+    assert(!leaf.injectivity.withSorry && !branch.injectivity.withSorry)
+    assert(!declaration.elim.withSorry && !declaration.induction.withSorry)
+    assert(!declaration.disjointness(leaf, branch).withSorry)
+
   for name <- Seq(
       "f0",
       "nVar",

@@ -40,7 +40,7 @@ object Example extends lisa.Main:
     have((y ∈ x) ==> (y ∈ x)) by Restate
     have(∀(y, (y ∈ x) ==> (y ∈ x))) by Restate
 
-    have(thesis) by Tautology.from(lastStep, subsetAxiom of (x := x, y := x))
+    have(thesis) by Tautology.from(lastStep, subsetAxiom of(x := x, y := x))
   }
 
   /**
@@ -49,10 +49,10 @@ object Example extends lisa.Main:
    *   `|- ∅ ⊆ x`
    */
   val leftEmpty = Theorem(∅ ⊆ x): // braceless syntax is also fine!
-    have((y ∈ ∅) ==> (y ∈ x)) by Weakening(emptySetAxiom of (x := y))
+    have((y ∈ ∅) ==> (y ∈ x)) by Weakening(emptySetAxiom of(x := y))
     thenHave(∀(y, (y ∈ ∅) ==> (y ∈ x))) by RightForall
 
-    have(thesis) by Tautology.from(lastStep, subsetAxiom of (x := ∅, y := x))
+    have(thesis) by Tautology.from(lastStep, subsetAxiom of(x := ∅, y := x))
 
   /**
    * Theorem --- If a set has an element, then it is not the empty set.
@@ -62,7 +62,7 @@ object Example extends lisa.Main:
   val setWithElementNonEmpty = Theorem(
     (y ∈ x) |- x =/= ∅
   ) {
-    have((x === ∅) |- !(y ∈ x)) by Substitute(x === ∅)(emptySetAxiom of (x := y))
+    have((x === ∅) |- !(y ∈ x)) by Substitute(x === ∅)(emptySetAxiom of(x := y))
     // this statement is `Restate` equivalent to the result, so we are done!
   }
 
@@ -75,8 +75,8 @@ object Example extends lisa.Main:
     𝒫(x) =/= ∅
   ) {
     have(thesis) by Tautology.from(
-      setWithElementNonEmpty of (y := ∅, x := 𝒫(x)),
-      powerSetAxiom of (x := ∅, y := x),
+      setWithElementNonEmpty of(y := ∅, x := 𝒫(x)),
+      powerSetAxiom of(x := ∅, y := x),
       leftEmpty
     )
   }

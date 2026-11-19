@@ -1322,7 +1322,7 @@ object BasicStepTactic {
 
   class SUBPROOF(using val proof: Library#Proof)(statement: Option[F.Sequent])(val iProof: proof.InnerProof) extends ProofTactic {
     val bot: Option[F.Sequent] = statement
-    val botK: Option[K.Sequent] = statement map (_.underlying)
+    val botK: Option[K.Sequent] = statement map(_.underlying)
     val scproof: Option[K.SCProof] = if (iProof.length == 0) then None else Some(iProof.toSCProof)
 
     val premises: Seq[proof.Fact] = iProof.importedFacts

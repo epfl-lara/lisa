@@ -29,7 +29,7 @@ class CommonHeightSuite extends AnyFunSuite:
     )
     val theorem = Theorem(expected) {
       val before = lisa.SetTheoryLibrary.last
-      val commonHeight = declaration.termsHaveHeight(constructor)
+      val commonHeight = declaration.termsHaveHeight(constructor, h)
       assert(lisa.SetTheoryLibrary.last == before)
       have(thesis) by Restate.from(commonHeight)
     }
@@ -66,8 +66,32 @@ class CommonHeightSuite extends AnyFunSuite:
     val substitutions = Seq(A := recursive, payload := A, recursive := otherPayload, h := otherRecursive)
     val checked = Theorem(schema.substitute(substitutions*)) {
       val before = lisa.SetTheoryLibrary.last
-      val instance = declaration.termsHaveHeight(constructor, substitutions)
+      val instance = declaration.termsHaveHeight(constructor, otherRecursive, substitutions)
       assert(lisa.SetTheoryLibrary.last == before)
       have(thesis) by Restate.from(instance)
     }
     assert(!checked.withSorry)
+
+  test("height witnesses stay distinct from fields and their indexed variants"):
+    val A, heightWitness, stageWitness, payload = variable[Ind]
+    val variables = Seq(h, Variable[Ind](Identifier("h", 1)), n, Variable[Ind](Identifier("n", 1)), m, Variable[Ind](Identifier("m", 1)))
+    val alternatives = variables.indices.map(i => Variable[Ind](s"argument$i"))
+    val name = "commonHeightFreshWitnesses"
+    val constructor = new SyntacticConstructor(
+      Seq(TypeArg("A")) ++ Seq.fill(variables.size - 1)(SelfRef),
+      variables,
+      alternatives,
+      0,
+      name
+    )
+    val declaration = new SyntacticADT(name, Seq(constructor), Seq(A))
+    def fieldsIn(domain: Expr[Ind]): Expr[Prop] =
+      declaration.constructorVarsInDomain(constructor, domain).substitute(h := payload)
+    val checked = Theorem(
+      declaration.isHeight(heightWitness) |- (
+        fieldsIn(declaration.term) <=> ∃(stageWitness, stageWitness ∈ N /\ fieldsIn(app(heightWitness)(stageWitness)))
+      )
+    ) {
+      have(thesis) by Restate.from(declaration.termsHaveHeight(constructor, heightWitness, Seq(h := payload)))
+    }
+    assert(!checked.withSorry && !declaration.intro(constructor).withSorry)

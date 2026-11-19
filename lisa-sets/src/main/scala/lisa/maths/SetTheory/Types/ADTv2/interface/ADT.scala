@@ -7,7 +7,7 @@ import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.renderAppliedSymbol
 import lisa.maths.SetTheory.Types.ADTv2.support.core.Utils.typeExprToTerm
 import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
 
-final class ADT[S](using val line: sourcecode.Line, val file: sourcecode.File, sort: Sort[S])(
+class ADT[S](using val line: sourcecode.Line, val file: sourcecode.File, sort: Sort[S])(
     val semantic: SemanticADT
 ) extends Constant[S](semantic.id) {
 

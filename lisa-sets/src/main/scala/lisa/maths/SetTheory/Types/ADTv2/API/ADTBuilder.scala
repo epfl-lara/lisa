@@ -11,7 +11,7 @@ import lisa.maths.SetTheory.Types.ADTv2.syntax.AST._
  * writes its own sort down, and the sort evidence comes from LISA's own `Sort`
  * derivation rather than anything computed here.
  */
-private def ADTBuilder[S](using
+private[ADTv2] def ADTBuilder[S](using
     Sort[S]
 )(
     name: String,
@@ -20,6 +20,17 @@ private def ADTBuilder[S](using
       (String, Seq[(String, String | ConstructorArg)])
     ]
 ): ADT[S] = {
+  new ADT[S](buildSemanticADT(name, typeVars, constructors))
+}
+
+/**
+ * Validates a declaration and builds its semantics before creating its public ADT instance.
+ */
+private[ADTv2] def buildSemanticADT(
+    name: String,
+    typeVars: Seq[String],
+    constructors: Seq[(String, Seq[(String, String | ConstructorArg)])]
+): SemanticADT = {
   require(name.trim.nonEmpty, "An ADT must have a nonempty name.")
   require(typeVars.forall(_.trim.nonEmpty), s"ADT $name has an empty type variable name.")
   require(
@@ -27,14 +38,7 @@ private def ADTBuilder[S](using
     s"ADT $name has duplicate type variables: ${typeVars.mkString(", ")}."
   )
 
-  // These names are still used as fixed variables in the encoding proofs.
-  val reservedArgumentNames = Set("n", "m", "h")
   val declaredTypeNames = typeVars.toSet
-  def validateArgName(argName: String): Unit =
-    require(
-      !reservedArgumentNames.contains(argName),
-      s"Constructor argument name '$argName' is reserved; choose another name"
-    )
 
   val constructorNames = constructors.map(_._1)
   require(constructorNames.forall(_.trim.nonEmpty), s"ADT $name has an empty constructor name.")
@@ -44,7 +48,6 @@ private def ADTBuilder[S](using
     require(args.map(_._1).distinct.size == args.size, s"$owner has duplicate argument names.")
     args.map { case (argName, argType) =>
       require(argName.trim.nonEmpty, s"$owner has an empty argument name.")
-      validateArgName(argName)
       val resolved = argType match
         case s: String => if s == name then SelfRef else TypeArg(s)
         case c: ConstructorArg => c
@@ -89,7 +92,7 @@ private def ADTBuilder[S](using
     )
   }
 
-  new ADT[S](SemanticADT(syntacticADT, semanticConstructors))
+  SemanticADT(syntacticADT, semanticConstructors)
 }
 
 def adt(

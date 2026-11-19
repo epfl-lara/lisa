@@ -111,20 +111,24 @@ class SemanticADT(
     /**
      * Instantiates a common height for a syntactic constructor's arguments.
      */
-    def termsHaveHeightAt(c: SyntacticConstructor, substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
-      underlying.termsHaveHeight(c, normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions) ++ valueSubstitutions)
+    def termsHaveHeightAt(c: SyntacticConstructor, heightFunction: Expr[Ind], substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair] = Seq.empty)(using
+        proof: lisa.SetTheoryLibrary.Proof
+    ): proof.Fact =
+      underlying.termsHaveHeight(c, heightFunction, normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions) ++ valueSubstitutions)
 
     /**
      * Instantiates a common height for a semantic constructor's arguments.
      */
-    def termsHaveHeightAt(c: SemanticConstructor, substitutions: Seq[TypeSubstitution])(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
-      termsHaveHeightAt(c.underlying, substitutions)
+    def termsHaveHeightAt(c: SemanticConstructor, heightFunction: Expr[Ind], substitutions: Seq[TypeSubstitution])(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
+      termsHaveHeightAt(c.underlying, heightFunction, substitutions)
 
     /**
      * Instantiates type and value parameters of a semantic constructor's common-height theorem together.
      */
-    def termsHaveHeightAt(c: SemanticConstructor, substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair])(using proof: lisa.SetTheoryLibrary.Proof): proof.Fact =
-      termsHaveHeightAt(c.underlying, substitutions, valueSubstitutions)
+    def termsHaveHeightAt(c: SemanticConstructor, heightFunction: Expr[Ind], substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair])(using
+        proof: lisa.SetTheoryLibrary.Proof
+    ): proof.Fact =
+      termsHaveHeightAt(c.underlying, heightFunction, substitutions, valueSubstitutions)
   }
 
   val height = HeightAdapter()
