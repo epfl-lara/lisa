@@ -1,10 +1,10 @@
 version := "0.9.4"
-homepage := Some(url("https://github.com/epfl-lara/lisa"))
+homepage := Some(uri("https://github.com/epfl-lara/lisa"))
 startYear := Some(2021)
 organization := "ch.epfl.lara"
 organizationName := "LARA"
-organizationHomepage := Some(url("https://lara.epfl.ch"))
-licenses := Seq("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0.html"))
+organizationHomepage := Some(uri("https://lara.epfl.ch"))
+licenses := Seq("Apache-2.0" -> uri("https://www.apache.org/licenses/LICENSE-2.0.html"))
 versionScheme := Some("semver-spec")
 scalacOptions ++= Seq(
   "-feature",
@@ -13,11 +13,13 @@ scalacOptions ++= Seq(
 )
 javacOptions ++= Seq("-encoding", "UTF-8")
 semanticdbEnabled := true
-semanticdbVersion := "4.13.6"
+semanticdbVersion := "4.17.4"
 
-val scala3 = "3.8.4"
+val scala3 = "3.10.1"
+
 val commonSettings = Seq(
   crossScalaVersions := Seq(scala3),
+  // scalacOptions += "-Wsafe-init",
   run / fork := true
 )
 
@@ -30,7 +32,7 @@ val commonSettings3 = commonSettings ++ Seq(
     "-language:experimental.modularity"
   ),
   javaOptions += "-Xmx10G",
-  libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % "test",
+  libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.20" % "test",
   libraryDependencies += "com.lihaoyi" %% "sourcecode" % "0.4.4",
   Test / parallelExecution := false,
   Test / fork := true
@@ -56,7 +58,7 @@ lazy val kernel = Project(
   .settings(commonSettings)
   .settings(
     scalaVersion := scala3,
-    libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % "test"
+    libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.20" % "test"
   )
 
 lazy val utils = Project(
@@ -75,7 +77,7 @@ lazy val sets = Project(
     resolvers += "jitpack" at "https://jitpack.io",
     libraryDependencies ++= Seq(
       "org.apache.commons" % "commons-math3" % "3.6.1",
-      "it.unimi.dsi" % "fastutil-core" % "8.5.15",
+      "it.unimi.dsi" % "fastutil-core" % "8.5.19",
       "com.github.SC-TPTP" % "scala-tptp-parser_2.13" % "0b4ffa55c71415e925080608707c78ada1d750e5"
     )
   )
@@ -107,7 +109,7 @@ lazy val holImport = Project(
     commonSettings3 ++ Seq(
       libraryDependencies += "com.lihaoyi" %% "upickle" % "4.4.3",
       libraryDependencies += "com.lihaoyi" %% "fastparse" % "3.1.1",
-      libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "2.4.0" % Test
+      libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "2.5.0" % Test
     )
   )
   .dependsOn(sets, utils)
