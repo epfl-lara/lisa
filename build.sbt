@@ -51,6 +51,21 @@ lazy val root = Project(
 
 LocalRootProject / Compile / run := (sets / Compile / run).evaluated
 
+lazy val runAll = taskKey[Unit]("Run all mathematical developments in name order.")
+
+runAll / aggregate := false
+runAll := Def.uncached {
+  // Command-line tools outside lisa.maths require arguments.
+  val mains = (sets / Compile / discoveredMainClasses).value.filter(_.startsWith("lisa.maths.")).sorted
+  val converter = fileConverter.value
+  val classpath = (sets / Compile / fullClasspath).value.map(entry => converter.toPath(entry.data))
+  val mainRunner = (sets / Compile / run / runner).value
+  val log = streams.value.log
+  require(mains.nonEmpty, "No main classes discovered")
+  log.info(s"Running ${mains.size} main classes")
+  mains.foreach(main => mainRunner.run(main, classpath, Nil, log).get)
+}
+
 lazy val kernel = Project(
   id = "lisa-kernel",
   base = file("lisa-kernel")
