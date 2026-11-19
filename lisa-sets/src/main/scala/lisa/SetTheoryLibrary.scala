@@ -41,12 +41,6 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
    */
   object ∈ extends Constant[Ind >>: Ind >>: Prop]("∈") {
     this.printInfix()
-
-    def unapply(e: Expr[Prop]): Option[(Expr[Ind], Expr[Ind])] =
-      val ∈ = this
-      e match
-        case App(App(`∈`, x), y) => Some(x, y)
-        case _ => None
   }
 
   /**
