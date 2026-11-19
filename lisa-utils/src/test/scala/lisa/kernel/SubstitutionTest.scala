@@ -142,7 +142,7 @@ class SubstitutionTest extends AnyFunSuite {
         e2 -> lambda(Seq(X, Y), X <=> exists(x, P(x) /\ Y)),
         X -> (z === y),
         P -> lambda(x2, exists(y, R(x2, y) /\ P(x)))
-      ) _VS_(exists(y2, Q(y2) /\ ((z === y) <=> exists(x2, P(x2) /\ exists(y, R(x, y) /\ P(x))))) /\ R(y, f(y))),
+      ) _VS_ (exists(y2, Q(y2) /\ ((z === y) <=> exists(x2, P(x2) /\ exists(y, R(x, y) /\ P(x))))) /\ R(y, f(y))),
       $(forall(x, P(x)), x1 -> f(x)) _VS_ forall(x, P(x)),
       $(
         forall(x, e2(c1(e2(X, P(x))) /\ R(y, f(y)), exists(x, P(x) /\ X))),

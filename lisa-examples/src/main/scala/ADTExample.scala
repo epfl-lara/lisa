@@ -1,125 +1,114 @@
-object ADTExample extends lisa.Main {
-  /*
-  import lisa.maths.settheory.types.adt.{*, given}
+package ADTv2Examples
 
-  // variable declarations
-  val A = variable
+import lisa.maths.SetTheory.Functions.Pi.->:
+import lisa.maths.SetTheory.Types.ADTv2.InductiveInfixSyntax.SelfRef
+import lisa.maths.SetTheory.Types.ADTv2.InductiveInfixSyntax.inductive
+import lisa.maths.SetTheory.Types.ADTv2.InductiveInfixSyntax.|
+import lisa.maths.SetTheory.Types.ADTv2._
+import lisa.maths.SetTheory.Types.Tactics.Typecheck
+import lisa.maths.SetTheory.Types.TypingHelpers
 
-  val n = variable
-  val l = variable
-  val x = variable
-  val y = variable
+/**
+ * Run with: sbt "lisa-examples/runMain ADTv2Examples.Example".
+ */
+object Example extends lisa.Main {
 
-  val x0 = variable
-  val x1 = variable
-  val y0 = variable
-  val y1 = variable
+  val A, x, y, k, head, second, tail, xs, value = variable[Ind]
 
-  // ***********************
-  // * 1 : Examples of ADT *
-  // ***********************
+  // Declare field variables first. Empty parentheses introduce a nullary constructor.
+  val Nat = inductive(
+    | zero (),
+    | succ (k :: SelfRef)
+  )
+  import Nat.{zero, succ}
 
-  // Boolean
-  val define(bool: ADT[0], constructors(tru, fals)) = () | ()
+  // Fields are declared parameters or SelfRef, which implicitly uses all parameters.
+  // Arbitrary field types are unsupported. For several parameters, use inductive((A, B))(...).
+  val List = inductive(A)(
+    | nil (),
+    | cons (head :: A, tail :: SelfRef)
+  )
+  import List.{nil, cons}
 
-  // Nat
-  val define(nat: ADT[0], constructors(zero, succ)) = () | nat
-
-  // Option
-  val define(option: ADT[1], constructors(none, some)) = A --> () | A
-
-  // List
-  val define(list: ADT[1], constructors(nil, cons)) = A --> () | (A, list)
-
-  // Nothing
-  val define(nothing, constructors()) = |
-
-  // ****************
-  // * 2 : Theorems *
-  // ****************
-
-  // Injectivity
-  show(nil.injectivity)
-  show(cons.injectivity)
-  show(list.injectivity(nil, cons))
-
-  // Introduction rules
-  show(nil.intro)
-  show(cons.intro)
-
-  Lemma(nil(A) :: list(A)) {
-    have(thesis) by TypeChecker.prove
-  }
-  Lemma((x :: A, l :: list(A)) |- cons(A) * x * l :: list(A)) {
-    have(thesis) by TypeChecker.prove
+  // Parentheses supply type arguments; * applies set-theoretic functions to values.
+  val singleton = cons(Nat) * zero * nil(Nat)
+  val singletonTyping = Theorem(singleton :: List(Nat)) {
+    have(thesis) by Typecheck.prove
   }
 
-  // Induction
-  show(list.induction)
-
-  // Pattern matching
-  show(list.elim)
-
-  // *****************
-  // * 3 : Functions *
-  // *****************
-
-  val not = fun(bool, bool) {
-    Case(tru) { fals }
-    Case(fals) { tru }
+  // Generated constructor and carrier theorems can be used directly in ordinary proofs.
+  val nilTyping = Theorem(nil(Nat) :: List(Nat)) {
+    have(thesis) by Restate.from(nil.intro.of(Nat))
+  }
+  val natCases = Theorem(∀(x, x :: Nat ==> ((x === zero) \/ ∃(k, (k :: Nat) /\ (x === succ * k))))) {
+    have(thesis) by Restate.from(Nat.elim)
+  }
+  val successorInjective = Theorem(∀(x, ∀(y, ((x :: Nat) /\ (y :: Nat)) ==> ((succ * x === succ * y) <=> (x === y))))) {
+    have(thesis) by Restate.from(succ.injectivity)
+  }
+  val zeroNotSuccessor = Theorem(∀(k, k :: Nat ==> !(zero === succ * k))) {
+    have(thesis) by Restate.from(Nat.disjointness(zero, succ))
   }
 
-  val pred = fun(nat, nat):
-    Case(zero):
+  // specialize fixes the domain's type arguments. This function has no remaining type parameters.
+  // Cases must be exhaustive and nonoverlapping, with distinct binders in each case.
+  val secondOrZero = fun(List.specialize(Nat), Nat) {
+    Case(nil):
       zero
-    Case(succ, n):
-      n
-
-  // ************************
-  // * 4 : Induction Tactic *
-  // ************************
-
-  Theorem(x :: bool |- not * (not * x) === x) {
-    have(thesis) by Induction() {
-      Case(tru) subproof {
-        val notFals = have(not * fals === tru) by Restate.from((not.elim(fals)))
-        have(fals === not * tru) by Restate.from(not.elim(tru))
-        have(not * (not * tru) === tru) by Substitution.ApplyRules(lastStep)(notFals)
-      }
-      Case(fals) subproof {
-        val notTrue = have(not * tru === fals) by Restate.from((not.elim(tru)))
-        have(tru === not * fals) by Restate.from(not.elim(fals))
-        have(not * (not * fals) === fals) by Substitution.ApplyRules(lastStep)(notTrue)
-      }
-    }
+    Case(cons, head, nil(Nat)):
+      zero
+    Case(cons, head, cons(Nat) * second * tail):
+      second
+  }
+  val secondOrZeroTyping = Theorem(secondOrZero :: (List(Nat) ->: Nat)) {
+    have(thesis) by Restate.from(secondOrZero.intro)
   }
 
-  // ****************************
-  // * 5: All features together *
-  // ****************************
+  // A generic domain supplies its type parameters to recFun. self is already specialized at A.
+  // Recursive calls are on recursive subterms supplied by the patterns.
+  val copy = recFun(List, List(A)) { self =>
+    Case(nil):
+      nil(A)
+    Case(cons, head, tail):
+      cons(A) * head * (self * tail)
+  }
 
-  val consInj = Theorem((l :: list(A), x :: A) |- !(l === cons(A) * x * l)) {
+  // elim gives a defining equation. Type arguments use .of(type); free binders use .of(v := term).
+  val copySingleton = Theorem(copy(Nat) * singleton === singleton) {
+    val base = have(copy(Nat) * nil(Nat) === nil(Nat)) by Restate.from(copy.elim(nil).of(Nat))
+    val step = have(copy(Nat) * singleton === cons(Nat) * zero * (copy(Nat) * nil(Nat))) by Tautology.from(
+      copy.elim(cons).of(Nat).of(head := zero, tail := nil(Nat)),
+      zero.intro,
+      nil.intro.of(Nat)
+    )
+    have(thesis) by Congruence.from(base, step)
+  }
 
-    val typeNil = have(nil(A) :: list(A)) by TypeChecker.prove
-    val typeCons = have((y :: A, l :: list(A)) |- cons(A) * y * l :: list(A)) by TypeChecker.prove
-
-    have(l :: list(A) |- forall(x, x :: A ==> !(l === cons(A) * x * l))) by Induction() {
+  // Each induction case has field typings and recursive hypotheses; introduce them with assume.
+  // Induction() can also infer the variable and datatype from the goal's typing assumption.
+  val copyIdentity = Theorem(xs :: List(A) |- copy(A) * xs === xs) {
+    have(thesis) by Induction(xs, List.specialize(A)) {
       Case(nil) subproof {
-        have(x :: A ==> !(nil(A) === cons(A) * x * nil(A))) by Tautology.from(list.injectivity(nil, cons) of (y0 := x, y1 := nil(A)), typeNil)
-        thenHave(forall(x, x :: A ==> !(nil(A) === cons(A) * x * nil(A)))) by RightForall
+        have(thesis) by Restate.from(copy.elim(nil).of(A))
       }
-      Case(cons, y, l) subproof {
-        have((y :: A ==> !(l === cons(A) * y * l), y :: A, l :: list(A)) |- x :: A ==> !(cons(A) * y * l === cons(A) * x * (cons(A) * y * l))) by Tautology.from(
-          cons.injectivity of (x0 := y, x1 := l, y0 := x, y1 := cons(A) * y * l),
-          typeCons
-        )
-        thenHave((y :: A ==> !(l === cons(A) * y * l), y :: A, l :: list(A)) |- forall(x, x :: A ==> !(cons(A) * y * l === cons(A) * x * (cons(A) * y * l)))) by RightForall
-        thenHave((forall(x, x :: A ==> !(l === cons(A) * x * l)), y :: A, l :: list(A)) |- forall(x, x :: A ==> !(cons(A) * y * l === cons(A) * x * (cons(A) * y * l)))) by LeftForall
+      Case(cons, head, tail) subproof {
+        assume(head :: A, tail :: List(A), copy(A) * tail === tail)
+        val step = have(copy(A) * (cons(A) * head * tail) === cons(A) * head * (copy(A) * tail)) by
+          Tautology.from(copy.elim(cons).of(A))
+        have(thesis) by Congruence.from(step)
       }
     }
-
-    thenHave(l :: list(A) |- x :: A ==> !(l === cons(A) * x * l)) by InstantiateForall(x)
-    thenHave(thesis) by Tautology
   }
-   */
+
+  // Explicit function parameters need not come from the domain: repeat[A] : Nat -> A -> List[A].
+  // TypingHelpers.fun builds a set-theoretic lambda, distinct from the ADT pattern-matching fun.
+  val repeat = recFun(A)(Nat.specialize(), A ->: List(A)) { self =>
+    Case(zero):
+      TypingHelpers.fun(value :: A, nil(A))
+    Case(succ, k):
+      TypingHelpers.fun(value :: A, cons(A) * value * (self * k * value))
+  }
+  val repeatTyping = Theorem(repeat(Nat) * (succ * zero) * zero :: List(Nat)) {
+    have(thesis) by Typecheck.prove
+  }
 }

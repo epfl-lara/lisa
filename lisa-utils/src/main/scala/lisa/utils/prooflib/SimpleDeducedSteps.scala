@@ -49,7 +49,7 @@ object SimpleDeducedSteps {
     def apply(using lib: Library, proof: lib.Proof)(phi: F.Expr[F.Prop], t: F.Expr[F.Ind]*)(premise: proof.Fact)(bot: F.Sequent): proof.ProofTacticJudgement = {
       val botK = bot.underlying
       val phiK = phi.underlying
-      val tK = t map(_.underlying)
+      val tK = t map (_.underlying)
       val premiseSequent = proof.getSequent(premise)
       val premiseSequentK = premiseSequent.underlying
       if (!premiseSequent.right.contains(phi)) {
