@@ -75,6 +75,51 @@ class TableauSuite extends AnyFunSuite:
         def next(): (Tableau.Substitution, Set[K.Expression]) = fail("Evaluated a candidate after the minimum score")
       assert(Tableau.bestSubst(prefix.iterator ++ Iterator.single(empty) ++ rest, substitutionBranch).contains(empty))
 
+  test("rigid-head filtering preserves ground closures and candidate order"):
+    val p = K.Constant(K.Identifier("close-p"), K.Ind -> K.Prop)
+    val q = K.Constant(K.Identifier("close-q"), K.Ind -> K.Prop)
+    val r = K.Constant(K.Identifier("close-r"), K.Ind -> (K.Ind -> K.Prop))
+    val t = K.Constant(K.Identifier("close-t"), K.Ind)
+    val s = K.Constant(K.Identifier("close-s"), K.Ind)
+    val atoms: List[K.Expression] = List(
+      K.Constant(p.id, K.Prop),
+      K.Constant(q.id, K.Prop),
+      p(t),
+      p(s),
+      q(t),
+      r(t)(s),
+      r(s)(t),
+      K.Lambda(x.underlying, p(x.underlying))(t)
+    )
+    val contexts = List(Nil, atoms, atoms.reverse) ++ atoms.map(List(_))
+    for positives <- contexts; negatives <- contexts do
+      val branch = Tableau.Branch.empty(100, z.underlying).copy(atoms = positives -> negatives)
+      val candidates = positives.reverseIterator.flatMap: positive =>
+        negatives.reverseIterator.flatMap: negative =>
+          Tableau.unifyPred(positive, negative, branch).iterator.map(substitution => substitution -> Set(positive, K.neg(negative)))
+      assert(Tableau.close(branch) == Tableau.bestSubst(candidates, branch))
+
+    val contradiction = Tableau.Branch.empty(100, z.underlying).copy(atoms = List(K.bot) -> Nil)
+    assert(Tableau.close(contradiction).contains(Map.empty[K.Variable, K.Expression] -> Set(K.bot)))
+
+  test("rigid-head filtering retains term, predicate, and whole-formula substitutions"):
+    val p = K.Constant(K.Identifier("close-subst-p"), K.Ind -> K.Prop)
+    val t = K.Constant(K.Identifier("close-subst-t"), K.Ind)
+    val comparisons: Seq[(K.Expression, K.Expression, K.Variable, K.Expression)] = Seq(
+      (p(t), p(x.underlying), x.underlying, t),
+      (p(t), P.underlying(t), P.underlying, p),
+      (p(t), a.underlying, a.underlying, p(t))
+    )
+    for (positive, negative, variable, replacement) <- comparisons do
+      val branch = Tableau.Branch
+        .empty(100, z.underlying)
+        .copy(
+          atoms = List(positive) -> List(negative),
+          unifiable = Map(variable -> (positive -> 0)),
+          numberInstantiated = Map(variable -> 0)
+        )
+      assert(Tableau.close(branch).contains(Map(variable -> replacement) -> Set(positive, K.neg(negative))))
+
   // ========================================================================
   // Propositional
   // ========================================================================

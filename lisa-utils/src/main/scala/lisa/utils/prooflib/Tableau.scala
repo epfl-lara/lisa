@@ -175,20 +175,33 @@ object Tableau extends SequentTactic, PremiseSequentTactic, DerivedFromPremises:
    * Finds the cheapest branch-closing unifier and atoms it closes.
    */
   def close(branch: Branch): Option[(Substitution, Set[K.Expression])] =
-    val renamed = branch.atoms._1.iterator
+    val (positiveAtoms, negativeAtoms) = branch.atoms
+    if positiveAtoms.contains(K.bot) then return Some(Substitution.empty -> Set(K.bot))
+    if positiveAtoms.isEmpty || negativeAtoms.isEmpty then return None
+
+    val renamed = positiveAtoms.iterator
       .flatMap(_.freeVariables)
       .filter(branch.unifiable.contains)
       .map(variable => variable -> K.Variable(K.Identifier(variable.id.name, variable.id.no + branch.maxIndex + 1), K.Ind))
       .toMap
     val inverse = renamed.map(_.swap)
-    if branch.atoms._1.contains(K.bot) then return Some(Substitution.empty -> Set(K.bot))
 
-    val candidates = branch.atoms._1.reverseIterator
+    @annotation.tailrec
+    def head(expression: K.Expression): K.Expression = expression match
+      case K.Application(function, _) => head(function)
+      case _ => expression
+
+    val negatives = negativeAtoms.reverseIterator.map(negative => negative -> head(negative)).toVector
+    val candidates = positiveAtoms.reverseIterator
       .map(K.substituteVariables(_, renamed))
       .flatMap: positive =>
-        branch.atoms._2.reverseIterator.flatMap: negative =>
-          unifyPred(positive, negative, branch).iterator
-            .map(substitution => substitution -> Set(positive, K.neg(negative)))
+        val positiveHead = head(positive)
+        negatives.iterator.flatMap: (negative, negativeHead) =>
+          (positiveHead, negativeHead) match
+            case (left: K.Constant, right: K.Constant) if left != right => Iterator.empty
+            case _ =>
+              unifyPred(positive, negative, branch).iterator
+                .map(substitution => substitution -> Set(positive, K.neg(negative)))
 
     val normalized = candidates.map: (substitution, formulas) =>
       val cleaned = substitution.flatMap: (variable, term) =>
