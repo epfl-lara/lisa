@@ -128,7 +128,7 @@ object Tautology extends SequentTactic with PremiseSequentTactic:
                     def branch(expansion: Expansion): Either[String, K.Thm] =
                       val child = expansion.addTo(rest)
                       def decompose = search(child, pending(expansion.left, expansion.right), remaining, premises)
-                      if checkIff then K.RestateTrue(child).left.map(_.toString).orElse(decompose) else decompose
+                      if checkIff then K.RestateTrue(child).orElse(decompose) else decompose
                     branch(first).flatMap { left =>
                       if sufficient(left, statement) then Right(left)
                       else
@@ -193,4 +193,4 @@ object Tautology extends SequentTactic with PremiseSequentTactic:
         case None =>
           premises.find(sufficient(_, statement)) match
             case Some(proof) => align(proof)
-            case None => K.RestateTrue(statement).left.map(_.toString).orElse(decompose)
+            case None => K.RestateTrue(statement).orElse(decompose)
