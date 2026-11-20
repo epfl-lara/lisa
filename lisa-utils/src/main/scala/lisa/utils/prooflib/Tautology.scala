@@ -1,6 +1,7 @@
 package lisa.utils.prooflib
 
 import lisa.utils.K
+import lisa.utils.collection.Extensions.orElseCasting
 import lisa.utils.fol.FOL._
 import lisa.utils.prooflib.Helpers.withParams
 import lisa.utils.prooflib.ProofHelpers._
@@ -128,7 +129,7 @@ object Tautology extends SequentTactic with PremiseSequentTactic:
                     def branch(expansion: Expansion): Either[String, K.Thm] =
                       val child = expansion.addTo(rest)
                       def decompose = search(child, pending(expansion.left, expansion.right), remaining, premises)
-                      if checkIff then K.RestateTrue(child).orElse(decompose) else decompose
+                      if checkIff then K.RestateTrue(child).orElseCasting(decompose) else decompose
                     branch(first).flatMap { left =>
                       if sufficient(left, statement) then Right(left)
                       else
@@ -193,4 +194,4 @@ object Tautology extends SequentTactic with PremiseSequentTactic:
         case None =>
           premises.find(sufficient(_, statement)) match
             case Some(proof) => align(proof)
-            case None => K.RestateTrue(statement).orElse(decompose)
+            case None => K.RestateTrue(statement).orElseCasting(decompose)
