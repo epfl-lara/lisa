@@ -262,7 +262,7 @@ private[recursion] object ApproximationChainFacts {
   )
 
   private[proofs] def heightMembershipMonotonicSchemaAt(using
-      proof: lisa.SetTheoryLibrary.Proof
+      proof: lisa.SetTheoryLibrary.ProofBuilder
   )(
       heightFun0: Expr[Ind],
       heightMembershipMonotonic0: Seq[SubstPair] => Thm,
@@ -307,7 +307,7 @@ private[recursion] object ApproximationChainFacts {
   }
 
   def approximantsAgreeFromSubsetAt(using
-      proof: lisa.SetTheoryLibrary.Proof
+      proof: lisa.SetTheoryLibrary.ProofBuilder
   )(
       heightFun0: Expr[Ind],
       G0: Expr[Ind >>: Ind],
@@ -332,7 +332,7 @@ private[recursion] object ApproximationChainFacts {
     )
 
   def approximantsAgreeAcrossHeightsAt(using
-      proof: lisa.SetTheoryLibrary.Proof
+      proof: lisa.SetTheoryLibrary.ProofBuilder
   )(
       heightFun0: Expr[Ind],
       G0: Expr[Ind >>: Ind],

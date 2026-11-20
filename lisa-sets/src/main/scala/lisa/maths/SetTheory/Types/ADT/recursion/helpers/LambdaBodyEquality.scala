@@ -14,7 +14,7 @@ private[recursion] object LambdaBodyEquality {
    * Proves body equality by simultaneous substitution of the available recursive-call equalities.
    */
   def prove(using
-      proof: lisa.SetTheoryLibrary.Proof
+      proof: lisa.SetTheoryLibrary.ProofBuilder
   )(
       assumptions: Set[Expr[Prop]],
       leftBody: Expr[Ind],

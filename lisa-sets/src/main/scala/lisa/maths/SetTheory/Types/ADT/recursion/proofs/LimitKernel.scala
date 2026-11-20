@@ -214,7 +214,7 @@ private[recursion] object LimitKernel {
     thenHave(thesis) by Restate
   }
 
-  def pointHasSomeHeightAt(argType0: Expr[Ind], heightFun0: Expr[Ind], point0: Expr[Ind])(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+  def pointHasSomeHeightAt(argType0: Expr[Ind], heightFun0: Expr[Ind], point0: Expr[Ind])(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
     pointHasSomeHeight.of(argType := argType0, heightFun := heightFun0, pointVar := point0)
 
   def limitIndexWitnessAt(
@@ -222,7 +222,7 @@ private[recursion] object LimitKernel {
       heightFun0: Expr[Ind],
       limitIndex0: Expr[Ind >>: Ind],
       point0: Expr[Ind]
-  )(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+  )(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
     limitIndexWitness.of(
       argType := argType0,
       heightFun := heightFun0,
@@ -231,7 +231,7 @@ private[recursion] object LimitKernel {
     )
 
   def limitAtHeightAt(using
-      proof: lisa.SetTheoryLibrary.Proof
+      proof: lisa.SetTheoryLibrary.ProofBuilder
   )(
       argType0: Expr[Ind],
       heightFun0: Expr[Ind],

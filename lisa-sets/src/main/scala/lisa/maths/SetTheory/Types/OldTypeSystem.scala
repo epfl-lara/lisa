@@ -317,7 +317,7 @@ object TypeSystem  {
 
     class TypingException(val msg: String) extends Exception(msg)
 
-    def prove(using proof: SetTheoryLibrary.Proof)(bot:lisa.utils.fol.FOL.Sequent): proof.ProofTacticJudgement =
+    def prove(using proof: SetTheoryLibrary.ProofBuilder)(bot:lisa.utils.fol.FOL.Sequent): proof.ProofTacticJudgement =
       val context = bot.left
       var success: proof.ProofTacticJudgement = null
       var typingError: proof.ProofTacticJudgement = null
@@ -340,7 +340,7 @@ object TypeSystem  {
       case f => Seq(f)
     }
 
-    def typecheck(using lib: SetTheoryLibrary.type, proof: lib.Proof)(context: Seq[Expr[Prop]], term:Expr[Ind], typ: Option[Class]): proof.ProofTacticJudgement =
+    def typecheck(using lib: SetTheoryLibrary.type, proof: lib.ProofBuilder)(context: Seq[Expr[Prop]], term:Expr[Ind], typ: Option[Class]): proof.ProofTacticJudgement =
       val typingAssumptions: Map[Expr[Ind], Seq[Class]] = fullFlat(context).collect{
         case TypeAssignment(term, typ) => (term, typ)
       }.groupBy(_._1).map((t, l) => (t, l.map(_._2)))

@@ -538,7 +538,7 @@ class SemanticConstructor(using line: sourcecode.Line, file: sourcecode.File)(
   def semanticTypingFromHeightAt(
       substitutions: Seq[TypeSubstitution],
       arguments: Seq[Expr[Ind]] = variables2
-  )(heightFun: Expr[Ind], n: Expr[Ind])(using proof: lisa.SetTheoryLibrary.Proof): Thm = {
+  )(heightFun: Expr[Ind], n: Expr[Ind])(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm = {
     require(arguments.size == arity, s"Constructor $fullName expects $arity arguments, received ${arguments.size}.")
     val normalized = normalizeTypeSubstitutions("constructor", fullName, typeVariablesSeq, substitutions)
     val valueSubstitutions = variables2.zip(arguments).map((from, to) => from := to)
@@ -551,7 +551,7 @@ class SemanticConstructor(using line: sourcecode.Line, file: sourcecode.File)(
   def recursiveArgInHeightAt(
       substitutions: Seq[TypeSubstitution],
       arguments: Seq[Expr[Ind]] = variables2
-  )(heightFun: Expr[Ind], heightIndex: Expr[Ind])(using proof: lisa.SetTheoryLibrary.Proof): Thm = {
+  )(heightFun: Expr[Ind], heightIndex: Expr[Ind])(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm = {
     require(arguments.size == arity, s"Constructor $fullName expects $arity arguments, received ${arguments.size}.")
     val normalized = normalizeTypeSubstitutions("constructor", fullName, typeVariablesSeq, substitutions)
     val valueSubstitutions = variables1.zip(arguments).map((from, to) => from := to)
@@ -564,7 +564,7 @@ class SemanticConstructor(using line: sourcecode.Line, file: sourcecode.File)(
   def appliedEqualityFromStructuralAt(
       substitutions: Seq[TypeSubstitution],
       arguments: Seq[Expr[Ind]] = variables2
-  )(heightFun: Expr[Ind], n: Expr[Ind], term0: Expr[Ind])(using proof: lisa.SetTheoryLibrary.Proof): Thm = {
+  )(heightFun: Expr[Ind], n: Expr[Ind], term0: Expr[Ind])(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm = {
     require(arguments.size == arity, s"Constructor $fullName expects $arity arguments, received ${arguments.size}.")
     val normalized = normalizeTypeSubstitutions("constructor", fullName, typeVariablesSeq, substitutions)
     val valueSubstitutions = variables2.zip(arguments).map((from, to) => from := to)

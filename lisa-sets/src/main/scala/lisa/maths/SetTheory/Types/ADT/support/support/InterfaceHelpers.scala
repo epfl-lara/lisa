@@ -81,7 +81,7 @@ object InterfaceHelpers {
     signature.map((variable, typ) => variable -> specializeTerm(typ, substitutions))
 
   def proveAppliedTyping(using
-      proof: lisa.SetTheoryLibrary.Proof
+      proof: lisa.SetTheoryLibrary.ProofBuilder
   )(
       headTyping: Thm,
       headTerm: Expr[Ind],
@@ -133,7 +133,7 @@ object InterfaceHelpers {
    * Instantiates a theorem in the current proof, preserving the original for identity substitutions.
    */
   def instantiate(using
-      proof: lisa.SetTheoryLibrary.Proof
+      proof: lisa.SetTheoryLibrary.ProofBuilder
   )(
       baseTheorem: Theorem,
       substitutions: Seq[SubstPair]

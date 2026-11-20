@@ -27,7 +27,7 @@ class HOLTypingSuite extends AnyFunSuite:
     test(s"application congruence preserves typing with composite argument = $composite"):
       HOLSteps.HOLProofType.resetCache()
       val term = if composite then function * argument else argument
-      val result = Proof.withContext:
+      val result = ProofBuilder.withContext:
         val functionEquality = checked(ExtendedHOLSteps._REFL(function))
         val argumentEquality = checked(ExtendedHOLSteps._REFL(term))
         val congruence = checked(ExtendedHOLSteps._MK_COMB(functionEquality, argumentEquality))
@@ -44,28 +44,28 @@ class HOLTypingSuite extends AnyFunSuite:
     assert(function.typ != replacement.typ)
     assert(isSame(function.typ, replacement.typ))
 
-    val result = Proof.withContext:
+    val result = ProofBuilder.withContext:
       val premise = checked(ExtendedHOLSteps._REFL(function))
       HOLSteps._INST(Seq(function -> replacement), premise)
     val theorem = checked(result)
     assert(isSameSequent(theorem.statement, replacement :: renamedType |- ((replacement =:= replacement) === One)))
 
   test("term instantiation rejects genuinely different types"):
-    val result = Proof.withContext:
+    val result = ProofBuilder.withContext:
       val premise = checked(ExtendedHOLSteps._REFL(function))
       HOLSteps._INST(Seq(function -> argument), premise)
     assert(!result.isValid)
 
   test("term instantiation rejects a composite replacement at the wrong type"):
     HOLSteps.HOLProofType.resetCache()
-    val result = Proof.withContext:
+    val result = ProofBuilder.withContext:
       val premise = checked(ExtendedHOLSteps._REFL(function))
       HOLSteps._INST(Seq(function -> (function * argument)), premise)
     assert(!result.isValid)
 
   test("term instantiation does not check the type of an absent source variable"):
     val unused = TypedVariable(K.Identifier("hol-inst-unused"), 𝔹 ->: 𝔹)
-    val result = Proof.withContext:
+    val result = ProofBuilder.withContext:
       val premise = checked(ExtendedHOLSteps._REFL(argument))
       HOLSteps._INST(Seq(unused -> argument), premise)
     val theorem = checked(result)
@@ -78,7 +78,7 @@ class HOLTypingSuite extends AnyFunSuite:
     val replacement = HOLAbstraction(argument, argument)
     assert(source.typ != computeType(replacement))
     assert(isSame(source.typ, computeType(replacement)))
-    val result = Proof.withContext:
+    val result = ProofBuilder.withContext:
       val premise = checked(ExtendedHOLSteps._REFL(source))
       HOLSteps._INST(Seq(source -> replacement), premise)
     val theorem = checked(result)

@@ -95,7 +95,7 @@ private[height] object UniquenessFacts {
       isConstructor0: Expr[Ind >>: Ind >>: Prop],
       f0: Expr[Ind],
       g0: Expr[Ind]
-  )(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+  )(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
     uniqueness.of(CoreFacts.isConstructor := isConstructor0, f := f0, g := g0)
 
   def initialize(): Unit = {

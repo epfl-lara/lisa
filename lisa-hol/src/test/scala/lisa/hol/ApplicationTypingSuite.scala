@@ -16,7 +16,7 @@ class ApplicationTypingSuite extends AnyFunSuite:
   private given Library = SetTheoryLibrary
 
   private def typing(term: Expr[Ind]): Thm =
-    val result = Proof.withContext:
+    val result = ProofBuilder.withContext:
       Subproof:
         have(HOLSteps.HOLProofType(term))
     assert(result.isValid, result.errors.map(_.message).mkString("\n"))
@@ -74,8 +74,8 @@ class ApplicationTypingSuite extends AnyFunSuite:
     HOLSteps.HOLProofType.resetCache()
     val f = variable[Ind](K.Identifier("reuse-local-function"))
     val x = variable[Ind](K.Identifier("reuse-local-argument"))
-    val result = Proof.withContext:
-      summon[Proof].assume(Set(f ∈ (𝔹 ->: 𝔹), x ∈ 𝔹))
+    val result = ProofBuilder.withContext:
+      summon[ProofBuilder].assume(Set(f ∈ (𝔹 ->: 𝔹), x ∈ 𝔹))
       ProofJudgement(HOLSteps.HOLProofType(f * x))
     assert(result.isValid)
     assert(result.thm.statement.left.nonEmpty)

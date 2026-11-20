@@ -71,7 +71,7 @@ class Induction(
 
   // forall interleaved per binder
   private def abstractConstructorCase(using
-      proof: lisa.SetTheoryLibrary.Proof
+      proof: lisa.SetTheoryLibrary.ProofBuilder
   )(
       rawCaseProof: Thm,
       binders: Seq[Variable[Ind]],
@@ -89,7 +89,7 @@ class Induction(
 
   // all foralls out front
   private def normalizeConstructorCase(using
-      proof: lisa.SetTheoryLibrary.Proof
+      proof: lisa.SetTheoryLibrary.ProofBuilder
   )(
       rawCaseProof: Thm,
       binders: Seq[Variable[Ind]],
@@ -122,7 +122,7 @@ class Induction(
    *  @param context the ambient hypotheses carried through every case
    */
   private def buildBranchProof(using
-      proof: lisa.SetTheoryLibrary.Proof
+      proof: lisa.SetTheoryLibrary.ProofBuilder
   )(
       constructor: Constructor[?],
       branches: Seq[Clause[Thm]],
@@ -190,7 +190,7 @@ class Induction(
    *  @param bot the claim
    */
   def apply(using
-      proof: lisa.SetTheoryLibrary.Proof
+      proof: lisa.SetTheoryLibrary.ProofBuilder
   )(
       cases: CaseAccumulator[
         Thm,
@@ -258,7 +258,7 @@ class Induction(
    *  @param branchSystem the compiled per-constructor branches with their payload proofs
    */
   private def buildInductionProof(using
-      proof: lisa.SetTheoryLibrary.Proof
+      proof: lisa.SetTheoryLibrary.ProofBuilder
   )(
       bot: Sequent,
       inferedVar: Variable[Ind],

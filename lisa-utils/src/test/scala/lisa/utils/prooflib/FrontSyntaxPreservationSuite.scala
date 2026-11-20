@@ -84,7 +84,7 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
     val tagged = TaggedConstant[Ind](K.Identifier("context-tag"))
     val assumption = tagged === tagged
 
-    val result = Proof.withContext: outer ?=>
+    val result = ProofBuilder.withContext: outer ?=>
       outer.assume(assumption)
       outer.withSubcontext(): inner ?=>
         assert(inner.assumptions.exists(containsReference(_, tagged)))
@@ -96,7 +96,7 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
     val tagged = TaggedConstant[Ind](K.Identifier("subproof-tag"))
     val assumption = tagged === tagged
 
-    val result = Proof.withContext: proof ?=>
+    val result = ProofBuilder.withContext: proof ?=>
       proof.assume(assumption)
       val theorem = have(() |- assumption) subproof {
         have(() |- assumption) by BasicStep.Hypothesis

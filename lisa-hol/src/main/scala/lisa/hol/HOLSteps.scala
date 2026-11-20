@@ -11,7 +11,7 @@ import lisa.utils.fol.{FOL => F}
 import lisa.utils.prooflib.BasicStep._
 import lisa.utils.prooflib.Exports._
 import lisa.utils.prooflib.OutputManager
-import lisa.utils.prooflib.Proof
+import lisa.utils.prooflib.ProofBuilder
 import lisa.utils.prooflib.ProofJudgement
 import lisa.utils.prooflib.Subproof
 import lisa.utils.prooflib.Substitute
@@ -298,7 +298,7 @@ object HOLSteps extends lisa._HOL {
    *     |- t = t
    */
   object _REFL {
-    def apply(using proof: Proof)(t: Expr[Ind]): ProofJudgement =
+    def apply(using proof: ProofBuilder)(t: Expr[Ind]): ProofJudgement =
       ExtendedHOLSteps._REFL(t)
   }
 
@@ -308,7 +308,7 @@ object HOLSteps extends lisa._HOL {
    *        |- s = u
    */
   object _TRANS {
-    def apply(using proof: Proof)(t1: Thm, t2: Thm): ProofJudgement =
+    def apply(using proof: ProofBuilder)(t1: Thm, t2: Thm): ProofJudgement =
       ExtendedHOLSteps._TRANS(t1, t2)
   }
 
@@ -318,7 +318,7 @@ object HOLSteps extends lisa._HOL {
    * Apply transitivity of equality, but with alpha equivalence.
    */
   object TRANS {
-    def apply(using proof: Proof)(t1: Thm, t2: Thm): ProofJudgement =
+    def apply(using proof: ProofBuilder)(t1: Thm, t2: Thm): ProofJudgement =
       val s1 = t1.statement
       val s2 = t2.statement
 
@@ -357,7 +357,7 @@ object HOLSteps extends lisa._HOL {
    *        |- f x = g y
    */
   object _MK_COMB {
-    def apply(using proof: Proof)(f1: Thm, f2: Thm): ProofJudgement =
+    def apply(using proof: ProofBuilder)(f1: Thm, f2: Thm): ProofJudgement =
       ExtendedHOLSteps._MK_COMB(f1, f2)
   }
 
@@ -367,7 +367,7 @@ object HOLSteps extends lisa._HOL {
    *  |- λx. t =:= λx. u
    */
   object _ABS {
-    def apply(using proof: Proof)(x: TypedVariable)(prem: Thm): ProofJudgement =
+    def apply(using proof: ProofBuilder)(x: TypedVariable)(prem: Thm): ProofJudgement =
       ExtendedHOLSteps._ABS(x)(prem)
   }
 
@@ -375,7 +375,7 @@ object HOLSteps extends lisa._HOL {
    * BETA_CONV((λx. t) u) produces |- (λx. t) u =:= t[x := u]
    */
   object _BETA_CONV {
-    def apply(using proof: Proof)(tin: Expr[Ind]): ProofJudgement =
+    def apply(using proof: ProofBuilder)(tin: Expr[Ind]): ProofJudgement =
       ExtendedHOLSteps._BETA_CONV(tin)
   }
 
@@ -383,13 +383,13 @@ object HOLSteps extends lisa._HOL {
    * BETA((λx. t) x) produces |- (λx. t) x =:= t
    */
   object _BETA {
-    def apply(using proof: Proof)(t: Expr[Ind]): ProofJudgement =
+    def apply(using proof: ProofBuilder)(t: Expr[Ind]): ProofJudgement =
       ExtendedHOLSteps._BETA(t)
   }
 
   /*
   object BETA_PRIM {
-    def apply(using proof: Proof)(t: Expr[Ind]): ProofJudgement = Subproof{ ip ?=>
+    def apply(using proof: ProofBuilder)(t: Expr[Ind]): ProofJudgement = Subproof{ ip ?=>
       t match
         case (l:Abstraction)*(r: TypedVar) if l.bound == r =>
           val b = l.BETA
@@ -413,7 +413,7 @@ object HOLSteps extends lisa._HOL {
 
   // λ(x, t*x) === t
   object ETA_PRIM {
-    def apply(using proof: Proof)(x: TypedVar, t: Expr[Ind]): ProofJudgement = Subproof{ ip ?=>
+    def apply(using proof: ProofBuilder)(x: TypedVar, t: Expr[Ind]): ProofJudgement = Subproof{ ip ?=>
       if t.freeVariables.contains(x) then
       failWith(s"Variable $x is free in the Expr[Ind] $t")
       val lxtx = λ(x, t*x)
@@ -436,7 +436,7 @@ object HOLSteps extends lisa._HOL {
 
   // λ(x, t*x) =:= t
   object _ETA {
-    def apply(using proof: Proof)(x: TypedVariable, t: Expr[Ind]): ProofJudgement =
+    def apply(using proof: ProofBuilder)(x: TypedVariable, t: Expr[Ind]): ProofJudgement =
       ExtendedHOLSteps._ETA(x, t)
   }
 
@@ -445,7 +445,7 @@ object HOLSteps extends lisa._HOL {
    *     t |- t
    */
   object _ASSUME {
-    def apply(using proof: Proof)(t: Expr[Ind]): ProofJudgement =
+    def apply(using proof: ProofBuilder)(t: Expr[Ind]): ProofJudgement =
       ExtendedHOLSteps._ASSUME(t)
 
   }
@@ -456,7 +456,7 @@ object HOLSteps extends lisa._HOL {
    *       |- u
    */
   object _EQ_MP {
-    def apply(using proof: Proof)(eq: Thm, p: Thm): ProofJudgement =
+    def apply(using proof: ProofBuilder)(eq: Thm, p: Thm): ProofJudgement =
       ExtendedHOLSteps._EQ_MP(eq, p)
 
   }
@@ -467,13 +467,13 @@ object HOLSteps extends lisa._HOL {
    *   A - p, B - q |- p = q
    */
   object _DEDUCT_ANTISYM_RULE {
-    def apply(using proof: Proof)(t1: Thm, t2: Thm): ProofJudgement =
+    def apply(using proof: ProofBuilder)(t1: Thm, t2: Thm): ProofJudgement =
       ExtendedHOLSteps._DEDUCT_ANTISYM_RULE(t1, t2)
 
   }
 
   object _INST {
-    def apply(using proof: Proof)(inst: Seq[(Variable[Ind], Expr[Ind])], prem: Thm): ProofJudgement = Subproof { ip ?=>
+    def apply(using proof: ProofBuilder)(inst: Seq[(Variable[Ind], Expr[Ind])], prem: Thm): ProofJudgement = Subproof { ip ?=>
       val k = prem.of(inst.map(_ := _)*)
       val typings = inst.flatMap: (v, t) =>
         val typing = t match
@@ -500,7 +500,7 @@ object HOLSteps extends lisa._HOL {
 
   object _INST_TYPE {
 
-    def apply(using proof: Proof)(inst: Seq[(Variable[Ind], Expr[Ind])], prem: Thm): ProofJudgement = Subproof { ip ?=>
+    def apply(using proof: ProofBuilder)(inst: Seq[(Variable[Ind], Expr[Ind])], prem: Thm): ProofJudgement = Subproof { ip ?=>
       val k = prem.of(inst.map(_ := _)*)
       have(Clean.all(k))
     }
@@ -536,7 +536,7 @@ object HOLSteps extends lisa._HOL {
     /**
      * Reuse canonical subterm typings for non-dependent applications.
      */
-    private def application(using proof: Proof)(t: Expr[Ind]): Option[ProofJudgement] = t match
+    private def application(using proof: ProofBuilder)(t: Expr[Ind]): Option[ProofJudgement] = t match
       case Sapp(function: Expr[Ind], argument: Expr[Ind]) =>
         val functionTyping = apply(function)
         functionTyping.statement.right.head match
@@ -552,7 +552,7 @@ object HOLSteps extends lisa._HOL {
     /**
      * Reuse body typing for HOL abstractions whose annotated binder matches the domain.
      */
-    private def abstraction(using proof: Proof)(t: Expr[Ind]): Option[ProofJudgement] = t match
+    private def abstraction(using proof: ProofBuilder)(t: Expr[Ind]): Option[ProofJudgement] = t match
       case Sabs(domain: Expr[Ind], Abs(bound: TypedVariable, body: Expr[Ind])) if isSame(bound.typ, domain) =>
         val bodyTyping = apply(body)
         bodyTyping.statement.right.head match
@@ -578,7 +578,7 @@ object HOLSteps extends lisa._HOL {
         throw LisaHOLException(messages.mkString("; "))
       carrier.thm
 
-    def apply2(using proof: Proof)(t: Expr[Ind]): Thm =
+    def apply2(using proof: ProofBuilder)(t: Expr[Ind]): Thm =
       val cacheKey = code(t)
       cache.get(cacheKey) match
         case Some(justif) => justif
@@ -602,7 +602,7 @@ object HOLSteps extends lisa._HOL {
                 case local: Exception =>
                   throw LisaHOLException("Failed to compute and prove typing for term " + t + ": " + local.getMessage())
 
-    def apply(using proof: Proof)(t: Expr[Ind]): Thm =
+    def apply(using proof: ProofBuilder)(t: Expr[Ind]): Thm =
       t match
         case tc: TypedConstant =>
           tc.justif
@@ -620,7 +620,7 @@ object HOLSteps extends lisa._HOL {
         case _ => None
 
     // Eliminate an unused term-variable typing assumption through type non-emptiness.
-    def variable(using proof: Proof)(ta: TypeAssign[Variable[Ind]])(prem: Thm): ProofJudgement = Subproof { ip ?=>
+    def variable(using proof: ProofBuilder)(ta: TypeAssign[Variable[Ind]])(prem: Thm): ProofJudgement = Subproof { ip ?=>
       val (v, typ) = (ta.vari, ta.typ)
 
       v match
@@ -635,7 +635,7 @@ object HOLSteps extends lisa._HOL {
       have(Discharge(p1)(p2))
     }
 
-    def allVariables(using proof: Proof)(prem: Thm): ProofJudgement = Subproof { ip ?=>
+    def allVariables(using proof: ProofBuilder)(prem: Thm): ProofJudgement = Subproof { ip ?=>
       val statement = prem.statement
       val vars = statement.left.collectFirst[TypeAssign[Variable[Ind]]] {
         case f @ ((v: Variable[Ind] @unchecked) ∈ (typ: Expr[Ind])) if !(statement -<< f).hasFree(v) => (v :: typ)
@@ -647,7 +647,7 @@ object HOLSteps extends lisa._HOL {
     }
 
     // Eliminate a type-variable non-emptiness assumption using HOL's inhabited universe.
-    def typeVar(using proof: Proof)(net: Expr[Prop], tv: Variable[Ind])(prem: Thm): ProofJudgement = Subproof { ip ?=>
+    def typeVar(using proof: ProofBuilder)(net: Expr[Prop], tv: Variable[Ind])(prem: Thm): ProofJudgement = Subproof { ip ?=>
       val p2 = have(prem.statement -<? net +<< nonEmptyTypeExists.statement.right.head) by LeftExists.withParameters(net, tv)(prem)
       have(Discharge(nonEmptyTypeExists)(p2))
     }
@@ -655,7 +655,7 @@ object HOLSteps extends lisa._HOL {
     /**
      * Discharge type non-emptiness using a typed term already in the context.
      */
-    private def inhabitedType(using proof: Proof)(net: Expr[Prop], bound: Variable[Ind], assignment: TypeAssign[Variable[Ind]])(prem: Thm): ProofJudgement =
+    private def inhabitedType(using proof: ProofBuilder)(net: Expr[Prop], bound: Variable[Ind], assignment: TypeAssign[Variable[Ind]])(prem: Thm): ProofJudgement =
       Subproof { ip ?=>
         val witnessTyping = have(assignment |- assignment) by Hypothesis.withParameters(assignment)
         val nonEmpty = have(assignment |- net) by RightExists.withParameters(bound ∈ assignment.typ, bound, assignment.vari)(witnessTyping)
@@ -665,7 +665,7 @@ object HOLSteps extends lisa._HOL {
     /**
      * Remove every non-emptiness premise already witnessed by a typed variable.
      */
-    private def allInhabited(using proof: Proof)(prem: Thm): ProofJudgement = Subproof { ip ?=>
+    private def allInhabited(using proof: ProofBuilder)(prem: Thm): ProofJudgement = Subproof { ip ?=>
       val removable = prem.statement.left.iterator
         .flatMap:
           case net @ NonEmpty(bound, element, typ) if isSame(bound, element) =>
@@ -695,7 +695,7 @@ object HOLSteps extends lisa._HOL {
         case None => prem
     }
 
-    def allTypeVars(using proof: Proof)(prem: Thm): ProofJudgement = Subproof { ip ?=>
+    def allTypeVars(using proof: ProofBuilder)(prem: Thm): ProofJudgement = Subproof { ip ?=>
       val statement = prem.statement
       val typ = statement.left.iterator
         .flatMap:
@@ -743,7 +743,7 @@ object HOLSteps extends lisa._HOL {
      * The non-emptiness of the set of returned expressions (+ free variables)
      * are sufficient to prove that the typing of the input term is valid.
      */
-    def collectInstantiatingConstants(using proof: lib.Proof)(term: Expr[?]): Seq[(Expr[Ind], Thm)] = {
+    def collectInstantiatingConstants(using proof: lib.ProofBuilder)(term: Expr[?]): Seq[(Expr[Ind], Thm)] = {
 
       val (justMap, ordMap) = collectIncremental(term, 0, Map.empty, Map.empty)
 
@@ -757,7 +757,7 @@ object HOLSteps extends lisa._HOL {
      * Apply [[collectIncremental]] to a sequence of terms at a given depth.
      */
     private inline def foldIncremental(using
-        proof: lib.Proof
+        proof: lib.ProofBuilder
     )(
         terms: Iterable[Expr[?]],
         depth: Int,
@@ -769,7 +769,7 @@ object HOLSteps extends lisa._HOL {
           collectIncremental(nextT, depth, jmap, omap)
 
     private def collectIncremental(using
-        proof: lib.Proof
+        proof: lib.ProofBuilder
     )(
         term: Expr[?],
         depth: Int,
@@ -851,7 +851,7 @@ object HOLSteps extends lisa._HOL {
      * Remove non-emptiness assumptions about all HOL constant and instantiated
      * polymorphic types appearing in the assumption of the premise.
      */
-    def allComposites(using proof: Proof)(prem: Thm): ProofJudgement = Subproof { ip ?=>
+    def allComposites(using proof: ProofBuilder)(prem: Thm): ProofJudgement = Subproof { ip ?=>
       def composite(typ: Expr[Ind]): Boolean = typ match
         case _: HOLConstantType => true
         case _ ->: _ => true
@@ -876,7 +876,7 @@ object HOLSteps extends lisa._HOL {
     }
 
     // Clean assumptions from cheapest and most local to recursively derived types.
-    def all(using proof: Proof)(prem: Thm): ProofJudgement = Subproof { ip ?=>
+    def all(using proof: ProofBuilder)(prem: Thm): ProofJudgement = Subproof { ip ?=>
       val h1 = have(Clean.allVariables(prem))
       val h2 = have(allInhabited(h1))
       val h3 = have(Clean.allTypeVars(h2))

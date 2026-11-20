@@ -97,11 +97,11 @@ final class FunSpec(
   /**
    * Validity of the domain's specialized height function.
    */
-  def heightFunValid(using proof: lisa.SetTheoryLibrary.Proof): Thm = adt.height.validAt(typeSubstitutions)
+  def heightFunValid(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm = adt.height.validAt(typeSubstitutions)
 
   /**
    * The height function starts with the empty stage.
    */
-  def heightZero(point: Expr[Ind])(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+  def heightZero(point: Expr[Ind])(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
     adt.height.zeroAt(typeSubstitutions, Seq(h := heightFun, x := point))
 }

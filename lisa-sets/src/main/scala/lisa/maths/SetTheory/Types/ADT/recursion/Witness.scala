@@ -51,7 +51,7 @@ private[recursion] final class Witness(spec: FunSpec) {
       val premises = if basePatterns.contains(pattern) then Set.empty[Expr[Prop]] else Set(typingPremise)
       pattern -> Lemma
         .generated((pattern.typingPremises ++ premises) |- (pattern.body :: spec.returnType)) {
-          have(thesis) by Typecheck.prove(using lisa.SetTheoryLibrary, summon[Proof])
+          have(thesis) by Typecheck.prove(using lisa.SetTheoryLibrary, summon[ProofBuilder])
         }
         .thm
     }.toMap

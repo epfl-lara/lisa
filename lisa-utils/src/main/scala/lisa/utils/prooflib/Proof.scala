@@ -6,7 +6,7 @@ import lisa.utils.fol.FOL._
 import scala.collection.View
 import scala.collection.mutable
 
-final class Proof private (val lib: Library, val goal: Option[Sequent], inheritedAssumptions: Iterable[Expr[Prop]] = Nil):
+final class ProofBuilder private (val lib: Library, val goal: Option[Sequent], inheritedAssumptions: Iterable[Expr[Prop]] = Nil):
   given Library = lib
   given K.Theory = lib.theory
 
@@ -47,10 +47,10 @@ final class Proof private (val lib: Library, val goal: Option[Sequent], inherite
     lastKnown = Some(result._1)
     result
 
-  private def child(goal: Option[Sequent] = None, inheritAssumptions: Boolean = true): Proof =
-    new Proof(lib, goal, if inheritAssumptions then currentAssumptions else Nil)
+  private def child(goal: Option[Sequent] = None, inheritAssumptions: Boolean = true): ProofBuilder =
+    new ProofBuilder(lib, goal, if inheritAssumptions then currentAssumptions else Nil)
 
-  def withSubcontext[T](goal: Option[Sequent] = None, inheritAssumptions: Boolean = true)(inner: Proof ?=> ProofCarrier[T]): ProofCarrier[T] =
+  def withSubcontext[T](goal: Option[Sequent] = None, inheritAssumptions: Boolean = true)(inner: ProofBuilder ?=> ProofCarrier[T]): ProofCarrier[T] =
     val subproof = child(goal, inheritAssumptions)
     val carrier = inner(using subproof)
     val merged = carrier.withErrors(subproof.errors)
@@ -71,12 +71,12 @@ final class Proof private (val lib: Library, val goal: Option[Sequent], inherite
       result
     )
 
-object Proof:
-  private def empty(using lib: Library): Proof = new Proof(lib, None)
-  def withGoal(using lib: Library)(goal: Sequent): Proof = new Proof(lib, Some(goal))
-  def withKernelGoal(using lib: Library)(goal: K.Sequent): Proof = withGoal(Thm.liftSequent(goal))
+object ProofBuilder:
+  private def empty(using lib: Library): ProofBuilder = new ProofBuilder(lib, None)
+  def withGoal(using lib: Library)(goal: Sequent): ProofBuilder = new ProofBuilder(lib, Some(goal))
+  def withKernelGoal(using lib: Library)(goal: K.Sequent): ProofBuilder = withGoal(Thm.liftSequent(goal))
 
-  def withContext[T](using lib: Library)(inner: Proof ?=> ProofCarrier[T]): ProofCarrier[T] =
-    val proof = Proof.empty
+  def withContext[T](using lib: Library)(inner: ProofBuilder ?=> ProofCarrier[T]): ProofCarrier[T] =
+    val proof = ProofBuilder.empty
     val carrier = inner(using proof)
     carrier.withErrors(proof.errors)

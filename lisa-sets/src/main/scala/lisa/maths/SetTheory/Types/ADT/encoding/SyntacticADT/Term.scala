@@ -58,7 +58,7 @@ private[encoding] trait SyntacticADTTerm extends SyntacticADTBase {
   /**
    * Instantiates common height with a separate height function, composing argument and parameter substitutions.
    */
-  private[encoding] def termsHaveHeight(c: SyntacticConstructor, heightFunction: Expr[Ind], substitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.Proof): Thm = {
+  private[encoding] def termsHaveHeight(c: SyntacticConstructor, heightFunction: Expr[Ind], substitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm = {
     val renaming = c.variables2.zip(c.variables).map((from, to) => from := to.substitute(substitutions*))
     // The schema's h denotes the height function; a field named h is handled by argument renaming.
     val remaining = substitutions.filterNot(substitution => c.variables2.contains(substitution._1) || substitution._1 == h)

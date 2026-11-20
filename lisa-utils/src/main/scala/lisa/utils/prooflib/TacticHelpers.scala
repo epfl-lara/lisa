@@ -9,14 +9,14 @@ import ProofHelpers._
  */
 object TacticHelpers:
 
-  private inline def target(using proof: Proof)(statement: Sequent): Sequent =
+  private inline def target(using proof: ProofBuilder)(statement: Sequent): Sequent =
     proof.withAssumptions(statement)
 
   class MaybeSequent(conclusion: Sequent):
-    infix def by[T](using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: SequentTacticM[T]): ProofCarrier[T] =
+    infix def by[T](using lib: Library, proof: ProofBuilder, file: sourcecode.File, line: sourcecode.Line)(tactic: SequentTacticM[T]): ProofCarrier[T] =
       by(using lib, proof, file, line)(tactic(using file, line)(using lib))
 
-    infix def by[T](using lib: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line)(tactic: Sequent => ProofCarrier[T]): ProofCarrier[T] =
+    infix def by[T](using lib: Library, proof: ProofBuilder, file: sourcecode.File, line: sourcecode.Line)(tactic: Sequent => ProofCarrier[T]): ProofCarrier[T] =
       val carrier = tactic(target(conclusion))
       if carrier.isValid then
         // valid proof step, absorb and continue

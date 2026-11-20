@@ -40,7 +40,7 @@ private[height] object FiniteUnion {
   /**
    * Proves that a listed component is included in the union, rejecting absent components.
    */
-  def memberSubsetOfUnionList(elems: Seq[Expr[Ind]], member: Expr[Ind])(using proof: lisa.SetTheoryLibrary.Proof): Thm = {
+  def memberSubsetOfUnionList(elems: Seq[Expr[Ind]], member: Expr[Ind])(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm = {
     val index = elems.indexOf(member)
     require(index >= 0, s"Finite union does not contain the requested component $member.")
     val prefix = unionList(elems.take(index))
@@ -111,7 +111,7 @@ final class HeightStageSet(
     // carved out of  bound = ⋃range f ∪ ctorProduct(c₁) ∪ … ∪ ctorProduct(cₘ)  by Separation.
     // Each constructor term lives in its product, given its arguments are well-typed in ⋃range f.
     def constructorTermInProduct(c: HeightConstructorData)(using
-        proof: lisa.SetTheoryLibrary.Proof
+        proof: lisa.SetTheoryLibrary.ProofBuilder
     ): Thm = {
       val typedArgs = wellTypedFormula(c.signature)(unionRangeF)
       val emptyInSeed = have(∅ ∈ Singleton.singleton(∅)) by

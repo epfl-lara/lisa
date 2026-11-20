@@ -13,7 +13,7 @@ import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.maths.SetTheory.Types.TypingRules
 import lisa.utils.prooflib.Discharge
-import lisa.utils.prooflib.Proof
+import lisa.utils.prooflib.ProofBuilder
 import lisa.utils.prooflib.ProofJudgement
 import lisa.utils.prooflib.Subproof
 import lisa.utils.prooflib.Thm
@@ -67,7 +67,7 @@ object FromHOL extends lisa.Main:
     val (_, proof) = boolean(term, context, context + eqOne(term))
     have(proof)
 
-  private def reflexive(formula: Expr[Prop])(using Proof): Thm =
+  private def reflexive(formula: Expr[Prop])(using ProofBuilder): Thm =
     have(formula <=> formula) by Restate
 
   /**
@@ -75,7 +75,7 @@ object FromHOL extends lisa.Main:
    */
   private def compose(source: Expr[Prop], base: Thm, pairs: Seq[(Expr[Prop], Expr[Prop], Thm)])(
       build: Seq[Expr[Prop]] => Expr[Prop]
-  )(using Proof): Thm =
+  )(using ProofBuilder): Thm =
     val avoid = base.left ++ base.right ++ pairs.flatMap(pair => Seq(pair._1, pair._2))
     val variables = pairs.indices.foldLeft(Vector.empty[Variable[Prop]]): (variables, _) =>
       variables :+ Variable.fresh[Prop](avoid ++ variables, "hol")
@@ -88,7 +88,7 @@ object FromHOL extends lisa.Main:
       have((current.left ++ comparison.left) |- target) by
         RightSubst.withParameters(Seq((before, after, Nil)), Seq(variables(index)) -> body)(current, Seq(comparison))
 
-  private def typed(term: Expr[Ind], typ: Expr[Ind], context: Set[Expr[Prop]])(using Proof): Thm =
+  private def typed(term: Expr[Ind], typ: Expr[Ind], context: Set[Expr[Prop]])(using ProofBuilder): Thm =
     have(Typecheck.checkProof(using lisa.SetTheoryLibrary)(context ++ getContext(term), term, typ))
 
   /**
@@ -101,7 +101,7 @@ object FromHOL extends lisa.Main:
       before: Expr[Prop],
       after: Expr[Prop],
       pointwise: Thm
-  )(using Proof): Thm =
+  )(using ProofBuilder): Thm =
     val guard = bound ∈ domain
     val context = pointwise.left - guard
     def quantify(body: Expr[Prop]): Expr[Prop] =
@@ -139,7 +139,7 @@ object FromHOL extends lisa.Main:
     val backward = direction(after, before)
     have(context |- (quantify(before) <=> quantify(after))) by RightIff(forward, backward)
 
-  private def boolean(term: Expr[Ind], context: Set[Expr[Prop]], avoid: Set[Expr[Prop]])(using Proof): (Expr[Prop], Thm) =
+  private def boolean(term: Expr[Ind], context: Set[Expr[Prop]], avoid: Set[Expr[Prop]])(using ProofBuilder): (Expr[Prop], Thm) =
     val source = eqOne(term)
     def finish(target: Expr[Prop], proof: Thm): (Expr[Prop], Thm) =
       target -> (have(proof.left |- (source <=> target)) by Weakening(proof))

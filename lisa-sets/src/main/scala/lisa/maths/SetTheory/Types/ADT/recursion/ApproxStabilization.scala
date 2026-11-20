@@ -37,7 +37,7 @@ private[recursion] final class ApproxStabilization(
    * yielding `φ(m)`. `consequent` is the expected `φ(m)`.
    */
   private def instantiateAt(using
-      proof: lisa.SetTheoryLibrary.Proof
+      proof: lisa.SetTheoryLibrary.ProofBuilder
   )(
       forallThm: Theorem,
       m: Expr[Ind],

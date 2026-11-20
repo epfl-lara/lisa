@@ -31,9 +31,9 @@ private[recursion] object ConstructorSemanticFacts {
       existsSeq(variables2, branchPremiseAtHeight(heightSet, term))
     def appliedTerm2: Expr[Ind] =
       underlying.appliedTerm2.substitute(substitutions*)
-    def semanticTypingFromHeight(heightFun: Expr[Ind], n: Expr[Ind])(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+    def semanticTypingFromHeight(heightFun: Expr[Ind], n: Expr[Ind])(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
       underlying.semanticTypingFromHeightAt(typeSubstitutions, variables2)(heightFun, n)
-    def appliedEqualityFromStructural(heightFun: Expr[Ind], n: Expr[Ind], term0: Expr[Ind])(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+    def appliedEqualityFromStructural(heightFun: Expr[Ind], n: Expr[Ind], term0: Expr[Ind])(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
       underlying.appliedEqualityFromStructuralAt(typeSubstitutions, variables2)(heightFun, n, term0)
   }
 

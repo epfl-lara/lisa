@@ -19,7 +19,7 @@ class CongruenceSuite extends AnyFunSuite with OneInstancePerTest {
     outcome
 
   extension (egraph: EGraphExpr)
-    private def proveEquality[S](left: Expr[S], right: Expr[S], base: Sequent)(using Proof): Thm =
+    private def proveEquality[S](left: Expr[S], right: Expr[S], base: Sequent)(using ProofBuilder): Thm =
       val theorem = egraph.proveExpr(left, right, base).fold(fail(_), identity)
       assert(!theorem.usesSorry)
       have(theorem)

@@ -217,7 +217,7 @@ object TypingHelpers:
     val typingName = "typing_" + fullName
     val typingJudgement =
       val statement: Sequent = cst :: typ
-      val proof = lisa.utils.prooflib.Proof.withGoal(using lisa.SetTheoryLibrary)(statement)
+      val proof = lisa.utils.prooflib.ProofBuilder.withGoal(using lisa.SetTheoryLibrary)(statement)
       // have(expression :: typ) by TypeChecker.prove
       // thenHave(thesis) by lisa.automation.Substitution.ApplyRules(getShortDefinition(cst).get) //TODO
       proof.pure(()).thm

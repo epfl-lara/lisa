@@ -20,7 +20,7 @@ import lisa.utils.prooflib.BasicStep.Restate
 import lisa.utils.prooflib.Discharge
 import lisa.utils.prooflib.FatalCarrierDestructionException
 import lisa.utils.prooflib.OutputManager
-import lisa.utils.prooflib.Proof
+import lisa.utils.prooflib.ProofBuilder
 import lisa.utils.prooflib.ProofCarrier
 import lisa.utils.prooflib.ProofJudgement
 import lisa.utils.prooflib.Subproof
@@ -507,7 +507,7 @@ object Import extends lisa.HOL:
           // Keep local assumptions and errors within this step. Cached errors travel with its judgement.
           try
             Subproof:
-              reconstructStep(using extractor, summon[Proof], this)(index, step)
+              reconstructStep(using extractor, summon[ProofBuilder], this)(index, step)
           catch
             case error: FatalCarrierDestructionException =>
               val errors = (error.carrier.errors + error.carrier.fatalError).toSeq.map(e => s"${e.file}:${e.line}: ${e.message}")
@@ -848,7 +848,7 @@ object Import extends lisa.HOL:
    * @param ctx current proof context
    * @param proofStep the step to reconstruct
    */
-  private def reconstructStep(using extractor: ExtractorContext, ctx: Proof, store: StepStore)(index: Long, proofStep: h.ProofStep): Thm =
+  private def reconstructStep(using extractor: ExtractorContext, ctx: ProofBuilder, store: StepStore)(index: Long, proofStep: h.ProofStep): Thm =
     debug(s"Reconstructing step with proof type ${proofStep.getClass.getSimpleName}")
     debug(s"Reconstructed steps: ${store.size}.")
 

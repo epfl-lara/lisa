@@ -116,7 +116,7 @@ final class PatternSystem[A] private (
   /**
    * Instantiates branch selection for a known constructor without rebuilding its proof.
    */
-  def branchSelectionFor(constructor: SemanticConstructor, term: Expr[Ind])(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+  def branchSelectionFor(constructor: SemanticConstructor, term: Expr[Ind])(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
     instantiate(branchSelectionSchema(constructor), Seq(proofs.selectionInput := term))
 
   /**

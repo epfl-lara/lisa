@@ -57,7 +57,7 @@ private[recursion] object RecFunctionInduction {
   }
 
   private def caseEqualityAtBranch(using
-      proof: lisa.SetTheoryLibrary.Proof
+      proof: lisa.SetTheoryLibrary.ProofBuilder
   )(
       contextAssumptions: Set[Expr[Prop]],
       definition: Expr[Prop],
@@ -187,13 +187,13 @@ private[recursion] object RecFunctionInduction {
             val sliceRight: Expr[Ind] = yFun
 
             // This callback runs inside a nested branch proof.
-            def sliceAgreement(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+            def sliceAgreement(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
               have(
                 ∀(slicePoint, (slicePoint ∈ app(heightFun)(nVar)) ==> propertyAt(slicePoint))
               ) by Restate.from(assume(P(nVar)))
 
             def bodyEqAssumptions(using
-                proof: lisa.SetTheoryLibrary.Proof
+                proof: lisa.SetTheoryLibrary.ProofBuilder
             )(
                 pattern: Clause[Expr[Ind]],
                 patternGuard: Thm
@@ -209,7 +209,7 @@ private[recursion] object RecFunctionInduction {
             }
 
             def caseEquation(using
-                proof: lisa.SetTheoryLibrary.Proof
+                proof: lisa.SetTheoryLibrary.ProofBuilder
             )(
                 pattern: Clause[Expr[Ind]],
                 slice: Expr[Ind],

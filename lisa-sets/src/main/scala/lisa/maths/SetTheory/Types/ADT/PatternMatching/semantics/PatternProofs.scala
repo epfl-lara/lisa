@@ -55,7 +55,7 @@ private[ADT] object PatternProofs {
         case _ => current
     }
 
-  private def instAll(thm: Theorem, terms: Seq[Expr[Ind]])(using proof: lisa.SetTheoryLibrary.Proof): Unit =
+  private def instAll(thm: Theorem, terms: Seq[Expr[Ind]])(using proof: lisa.SetTheoryLibrary.ProofBuilder): Unit =
     val source = have(thm.statement.right.head) by Tautology.from(thm)
     val instantiated = instantiatePrefix(source.statement.right.head, terms)
     have(instantiated) by InstantiateForallSeq(terms)(source)
@@ -64,7 +64,7 @@ private[ADT] object PatternProofs {
    * Proves typing of a resolved pattern from its binder typings.
    */
   private def typing(using
-      proof: lisa.SetTheoryLibrary.Proof
+      proof: lisa.SetTheoryLibrary.ProofBuilder
   )(
       pattern: PatternNode,
       premises: Seq[Thm] = Seq.empty
@@ -169,7 +169,7 @@ private[ADT] object PatternProofs {
       have(thesis) by Tautology.from(lastStep)
     }
 
-  private def proveByCongruence(using proof: lisa.SetTheoryLibrary.Proof)(formula: Expr[Prop], eqFacts: List[Thm]): Thm =
+  private def proveByCongruence(using proof: lisa.SetTheoryLibrary.ProofBuilder)(formula: Expr[Prop], eqFacts: List[Thm]): Thm =
     formula match
       case lhs /\ rhs =>
         val leftFact = proveByCongruence(lhs, eqFacts)
@@ -186,7 +186,7 @@ private[ADT] object PatternProofs {
       inputEquality: Expr[Prop],
       equalities: List[Expr[Prop]],
       goal: Expr[Prop]
-  )(using proof: lisa.SetTheoryLibrary.Proof): Unit =
+  )(using proof: lisa.SetTheoryLibrary.ProofBuilder): Unit =
     val substitutions = variables.zip(witnesses).map((v, term) => v := term)
     val equalityFacts = equalities.map(eq => have(eq) by Restate)
     val guardFact = proveByCongruence(condition.substitute(substitutions*), equalityFacts)
@@ -208,8 +208,8 @@ private[ADT] object PatternProofs {
       goal: Expr[Prop],
       avoid: Seq[Expr[?]]
   )(
-      leaf: (Leaf, Map[Occurrence, Expr[Ind]], List[Expr[Prop]]) => lisa.SetTheoryLibrary.Proof ?=> Unit
-  )(using proof: lisa.SetTheoryLibrary.Proof): Unit = tree match
+      leaf: (Leaf, Map[Occurrence, Expr[Ind]], List[Expr[Prop]]) => lisa.SetTheoryLibrary.ProofBuilder ?=> Unit
+  )(using proof: lisa.SetTheoryLibrary.ProofBuilder): Unit = tree match
     case selected: Leaf => leaf(selected, values, equalities)
     case Split(occurrence, domain, branches) =>
       val value = values(occurrence)
@@ -461,7 +461,7 @@ private[ADT] object PatternProofs {
       // From `termOf(rp1) = termOf(rp2)` derive the leaf (inner-binder) equalities,
       // indexed by the exact binder pair they justify.
       def injectEq(using
-          proof: lisa.SetTheoryLibrary.Proof
+          proof: lisa.SetTheoryLibrary.ProofBuilder
       )(
           rp1: PatternNode,
           rp2: PatternNode,
@@ -481,7 +481,7 @@ private[ADT] object PatternProofs {
             }
           case _ => throw new IllegalArgumentException("injectEq: mismatched guard structure.")
 
-      def topBinderEqualities(using proof: lisa.SetTheoryLibrary.Proof)(topEq: Thm): Map[(Variable[Ind], Variable[Ind]), Thm] =
+      def topBinderEqualities(using proof: lisa.SetTheoryLibrary.ProofBuilder)(topEq: Thm): Map[(Variable[Ind], Variable[Ind]), Thm] =
         top1
           .zip(top2)
           .map { (left, right) =>
@@ -491,7 +491,7 @@ private[ADT] object PatternProofs {
           .toMap
 
       def orderedBinderEqualities(using
-          proof: lisa.SetTheoryLibrary.Proof
+          proof: lisa.SetTheoryLibrary.ProofBuilder
       )(
           topEqMap: Map[(Variable[Ind], Variable[Ind]), Thm],
           leafEqMap: Map[(Variable[Ind], Variable[Ind]), Thm]
@@ -553,7 +553,7 @@ private[ADT] object PatternProofs {
   /**
    * Instantiates typing of a resolved root constructor at supplied value arguments.
    */
-  def inputTyping(pattern: Pattern, variables: Seq[Variable[Ind]])(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+  def inputTyping(pattern: Pattern, variables: Seq[Variable[Ind]])(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
     require(variables.size == pattern.arity, "Constructor typing requires one value per argument.")
     val substitutions = pattern.typeSubstitutions ++ pattern.semanticConstructor.variables.zip(variables).map((from, to) => from := to)
     instantiate(pattern.resolved.constructor.introApp, substitutions)
@@ -562,7 +562,7 @@ private[ADT] object PatternProofs {
    * Follows a validated recursive field path to prove the target's height bound.
    */
   def descendToBinder(using
-      proof: lisa.SetTheoryLibrary.Proof,
+      proof: lisa.SetTheoryLibrary.ProofBuilder,
       line: sourcecode.Line,
       file: sourcecode.File
   )(

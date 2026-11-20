@@ -16,7 +16,7 @@ import lisa.utils.prooflib.Subproof
  * }}}
  * where `z` is not free in `Γ` or `Δ`.
  */
-def Extensionality(using proof: SetTheoryLibrary.Proof)(premise: Thm)(conclusion: Sequent): ProofJudgement = {
+def Extensionality(using proof: SetTheoryLibrary.ProofBuilder)(premise: Thm)(conclusion: Sequent): ProofJudgement = {
   val x, y = variable[Ind]
 
   val premiseSeq = premise.statement

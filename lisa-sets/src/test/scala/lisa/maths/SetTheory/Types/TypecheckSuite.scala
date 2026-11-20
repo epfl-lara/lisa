@@ -9,7 +9,7 @@ import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.K
 import lisa.utils.fol.FOL._
 import lisa.utils.prooflib.BasicStep
-import lisa.utils.prooflib.Proof
+import lisa.utils.prooflib.ProofBuilder
 import lisa.utils.prooflib.ProofCarrier
 import lisa.utils.prooflib.Thm
 import org.scalatest.funsuite.AnyFunSuite
@@ -40,7 +40,7 @@ class TypecheckSuite extends AnyFunSuite:
     theorem
 
   test("checking an exact type reuses the inferred hypothesis without dropping its premise"):
-    val result = Proof.withContext(using SetTheoryLibrary):
+    val result = ProofBuilder.withContext(using SetTheoryLibrary):
       Typecheck.checkProof(Set(x ∈ A, y ∈ B), x, A)
 
     val theorem = assertChecked(result, x ∈ A |- x ∈ A)
@@ -51,7 +51,7 @@ class TypecheckSuite extends AnyFunSuite:
     val typ = Pi(A)(λ(y, family(y)))
     val functionTyping = BasicStep.Hypothesis(f ∈ typ |- f ∈ typ).thm
     val argumentTyping = BasicStep.Hypothesis(x ∈ A |- x ∈ A).thm
-    val result = Proof.withContext(using SetTheoryLibrary):
+    val result = ProofBuilder.withContext(using SetTheoryLibrary):
       Typecheck.applicationProof(f, x, typ)(functionTyping, argumentTyping)
     assertChecked(result, (f ∈ typ, x ∈ A) |- app(f)(x) ∈ family(x))
     assert(result.destruct._2 == family(x))
@@ -63,13 +63,13 @@ class TypecheckSuite extends AnyFunSuite:
     val wrongFunction = BasicStep.Hypothesis(y ∈ typ |- y ∈ typ).thm
     val wrongArgument = BasicStep.Hypothesis(x ∈ C |- x ∈ C).thm
     for (fun, arg) <- Seq(wrongFunction -> argumentTyping, functionTyping -> wrongArgument) do
-      val result = Proof.withContext(using SetTheoryLibrary):
+      val result = ProofBuilder.withContext(using SetTheoryLibrary):
         Typecheck.applicationProof(f, x, typ)(fun, arg)
       assert(!result.isValid)
 
   test("application typing retains hole dependencies"):
     val typ = A ->: B
-    val result = Proof.withContext(using SetTheoryLibrary):
+    val result = ProofBuilder.withContext(using SetTheoryLibrary):
       Typecheck.applicationProof(f, x, typ)(sorry(() |- f ∈ typ), sorry(() |- x ∈ A))
     assertTyping(result, app(f)(x) ∈ B)
     assert(result.thm.kernel.usesSorry)
@@ -77,7 +77,7 @@ class TypecheckSuite extends AnyFunSuite:
   test("checking an exact dependent function type does not build a covariance proof"):
     val family = variable[Ind >>: Ind](K.Identifier("typecheck-test-family"))
     val typ = Pi(A)(λ(x, family(x)))
-    val result = Proof.withContext(using SetTheoryLibrary):
+    val result = ProofBuilder.withContext(using SetTheoryLibrary):
       Typecheck.checkProof(Set(f ∈ typ), f, typ)
 
     val theorem = assertChecked(result, f ∈ typ |- f ∈ typ)
@@ -87,7 +87,7 @@ class TypecheckSuite extends AnyFunSuite:
     val expectedType = λ(y, y)(A)
     assert(expectedType != A && isSame(expectedType, A))
 
-    val result = Proof.withContext(using SetTheoryLibrary):
+    val result = ProofBuilder.withContext(using SetTheoryLibrary):
       Typecheck.checkProof(Set(x ∈ A), x, expectedType)
 
     assertChecked(result, x ∈ A |- x ∈ expectedType)
@@ -98,20 +98,20 @@ class TypecheckSuite extends AnyFunSuite:
     val expectedType = Pi(A)(λ(y, family(y)))
     assert(inferredType != expectedType && isSame(inferredType, expectedType))
 
-    val result = Proof.withContext(using SetTheoryLibrary):
+    val result = ProofBuilder.withContext(using SetTheoryLibrary):
       Typecheck.checkProof(Set(f ∈ inferredType), f, expectedType)
 
     assertChecked(result, f ∈ inferredType |- f ∈ expectedType)
 
   test("checking retains a genuine inclusion premise"):
     val context = Set(x ∈ A, A ⊆ B)
-    val result = Proof.withContext(using SetTheoryLibrary):
+    val result = ProofBuilder.withContext(using SetTheoryLibrary):
       Typecheck.checkProof(context, x, B)
 
     assertChecked(result, context |- x ∈ B)
 
   test("checking still lifts a term into the next universe"):
-    val result = Proof.withContext(using SetTheoryLibrary):
+    val result = ProofBuilder.withContext(using SetTheoryLibrary):
       Typecheck.checkProof(Set(x ∈ A), x, universeOf(A))
 
     assertChecked(result, x ∈ A |- x ∈ universeOf(A))
@@ -121,7 +121,7 @@ class TypecheckSuite extends AnyFunSuite:
     val expectedType = A ->: universeOf(B)
     assert(!isSame(inferredType, expectedType))
 
-    val result = Proof.withContext(using SetTheoryLibrary):
+    val result = ProofBuilder.withContext(using SetTheoryLibrary):
       Typecheck.checkProof(Set(f ∈ inferredType), f, expectedType)
 
     assertChecked(result, f ∈ inferredType |- f ∈ expectedType)
@@ -132,22 +132,22 @@ class TypecheckSuite extends AnyFunSuite:
     val expectedType = Pi(A)(λ(y, family(x)))
     assert(!isSame(inferredType, expectedType))
 
-    val result = Proof.withContext(using SetTheoryLibrary):
+    val result = ProofBuilder.withContext(using SetTheoryLibrary):
       Typecheck.checkProof(Set(f ∈ inferredType), f, expectedType)
 
     assert(!result.isValid)
 
   test("checking does not reuse a typing for an unrelated type or context"):
-    val result = Proof.withContext(using SetTheoryLibrary):
+    val result = ProofBuilder.withContext(using SetTheoryLibrary):
       Typecheck.checkProof(Set(x ∈ A), x, B)
     assert(!result.isValid)
 
-    val valid = Proof.withContext(using SetTheoryLibrary):
+    val valid = ProofBuilder.withContext(using SetTheoryLibrary):
       Typecheck.checkProof(Set(x ∈ B), x, B)
     assertChecked(valid, x ∈ B |- x ∈ B)
 
   test("a matching result type does not hide an invalid argument typing"):
-    val result = Proof.withContext(using SetTheoryLibrary):
+    val result = ProofBuilder.withContext(using SetTheoryLibrary):
       Typecheck.checkProof(Set(f ∈ (A ->: B), x ∈ C), f * x, B)
 
     assert(!result.isValid)
@@ -155,7 +155,7 @@ class TypecheckSuite extends AnyFunSuite:
   test("equal nested dependent types use subset reflexivity without binder assumptions"):
     val family = variable[Ind >>: Ind >>: Ind](K.Identifier("typecheck-test-nested-family"))
     val typ = Pi(A)(λ(x, Pi(B)(λ(y, family(x)(y)))))
-    val result = Proof.withContext(using SetTheoryLibrary):
+    val result = ProofBuilder.withContext(using SetTheoryLibrary):
       Typecheck.subsetProof(Set.empty, typ, typ)
 
     val theorem = assertChecked(result, () |- typ ⊆ typ)
@@ -165,7 +165,7 @@ class TypecheckSuite extends AnyFunSuite:
     val term = f * x * y
     val context = Set(f ∈ (A ->: B ->: C), x ∈ A, y ∈ B)
 
-    val result = Proof.withContext(using SetTheoryLibrary):
+    val result = ProofBuilder.withContext(using SetTheoryLibrary):
       Typecheck.inferProof(context, term)
 
     assertChecked(result, context |- term ∈ C)
@@ -173,7 +173,7 @@ class TypecheckSuite extends AnyFunSuite:
   test("inference threads the body type out of an abstraction"):
     val term = fun(TypeAssign(x, A), x)
 
-    val result = Proof.withContext(using SetTheoryLibrary):
+    val result = ProofBuilder.withContext(using SetTheoryLibrary):
       Typecheck.inferProof(Set.empty, term)
 
     assertChecked(result, () |- term ∈ Pi(A)(λ(x, A)))
@@ -182,14 +182,14 @@ class TypecheckSuite extends AnyFunSuite:
     val term = f * x
     val context = Set(f ∈ (A ->: B), x ∈ A)
 
-    val result = Proof.withContext(using SetTheoryLibrary):
+    val result = ProofBuilder.withContext(using SetTheoryLibrary):
       Typecheck.checkProof(context, term, B)
 
     assertChecked(result, context |- term ∈ B)
 
   test("checking an abstraction reuses its body typing without leaking the binder"):
     val term = fun(TypeAssign(x, A), x)
-    val result = Proof.withContext(using SetTheoryLibrary):
+    val result = ProofBuilder.withContext(using SetTheoryLibrary):
       Typecheck.checkProof(Set.empty, term, A ->: A)
 
     assertChecked(result, () |- term ∈ (A ->: A))
@@ -200,7 +200,7 @@ class TypecheckSuite extends AnyFunSuite:
     val typing = sorry(() |- raw ∈ A)
     val typed = TypedConstant(raw.id, A, typing)
 
-    val result = Proof.withContext(using SetTheoryLibrary):
+    val result = ProofBuilder.withContext(using SetTheoryLibrary):
       Typecheck.checkProof(Set.empty, typed, A)
 
     assert(result.isValid)
@@ -215,7 +215,7 @@ class TypecheckSuite extends AnyFunSuite:
     val typed = TypedConstant(raw.id, A, typing)
 
     for expectedType <- Seq(A, λ(y, y)(A)) do
-      val result = Proof.withContext(using SetTheoryLibrary):
+      val result = ProofBuilder.withContext(using SetTheoryLibrary):
         Typecheck.checkProof(Set.empty, typed, expectedType)
       val theorem = assertChecked(result, () |- raw ∈ expectedType)
       assert(theorem.kernel.axioms == Set(statement.underlying))
@@ -228,7 +228,7 @@ class TypecheckSuite extends AnyFunSuite:
     val functional = TypedConstantFunctional[Ind >>: Ind](raw.id, FunctionalClass(Seq(None), Seq(parameter), parameter), typing)
     val term = functional(A)
 
-    val result = Proof.withContext(using SetTheoryLibrary):
+    val result = ProofBuilder.withContext(using SetTheoryLibrary):
       Typecheck.inferProof(Set.empty, term)
 
     assertTyping(result, term ∈ A)

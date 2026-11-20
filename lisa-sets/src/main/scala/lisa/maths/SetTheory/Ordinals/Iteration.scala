@@ -54,7 +54,7 @@ object Iteration {
   }
 
   private def valueAt(using
-      proof: lisa.SetTheoryLibrary.Proof
+      proof: lisa.SetTheoryLibrary.ProofBuilder
   )(
       index: Expr[Ind],
       indexInOmega: Thm,

@@ -17,7 +17,7 @@ class TypeInstantiationScopeSuite extends AnyFunSuite:
 
   private def instantiate(statement: Sequent, substitutions: Seq[(Variable[Ind], Expr[Ind])]): Thm =
     val premise = Thm(statement, lisa.kernel.proof.Assume(using SetTheoryLibrary.theory)(statement.underlying).toOption.get)
-    val result = Proof.withContext:
+    val result = ProofBuilder.withContext:
       ExtendedHOLSteps._INST_TYPE_RENAME(substitutions, premise)
     assert(result.isValid, result.errors.map(_.message).mkString("\n"))
     assert(!result.kernel.usesSorry)

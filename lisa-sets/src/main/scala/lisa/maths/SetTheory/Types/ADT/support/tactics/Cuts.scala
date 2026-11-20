@@ -9,7 +9,7 @@ import lisa.utils.prooflib.Thm
  * Discharges matching premises with cuts and checks the final sequent.
  */
 object Cuts {
-  def apply(using proof: Proof, line: sourcecode.Line, file: sourcecode.File)(main: Thm)(sideFacts: Thm*)(bot: Sequent): ProofJudgement = Subproof {
+  def apply(using proof: ProofBuilder, line: sourcecode.Line, file: sourcecode.File)(main: Thm)(sideFacts: Thm*)(bot: Sequent): ProofJudgement = Subproof {
     val combined = sideFacts.foldLeft(main) { (acc, fact) =>
       fact.right.find(r => acc.left.exists(l => isSame(l, r))) match
         case None => acc

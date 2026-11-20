@@ -10,7 +10,7 @@ import lisa.maths.SetTheory.Functions.Predef._
 import lisa.utils.K
 import lisa.utils.fol.{FOL => F}
 import lisa.utils.prooflib.Exports._
-import lisa.utils.prooflib.Proof
+import lisa.utils.prooflib.ProofBuilder
 import lisa.utils.prooflib.ProofCarrier
 import lisa.utils.prooflib.ProofJudgement
 import lisa.utils.prooflib.Subproof
@@ -77,7 +77,7 @@ object Tactics:
     /**
      * Extract one side of a proved conjunction with explicit sequent steps.
      */
-    private def conjunct(using lib: SetTheoryLibrary.type, proof: Proof)(fact: Thm, takeLeft: Boolean): Thm =
+    private def conjunct(using lib: SetTheoryLibrary.type, proof: ProofBuilder)(fact: Thm, takeLeft: Boolean): Thm =
       fact.statement.right.head match
         case conjunction @ (left /\ right) =>
           val selected = if takeLeft then left else right
@@ -112,7 +112,7 @@ object Tactics:
       case _ => 1
 
     // Bidirectional type checking proof construct(infer, check, equal)
-    def prove(using lib: SetTheoryLibrary.type, proof: Proof)(bot: F.Sequent): ProofJudgement =
+    def prove(using lib: SetTheoryLibrary.type, proof: ProofBuilder)(bot: F.Sequent): ProofJudgement =
       import lib.*
       if bot.right.size != 1 then invalidTactic("Typecheck can only prove one theorem once upon a time")
       else
@@ -141,7 +141,7 @@ object Tactics:
             case _ => failWith("Type check can only check type relation(∈)")
         }
 
-    def apply(using lib: SetTheoryLibrary.type, proof: Proof)(bot: F.Sequent): ProofJudgement =
+    def apply(using lib: SetTheoryLibrary.type, proof: ProofBuilder)(bot: F.Sequent): ProofJudgement =
       prove(bot)
 
     /**
@@ -149,7 +149,7 @@ object Tactics:
      */
     def applicationProof(using
         lib: SetTheoryLibrary.type,
-        proof: Proof
+        proof: ProofBuilder
     )(
         function: Expr[Ind],
         argument: Expr[Ind],
@@ -179,7 +179,7 @@ object Tactics:
      */
     def abstractionProof(using
         lib: SetTheoryLibrary.type,
-        proof: Proof
+        proof: ProofBuilder
     )(
         bound: Variable[Ind],
         domain: Expr[Ind],
@@ -221,7 +221,7 @@ object Tactics:
      */
     private def inferProofM(using
         lib: SetTheoryLibrary.type,
-        proof: Proof
+        proof: ProofBuilder
     )(
         localContext: Set[Expr[Prop]],
         tm: Expr[Ind],
@@ -369,7 +369,7 @@ object Tactics:
      */
     private def inferAtomic(using
         lib: SetTheoryLibrary.type,
-        proof: Proof
+        proof: ProofBuilder
     )(
         localContext: Set[Expr[Prop]],
         tm: Expr[Ind]
@@ -389,13 +389,13 @@ object Tactics:
     /**
      * Infer the type of the given term (↑), discarding the internal payload.
      */
-    def inferProof(using lib: SetTheoryLibrary.type, proof: Proof)(localContext: Set[Expr[Prop]], tm: Expr[Ind]): ProofJudgement =
+    def inferProof(using lib: SetTheoryLibrary.type, proof: ProofBuilder)(localContext: Set[Expr[Prop]], tm: Expr[Ind]): ProofJudgement =
       inferProofM(using lib, proof)(localContext, tm, Memo()).judgement
 
     /**
      * Check the type of the given term(↓)
      */
-    def checkProof(using lib: SetTheoryLibrary.type, proof: Proof)(localContext: Set[Expr[Prop]], tm: Expr[Ind], ty: Expr[Ind]): ProofJudgement =
+    def checkProof(using lib: SetTheoryLibrary.type, proof: ProofBuilder)(localContext: Set[Expr[Prop]], tm: Expr[Ind], ty: Expr[Ind]): ProofJudgement =
       checkProofM(using lib, proof)(localContext, tm, ty, Memo())
 
     /**
@@ -403,7 +403,7 @@ object Tactics:
      */
     private def checkContextTyping(using
         lib: SetTheoryLibrary.type,
-        proof: Proof
+        proof: ProofBuilder
     )(
         localContext: Set[Expr[Prop]],
         tm: Expr[Ind],
@@ -424,7 +424,7 @@ object Tactics:
 
     private def checkProofM(using
         lib: SetTheoryLibrary.type,
-        proof: Proof
+        proof: ProofBuilder
     )(
         localContext: Set[Expr[Prop]],
         tm: Expr[Ind],
@@ -442,7 +442,7 @@ object Tactics:
 
     private def checkStructural(using
         lib: SetTheoryLibrary.type,
-        proof: Proof
+        proof: ProofBuilder
     )(
         localContext: Set[Expr[Prop]],
         tm: Expr[Ind],
@@ -515,7 +515,7 @@ object Tactics:
     /**
      * Prove type inclusion, handling reflexivity before dependent covariance.
      */
-    def subsetProof(using lib: SetTheoryLibrary.type, proof: Proof)(localContext: Set[Expr[Prop]], sub: Expr[Ind], sup: Expr[Ind]): ProofJudgement =
+    def subsetProof(using lib: SetTheoryLibrary.type, proof: ProofBuilder)(localContext: Set[Expr[Prop]], sub: Expr[Ind], sup: Expr[Ind]): ProofJudgement =
       import lib.*
       Subproof {
         val target = sub ⊆ sup

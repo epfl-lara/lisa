@@ -119,7 +119,7 @@ private[height] object SuccessorFacts {
       isConstructor0: Expr[Ind >>: Ind >>: Prop],
       h0: Expr[Ind],
       x0: Expr[Ind]
-  )(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+  )(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
     heightZero.of(isConstructor := isConstructor0, h := h0, x := x0)
 
   def heightSuccessorWeakAt(
@@ -127,7 +127,7 @@ private[height] object SuccessorFacts {
       h0: Expr[Ind],
       n0: Expr[Ind],
       x0: Expr[Ind]
-  )(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+  )(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
     heightSuccessorWeak.of(isConstructor := isConstructor0, h := h0, n := n0, x := x0)
 
   def heightSuccessorStrongAt(
@@ -135,7 +135,7 @@ private[height] object SuccessorFacts {
       h0: Expr[Ind],
       n0: Expr[Ind],
       x0: Expr[Ind]
-  )(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+  )(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
     heightSuccessorStrong.of(isConstructor := isConstructor0, h := h0, n := n0, x := x0)
 
   def initialize(): Unit = {

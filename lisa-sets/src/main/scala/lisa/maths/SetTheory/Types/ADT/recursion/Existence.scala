@@ -41,7 +41,7 @@ private[recursion] final class Existence(
 
   private val a = spec.proofVariable("a")
   private val f = spec.proofVariable("f")
-  private def heightMembershipMonotonic(using proof: lisa.SetTheoryLibrary.Proof)(substitutions: Seq[SubstPair]): Thm =
+  private def heightMembershipMonotonic(using proof: lisa.SetTheoryLibrary.ProofBuilder)(substitutions: Seq[SubstPair]): Thm =
     spec.adt.height.membershipMonotonicAt(spec.typeSubstitutions, substitutions)
 
   import approxSeq.G

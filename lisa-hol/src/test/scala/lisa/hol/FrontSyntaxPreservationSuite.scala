@@ -71,7 +71,7 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
     val second = sorry(HOLSequent(Set.empty, middle =:= right))
 
     HOLSteps.HOLProofType.resetCache()
-    val result = Proof.withContext:
+    val result = ProofBuilder.withContext:
       ExtendedHOLSteps._TRANS(first, second)
 
     assert(result.isValid, result.errors.map(_.message).mkString("\n"))
@@ -93,7 +93,7 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
     )
     val premise = sorry(statement)
 
-    val result = Proof.withContext:
+    val result = ProofBuilder.withContext:
       HOLSteps._INST_TYPE(Seq(originalType -> 𝔹), premise)
 
     assert(result.isValid, result.errors.map(_.message).mkString("\n"))
@@ -120,7 +120,7 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
 
     assert(term.freeVars.contains(function))
 
-    val result = Proof.withContext:
+    val result = ProofBuilder.withContext:
       Subproof:
         have(HOLSteps.HOLProofType(term))
 
@@ -133,7 +133,7 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
     val termA = TypedVariable(identifier, typeA)
     val termB = TypedVariable(identifier, typeB)
 
-    val result = Proof.withContext:
+    val result = ProofBuilder.withContext:
       HOLSteps.HOLProofType.resetCache()
       val typingA = HOLSteps.HOLProofType(termA)
       val typingB = HOLSteps.HOLProofType(termB)
@@ -149,7 +149,7 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
     val typeA = TypeVariable(K.Identifier("typing-conjunction-A"))
     val typeB = TypeVariable(K.Identifier("typing-conjunction-B"))
 
-    val result = Proof.withContext:
+    val result = ProofBuilder.withContext:
       Subproof:
         have(HOLSteps.HOLProofType(hOneOne(typeA)(typeB)))
 

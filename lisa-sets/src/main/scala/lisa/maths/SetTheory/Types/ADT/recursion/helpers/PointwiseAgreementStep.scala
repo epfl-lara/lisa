@@ -53,15 +53,15 @@ private[recursion] object PointwiseAgreementStep {
     def recursiveType: Expr[Ind]
     def sliceLeft: Expr[Ind]
     def sliceRight: Expr[Ind]
-    def sliceAgreement(using proof: lisa.SetTheoryLibrary.Proof): Thm
+    def sliceAgreement(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm
     def bodyEqAssumptions(using
-        proof: lisa.SetTheoryLibrary.Proof
+        proof: lisa.SetTheoryLibrary.ProofBuilder
     )(
         pattern: Clause[Expr[Ind]],
         patternGuard: Thm
     ): Set[Expr[Prop]]
     def caseEquation(using
-        proof: lisa.SetTheoryLibrary.Proof
+        proof: lisa.SetTheoryLibrary.ProofBuilder
     )(
         pattern: Clause[Expr[Ind]],
         slice: Expr[Ind],
@@ -72,7 +72,7 @@ private[recursion] object PointwiseAgreementStep {
   }
 
   private def agreementAt(using
-      proof: lisa.SetTheoryLibrary.Proof
+      proof: lisa.SetTheoryLibrary.ProofBuilder
   )(
       heightFun: Expr[Ind],
       currentIndex: Expr[Ind],
@@ -91,7 +91,7 @@ private[recursion] object PointwiseAgreementStep {
   }
 
   def pointwiseAgreementOnSucc(using
-      proof: lisa.SetTheoryLibrary.Proof
+      proof: lisa.SetTheoryLibrary.ProofBuilder
   )(
       patternMatching: PatternSystem[Expr[Ind]],
       heightFun: Expr[Ind],

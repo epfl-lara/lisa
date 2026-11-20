@@ -97,7 +97,7 @@ object Comprehension extends lisa.Main {
    *
    * TODO: In the future, this tactic could be automated
    */
-  def apply(using proof: lisa.SetTheoryLibrary.Proof)(conclusion: Sequent): ProofJudgement = {
+  def apply(using proof: lisa.SetTheoryLibrary.ProofBuilder)(conclusion: Sequent): ProofJudgement = {
     if conclusion.right.size != 1 then invalidTactic("Don't know which formula to prove by comprehension.")
     else
       conclusion.right.head match {

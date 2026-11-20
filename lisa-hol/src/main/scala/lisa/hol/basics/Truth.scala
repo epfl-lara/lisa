@@ -9,7 +9,7 @@ import lisa.utils.prooflib.BasicStep._
 import lisa.utils.prooflib.Exports._
 import lisa.utils.prooflib.Exports._
 import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.Proof
+import lisa.utils.prooflib.ProofBuilder
 import lisa.utils.prooflib.ProofJudgement
 import lisa.utils.prooflib.Subproof
 import lisa.utils.prooflib.Substitute
@@ -44,7 +44,7 @@ object Truth extends lisa.HOL {
    *     |- u = t
    */
   object _SYM {
-    def apply(using proof: Proof)(prem: Thm): ProofJudgement = Subproof { ip ?=>
+    def apply(using proof: ProofBuilder)(prem: Thm): ProofJudgement = Subproof { ip ?=>
       prem.statement match {
         case HOLSequent(_, _, *(*(=:= #@ (typ), t), u)) =>
           ip.assume(prem.statement.left)
@@ -63,7 +63,7 @@ object Truth extends lisa.HOL {
   /**
    * SYM: t = u |- u = t
    */
-  def SYM(using line: sourcecode.Line, file: sourcecode.File)(using proof: library.Proof)(prem: Thm) =
+  def SYM(using line: sourcecode.Line, file: sourcecode.File)(using proof: library.ProofBuilder)(prem: Thm) =
     have(_SYM(prem))
 
   /**

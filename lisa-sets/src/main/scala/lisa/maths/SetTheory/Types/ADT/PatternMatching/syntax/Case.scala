@@ -19,11 +19,11 @@ case class Case(cons: Constructor[?], args: Expr[Ind]*) {
    *  @see [[lisa.maths.SetTheory.Types.ADT.tactics.Induction]]
    */
   def subproof(using
-      proof: Proof,
+      proof: ProofBuilder,
       line: sourcecode.Line,
       file: sourcecode.File,
       builder: CaseAccumulator[Thm, (Sequent, SpecializedADT[?], Variable[Ind])]
-  )(subproof: Proof ?=> Any): Unit =
+  )(subproof: ProofBuilder ?=> Any): Unit =
     val (bot, adt, adtVar) = builder.comp
     val resolved = PatternValidation.resolveCase(cons, args, adt).fold(message => throw new IllegalArgumentException(message), identity)
     val pattern = Pattern.fromResolved(
@@ -44,7 +44,7 @@ case class Case(cons: Constructor[?], args: Expr[Ind]*) {
     val botWithAssumptions = bot.substitute(subst) ++ (assumptions |- ())
 
     val caseProof = have(botWithAssumptions) subproof {
-      subproof(using summon[Proof])
+      subproof(using summon[ProofBuilder])
     }
     builder.addResolved(pattern, caseProof)
 

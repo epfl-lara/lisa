@@ -13,7 +13,7 @@ import lisa.utils.prooflib.BasicStep._
 import lisa.utils.prooflib.Discharge
 import lisa.utils.prooflib.Exports._
 import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.Proof
+import lisa.utils.prooflib.ProofBuilder
 import lisa.utils.prooflib.ProofJudgement
 import lisa.utils.prooflib.Subproof
 import lisa.utils.prooflib.TacticHelpers.failWith
@@ -365,7 +365,7 @@ object VarsAndFunctions /*extends lisa.Main*/:
     val A = variable[Ind]
     val B = variable[Ind]
 
-    def apply(using proof: Proof)(typ: Expr[Ind]): ProofJudgement = Subproof { ip ?=>
+    def apply(using proof: ProofBuilder)(typ: Expr[Ind]): ProofJudgement = Subproof { ip ?=>
       typ match {
         case ctt: HOLConstantType => have(ctt.nonEmptyThm)
         case Multiapp(poly: HOLPolymorphicType[?], args) =>

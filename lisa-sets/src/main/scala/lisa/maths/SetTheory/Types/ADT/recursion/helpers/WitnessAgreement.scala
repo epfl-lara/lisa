@@ -26,7 +26,7 @@ private[recursion] final class WitnessAgreement(
   private val a = spec.proofVariable("a")
 
   private val heightFun: Expr[Ind] = spec.heightFun
-  private def heightFunValid(using proof: lisa.SetTheoryLibrary.Proof): Thm = spec.heightFunValid
+  private def heightFunValid(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm = spec.heightFunValid
   private val constructorsAt = specializedConstructors(spec.patternMatching, spec.typeSubstitutions)
 
   private val agreeOnSlice = ∀(vVar ∈ app(heightFun)(nVar), app(leftFun)(vVar) === app(rightFun)(vVar))
@@ -71,7 +71,7 @@ private[recursion] final class WitnessAgreement(
 
           // Each method re-`assume`s the ambient hypotheses (idempotent) since it runs in a
           // nested proof, not the enclosing lemma proof.
-          def sliceAgreement(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+          def sliceAgreement(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
             have(
               ∀(vVar, (vVar ∈ app(heightFun)(nVar)) ==> (app(leftFun)(vVar) === app(rightFun)(vVar)))
             ) by Restate.from(assume(agreeOnSlice))
@@ -79,14 +79,14 @@ private[recursion] final class WitnessAgreement(
           // Witness case equations carry their own contexts, so body equality needs no extra
           // ambient assumptions.
           def bodyEqAssumptions(using
-              proof: lisa.SetTheoryLibrary.Proof
+              proof: lisa.SetTheoryLibrary.ProofBuilder
           )(
               pattern: Clause[Expr[Ind]],
               patternGuard: Thm
           ): Set[Expr[Prop]] = Set.empty
 
           def caseEquation(using
-              proof: lisa.SetTheoryLibrary.Proof
+              proof: lisa.SetTheoryLibrary.ProofBuilder
           )(
               pattern: Clause[Expr[Ind]],
               slice: Expr[Ind],
@@ -142,7 +142,7 @@ private[recursion] final class WitnessAgreement(
    * and the successor step in `ApproxStabilization`.
    */
   def witnessesAgreeAt(using
-      proof: lisa.SetTheoryLibrary.Proof
+      proof: lisa.SetTheoryLibrary.ProofBuilder
   )(
       lhs: Expr[Ind],
       rhs: Expr[Ind],

@@ -16,7 +16,7 @@ import org.scalatest.funsuite.AnyFunSuite
 class AbstractionTypingSuite extends AnyFunSuite:
   private given Library = SetTheoryLibrary
   private def typing(term: Expr[Ind]): Thm =
-    val result = Proof.withContext:
+    val result = ProofBuilder.withContext:
       Subproof:
         have(HOLSteps.HOLProofType(term))
     assert(result.isValid, result.errors.mkString("\n"))
@@ -79,7 +79,7 @@ class AbstractionTypingSuite extends AnyFunSuite:
     val x = variable[Ind](K.Identifier("reuse-abs-wrong-x"))
     val y = variable[Ind](K.Identifier("reuse-abs-wrong-y"))
     val z = variable[Ind](K.Identifier("reuse-abs-wrong-z"))
-    val result = Proof.withContext:
+    val result = ProofBuilder.withContext:
       val unrelated = have(y ∈ 𝔹 |- y ∈ 𝔹) by BasicStep.Hypothesis
       Typecheck.abstractionProof(using SetTheoryLibrary)(x, 𝔹, z, 𝔹)(unrelated)
     assert(!result.isValid)
@@ -90,7 +90,7 @@ class AbstractionTypingSuite extends AnyFunSuite:
     val first = Pi(𝔹)(λ(u, 𝔹))
     val second = Pi(𝔹)(λ(v, 𝔹))
     val f = variable[Ind](K.Identifier("reuse-abs-alpha-f"))
-    val result = Proof.withContext:
+    val result = ProofBuilder.withContext:
       val body = have((f ∈ first, f ∈ second) |- f ∈ first) by BasicStep.Hypothesis
       Typecheck.abstractionProof(using SetTheoryLibrary)(f, second, f, first)(body)
     assert(result.isValid, result.errors.mkString("\n"))

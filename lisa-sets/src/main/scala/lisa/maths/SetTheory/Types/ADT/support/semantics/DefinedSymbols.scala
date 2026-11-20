@@ -71,13 +71,13 @@ class DefinedProperty(
   /**
    * Instantiates the unfolding direction in the current proof.
    */
-  def unfoldAt(arg: Expr[Ind])(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+  def unfoldAt(arg: Expr[Ind])(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
     if arg == bodyVar then unfold else unfold.of(bodyVar := arg)
 
   /**
    * Instantiates the folding direction in the current proof.
    */
-  def foldAt(arg: Expr[Ind])(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+  def foldAt(arg: Expr[Ind])(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
     if arg == bodyVar then fold else fold.of(bodyVar := arg)
 
 }

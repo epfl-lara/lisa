@@ -58,76 +58,76 @@ class SemanticADT(
      */
     val function: Expr[Ind] = underlying.height
 
-    private def specialize(base: Theorem, substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair])(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+    private def specialize(base: Theorem, substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair])(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
       instantiate(base, normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions) ++ valueSubstitutions)
 
     /**
      * Instantiates validity of the height function in the current proof.
      */
-    def validAt(substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+    def validAt(substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
       specialize(underlying.heightValid, substitutions, valueSubstitutions)
 
     /**
      * Instantiates existence of a height function in the current proof.
      */
-    def existsAt(substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+    def existsAt(substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
       specialize(underlying.heightExists, substitutions, valueSubstitutions)
 
     /**
      * Instantiates monotonicity of height stages in the current proof.
      */
-    def monotonicAt(substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+    def monotonicAt(substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
       specialize(underlying.heightMonotonic, substitutions, valueSubstitutions)
 
     /**
      * Instantiates emptiness of the zero height stage in the current proof.
      */
-    def zeroAt(substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+    def zeroAt(substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
       specialize(underlying.heightZero, substitutions, valueSubstitutions)
 
     /**
      * Instantiates preservation of stage membership in the current proof.
      */
-    def membershipMonotonicAt(substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+    def membershipMonotonicAt(substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
       specialize(underlying.heightMembershipMonotonic, substitutions, valueSubstitutions)
 
     /**
      * Instantiates inclusion in the successor stage in the current proof.
      */
-    def successorInclusionAt(substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+    def successorInclusionAt(substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
       specialize(underlying.heightSuccessorInclusion, substitutions, valueSubstitutions)
 
     /**
      * Instantiates the successor-stage characterization in the current proof.
      */
-    def successorStrongAt(substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+    def successorStrongAt(substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
       specialize(underlying.heightSuccessorStrong, substitutions, valueSubstitutions)
 
     /**
      * Instantiates existence of a height for a datatype member in the current proof.
      */
-    def termHasHeightAt(substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+    def termHasHeightAt(substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair] = Seq.empty)(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
       specialize(underlying.termHasHeight, substitutions, valueSubstitutions)
 
     /**
      * Instantiates a common height for a syntactic constructor's arguments.
      */
     def termsHaveHeightAt(c: SyntacticConstructor, heightFunction: Expr[Ind], substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair] = Seq.empty)(using
-        proof: lisa.SetTheoryLibrary.Proof
+        proof: lisa.SetTheoryLibrary.ProofBuilder
     ): Thm =
       underlying.termsHaveHeight(c, heightFunction, normalizeTypeSubstitutions("ADT", name, typeVariablesSeq, substitutions) ++ valueSubstitutions)
 
     /**
      * Instantiates a common height for a semantic constructor's arguments.
      */
-    def termsHaveHeightAt(c: SemanticConstructor, heightFunction: Expr[Ind], substitutions: Seq[TypeSubstitution])(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+    def termsHaveHeightAt(c: SemanticConstructor, heightFunction: Expr[Ind], substitutions: Seq[TypeSubstitution])(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
       termsHaveHeightAt(c.underlying, heightFunction, substitutions)
 
     /**
      * Instantiates type and value parameters of a semantic constructor's common-height theorem together.
      */
     def termsHaveHeightAt(c: SemanticConstructor, heightFunction: Expr[Ind], substitutions: Seq[TypeSubstitution], valueSubstitutions: Seq[SubstPair])(using
-        proof: lisa.SetTheoryLibrary.Proof
+        proof: lisa.SetTheoryLibrary.ProofBuilder
     ): Thm =
       termsHaveHeightAt(c.underlying, heightFunction, substitutions, valueSubstitutions)
   }

@@ -9,7 +9,7 @@ import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.fol.FOL._
 import lisa.utils.prooflib.Exports._
 import lisa.utils.prooflib.OutputManager
-import lisa.utils.prooflib.Proof
+import lisa.utils.prooflib.ProofBuilder
 import lisa.utils.prooflib.StringOutputManager
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -24,14 +24,14 @@ class TypecheckPortSuite extends AnyFunSuite:
   private val family = variable[Ind >>: Ind]
 
   private def check(context: Set[Expr[Prop]], term: Expr[Ind], typ: Expr[Ind], expected: Sequent): Unit =
-    val result = Proof.withContext(using SetTheoryLibrary):
+    val result = ProofBuilder.withContext(using SetTheoryLibrary):
       Typecheck.checkProof(context, term, typ)
     assert(result.isValid, result.errors.map(_.message).mkString("\n"))
     assert(result.thm.statement == expected)
     assert(!result.thm.kernel.usesSorry)
 
   private def reject(context: Set[Expr[Prop]], term: Expr[Ind], typ: Expr[Ind]): Unit =
-    val result = Proof.withContext(using SetTheoryLibrary):
+    val result = ProofBuilder.withContext(using SetTheoryLibrary):
       Typecheck.checkProof(context, term, typ)
     assert(!result.isValid)
 
@@ -92,7 +92,7 @@ class TypecheckPortSuite extends AnyFunSuite:
 
   test("discharge universe formation with explicit conjuncts and cuts"):
     val goal = () |- (A ->: A) ∈ universeOf(A)
-    val result = Proof.withContext(using SetTheoryLibrary):
+    val result = ProofBuilder.withContext(using SetTheoryLibrary):
       Typecheck.prove(goal)
     assert(result.isValid, result.errors.map(_.message).mkString("\n"))
     assert(result.thm.statement == goal)
@@ -180,7 +180,7 @@ class TypecheckPortSuite extends AnyFunSuite:
     reject(Set(f ∈ from), f, to)
 
   test("keep ambient assumptions out of explicit context lookup"):
-    val result = Proof.withContext(using SetTheoryLibrary):
+    val result = ProofBuilder.withContext(using SetTheoryLibrary):
       lisa.utils.prooflib.ProofHelpers.assume(x ∈ B, A ⊆ B)
       Typecheck.checkProof(Set(x ∈ A), x, B)
     assert(!result.isValid)

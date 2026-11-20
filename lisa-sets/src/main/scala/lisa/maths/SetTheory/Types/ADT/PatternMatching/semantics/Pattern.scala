@@ -266,7 +266,7 @@ final class Pattern private (
   /**
    * Instantiates typing of the outer constructor application at the supplied arguments.
    */
-  def inputTypingAt(vars: Seq[Variable[Ind]], adtTerm: Expr[Ind])(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+  def inputTypingAt(vars: Seq[Variable[Ind]], adtTerm: Expr[Ind])(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
     require(adtTerm == specializedAdtTerm, "Pattern.inputTypingAt expects the compiled specialized datatype.")
     PatternProofs.inputTyping(this, vars.take(arity))
 
@@ -299,7 +299,7 @@ final class Pattern private (
    * Proves a nested recursive binder lies below the current height using its recorded field path.
    */
   def recursiveAgreementPointInHeight(using
-      proof: lisa.SetTheoryLibrary.Proof,
+      proof: lisa.SetTheoryLibrary.ProofBuilder,
       line: sourcecode.Line,
       file: sourcecode.File
   )(

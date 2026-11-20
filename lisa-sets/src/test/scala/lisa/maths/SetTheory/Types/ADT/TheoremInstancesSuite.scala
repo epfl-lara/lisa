@@ -85,7 +85,7 @@ class TheoremInstancesSuite extends AnyFunSuite:
       val stageTyping = constructor.heightTypingFormula(app(h)(n)).substitute(substitutions*)
       val resultTyping = wellTypedFormula(constructor.semanticSignature2).substitute(substitutions*)
       val checked = Theorem.generated((height.predicateAt(substitutions)(h), n ∈ N, stageTyping) |- resultTyping) {
-        def exercise(using proof: lisa.SetTheoryLibrary.Proof): Unit =
+        def exercise(using proof: lisa.SetTheoryLibrary.ProofBuilder): Unit =
           val typing = constructor.semanticTypingFromHeightAt(substitutions)(h, n)
           val equality = constructor.appliedEqualityFromStructuralAt(substitutions)(h, n, x)
           val recursive = constructor.recursiveArgInHeightAt(substitutions)(h, n)

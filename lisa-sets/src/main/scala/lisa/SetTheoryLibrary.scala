@@ -10,7 +10,7 @@ import scala.annotation.targetName
  */
 object SetTheoryLibrary extends lisa.utils.prooflib.Library {
 
-  type Proof = lisa.utils.prooflib.Proof
+  type ProofBuilder = lisa.utils.prooflib.ProofBuilder
 
   given given_Library: SetTheoryLibrary.type = this
 

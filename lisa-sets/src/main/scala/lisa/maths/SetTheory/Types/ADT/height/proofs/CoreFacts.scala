@@ -196,7 +196,7 @@ private[height] object CoreFacts {
   def heightExistsAt(
       stageSet0: Expr[Ind >>: Ind],
       isConstructor0: Expr[Ind >>: Ind >>: Prop]
-  )(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+  )(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
     heightExists.of(stageSet := stageSet0, isConstructor := isConstructor0)
 
   /**
@@ -211,7 +211,7 @@ private[height] object CoreFacts {
   def heightFunctionSpecAt(
       stageSet0: Expr[Ind >>: Ind],
       isConstructor0: Expr[Ind >>: Ind >>: Prop]
-  )(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+  )(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
     heightFunctionSpec.of(stageSet := stageSet0, isConstructor := isConstructor0)
 
   def heightMonotonicAt(
@@ -219,7 +219,7 @@ private[height] object CoreFacts {
       h0: Expr[Ind],
       n0: Expr[Ind],
       m0: Expr[Ind]
-  )(using proof: lisa.SetTheoryLibrary.Proof): Thm =
+  )(using proof: lisa.SetTheoryLibrary.ProofBuilder): Thm =
     heightMonotonic.of(isConstructor := isConstructor0, h := h0, n := n0, m := m0)
 
   def initialize(): Unit = {
