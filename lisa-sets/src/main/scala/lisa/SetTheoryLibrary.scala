@@ -12,7 +12,7 @@ object SetTheoryLibrary extends lisa.utils.prooflib.Library {
 
   type Proof = lisa.utils.prooflib.Proof
 
-  given lisa.utils.prooflib.Library = this
+  given given_Library: SetTheoryLibrary.type = this
 
   /**
    * A class is nothing more than a first-order formula with a free

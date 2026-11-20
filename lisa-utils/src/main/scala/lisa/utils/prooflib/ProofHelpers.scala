@@ -302,6 +302,28 @@ object ProofHelpers:
   def andThen(using library: Library, proof: Proof, file: sourcecode.File, line: sourcecode.Line): AndThen =
     AndThen()
 
+  private def instantiate(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(thm: Thm, insts: Seq[SubstPair | Expr[Ind]]): Thm =
+    val (terms, substitutions) = insts.partitionMap { argument =>
+      if argument.isInstanceOf[Expr[?]] then Left(argument.asInstanceOf[Expr[Ind]])
+      else Right(argument.asInstanceOf[SubstPair])
+    }
+    def checked(result: ProofJudgement): Thm =
+      require(result.isValid, result.errors.map(_.message).mkString("Cannot instantiate theorem: ", "; ", ""))
+      result.thm
+
+    val instance =
+      if substitutions.isEmpty then thm
+      else checked(BasicStep.InstSchema(substitutions*)(thm.kernel)(thm.statement.substitute(substitutions*)))
+
+    if terms.isEmpty then instance
+    else
+      require(instance.right.size == 1, "Quantified instantiation requires exactly one formula on the right.")
+      val formula = terms.foldLeft(instance.right.head) {
+        case (forall(variable, body), term) => body.substitute(variable := term)
+        case (formula, _) => throw new IllegalArgumentException(s"Cannot instantiate a non-universal formula: $formula")
+      }
+      checked(InstantiateForall(terms*)(instance.left |- formula, instance))
+
   extension (thm: K.Thm)
     /**
      * The theorem statement as a front sequent.
@@ -310,26 +332,24 @@ object ProofHelpers:
       asFrontSequent(thm.statement)
 
     /**
-     * Instantiates a theorem schema and returns the resulting theorem.
+     * Applies simultaneous schema substitutions, then instantiates leading universal quantifiers with the supplied terms.
      */
-    infix def of(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(insts: SubstPair*): Thm =
-      val conclusion = thm.frontStatement.substitute(insts*)
-      BasicStep.InstSchema(using file, line)(using library)(insts*)(thm)(conclusion).thm
+    infix def of(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(insts: (SubstPair | Expr[Ind])*): Thm =
+      instantiate(Thm(thm), insts)
 
   extension (thm: Thm)
     /**
-     * Instantiates a theorem schema and returns the resulting theorem.
+     * Applies simultaneous schema substitutions, then instantiates leading universal quantifiers with the supplied terms.
      */
-    infix def of(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(insts: SubstPair*): Thm =
-      val conclusion = thm.statement.substitute(insts*)
-      BasicStep.InstSchema(using file, line)(using library)(insts*)(thm.kernel)(conclusion).thm
+    infix def of(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(insts: (SubstPair | Expr[Ind])*): Thm =
+      instantiate(thm, insts)
 
   extension (theorem: Theorem)
     /**
-     * Instantiates a theorem schema and returns the resulting theorem.
+     * Applies simultaneous schema substitutions, then instantiates leading universal quantifiers with the supplied terms.
      */
-    infix def of(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(insts: SubstPair*): Thm =
-      theorem.thm.of(using file, line)(using library)(insts*)
+    infix def of(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(insts: (SubstPair | Expr[Ind])*): Thm =
+      instantiate(theorem.thm, insts)
 
   extension (pj: ProofJudgement)
     /**

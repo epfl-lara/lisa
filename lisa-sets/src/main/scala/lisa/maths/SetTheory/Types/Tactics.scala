@@ -57,6 +57,24 @@ object Tactics:
 
   object Typecheck:
     /**
+     * Collect matching assumptions and their types in deterministic structural order.
+     */
+    private def contextTypings(context: Set[Expr[Prop]], term: Expr[Ind]): List[(Expr[Prop], Expr[Ind])] =
+      context.iterator
+        .collect { case assumption @ typeOf(member, typ) if isSame(member, term) => assumption -> typ }
+        .toList
+        .sortBy(_._1.underlying.toString)
+
+    /**
+     * Freshen a binder when it occurs free in the surrounding context.
+     */
+    private def openBinder(context: Seq[Expr[?]], binder: Variable[Ind], body: Expr[Ind]): (Variable[Ind], Expr[Ind]) =
+      if context.exists(_.freeVars.contains(binder)) then
+        val fresh = binder.freshRename(context :+ body)
+        fresh -> body.substitute(binder := fresh)
+      else binder -> body
+
+    /**
      * Extract one side of a proved conjunction with explicit sequent steps.
      */
     private def conjunct(using lib: SetTheoryLibrary.type, proof: Proof)(fact: Thm, takeLeft: Boolean): Thm =
@@ -86,9 +104,11 @@ object Tactics:
       def check(localContext: Set[Expr[Prop]], tm: Expr[Ind], ty: Expr[Ind])(compute: => ProofJudgement): ProofJudgement =
         checked.getOrElseUpdate((contextKey(localContext), tm.underlying.uniqueNumber, ty.underlying.uniqueNumber), compute)
 
-    // Helper function: get universe level
+    /**
+     * Count leading universeOf applications, with depth one for any other term.
+     */
     def getDepth(e: Expr[Ind]): Int = e match
-      case App(universeOf, inner: Expr[Ind]) => 1 + getDepth(inner)
+      case App(`universeOf`, inner: Expr[Ind]) => 1 + getDepth(inner)
       case _ => 1
 
     // Bidirectional type checking proof construct(infer, check, equal)
@@ -244,7 +264,8 @@ object Tactics:
              * needed. The temporary binder assumption is discharged before the
              * abstraction type and proof are returned together.
              */
-            case Sabs(ty: Expr[Ind], Abs(boundVar: Variable[Ind], body: Expr[Ind])) =>
+            case Sabs(ty: Expr[Ind], Abs(original: Variable[Ind], originalBody: Expr[Ind])) =>
+              val (boundVar, body) = openBinder(localContext.toSeq :+ ty, original, originalBody)
               val newContext = localContext ++ Set(boundVar ∈ ty)
               inferProofM(using SetTheoryLibrary)(newContext, body, memo).flatMap { (bodyType, bodyTyping) =>
                 abstractionProof(boundVar, ty, body, bodyType)(bodyTyping)
@@ -261,7 +282,8 @@ object Tactics:
              * when available, otherwise from `universeOf(T₁)`. The larger
              * universe becomes this branch's inferred-type payload.
              */
-            case SPi(ty: Expr[Ind], Abs(boundVar: Expr[Ind], body: Expr[Ind])) =>
+            case SPi(ty: Expr[Ind], Abs(original: Variable[Ind], originalBody: Expr[Ind])) =>
+              val (boundVar, body) = openBinder(localContext.toSeq :+ ty, original, originalBody)
               val newContext = localContext ++ Set(boundVar ∈ ty)
               inferProofM(using SetTheoryLibrary)(newContext, body, memo).flatMap { (u2, bodyTyping) =>
                 val (u1, u1Fact, u1Premises) = localContext
@@ -353,9 +375,11 @@ object Tactics:
         tm: Expr[Ind]
     ): ProofCarrier[Expr[Ind]] =
       import lib.*
-      localContext.collectFirst { case typeOf(t1, t2) if isSame(t1, tm) => t2 } match
-        case Some(ty) =>
-          val typing = have(tm ∈ ty |- tm ∈ ty) by Hypothesis
+      contextTypings(localContext, tm).headOption match
+        case Some((assumption, ty)) =>
+          val typing =
+            if assumption == (tm ∈ ty) then have(assumption |- tm ∈ ty) by Hypothesis
+            else have(assumption |- tm ∈ ty) by Restate
           ProofJudgement(typing).map(_ => ty)
         case None =>
           val ty = universeOf(tm)
@@ -374,6 +398,30 @@ object Tactics:
     def checkProof(using lib: SetTheoryLibrary.type, proof: Proof)(localContext: Set[Expr[Prop]], tm: Expr[Ind], ty: Expr[Ind]): ProofJudgement =
       checkProofM(using lib, proof)(localContext, tm, ty, Memo())
 
+    /**
+     * Try a context typing in isolation, retaining its original assumption.
+     */
+    private def checkContextTyping(using
+        lib: SetTheoryLibrary.type,
+        proof: Proof
+    )(
+        localContext: Set[Expr[Prop]],
+        tm: Expr[Ind],
+        ty: Expr[Ind],
+        assumption: Expr[Prop],
+        actual: Expr[Ind]
+    ): ProofJudgement = Subproof {
+      import lib.*
+      if isSame(actual, ty) then
+        if assumption == (tm ∈ ty) then have(assumption |- tm ∈ ty) by Hypothesis
+        else have(assumption |- tm ∈ ty) by Restate
+      else
+        val inclusion = subsetProof(localContext, actual, ty)
+        if !inclusion.isValid then failWith(inclusion)
+        val typing = have(assumption |- tm ∈ actual) by Restate
+        have(Discharge(typing, inclusion.thm)(TConvAdv of (e1 := tm, T := actual, T1 := ty)))
+    }
+
     private def checkProofM(using
         lib: SetTheoryLibrary.type,
         proof: Proof
@@ -385,66 +433,84 @@ object Tactics:
     ): ProofJudgement =
       memo.check(localContext, tm, ty) {
         import lib.*
-        SubproofM {
-          (tm, ty) match
-            /**
-             * Bidirectional abstraction check:
-             *
-             *     Γ, x ∈ T₁ |- body ∈ T₂(x)
-             *     ----------------------------- TAbs
-             *     Γ |- λ(x : T₁). body ∈ Π(x : T₁). T₂(x)
-             *
-             * The expected Π-type supplies the codomain, so only the body needs
-             * recursive checking. Its carrier threads the proof into this step.
-             */
-            case (Sabs(ty1: Expr[Ind], body: Expr[Ind >>: Ind]), SPi(ty1prime: Expr[Ind], ty2: Expr[Ind >>: Ind])) =>
-              val (newBoundVariable, replaceVar, body1, body2) = (body, ty2) match
-                case (Abs(v1, b1), Abs(v2, b2)) => (v1, v2, b1, b2)
-                case _ => failWith("Term and Type must be lambda expressions")
-              have(ty1 === ty1prime) by RightRefl.withParameters(ty1 === ty1prime)
-              val newContext = localContext ++ Set(newBoundVariable ∈ ty1)
-              val newBody2 = body2.substitute((replaceVar, newBoundVariable))
-              checkProofM(using SetTheoryLibrary)(newContext, body1, newBody2, memo).flatMap { (_, bodyTyping) =>
-                val resetBot = bodyTyping.statement -<< (newBoundVariable ∈ ty1)
-                have((newBoundVariable ∈ ty1 |- body1 ∈ newBody2) ++<< bodyTyping.statement) by Weakening(bodyTyping)
-                thenHave((newBoundVariable ∈ ty1 ==> body1 ∈ newBody2) ++<< resetBot) by RightImplies
-                thenHave((∀(newBoundVariable ∈ ty1, body1 ∈ newBody2)) ++<< resetBot) by RightForall
-                val quantifiedTyping = lastStep
-                val abstraction = TAbs of (T1 := ty1, T2 := ty2, e := body)
-                val typing = have(Discharge(quantifiedTyping)(abstraction))
+        val (exact, other) = contextTypings(localContext, tm).partition((_, actual) => isSame(actual, ty))
+        (exact.iterator ++ other.iterator)
+          .map((assumption, actual) => checkContextTyping(localContext, tm, ty, assumption, actual))
+          .find(_.isValid)
+          .getOrElse(checkStructural(localContext, tm, ty, memo))
+      }
+
+    private def checkStructural(using
+        lib: SetTheoryLibrary.type,
+        proof: Proof
+    )(
+        localContext: Set[Expr[Prop]],
+        tm: Expr[Ind],
+        ty: Expr[Ind],
+        memo: Memo
+    ): ProofJudgement = SubproofM {
+      import lib.*
+      (tm, ty) match
+        /**
+         * Bidirectional abstraction check:
+         *
+         *     Γ, x ∈ T₁ |- body ∈ T₂(x)
+         *     ----------------------------- TAbs
+         *     Γ |- λ(x : T₁). body ∈ Π(x : T₁). T₂(x)
+         *
+         * The expected Π-type supplies the codomain, so only the body needs
+         * recursive checking. Its carrier threads the proof into this step.
+         */
+        case (Sabs(ty1: Expr[Ind], body: Expr[Ind >>: Ind]), SPi(ty1prime: Expr[Ind], ty2: Expr[Ind >>: Ind])) =>
+          if !isSame(ty1, ty1prime) then failWith(s"Abstraction domains differ: $ty1 and $ty1prime")
+          val (original, replaceVar, originalBody, body2) = (body, ty2) match
+            case (Abs(v1, b1), Abs(v2, b2)) => (v1, v2, b1, b2)
+            case _ => failWith("Term and Type must be lambda expressions")
+          val (newBoundVariable, body1) = openBinder(localContext.toSeq ++ Seq(ty1, ty2), original, originalBody)
+          have(ty1 === ty1prime) by RightRefl.withParameters(ty1 === ty1prime)
+          val newContext = localContext ++ Set(newBoundVariable ∈ ty1)
+          val newBody2 = body2.substitute((replaceVar, newBoundVariable))
+          checkProofM(using SetTheoryLibrary)(newContext, body1, newBody2, memo).flatMap { (_, bodyTyping) =>
+            val resetBot = bodyTyping.statement -<< (newBoundVariable ∈ ty1)
+            have((newBoundVariable ∈ ty1 |- body1 ∈ newBody2) ++<< bodyTyping.statement) by Weakening(bodyTyping)
+            thenHave((newBoundVariable ∈ ty1 ==> body1 ∈ newBody2) ++<< resetBot) by RightImplies
+            thenHave((∀(newBoundVariable ∈ ty1, body1 ∈ newBody2)) ++<< resetBot) by RightForall
+            val quantifiedTyping = lastStep
+            val abstraction = TAbs of (T1 := ty1, T2 := Abs(newBoundVariable, newBody2), e := Abs(newBoundVariable, body1))
+            val typing = have(Discharge(quantifiedTyping)(abstraction))
+            val restated = have((tm ∈ ty) ++<< typing.statement) by Restate.from(typing)
+            ProofJudgement(restated)
+          }
+
+        /**
+         * Conversion check:
+         *
+         *     Γ₁ |- tm ∈ inferredType    Γ₂ |- inferredType ⊆ expectedType
+         *     ------------------------------------------------------------ TConvAdv
+         *                   Γ₁, Γ₂ |- tm ∈ expectedType
+         *
+         * Reuse the inferred typing when its type matches; restate equivalent
+         * types and construct a conversion only for a genuine inclusion.
+         */
+        case _ =>
+          inferProofM(using SetTheoryLibrary)(localContext, tm, memo).flatMap { (inferredType, inferredTyping) =>
+            if inferredType == ty then ProofJudgement(inferredTyping)
+            else if isSame(inferredType, ty) then
+              val typing = have((tm ∈ ty) ++<< inferredTyping.statement) by Restate.from(inferredTyping)
+              ProofJudgement(typing)
+            else
+              subsetProof(using SetTheoryLibrary)(localContext, inferredType, ty).flatMap { (_, conversion) =>
+                val statement = (tm ∈ ty) ++<< inferredTyping.statement ++<< conversion.statement
+                val inferredTypingFormula = tm ∈ inferredType
+                val conversionFormula = inferredType ⊆ ty
+                val rule = TConvAdv of (e1 := tm, T := inferredType, T1 := ty)
+                val withInference = have(((tm ∈ ty) +<< conversionFormula) ++<< inferredTyping.statement) by
+                  Cut.withParameters(inferredTypingFormula)(inferredTyping, rule)
+                val typing = have(statement) by Cut.withParameters(conversionFormula)(conversion, withInference)
                 ProofJudgement(typing)
               }
-
-            /**
-             * Conversion check:
-             *
-             *     Γ₁ |- tm ∈ inferredType    Γ₂ |- inferredType ⊆ expectedType
-             *     ------------------------------------------------------------ TConvAdv
-             *                   Γ₁, Γ₂ |- tm ∈ expectedType
-             *
-             * Reuse the inferred typing when its type matches; restate equivalent
-             * types and construct a conversion only for a genuine inclusion.
-             */
-            case _ =>
-              inferProofM(using SetTheoryLibrary)(localContext, tm, memo).flatMap { (inferredType, inferredTyping) =>
-                if inferredType == ty then ProofJudgement(inferredTyping)
-                else if isSame(inferredType, ty) then
-                  val typing = have((tm ∈ ty) ++<< inferredTyping.statement) by Restate.from(inferredTyping)
-                  ProofJudgement(typing)
-                else
-                  subsetProof(using SetTheoryLibrary)(localContext, inferredType, ty).flatMap { (_, conversion) =>
-                    val statement = (tm ∈ ty) ++<< inferredTyping.statement ++<< conversion.statement
-                    val inferredTypingFormula = tm ∈ inferredType
-                    val conversionFormula = inferredType ⊆ ty
-                    val rule = TConvAdv of (e1 := tm, T := inferredType, T1 := ty)
-                    val withInference = have(((tm ∈ ty) +<< conversionFormula) ++<< inferredTyping.statement) by
-                      Cut.withParameters(inferredTypingFormula)(inferredTyping, rule)
-                    val typing = have(statement) by Cut.withParameters(conversionFormula)(conversion, withInference)
-                    ProofJudgement(typing)
-                  }
-              }
-        }
-      }
+          }
+    }
 
     /**
      * Prove type inclusion, handling reflexivity before dependent covariance.
@@ -452,39 +518,48 @@ object Tactics:
     def subsetProof(using lib: SetTheoryLibrary.type, proof: Proof)(localContext: Set[Expr[Prop]], sub: Expr[Ind], sup: Expr[Ind]): ProofJudgement =
       import lib.*
       Subproof {
-        (sub, sup) match
-          case _ if sub == sup => have(reflexivity of (x := sub))
-          case (SPi(d1: Expr[Ind], Abs(v1: Expr[Ind], c1: Expr[Ind])), SPi(d2: Expr[Ind], Abs(v2: Expr[Ind], c2: Expr[Ind]))) =>
-            val domainEquiv = have(d1 === d2) by RightRefl.withParameters(d1 === d2)
-            val c2Replace = c2.substitute((v1, v2))
-            val newContext = localContext ++ Set(v1 ∈ d1)
-            val codomainProof = subsetProof(using SetTheoryLibrary)(newContext, c1, c2Replace)
-            if !codomainProof.isValid then failWith(s"Cannot prove codomain covariance: '${c1} ⊆ ${c2Replace}' for variable ${v1}.")
-            val h1 = have(codomainProof)
-            have(h1)
-            thenHave((v1 ∈ d1 ==> c1 ⊆ c2Replace) ++<< h1.statement) by Weakening
-            thenHave(∀(v1 ∈ d1, c1 ⊆ c2Replace) ++<< h1.statement) by RightForall
-            val quantifiedCovariance = lastStep
-            val covariance = piCovariance of (T := d1, T1 := d2, T2 := Abs(v1, c1), T2p := Abs(v2, c2))
-            have(Discharge(domainEquiv, quantifiedCovariance)(covariance))
-          case _ =>
-            val dSub = getDepth(sub)
-            val dSup = getDepth(sup)
-            if (dSub > dSup) then failWith(s"Depth mismatch: $sub (d=$dSub) cannot be subset of $sup (d=$dSup)")
-            else if (dSub == dSup) then
-              if (localContext.contains(sub ⊆ sup)) then have(sub ⊆ sup |- sub ⊆ sup) by Hypothesis
+        val target = sub ⊆ sup
+        val known =
+          if localContext.contains(target) then Some(target)
+          else localContext.iterator.filter(isSame(_, target)).minByOption(_.underlying.toString)
+        if known.nonEmpty then have(known.get |- target) by Restate
+        else
+          (sub, sup) match
+            case _ if sub == sup => have(reflexivity of (x := sub))
+            case (SPi(d1: Expr[Ind], Abs(original: Variable[Ind], originalBody: Expr[Ind])), SPi(d2: Expr[Ind], Abs(v2: Expr[Ind], c2: Expr[Ind]))) =>
+              if !isSame(d1, d2) then failWith(s"Function domains differ: $d1 and $d2")
+              val (v1, c1) = openBinder(localContext.toSeq ++ Seq(d1, sup), original, originalBody)
+              val domainEquiv = have(d1 === d2) by RightRefl.withParameters(d1 === d2)
+              val c2Replace = c2.substitute((v2, v1))
+              val newContext = localContext ++ Set(v1 ∈ d1)
+              val codomainProof = subsetProof(using SetTheoryLibrary)(newContext, c1, c2Replace)
+              if !codomainProof.isValid then failWith(s"Cannot prove codomain covariance: '${c1} ⊆ ${c2Replace}' for variable ${v1}.")
+              val h1 = have(codomainProof)
+              val context = h1.statement -<? (v1 ∈ d1)
+              have((v1 ∈ d1 ==> c1 ⊆ c2Replace) ++<< context) by RightImplies.withParameters(v1 ∈ d1, c1 ⊆ c2Replace)(h1)
+              thenHave(∀(v1 ∈ d1, c1 ⊆ c2Replace) ++<< context) by RightForall.withParameters(v1 ∈ d1 ==> c1 ⊆ c2Replace, v1)
+              val quantifiedCovariance = lastStep
+              val covariance = piCovariance of (T := d1, T1 := d2, T2 := Abs(v1, c1), T2p := Abs(v2, c2))
+              have(Discharge(domainEquiv, quantifiedCovariance)(covariance))
+            case _ =>
+              val dSub = getDepth(sub)
+              val dSup = getDepth(sup)
+              if (dSub > dSup) then failWith(s"Depth mismatch: $sub (d=$dSub) cannot be subset of $sup (d=$dSup)")
+              else if (dSub == dSup) then
+                if !isSame(sub, sup) then failWith(s"No inclusion known between $sub and $sup")
+                else
+                  val equality = have(sub === sup) by RightRefl.withParameters(sub === sup)
+                  val reflexive = have(reflexivity of (x := sub))
+                  val rewritten = have(sub === sup |- sub ⊆ sup) by
+                    RightSubstEq(List((sub, sup)), (Seq(T), sub ⊆ T))(reflexive)
+                  have(Discharge(equality)(rewritten))
+              else if (dSub == dSup - 1 && isSame(sup, universeOf(sub))) then have(sub ⊆ sup) by Restate.from(subsetOfUniverse of (A := sub))
+              else if dSub == dSup - 1 then failWith(s"No universe inclusion known between $sub and $sup")
               else
-                val equality = have(sub === sup) by RightRefl.withParameters(sub === sup)
-                val reflexive = have(reflexivity of (x := sub))
-                val rewritten = have(sub === sup |- sub ⊆ sup) by
-                  RightSubstEq(List((sub, sup)), (Seq(T), sub ⊆ T))(reflexive)
-                have(Discharge(equality)(rewritten))
-            else if (dSub == dSup - 1) then have(subsetOfUniverse of (A := sub))
-            else
-              val step1 = have(subsetOfUniverse of (A := sub))
-              val step2Proof = subsetProof(using SetTheoryLibrary)(localContext, universeOf(sub), sup)
-              if !step2Proof.isValid then failWith(s"Further subset proof failed: ${universeOf(sub)} and $sup")
-              val step2 = have(step2Proof)
-              val transitive = transitivity of (x := sub, y := universeOf(sub), z := sup)
-              have(Discharge(step1, step2)(transitive))
+                val step1 = have(subsetOfUniverse of (A := sub))
+                val step2Proof = subsetProof(using SetTheoryLibrary)(localContext, universeOf(sub), sup)
+                if !step2Proof.isValid then failWith(s"Further subset proof failed: ${universeOf(sub)} and $sup")
+                val step2 = have(step2Proof)
+                val transitive = transitivity of (x := sub, y := universeOf(sub), z := sup)
+                have(Discharge(step1, step2)(transitive))
       }

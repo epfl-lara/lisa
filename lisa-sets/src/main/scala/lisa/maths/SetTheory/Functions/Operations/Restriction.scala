@@ -371,4 +371,41 @@ object Restriction extends lisa.Main {
     have(z ∈ (f ↾ A) <=> z ∈ (g ↾ A)) by Tautology.from(fwd, bwd)
     thenHave(thesis) by Extensionality
   }
+
+  /**
+   * Theorem --- If `x` is in both the domain of `f` and the restriction set `d`,
+   * then `f ↾ d` is non-empty.
+   */
+  val notEmpty = Theorem(
+    (function(f), x ∈ dom(f), x ∈ d) |- !((f ↾ d) === ∅)
+  ) {
+    assume(function(f), x ∈ dom(f), x ∈ d)
+    have(x ∈ (dom(f) ∩ d)) by Tautology.from(Intersection.membership of (z := x, x := dom(f), y := d))
+    val inRestrictedDomain = thenHave(x ∈ dom(f ↾ d)) by Substitute(domain of (A := d))
+    have(thesis) by Tautology.from(
+      inRestrictedDomain,
+      EmptySet.setWithElementNonEmpty of (x := x, y := dom(f ↾ d)),
+      BasicTheorems.nonEmptyDomain of (h := f ↾ d)
+    )
+  }
+
+  /**
+   * Theorem --- Restriction is monotonic in the restriction set: if `x ⊆ y`
+   * then `f ↾ x ⊆ f ↾ y`.
+   */
+  val setMonotonic = Theorem(
+    x ⊆ y |- (f ↾ x) ⊆ (f ↾ y)
+  ) {
+    have((x ⊆ y, z ∈ (f ↾ x)) |- z ∈ (f ↾ y)) by Tautology.from(
+      Subset.membership of (z := fst(z)),
+      membership of (A := x, z := z),
+      membership of (A := y, z := z)
+    )
+    thenHave(x ⊆ y |- (z ∈ (f ↾ x)) ==> (z ∈ (f ↾ y))) by Tautology
+    thenHave(x ⊆ y |- forall(z, (z ∈ (f ↾ x)) ==> (z ∈ (f ↾ y)))) by RightForall
+    have(thesis) by Tautology.from(
+      lastStep,
+      lisa.maths.SetTheory.Base.Subset.definition of (x := f ↾ x, y := f ↾ y)
+    )
+  }
 }
