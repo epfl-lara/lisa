@@ -37,4 +37,11 @@ trait ExprOps extends Syntax {
      */
     def collect[B](f: PartialFunction[Expr[?], Expr[B]]): Seq[Expr[B]] =
       e.subexpressions.collect(f).toVector
+
+  extension [A, B, C: Sort](op: Expr[A >>: B >>: C])
+    /**
+     * Extractor for binary function applications. In particular, the
+     * compiler can reduce these to infix notation as well.
+     */
+    def unapply(e: Expr[C]): Option[ArgsTo[A >>: B >>: C, C]] = op.unapply2(e)
 }

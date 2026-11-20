@@ -1,5 +1,6 @@
 package lisa.utils.prooflib
 
+import lisa.utils.K
 import lisa.utils.fol.FOL.{_, given}
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -41,6 +42,38 @@ class TableauSuite extends AnyFunSuite:
       case None => (false, false)
       case Some(theorem) => (true, !theorem.kernel.usesSorry)
   }
+
+  private def substitutionBranch: Tableau.Branch =
+    Tableau.Branch
+      .empty(1, z.underlying)
+      .copy(
+        unifiable = Map(x.underlying -> (a.underlying -> 0), y.underlying -> (b.underlying -> 10)),
+        numberInstantiated = Map(x.underlying -> 0, y.underlying -> 0)
+      )
+
+  test("bestSubst returns None for an empty iterator"):
+    assert(Tableau.bestSubst(Iterator.empty, substitutionBranch).isEmpty)
+
+  test("bestSubst preserves minimum scores and the first candidate on ties"):
+    val branch = substitutionBranch
+    val candidates: Vector[(Tableau.Substitution, Set[K.Expression])] = Vector(
+      Map(x.underlying -> z.underlying) -> Set(a.underlying),
+      Map(y.underlying -> z.underlying) -> Set(b.underlying),
+      Map(x.underlying -> z.underlying) -> Set(c.underlying),
+      Map(x.underlying -> z.underlying, y.underlying -> z.underlying) -> Set(d.underlying)
+    )
+    for ordered <- candidates.permutations do
+      val expected = ordered.minByOption((substitution, _) => substitution.size -> Tableau.substitutionScore(substitution, branch))
+      assert(Tableau.bestSubst(ordered.iterator, branch) == expected)
+
+  test("bestSubst does not inspect the iterator after an empty substitution"):
+    val nonempty: (Tableau.Substitution, Set[K.Expression]) = Map(x.underlying -> z.underlying) -> Set(a.underlying)
+    val empty: (Tableau.Substitution, Set[K.Expression]) = Map.empty[K.Variable, K.Expression] -> Set(b.underlying)
+    for prefix <- Seq(Vector.empty, Vector(nonempty)) do
+      val rest = new Iterator[(Tableau.Substitution, Set[K.Expression])]:
+        def hasNext: Boolean = fail("Inspected candidates after the minimum score")
+        def next(): (Tableau.Substitution, Set[K.Expression]) = fail("Evaluated a candidate after the minimum score")
+      assert(Tableau.bestSubst(prefix.iterator ++ Iterator.single(empty) ++ rest, substitutionBranch).contains(empty))
 
   // ========================================================================
   // Propositional

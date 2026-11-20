@@ -14,7 +14,9 @@ trait Main {
   export SetTheoryLibrary.{section as _, given, _}
   export lisa.utils.prooflib.Exports.*
 
-  given OutputManager = OutputManager.stdout
+  // An eager initializer also initializes exported object fields on Scala 3.10.
+  private val defaultOutput = OutputManager.stdout
+  given OutputManager = defaultOutput
 
   def section(name: String)(using sourcecode.File): Unit =
     SetTheoryLibrary.section(name)

@@ -4,7 +4,7 @@ package Operations
 import lisa.maths.Quantifiers
 import lisa.maths.Quantifiers.∃!
 import lisa.maths.SetTheory.Base.Predef._
-import lisa.maths.SetTheory.Relations.Predef._
+import lisa.maths.SetTheory.Relations.Properties.reflexive
 
 import Examples.IdentityRelation
 import Examples.IdentityRelation.Δ

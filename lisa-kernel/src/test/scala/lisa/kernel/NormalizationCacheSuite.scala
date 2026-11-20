@@ -83,3 +83,42 @@ class NormalizationCacheSuite extends AnyFunSuite:
     val eta = substituteVariables(application, Map(g -> Lambda(x, f(x))))
     assert(!eta.isBetaNormal)
     assert(eta.betaNormalForm == higherOrder(f))
+
+  test("reuse applications and abstractions unchanged by substitution"):
+    val z = Variable(Identifier("reuse-z"), Ind)
+    val application = f(x)
+    val abstraction = Lambda(y, application)
+    for expression <- Seq(application, abstraction) do
+      assert(substituteVariables(expression, Map.empty) eq expression)
+      assert(substituteVariables(expression, Map(z -> x)) eq expression)
+      assert(substituteVariables(expression, Map(x -> x)) eq expression)
+    assert(substituteVariables(abstraction, Map(y -> z)) eq abstraction)
+
+  test("reuse unaffected children when substituting into applications and abstractions"):
+    val binary = Constant(Identifier("reuse-binary"), Ind -> (Ind -> Ind))
+    val left = binary(x)
+    val right = f(y)
+    val application = left(right)
+
+    val changedRight = substituteVariables(application, Map(y -> x)).asInstanceOf[Application]
+    assert(!(changedRight eq application))
+    assert(changedRight.f eq left)
+    assert(changedRight.arg == f(x))
+
+    val changedLeft = substituteVariables(application, Map(x -> y)).asInstanceOf[Application]
+    assert(!(changedLeft eq application))
+    assert(changedLeft.f == binary(y))
+    assert(changedLeft.arg eq right)
+
+    val abstraction = Lambda(x, application)
+    val z = Variable(Identifier("reuse-body-z"), Ind)
+    val changedAbstraction = substituteVariables(abstraction, Map(y -> z)).asInstanceOf[Lambda]
+    assert(!(changedAbstraction eq abstraction))
+    assert(changedAbstraction.v eq x)
+    assert(changedAbstraction.body.asInstanceOf[Application].f eq left)
+
+    val changedBody = substituteVariables(abstraction, Map(y -> f(x))).asInstanceOf[Lambda]
+    assert(!(changedBody eq abstraction))
+    assert(changedBody.v != x)
+    assert(changedBody.freeVariables == Set(x))
+    assert(isSame(changedBody, Lambda(changedBody.v, binary(changedBody.v)(f(f(x))))))

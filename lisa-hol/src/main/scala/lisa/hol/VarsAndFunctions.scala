@@ -310,7 +310,7 @@ object VarsAndFunctions /*extends lisa.Main*/:
             return None
   }
 
-  class TypedForall(val v: Variable[Ind], val vType: Typ, val prop: Expr[Prop]) extends App(forall, λ(v, (v is vType) ==> prop)) {
+  class TypedForall(val v: Variable[Ind], val vType: Typ, val prop: Expr[Prop]) extends lisa.utils.fol.FOL.App[Ind >>: Prop, Prop](forall, λ(v, (v is vType) ==> prop)) {
     override def toString = s"∀$v : $vType. $prop"
   }
 
@@ -324,7 +324,7 @@ object VarsAndFunctions /*extends lisa.Main*/:
   inline given Conversion[TypedForall, Expr[Prop]] with
     def apply(tf: TypedForall): Expr[Prop] = tf
 
-  class TypedExists(val v: Variable[Ind], val vType: Typ, val prop: Expr[Prop]) extends App(exists, λ(v, (v is vType) /\ prop)) {
+  class TypedExists(val v: Variable[Ind], val vType: Typ, val prop: Expr[Prop]) extends lisa.utils.fol.FOL.App[Ind >>: Prop, Prop](exists, λ(v, (v is vType) /\ prop)) {
     override def toString = s"∃$v : $vType. $prop"
   }
 

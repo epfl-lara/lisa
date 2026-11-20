@@ -12,9 +12,61 @@ import scala.collection.immutable.HashMap
  */
 object Tableau extends SequentTactic, PremiseSequentTactic, DerivedFromPremises:
   protected def prove(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premises: Seq[Thm]): ProofJudgement =
-    Tautology.proveFromPremises(conclusion.underlying, premises.map(_.kernel))(statement => solve(statement).toRight("Could not prove the statement by tableau.")) match
+    proveFromPremises(conclusion.underlying, premises.map(_.kernel)) match
       case Right(theorem) => ProofJudgement(Thm(conclusion, theorem))
       case Left(message) => ProofCarrier(Set(SoftError(message, file, line)), conclusion, None, ())
+
+  /**
+   * Add premise statements as formulas and discharge them after tableau search.
+   */
+  private def proveFromPremises(using
+      library: Library
+  )(
+      conclusion: K.Sequent,
+      premises: Seq[K.Thm]
+  ): Either[String, K.Thm] =
+    def search(statement: K.Sequent): Either[String, K.Thm] =
+      solve(statement).toRight("Could not prove the statement by tableau.")
+    if premises.isEmpty then search(conclusion)
+    else
+      val premiseFormulas = Vector.newBuilder[(K.Expression, K.Thm)]
+      val iterator = premises.iterator
+      while iterator.hasNext do
+        formulaTheorem(iterator.next()) match
+          case Right(result) => premiseFormulas += result
+          case Left(error) => return Left(error)
+
+      // Only add premise formulas that are not already available in the target.
+      // This avoids cutting away a real user assumption equivalent to a premise.
+      var left = conclusion.left
+      val cuts = Vector.newBuilder[(K.Expression, K.Thm)]
+      for (formula, thm) <- premiseFormulas.result() do
+        if !K.contains(left, formula) then
+          left += formula
+          cuts += formula -> thm
+
+      search(K.Sequent(left, conclusion.right)).flatMap(cutPremises(conclusion, cuts.result()))
+
+  private def formulaTheorem(using library: Library)(premise: K.Thm): Either[String, (K.Expression, K.Thm)] =
+    val formula = K.sequentToFormula(premise.statement)
+    val statement = K.Sequent(Set.empty[K.Expression], Set(formula))
+    K.Restate(using library.theory)(statement, premise)
+      .left
+      .map(error => s"Tableau could not convert a premise to formula form: $error")
+      .map(formula -> _)
+
+  private def cutPremises(using library: Library)(conclusion: K.Sequent, cuts: Vector[(K.Expression, K.Thm)])(initial: K.Thm): Either[String, K.Thm] =
+    var current = initial
+    val iterator = cuts.iterator
+    while iterator.hasNext do
+      val (formula, premise) = iterator.next()
+      val nextStatement = K.Sequent(current.statement.left - formula, current.statement.right)
+      K.Cut(using library.theory)(nextStatement, premise, current, formula) match
+        case Right(thm) => current = thm
+        case Left(error) => return Left(s"Tableau could not discharge a premise formula: $error")
+
+    if current.statement == conclusion then Right(current)
+    else K.Restate(using library.theory)(conclusion, current).left.map(error => s"Tableau final restate failed: $error")
 
   /**
    * Searches for a theorem of a front sequent.
@@ -157,8 +209,24 @@ object Tableau extends SequentTactic, PremiseSequentTactic, DerivedFromPremises:
     )
 
   def bestSubst(substitutions: Iterator[(Substitution, Set[K.Expression])], branch: Branch): Option[(Substitution, Set[K.Expression])] =
-    substitutions.minByOption: (substitution, _) =>
-      substitution.size -> substitutionScore(substitution, branch)
+
+    val score: Substitution => (Int, Int) = s => s.size -> substitutionScore(s, branch)
+    val ordering: Ordering[(Int, Int)] = summon
+
+    @annotation.tailrec
+    def select(best: (Substitution, Set[K.Expression]), bestScore: (Int, Int)): (Substitution, Set[K.Expression]) =
+      // An empty substitution has the minimum score, so leave the remaining search unevaluated.
+      if best._1.isEmpty || !substitutions.hasNext then best
+      else
+        val candidate = substitutions.next()
+        val candidateScore = score(candidate._1)
+        if ordering.lt(candidateScore, bestScore) then select(candidate, candidateScore)
+        else select(best, bestScore)
+
+    if !substitutions.hasNext then None
+    else
+      val first = substitutions.next()
+      Some(select(first, score(first._1)))
 
   def formulaPenalty(formula: K.Expression, branch: Branch): Int =
     formula match

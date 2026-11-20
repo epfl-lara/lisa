@@ -350,3 +350,15 @@ object ProofHelpers:
      */
     infix def of(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(insts: (SubstPair | Expr[Ind])*): Thm =
       instantiate(theorem.thm, insts)
+
+  extension (pj: ProofJudgement)
+    /**
+     * Take the first valid of two proof judgements. If both fail, the second is
+     * returned.
+     */
+    infix def ||(using Library)(other: => (ProofJudgement | Thm)): ProofJudgement =
+      if pj.isValid then pj
+      else
+        other match
+          case thm: Thm => ProofJudgement(thm)
+          case judgement: ProofJudgement => judgement

@@ -34,7 +34,7 @@ object UnificationUtils:
   ):
     // when a context is constructed, update the global ID counter to make sure
     // we aren't conflicting with variable names in the rewrite rules
-    RewriteContext.updateIDCounts(this)
+    RewriteContext.updateIDCounts(allRules)
 
     private val representativeCache = mutable.HashMap.empty[InstantiatedRewriteRule, Variable[?]]
 
@@ -125,8 +125,8 @@ object UnificationUtils:
         case App(f, arg) => math.max(maxVarId(f), maxVarId(arg))
         case Abs(v: Variable[?], body: Expr[?]) => math.max(maxVarId(v), maxVarId(body))
 
-    private def updateIDCounts(ctx: RewriteContext): Unit =
-      val max = ctx.allRules.map(r => maxVarId(r.toFormula)).maxOption.getOrElse(0) + 1
+    private def updateIDCounts(rules: Set[RewriteRule]): Unit =
+      val max = rules.map(r => maxVarId(r.toFormula)).maxOption.getOrElse(0) + 1
       setIDCountTo(max)
 
   /**

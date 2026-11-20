@@ -2,8 +2,8 @@ package lisa.maths.SetTheory.Functions
 
 import lisa.maths.Quantifiers.∃!
 import lisa.maths.SetTheory.Base.Predef.{_, given}
-import lisa.maths.SetTheory.Relations.Predef._
 import lisa.maths.SetTheory.Relations.Relation
+import lisa.maths.SetTheory.Relations.Relation.relationBetween
 
 /**
  * A function `f : A -> B` is a relation `f ⊆ A × B` such that for any

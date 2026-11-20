@@ -2,7 +2,7 @@ package lisa.maths.SetTheory.Functions
 package Operations
 
 import lisa.maths.SetTheory.Base.Predef.{_, given}
-import lisa.maths.SetTheory.Relations.Predef._
+import lisa.maths.SetTheory.Relations.Relation.R
 
 import Function._
 

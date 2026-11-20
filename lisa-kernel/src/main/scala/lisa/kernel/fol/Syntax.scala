@@ -590,9 +590,10 @@ private[fol] trait Syntax {
 
   /**
    * Performs simultaneous substitution of multiple variables by multiple [[Expression]]s of matching [[Sort]] in an [[Expression]].
-   * @param t The base term
+   * Reuse unchanged expression nodes.
+   * @param e The base term
    * @param m A map from variables to terms.
-   * @return `t[m]`, the substitution of `t` under `m`
+   * @return `e[m]`, the substitution of `e` under `m`
    */
   def substituteVariables(e: Expression, m: Map[Variable, Expression]): Expression = e match {
     case v: Variable =>
@@ -603,7 +604,10 @@ private[fol] trait Syntax {
         case None => v
       }
     case c: Constant => c
-    case Application(f, arg) => Application(substituteVariables(f, m), substituteVariables(arg, m))
+    case Application(f, arg) =>
+      val newF = substituteVariables(f, m)
+      val newArg = substituteVariables(arg, m)
+      if ((newF eq f) && (newArg eq arg)) e else Application(newF, newArg)
     case Lambda(v, t) =>
       val newSubst = m - v
       val fv = m.values.flatMap(_.freeVariables).toSet
@@ -611,7 +615,10 @@ private[fol] trait Syntax {
         val taken = fv.view.map(_.id) ++ t.freeVariables.view.map(_.id) ++ m.keys.view.map(_.id)
         val newBound = Variable(freshId(taken, v.id), v.sort)
         Lambda(newBound, substituteVariables(t, newSubst + (v -> newBound)))
-      } else Lambda(v, substituteVariables(t, m - v))
+      } else {
+        val newBody = substituteVariables(t, newSubst)
+        if (newBody eq t) e else Lambda(v, newBody)
+      }
   }
 
   def flatTypeParameters(t: Sort): List[Sort] = t match {

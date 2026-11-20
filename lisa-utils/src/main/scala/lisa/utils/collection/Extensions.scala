@@ -35,6 +35,15 @@ object Extensions:
   extension [A, B](prod: Either[A, B])
 
     /**
+     * Keep a `Right`, or lazily evaluate the alternative for a `Left`. Unlike
+     * `Either.orElse`, replace the left type instead of widening it. The cast
+     * _only_ changes a `Right`'s unused _left type_.
+     */
+    inline def orElseCasting[C, D >: B](alternative: => Either[C, D]): Either[C, D] = prod match
+      case Left(_) => alternative
+      case right: Right[?, ?] => right.asInstanceOf[Either[C, D]]
+
+    /**
      * Map the left value of an Either, if it exists. Otherwise, return the right
      * value.
      */

@@ -171,7 +171,7 @@ class Library:
       expression: Expr[S],
       vars: Seq[Variable[?]]
   ):
-    val (cst, definition): (Constant[S], Thm) = defineWithVariables(fullName, expression, vars)
+    val (cst: Constant[S], definition: Thm) = defineWithVariables(fullName, expression, vars)
 
   /**
    * **[UNSAFE]**. Register or override a definition for a registered constant.
