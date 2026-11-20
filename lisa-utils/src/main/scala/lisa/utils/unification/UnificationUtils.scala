@@ -170,7 +170,9 @@ object UnificationUtils:
     def substitutes[A](v: Variable[A]): Boolean =
       freeVariables(v)
 
-    /** Return the underlying immutable, well-sorted assignment map without copying it. */
+    /**
+     * Return the underlying immutable, well-sorted assignment map without copying it.
+     */
     def toMap: Map[Variable[?], Expr[?]] = assignments
 
     def asSubstPair: Seq[SubstPair] =

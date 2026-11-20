@@ -1,18 +1,20 @@
 package lisa.maths.SetTheory.Types
 
 import lisa.SetTheoryLibrary
-import lisa.SetTheoryLibrary.*
+import lisa.SetTheoryLibrary._
 import lisa.maths.SetTheory.Cardinal.Predef.universeOf
-import lisa.maths.SetTheory.Functions.Predef.*
+import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
-import lisa.maths.SetTheory.Types.TypingHelpers.*
+import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.utils.K
-import lisa.utils.fol.FOL.*
-import lisa.utils.prooflib.BasicStepTactic.*
+import lisa.utils.fol.FOL._
+import lisa.utils.prooflib.BasicStepTactic._
 import lisa.utils.prooflib.OutputManager
 import org.scalatest.funsuite.AnyFunSuite
 
-/** Check the same typing cases through SC proofs, without LCF test fixtures. */
+/**
+ * Check the same typing cases through SC proofs, without LCF test fixtures.
+ */
 class TypecheckSuite extends AnyFunSuite:
   private given SetTheoryLibrary.type = SetTheoryLibrary
   private given OutputManager = new OutputManager:
@@ -27,9 +29,11 @@ class TypecheckSuite extends AnyFunSuite:
     val proof = new BaseProof(anchor.asInstanceOf[THMFromProof])
     given proof.type = proof
     val result = Typecheck.checkProof(context, term, typ)
-    assert(result.isValid, result match
-      case invalid: proof.InvalidProofTactic => invalid.message
-      case _ => "Expected a valid typing derivation"
+    assert(
+      result.isValid,
+      result match
+        case invalid: proof.InvalidProofTactic => invalid.message
+        case _ => "Expected a valid typing derivation"
     )
     val step = have(result)
     assert(step.statement == expected)
@@ -120,3 +124,74 @@ class TypecheckSuite extends AnyFunSuite:
   test("freshen a binder that shadows a free variable in its domain"):
     val term = abs(x)(λ(x, x))
     check(Set.empty, term, x ->: x, () |- term ∈ (x ->: x))
+
+  test("count only leading universeOf applications in universe depth"):
+    val bases = List(A, family(A), family(universeOf(A)), f * x, Pi(A)(λ(x, family(x))), abs(A)(λ(x, x)))
+    bases.foreach { base =>
+      assert(Typecheck.getDepth(base) == 1, s"Unexpected universe depth for $base")
+      assert(Typecheck.getDepth(universeOf(base)) == 2)
+      assert(Typecheck.getDepth(universeOf(universeOf(base))) == 3)
+    }
+
+  test("use an inclusion from a compound type without a spurious depth mismatch"):
+    val context = Set(x ∈ family(A), family(A) ⊆ B)
+    check(context, x, B, context |- x ∈ B)
+
+  test("prefer an exact context typing over a convertible alternative"):
+    List(x ∈ A, x ∈ B, A ⊆ B).permutations.foreach { assumptions =>
+      check(assumptions.toSet, x, B, x ∈ B |- x ∈ B)
+    }
+
+  test("use assumed typings of structured terms before reconstructing them"):
+    List(f * x, abs(A)(λ(x, x)), Pi(A)(λ(x, family(x)))).foreach { term =>
+      val assumption = term ∈ B
+      check(Set(assumption), term, B, assumption |- assumption)
+    }
+    val theorem = Theorem((f * x) ∈ B |- (f * x) ∈ B) {
+      have(thesis) by Typecheck.prove
+    }
+    assert(!theorem.withSorry)
+
+  test("retain the original equivalent member assumption through lookup and subsumption"):
+    val assumedTerm = abs(A)(λ(x, x))
+    val term = abs(A)(λ(y, y))
+    val assumption = assumedTerm ∈ family(A)
+    check(Set(assumption), term, family(A), assumption |- term ∈ family(A))
+    val context = Set(assumption, family(A) ⊆ B)
+    check(context, term, B, context |- term ∈ B)
+
+  test("try every context typing for subsumption without retaining failed candidates"):
+    val C = variable[Ind]
+    val types = List(A, B, universeOf(A))
+    val typings = types.map(x ∈ _).toSet
+    types.foreach { actual =>
+      val inclusion = actual ⊆ C
+      val required = Set(x ∈ actual, inclusion)
+      check(typings + inclusion, x, C, required |- x ∈ C)
+    }
+    reject(typings, x, C)
+
+  test("fall back to structural typing after context candidates fail"):
+    val term = f * x
+    val required = Set(f ∈ (A ->: B), x ∈ A)
+    check(required + (term ∈ family(A)), term, B, required |- term ∈ B)
+
+  test("use assumed inclusions before universe depth checks or function decomposition"):
+    val deep = universeOf(A)
+    val universeContext = Set(x ∈ deep, deep ⊆ B)
+    check(universeContext, x, B, universeContext |- x ∈ B)
+    reject(Set(x ∈ deep), x, B)
+
+    val from = Pi(A)(λ(y, family(y)))
+    val to = Pi(B)(λ(y, family(y)))
+    val inclusion = Pi(A)(λ(x, family(x))) ⊆ Pi(B)(λ(x, family(x)))
+    val functionContext = Set(f ∈ from, inclusion)
+    check(functionContext, f, to, functionContext |- f ∈ to)
+    reject(Set(f ∈ from), f, to)
+
+  test("keep ambient assumptions out of explicit context lookup"):
+    val proof = new BaseProof(anchor.asInstanceOf[THMFromProof])
+    given proof.type = proof
+    proof.addAssumption(x ∈ B)
+    proof.addAssumption(A ⊆ B)
+    assert(!Typecheck.checkProof(Set(x ∈ A), x, B).isValid)
