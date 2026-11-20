@@ -209,8 +209,24 @@ object Tableau extends SequentTactic, PremiseSequentTactic, DerivedFromPremises:
     )
 
   def bestSubst(substitutions: Iterator[(Substitution, Set[K.Expression])], branch: Branch): Option[(Substitution, Set[K.Expression])] =
-    substitutions.minByOption: (substitution, _) =>
-      substitution.size -> substitutionScore(substitution, branch)
+
+    val score: Substitution => (Int, Int) = s => s.size -> substitutionScore(s, branch)
+    val ordering: Ordering[(Int, Int)] = summon
+
+    @annotation.tailrec
+    def select(best: (Substitution, Set[K.Expression]), bestScore: (Int, Int)): (Substitution, Set[K.Expression]) =
+      // An empty substitution has the minimum score, so leave the remaining search unevaluated.
+      if best._1.isEmpty || !substitutions.hasNext then best
+      else
+        val candidate = substitutions.next()
+        val candidateScore = score(candidate._1)
+        if ordering.lt(candidateScore, bestScore) then select(candidate, candidateScore)
+        else select(best, bestScore)
+
+    if !substitutions.hasNext then None
+    else
+      val first = substitutions.next()
+      Some(select(first, score(first._1)))
 
   def formulaPenalty(formula: K.Expression, branch: Branch): Int =
     formula match
