@@ -572,7 +572,7 @@ object Import extends lisa.HOL:
     // define the underlying constant
     val definitionTerm = typeArgs.foldRight(body: Expr[?])((variable, inner) => λ(variable, inner))
     val baseName = summon[sourcecode.Name].value.stripSuffix(".")
-    val cst = DEF(using sourcecode.FullName(s"$baseName.${sanitize(name)}"))(definitionTerm)(using unsafeSortEvidence(definitionTerm.sort))
+    val cst = DEF(using name = sourcecode.FullName(s"$baseName.${sanitize(name)}"))(definitionTerm)(using unsafeSortEvidence(definitionTerm.sort))
     val appliedCst = (cst #@@ typeArgs).asInstanceOf[Expr[Ind]]
 
     val nonEmptyAssumptions = typeArgs.map(nonEmpty)
@@ -748,7 +748,7 @@ object Import extends lisa.HOL:
         val typeBody = TypeDefs.B.substitute(substitutions*).asInstanceOf[Expr[Ind]]
         val definitionTerm = typeArgs.foldRight(typeBody: Expr[?])((variable, inner) => λ(variable, inner))
         val baseName = summon[sourcecode.Name].value.stripSuffix(".")
-        val rawType = DEF(using sourcecode.FullName(s"$baseName.${sanitize(aty.name)}"))(definitionTerm)(using unsafeSortEvidence(definitionTerm.sort))
+        val rawType = DEF(using name = sourcecode.FullName(s"$baseName.${sanitize(aty.name)}"))(definitionTerm)(using unsafeSortEvidence(definitionTerm.sort))
         val rawDefinedType = (rawType #@@ typeArgs).asInstanceOf[Expr[Ind]]
 
         // Establish non-emptiness before wrapping the raw constant as an HOL type.

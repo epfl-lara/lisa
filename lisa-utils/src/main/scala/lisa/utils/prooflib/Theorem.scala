@@ -9,7 +9,13 @@ sealed trait TheoremKind:
   /**
    * Proves a runtime-generated theorem under a fresh name derived from its source location.
    */
-  def generated(using library: Library, output: OutputManager, file: sourcecode.File, line: sourcecode.Line, fullName: sourcecode.FullName)(statement: Sequent)(computeProof: ProofBuilder ?=> Any): Theorem =
+  def generated(using
+      library: Library,
+      output: OutputManager,
+      file: sourcecode.File,
+      line: sourcecode.Line,
+      fullName: sourcecode.FullName
+  )(statement: Sequent)(computeProof: ProofBuilder ?=> Any): Theorem =
     named(library.theorems.freshName(fullName.value))(statement)(computeProof)
 
   /**

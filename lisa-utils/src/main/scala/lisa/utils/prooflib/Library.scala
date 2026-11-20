@@ -143,6 +143,14 @@ class Library:
   def define[S: Sort](name: String, expression: Expr[S]): (Constant[S], Thm) =
     defineWithVariables(name, expression, leadingVars(expression))
 
+  private def printDefinition[S](constant: Constant[S], expression: Expr[S])(using output: OutputManager): Unit =
+    @annotation.tailrec
+    def body(expr: Expr[?]): Expr[?] = expr match
+      case Abs(_, inner) => body(inner)
+      case _ => expr
+
+    output.output(OutputManager.MAGENTA(s"  Definition of ${constant #@@ leadingVars(expression)} := ${body(expression)}"))
+
   /**
    * Define a new constant with the given expression.
    *
@@ -155,8 +163,9 @@ class Library:
    * @throws AlreadyDefined if the constant is already defined (even if with the
    * same expression).
    */
-  def DEF[S: Sort](using name: sourcecode.FullName)(expression: Expr[S]): Constant[S] =
+  def DEF[S: Sort](using name: sourcecode.FullName, output: OutputManager)(expression: Expr[S]): Constant[S] =
     val (cst, _) = define(name.value, expression)
+    printDefinition(cst, expression)
     cst
 
   /**
@@ -167,11 +176,12 @@ class Library:
    * duplicate checks use the same path as [[define]] and [[DEF]]. The source
    * location is captured contextually at the declaration site.
    */
-  class DirectDefinition[S: Sort](using val line: sourcecode.Line, val file: sourcecode.File)(fullName: String)(
+  class DirectDefinition[S: Sort](using val line: sourcecode.Line, val file: sourcecode.File, output: OutputManager)(fullName: String)(
       expression: Expr[S],
       vars: Seq[Variable[?]]
   ):
     val (cst: Constant[S], definition: Thm) = defineWithVariables(fullName, expression, vars)
+    printDefinition(cst, expression)
 
   /**
    * **[UNSAFE]**. Register or override a definition for a registered constant.
