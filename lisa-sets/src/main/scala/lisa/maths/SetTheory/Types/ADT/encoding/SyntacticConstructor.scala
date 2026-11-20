@@ -171,7 +171,6 @@ class SyntacticConstructor(
             variables2,
             lastStep
           )((acc, v) =>
-
             // pulledVars1 are the variables that have been pulled out of the left term
             // remainingVars1 are the variables that are still in the left term
             // pulledVars2 are the variables that have been pulled out of the right term

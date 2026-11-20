@@ -71,7 +71,6 @@ private[proofs] trait WitnessFunctionProofs extends WitnessBranchMembership {
       if contextPremises.nonEmpty then assume(contextPremise)
 
       val branchExistenceFacts = patternMatching.clauses.map(pattern =>
-
         val membershipSchema =
           if contextPremises.isEmpty then have(witnessMembership(pattern).statement.right.head) by Tautology.from(witnessMembership(pattern))
           else

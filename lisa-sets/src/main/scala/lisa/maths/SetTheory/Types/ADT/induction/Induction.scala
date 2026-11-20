@@ -268,7 +268,6 @@ class Induction(
       context: Set[Expr[Prop]],
       branchSystem: PatternSystem[Thm]
   ): ProofJudgement = Subproof { sp ?=>
-
     val specializedADT = branchSystem.domain
     val typeVariablesSubstPairs =
       specializedADT.base.typeVariablesSeq.zip(specializedADT.typeArgs).map(SubstPair(_, _))

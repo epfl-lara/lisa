@@ -227,7 +227,6 @@ private[recursion] final class Existence(
 
     val caseFacts = spec.patternMatching.clauses
       .map(pattern =>
-
         val body = pattern.body.substitute(spec.selfPlaceholder := f)
         val witnessCaseSchema = recWitness.witnessCase(pattern).of(spec.selfPlaceholder := f)
 
