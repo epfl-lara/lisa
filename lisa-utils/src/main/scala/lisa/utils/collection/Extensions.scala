@@ -41,7 +41,7 @@ object Extensions:
      */
     inline def orElseCasting[C, D >: B](alternative: => Either[C, D]): Either[C, D] = prod match
       case Left(_) => alternative
-      case right: Right[?, ?] => right.asInstanceOf[Either[C, D]]
+      case right: Right[A, B] => right.asInstanceOf[Right[C, B]]
 
     /**
      * Map the left value of an Either, if it exists. Otherwise, return the right
