@@ -18,7 +18,7 @@ import lisa.maths.SetTheory.Types.ADT.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADT.support.semantics.DefinedSymbol
 import lisa.maths.SetTheory.Types.ADT.support.tactics.Cuts
 import lisa.maths.SetTheory.Types.ADT.syntax.AST.ConstructorArg
-import lisa.utils.prooflib.QuantifiersIntro
+import lisa.utils.automation.QuantifiersIntro
 import lisa.utils.prooflib.Thm
 
 /**

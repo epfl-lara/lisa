@@ -1,5 +1,7 @@
 package lisa.maths.SetTheory.Base
 
+import lisa.utils.prooflib.ProofCarrier
+
 import Symbols._
 
 /**
@@ -98,14 +100,14 @@ object Comprehension extends lisa.Main {
    * TODO: In the future, this tactic could be automated
    */
   def apply(using proof: lisa.SetTheoryLibrary.ProofBuilder)(conclusion: Sequent): ProofJudgement = {
-    if conclusion.right.size != 1 then invalidTactic("Don't know which formula to prove by comprehension.")
+    if conclusion.right.size != 1 then ProofCarrier.Failure("Don't know which formula to prove by comprehension.")
     else
       conclusion.right.head match {
         case v ∈ App(App(`setComprehension`, s), p) <=> _ =>
           // Use Tautology instead of Restate to handle trivial rewrites/weakening
           unwrapTactic(Tautology.from(membership of (x := v, y := s, φ := p))(conclusion))("Could not prove membership by comprehension.")
 
-        case _ => invalidTactic("Could not prove membership by comprehension.")
+        case _ => ProofCarrier.Failure("Could not prove membership by comprehension.")
       }
   }
 

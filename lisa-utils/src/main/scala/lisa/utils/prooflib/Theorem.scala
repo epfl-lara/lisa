@@ -36,7 +36,9 @@ sealed trait TheoremKind:
       computeProof(using proof) match
         case carrier: ProofCarrier[?] => carrier
         case thm: Thm => ProofJudgement(thm)
-        case _ => proof.pure(())
+        case _ =>
+          if proof.last.isEmpty then throw new UnimplementedProof(fullName.value, statement)(using sourceLine, sourceFile)
+          proof.pure(())
     new Theorem(this)(using library, output)(sourceFile, sourceLine, fullName, name)(statement)(newCompute)
 
 case object Theorem extends TheoremKind:
@@ -44,6 +46,11 @@ case object Theorem extends TheoremKind:
   given asKernel: Conversion[Theorem, K.Thm] = _.kernel
 
 case object Lemma extends TheoremKind
+
+/**
+ * Declares a theorem using the corollary label.
+ */
+case object Corollary extends TheoremKind
 
 final class Theorem(theoremKind: TheoremKind)(using library: Library, output: OutputManager)(
     val file: sourcecode.File,
@@ -55,66 +62,47 @@ final class Theorem(theoremKind: TheoremKind)(using library: Library, output: Ou
   val shortName: String =
     fullName.value.split('.').lastOption.getOrElse(name.value)
 
+  private val proof = ProofBuilder.withGoal(statement, isTactic = false)
+
   val judgement: ProofJudgement =
-    val underlyingGoal = statement.underlying
-    val proof = ProofBuilder.withGoal(statement)
-    val inner = computeProof(using proof).withErrors(proof.errors)
-    inner match
-      case inner: FatalCarrier =>
-        // a theorem is a closed context, so a fatal error is recoverable
-        inner.recoverWith(statement)
-      case inner: SoftCarrier[_] =>
-        // is the proven statement the actual goal or reduced to it trivially?
-        if inner.statement.underlying == underlyingGoal then
-          // done
-          inner.judgement
+    proof.recover(statement) {
+      computeProof(using proof).flatMap { (_, theorem) =>
+        if theorem.kernel.assumptions.nonEmpty then
+          ProofCarrier.Failure(
+            withParams(
+              "The proof has unresolved kernel assumptions.",
+              "Unresolved proof assumptions" -> theorem.kernel.assumptions.iterator.map(Thm.liftSequent).map(_.toString).toSeq.sorted.mkString("\n")
+            )
+          )
+        else if theorem.statement.underlying == statement.underlying then ProofJudgement(Thm(statement, theorem.kernel))
         else
-          // try weakening, else fail softly
-          inner.justification match
-            case Some(thm) =>
-              K.Weakening(using library.theory)(underlyingGoal, thm.kernel)
-                .fold(
-                  _ =>
-                    // weakening failed
-                    val error = SoftError(
-                      withParams("The proven statement is not the same as the goal and cannot be weakened to it.", "Proven" -> inner.statement, "Goal" -> statement),
-                      file,
-                      line
-                    )
-                    inner.judgement.withError(error)
-                  ,
-                  // weakening succeeded
-                  thm => inner.judgement.withJustification(Thm(statement, thm))
-                )
-            case None =>
-              inner.judgement
+          K.Weakening(using library.theory)(statement.underlying, theorem.kernel)
+            .fold(
+              _ => ProofCarrier.Failure(withParams("The proven statement is not the same as the goal and cannot be weakened to it.", "Proven" -> theorem.statement, "Goal" -> statement)),
+              kernel => ProofJudgement(Thm(statement, kernel))
+            )
+      }
+    }(using file, line)
 
   val innerThm: Thm = judgement.destruct._1
   def thm: Thm = innerThm
   def kernel: K.Thm = innerThm.kernel
-  val errors: Set[ProofError] = judgement.errors
-
-  def errorString(error: ProofError): String =
-    val cwd = new java.io.File(".").getCanonicalPath
-    val strippedFile = error.file.value.stripPrefix(cwd)
-    s"\t$strippedFile:${error.line.value}: ${error.message}"
+  val errors: Vector[ProofDiagnostic] = proof.errors.toVector
 
   def printState(): Unit =
     val state = s"  $kind $shortName := $statement"
 
-    output.output(
-      if errors.isEmpty then OutputManager.GREEN(state)
-      else if thm.usesSorry then OutputManager.YELLOW(state)
-      else OutputManager.RED(state)
-    )
+    if errors.nonEmpty then output.error(OutputManager.RED(state))
+    else
+      output.output(
+        if thm.usesSorry then OutputManager.YELLOW(s"$state (Relies on Sorry)")
+        else OutputManager.GREEN(state)
+      )
 
-    errors.toSeq
-      .sortBy(error => (error.file.value, error.line.value, error.message))
-      .foreach:
-        case error: SoftError =>
-          output.output(OutputManager.YELLOW(errorString(error)))
-        case error: FatalError =>
-          output.output(OutputManager.RED(errorString(error)))
+    errors.foreach { error =>
+      val (header, body) = error.format.span(_ != '\n')
+      output.error(OutputManager.RED(header) + body + "\n")
+    }
 
   // MUTABLY update the theorem registry
   library.theorems.register(this)

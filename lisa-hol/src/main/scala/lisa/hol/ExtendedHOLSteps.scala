@@ -3,6 +3,7 @@ import lisa.SetTheoryLibrary
 import lisa.hol.HOLSteps.HOLProofType
 import lisa.hol.Import.Transformers.mkTypedVar
 import lisa.hol.VarsAndFunctions._
+import lisa.utils.automation.Discharge
 import lisa.maths.SetTheory.Base.Predef.∈
 import lisa.maths.SetTheory.Functions.Predef.{_, given}
 import lisa.maths.SetTheory.Types
@@ -10,12 +11,11 @@ import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.utils.K
 import lisa.utils.fol.FOL._
 import lisa.utils.prooflib.BasicStep._
-import lisa.utils.prooflib.Discharge
 import lisa.utils.prooflib.Exports._
 import lisa.utils.prooflib.ProofBuilder
 import lisa.utils.prooflib.ProofJudgement
-import lisa.utils.prooflib.Subproof
 import lisa.utils.prooflib.TacticHelpers.failWith
+import lisa.utils.prooflib.TacticProof
 import lisa.utils.prooflib.Thm
 
 object ExtendedHOLSteps extends lisa._HOL {
@@ -50,7 +50,7 @@ object ExtendedHOLSteps extends lisa._HOL {
       case _ => have(Discharge(HOLProofType(term))(from))
 
   object _REFL {
-    def apply(using proof: ProofBuilder)(t: Expr[Ind]): ProofJudgement = Subproof { ip ?=>
+    def apply(using proof: ProofBuilder)(t: Expr[Ind]): ProofJudgement = TacticProof { ip ?=>
       t match
         case variable: TypedVariable =>
           have(HOLSteps.Clean.all(eqRefl of (x := t, A := variable.typ)))
@@ -65,7 +65,7 @@ object ExtendedHOLSteps extends lisa._HOL {
   }
 
   object _TRANS {
-    def apply(using proof: ProofBuilder)(t1: Thm, t2: Thm): ProofJudgement = Subproof { ip ?=>
+    def apply(using proof: ProofBuilder)(t1: Thm, t2: Thm): ProofJudgement = TacticProof { ip ?=>
       val s1 = t1.statement
       val s2 = t2.statement
 
@@ -99,7 +99,7 @@ object ExtendedHOLSteps extends lisa._HOL {
   }
 
   object _MK_COMB {
-    def apply(using proof: ProofBuilder)(f1: Thm, f2: Thm): ProofJudgement = Subproof { ip ?=>
+    def apply(using proof: ProofBuilder)(f1: Thm, f2: Thm): ProofJudgement = TacticProof { ip ?=>
       val fg = f1.statement
       val xy = f2.statement
       (fg, xy) match {
@@ -125,7 +125,7 @@ object ExtendedHOLSteps extends lisa._HOL {
   }
 
   object _ABS {
-    def apply(using proof: ProofBuilder)(x: TypedVariable)(prem: Thm): ProofJudgement = Subproof { ip ?=>
+    def apply(using proof: ProofBuilder)(x: TypedVariable)(prem: Thm): ProofJudgement = TacticProof { ip ?=>
       val xTyp = x.typ
       val s1 = prem.statement
       s1 match {
@@ -168,7 +168,7 @@ object ExtendedHOLSteps extends lisa._HOL {
   }
 
   object _BETA_CONV {
-    def apply(using proof: ProofBuilder)(tin: Expr[Ind]): ProofJudgement = Subproof { ip ?=>
+    def apply(using proof: ProofBuilder)(tin: Expr[Ind]): ProofJudgement = TacticProof { ip ?=>
       tin match
         case Sabs(typ1, Abs(xx, tt)) * (r: Expr[Ind]) =>
           val typ2 = computeType(tin)
@@ -191,7 +191,7 @@ object ExtendedHOLSteps extends lisa._HOL {
   }
 
   object _BETA {
-    def apply(using proof: ProofBuilder)(t: Expr[Ind]): ProofJudgement = Subproof {
+    def apply(using proof: ProofBuilder)(t: Expr[Ind]): ProofJudgement = TacticProof {
       t match
         case Sabs(typ1, tt) * (r: Variable[Ind]) =>
           // assure the right shape is present, and pass to the general case
@@ -203,7 +203,7 @@ object ExtendedHOLSteps extends lisa._HOL {
   }
 
   object _ETA {
-    def apply(using proof: ProofBuilder)(x: TypedVariable, t: Expr[Ind]): ProofJudgement = Subproof { ip ?=>
+    def apply(using proof: ProofBuilder)(x: TypedVariable, t: Expr[Ind]): ProofJudgement = TacticProof { ip ?=>
       if t.freeVars.contains(x) then failWith(s"Variable $x is free in the Expr[Ind] $t")
       val lxtx = λ(x, t * x)
       val restype = computeType(t * x)
@@ -216,7 +216,7 @@ object ExtendedHOLSteps extends lisa._HOL {
   }
 
   object _ASSUME {
-    def apply(using proof: ProofBuilder)(t: Expr[Ind]): ProofJudgement = Subproof {
+    def apply(using proof: ProofBuilder)(t: Expr[Ind]): ProofJudgement = TacticProof {
       val typ = computeType(t)
       if typ == 𝔹 then have(t |- t) by Hypothesis.withParameters(eqOne(t))
       else failWith(s"Expr[Ind] $t is not a boolean")
@@ -225,7 +225,7 @@ object ExtendedHOLSteps extends lisa._HOL {
   }
 
   object _EQ_MP {
-    def apply(using proof: ProofBuilder)(eq: Thm, p: Thm): ProofJudgement = Subproof { ip ?=>
+    def apply(using proof: ProofBuilder)(eq: Thm, p: Thm): ProofJudgement = TacticProof { ip ?=>
       if eq.statement.right.size != 1 then failWith(s"The first premise should be of the form (t =:= u) === One")
       eq.statement match
         case HOLSequent(left, _, ((=:= #@ `𝔹`) * t * u)) =>
@@ -246,7 +246,7 @@ object ExtendedHOLSteps extends lisa._HOL {
   }
 
   object _DEDUCT_ANTISYM_RULE {
-    def apply(using proof: ProofBuilder)(t1: Thm, t2: Thm): ProofJudgement = Subproof { ip ?=>
+    def apply(using proof: ProofBuilder)(t1: Thm, t2: Thm): ProofJudgement = TacticProof { ip ?=>
       if t1.statement.right.size != 1 || t2.statement.right.size != 1 then failWith(s"The premises should be of the form p === One and q === One")
       val left1 = t1.statement.left
       val c1 = t1.statement.right.head
@@ -276,7 +276,7 @@ object ExtendedHOLSteps extends lisa._HOL {
     /**
      * Restore canonical free-variable identifiers without merging bound scopes.
      */
-    def variableTypesNames(using proof: ProofBuilder)(prem: Thm): ProofJudgement = Subproof { ip ?=>
+    def variableTypesNames(using proof: ProofBuilder)(prem: Thm): ProofJudgement = TacticProof { ip ?=>
       // Type substitution can identify previously distinct HOL variables. Bound
       // variables must stay scoped; schema substitution avoids capturing free ones.
       val renamings = prem.statement.freeVars.iterator
@@ -288,7 +288,7 @@ object ExtendedHOLSteps extends lisa._HOL {
       if renamings.isEmpty then prem else prem.of(renamings*)
     }
 
-    def apply(using proof: ProofBuilder)(inst: Seq[(Variable[Ind], Expr[Ind])], prem: Thm): ProofJudgement = Subproof { ip ?=>
+    def apply(using proof: ProofBuilder)(inst: Seq[(Variable[Ind], Expr[Ind])], prem: Thm): ProofJudgement = TacticProof { ip ?=>
       val s1 = have(lisa.hol.HOLSteps._INST_TYPE(inst, prem))
       have(variableTypesNames(s1))
     }

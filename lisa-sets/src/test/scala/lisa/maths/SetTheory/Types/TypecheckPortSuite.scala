@@ -26,7 +26,7 @@ class TypecheckPortSuite extends AnyFunSuite:
   private def check(context: Set[Expr[Prop]], term: Expr[Ind], typ: Expr[Ind], expected: Sequent): Unit =
     val result = ProofBuilder.withContext(using SetTheoryLibrary):
       Typecheck.checkProof(context, term, typ)
-    assert(result.isValid, result.errors.map(_.message).mkString("\n"))
+    assert(result.isValid, result.toString)
     assert(result.thm.statement == expected)
     assert(!result.thm.kernel.usesSorry)
 
@@ -94,7 +94,7 @@ class TypecheckPortSuite extends AnyFunSuite:
     val goal = () |- (A ->: A) ∈ universeOf(A)
     val result = ProofBuilder.withContext(using SetTheoryLibrary):
       Typecheck.prove(goal)
-    assert(result.isValid, result.errors.map(_.message).mkString("\n"))
+    assert(result.isValid, result.toString)
     assert(result.thm.statement == goal)
     assert(!result.thm.kernel.usesSorry)
 

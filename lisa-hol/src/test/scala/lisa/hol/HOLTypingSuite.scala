@@ -15,8 +15,8 @@ class HOLTypingSuite extends AnyFunSuite:
   private given Library = SetTheoryLibrary
 
   private def checked(result: ProofJudgement): Thm =
-    assert(result.isValid, result.errors.map(_.message).mkString("\n"))
-    val theorem = result.justification.get
+    assert(result.isValid, result.toString)
+    val theorem = result.thm
     assert(!theorem.kernel.usesSorry)
     theorem
 

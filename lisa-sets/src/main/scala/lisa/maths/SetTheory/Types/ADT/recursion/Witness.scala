@@ -9,7 +9,7 @@ import lisa.maths.SetTheory.Types.ADT.support.DefinedSymbol
 import lisa.maths.SetTheory.Types.ADT.support.core.Utils._
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Types.TypingHelpers._
-import lisa.utils.prooflib.InstantiateForallSeq
+import lisa.utils.automation.InstantiateForallSeq
 import lisa.utils.prooflib.Thm
 
 /**

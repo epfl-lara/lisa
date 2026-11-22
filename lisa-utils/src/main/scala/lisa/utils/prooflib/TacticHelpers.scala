@@ -9,25 +9,16 @@ import ProofHelpers._
  */
 object TacticHelpers:
 
-  private inline def target(using proof: ProofBuilder)(statement: Sequent): Sequent =
-    proof.withAssumptions(statement)
-
   class MaybeSequent(conclusion: Sequent):
     infix def by[T](using lib: Library, proof: ProofBuilder, file: sourcecode.File, line: sourcecode.Line)(tactic: SequentTacticM[T]): ProofCarrier[T] =
       by(using lib, proof, file, line)(tactic(using file, line)(using lib))
 
     infix def by[T](using lib: Library, proof: ProofBuilder, file: sourcecode.File, line: sourcecode.Line)(tactic: Sequent => ProofCarrier[T]): ProofCarrier[T] =
-      val carrier = tactic(target(conclusion))
-      if carrier.isValid then
-        // valid proof step, absorb and continue
-        proof.absorb(carrier)
-      else
-        // failed, pass on the error
-        carrier
+      proof.absorb(tactic(proof.withAssumptions(conclusion)))
 
   /**
-   * Like [[have]], but a `maybe(...) by Tactic` generates a [[ProofJudgment]],
-   * absorbing it into the proof if it succeeds, and a no-op if it fails.
+   * Runs a tactic and records its result only on success. Expected failures are
+   * returned unchanged without logging; thrown exceptions propagate.
    *
    * Use [[or]] or [[orFailWith]] to chain maybes or fail the current subproof.
    */
@@ -47,11 +38,10 @@ object TacticHelpers:
         bdr.breakWith(error)
 
   /**
-   * Stops the nearest subproof with a fatal error at the call site.
+   * Stops the nearest independent subproof with an expected failure.
    */
-  def failWith[T](using bdr: SubproofLabel[T], file: sourcecode.File, line: sourcecode.Line)(msg: String): Nothing =
-    val error = FatalError(msg, file, line)
-    bdr.breakWith(FatalCarrier(error, Set.empty))
+  def failWith[T](using bdr: SubproofLabel[T])(msg: String): Nothing =
+    bdr.breakWith(ProofCarrier.Failure(msg))
 
   /**
    * Stops the nearest subproof with an existing carrier.

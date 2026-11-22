@@ -48,11 +48,12 @@ class Library:
   private val theoremByShortName = mutable.HashMap.empty[String, Vector[Theorem]]
 
   // section data, currently only for display
-  private var sectionIndex = 0
+  private val sectionIndexByFile = mutable.HashMap.empty[String, Int]
 
   sealed trait LibraryException extends Exception
-  case class AlreadyDefined(name: String, originalExpr: Expr[?], newExpr: Expr[?]) extends LibraryException:
-    override def getMessage: String = s"Constant $name is already defined with expression $originalExpr, cannot redefine with $newExpr."
+  class AlreadyDefined(val name: String, val originalExpr: Expr[?], val newExpr: Expr[?])(using sourcecode.Line, sourcecode.File)
+      extends UserInvalidDefinitionException(name, s"Constant $name is already defined with expression $originalExpr, cannot redefine with $newExpr.")
+      with LibraryException
 
   /**
    * Declare an axiom in this library. The axiom is added to the theory and the
@@ -81,7 +82,7 @@ class Library:
       case Right(theorem) => Thm(statement, theorem)
 
   /**
-   * The leading bouond variables of an expression, in order of appearance.
+   * The leading bound variables of an expression, in order of appearance.
    */
   private def leadingVars(e: Expr[?]): Seq[Variable[?]] =
     @annotation.tailrec
@@ -121,7 +122,7 @@ class Library:
    *
    * @throws AlreadyDefined if the constant is already defined (even if with the same expression).
    */
-  private def defineWithVariables[S: Sort](name: String, expression: Expr[S], vars: Seq[Variable[?]]): (Constant[S], Thm) =
+  private def defineWithVariables[S: Sort](name: String, expression: Expr[S], vars: Seq[Variable[?]])(using sourcecode.Line, sourcecode.File): (Constant[S], Thm) =
     definitions.synchronized:
       val cst = constant[S](name)
       if defines(cst) then
@@ -133,15 +134,25 @@ class Library:
             case Right(definition) =>
               definition
             case Left(error) =>
-              throw new IllegalArgumentException(s"Invalid definition ${name}: $error")
+              throw new UserInvalidDefinitionException(name, s"Invalid definition $name: $error")
 
         val stmt = definitionStatement(cst, expression, vars)
         val wrapped = Thm(stmt, thm)
 
         storeDefinition(cst, expression, wrapped)
 
-  def define[S: Sort](name: String, expression: Expr[S]): (Constant[S], Thm) =
-    defineWithVariables(name, expression, leadingVars(expression))
+  def define[S: Sort](name: String, expression: Expr[S])(using sourcecode.Line, sourcecode.File): (Constant[S], Thm) =
+    val explicitVars = leadingVars(expression)
+    val remainingSorts = K.flatTypeParameters(expression.sort).drop(explicitVars.size)
+    val vars =
+      if remainingSorts.isEmpty then explicitVars
+      else
+        // Complete functional aliases without colliding with explicit parameters or free variables.
+        val first = K.freshId(explicitVars.map(_.id) ++ expression.freeVars.map(_.id), "x")
+        explicitVars ++ remainingSorts.zipWithIndex.map { (sort, index) =>
+          Variable.unsafe(K.Identifier(first.name, first.no + index), sort)
+        }
+    defineWithVariables(name, expression, vars)
 
   private def printDefinition[S](constant: Constant[S], expression: Expr[S])(using output: OutputManager): Unit =
     @annotation.tailrec
@@ -163,7 +174,7 @@ class Library:
    * @throws AlreadyDefined if the constant is already defined (even if with the
    * same expression).
    */
-  def DEF[S: Sort](using name: sourcecode.FullName, output: OutputManager)(expression: Expr[S]): Constant[S] =
+  def DEF[S: Sort](using name: sourcecode.FullName, output: OutputManager, line: sourcecode.Line, file: sourcecode.File)(expression: Expr[S]): Constant[S] =
     val (cst, _) = define(name.value, expression)
     printDefinition(cst, expression)
     cst
@@ -212,8 +223,9 @@ class Library:
         ._1
 
   def section(name: String)(using output: OutputManager, file: sourcecode.File): Unit =
-    sectionIndex += 1
-    output.section(sectionIndex, name, file.value)
+    val index = sectionIndexByFile.getOrElse(file.value, 0) + 1
+    sectionIndexByFile.update(file.value, index)
+    output.section(index, name, file.value)
 
   /**
    * Provides access to theorems in the library.

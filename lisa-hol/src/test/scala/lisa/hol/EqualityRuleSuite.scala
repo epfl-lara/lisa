@@ -24,7 +24,7 @@ class EqualityRuleSuite extends AnyFunSuite:
     Thm(statement, lisa.kernel.proof.Assume(using SetTheoryLibrary.theory)(statement.underlying).toOption.get)
 
   private def checked(result: ProofJudgement, conclusion: Expr[Prop], premises: Thm*): Unit =
-    assert(result.isValid, result.errors.map(_.message).mkString("\n"))
+    assert(result.isValid, result.toString)
     assert(!result.kernel.usesSorry)
     assert(result.kernel.assumptions == premises.flatMap(_.kernel.assumptions).toSet)
     assert(isSameSet(result.thm.statement.right, Set(conclusion)))

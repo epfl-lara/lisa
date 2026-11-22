@@ -11,11 +11,12 @@ import lisa.maths.SetTheory.Types.ADT.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADT.syntax.AST._
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.maths.SetTheory.Types.TypingHelpers.TypeAssign
+import lisa.utils.automation.InstantiateForallSeq
 import lisa.utils.prooflib.BasicStep.RightForall
 import lisa.utils.prooflib.BasicStep.RightImplies
-import lisa.utils.prooflib.InstantiateForallSeq
+import lisa.utils.prooflib.ProofCarrier
 import lisa.utils.prooflib.ProofJudgement
-import lisa.utils.prooflib.Subproof
+import lisa.utils.prooflib.TacticProof
 import lisa.utils.prooflib.Thm
 
 /**
@@ -197,7 +198,7 @@ class Induction(
         (Sequent, SpecializedADT[?], Variable[Ind])
       ] ?=> Unit
   )(bot: Sequent): ProofJudgement = {
-    if bot.right.size != 1 then return invalidTactic("Induction requires exactly one formula on the right of its goal.")
+    if bot.right.size != 1 then return ProofCarrier.Failure("Induction requires exactly one formula on the right of its goal.")
 
     Induction.inferArguments(bot, expectedVar, expectedADT) match
       case Some((inferedVar, inferedADT, inferedProp)) =>
@@ -214,7 +215,7 @@ class Induction(
             bot.freeVars.contains(inferedVar)
 
         if missingTypingAssumption then
-          invalidTactic(
+          ProofCarrier.Failure(
             s"Induction on variable '$inferedVar' over ADT '${inferedADT.name}' requires the typing assumption '$assignment' in the goal context. " +
               s"Current goal is '$bot'. Add '( $assignment ) |- ...', or restate the goal as a universally quantified statement " +
               s"'|- forall($inferedVar, $assignment ==> P($inferedVar))'."
@@ -231,10 +232,10 @@ class Induction(
 
           compiledBranchSystem match
             case Right(branchSystem) => buildInductionProof(bot, inferedVar, inferedProp, body, prop, context, branchSystem)
-            case Left(msg) => invalidTactic(msg)
+            case Left(msg) => ProofCarrier.Failure(msg)
 
       case None =>
-        invalidTactic("No variable typed with the ADT found in the context.")
+        ProofCarrier.Failure("No variable typed with the ADT found in the context.")
   }
 
   /**
@@ -267,7 +268,7 @@ class Induction(
       prop: Expr[Ind >>: Prop],
       context: Set[Expr[Prop]],
       branchSystem: PatternSystem[Thm]
-  ): ProofJudgement = Subproof { sp ?=>
+  ): ProofJudgement = TacticProof { sp ?=>
     val specializedADT = branchSystem.domain
     val typeVariablesSubstPairs =
       specializedADT.base.typeVariablesSeq.zip(specializedADT.typeArgs).map(SubstPair(_, _))

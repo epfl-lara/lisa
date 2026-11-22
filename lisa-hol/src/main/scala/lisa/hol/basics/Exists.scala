@@ -14,12 +14,11 @@ import lisa.hol.basics.Forall.hforallCorrect
 import lisa.hol.basics.Truth.SYM
 import lisa.hol.basics.Truth.holT
 import lisa.hol.basics.Truth.holTruth
+import lisa.utils.automation.Substitute
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.utils.prooflib.BasicStep._
 import lisa.utils.prooflib.Exports._
-import lisa.utils.prooflib.Exports._
 import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.Substitute
 
 /**
  * HOL Light existential quantifier.

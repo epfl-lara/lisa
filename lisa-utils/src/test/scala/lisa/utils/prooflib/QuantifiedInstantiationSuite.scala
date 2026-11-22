@@ -1,5 +1,6 @@
 package lisa.utils.prooflib
 
+import lisa.utils.UserLisaException.InvalidProofOperationException
 import lisa.utils.fol.FOL.{_, given}
 import lisa.utils.prooflib.ProofHelpers._
 import org.scalatest.funsuite.AnyFunSuite
@@ -45,10 +46,10 @@ class QuantifiedInstantiationSuite extends AnyFunSuite:
   test("invalid quantified arguments fail rather than returning an admitted theorem"):
     val formula = forall(x, P(x)(b))
     val source = BasicStep.Hypothesis(formula |- formula).thm
-    intercept[IllegalArgumentException](source.of(a, b))
-    intercept[IllegalArgumentException](source.of(a).of(b))
+    intercept[InvalidProofOperationException](source.of(a, b))
+    intercept[InvalidProofOperationException](source.of(a).of(b))
     val multiple = BasicStep.Hypothesis(formula |- (formula, P(a)(b))).thm
-    intercept[IllegalArgumentException](multiple.of(a))
+    intercept[InvalidProofOperationException](multiple.of(a))
 
   test("instantiation preserves an existing sorry dependency"):
     val source = BasicStep.Sorry(() |- forall(x, P(x)(b))).thm

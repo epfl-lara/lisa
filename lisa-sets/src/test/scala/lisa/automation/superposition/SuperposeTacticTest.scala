@@ -96,7 +96,10 @@ class SuperposeTacticTest extends AnyFunSuite with lisa.Main {
   val cleanFailures = Theorem(A |- A) {
     val nonTheorem = Superpose(A |- B)
     assert(!nonTheorem.isValid, "a non-theorem must not yield a valid judgement")
-    assert(nonTheorem.errors.exists(_.message.startsWith("Superpose could not refute")), nonTheorem.errors.mkString("\n"))
+    assert(
+      (nonTheorem match { case lisa.utils.prooflib.ProofCarrier.Failure(message) => message.startsWith("Superpose could not refute"); case _ => false }),
+      nonTheorem.toString
+    )
     assert(!Superpose(() |- ()).isValid, "the empty sequent must not yield a valid judgement")
     have(thesis) by Superpose
   }

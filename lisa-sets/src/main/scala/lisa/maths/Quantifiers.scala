@@ -1,6 +1,6 @@
 package lisa.maths
 
-import lisa.utils.prooflib.Substitute
+import lisa.utils.automation.Substitute
 
 /**
  * This file proves first-order logic theorems related to quantifiers. It includes:

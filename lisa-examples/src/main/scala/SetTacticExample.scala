@@ -1,16 +1,21 @@
-import lisa.maths.SetTheory.Base.{Intersection, Union}
+import lisa.maths.SetTheory.Base.Intersection
 import lisa.maths.SetTheory.Base.Intersection.∩
-import lisa.maths.SetTheory.Base.Symbols.{x, y, z}
+import lisa.maths.SetTheory.Base.Symbols.x
+import lisa.maths.SetTheory.Base.Symbols.y
+import lisa.maths.SetTheory.Base.Symbols.z
+import lisa.maths.SetTheory.Base.Union
 import lisa.maths.SetTheory.Base.Union.∪
-import lisa.utils.prooflib.{ProofJudgement, ProofCarrier, Subproof}
+import lisa.utils.prooflib.ProofCarrier
+import lisa.utils.prooflib.ProofJudgement
 import lisa.utils.prooflib.TacticHelpers.failWith
+import lisa.utils.prooflib.TacticProof
 
 object SetTacticExample extends lisa.Main:
 
   /**
    * Prove union and intersection membership goals from known memberships.
    */
-  def setTac(goal: Sequent): ProofCarrier[Unit] = Subproof {
+  def setTac(goal: Sequent): ProofCarrier[Unit] = TacticProof {
     // try trivial or split
     Restate(goal) ||
     // iterate over the RHS of sequent

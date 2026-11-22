@@ -19,7 +19,7 @@ class ApplicationTypingSuite extends AnyFunSuite:
     val result = ProofBuilder.withContext:
       Subproof:
         have(HOLSteps.HOLProofType(term))
-    assert(result.isValid, result.errors.map(_.message).mkString("\n"))
+    assert(result.isValid, result.toString)
     result.thm
 
   test("reuse application typings without losing their hypotheses"):

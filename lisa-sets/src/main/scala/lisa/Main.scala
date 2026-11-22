@@ -17,12 +17,16 @@ trait Main {
 
   // An eager initializer also initializes exported object fields on Scala 3.10.
   private val defaultOutput = new StringOutputManager
-  given OutputManager = defaultOutput
+  given OutputManager = new OutputManager:
+    def output(message: String): Unit = defaultOutput.output(message)
+    override def error(message: String): Unit = println(message)
 
   def section(name: String)(using sourcecode.File): Unit =
     SetTheoryLibrary.section(name)
 
-  // Imported developments keep their output buffered; only the selected main prints.
-  def main(args: Array[String]): Unit = print(defaultOutput.toString)
+  // Errors print immediately; only the selected main prints its buffered declarations.
+  def main(args: Array[String]): Unit =
+    print(defaultOutput.toString)
+    if SetTheoryLibrary.theorems.all.exists(_.errors.nonEmpty) then sys.exit(1)
 
 }

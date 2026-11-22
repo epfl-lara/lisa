@@ -25,16 +25,16 @@ class TypecheckSuite extends AnyFunSuite:
   private val y = variable[Ind](K.Identifier("typecheck-test-y"))
 
   private def assertTyping(result: ProofCarrier[?], expected: Expr[Prop]): Unit =
-    assert(result.isValid, result.errors.map(_.message).mkString("\n"))
-    val theorem = result.justification.get
+    assert(result.isValid, result.toString)
+    val theorem = result.thm
     assert(theorem.statement.right.exists(isSame(_, expected)), s"Expected $expected, obtained ${theorem.statement}")
 
   private def sorry(statement: Sequent): Thm =
-    BasicStep.Sorry(statement).justification.get
+    BasicStep.Sorry(statement).thm
 
   private def assertChecked(result: ProofCarrier[?], expected: Sequent): Thm =
-    assert(result.isValid, result.errors.map(_.message).mkString("\n"))
-    val theorem = result.justification.get
+    assert(result.isValid, result.toString)
+    val theorem = result.thm
     assert(!theorem.kernel.usesSorry)
     assert(theorem.statement == expected, s"Expected $expected, obtained ${theorem.statement}")
     theorem
@@ -204,8 +204,8 @@ class TypecheckSuite extends AnyFunSuite:
       Typecheck.checkProof(Set.empty, typed, A)
 
     assert(result.isValid)
-    assert(result.justification.get eq typing)
-    assert(result.justification.get.kernel.usesSorry)
+    assert(result.thm eq typing)
+    assert(result.thm.kernel.usesSorry)
 
   test("typing reuse preserves axiom dependencies"):
     val raw = constant[Ind](K.Identifier("typecheck-test-axiom-constant"))

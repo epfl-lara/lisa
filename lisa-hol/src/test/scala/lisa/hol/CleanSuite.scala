@@ -17,7 +17,7 @@ class CleanSuite extends AnyFunSuite:
   private val b = TypeVariable(K.Identifier("cleanup-B"))
 
   private def checked(result: ProofJudgement): Thm =
-    assert(result.isValid, result.errors.map(_.message).mkString("\n"))
+    assert(result.isValid, result.toString)
     assert(!result.thm.kernel.usesSorry)
     result.thm
 
@@ -41,8 +41,9 @@ class CleanSuite extends AnyFunSuite:
   test("reject mismatched typed-variable annotations"):
     val typed = TypedVariable(x.id, a)
     val premise = checked(BasicStep.RightRefl(Sequent(Set(typed ∈ b), Set(a === a))))
-    intercept[LisaHOLException]:
+    val error = intercept[TacticException]:
       ProofBuilder.withContext(HOLSteps.Clean.variable(TypeAssign(typed, b))(premise))
+    assert(error.getCause.isInstanceOf[LisaHOLException])
 
   test("preserve type annotations that are not syntactically free variables"):
     val typed = TypedVariable(x.id, a)

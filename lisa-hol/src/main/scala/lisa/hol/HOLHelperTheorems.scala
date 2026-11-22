@@ -1,4 +1,5 @@
 package lisa.hol
+import lisa.utils.automation.Substitute
 import lisa.maths.SetTheory.Base.Predef._
 import lisa.maths.SetTheory.Base.Predef.singleton
 import lisa.maths.SetTheory.Functions.Predef._
@@ -14,7 +15,6 @@ import lisa.utils.prooflib.BasicStep.Restate
 import lisa.utils.prooflib.BasicStep.RightAnd
 import lisa.utils.prooflib.BasicStep.RightSubstEq
 import lisa.utils.prooflib.BasicStep.Weakening
-import lisa.utils.prooflib.Substitute
 import lisa.utils.unification.UnificationUtils.Substitution
 
 import VarsAndFunctions.HOLConstantType

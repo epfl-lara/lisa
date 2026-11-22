@@ -5,6 +5,7 @@ import lisa.kernel.{proof => K}
 import lisa.utils.collection.Extensions.{_, given}
 import lisa.utils.fol.FOL._
 import lisa.utils.prooflib.Helpers._
+import lisa.utils.prooflib.ProofCarrier.Failure
 import lisa.utils.prooflib.ProofHelpers._
 
 object BasicStep:
@@ -19,26 +20,19 @@ object BasicStep:
   case object UnreachableErrorException extends Exception:
     def msg = "[FATAL] This error path should be unreachable."
 
-  private def theoryMismatch(file: sourcecode.File, line: sourcecode.Line)(step: String, expected: K.Theory, actual: K.Theory): ProofError =
-    SoftError(withParams(s"$step: premises and conclusion had mismatched underlying theories.", "Expected" -> expected, "Actual" -> actual), file, line)
+  private def theoryMismatch(step: String, expected: K.Theory, actual: K.Theory): Failure =
+    Failure(withParams(s"$step: premises and conclusion had mismatched underlying theories.", "Expected" -> expected, "Actual" -> actual))
 
-  private def liftGeneralError(file: sourcecode.File, line: sourcecode.Line)(step: String, err: K.GeneralError): ProofError =
+  private def liftGeneralError(step: String, err: K.GeneralError): Failure =
     err match
-      case e: K.TheoryMismatch => theoryMismatch(file, line)(step, e.expected, e.actual)
+      case e: K.TheoryMismatch => theoryMismatch(step, e.expected, e.actual)
       case e: K.SortMismatch =>
-        SoftError(
-          withParams(s"$step: an expression has the wrong sort.", "Expected" -> e.expected, "Actual" -> e.actual, "Expression" -> e.expression),
-          file,
-          line
+        Failure(
+          withParams(s"$step: an expression has the wrong sort.", "Expected" -> e.expected, "Actual" -> e.actual, "Expression" -> e.expression)
         )
 
-  private def inferenceFailure(file: sourcecode.File, line: sourcecode.Line)(message: String, conclusion: Sequent, params: (String, Any)*)(using Library): ProofJudgement =
-    ProofCarrier(
-      Set(SoftError(withParams(message, ("Conclusion", conclusion) +: params*), file, line)),
-      conclusion,
-      None,
-      ()
-    )
+  private def inferenceFailure(message: String, conclusion: Sequent, params: (String, Any)*): ProofJudgement =
+    Failure(withParams(message, ("Conclusion", conclusion) +: params*))
 
   ///////////////////////////////////////////////////////////////////////////////
   // Proof construction helpers
@@ -68,39 +62,29 @@ object BasicStep:
   ///////////////////////////////////////////////////////////////////////////////
 
   object Sorry extends SequentTactic:
-    private def liftError(err: K.Sorry.ErrorType): ProofError =
-      summon[K.Sorry.ErrorType =:= Nothing]
-      err
-
     def apply(using sourcecode.File, sourcecode.Line)(using library: Library)(conclusion: Sequent): ProofJudgement =
       val underlying = conclusion.underlying
       K.Sorry(using library.theory)(underlying)
-        .mapLeft(liftError)
         .lift(conclusion)
 
   object Axiom extends SequentTactic:
-    private def liftError(err: K.Axiom.ErrorType): ProofError =
-      summon[K.Axiom.ErrorType =:= Nothing]
-      err
-
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(statement: Sequent): ProofJudgement =
       library
         .Axiom(file, line)(statement)
-        .mapLeft(liftError)
         .lift(statement)
 
   object Hypothesis extends SequentTactic:
-    private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, pivot: Expr[Prop])(err: K.Hypothesis.ErrorType): ProofError =
+    private def liftError(conclusion: Sequent, pivot: Expr[Prop])(err: K.Hypothesis.ErrorType): Failure =
       err match
         // step-specific errors
         case _: K.Hypothesis.MissingFromLeft =>
           assert(!conclusion.left.containsEq(pivot), s"Pivot $pivot is in the left side of the conclusion $conclusion, despite the kernel reporting it as missing.")
           val base = s"Hypothesis pivot is missing from the left side of the conclusion"
-          SoftError(withParams(base, "Pivot" -> pivot, "Conclusion" -> conclusion), file, line)
+          Failure(withParams(base, "Pivot" -> pivot, "Conclusion" -> conclusion))
         case _: K.Hypothesis.MissingFromRight =>
           assert(!conclusion.right.containsEq(pivot), s"Pivot $pivot is in the right side of the conclusion $conclusion, despite the kernel reporting it as missing.")
           val base = s"Hypothesis pivot is missing from the right side of the conclusion"
-          SoftError(withParams(base, "Pivot" -> pivot, "Conclusion" -> conclusion), file, line)
+          Failure(withParams(base, "Pivot" -> pivot, "Conclusion" -> conclusion))
         // general errors
         case _: K.SortMismatch =>
           // should only happen if the pivot is not a prop, which is ensured by
@@ -112,7 +96,7 @@ object BasicStep:
 
     def withParameters(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(pivot: Expr[Prop])(conclusion: Sequent): ProofJudgement =
       K.Hypothesis(using library.theory)(conclusion.underlying, pivot.underlying)
-        .mapLeft(liftError(file, line)(conclusion, pivot))
+        .mapLeft(liftError(conclusion, pivot))
         .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent): ProofJudgement =
@@ -127,30 +111,25 @@ object BasicStep:
       pivot match
         case Some(phi) => withParameters(using file, line)(phi)(conclusion)
         case None =>
-          val error = SoftError(
+          Failure(
             withParams(
               "Could not infer a Hypothesis pivot occurring on both sides of the conclusion.",
               "Conclusion" -> conclusion
-            ),
-            file,
-            line
+            )
           )
-          ProofCarrier(Set(error), conclusion, None, ())
 
   object Restate extends SequentTactic, PremiseSequentTactic:
-    private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, premise: K.Thm)(err: K.Restate.ErrorType): ProofError =
+    private def liftError(conclusion: Sequent, premise: K.Thm)(err: K.Restate.ErrorType): Failure =
       err match
         case _: K.Restate.NotImplying =>
-          SoftError(
-            withParams("Restate premise is not OL-equivalent to the conclusion.", "Premise" -> Thm.liftSequent(premise.statement), "Conclusion" -> conclusion),
-            file,
-            line
+          Failure(
+            withParams("Restate premise is not OL-equivalent to the conclusion.", "Premise" -> Thm.liftSequent(premise.statement), "Conclusion" -> conclusion)
           )
-        case e: K.GeneralError => liftGeneralError(file, line)("Restate", e)
+        case e: K.GeneralError => liftGeneralError("Restate", e)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
       K.Restate(using library.theory)(conclusion.underlying, premise)
-        .mapLeft(liftError(file, line)(conclusion, premise))
+        .mapLeft(liftError(conclusion, premise))
         .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent): ProofJudgement =
@@ -160,51 +139,47 @@ object BasicStep:
       apply(using file, line)(using library)(conclusion, premise)
 
   object RestateTrue extends SequentTactic:
-    private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent)(err: K.RestateTrue.ErrorType): ProofError =
+    private def liftError(conclusion: Sequent)(err: K.RestateTrue.ErrorType): Failure =
       err match
         case _: K.RestateTrue.NotTrivial =>
-          SoftError(withParams("RestateTrue conclusion is not OL-equivalent to truth.", "Conclusion" -> conclusion), file, line)
+          Failure(withParams("RestateTrue conclusion is not OL-equivalent to truth.", "Conclusion" -> conclusion))
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent): ProofJudgement =
       K.RestateTrue(using library.theory)(conclusion.underlying)
-        .mapLeft(liftError(file, line)(conclusion))
+        .mapLeft(liftError(conclusion))
         .lift(conclusion)
 
   object Cut:
     private def prove(conclusion: K.Sequent, prem1: K.Thm, prem2: K.Thm, phi: KF.Expression)(using library: Library): K.Cut.Result[K.Thm] =
       K.Cut(using library.theory)(conclusion, prem1, prem2, phi)
 
-    private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, prem1: K.Thm, prem2: K.Thm, phi: Expr[Prop])(
+    private def liftError(conclusion: Sequent, prem1: K.Thm, prem2: K.Thm, phi: Expr[Prop])(
         err: K.Cut.ErrorType
-    ): ProofError =
+    ): Failure =
       err match
         case _: K.Cut.MissingFromFirst =>
-          SoftError(withParams("Cut: LHS of first premise is not contained in the conclusion.", "Premise" -> prem1, "Conclusion" -> conclusion), file, line)
+          Failure(withParams("Cut: LHS of first premise is not contained in the conclusion.", "Premise" -> prem1, "Conclusion" -> conclusion))
         case _: K.Cut.MissingFromSecond =>
-          SoftError(withParams("Cut: RHS of second premise is not contained in the conclusion.", "Premise" -> prem2, "Conclusion" -> conclusion), file, line)
+          Failure(withParams("Cut: RHS of second premise is not contained in the conclusion.", "Premise" -> prem2, "Conclusion" -> conclusion))
         case _: K.Cut.ExtraneousInFirst =>
-          SoftError(
+          Failure(
             withParams(
               "Cut: RHS of first premise contains a formula other than the pivot that is absent from the conclusion.",
               "Pivot" -> phi,
               "First premise" -> prem1.statement,
               "Conclusion" -> conclusion
-            ),
-            file,
-            line
+            )
           )
         case _: K.Cut.ExtraneousInSecond =>
-          SoftError(
+          Failure(
             withParams(
               "Cut: LHS of second premise contains a formula other than the pivot that is absent from the conclusion.",
               "Pivot" -> phi,
               "Second premise" -> prem2.statement,
               "Conclusion" -> conclusion
-            ),
-            file,
-            line
+            )
           )
-        case e: K.GeneralError => liftGeneralError(file, line)("Cut", e)
+        case e: K.GeneralError => liftGeneralError("Cut", e)
 
     def withParameters(using
         file: sourcecode.File,
@@ -216,7 +191,7 @@ object BasicStep:
         prem2: K.Thm
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, prem1, prem2, phi.underlying)
-        .mapLeft(liftError(file, line)(conclusion, prem1, prem2, phi))
+        .mapLeft(liftError(conclusion, prem1, prem2, phi))
         .lift(conclusion)
 
     def apply(using
@@ -240,37 +215,33 @@ object BasicStep:
 
       inferred match
         case Some(thm) => successful(thm, conclusion)
-        case None => inferenceFailure(file, line)("Could not infer the Cut pivot.", conclusion, "First premise" -> prem1, "Second premise" -> prem2)
+        case None => inferenceFailure("Could not infer the Cut pivot.", conclusion, "First premise" -> prem1, "Second premise" -> prem2)
 
   object LeftAnd extends PremiseSequentTactic:
     private def prove(conclusion: K.Sequent, premise: K.Thm, phi: KF.Expression, psi: KF.Expression)(using library: Library): K.LeftAnd.Result[K.Thm] =
       K.LeftAnd(using library.theory)(conclusion, premise, phi, psi)
 
-    private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, premise: K.Thm, phi: Expr[Prop], psi: Expr[Prop])(
+    private def liftError(conclusion: Sequent, premise: K.Thm, phi: Expr[Prop], psi: Expr[Prop])(
         err: K.LeftAnd.ErrorType
-    ): ProofError =
+    ): Failure =
       err match
         case _: K.LeftAnd.MissingFromPremise =>
-          SoftError(withParams("LeftAnd: RHS of premise is not contained in the conclusion.", "Premise" -> premise, "Conclusion" -> conclusion), file, line)
+          Failure(withParams("LeftAnd: RHS of premise is not contained in the conclusion.", "Premise" -> premise, "Conclusion" -> conclusion))
         case _: K.LeftAnd.ExtraneousInPremise =>
-          SoftError(
+          Failure(
             withParams(
               "LeftAnd: LHS of premise contains a formula other than the provided or inferred conjuncts that is absent from the conclusion.",
               "Phi" -> phi,
               "Psi" -> psi,
               "Premise" -> premise,
               "Conclusion" -> conclusion
-            ),
-            file,
-            line
+            )
           )
         case _: K.LeftAnd.MissingConjunction =>
-          SoftError(
-            withParams("LeftAnd: conclusion does not contain the provided conjunction.", "Conjunction" -> (phi /\ psi), "Premise" -> premise, "Conclusion" -> conclusion),
-            file,
-            line
+          Failure(
+            withParams("LeftAnd: conclusion does not contain the provided conjunction.", "Conjunction" -> (phi /\ psi), "Premise" -> premise, "Conclusion" -> conclusion)
           )
-        case e: K.GeneralError => liftGeneralError(file, line)("LeftAnd", e)
+        case e: K.GeneralError => liftGeneralError("LeftAnd", e)
 
     def withParameters(using
         file: sourcecode.File,
@@ -281,7 +252,7 @@ object BasicStep:
         premise: K.Thm
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, premise, phi.underlying, psi.underlying)
-        .mapLeft(liftError(file, line)(conclusion, premise, phi, psi))
+        .mapLeft(liftError(conclusion, premise, phi, psi))
         .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
@@ -294,25 +265,25 @@ object BasicStep:
 
       inferred match
         case Some(thm) => successful(thm, conclusion)
-        case None => inferenceFailure(file, line)("Could not infer conjuncts for LeftAnd.", conclusion, "Premise" -> premise)
+        case None => inferenceFailure("Could not infer conjuncts for LeftAnd.", conclusion, "Premise" -> premise)
 
   object LeftOr:
     private def prove(conclusion: K.Sequent, premises: Seq[K.Thm], disjuncts: Seq[KF.Expression])(using library: Library): K.LeftOr.Result[K.Thm] =
       K.LeftOr(using library.theory)(conclusion, premises, disjuncts)
 
-    private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, premises: Seq[K.Thm], disjuncts: Seq[Expr[Prop]])(
+    private def liftError(conclusion: Sequent, premises: Seq[K.Thm], disjuncts: Seq[Expr[Prop]])(
         err: K.LeftOr.ErrorType
-    ): ProofError =
+    ): Failure =
       err match
         case _: K.LeftOr.EmptyPremises =>
-          SoftError("LeftOr: requires at least one premise.", file, line)
+          Failure("LeftOr: requires at least one premise.")
         case _: K.LeftOr.ArityMismatch =>
-          SoftError(withParams("LeftOr: disjunct and premise counts are mismatched.", "# Premises" -> premises.size, "# Disjuncts" -> disjuncts.size), file, line)
+          Failure(withParams("LeftOr: disjunct and premise counts are mismatched.", "# Premises" -> premises.size, "# Disjuncts" -> disjuncts.size))
         case e: K.LeftOr.PremiseNotPreserved =>
-          SoftError(withParams("LeftOr: a formula in a premise is absent from the conclusion.", "Premise index" -> e.index, "Disjunct" -> disjuncts(e.index)), file, line)
+          Failure(withParams("LeftOr: a formula in a premise is absent from the conclusion.", "Premise index" -> e.index, "Disjunct" -> disjuncts(e.index)))
         case _: K.LeftOr.MissingDisjunction =>
-          SoftError(withParams("LeftOr: the conclusion does not contain the disjunction.", "Disjuncts" -> disjuncts), file, line)
-        case e: K.GeneralError => liftGeneralError(file, line)("LeftOr", e)
+          Failure(withParams("LeftOr: the conclusion does not contain the disjunction.", "Disjuncts" -> disjuncts))
+        case e: K.GeneralError => liftGeneralError("LeftOr", e)
 
     def withParameters(using
         file: sourcecode.File,
@@ -323,12 +294,12 @@ object BasicStep:
         premises: Seq[K.Thm]
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, premises, disjuncts.map(_.underlying))
-        .mapLeft(liftError(file, line)(conclusion, premises, disjuncts))
+        .mapLeft(liftError(conclusion, premises, disjuncts))
         .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(premises: Seq[K.Thm])(conclusion: Sequent): ProofJudgement =
       val underlying = conclusion.underlying
-      if premises.isEmpty then inferenceFailure(file, line)("LeftOr: requires at least one premise.", conclusion)
+      if premises.isEmpty then inferenceFailure("LeftOr: requires at least one premise.", conclusion)
       else
         val extras = premises.map(premise => differenceEq(premise.left, underlying.left).nextOption())
         val inferred =
@@ -338,7 +309,7 @@ object BasicStep:
               case -1 => None
               case i => weakening(underlying, premises(i))
 
-        inferred.fold(inferenceFailure(file, line)("Could not infer disjuncts for LeftOr.", conclusion, "Premises" -> premises))(thm => successful(thm, conclusion))
+        inferred.fold(inferenceFailure("Could not infer disjuncts for LeftOr.", conclusion, "Premises" -> premises))(thm => successful(thm, conclusion))
 
     def apply(using
         file: sourcecode.File,
@@ -356,29 +327,25 @@ object BasicStep:
     ): K.LeftImplies.Result[K.Thm] =
       K.LeftImplies(using library.theory)(conclusion, prem1, prem2, phi, psi)
 
-    private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, prem1: K.Thm, prem2: K.Thm, phi: Expr[Prop], psi: Expr[Prop])(
+    private def liftError(conclusion: Sequent, prem1: K.Thm, prem2: K.Thm, phi: Expr[Prop], psi: Expr[Prop])(
         err: K.LeftImplies.ErrorType
-    ): ProofError =
+    ): Failure =
       err match
         case _: K.LeftImplies.MissingFromFirst =>
-          SoftError(withParams("The first premise left side is not contained in the LeftImplies conclusion.", "Premise" -> prem1), file, line)
+          Failure(withParams("The first premise left side is not contained in the LeftImplies conclusion.", "Premise" -> prem1))
         case _: K.LeftImplies.MissingFromSecond =>
-          SoftError(withParams("The second premise right side is not contained in the LeftImplies conclusion.", "Premise" -> prem2), file, line)
+          Failure(withParams("The second premise right side is not contained in the LeftImplies conclusion.", "Premise" -> prem2))
         case _: K.LeftImplies.ExtraneousInFirst =>
-          SoftError(
-            withParams("The first premise right side contains a formula other than the implication antecedent that is absent from the conclusion.", "Antecedent" -> phi),
-            file,
-            line
+          Failure(
+            withParams("The first premise right side contains a formula other than the implication antecedent that is absent from the conclusion.", "Antecedent" -> phi)
           )
         case _: K.LeftImplies.ExtraneousInSecond =>
-          SoftError(
-            withParams("The second premise left side contains a formula other than the implication consequent that is absent from the conclusion.", "Consequent" -> psi),
-            file,
-            line
+          Failure(
+            withParams("The second premise left side contains a formula other than the implication consequent that is absent from the conclusion.", "Consequent" -> psi)
           )
         case _: K.LeftImplies.MissingImplication =>
-          SoftError(withParams("The LeftImplies conclusion does not contain the requested implication.", "Implication" -> implies(phi)(psi)), file, line)
-        case e: K.GeneralError => liftGeneralError(file, line)("LeftImplies", e)
+          Failure(withParams("The LeftImplies conclusion does not contain the requested implication.", "Implication" -> implies(phi)(psi)))
+        case e: K.GeneralError => liftGeneralError("LeftImplies", e)
 
     def withParameters(using
         file: sourcecode.File,
@@ -390,7 +357,7 @@ object BasicStep:
         prem2: K.Thm
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, prem1, prem2, phi.underlying, psi.underlying)
-        .mapLeft(liftError(file, line)(conclusion, prem1, prem2, phi, psi))
+        .mapLeft(liftError(conclusion, prem1, prem2, phi, psi))
         .lift(conclusion)
 
     def apply(using
@@ -414,31 +381,29 @@ object BasicStep:
 
       inferred match
         case Some(thm) => successful(thm, conclusion)
-        case None => inferenceFailure(file, line)("Could not infer the antecedent and consequent for LeftImplies.", conclusion, "First premise" -> prem1, "Second premise" -> prem2)
+        case None => inferenceFailure("Could not infer the antecedent and consequent for LeftImplies.", conclusion, "First premise" -> prem1, "Second premise" -> prem2)
 
   object LeftIff extends PremiseSequentTactic:
     private def prove(conclusion: K.Sequent, premise: K.Thm, phi: KF.Expression, psi: KF.Expression)(using library: Library): K.LeftIff.Result[K.Thm] =
       K.LeftIff(using library.theory)(conclusion, premise, phi, psi)
 
-    private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, premise: K.Thm, phi: Expr[Prop], psi: Expr[Prop])(
+    private def liftError(conclusion: Sequent, premise: K.Thm, phi: Expr[Prop], psi: Expr[Prop])(
         err: K.LeftIff.ErrorType
-    ): ProofError =
+    ): Failure =
       err match
         case _: K.LeftIff.MissingFromPremise =>
-          SoftError(withParams("The premise right side is not contained in the LeftIff conclusion.", "Premise" -> premise), file, line)
+          Failure(withParams("The premise right side is not contained in the LeftIff conclusion.", "Premise" -> premise))
         case _: K.LeftIff.ExtraneousInPremise =>
-          SoftError(
+          Failure(
             withParams(
               "The premise left side contains a formula other than the two directions of the equivalence that is absent from the conclusion.",
               "Phi" -> phi,
               "Psi" -> psi
-            ),
-            file,
-            line
+            )
           )
         case _: K.LeftIff.MissingIff =>
-          SoftError(withParams("The LeftIff conclusion does not contain the requested equivalence.", "Equivalence" -> iff(phi)(psi)), file, line)
-        case e: K.GeneralError => liftGeneralError(file, line)("LeftIff", e)
+          Failure(withParams("The LeftIff conclusion does not contain the requested equivalence.", "Equivalence" -> iff(phi)(psi)))
+        case e: K.GeneralError => liftGeneralError("LeftIff", e)
 
     def withParameters(using
         file: sourcecode.File,
@@ -449,7 +414,7 @@ object BasicStep:
         premise: K.Thm
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, premise, phi.underlying, psi.underlying)
-        .mapLeft(liftError(file, line)(conclusion, premise, phi, psi))
+        .mapLeft(liftError(conclusion, premise, phi, psi))
         .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
@@ -462,23 +427,23 @@ object BasicStep:
           case _ => None
       inferred match
         case Some(thm) => successful(thm, conclusion)
-        case None => inferenceFailure(file, line)("Could not infer the equivalent formulas for LeftIff.", conclusion, "Premise" -> premise)
+        case None => inferenceFailure("Could not infer the equivalent formulas for LeftIff.", conclusion, "Premise" -> premise)
 
   object LeftNot extends PremiseSequentTactic:
     private def prove(conclusion: K.Sequent, premise: K.Thm, phi: KF.Expression)(using library: Library): K.LeftNot.Result[K.Thm] =
       K.LeftNot(using library.theory)(conclusion, premise, phi)
 
-    private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, premise: K.Thm, phi: Expr[Prop])(
+    private def liftError(conclusion: Sequent, premise: K.Thm, phi: Expr[Prop])(
         err: K.LeftNot.ErrorType
-    ): ProofError =
+    ): Failure =
       err match
         case _: K.LeftNot.MissingFromPremise =>
-          SoftError(withParams("The premise left side is not contained in the LeftNot conclusion.", "Premise" -> premise), file, line)
+          Failure(withParams("The premise left side is not contained in the LeftNot conclusion.", "Premise" -> premise))
         case _: K.LeftNot.ExtraneousInPremise =>
-          SoftError(withParams("The premise right side contains a formula other than the negated formula that is absent from the conclusion.", "Formula" -> phi), file, line)
+          Failure(withParams("The premise right side contains a formula other than the negated formula that is absent from the conclusion.", "Formula" -> phi))
         case _: K.LeftNot.MissingNegation =>
-          SoftError(withParams("The LeftNot conclusion does not contain the requested negation.", "Negation" -> neg(phi)), file, line)
-        case e: K.GeneralError => liftGeneralError(file, line)("LeftNot", e)
+          Failure(withParams("The LeftNot conclusion does not contain the requested negation.", "Negation" -> neg(phi)))
+        case e: K.GeneralError => liftGeneralError("LeftNot", e)
 
     def withParameters(using
         file: sourcecode.File,
@@ -489,7 +454,7 @@ object BasicStep:
         conclusion: Sequent
     ): ProofJudgement =
       prove(conclusion.underlying, premise, phi.underlying)
-        .mapLeft(liftError(file, line)(conclusion, premise, phi))
+        .mapLeft(liftError(conclusion, premise, phi))
         .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
@@ -501,7 +466,7 @@ object BasicStep:
           case Some(phi) => prove(underlying, premise, phi).toOption
       inferred match
         case Some(thm) => successful(thm, conclusion)
-        case None => inferenceFailure(file, line)("Could not infer the negated formula for LeftNot.", conclusion, "Premise" -> premise)
+        case None => inferenceFailure("Could not infer the negated formula for LeftNot.", conclusion, "Premise" -> premise)
 
   object LeftForall extends PremiseSequentTactic:
     private def prove(conclusion: K.Sequent, premise: K.Thm, phi: KF.Expression, x: KF.Variable, term: KF.Expression)(using
@@ -509,26 +474,24 @@ object BasicStep:
     ): K.LeftForall.Result[K.Thm] =
       K.LeftForall(using library.theory)(conclusion, premise, phi, x, term)
 
-    private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, premise: K.Thm, phi: Expr[Prop], x: Variable[Ind], term: Expr[Ind])(
+    private def liftError(conclusion: Sequent, premise: K.Thm, phi: Expr[Prop], x: Variable[Ind], term: Expr[Ind])(
         err: K.LeftForall.ErrorType
-    ): ProofError =
+    ): Failure =
       err match
         case _: K.LeftForall.MissingFromPremise =>
-          SoftError(withParams("The premise right side is not contained in the LeftForall conclusion.", "Premise" -> premise), file, line)
+          Failure(withParams("The premise right side is not contained in the LeftForall conclusion.", "Premise" -> premise))
         case _: K.LeftForall.ExtraneousInPremise =>
-          SoftError(
+          Failure(
             withParams(
               "The premise left side contains a formula other than the quantified instance that is absent from the conclusion.",
               "Body" -> phi,
               "Variable" -> x,
               "Term" -> term
-            ),
-            file,
-            line
+            )
           )
         case _: K.LeftForall.MissingForall =>
-          SoftError(withParams("The LeftForall conclusion does not contain the requested universal formula.", "Formula" -> forall(x, phi)), file, line)
-        case e: K.GeneralError => liftGeneralError(file, line)("LeftForall", e)
+          Failure(withParams("The LeftForall conclusion does not contain the requested universal formula.", "Formula" -> forall(x, phi)))
+        case e: K.GeneralError => liftGeneralError("LeftForall", e)
 
     def withParameters(using
         file: sourcecode.File,
@@ -539,7 +502,7 @@ object BasicStep:
         premise: K.Thm
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, premise, phi.underlying, x.underlying, term.underlying)
-        .mapLeft(liftError(file, line)(conclusion, premise, phi, x, term))
+        .mapLeft(liftError(conclusion, premise, phi, x, term))
         .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
@@ -559,25 +522,25 @@ object BasicStep:
 
       inferred match
         case Some(thm) => successful(thm, conclusion)
-        case None => inferenceFailure(file, line)("Could not infer the universal formula or its instantiating term for LeftForall.", conclusion, "Premise" -> premise)
+        case None => inferenceFailure("Could not infer the universal formula or its instantiating term for LeftForall.", conclusion, "Premise" -> premise)
 
   object LeftExists extends PremiseSequentTactic:
     private def prove(conclusion: K.Sequent, premise: K.Thm, phi: KF.Expression, x: KF.Variable)(using library: Library): K.LeftExists.Result[K.Thm] =
       K.LeftExists(using library.theory)(conclusion, premise, phi, x)
 
-    private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, premise: K.Thm, phi: Expr[Prop], x: Variable[Ind])(
+    private def liftError(conclusion: Sequent, premise: K.Thm, phi: Expr[Prop], x: Variable[Ind])(
         err: K.LeftExists.ErrorType
-    ): ProofError =
+    ): Failure =
       err match
         case _: K.LeftExists.MissingFromPremise =>
-          SoftError(withParams("The premise right side is not contained in the LeftExists conclusion.", "Premise" -> premise), file, line)
+          Failure(withParams("The premise right side is not contained in the LeftExists conclusion.", "Premise" -> premise))
         case _: K.LeftExists.ExtraneousInPremise =>
-          SoftError(withParams("The premise left side contains a formula other than the existential body that is absent from the conclusion.", "Body" -> phi), file, line)
+          Failure(withParams("The premise left side contains a formula other than the existential body that is absent from the conclusion.", "Body" -> phi))
         case _: K.LeftExists.MissingExists =>
-          SoftError(withParams("The LeftExists conclusion does not contain the requested existential formula.", "Formula" -> exists(x, phi)), file, line)
+          Failure(withParams("The LeftExists conclusion does not contain the requested existential formula.", "Formula" -> exists(x, phi)))
         case _: K.LeftExists.VariableFree =>
-          SoftError(withParams("The existential variable is free in the LeftExists conclusion.", "Variable" -> x, "Conclusion" -> conclusion), file, line)
-        case e: K.GeneralError => liftGeneralError(file, line)("LeftExists", e)
+          Failure(withParams("The existential variable is free in the LeftExists conclusion.", "Variable" -> x, "Conclusion" -> conclusion))
+        case e: K.GeneralError => liftGeneralError("LeftExists", e)
 
     def withParameters(using
         file: sourcecode.File,
@@ -588,7 +551,7 @@ object BasicStep:
         premise: K.Thm
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, premise, phi.underlying, x.underlying)
-        .mapLeft(liftError(file, line)(conclusion, premise, phi, x))
+        .mapLeft(liftError(conclusion, premise, phi, x))
         .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
@@ -606,29 +569,27 @@ object BasicStep:
         case _ => None
       inferred match
         case Some(thm) => successful(thm, conclusion)
-        case None => inferenceFailure(file, line)("Could not infer the existential formula for LeftExists.", conclusion, "Premise" -> premise)
+        case None => inferenceFailure("Could not infer the existential formula for LeftExists.", conclusion, "Premise" -> premise)
 
   object RightAnd:
     private def prove(conclusion: K.Sequent, premises: Seq[K.Thm], conjuncts: Seq[KF.Expression])(using library: Library): K.RightAnd.Result[K.Thm] =
       K.RightAnd(using library.theory)(conclusion, premises, conjuncts)
 
-    private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, premises: Seq[K.Thm], conjuncts: Seq[Expr[Prop]])(
+    private def liftError(conclusion: Sequent, premises: Seq[K.Thm], conjuncts: Seq[Expr[Prop]])(
         err: K.RightAnd.ErrorType
-    ): ProofError =
+    ): Failure =
       err match
         case _: K.RightAnd.EmptyPremises =>
-          SoftError("RightAnd requires at least one premise.", file, line)
+          Failure("RightAnd requires at least one premise.")
         case _: K.RightAnd.ArityMismatch =>
-          SoftError(withParams("RightAnd requires one conjunct per premise.", "Premises" -> premises.size, "Conjuncts" -> conjuncts.size), file, line)
+          Failure(withParams("RightAnd requires one conjunct per premise.", "Premises" -> premises.size, "Conjuncts" -> conjuncts.size))
         case e: K.RightAnd.PremiseNotPreserved =>
-          SoftError(
-            withParams("A RightAnd premise is not preserved by the conclusion apart from its conjunct.", "Premise index" -> e.index, "Conjunct" -> conjuncts(e.index)),
-            file,
-            line
+          Failure(
+            withParams("A RightAnd premise is not preserved by the conclusion apart from its conjunct.", "Premise index" -> e.index, "Conjunct" -> conjuncts(e.index))
           )
         case _: K.RightAnd.MissingConjunction =>
-          SoftError(withParams("The RightAnd conclusion does not contain the conjunction.", "Conjuncts" -> conjuncts), file, line)
-        case e: K.GeneralError => liftGeneralError(file, line)("RightAnd", e)
+          Failure(withParams("The RightAnd conclusion does not contain the conjunction.", "Conjuncts" -> conjuncts))
+        case e: K.GeneralError => liftGeneralError("RightAnd", e)
 
     def withParameters(using
         file: sourcecode.File,
@@ -639,12 +600,12 @@ object BasicStep:
         premises: Seq[K.Thm]
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, premises, conjuncts.map(_.underlying))
-        .mapLeft(liftError(file, line)(conclusion, premises, conjuncts))
+        .mapLeft(liftError(conclusion, premises, conjuncts))
         .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(premises: Seq[K.Thm])(conclusion: Sequent): ProofJudgement =
       val underlying = conclusion.underlying
-      if premises.isEmpty then inferenceFailure(file, line)("RightAnd requires at least one premise.", conclusion)
+      if premises.isEmpty then inferenceFailure("RightAnd requires at least one premise.", conclusion)
       else
         val extras = premises.map(premise => differenceEq(premise.right, underlying.right).nextOption())
         val inferred =
@@ -654,7 +615,7 @@ object BasicStep:
               case -1 => None
               case i => weakening(underlying, premises(i))
 
-        inferred.fold(inferenceFailure(file, line)("Could not infer conjuncts for RightAnd.", conclusion, "Premises" -> premises))(thm => successful(thm, conclusion))
+        inferred.fold(inferenceFailure("Could not infer conjuncts for RightAnd.", conclusion, "Premises" -> premises))(thm => successful(thm, conclusion))
 
     def apply(using
         file: sourcecode.File,
@@ -670,21 +631,19 @@ object BasicStep:
     private def prove(conclusion: K.Sequent, premise: K.Thm, phi: KF.Expression, psi: KF.Expression)(using library: Library): K.RightOr.Result[K.Thm] =
       K.RightOr(using library.theory)(conclusion, premise, phi, psi)
 
-    private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, premise: K.Thm, phi: Expr[Prop], psi: Expr[Prop])(
+    private def liftError(conclusion: Sequent, premise: K.Thm, phi: Expr[Prop], psi: Expr[Prop])(
         err: K.RightOr.ErrorType
-    ): ProofError =
+    ): Failure =
       err match
         case _: K.RightOr.MissingFromPremise =>
-          SoftError(withParams("The premise left side is not contained in the RightOr conclusion.", "Premise" -> premise, "Conclusion" -> conclusion), file, line)
+          Failure(withParams("The premise left side is not contained in the RightOr conclusion.", "Premise" -> premise, "Conclusion" -> conclusion))
         case _: K.RightOr.ExtraneousInPremise =>
-          SoftError(
-            withParams("The premise right side contains a formula other than the inferred disjuncts that is absent from the conclusion.", "Phi" -> phi, "Psi" -> psi),
-            file,
-            line
+          Failure(
+            withParams("The premise right side contains a formula other than the inferred disjuncts that is absent from the conclusion.", "Phi" -> phi, "Psi" -> psi)
           )
         case _: K.RightOr.MissingDisjunction =>
-          SoftError(withParams("The RightOr conclusion does not contain the requested disjunction.", "Disjunction" -> or(phi)(psi)), file, line)
-        case e: K.GeneralError => liftGeneralError(file, line)("RightOr", e)
+          Failure(withParams("The RightOr conclusion does not contain the requested disjunction.", "Disjunction" -> or(phi)(psi)))
+        case e: K.GeneralError => liftGeneralError("RightOr", e)
 
     def withParameters(using
         file: sourcecode.File,
@@ -695,7 +654,7 @@ object BasicStep:
         premise: K.Thm
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, premise, phi.underlying, psi.underlying)
-        .mapLeft(liftError(file, line)(conclusion, premise, phi, psi))
+        .mapLeft(liftError(conclusion, premise, phi, psi))
         .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
@@ -711,31 +670,27 @@ object BasicStep:
 
       inferred match
         case Some(thm) => successful(thm, conclusion)
-        case None => inferenceFailure(file, line)("Could not infer disjuncts for RightOr.", conclusion, "Premise" -> premise)
+        case None => inferenceFailure("Could not infer disjuncts for RightOr.", conclusion, "Premise" -> premise)
 
   object RightImplies extends PremiseSequentTactic:
     private def prove(conclusion: K.Sequent, premise: K.Thm, phi: KF.Expression, psi: KF.Expression)(using library: Library): K.RightImplies.Result[K.Thm] =
       K.RightImplies(using library.theory)(conclusion, premise, phi, psi)
 
-    private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, premise: K.Thm, phi: Expr[Prop], psi: Expr[Prop])(
+    private def liftError(conclusion: Sequent, premise: K.Thm, phi: Expr[Prop], psi: Expr[Prop])(
         err: K.RightImplies.ErrorType
-    ): ProofError =
+    ): Failure =
       err match
         case _: K.RightImplies.ExtraneousInLeft =>
-          SoftError(
-            withParams("The RightImplies premise left side contains a formula other than the antecedent that is absent from the conclusion.", "Antecedent" -> phi),
-            file,
-            line
+          Failure(
+            withParams("The RightImplies premise left side contains a formula other than the antecedent that is absent from the conclusion.", "Antecedent" -> phi)
           )
         case _: K.RightImplies.ExtraneousInRight =>
-          SoftError(
-            withParams("The RightImplies premise right side contains a formula other than the consequent that is absent from the conclusion.", "Consequent" -> psi),
-            file,
-            line
+          Failure(
+            withParams("The RightImplies premise right side contains a formula other than the consequent that is absent from the conclusion.", "Consequent" -> psi)
           )
         case _: K.RightImplies.MissingImplication =>
-          SoftError(withParams("The RightImplies conclusion does not contain the requested implication.", "Implication" -> implies(phi)(psi)), file, line)
-        case e: K.GeneralError => liftGeneralError(file, line)("RightImplies", e)
+          Failure(withParams("The RightImplies conclusion does not contain the requested implication.", "Implication" -> implies(phi)(psi)))
+        case e: K.GeneralError => liftGeneralError("RightImplies", e)
 
     def withParameters(using
         file: sourcecode.File,
@@ -746,7 +701,7 @@ object BasicStep:
         premise: K.Thm
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, premise, phi.underlying, psi.underlying)
-        .mapLeft(liftError(file, line)(conclusion, premise, phi, psi))
+        .mapLeft(liftError(conclusion, premise, phi, psi))
         .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
@@ -759,7 +714,7 @@ object BasicStep:
 
       inferred match
         case Some(thm) => successful(thm, conclusion)
-        case None => inferenceFailure(file, line)("Could not infer the antecedent and consequent for RightImplies.", conclusion, "Premise" -> premise)
+        case None => inferenceFailure("Could not infer the antecedent and consequent for RightImplies.", conclusion, "Premise" -> premise)
 
   object RightIff:
     private def prove(conclusion: K.Sequent, prem1: K.Thm, prem2: K.Thm, phi: KF.Expression, psi: KF.Expression)(using
@@ -767,29 +722,25 @@ object BasicStep:
     ): K.RightIff.Result[K.Thm] =
       K.RightIff(using library.theory)(conclusion, prem1, prem2, phi, psi)
 
-    private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, prem1: K.Thm, prem2: K.Thm, phi: Expr[Prop], psi: Expr[Prop])(
+    private def liftError(conclusion: Sequent, prem1: K.Thm, prem2: K.Thm, phi: Expr[Prop], psi: Expr[Prop])(
         err: K.RightIff.ErrorType
-    ): ProofError =
+    ): Failure =
       err match
         case _: K.RightIff.MissingFromFirst =>
-          SoftError(withParams("The first RightIff premise left side is not contained in the conclusion.", "Premise" -> prem1), file, line)
+          Failure(withParams("The first RightIff premise left side is not contained in the conclusion.", "Premise" -> prem1))
         case _: K.RightIff.MissingFromSecond =>
-          SoftError(withParams("The second RightIff premise left side is not contained in the conclusion.", "Premise" -> prem2), file, line)
+          Failure(withParams("The second RightIff premise left side is not contained in the conclusion.", "Premise" -> prem2))
         case _: K.RightIff.ExtraneousInFirst =>
-          SoftError(
-            withParams("The first RightIff premise right side contains a formula other than the forward implication.", "Forward implication" -> implies(phi)(psi)),
-            file,
-            line
+          Failure(
+            withParams("The first RightIff premise right side contains a formula other than the forward implication.", "Forward implication" -> implies(phi)(psi))
           )
         case _: K.RightIff.ExtraneousInSecond =>
-          SoftError(
-            withParams("The second RightIff premise right side contains a formula other than the backward implication.", "Backward implication" -> implies(psi)(phi)),
-            file,
-            line
+          Failure(
+            withParams("The second RightIff premise right side contains a formula other than the backward implication.", "Backward implication" -> implies(psi)(phi))
           )
         case _: K.RightIff.MissingIff =>
-          SoftError(withParams("The RightIff conclusion does not contain the requested equivalence.", "Equivalence" -> iff(phi)(psi)), file, line)
-        case e: K.GeneralError => liftGeneralError(file, line)("RightIff", e)
+          Failure(withParams("The RightIff conclusion does not contain the requested equivalence.", "Equivalence" -> iff(phi)(psi)))
+        case e: K.GeneralError => liftGeneralError("RightIff", e)
 
     def withParameters(using
         file: sourcecode.File,
@@ -801,7 +752,7 @@ object BasicStep:
         prem2: K.Thm
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, prem1, prem2, phi.underlying, psi.underlying)
-        .mapLeft(liftError(file, line)(conclusion, prem1, prem2, phi, psi))
+        .mapLeft(liftError(conclusion, prem1, prem2, phi, psi))
         .lift(conclusion)
 
     def apply(using
@@ -820,23 +771,23 @@ object BasicStep:
         case _ => None
       inferred match
         case Some(thm) => successful(thm, conclusion)
-        case None => inferenceFailure(file, line)("Could not infer the equivalent formulas for RightIff.", conclusion, "First premise" -> prem1, "Second premise" -> prem2)
+        case None => inferenceFailure("Could not infer the equivalent formulas for RightIff.", conclusion, "First premise" -> prem1, "Second premise" -> prem2)
 
   object RightNot extends PremiseSequentTactic:
     private def prove(conclusion: K.Sequent, premise: K.Thm, phi: KF.Expression)(using library: Library): K.RightNot.Result[K.Thm] =
       K.RightNot(using library.theory)(conclusion, premise, phi)
 
-    private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, premise: K.Thm, phi: Expr[Prop])(
+    private def liftError(conclusion: Sequent, premise: K.Thm, phi: Expr[Prop])(
         err: K.RightNot.ErrorType
-    ): ProofError =
+    ): Failure =
       err match
         case _: K.RightNot.MissingFromPremise =>
-          SoftError(withParams("The premise right side is not contained in the RightNot conclusion.", "Premise" -> premise), file, line)
+          Failure(withParams("The premise right side is not contained in the RightNot conclusion.", "Premise" -> premise))
         case _: K.RightNot.ExtraneousInPremise =>
-          SoftError(withParams("The premise left side contains a formula other than the negated formula that is absent from the conclusion.", "Formula" -> phi), file, line)
+          Failure(withParams("The premise left side contains a formula other than the negated formula that is absent from the conclusion.", "Formula" -> phi))
         case _: K.RightNot.MissingNegation =>
-          SoftError(withParams("The RightNot conclusion does not contain the requested negation.", "Negation" -> neg(phi)), file, line)
-        case e: K.GeneralError => liftGeneralError(file, line)("RightNot", e)
+          Failure(withParams("The RightNot conclusion does not contain the requested negation.", "Negation" -> neg(phi)))
+        case e: K.GeneralError => liftGeneralError("RightNot", e)
 
     def withParameters(using
         file: sourcecode.File,
@@ -847,7 +798,7 @@ object BasicStep:
         conclusion: Sequent
     ): ProofJudgement =
       prove(conclusion.underlying, premise, phi.underlying)
-        .mapLeft(liftError(file, line)(conclusion, premise, phi))
+        .mapLeft(liftError(conclusion, premise, phi))
         .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
@@ -859,25 +810,25 @@ object BasicStep:
           case Some(phi) => prove(underlying, premise, phi).toOption
       inferred match
         case Some(thm) => successful(thm, conclusion)
-        case None => inferenceFailure(file, line)("Could not infer the negated formula for RightNot.", conclusion, "Premise" -> premise)
+        case None => inferenceFailure("Could not infer the negated formula for RightNot.", conclusion, "Premise" -> premise)
 
   object RightForall extends PremiseSequentTactic:
     private def prove(conclusion: K.Sequent, premise: K.Thm, phi: KF.Expression, x: KF.Variable)(using library: Library): K.RightForall.Result[K.Thm] =
       K.RightForall(using library.theory)(conclusion, premise, phi, x)
 
-    private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, premise: K.Thm, phi: Expr[Prop], x: Variable[Ind])(
+    private def liftError(conclusion: Sequent, premise: K.Thm, phi: Expr[Prop], x: Variable[Ind])(
         err: K.RightForall.ErrorType
-    ): ProofError =
+    ): Failure =
       err match
         case _: K.RightForall.MissingFromPremise =>
-          SoftError(withParams("The premise left side is not contained in the RightForall conclusion.", "Premise" -> premise), file, line)
+          Failure(withParams("The premise left side is not contained in the RightForall conclusion.", "Premise" -> premise))
         case _: K.RightForall.ExtraneousInPremise =>
-          SoftError(withParams("The premise right side contains a formula other than the universal body that is absent from the conclusion.", "Body" -> phi), file, line)
+          Failure(withParams("The premise right side contains a formula other than the universal body that is absent from the conclusion.", "Body" -> phi))
         case _: K.RightForall.MissingForall =>
-          SoftError(withParams("The RightForall conclusion does not contain the requested universal formula.", "Formula" -> forall(x, phi)), file, line)
+          Failure(withParams("The RightForall conclusion does not contain the requested universal formula.", "Formula" -> forall(x, phi)))
         case _: K.RightForall.VariableFree =>
-          SoftError(withParams("The universal variable is free in the RightForall conclusion.", "Variable" -> x, "Conclusion" -> conclusion), file, line)
-        case e: K.GeneralError => liftGeneralError(file, line)("RightForall", e)
+          Failure(withParams("The universal variable is free in the RightForall conclusion.", "Variable" -> x, "Conclusion" -> conclusion))
+        case e: K.GeneralError => liftGeneralError("RightForall", e)
 
     def withParameters(using
         file: sourcecode.File,
@@ -888,7 +839,7 @@ object BasicStep:
         premise: K.Thm
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, premise, phi.underlying, x.underlying)
-        .mapLeft(liftError(file, line)(conclusion, premise, phi, x))
+        .mapLeft(liftError(conclusion, premise, phi, x))
         .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
@@ -906,7 +857,7 @@ object BasicStep:
         case _ => None
       inferred match
         case Some(thm) => successful(thm, conclusion)
-        case None => inferenceFailure(file, line)("Could not infer the universal formula for RightForall.", conclusion, "Premise" -> premise)
+        case None => inferenceFailure("Could not infer the universal formula for RightForall.", conclusion, "Premise" -> premise)
 
   object RightExists extends PremiseSequentTactic:
     private def prove(conclusion: K.Sequent, premise: K.Thm, phi: KF.Expression, x: KF.Variable, term: KF.Expression)(using
@@ -914,26 +865,24 @@ object BasicStep:
     ): K.RightExists.Result[K.Thm] =
       K.RightExists(using library.theory)(conclusion, premise, phi, x, term)
 
-    private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, premise: K.Thm, phi: Expr[Prop], x: Variable[Ind], term: Expr[Ind])(
+    private def liftError(conclusion: Sequent, premise: K.Thm, phi: Expr[Prop], x: Variable[Ind], term: Expr[Ind])(
         err: K.RightExists.ErrorType
-    ): ProofError =
+    ): Failure =
       err match
         case _: K.RightExists.MissingFromPremise =>
-          SoftError(withParams("The premise left side is not contained in the RightExists conclusion.", "Premise" -> premise), file, line)
+          Failure(withParams("The premise left side is not contained in the RightExists conclusion.", "Premise" -> premise))
         case _: K.RightExists.ExtraneousInPremise =>
-          SoftError(
+          Failure(
             withParams(
               "The premise right side contains a formula other than the existential instance that is absent from the conclusion.",
               "Body" -> phi,
               "Variable" -> x,
               "Term" -> term
-            ),
-            file,
-            line
+            )
           )
         case _: K.RightExists.MissingExists =>
-          SoftError(withParams("The RightExists conclusion does not contain the requested existential formula.", "Formula" -> exists(x, phi)), file, line)
-        case e: K.GeneralError => liftGeneralError(file, line)("RightExists", e)
+          Failure(withParams("The RightExists conclusion does not contain the requested existential formula.", "Formula" -> exists(x, phi)))
+        case e: K.GeneralError => liftGeneralError("RightExists", e)
 
     def withParameters(using
         file: sourcecode.File,
@@ -944,7 +893,7 @@ object BasicStep:
         premise: K.Thm
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, premise, phi.underlying, x.underlying, term.underlying)
-        .mapLeft(liftError(file, line)(conclusion, premise, phi, x, term))
+        .mapLeft(liftError(conclusion, premise, phi, x, term))
         .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
@@ -964,7 +913,7 @@ object BasicStep:
 
       inferred match
         case Some(thm) => successful(thm, conclusion)
-        case None => inferenceFailure(file, line)("Could not infer the existential formula or its instantiating term for RightExists.", conclusion, "Premise" -> premise)
+        case None => inferenceFailure("Could not infer the existential formula or its instantiating term for RightExists.", conclusion, "Premise" -> premise)
 
   object RightEpsilon extends PremiseSequentTactic:
     private def prove(conclusion: K.Sequent, premise: K.Thm, phi: KF.Expression, x: KF.Variable, term: KF.Expression)(using
@@ -972,26 +921,24 @@ object BasicStep:
     ): K.RightEpsilon.Result[K.Thm] =
       K.RightEpsilon(using library.theory)(conclusion, premise, phi, x, term)
 
-    private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, premise: K.Thm, phi: Expr[Prop], x: Variable[Ind], term: Expr[Ind])(
+    private def liftError(conclusion: Sequent, premise: K.Thm, phi: Expr[Prop], x: Variable[Ind], term: Expr[Ind])(
         err: K.RightEpsilon.ErrorType
-    ): ProofError =
+    ): Failure =
       err match
         case _: K.RightEpsilon.MissingFromPremise =>
-          SoftError(withParams("The premise left side is not contained in the RightEpsilon conclusion.", "Premise" -> premise), file, line)
+          Failure(withParams("The premise left side is not contained in the RightEpsilon conclusion.", "Premise" -> premise))
         case _: K.RightEpsilon.ExtraneousInPremise =>
-          SoftError(
+          Failure(
             withParams(
               "The premise right side contains a formula other than the epsilon source instance that is absent from the conclusion.",
               "Body" -> phi,
               "Variable" -> x,
               "Term" -> term
-            ),
-            file,
-            line
+            )
           )
         case _: K.RightEpsilon.MissingEpsilonInstance =>
-          SoftError(withParams("The RightEpsilon conclusion does not contain the epsilon instance.", "Body" -> phi, "Variable" -> x), file, line)
-        case e: K.GeneralError => liftGeneralError(file, line)("RightEpsilon", e)
+          Failure(withParams("The RightEpsilon conclusion does not contain the epsilon instance.", "Body" -> phi, "Variable" -> x))
+        case e: K.GeneralError => liftGeneralError("RightEpsilon", e)
 
     def withParameters(using
         file: sourcecode.File,
@@ -1002,7 +949,7 @@ object BasicStep:
         premise: K.Thm
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, premise, phi.underlying, x.underlying, term.underlying)
-        .mapLeft(liftError(file, line)(conclusion, premise, phi, x, term))
+        .mapLeft(liftError(conclusion, premise, phi, x, term))
         .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
@@ -1020,18 +967,18 @@ object BasicStep:
         case _ => None
       inferred match
         case Some(thm) => successful(thm, conclusion)
-        case None => inferenceFailure(file, line)("Could not infer the epsilon formula or source term for RightEpsilon.", conclusion, "Premise" -> premise)
+        case None => inferenceFailure("Could not infer the epsilon formula or source term for RightEpsilon.", conclusion, "Premise" -> premise)
 
   object Weakening extends PremiseSequentTactic:
-    private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, premise: K.Thm)(err: K.Weakening.ErrorType): ProofError =
+    private def liftError(conclusion: Sequent, premise: K.Thm)(err: K.Weakening.ErrorType): Failure =
       err match
         case _: K.Weakening.NotImplying =>
-          SoftError(withParams("Weakening premise does not imply the conclusion.", "Premise" -> premise, "Conclusion" -> conclusion), file, line)
-        case e: K.GeneralError => liftGeneralError(file, line)("Weakening", e)
+          Failure(withParams("Weakening premise does not imply the conclusion.", "Premise" -> premise, "Conclusion" -> conclusion))
+        case e: K.GeneralError => liftGeneralError("Weakening", e)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
       K.Weakening(using library.theory)(conclusion.underlying, premise)
-        .mapLeft(liftError(file, line)(conclusion, premise))
+        .mapLeft(liftError(conclusion, premise))
         .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(premise: K.Thm)(conclusion: Sequent): ProofJudgement =
@@ -1041,21 +988,19 @@ object BasicStep:
     private def prove(conclusion: K.Sequent, premise: K.Thm, equality: KF.Expression)(using library: Library): K.LeftRefl.Result[K.Thm] =
       K.LeftRefl(using library.theory)(conclusion, premise, equality)
 
-    private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, premise: K.Thm, equality: Any)(err: K.LeftRefl.ErrorType): ProofError =
+    private def liftError(conclusion: Sequent, premise: K.Thm, equality: Any)(err: K.LeftRefl.ErrorType): Failure =
       err match
         case _: K.LeftRefl.NotAnEquality =>
-          SoftError(withParams("LeftRefl parameter is not an equality.", "Expression" -> equality), file, line)
+          Failure(withParams("LeftRefl parameter is not an equality.", "Expression" -> equality))
         case _: K.LeftRefl.EqualityNotReflexive =>
-          SoftError(withParams("LeftRefl equality is not reflexive up to the active equality.", "Equality" -> equality), file, line)
+          Failure(withParams("LeftRefl equality is not reflexive up to the active equality.", "Equality" -> equality))
         case _: K.LeftRefl.MissingFromPremise =>
-          SoftError(withParams("The premise right side is not contained in the LeftRefl conclusion.", "Premise" -> premise), file, line)
+          Failure(withParams("The premise right side is not contained in the LeftRefl conclusion.", "Premise" -> premise))
         case _: K.LeftRefl.ExtraneousInPremise =>
-          SoftError(
-            withParams("The premise left side contains a formula other than the reflexive equality that is absent from the conclusion.", "Equality" -> equality),
-            file,
-            line
+          Failure(
+            withParams("The premise left side contains a formula other than the reflexive equality that is absent from the conclusion.", "Equality" -> equality)
           )
-        case e: K.GeneralError => liftGeneralError(file, line)("LeftRefl", e)
+        case e: K.GeneralError => liftGeneralError("LeftRefl", e)
 
     def withParameters(using
         file: sourcecode.File,
@@ -1066,28 +1011,28 @@ object BasicStep:
         premise: K.Thm
     )(conclusion: Sequent): ProofJudgement =
       prove(conclusion.underlying, premise, equality.underlying)
-        .mapLeft(liftError(file, line)(conclusion, premise, equality))
+        .mapLeft(liftError(conclusion, premise, equality))
         .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent, premise: K.Thm): ProofJudgement =
       val underlying = conclusion.underlying
       differenceEq(premise.left, underlying.left).nextOption().flatMap(eq => prove(underlying, premise, eq).toOption) match
         case Some(thm) => successful(thm, conclusion)
-        case None => inferenceFailure(file, line)("Could not infer a reflexive equality for LeftRefl.", conclusion, "Premise" -> premise)
+        case None => inferenceFailure("Could not infer a reflexive equality for LeftRefl.", conclusion, "Premise" -> premise)
 
   object RightRefl extends SequentTactic:
     private def prove(conclusion: K.Sequent, equality: KF.Expression)(using library: Library): K.RightRefl.Result[K.Thm] =
       K.RightRefl(using library.theory)(conclusion, equality)
 
-    private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, equality: Any)(err: K.RightRefl.ErrorType): ProofError =
+    private def liftError(conclusion: Sequent, equality: Any)(err: K.RightRefl.ErrorType): Failure =
       err match
         case _: K.RightRefl.NotAnEquality =>
-          SoftError(withParams("RightRefl parameter is not an equality.", "Expression" -> equality), file, line)
+          Failure(withParams("RightRefl parameter is not an equality.", "Expression" -> equality))
         case _: K.RightRefl.EqualityNotReflexive =>
-          SoftError(withParams("RightRefl equality is not reflexive up to the active equality.", "Equality" -> equality), file, line)
+          Failure(withParams("RightRefl equality is not reflexive up to the active equality.", "Equality" -> equality))
         case _: K.RightRefl.MissingEquality =>
-          SoftError(withParams("The RightRefl conclusion does not contain the requested equality.", "Equality" -> equality), file, line)
-        case e: K.GeneralError => liftGeneralError(file, line)("RightRefl", e)
+          Failure(withParams("The RightRefl conclusion does not contain the requested equality.", "Equality" -> equality))
+        case e: K.GeneralError => liftGeneralError("RightRefl", e)
 
     def withParameters(using
         file: sourcecode.File,
@@ -1098,7 +1043,7 @@ object BasicStep:
         conclusion: Sequent
     ): ProofJudgement =
       prove(conclusion.underlying, equality.underlying)
-        .mapLeft(liftError(file, line)(conclusion, equality))
+        .mapLeft(liftError(conclusion, equality))
         .lift(conclusion)
 
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(conclusion: Sequent): ProofJudgement =
@@ -1106,7 +1051,7 @@ object BasicStep:
       val candidates = underlying.right.iterator.collect:
         case eq @ KF.equality(_, _) => eq
       val inferred = candidates.collectFirstDefined(eq => prove(underlying, eq).toOption)
-      inferred.fold(inferenceFailure(file, line)("Could not infer a reflexive equality for RightRefl.", conclusion))(thm => successful(thm, conclusion))
+      inferred.fold(inferenceFailure("Could not infer a reflexive equality for RightRefl.", conclusion))(thm => successful(thm, conclusion))
 
   /**
    * Share parameter recovery between left and right substitution.
@@ -1124,12 +1069,8 @@ object BasicStep:
       if onLeft then K.LeftSubst(using library.theory)(conclusion, premise, comparisons, replacements, context)
       else K.RightSubst(using library.theory)(conclusion, premise, comparisons, replacements, context)
 
-    private def lift(result: lisa.utils.kernel.Substitution.Result, conclusion: Sequent)(using
-        file: sourcecode.File,
-        line: sourcecode.Line,
-        library: Library
-    ): ProofJudgement =
-      result.mapLeft(message => SoftError(withParams(s"$name: $message", "Conclusion" -> conclusion), file, line)).lift(conclusion)
+    private def lift(result: lisa.utils.kernel.Substitution.Result, conclusion: Sequent): ProofJudgement =
+      result.mapLeft(message => Failure(withParams(s"$name: $message", "Conclusion" -> conclusion))).lift(conclusion)
 
     /**
      * Apply the kernel rule with one pointwise comparison proof per replacement.
@@ -1147,8 +1088,8 @@ object BasicStep:
       val holes = context._1.map(_.underlying) -> context._2.underlying
       prove(conclusion.underlying, premise, comparisons, pairs, holes)
         .mapLeft {
-          case error: K.GeneralError => liftGeneralError(file, line)(name, error)
-          case error => SoftError(withParams(s"$name: $error", "Conclusion" -> conclusion), file, line)
+          case error: K.GeneralError => liftGeneralError(name, error)
+          case error => Failure(withParams(s"$name: $error", "Conclusion" -> conclusion))
         }
         .lift(conclusion)
 
@@ -1222,7 +1163,7 @@ object BasicStep:
               yield instantiated
           val result = pointwise.flatMap(proof => prove(conclusion.underlying, premise, Seq(proof), Seq(replacement), Seq(context._1.underlying) -> context._2.underlying).left.map(_.toString))
           lift(result, conclusion)
-        case None => inferenceFailure(file, line)(s"$name requires a proof of one equality or equivalence.", conclusion)
+        case None => inferenceFailure(s"$name requires a proof of one equality or equivalence.", conclusion)
 
   object LeftSubst extends SubstTactic(true)
   object RightSubst extends SubstTactic(false)
@@ -1236,15 +1177,15 @@ object BasicStep:
     private def prove(conclusion: K.Sequent, premise: K.Thm, subst: Map[KF.Variable, KF.Expression])(using library: Library): K.InstSchema.Result[K.Thm] =
       K.InstSchema(using library.theory)(conclusion, premise, subst)
 
-    private def liftError(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, premise: K.Thm, subst: Map[Variable[?], Expr[?]])(
+    private def liftError(conclusion: Sequent, premise: K.Thm, subst: Map[Variable[?], Expr[?]])(
         err: K.InstSchema.ErrorType
-    ): ProofError =
+    ): Failure =
       err match
         case _: K.InstSchema.MissingLeftInstantiation =>
-          SoftError(withParams("InstSchema conclusion is missing an instantiated left formula.", "Premise" -> premise, "Substitution" -> subst), file, line)
+          Failure(withParams("InstSchema conclusion is missing an instantiated left formula.", "Premise" -> premise, "Substitution" -> subst))
         case _: K.InstSchema.MissingRightInstantiation =>
-          SoftError(withParams("InstSchema conclusion is missing an instantiated right formula.", "Premise" -> premise, "Substitution" -> subst), file, line)
-        case e: K.GeneralError => liftGeneralError(file, line)("InstSchema", e)
+          Failure(withParams("InstSchema conclusion is missing an instantiated right formula.", "Premise" -> premise, "Substitution" -> subst))
+        case e: K.GeneralError => liftGeneralError("InstSchema", e)
 
     def withParameters(using
         file: sourcecode.File,
@@ -1256,7 +1197,7 @@ object BasicStep:
     )(conclusion: Sequent): ProofJudgement =
       val substK = subst.map { case (v, e) => v.underlying -> e.underlying }
       prove(conclusion.underlying, premise, substK)
-        .mapLeft(liftError(file, line)(conclusion, premise, subst))
+        .mapLeft(liftError(conclusion, premise, subst))
         .lift(conclusion)
 
     def apply(using

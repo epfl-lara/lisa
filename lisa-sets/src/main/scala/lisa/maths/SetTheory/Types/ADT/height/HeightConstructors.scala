@@ -13,7 +13,7 @@ import lisa.maths.SetTheory.Types.ADT.height.proofs.SuccessorFacts
 import lisa.maths.SetTheory.Types.ADT.height.proofs.UniquenessFacts
 import lisa.maths.SetTheory.Types.ADT.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADT.support.tactics.Cuts
-import lisa.utils.prooflib.QuantifiersIntro
+import lisa.utils.automation.QuantifiersIntro
 
 final class HeightConstructors(
     base: HeightADT,

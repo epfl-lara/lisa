@@ -10,7 +10,7 @@ import lisa.maths.SetTheory.Types.ADT.recursion.proofs.ConstructorSemanticFacts.
 import lisa.maths.SetTheory.Types.ADT.recursion.proofs.ConstructorSemanticFacts.constructorDisjunctionAtHeight
 import lisa.maths.SetTheory.Types.ADT.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADT.support.tactics.Cuts
-import lisa.utils.prooflib.InstantiateForallSeq
+import lisa.utils.automation.InstantiateForallSeq
 import lisa.utils.prooflib.Thm
 
 /**

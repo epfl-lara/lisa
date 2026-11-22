@@ -7,6 +7,11 @@ trait OutputManager:
 
   def output(message: String): Unit
 
+  /**
+   * Reports an error, using the ordinary output destination unless overridden.
+   */
+  def error(message: String): Unit = output(message)
+
   def section(index: Int, name: String, file: String): Unit =
     output(OutputManager.BLUE(s"Section $index: $name"))
 

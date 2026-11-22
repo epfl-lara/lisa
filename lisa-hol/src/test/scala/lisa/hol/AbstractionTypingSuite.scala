@@ -19,7 +19,7 @@ class AbstractionTypingSuite extends AnyFunSuite:
     val result = ProofBuilder.withContext:
       Subproof:
         have(HOLSteps.HOLProofType(term))
-    assert(result.isValid, result.errors.mkString("\n"))
+    assert(result.isValid, result.toString)
     result.thm
 
   test("reuse an abstraction body while discharging only its binder"):
@@ -93,6 +93,6 @@ class AbstractionTypingSuite extends AnyFunSuite:
     val result = ProofBuilder.withContext:
       val body = have((f ∈ first, f ∈ second) |- f ∈ first) by BasicStep.Hypothesis
       Typecheck.abstractionProof(using SetTheoryLibrary)(f, second, f, first)(body)
-    assert(result.isValid, result.errors.mkString("\n"))
+    assert(result.isValid, result.toString)
     assert(result.thm.statement.left.isEmpty)
     assert(!result.kernel.usesSorry)

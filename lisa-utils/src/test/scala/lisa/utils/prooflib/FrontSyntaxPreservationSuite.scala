@@ -27,7 +27,7 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
     )
 
   private def assertValid(judgement: ProofJudgement): Thm =
-    assert(judgement.isValid, judgement.errors.map(_.message).mkString("\n"))
+    assert(judgement.isValid, judgement.toString)
     judgement.thm
 
   test("front expressions use their kernel identity for equality and hashing"):
@@ -80,6 +80,20 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
 
     assertContains(assertValid(result).statement, tagged)
 
+  test("have of an existing theorem preserves front expressions while adding assumptions"):
+    val sourceTag = TaggedVariable(K.Identifier("have-source"))
+    val contextTag = TaggedVariable(K.Identifier("have-context"))
+    val formula = sourceTag === sourceTag
+    val assumption = contextTag === contextTag
+    val source = BasicStep.Hypothesis(formula |- formula).thm
+    ProofBuilder.withContext: proof ?=>
+      proof.assume(assumption)
+      val recorded = have(source)
+      assert(recorded.statement == ((formula, assumption) |- formula))
+      assertContains(recorded.statement, sourceTag)
+      assertContains(recorded.statement, contextTag)
+      ProofJudgement(recorded)
+
   test("a nested proof context inherits front assumptions without a kernel round-trip"):
     val tagged = TaggedConstant[Ind](K.Identifier("context-tag"))
     val assumption = tagged === tagged
@@ -104,8 +118,8 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
       ProofJudgement(theorem)
 
     result match
-      case carrier: SoftCarrier[?] => assertContains(carrier.statement, tagged)
-      case _: FatalCarrier => fail("The have subproof unexpectedly produced a fatal carrier.")
+      case ProofCarrier.Success(theorem, _) => assertContains(theorem.statement, tagged)
+      case ProofCarrier.Failure(message) => fail(message)
     assertContains(assertValid(result).statement, tagged)
 
   test("a theorem retains its declared front statement"):

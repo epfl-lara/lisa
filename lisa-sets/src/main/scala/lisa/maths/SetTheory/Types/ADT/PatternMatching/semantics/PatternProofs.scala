@@ -19,14 +19,14 @@ import lisa.maths.SetTheory.Types.ADT.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADT.support.proofs.PropositionalFacts.altEqualityTransitivity
 import lisa.maths.SetTheory.Types.ADT.syntax.AST._
 import lisa.maths.SetTheory.Types.TypingHelpers._
+import lisa.utils.automation.InstantiateForall
+import lisa.utils.automation.InstantiateForallSeq
+import lisa.utils.automation.QuantifiersIntro
 import lisa.utils.prooflib.BasicStep.LeftExists
 import lisa.utils.prooflib.BasicStep.LeftOr
 import lisa.utils.prooflib.BasicStep.Restate
 import lisa.utils.prooflib.BasicStep.RightExists
 import lisa.utils.prooflib.BasicStep.RightForall
-import lisa.utils.prooflib.InstantiateForall
-import lisa.utils.prooflib.InstantiateForallSeq
-import lisa.utils.prooflib.QuantifiersIntro
 import lisa.utils.prooflib.Thm
 
 /**

@@ -4,16 +4,15 @@ import lisa.hol.HOLHelperTheorems._
 import lisa.hol.HOLLogicalSymbols
 import lisa.hol.HOLSteps._
 import lisa.hol.VarsAndFunctions._
+import lisa.utils.automation.Substitute
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.utils.prooflib.BasicStep._
-import lisa.utils.prooflib.Exports._
 import lisa.utils.prooflib.Exports._
 import lisa.utils.prooflib.Library
 import lisa.utils.prooflib.ProofBuilder
 import lisa.utils.prooflib.ProofJudgement
-import lisa.utils.prooflib.Subproof
-import lisa.utils.prooflib.Substitute
 import lisa.utils.prooflib.TacticHelpers.failWith
+import lisa.utils.prooflib.TacticProof
 import lisa.utils.prooflib.Thm
 
 /**
@@ -44,7 +43,7 @@ object Truth extends lisa.HOL {
    *     |- u = t
    */
   object _SYM {
-    def apply(using proof: ProofBuilder)(prem: Thm): ProofJudgement = Subproof { ip ?=>
+    def apply(using proof: ProofBuilder)(prem: Thm): ProofJudgement = TacticProof { ip ?=>
       prem.statement match {
         case HOLSequent(_, _, *(*(=:= #@ (typ), t), u)) =>
           ip.assume(prem.statement.left)

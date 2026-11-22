@@ -3,186 +3,97 @@ package lisa.utils.prooflib
 import lisa.utils.K
 import lisa.utils.fol.FOL.Sequent
 
-trait ProofCarrierException extends Exception
-case class FatalCarrierDestructionException(carrier: FatalCarrier, file: sourcecode.File, line: sourcecode.Line)
-    extends Exception(s"Attempted recovery of a fatal error state.")
-    with ProofCarrierException
-
-trait ProofCarrier[+T]:
-  val errors: Set[ProofError]
-
-  def justification: Option[Thm]
+/**
+ * A successful theorem and payload, or an expected tactic failure.
+ */
+sealed trait ProofCarrier[+T]:
+  import ProofCarrier.*
 
   /**
-   * A carrier is valid iff it has no accumulated errors and has a valid
-   * justification.
+   * Whether this result contains a theorem and payload.
    */
-  def isValid: Boolean
+  final def isValid: Boolean = this match
+    case _: Success[?] => true
+    case _: Failure => false
 
   /**
-   * Whether this carrier has a valid justification. A carrier may have errors
-   * but still have a valid justification.
+   * Transforms the payload on success, leaving failures untouched.
    */
-  def hasJustification: Boolean
+  final def map[U](f: T => U): ProofCarrier[U] = this match
+    case Success(theorem, payload) => Success(theorem, f(payload))
+    case failure: Failure => failure
 
   /**
-   * This carrier with the payload transformed by the given function.
+   * Continues on success, leaving failures and thrown exceptions untouched.
    */
-  def map[U](f: T => U): ProofCarrier[U]
+  final def flatMap[U](f: (T, Thm) => ProofCarrier[U]): ProofCarrier[U] = this match
+    case Success(theorem, payload) => f(payload, theorem)
+    case failure: Failure => failure
 
   /**
-   * This carrier with the payload and justification transformed by the given
-   * function.
+   * Discards the payload while preserving the theorem or failure.
    */
-  def flatMap[U](f: (T, Thm) => ProofCarrier[U]): ProofCarrier[U]
+  final def judgement: ProofJudgement = map(_ => ())
 
   /**
-   * This carrier with an additional error.
+   * Extracts the theorem, throwing if the tactic failed.
    */
-  def withError(error: ProofError): ProofCarrier[T]
+  final def thm(using file: sourcecode.File, line: sourcecode.Line): Thm = destruct._1
 
   /**
-   * This carrier with additional appended errors.
-   */
-  def withErrors(extraErrors: Iterable[ProofError]): ProofCarrier[T]
-
-  /**
-   * This carrier with the payload discarded.
-   */
-  def judgement: ProofJudgement
-
-  /**
-   * Extract the front theorem, using Sorry when a soft carrier has no justification.
-   *
-   * @throws FatalCarrierDestructionException if this carrier holds a fatal error.
-   */
-  inline def thm(using file: sourcecode.File, line: sourcecode.Line): Thm = destruct._1
-
-  /**
-   * Extract the kernel theorem, using Sorry when a soft carrier has no justification.
-   *
-   * @throws FatalCarrierDestructionException if this carrier holds a fatal error.
+   * Extracts the kernel theorem, throwing if the tactic failed.
    */
   final def kernel(using file: sourcecode.File, line: sourcecode.Line): K.Thm = thm.kernel
 
   /**
-   * The carrier's theorem and payload, using a sorry theorem when no
-   * justification was produced.
-   *
-   * @throws FatalCarrierDestructionException if this carrier holds a fatal error; see [[FatalCarrier]].
+   * Extracts the theorem and payload, throwing rather than admitting a failed result.
    */
-  def destruct(using file: sourcecode.File, line: sourcecode.Line): (Thm, T)
+  final def destruct(using file: sourcecode.File, line: sourcecode.Line): (Thm, T) = this match
+    case Success(theorem, payload) => (theorem, payload)
+    case Failure(message) => throw new TacticFailureException(message)
+
+/**
+ * Constructors for successful results and expected failures.
+ */
+object ProofCarrier:
+  /**
+   * A theorem accompanied by a computed value.
+   */
+  final case class Success[+T](theorem: Thm, payload: T) extends ProofCarrier[T]
 
   /**
-   * This carrier with an overriden justification. Used to add a step while
-   * preserving values and errors.
-   *
-   * Use [[flatMap]] to additionally transform the existing justification
-   * and/or payload.
-   *
-   * @throws FatalCarrierDestructionException if this carrier holds a fatal error; see [[FatalCarrier]].
+   * An expected failure without a theorem, payload, captured stack or diagnostic.
    */
-  def withJustification(using file: sourcecode.File, line: sourcecode.Line)(just: Thm): ProofCarrier[T]
+  final case class Failure(message: String) extends ProofCarrier[Nothing]
 
-object ProofCarrier:
-  def apply[U](errors: Set[ProofError], statement: Sequent, justification: Option[Thm], payload: U)(using lib: Library): ProofCarrier[U] =
-    SoftCarrier(errors, statement, justification, payload)
-
+/**
+ * A tactic result with no additional payload.
+ */
 type ProofJudgement = ProofCarrier[Unit]
 
-final case class FatalCarrier(fatalError: FatalError, errors: Set[ProofError]) extends ProofCarrier[Nothing]:
-
-  /**
-   * Recover from a fatal error if exiting a context where an intended
-   * conclusion is known. Should only be used at the boundaries of subproofs and
-   * theorems.
-   *
-   * In effect, the only meaningful thing you can do with a fatal carrier.
-   */
-  def recoverWith(statement: Sequent)(using lib: Library): ProofCarrier[Unit] =
-    ProofCarrier(errors + fatalError, statement, None, ())
-
-  def justification: Option[Thm] = None
-  def flatMap[U](f: (Nothing, Thm) => ProofCarrier[U]): this.type = this
-  def hasJustification: Boolean = false
-  def isValid: Boolean = false
-  def judgement: ProofJudgement = this
-  def map[U](f: Nothing => U): this.type = this
-  def withError(error: ProofError): ProofCarrier[Nothing] =
-    copy(errors = errors + error)
-  def withErrors(extraErrors: Iterable[ProofError]): ProofCarrier[Nothing] =
-    copy(errors = errors ++ extraErrors)
-
-  def destruct(using file: sourcecode.File, line: sourcecode.Line): Nothing =
-    throw new FatalCarrierDestructionException(this, file, line)
-
-  def withJustification(using file: sourcecode.File, line: sourcecode.Line)(just: Thm): Nothing =
-    throw new FatalCarrierDestructionException(this, file, line)
-
-final case class SoftCarrier[+T](
-    errors: Set[ProofError],
-    statement: Sequent,
-    justification: Option[Thm],
-    payload: T
-)(using lib: Library)
-    extends ProofCarrier[T]:
-  given K.Theory = lib.theory
-
-  def isValid: Boolean = errors.isEmpty && justification.nonEmpty
-
-  def hasJustification: Boolean = justification.nonEmpty
-
-  def map[U](f: T => U): SoftCarrier[U] =
-    copy(payload = f(payload))
-
-  def flatMap[U](f: (T, Thm) => ProofCarrier[U]): ProofCarrier[U] =
-    val next = f(payload, destruct._1)
-    next.withErrors(errors)
-
-  def withError(error: ProofError): SoftCarrier[T] =
-    copy(errors = errors + error)
-
-  def withErrors(extraErrors: Iterable[ProofError]): SoftCarrier[T] =
-    if extraErrors.isEmpty then this else copy(errors = errors ++ extraErrors)
-
-  def withJustification(using file: sourcecode.File, line: sourcecode.Line)(just: Thm): SoftCarrier[T] =
-    copy(justification = Some(just))
-
-  def judgement: SoftCarrier[Unit] =
-    copy(payload = ())
-
-  private inline def asSorryK: K.Thm =
-    K.sorry(using lib.theory)(statement.underlying)
-
-  private inline def asSorry: Thm =
-    Thm(statement, asSorryK)
-
-  def destruct(using file: sourcecode.File, line: sourcecode.Line): (Thm, T) =
-    (
-      justification.getOrElse(asSorry),
-      payload
-    )
+/**
+ * Constructs successful judgements from front or kernel theorems.
+ */
 object ProofJudgement:
-  def apply(using lib: Library)(just: Thm): ProofJudgement =
-    ProofCarrier(Set.empty, just.statement, Some(just), ())
-
-  def apply(using lib: Library)(just: K.Thm): ProofJudgement =
-    ProofJudgement(Thm(just))
-
-extension (kernelResult: Either[ProofError, K.Thm])(using lib: Library)
   /**
-   * Lift a kernel result (with its error handled, see [[ProofError]]) into a
-   * proof judgement/carrier with a known front statement.
-   *
-   * Checks that `intendedConclusion.underlying` is `==` to the kernel result.
-   *
-   * @throws IllegalArgumentException if the kernel result's statement does not
-   * match the intended conclusion.
+   * Wraps a front theorem without changing its statement.
    */
-  def lift(intendedConclusion: Sequent): ProofJudgement =
-    kernelResult match
-      case Left(err) =>
-        ProofCarrier(Set(err), intendedConclusion, None, ())
-      case Right(j) =>
-        require(j.statement == intendedConclusion.underlying, s"Justification statement ${j.statement} does not match intended conclusion $intendedConclusion")
-        ProofCarrier(Set.empty, intendedConclusion, Some(Thm(intendedConclusion, j)), ())
+  def apply(just: Thm): ProofJudgement = ProofCarrier.Success(just, ())
+
+  /**
+   * Lifts a kernel theorem into a successful judgement.
+   */
+  def apply(just: K.Thm): ProofJudgement = ProofJudgement(Thm(just))
+
+extension (kernelResult: Either[ProofCarrier.Failure, K.Thm])
+  /**
+   * Lifts a kernel result, checking that a successful theorem has the intended statement.
+   */
+  def lift(intendedConclusion: Sequent): ProofJudgement = kernelResult match
+    case Left(failure) => failure
+    case Right(theorem) =>
+      require(
+        theorem.statement == intendedConclusion.underlying,
+        s"Justification statement ${theorem.statement} does not match intended conclusion $intendedConclusion"
+      )
+      ProofJudgement(Thm(intendedConclusion, theorem))

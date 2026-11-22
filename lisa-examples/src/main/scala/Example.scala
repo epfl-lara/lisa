@@ -19,7 +19,7 @@ object Example extends lisa.Main:
   val fixedPointDoubleApplication = Theorem(∀(x, P(x) ==> P(f(x))) |- P(x) ==> P(f(f(x)))):
     val closure = assume(∀(x, P(x) ==> P(f(x))))
     val closureAtX = have(P(x) ==> P(f(x))) by InstantiateForall(x)(closure)
-    val closureAtFx = have(P(f(x)) ==> P(f(f(x)))) by InstantiateForall(f(x))(closure)
+    val closureAtFx = have(P(f(x)) ==> P(f(f(x)))) by InstantiateForall(f(y))(closure)
     have(thesis) by Tautology.from(closureAtX, closureAtFx)
 
   /**

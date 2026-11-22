@@ -4,7 +4,8 @@ import lisa.SetTheoryLibrary
 import lisa.SetTheoryLibrary.{_, given}
 import lisa.utils.fol.FOL.{_, given}
 import lisa.utils.prooflib.Exports._
-import lisa.utils.prooflib.Subproof
+import lisa.utils.prooflib.ProofCarrier
+import lisa.utils.prooflib.TacticProof
 
 /**
  * Given the equivalence `z ∈ x <=> z ∈ y`, proves that `x = y` if `z` is free.
@@ -31,9 +32,9 @@ def Extensionality(using proof: SetTheoryLibrary.ProofBuilder)(premise: Thm)(con
 
   pivot match {
     case None =>
-      invalidTactic("Could not find a formula of the form z ∈ x <=> z ∈ y in the RHS of the premise.")
+      ProofCarrier.Failure("Could not find a formula of the form z ∈ x <=> z ∈ y in the RHS of the premise.")
     case Some((z, x_, y_)) =>
-      Subproof {
+      TacticProof {
         val equiv = z ∈ x_ <=> z ∈ y_
         val eq = x_ === y_
         val baseSequent = premiseSeq ->> equiv

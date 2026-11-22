@@ -10,14 +10,13 @@ import lisa.hol.basics.Forall._
 import lisa.hol.basics.Inductive._
 import lisa.hol.basics.Select._
 import lisa.hol.basics.Truth._
+import lisa.utils.automation.Substitute
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
 import lisa.maths.SetTheory.Types.TypingRules.TAbs
 import lisa.utils.prooflib.BasicStep._
 import lisa.utils.prooflib.Exports._
-import lisa.utils.prooflib.Exports._
 import lisa.utils.prooflib.Library
-import lisa.utils.prooflib.Substitute
 
 /**
  * HOL Light axioms: ETA_AX, INFINITY_AX, SELECT_AX.

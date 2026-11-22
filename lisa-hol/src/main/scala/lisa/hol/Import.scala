@@ -12,18 +12,19 @@ import lisa.hol.extractor.ExtractorException
 import lisa.hol.extractor.TheoremRef
 import lisa.hol.extractor._
 import lisa.hol.{core => h}
+import lisa.utils.automation.Discharge
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.utils.K
 import lisa.utils.collection.BoundedCache
 import lisa.utils.collection.VecSet
 import lisa.utils.prooflib.BasicStep.Restate
-import lisa.utils.prooflib.Discharge
-import lisa.utils.prooflib.FatalCarrierDestructionException
 import lisa.utils.prooflib.OutputManager
 import lisa.utils.prooflib.ProofBuilder
 import lisa.utils.prooflib.ProofCarrier
 import lisa.utils.prooflib.ProofJudgement
-import lisa.utils.prooflib.Subproof
+import lisa.utils.prooflib.TacticException
+import lisa.utils.prooflib.TacticFailureException
+import lisa.utils.prooflib.TacticProof
 import lisa.utils.prooflib.Thm
 import lisa.utils.unification.UnificationUtils.RewriteContext
 import lisa.utils.unification.UnificationUtils.matchExpr
@@ -504,14 +505,13 @@ object Import extends lisa.HOL:
       active = inputs :: active
       try
         statistics.measureRule(step.getClass.getSimpleName, index, inputs.valuesIterator.map(_.kernel).toSeq, retainedSize):
-          // Keep local assumptions and errors within this step. Cached errors travel with its judgement.
-          try
-            Subproof:
-              reconstructStep(using extractor, summon[ProofBuilder], this)(index, step)
-          catch
-            case error: FatalCarrierDestructionException =>
-              val errors = (error.carrier.errors + error.carrier.fatalError).toSeq.map(e => s"${e.file}:${e.line}: ${e.message}")
-              throw FailedStepException(index, step.getClass.getSimpleName, errors).initCause(error)
+          TacticProof:
+            reconstructStep(using extractor, summon[ProofBuilder], this)(index, step)
+      catch
+        // Include failed premise extraction while preparing the statistics arguments.
+        case error: (TacticFailureException | TacticException) =>
+          val errors = Seq(s"${error.file.value}:${error.line.value}: ${error.message}")
+          throw FailedStepException(index, step.getClass.getSimpleName, errors).initCause(error)
       finally active = active.tail
 
     private def defineThrough(index: Long): Unit =
@@ -542,8 +542,12 @@ object Import extends lisa.HOL:
       HOLProofType.resetCache()
       Transformers.resetConversionCache()
       val judgement = apply(index)
-      statistics.measure("named", index):
-        register(ref, judgement)
+      try
+        statistics.measure("named", index):
+          register(ref, judgement)
+      catch
+        case error: (TacticFailureException | TacticException) =>
+          throw FailedTheoremException(index, name, Seq(error.message)).initCause(error)
 
     private def register(ref: TheoremRef, judgement: ProofJudgement): Justification =
       val TheoremRef(index, name) = ref
@@ -579,7 +583,7 @@ object Import extends lisa.HOL:
     val conjunction = nonEmptyAssumptions.reduceOption(_ /\ _).getOrElse(⊤)
 
     // prove the constant's HOL typing
-    val typeCarrier = Subproof:
+    val typeCarrier = TacticProof:
       val typedBody = bodyTyping match
         case Some(typing) => have(HOLSteps.Clean.all(typing))
         case None =>
@@ -595,8 +599,7 @@ object Import extends lisa.HOL:
         have(∀(variable, premise.statement.right.head)) by RightForall(premise)
 
     // Lift the definition to an HOL constant
-    val typeJustification = typeCarrier.justification.getOrElse:
-      throw new IllegalArgumentException(typeCarrier.errors.map(_.message).mkString("Invalid typing proof: ", "; ", ""))
+    val typeJustification = typeCarrier.thm
     val functionalType = FunctionalClass(typeArgs.map(_ => None), typeArgs, abstractType)
     val holCst = HOLPolymorphicConstant(cst.id, functionalType, typeJustification)(using unsafeSortEvidence(cst.sort))
     Constants.register(name, holCst, typeArgs, abstractType, holCst.holDefinition)
@@ -694,11 +697,10 @@ object Import extends lisa.HOL:
           case _ => throw new IllegalStateException(s"Type constant ${aty.name} has incomplete defining theorems.")
       else
         // Recover the HOL witness and the predicate whose inhabited subset defines the type.
-        val nonEmptinessCarrier = Subproof: proof ?=>
+        val nonEmptinessCarrier = TacticProof: proof ?=>
           have(HOLSteps.Clean.all(have(store.premise(index, just))))
         if !nonEmptinessCarrier.isValid then throw FailedPremiseException(index, just, nonEmptinessCarrier)
-        val nonEmptinessThm = nonEmptinessCarrier.justification.getOrElse:
-          throw FailedPremiseException(index, just, nonEmptinessCarrier)
+        val nonEmptinessThm = nonEmptinessCarrier.thm
         val (p, t) = nonEmptinessThm match
           case NonEmptyThm(p, t) => (p, t)
           case _ => throw MalformedNonEmptinessThm(index, nonEmptinessThm)
@@ -716,12 +718,12 @@ object Import extends lisa.HOL:
         val localNonEmpty = typeArgs.map(nonEmpty)
 
         // Type the predicate and convert its concrete witness into HOL existence.
-        val predicateTyping = Subproof:
+        val predicateTyping = TacticProof:
           val inferred = have(HOLSteps.Clean.all(HOLProofType(p)))
           have(localNonEmpty |- p :: (representationType ->: 𝔹)) by Weakening(inferred)
         .thm
 
-        val existsPThm = Subproof:
+        val existsPThm = TacticProof:
           val witnessVariable = mkTypedVar("w", representationType)
           val witnessBody = (witnessVariable ∈ representationType) /\ ((p * witnessVariable) === One)
           val witnessTyping = have(HOLProofType(t))
@@ -752,7 +754,7 @@ object Import extends lisa.HOL:
         val rawDefinedType = (rawType #@@ typeArgs).asInstanceOf[Expr[Ind]]
 
         // Establish non-emptiness before wrapping the raw constant as an HOL type.
-        val typeNonEmpty = Subproof:
+        val typeNonEmpty = TacticProof:
           val subsetNonEmpty = have(HOLSteps.Clean.all(TypeDefs.typeNonEmpty.of(substitutions*)))
           val withWitness = have((subsetNonEmpty.statement -<< (existsP === One)) ++<< existsPThm.statement) by
             Cut.withParameters(existsP === One)(existsPThm, subsetNonEmpty)
@@ -768,7 +770,7 @@ object Import extends lisa.HOL:
         val absBody = TypeDefs.absFun.substitute(substitutions*).asInstanceOf[Expr[Ind]]
         val repBody = TypeDefs.repFun.substitute(substitutions*).asInstanceOf[Expr[Ind]]
 
-        val absTyping = Subproof:
+        val absTyping = TacticProof:
           val generic = have(HOLSteps.Clean.all(TypeDefs.absTyping.of(substitutions*)))
           val local = have((generic.statement -<< (existsP === One)) ++<< existsPThm.statement) by
             Cut.withParameters(existsP === One)(existsPThm, generic)
@@ -777,7 +779,7 @@ object Import extends lisa.HOL:
           have(localNonEmpty |- absBody :: (representationType ->: definedType)) by Weakening(discharged)
         .thm
 
-        val repTyping = Subproof:
+        val repTyping = TacticProof:
           val generic = have(HOLSteps.Clean.all(TypeDefs.repTyping.of(substitutions*)))
           val rewritten = have(generic.statement.left |- repBody :: (definedType ->: representationType)) by Substitute(rawType.definition)(generic)
           val discharged = have(Discharge(predicateTyping)(rewritten))
@@ -799,7 +801,7 @@ object Import extends lisa.HOL:
         val absContext = localNonEmpty.toSet + (absVariable :: definedType)
         val repContext = localNonEmpty.toSet + (repVariable :: representationType)
 
-        val absThm = Subproof:
+        val absThm = TacticProof:
           val generic = have(HOLSteps.Clean.all(TypeDefs.absThm.of((substitutions :+ (TypeDefs.y := absVariable))*)))
           have((absContext ++ predicateTyping.right) |- absStatement) by Substitute(definitions*)(generic)
           val cleaned = have(HOLSteps.Clean.all(lastStep))
@@ -807,7 +809,7 @@ object Import extends lisa.HOL:
           have(absContext |- absStatement) by Weakening(discharged)
         .thm
 
-        val repThm = Subproof:
+        val repThm = TacticProof:
           val generic = have(HOLSteps.Clean.all(TypeDefs.repThm.of((substitutions :+ (TypeDefs.x := repVariable))*)))
           val withWitness = have((generic.statement -<< (existsP === One)) ++<< existsPThm.statement) by
             Cut.withParameters(existsP === One)(existsPThm, generic)
@@ -1075,10 +1077,8 @@ object Import extends lisa.HOL:
             if failFast then throw e
             debug(e.getStackTrace.mkString("\n"))
             val errorMessage = e match
-              case e: FatalCarrierDestructionException =>
-                (e.carrier.errors + e.carrier.fatalError)
-                  .map(error => s"${error.file}:${error.line}: ${error.message}")
-                  .mkString("\n")
+              case e: TacticFailureException =>
+                s"${e.file.value}:${e.line.value}: ${e.message}"
               case _ => e.getMessage
             print(f"""
                      | [INFO] Extracted $imported theorems so far in ${time()}%.2f.

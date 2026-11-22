@@ -1,92 +1,119 @@
 package lisa.utils.prooflib
 
 import lisa.utils.fol.FOL.{_, given}
+import lisa.utils.prooflib.ProofCarrier.Failure
+import lisa.utils.prooflib.ProofCarrier.Success
+import lisa.utils.prooflib.ProofHelpers._
+import lisa.utils.prooflib.TacticHelpers._
 import org.scalatest.funsuite.AnyFunSuite
 
 class ProofCarrierSuite extends AnyFunSuite:
   given Library = new Library
   private val p, q = variable[Prop]
-  private val error = SoftError("failed step", summon[sourcecode.File], summon[sourcecode.Line])
 
-  test("extract the existing theorem without changing its statement or dependencies"):
-    val carrier = BasicStep.Restate(p |- p).map(_ => 42)
-    assert(carrier.thm eq carrier.justification.get)
-    assert(carrier.kernel eq carrier.justification.get.kernel)
-    assert(!carrier.kernel.usesSorry)
-    assert(carrier.destruct._2 == 42)
-
-  test("recover a missing justification with Sorry without changing the carrier"):
-    val carrier = BasicStep.Restate(p |- q)
-    val errors = carrier.errors
-    assert(carrier.justification.isEmpty)
-    assert(carrier.thm.statement == (p |- q))
-    assert(carrier.thm.kernel.usesSorry)
-    assert(carrier.kernel.statement == (p |- q).underlying)
-    assert(carrier.kernel.usesSorry)
-    assert(carrier.justification.isEmpty)
-    assert(carrier.errors == errors)
-    assert(!carrier.isValid)
-
-  test("retain an existing justification despite accumulated errors"):
-    val carrier = BasicStep.Restate(p |- p).withError(error)
-    assert(carrier.hasJustification)
-    assert(carrier.thm eq carrier.justification.get)
-    assert(carrier.kernel eq carrier.justification.get.kernel)
-    assert(!carrier.kernel.usesSorry)
-    assert(carrier.errors == Set(error))
-    assert(!carrier.isValid)
-
-  test("recover an empty soft carrier even without recorded errors"):
-    val carrier = ProofCarrier(Set.empty, p |- q, None, ())
-    assert(carrier.thm.statement == (p |- q))
-    assert(carrier.kernel.usesSorry)
-    assert(carrier.errors.isEmpty)
-    assert(!carrier.isValid)
-
-  test("retain fatal error information"):
-    val fatal = FatalError("fatal step", summon[sourcecode.File], summon[sourcecode.Line])
-    val carrier = FatalCarrier(fatal, Set(error))
-    assert(intercept[FatalCarrierDestructionException](carrier.thm).carrier eq carrier)
-    assert(intercept[FatalCarrierDestructionException](carrier.kernel).carrier eq carrier)
-
-  test("retain explicit recovery at proof boundaries"):
-    val carrier = ProofCarrier(Set(error), p |- q, None, 42)
-    val (theorem, payload) = carrier.destruct
-    assert(theorem.kernel.usesSorry)
-    assert(payload == 42)
-    val next = carrier.flatMap((value, theorem) => ProofJudgement(theorem).map(_ => value + 1))
-    assert(next.errors == Set(error))
-    assert(next.destruct._2 == 43)
-    assert(next.thm.kernel.usesSorry)
-    assert(next.kernel eq next.justification.get.kernel)
-    assert(!next.isValid)
-
-  test("preserve every carrier field when adding no errors"):
+  test("successful extraction preserves the theorem, kernel and payload"):
     val theorem = BasicStep.Restate(p |- p).thm
-    val carriers = Seq(
-      SoftCarrier(Set.empty[ProofError], theorem.statement, Some(theorem), 42),
-      SoftCarrier(Set(error), p |- q, None, 17)
-    )
-    for carrier <- carriers; empty <- Seq(List.empty[ProofError], Set.empty[ProofError], Vector.empty[ProofError]) do
-      val next = carrier.withErrors(empty)
-      assert(next eq carrier)
-      assert(next.errors == carrier.errors)
-      assert(next.statement == carrier.statement)
-      assert(next.justification == carrier.justification)
-      assert(next.payload == carrier.payload)
-      assert(next.isValid == carrier.isValid)
+    val carrier = Success(theorem, 42)
+    assert(carrier.isValid)
+    assert(carrier.thm eq theorem)
+    assert(carrier.kernel eq theorem.kernel)
+    assert(carrier.destruct == (theorem, 42))
+    assert(!carrier.kernel.usesSorry)
 
-  test("accumulate distinct errors without mutating the original carrier"):
-    val extra = SoftError("another failure", summon[sourcecode.File], summon[sourcecode.Line])
-    val carrier = SoftCarrier(Set[ProofError](error), p |- q, None, 42)
-    val next = carrier.withErrors(List(extra, error, extra))
-    assert(carrier.errors == Set(error))
-    assert(next.errors == Set(error, extra))
-    assert(next.statement == carrier.statement && next.payload == 42)
-    assert(next.justification.isEmpty && !next.isValid)
+  test("map and flatMap preserve values and propagate a returned failure"):
+    val theorem = BasicStep.Restate(p |- p).thm
+    val carrier = Success(theorem, 41).map(_ + 1)
+    val result = carrier.flatMap((value, proof) => Success(proof, value.toString))
+    assert(result.destruct == (theorem, "42"))
+    assert(carrier.judgement.destruct == (theorem, ()))
+    val failure = Failure("next step failed")
+    assert(carrier.flatMap((_, _) => failure) eq failure)
 
-  test("retain the fatal error when appending an empty or nonempty collection"):
-    val fatal = FatalError("fatal step", summon[sourcecode.File], summon[sourcecode.Line])
-    val carrier = FatalCarrier(fatal, Set.empty)
-    assert(carrier.withErrors(Vector.empty) == carrier)
-    assert(carrier.withErrors(List(error)) == FatalCarrier(fatal, Set(error)))
+  test("failure propagation never evaluates callbacks or manufactures a theorem"):
+    val failure: ProofCarrier[Int] = Failure("no proof")
+    assert(!failure.isValid)
+    assert(failure.map(_ => fail("map evaluated a failure")) eq failure)
+    assert(failure.flatMap((_, _) => fail("flatMap evaluated a failure")) eq failure)
+    assert(failure.judgement eq failure)
+    assert(intercept[TacticFailureException](failure.thm).getMessage == "no proof")
+    assert(intercept[TacticFailureException](failure.kernel).getMessage == "no proof")
+    assert(intercept[TacticFailureException](failure.destruct).getMessage == "no proof")
+
+  test("extracting the same failure twice creates distinct exceptions at the extraction sites"):
+    val failure = Failure("no proof")
+    val first = intercept[TacticFailureException](failure.destruct(using sourcecode.File("first.scala"), sourcecode.Line(10)))
+    val second = intercept[TacticFailureException](failure.destruct(using sourcecode.File("second.scala"), sourcecode.Line(20)))
+    assert(!(first eq second))
+    assert(first.file.value == "first.scala" && first.line.value == 10)
+    assert(second.file.value == "second.scala" && second.line.value == 20)
+    assert(first.getStackTrace.nonEmpty && second.getStackTrace.nonEmpty)
+
+  test("callback exceptions propagate unchanged"):
+    val carrier = BasicStep.Restate(p |- p)
+    val bug = new IllegalStateException("broken callback")
+    assert(intercept[IllegalStateException](carrier.map(_ => throw bug)) eq bug)
+    assert(intercept[IllegalStateException](carrier.flatMap((_, _) => throw bug)) eq bug)
+
+  test("alternatives evaluate only after a failure and retain the selected result"):
+    val success = BasicStep.Restate(p |- p)
+    val failure = Failure("first attempt")
+    val secondFailure = Failure("second attempt")
+    assert(success.or(fail("unnecessary alternative")) eq success)
+    assert(failure.or(success) eq success)
+    assert(failure.or(secondFailure) eq secondFailure)
+    val bug = new IllegalArgumentException("broken alternative")
+    assert(intercept[IllegalArgumentException](failure.or(throw bug)) eq bug)
+    assert((success || fail("unnecessary judgement alternative")) eq success)
+    assert((failure || success) eq success)
+
+  test("maybe leaves failed attempts uncommitted and records the successful alternative"):
+    val result = ProofBuilder.withContext: proof ?=>
+      val failed = maybe(() |- p) by BasicStep.Hypothesis
+      assert(!failed.isValid)
+      assert(proof.last.isEmpty && proof.errors.isEmpty)
+      val selected = failed.or(maybe(p |- p) by BasicStep.Hypothesis)
+      assert(proof.last.contains(selected.thm))
+      selected
+    assert(result.isValid && !result.kernel.usesSorry)
+
+  test("tactic have throws at its source location and leaves the previous theorem intact"):
+    ProofBuilder.freshContext(isTactic = true): proof ?=>
+      val previous = have(p |- p) by BasicStep.Hypothesis
+      var line = 0
+      val exception = intercept[TacticFailureException] {
+        line = summon[sourcecode.Line].value + 1
+        have(() |- p) by BasicStep.Hypothesis
+      }
+      assert(exception.line.value == line)
+      assert(proof.last.contains(previous))
+      assert(proof.errors.isEmpty)
+      ProofJudgement(previous)
+
+  test("haveM cannot supply a payload for a failed result"):
+    ProofBuilder.withContext: proof ?=>
+      intercept[TacticFailureException] {
+        haveM(p |- p) by ((_: Sequent) => Failure("no payload"))
+      }
+      assert(proof.last.isEmpty)
+      BasicStep.Restate(p |- p)
+
+  test("failWith exits a tactic subproof with a failure value"):
+    val result = TacticProofM[Int] {
+      failWith("search exhausted")
+      fail("continued after failWith")
+    }
+    assert(result == Failure("search exhausted"))
+
+  test("empty proof completion returns failure rather than admitting a goal"):
+    val builder = ProofBuilder.withGoal(p |- q)
+    assert(builder.pure(42) == Failure("The proof produced no theorem."))
+    assert(builder.last.isEmpty)
+
+  test("kernel lifting preserves front syntax and rejects mismatched conclusions"):
+    val theorem = BasicStep.Restate(p |- p).thm
+    val valid: Either[Failure, lisa.utils.K.Thm] = Right(theorem.kernel)
+    assert(valid.lift(theorem.statement).thm.statement eq theorem.statement)
+    intercept[IllegalArgumentException](valid.lift(p |- q))
+    val failure = Failure("kernel rejection")
+    val invalid: Either[Failure, lisa.utils.K.Thm] = Left(failure)
+    assert(invalid.lift(p |- q) eq failure)

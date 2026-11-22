@@ -13,9 +13,9 @@ import lisa.utils.prooflib.Exports._
 import lisa.utils.prooflib.ProofBuilder
 import lisa.utils.prooflib.ProofCarrier
 import lisa.utils.prooflib.ProofJudgement
-import lisa.utils.prooflib.Subproof
-import lisa.utils.prooflib.SubproofM
 import lisa.utils.prooflib.TacticHelpers.failWith
+import lisa.utils.prooflib.TacticProof
+import lisa.utils.prooflib.TacticProofM
 import lisa.utils.prooflib.Thm
 
 import scala.collection.Set
@@ -114,11 +114,11 @@ object Tactics:
     // Bidirectional type checking proof construct(infer, check, equal)
     def prove(using lib: SetTheoryLibrary.type, proof: ProofBuilder)(bot: F.Sequent): ProofJudgement =
       import lib.*
-      if bot.right.size != 1 then invalidTactic("Typecheck can only prove one theorem once upon a time")
+      if bot.right.size != 1 then ProofCarrier.Failure("Typecheck can only prove one theorem once upon a time")
       else
         val premises = bot.left
         val goal = bot.right.head
-        Subproof {
+        TacticProof {
           goal match
             case typeOf(tm, ty) =>
               val innerProof = checkProof(using SetTheoryLibrary)(premises, tm, ty)
@@ -154,7 +154,7 @@ object Tactics:
         function: Expr[Ind],
         argument: Expr[Ind],
         functionType: Expr[Ind]
-    )(functionTyping: Thm, argumentTyping: Thm): ProofCarrier[Expr[Ind]] = SubproofM {
+    )(functionTyping: Thm, argumentTyping: Thm): ProofCarrier[Expr[Ind]] = TacticProofM {
       import lib.*
       functionType match
         case SPi(domain: Expr[Ind], codomain @ Abs(bound: Expr[Ind], body: Expr[Ind])) =>
@@ -165,12 +165,11 @@ object Tactics:
           val argumentFormula = argument ∈ domain
           val rule = TApp of (e1 := function, e2 := argument, T1 := domain, T2 := codomain)
           val conclusion = rule.statement.right.head
-          val withFunction = have((conclusion +<< argumentFormula) ++<< functionTyping.statement) by
-            Cut.withParameters(functionFormula)(functionTyping, rule)
-          val applied = have((conclusion ++<< functionTyping.statement) ++<< argumentTyping.statement) by
-            Cut.withParameters(argumentFormula)(argumentTyping, withFunction)
-          val typing = have(statement) by Restate(applied)
-          ProofJudgement(typing).map(_ => resultType)
+          Cut.withParameters(functionFormula)(functionTyping, rule)((conclusion +<< argumentFormula) ++<< functionTyping.statement).flatMap { (_, withFunction) =>
+            Cut.withParameters(argumentFormula)(argumentTyping, withFunction)((conclusion ++<< functionTyping.statement) ++<< argumentTyping.statement).flatMap { (_, applied) =>
+              Restate(applied)(statement).map(_ => resultType)
+            }
+          }
         case _ => failWith(s"Expected a Π-type with a lambda codomain, got $functionType.")
     }
 
@@ -185,7 +184,7 @@ object Tactics:
         domain: Expr[Ind],
         body: Expr[Ind],
         bodyType: Expr[Ind]
-    )(bodyTyping: Thm): ProofCarrier[Expr[Ind]] = SubproofM {
+    )(bodyTyping: Thm): ProofCarrier[Expr[Ind]] = TacticProofM {
       import lib.*
       val resultType = Pi(domain)(λ(bound, bodyType))
 
@@ -193,16 +192,14 @@ object Tactics:
       val assumption = bound ∈ domain
       val conclusion = body ∈ bodyType
       val resetBot = bodyTyping.statement -<? assumption
-      val weakened = have((assumption |- conclusion) ++<< bodyTyping.statement) by Weakening(bodyTyping)
-      val implication = have((assumption ==> conclusion) ++<< resetBot) by
-        RightImplies.withParameters(assumption, conclusion)(weakened)
-      have((∀(bound ∈ domain, body ∈ bodyType)) ++<< resetBot) by
-        RightForall.withParameters(assumption ==> conclusion, bound)(implication)
-      val quantifiedTyping = lastStep
-
-      val abstraction = TAbs of (T1 := domain, T2 := Abs(bound, bodyType), e := Abs(bound, body))
-      val typing = have(Discharge(quantifiedTyping)(abstraction))
-      ProofJudgement(typing).map(_ => resultType)
+      Weakening(bodyTyping)((assumption |- conclusion) ++<< bodyTyping.statement).flatMap { (_, weakened) =>
+        RightImplies.withParameters(assumption, conclusion)(weakened)((assumption ==> conclusion) ++<< resetBot).flatMap { (_, implication) =>
+          RightForall.withParameters(assumption ==> conclusion, bound)(implication)((∀(bound ∈ domain, body ∈ bodyType)) ++<< resetBot).flatMap { (_, quantifiedTyping) =>
+            val abstraction = TAbs of (T1 := domain, T2 := Abs(bound, bodyType), e := Abs(bound, body))
+            Discharge(quantifiedTyping)(abstraction).map(_ => resultType)
+          }
+        }
+      }
     }
 
     /**
@@ -229,7 +226,7 @@ object Tactics:
     ): ProofCarrier[Expr[Ind]] =
       memo.infer(localContext, tm) {
         import lib.*
-        SubproofM {
+        TacticProofM {
           tm match
             /**
              * Function application:
@@ -410,7 +407,7 @@ object Tactics:
         ty: Expr[Ind],
         assumption: Expr[Prop],
         actual: Expr[Ind]
-    ): ProofJudgement = Subproof {
+    ): ProofJudgement = TacticProof {
       import lib.*
       if isSame(actual, ty) then
         if assumption == (tm ∈ ty) then have(assumption |- tm ∈ ty) by Hypothesis
@@ -448,7 +445,7 @@ object Tactics:
         tm: Expr[Ind],
         ty: Expr[Ind],
         memo: Memo
-    ): ProofJudgement = SubproofM {
+    ): ProofJudgement = TacticProofM {
       import lib.*
       (tm, ty) match
         /**
@@ -517,7 +514,7 @@ object Tactics:
      */
     def subsetProof(using lib: SetTheoryLibrary.type, proof: ProofBuilder)(localContext: Set[Expr[Prop]], sub: Expr[Ind], sup: Expr[Ind]): ProofJudgement =
       import lib.*
-      Subproof {
+      TacticProof {
         val target = sub ⊆ sup
         val known =
           if localContext.contains(target) then Some(target)

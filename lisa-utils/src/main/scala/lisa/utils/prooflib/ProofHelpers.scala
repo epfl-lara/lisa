@@ -1,6 +1,8 @@
 package lisa.utils.prooflib
 
 import lisa.utils.K
+import lisa.utils.UserLisaException.InvalidProofOperationException
+import lisa.utils.automation.InstantiateForall
 import lisa.utils.fol.FOL._
 import lisa.utils.prooflib.Helpers.withParams
 
@@ -21,110 +23,61 @@ object ProofHelpers:
     def apply(using file: sourcecode.File, line: sourcecode.Line)(using library: Library)(theorem: Theorem): Sequent => ProofCarrier[T] =
       conclusion => apply(using file, line)(using library)(conclusion, theorem.kernel)
 
-  private def noPreviousStep(using file: sourcecode.File, line: sourcecode.Line): ProofError =
-    SoftError("thenHave requires a previous theorem in the local proof context.", file, line)
+  private def prove(using lib: Library, proof: ProofBuilder, file: sourcecode.File, line: sourcecode.Line)(statement: Sequent)(tactic: Sequent => ProofJudgement): Thm =
+    val conclusion = proof.withAssumptions(statement)
+    proof.absorbDestruct(proof.recover(conclusion)(tactic(conclusion)))._1
 
-  private def failedPreviousStep(using lib: Library, proof: ProofBuilder)(file: sourcecode.File, line: sourcecode.Line)(statement: Sequent): Thm =
-    val error = noPreviousStep(using file, line)
-    proof.absorbDestruct(ProofCarrier(Set(error), target(statement), None, ()))._1
+  private def liftSubproofResult(using lib: Library)(conclusion: Sequent, carrier: ProofCarrier[?]): ProofJudgement =
+    carrier.flatMap { (_, theorem) =>
+      if theorem.statement.underlying == conclusion.underlying then ProofJudgement(Thm(conclusion, theorem.kernel))
+      else
+        K.Restate(using lib.theory)(conclusion.underlying, theorem.kernel)
+          .orElse(K.Weakening(using lib.theory)(conclusion.underlying, theorem.kernel))
+          .fold(
+            error => ProofCarrier.Failure(withParams("Subproof does not prove the requested conclusion.", "Proven" -> theorem.statement, "Conclusion" -> conclusion, "Reason" -> error)),
+            kernel => ProofJudgement(Thm(conclusion, kernel))
+          )
+    }
 
-  private def target(using proof: ProofBuilder)(statement: Sequent): Sequent =
-    proof.withAssumptions(statement)
-
-  /**
-   * Builds a soft tactic failure against the current proof goal.
-   */
-  def invalidTactic(using file: sourcecode.File, line: sourcecode.Line)(using lib: Library, proof: ProofBuilder)(message: String): ProofJudgement =
-    val statement = proof.goal.getOrElse(emptySeq)
-    ProofCarrier(Set(SoftError(message, file, line)), statement, None, ())
-
-  private inline def record[T](using proof: ProofBuilder)(judgement: ProofCarrier[T]): (Thm, T) =
-    proof.absorbDestruct(judgement)
-
-  private def liftSubproofResult(using lib: Library)(file: sourcecode.File, line: sourcecode.Line)(conclusion: Sequent, carrier: ProofCarrier[?]): ProofJudgement =
-    val intended = conclusion.underlying
-    carrier match
-      case carrier: FatalCarrier =>
-        // a subproof is one of the only places we can recover from a fatal error,
-        // as we have a closed off context
-        carrier.recoverWith(conclusion)
-
-      case carrier: SoftCarrier[?] =>
-        if carrier.statement.underlying == intended then
-          carrier.justification match
-            case Some(thm) => carrier.judgement.withJustification(Thm(conclusion, thm.kernel)).copy(statement = conclusion)
-            case None => carrier.judgement.copy(statement = conclusion)
-        else
-          carrier.justification match
-            case Some(thm) =>
-              K.Restate(using lib.theory)(intended, thm.kernel)
-                .orElse(K.Weakening(using lib.theory)(intended, thm.kernel))
-                .fold(
-                  error =>
-                    carrier.judgement
-                      .withError(SoftError(withParams("Subproof does not prove the requested conclusion.", "Proven" -> carrier.statement, "Conclusion" -> conclusion, "Reason" -> error), file, line))
-                      .copy(statement = conclusion),
-                  thm => carrier.judgement.withJustification(Thm(conclusion, thm)).copy(statement = conclusion)
-                )
-            case None =>
-              carrier.judgement
-                .withError(SoftError(withParams("Subproof produced no theorem.", "Conclusion" -> conclusion), file, line))
-                .copy(statement = conclusion)
-
-  private def runSubproof(using lib: Library, proof: ProofBuilder)(file: sourcecode.File, line: sourcecode.Line)(statement: Sequent)(inner: ProofBuilder ?=> Any): ProofJudgement =
-    val conclusion = target(statement)
-    def carrier(using subproof: ProofBuilder): ProofCarrier[?] =
-      try
-        inner(using subproof) match
-          case result: ProofCarrier[?] => result
-          case _ => subproof.pure(())
-      catch
-        case e: ProofCarrierException =>
-          e match
-            case FatalCarrierDestructionException(carrier, file, line) =>
-              // add a new error and continue
-              val err = SoftError("Unexpected attempted recovery from a fatal error state inside a subproof.", file, line)
-              carrier
-                .recoverWith(conclusion)
-                .withError(err)
-
-    liftSubproofResult(file, line)(conclusion, proof.withSubcontext(Some(conclusion))(carrier))
-
-  /**
-   * Runs a tactic subproof with an empty local assumption context.
-   */
-  def TacticSubproofWithoutAssumptions(using lib: Library, proof: ProofBuilder)(inner: ProofBuilder ?=> Any): ProofJudgement =
+  private def runSubproof(using lib: Library, proof: ProofBuilder)(conclusion: Sequent)(inner: ProofBuilder ?=> Any): ProofJudgement =
     def carrier(using subproof: ProofBuilder): ProofCarrier[?] =
       inner(using subproof) match
         case result: ProofCarrier[?] => result
+        case theorem: Thm => ProofJudgement(theorem)
         case _ => subproof.pure(())
-    proof.withSubcontext(None, inheritAssumptions = false)(carrier).judgement
 
-  def unwrapTactic(using file: sourcecode.File, line: sourcecode.Line)(judgement: ProofJudgement)(message: String): ProofJudgement =
-    if judgement.isValid then judgement
-    else judgement.withError(SoftError(message, file, line))
+    liftSubproofResult(conclusion, proof.withSubcontext(Some(conclusion))(carrier))
+
+  /**
+   * Adds context to an expected tactic failure without throwing or recording it.
+   */
+  def unwrapTactic(judgement: ProofJudgement)(message: String): ProofJudgement =
+    judgement match
+      case failure: ProofCarrier.Failure => ProofCarrier.Failure(s"$message\n${failure.message}")
+      case success => success
 
   class HaveSequent(val statement: Sequent):
     infix def by(using lib: Library, proof: ProofBuilder, file: sourcecode.File, line: sourcecode.Line)(tactic: SequentTactic): Thm =
       by(using lib, proof, file, line)((conclusion: Sequent) => tactic.apply(using file, line)(using lib)(conclusion))
 
     infix def by(using lib: Library, proof: ProofBuilder, file: sourcecode.File, line: sourcecode.Line)(tactic: Sequent => ProofJudgement): Thm =
-      record(tactic(target(statement)))._1
+      prove(statement)(tactic)
 
     infix def subproof(using lib: Library, proof: ProofBuilder, file: sourcecode.File, line: sourcecode.Line)(inner: ProofBuilder ?=> Any): Thm =
-      record(runSubproof(file, line)(statement)(inner))._1
+      prove(statement)(conclusion => runSubproof(conclusion)(inner))
 
   class ThenHaveSequent(val statement: Sequent):
     infix def by(using lib: Library, proof: ProofBuilder, file: sourcecode.File, line: sourcecode.Line)(tactic: Sequent => ProofJudgement): Thm =
-      record(tactic(target(statement)))._1
+      prove(statement)(tactic)
 
     infix def by(using lib: Library, proof: ProofBuilder, file: sourcecode.File, line: sourcecode.Line)(tactic: PremiseSequentTactic): Thm =
       by(using lib, proof, file, line)((conclusion: Sequent, premise: Thm) => tactic.apply(using file, line)(using lib)(conclusion, premise.kernel))
 
     infix def by(using lib: Library, proof: ProofBuilder, file: sourcecode.File, line: sourcecode.Line)(tactic: (Sequent, Thm) => ProofJudgement): Thm =
-      proof.last match
-        case Some(j) => record(tactic(target(statement), j))._1
-        case None => failedPreviousStep(file, line)(statement)
+      prove(statement): conclusion =>
+        proof.last match
+          case Some(j) => tactic(conclusion, j)
+          case None => throw new InvalidProofOperationException("thenHave requires a previous theorem in the local proof context.")
 
     @scala.annotation.targetName("byThmCurried")
     infix def by(using lib: Library, proof: ProofBuilder, file: sourcecode.File, line: sourcecode.Line)(tactic: Thm => Sequent => ProofJudgement): Thm =
@@ -135,14 +88,14 @@ object ProofHelpers:
       by(using lib, proof, file, line)((conclusion: Sequent, premise: Thm) => tactic(premise.kernel)(conclusion))
 
     infix def subproof(using lib: Library, proof: ProofBuilder, file: sourcecode.File, line: sourcecode.Line)(inner: ProofBuilder ?=> Any): Thm =
-      record(runSubproof(file, line)(statement)(inner))._1
+      prove(statement)(conclusion => runSubproof(conclusion)(inner))
 
   class HaveMSequent(val statement: Sequent):
     infix def by[T](using lib: Library, proof: ProofBuilder, file: sourcecode.File, line: sourcecode.Line)(tactic: SequentTacticM[T]): (Thm, T) =
       by(using lib, proof, file, line)((conclusion: Sequent) => tactic.apply(using file, line)(using lib)(conclusion))
 
     infix def by[T](using lib: Library, proof: ProofBuilder, file: sourcecode.File, line: sourcecode.Line)(tactic: Sequent => ProofCarrier[T]): (Thm, T) =
-      record(tactic(target(statement)))
+      proof.absorbDestruct(tactic(proof.withAssumptions(statement)))
 
   class ThenHaveMSequent(val statement: Sequent):
     infix def by[T](using lib: Library, proof: ProofBuilder, file: sourcecode.File, line: sourcecode.Line)(tactic: PremiseSequentTacticM[T]): (Thm, T) =
@@ -150,8 +103,8 @@ object ProofHelpers:
 
     infix def by[T](using lib: Library, proof: ProofBuilder, file: sourcecode.File, line: sourcecode.Line)(tactic: (Sequent, Thm) => ProofCarrier[T]): (Thm, T) =
       proof.last match
-        case Some(j) => record(tactic(target(statement), j))
-        case None => throw new NoSuchElementException("thenHaveM requires a previous theorem in the local proof context. Cannot synthesize a return value.")
+        case Some(j) => proof.absorbDestruct(tactic(proof.withAssumptions(statement), j))
+        case None => throw new InvalidProofOperationException("thenHaveM requires a previous theorem in the local proof context.")
 
   def have(statement: Sequent): HaveSequent =
     HaveSequent(statement)
@@ -168,18 +121,19 @@ object ProofHelpers:
   def thenHaveM(statement: Sequent): ThenHaveMSequent =
     ThenHaveMSequent(statement)
 
-  inline def have(using lib: Library, proof: ProofBuilder)(thm: K.Thm): Thm =
-    have(ProofJudgement(thm))
+  inline def have(using lib: Library, proof: ProofBuilder, file: sourcecode.File, line: sourcecode.Line)(thm: K.Thm): Thm =
+    have(Thm(thm))
 
-  inline def have(using lib: Library, proof: ProofBuilder)(thm: Thm): Thm =
-    have(ProofJudgement(thm))
+  inline def have(using lib: Library, proof: ProofBuilder, file: sourcecode.File, line: sourcecode.Line)(thm: Thm): Thm =
+    if proof.assumptions.isEmpty then have(ProofJudgement(thm))
+    else prove(thm.statement)(BasicStep.Weakening(thm.kernel))
 
-  def have(using proof: ProofBuilder)(judgement: ProofJudgement): Thm =
+  def have(using proof: ProofBuilder, file: sourcecode.File, line: sourcecode.Line)(judgement: ProofJudgement): Thm =
     proof.absorbDestruct(judgement)._1
 
-  def lastStep(using proof: ProofBuilder): Thm =
+  def lastStep(using proof: ProofBuilder, file: sourcecode.File, line: sourcecode.Line): Thm =
     proof.last.getOrElse:
-      throw new NoSuchElementException("lastStep called on empty proof.")
+      throw new InvalidProofOperationException("lastStep called on empty proof.")
 
   object Theorems:
     /**
@@ -227,14 +181,14 @@ object ProofHelpers:
   /**
    * The goal of the current proof, if one was declared.
    */
-  def thesis(using proof: ProofBuilder): Sequent =
+  def thesis(using proof: ProofBuilder, file: sourcecode.File, line: sourcecode.Line): Sequent =
     proof.goal.getOrElse:
-      throw new NoSuchElementException("thesis called outside a proof with a declared goal.")
+      throw new InvalidProofOperationException("thesis called outside a proof with a declared goal.")
 
   /**
    * Alias for [[thesis]].
    */
-  inline def goal(using proof: ProofBuilder): Sequent =
+  inline def goal(using proof: ProofBuilder, file: sourcecode.File, line: sourcecode.Line): Sequent =
     thesis
 
   private def splitConjunctions(formula: Expr[Prop]): Set[Expr[Prop]] =
@@ -279,8 +233,7 @@ object ProofHelpers:
    */
   final class AndThen private[prooflib] (using library: Library, proof: ProofBuilder, file: sourcecode.File, line: sourcecode.Line):
     private def missingPreviousStep: Thm =
-      val statement = proof.goal.getOrElse(emptySeq)
-      proof.absorbDestruct(ProofCarrier(Set(SoftError("andThen requires a previous theorem in the local proof context.", file, line)), statement, None, ()))._1
+      throw new InvalidProofOperationException("andThen requires a previous theorem in the local proof context.")
 
     /**
      * Applies a function tactic to the previous theorem and records the result.
@@ -308,8 +261,9 @@ object ProofHelpers:
       else Right(argument.asInstanceOf[SubstPair])
     }
     def checked(result: ProofJudgement): Thm =
-      require(result.isValid, result.errors.map(_.message).mkString("Cannot instantiate theorem: ", "; ", ""))
-      result.thm
+      result match
+        case ProofCarrier.Success(theorem, _) => theorem
+        case ProofCarrier.Failure(message) => throw new InvalidProofOperationException(s"Cannot instantiate theorem:\n$message")
 
     val instance =
       if substitutions.isEmpty then thm
@@ -317,10 +271,10 @@ object ProofHelpers:
 
     if terms.isEmpty then instance
     else
-      require(instance.right.size == 1, "Quantified instantiation requires exactly one formula on the right.")
+      if instance.right.size != 1 then throw new InvalidProofOperationException("Quantified instantiation requires exactly one formula on the right.")
       val formula = terms.foldLeft(instance.right.head) {
         case (forall(variable, body), term) => body.substitute(variable := term)
-        case (formula, _) => throw new IllegalArgumentException(s"Cannot instantiate a non-universal formula: $formula")
+        case (formula, _) => throw new InvalidProofOperationException(s"Cannot instantiate a non-universal formula: $formula")
       }
       checked(InstantiateForall(terms*)(instance.left |- formula, instance))
 
@@ -356,7 +310,7 @@ object ProofHelpers:
      * Take the first valid of two proof judgements. If both fail, the second is
      * returned.
      */
-    infix def ||(using Library)(other: => (ProofJudgement | Thm)): ProofJudgement =
+    infix def ||(other: => (ProofJudgement | Thm)): ProofJudgement =
       if pj.isValid then pj
       else
         other match

@@ -7,9 +7,9 @@ import lisa.hol.HOLSteps.HOLProofType
 import lisa.hol.VarsAndFunctions._
 import lisa.hol.basics.Connectives.himp
 import lisa.hol.basics.Forall.hforall
+import lisa.utils.automation.Discharge
 import lisa.maths.SetTheory.Types.TypingHelpers.{fun => _, _, given}
 import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
-import lisa.utils.prooflib.Discharge
 import lisa.utils.prooflib.Thm
 
 /**

@@ -90,17 +90,17 @@ class BoundedStepStoreSuite extends AnyFunSuite:
         assertThrows[Import.FailedTheoremException](store.theorem(TheoremRef(0, s"bounded_mismatch_$file")))
         assert(store(0).isValid)
 
-    test(s"invalid proofs stay invalid after eviction and in dependent steps (file: $file)"):
+    test(s"failed reconstruction remains rejected after eviction and in dependent steps (file: $file)"):
       val records = Seq(ProofLine(0, ASSUME(refl)), ProofLine(1, ABS(0, p)), ProofLine(2, REFL(q)), ProofLine(3, TRANS(1, 1)))
       withContext(file, records): context =>
         given ExtractorContext = context
         val store = new Import.StepStore(capacity = 1, generations = 0)
-        val first = store(1)
-        assert(!first.isValid && first.errors.nonEmpty)
+        val first = intercept[Import.FailedStepException](store(1))
+        assert(first.index == 1)
         store(2)
-        val rebuilt = store(1)
-        assert(!(first eq rebuilt) && !rebuilt.isValid)
-        assert(!store(3).isValid)
+        val rebuilt = intercept[Import.FailedStepException](store(1))
+        assert(!(first eq rebuilt) && rebuilt.index == 1)
+        assertThrows[Import.FailedStepException](store(3))
 
     test(s"pin constant definitions and both type-definition results (file: $file)"):
       val name = s"bounded_type_$file"

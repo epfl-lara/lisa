@@ -19,7 +19,7 @@ class TypeInstantiationScopeSuite extends AnyFunSuite:
     val premise = Thm(statement, lisa.kernel.proof.Assume(using SetTheoryLibrary.theory)(statement.underlying).toOption.get)
     val result = ProofBuilder.withContext:
       ExtendedHOLSteps._INST_TYPE_RENAME(substitutions, premise)
-    assert(result.isValid, result.errors.map(_.message).mkString("\n"))
+    assert(result.isValid, result.toString)
     assert(!result.kernel.usesSorry)
     assert(result.kernel.assumptions == premise.kernel.assumptions)
     result.thm

@@ -9,10 +9,10 @@ import lisa.maths.SetTheory.Types.ADT.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADT.support.proofs.PropositionalFacts._
 import lisa.maths.SetTheory.Types.ADT.syntax.AST._
 import lisa.maths.SetTheory.Types.TypingHelpers.::
+import lisa.utils.automation.InstantiateForall
 import lisa.utils.fol.FOL.SubstPair
 import lisa.utils.prooflib.BasicStep.Restate
 import lisa.utils.prooflib.BasicStep.RightForall
-import lisa.utils.prooflib.InstantiateForall
 import lisa.utils.prooflib.Thm
 
 /**

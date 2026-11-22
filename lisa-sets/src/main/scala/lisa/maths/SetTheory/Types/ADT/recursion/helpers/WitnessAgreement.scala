@@ -9,9 +9,9 @@ import lisa.maths.SetTheory.Types.ADT.recursion.Witness
 import lisa.maths.SetTheory.Types.ADT.recursion.proofs.ConstructorSemanticFacts.specializedConstructors
 import lisa.maths.SetTheory.Types.ADT.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers._
+import lisa.utils.automation.InstantiateForallSeq
 import lisa.utils.prooflib.BasicStep.Cut
 import lisa.utils.prooflib.BasicStep.Weakening
-import lisa.utils.prooflib.InstantiateForallSeq
 import lisa.utils.prooflib.Thm
 
 private[recursion] final class WitnessAgreement(

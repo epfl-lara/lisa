@@ -1,9 +1,13 @@
 import lisa.maths.SetTheory.Functions.Pi.->:
-import lisa.maths.SetTheory.Types.ADT.library.{cons, list, nil}
+import lisa.maths.SetTheory.Types.ADT.library.cons
+import lisa.maths.SetTheory.Types.ADT.library.list
+import lisa.maths.SetTheory.Types.ADT.library.nil
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
-import lisa.maths.SetTheory.Types.TypingHelpers.{*, given}
+import lisa.maths.SetTheory.Types.TypingHelpers.{_, given}
 
-/** Run with `sbt "lisa-examples/runMain TypingExample"`. */
+/**
+ * Run with `sbt "lisa-examples/runMain TypingExample"`.
+ */
 object TypingExample extends lisa.Main:
   val A, B, x, a, f = variable[Ind]
   val family = variable[Ind >>: Ind]

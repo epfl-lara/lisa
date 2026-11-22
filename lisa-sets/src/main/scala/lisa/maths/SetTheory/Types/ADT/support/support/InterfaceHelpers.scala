@@ -11,8 +11,8 @@ import lisa.maths.SetTheory.Types.ADT.support.core.Utils.forallSeq
 import lisa.maths.SetTheory.Types.ADT.support.core.Utils.x
 import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.maths.SetTheory.Types.TypingTheorems.arrowElim
+import lisa.utils.automation.QuantifiersIntro
 import lisa.utils.fol.FOL.SubstPair
-import lisa.utils.prooflib.QuantifiersIntro
 import lisa.utils.prooflib.Thm
 
 object InterfaceHelpers {

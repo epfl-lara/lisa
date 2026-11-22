@@ -4,6 +4,8 @@ import lisa.automation.Problem
 import lisa.kernel.{proof => Kernel}
 import lisa.maths.Quantifiers
 import lisa.utils.K
+import lisa.utils.automation.DerivedFromPremises
+import lisa.utils.automation.Discharge
 import lisa.utils.fol.{FOL => F}
 import lisa.utils.kernel.ProofCertificate
 import lisa.utils.prooflib.ProofHelpers.PremiseSequentTactic
@@ -60,4 +62,4 @@ object Superpose extends SequentTactic, PremiseSequentTactic, DerivedFromPremise
                 else Kernel.Restate(conclusion.underlying, discharged).left.map(_.toString)
     result match
       case Right(theorem) => ProofJudgement(Thm(conclusion, theorem))
-      case Left(message) => ProofCarrier(Set(SoftError(message, file, line)), conclusion, None, ())
+      case Left(message) => ProofCarrier.Failure(message)

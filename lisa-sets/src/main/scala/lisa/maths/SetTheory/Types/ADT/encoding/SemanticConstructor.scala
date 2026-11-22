@@ -12,8 +12,8 @@ import lisa.maths.SetTheory.Types.ADT.support.proofs.PropositionalFacts.altEqual
 import lisa.maths.SetTheory.Types.ADT.support.semantics.DefinedSymbol
 import lisa.maths.SetTheory.Types.ADT.syntax.AST._
 import lisa.maths.SetTheory.Types.TypingHelpers.::
-import lisa.utils.prooflib.InstantiateForallSeq
-import lisa.utils.prooflib.QuantifiersIntro
+import lisa.utils.automation.InstantiateForallSeq
+import lisa.utils.automation.QuantifiersIntro
 import lisa.utils.prooflib.Thm
 
 /**

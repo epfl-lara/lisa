@@ -7,8 +7,8 @@ import lisa.maths.SetTheory.SetTheory._
 import lisa.maths.SetTheory.Types.ADT.support.core.Utils._
 import lisa.maths.SetTheory.Types.ADT.support.proofs.PropositionalFacts._
 import lisa.maths.SetTheory.Types.ADT.syntax.AST._
+import lisa.utils.automation.QuantifiersIntro
 import lisa.utils.prooflib.BasicStep.Restate
-import lisa.utils.prooflib.QuantifiersIntro
 
 private[encoding] trait SyntacticADTInduction extends SyntacticADTTerm {
   this: SyntacticADT =>

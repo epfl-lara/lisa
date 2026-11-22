@@ -74,7 +74,7 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
     val result = ProofBuilder.withContext:
       ExtendedHOLSteps._TRANS(first, second)
 
-    assert(result.isValid, result.errors.map(_.message).mkString("\n"))
+    assert(result.isValid, result.toString)
     val retained = statementDescendants(result.thm.statement).collect { case constant: TypedConstant => constant }.toSeq
     val retainedLeft = retained.find(_.eq(left)).get
     val retainedRight = retained.find(_.eq(right)).get
@@ -96,7 +96,7 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
     val result = ProofBuilder.withContext:
       HOLSteps._INST_TYPE(Seq(originalType -> 𝔹), premise)
 
-    assert(result.isValid, result.errors.map(_.message).mkString("\n"))
+    assert(result.isValid, result.toString)
     val theorem = result.thm
     val retainedVariables = statementDescendants(theorem.statement).collect { case variable: TypedVariable => variable }.toSeq
     assert(retainedVariables.nonEmpty)
@@ -124,7 +124,7 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
       Subproof:
         have(HOLSteps.HOLProofType(term))
 
-    assert(result.isValid, result.errors.map(_.message).mkString("\n"))
+    assert(result.isValid, result.toString)
 
   test("HOL typing cache distinguishes equal kernel terms with different HOL types"):
     val typeA = TypeVariable(K.Identifier("typing-cache-A"))
@@ -141,7 +141,7 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
         have(typingA)
         have(typingB)
 
-    assert(result.isValid, result.errors.map(_.message).mkString("\n"))
+    assert(result.isValid, result.toString)
     val typings = result.thm.statement
     assert(typings.right.exists(isSame(_, termB :: typeB)))
 
@@ -153,7 +153,7 @@ class FrontSyntaxPreservationSuite extends AnyFunSuite:
       Subproof:
         have(HOLSteps.HOLProofType(hOneOne(typeA)(typeB)))
 
-    assert(result.isValid, result.errors.map(_.message).mkString("\n"))
+    assert(result.isValid, result.toString)
     val assumptions = result.thm.statement.left
     assert(assumptions.exists(isSame(_, nonEmpty(typeA))))
     assert(assumptions.exists(isSame(_, nonEmpty(typeB))))

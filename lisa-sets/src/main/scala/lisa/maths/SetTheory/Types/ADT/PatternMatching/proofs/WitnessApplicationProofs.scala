@@ -6,9 +6,9 @@ import lisa.maths.SetTheory.SetTheory.{_, given}
 import lisa.maths.SetTheory.Types.ADT.PatternMatching.semantics.Clause
 import lisa.maths.SetTheory.Types.ADT.support.core.Utils._
 import lisa.maths.SetTheory.Types.TypingHelpers._
+import lisa.utils.automation.InstantiateForallSeq
+import lisa.utils.automation.QuantifiersIntro
 import lisa.utils.prooflib.BasicStep.Restate
-import lisa.utils.prooflib.InstantiateForallSeq
-import lisa.utils.prooflib.QuantifiersIntro
 
 private[proofs] trait WitnessApplicationProofs extends WitnessFunctionProofs {
 

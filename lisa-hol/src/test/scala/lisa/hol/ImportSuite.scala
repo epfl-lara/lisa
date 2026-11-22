@@ -27,7 +27,7 @@ class ImportSuite extends AnyFunSuite:
   private val q = "v(store_q)(c[bool][])"
   private val equality = s"C(C(c(=)(c[fun][[c[bool][]][c[fun][[c[bool][]][c[bool][]]]]]))($p))($p)"
 
-  test("fatal step errors report the trace ID and preserve their cause"):
+  test("committed step failures report the trace ID and preserve their cause"):
     val wrongType = "v(store_f)(c[fun][[c[bool][]][c[bool][]]])"
     val proofs = Iterator(ProofLine(0, REFL(p)), ProofLine(1, INST(0, List(InstPair(p, wrongType)))))
     val statements = (0L to 1L).iterator.map(id => TheoremStatement(id, RawSequent(Nil, equality)))
@@ -36,7 +36,8 @@ class ImportSuite extends AnyFunSuite:
       val error = intercept[Import.FailedStepException](new Import.StepStore().apply(1))
       assert(error.index == 1 && error.step == "INST")
       assert(error.getMessage.contains("Type mismatch in instantiation"))
-      assert(error.getCause.isInstanceOf[lisa.utils.prooflib.FatalCarrierDestructionException])
+      assert(error.getCause.isInstanceOf[lisa.utils.prooflib.TacticException])
+      assert(error.getCause.getCause.isInstanceOf[lisa.utils.prooflib.TacticFailureException])
     finally context.close()
 
   test("lazy file imports reject missing and forward premises and mismatched named targets"):
@@ -121,21 +122,20 @@ class ImportSuite extends AnyFunSuite:
       withStore(): second =>
         assert(second.size == 0)
         assert(!(firstStep eq second(0)))
-        assert(firstStep.justification.get.statement == second(0).justification.get.statement)
+        assert(firstStep.thm.statement == second(0).thm.statement)
 
-  test("cached proof errors propagate to dependent steps"):
+  test("failed reconstruction cannot be used by dependent steps"):
     // Abstraction cannot bind a variable that remains free in a hypothesis.
     val proofs = Iterator(ProofLine(0, ASSUME(equality)), ProofLine(1, ABS(0, p)), ProofLine(2, TRANS(1, 1)))
     val statements = (0L to 2L).iterator.map(id => TheoremStatement(id, RawSequent(List(equality), equality)))
     given context: ExtractorContext = new ExtractorContext(proofs, statements)
     try
       val store = new Import.StepStore
-      val invalid = store(1)
-      assert(!invalid.isValid)
-      assert(invalid.errors.nonEmpty)
-      assert(store(1) eq invalid)
-      assert(invalid.errors.subsetOf(store(2).errors))
-      assertThrows[Import.FailedTheoremException](store.theorem(TheoremRef(2, "store_invalid")))
+      val invalid = intercept[Import.FailedStepException](store(1))
+      assert(invalid.index == 1)
+      assertThrows[Import.FailedStepException](store(1))
+      assertThrows[Import.FailedStepException](store(2))
+      assertThrows[Import.FailedStepException](store.theorem(TheoremRef(2, "store_invalid")))
       assert(store(0).isValid)
     finally context.close()
 

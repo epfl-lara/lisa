@@ -32,6 +32,7 @@ val commonSettings3 = commonSettings ++ Seq(
     "-language:experimental.modularity"
   ),
   javaOptions += "-Xmx10G",
+  javaOptions += "-Dfile.encoding=UTF-8",
   libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.20" % "test",
   libraryDependencies += "com.lihaoyi" %% "sourcecode" % "0.4.4",
   Test / parallelExecution := false,

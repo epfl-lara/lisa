@@ -8,8 +8,8 @@ import lisa.maths.SetTheory.Types.TypingHelpers.::
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.maths.SetTheory.Types.TypingRules.BetaReduction
 import lisa.maths.SetTheory.Types.TypingRules.TAbs
+import lisa.utils.automation.QuantifiersIntro
 import lisa.utils.prooflib.BasicStep.RightForall
-import lisa.utils.prooflib.QuantifiersIntro
 import lisa.utils.prooflib.Thm
 
 /**

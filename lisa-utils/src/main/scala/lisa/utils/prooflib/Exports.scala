@@ -6,5 +6,5 @@ object Exports:
   export P.ProofHelpers.*
   export P.BasicStep.*
   export P.ProofJudgement
-  export P.{Lemma, Theorem}
-  export P.{Congruence, Discharge, Generalize, Horn, HornSolver, InstantiateForall, Substitute, Tableau, Tautology}
+  export P.{Corollary, Lemma, Theorem}
+  export lisa.utils.automation.{Congruence, Discharge, Generalize, Horn, HornSolver, InstantiateForall, Substitute, Tableau, Tautology}

@@ -85,6 +85,7 @@ with `sbt command` or `sbt "command; command; ..."`.
 * `scalafix` to lint the whole project
 * `scalafmt` to format the whole project
 
+
 ## License and Distribution
 
    Copyright 2023 EPFL
@@ -100,3 +101,33 @@ with `sbt command` or `sbt "command; command; ..."`.
    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
    License for the specific language governing permissions and limitations under
    the License.
+
+
+
+## Debugging
+
+### Windows / PowerShell UTF-8 encoding
+
+If logical symbols such as `⊢` appear as `?` or `Ôèó`, configure the PowerShell
+console to use UTF-8. Exit sbt, then run the following in PowerShell (including
+when using the VS Code integrated terminal), before starting sbt again:
+
+```powershell
+[Console]::InputEncoding  = [System.Text.UTF8Encoding]::new($false)
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+$OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+```
+
+
+To apply these settings automatically in new terminals, add the three lines
+above to your PowerShell profile.
+
+```powershell
+if (!(Test-Path -LiteralPath $PROFILE)) {
+    New-Item -ItemType File -Path $PROFILE -Force
+}
+notepad $PROFILE
+```
+
+Append the three lines above without removing existing profile content, save, and open a
+new terminal. Now UTF-8 symbols should render correctly.

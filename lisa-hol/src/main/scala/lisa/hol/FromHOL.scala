@@ -8,14 +8,14 @@ import lisa.hol.basics.{False => F}
 import lisa.hol.basics.{Forall => FA}
 import lisa.hol.basics.{Truth => T}
 import lisa.hol.{HOLHelperTheorems => H}
+import lisa.utils.automation.Discharge
 import lisa.maths.SetTheory.Functions.Predef._
 import lisa.maths.SetTheory.Types.Tactics.Typecheck
 import lisa.maths.SetTheory.Types.TypingHelpers._
 import lisa.maths.SetTheory.Types.TypingRules
-import lisa.utils.prooflib.Discharge
 import lisa.utils.prooflib.ProofBuilder
 import lisa.utils.prooflib.ProofJudgement
-import lisa.utils.prooflib.Subproof
+import lisa.utils.prooflib.TacticProof
 import lisa.utils.prooflib.Thm
 
 /**
@@ -30,7 +30,7 @@ object FromHOL extends lisa.Main:
   /**
    * Translate Boolean formulas on both sides; leave unknown constants and higher-order arguments opaque.
    */
-  def fromHOL(premise: Thm)(using sourcecode.File, sourcecode.Line): ProofJudgement = Subproof:
+  def fromHOL(premise: Thm)(using sourcecode.File, sourcecode.Line): ProofJudgement = TacticProof:
     val context = premise.left ++ getContext(premise.statement)
     val typing = context.filter:
       case TypeAssign(_, _) => true
@@ -63,7 +63,7 @@ object FromHOL extends lisa.Main:
   /**
    * Certify a Boolean formula's translation independently of any theorem using it.
    */
-  private[hol] def equivalence(term: Expr[Ind], context: Set[Expr[Prop]]): ProofJudgement = Subproof:
+  private[hol] def equivalence(term: Expr[Ind], context: Set[Expr[Prop]]): ProofJudgement = TacticProof:
     val (_, proof) = boolean(term, context, context + eqOne(term))
     have(proof)
 

@@ -38,6 +38,25 @@ class ADTRegressionSuite extends AnyFunSuite:
 
   private val A, hd, hd2, tl, k, q = variable[Ind]
 
+  test("induction case bodies remain user proofs and recover without stopping later cases"):
+    var continued = false
+    val proposition = variable[Prop]
+    val theorem = Theorem.generated(k :: nat |- proposition) {
+      have(thesis) by Induction(k, nat) {
+        Case(zero) subproof {
+          assert(!currentProof.isTactic)
+          have(thesis) by ((_: Sequent) => lisa.utils.prooflib.ProofCarrier.Failure("case failure"))
+          continued = true
+        }
+        Case(succ, hd) subproof {
+          assert(!currentProof.isTactic && continued)
+          have(thesis) by Tautology
+        }
+      }
+    }
+    assert(continued && theorem.thm.usesSorry)
+    assert(theorem.errors.size == 1 && theorem.errors.head.message == "case failure")
+
   test("declare ordinary function parameters independently of a monomorphic domain"):
     val B = variable[Ind]
     val regressionEmptyLists: ADTFunction[Ind >>: Ind] = fun(B)(nat, list(B)) {
@@ -910,7 +929,7 @@ class ADTRegressionSuite extends AnyFunSuite:
             var entered = false
             val result = tactic { entered = true }(goal)
             assert(!result.isValid)
-            assert(result.errors.exists(_.message.contains("exactly one formula on the right")))
+            assert((result match { case lisa.utils.prooflib.ProofCarrier.Failure(message) => message.contains("exactly one formula on the right"); case _ => false }))
             assert(!entered)
         have(thesis) by RightRefl
       }
@@ -928,12 +947,12 @@ class ADTRegressionSuite extends AnyFunSuite:
       for (invalid, message) <- cases do
         var entered = false
         rejectWithoutRegistration(message) {
-          have(thesis) by Induction(k, list.specialize(bool)) {
+          Induction(k, list.specialize(bool)) {
             invalid subproof {
               entered = true
               have(thesis) by Tautology
             }
-          }
+          }(thesis)
         }
         assert(!entered)
       have(thesis) by Tautology

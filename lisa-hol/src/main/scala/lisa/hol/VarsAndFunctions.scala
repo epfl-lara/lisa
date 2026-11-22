@@ -1,6 +1,7 @@
 package lisa.hol
 
 import lisa.SetTheoryLibrary
+import lisa.utils.automation.Discharge
 import lisa.maths.SetTheory.Base.Predef.∈
 import lisa.maths.SetTheory.Functions.Predef.{_, given}
 import lisa.maths.SetTheory.Types
@@ -10,13 +11,12 @@ import lisa.utils.K
 import lisa.utils.fol.FOL._
 import lisa.utils.prooflib.BasicStep.Weakening
 import lisa.utils.prooflib.BasicStep._
-import lisa.utils.prooflib.Discharge
 import lisa.utils.prooflib.Exports._
 import lisa.utils.prooflib.Library
 import lisa.utils.prooflib.ProofBuilder
 import lisa.utils.prooflib.ProofJudgement
-import lisa.utils.prooflib.Subproof
 import lisa.utils.prooflib.TacticHelpers.failWith
+import lisa.utils.prooflib.TacticProof
 import lisa.utils.prooflib.Theorem
 import lisa.utils.prooflib.Thm
 
@@ -64,7 +64,7 @@ object VarsAndFunctions /*extends lisa.Main*/:
         case ===(l, r) => r
         case _ => throw new IllegalArgumentException("Theorem " + thm + " used to define constant " + id + " must be an equality.")
 
-      Subproof {
+      TacticProof {
         val s1 = have((left :: typ) |- holeq(typ) * left * left) by Weakening(eqRefl of (A := typ, x := left, y := left))
         val s2 = have(holeq(typ) * left * left) by Cut(thm, s1)
         val s3 = have(left === right |- holeq(typ) * left * right) by RightSubstEq(Seq((left, right)), (Seq(x), eqOne(holeq(typ) * left * x)))(s2)
@@ -88,7 +88,7 @@ object VarsAndFunctions /*extends lisa.Main*/:
         case _ => throw new IllegalArgumentException("Theorem " + justif + " used to define constant " + id + " must be an equality.")
       val nonEmpties = typ.args.map(nonEmpty).toSet
       val otyp = typ.outTyp
-      Subproof {
+      TacticProof {
         val typeJustif =
           if typ.args.isEmpty then justif
           else have(nonEmpties |- (left :: otyp)) by InstantiateForall(typ.args*)(justif)
@@ -365,7 +365,7 @@ object VarsAndFunctions /*extends lisa.Main*/:
     val A = variable[Ind]
     val B = variable[Ind]
 
-    def apply(using proof: ProofBuilder)(typ: Expr[Ind]): ProofJudgement = Subproof { ip ?=>
+    def apply(using proof: ProofBuilder)(typ: Expr[Ind]): ProofJudgement = TacticProof { ip ?=>
       typ match {
         case ctt: HOLConstantType => have(ctt.nonEmptyThm)
         case Multiapp(poly: HOLPolymorphicType[?], args) =>

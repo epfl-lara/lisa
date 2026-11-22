@@ -41,7 +41,7 @@ class FromHOLSuite extends AnyFunSuite:
     Thm(statement, kernel)
 
   private def check(result: ProofJudgement, expected: Sequent, source: Thm): Thm =
-    assert(result.isValid, result.errors.map(_.message).mkString("\n"))
+    assert(result.isValid, result.toString)
     assert(!result.kernel.usesSorry)
     assert(result.kernel.assumptions == source.kernel.assumptions)
     assert(isSameSequent(result.thm.statement, expected), s"${result.thm.statement}\nExpected: $expected")
@@ -170,7 +170,7 @@ object FromHOLImportCheck extends lisa.HOL:
     for timing <- imported do
       val name = timing.theorem.name
       val result = FromHOL.fromHOL(store(name))
-      require(result.isValid, s"$name: ${result.errors.map(_.message).mkString("; ")}")
+      require(result.isValid, s"$name: ${result.toString}")
       require(!result.kernel.usesSorry, s"$name: translation uses Sorry")
       require(result.kernel.assumptions == store(name).kernel.assumptions, s"$name: translation introduced a proof hole")
       if examples.contains(name) then println(s"FIRST_ORDER $name: ${result.thm.statement}")
