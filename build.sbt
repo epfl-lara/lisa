@@ -83,20 +83,39 @@ lazy val utils = Project(
   .settings(commonSettings3)
   .dependsOn(kernel)
 
+val tptpSettings = Seq(
+  resolvers += "jitpack" at "https://jitpack.io",
+  libraryDependencies += "com.github.SC-TPTP" % "scala-tptp-parser_2.13" % "0b4ffa55c71415e925080608707c78ada1d750e5"
+)
+
+// Compile the sibling checkout against Lisa's parser without loading scala-utils' sbt 1.x plugins.
+lazy val scTptpUtils = project.in(file("target/sc-tptp-utils"))
+  .settings(tptpSettings)
+  .settings(
+    scalaVersion := scala3,
+    Compile / sourceDirectory := {
+      val checkout = (LocalRootProject / baseDirectory).value.getParentFile / "sc-tptp"
+      val sources = checkout / "scala-utils" / "src" / "main"
+      require(sources.isDirectory, s"Expected the SC-TPTP checkout at $checkout")
+      sources
+    },
+    scalacOptions += "-language:implicitConversions",
+    libraryDependencies += "com.lihaoyi" %% "mainargs" % "0.7.6"
+  )
+
 lazy val sets = Project(
   id = "lisa-sets",
   base = file("lisa-sets")
 )
   .settings(commonSettings3)
+  .settings(tptpSettings)
   .settings(
-    resolvers += "jitpack" at "https://jitpack.io",
     libraryDependencies ++= Seq(
       "org.apache.commons" % "commons-math3" % "3.6.1",
-      "it.unimi.dsi" % "fastutil-core" % "8.5.19",
-      "com.github.SC-TPTP" % "scala-tptp-parser_2.13" % "0b4ffa55c71415e925080608707c78ada1d750e5"
+      "it.unimi.dsi" % "fastutil-core" % "8.5.19"
     )
   )
-  .dependsOn(kernel, withTests(utils))
+  .dependsOn(kernel, withTests(utils), scTptpUtils)
 
 assemblyMergeStrategy := {
   case PathList("module-info.class") => MergeStrategy.discard

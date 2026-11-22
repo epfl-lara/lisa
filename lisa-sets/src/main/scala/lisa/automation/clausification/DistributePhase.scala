@@ -114,6 +114,8 @@ private[clausification] object DistributePhase:
           val negative = negA ++ negB
           val positive = posA ++ posB
           (negative, positive, emit(LeftOr(Sequent(negative + disjunction, positive), Seq(rA, rB), Seq(a, b))))
+      case `top` => Seq.empty
+      case `bot` => Seq((Set.empty[Expression], Set.empty[Expression], emit(RestateTrue(bot |- ()))))
       case lit =>
         require(isLeaf(lit), s"byPrimitiveRules: non-literal leaf in the NNF matrix. Got: $lit")
         lit match

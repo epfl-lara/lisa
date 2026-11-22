@@ -102,6 +102,10 @@ object Clausification {
   enum Distribute:
     case Weakening, Primitive
 
+  /** How to certify negation normal form: by restatement or by explicit sequent rules. */
+  enum Nnf:
+    case Restate, Primitive
+
   /**
    * Pipeline configuration, supplied by [[CertifiedClausifier.certifyClausal]] and read by the phases as a given.
    * It also fixes the library imports, so unused prenex laws are not imported.
@@ -109,7 +113,8 @@ object Clausification {
   case class ClausifierOptions(
       threshold: Int = 4, //           name a subformula once its CNF estimate exceeds this
       prenex: Prenex = Prenex.Deconstruct,
-      distribute: Distribute = Distribute.Weakening
+      distribute: Distribute = Distribute.Weakening,
+      nnf: Nnf = Nnf.Restate
   ):
     def libStatements: IndexedSeq[Sequent] = prenex match
       case Prenex.Deconstruct => IndexedSeq(existsEpsilonIffStatement)

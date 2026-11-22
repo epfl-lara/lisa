@@ -16,35 +16,39 @@ private[clausification] object ScreenPhase:
     val renaming: Map[Variable, Variable] = screeningRenaming(problem)
     val sigma: Map[Variable, Expression] = renaming.map((v, w) => v -> (w: Expression))
     val sigmaInv: Map[Variable, Expression] = renaming.map((v, w) => w -> (v: Expression))
-    // The entry transformation: rename into the reserved namespaces, then η-expand.
-    def screen(s: Sequent): Sequent = etaExpandSequent(applyTo(s, sigma))
-    val screenedHyps: Seq[Sequent] = problem.hypotheses.map(screen)
-    val screenedConj: Option[Sequent] = problem.conjecture.map(screen)
-    // Pass through only when *neither* half does anything. `renaming.isEmpty` alone is not enough: an
-    // already-screened problem can still carry η-reduced quantifiers, and skipping the phase would leave them.
-    if renaming.isEmpty && screenedHyps == problem.hypotheses && screenedConj == problem.conjecture then prover(problem, goal)
+    val steps = scala.collection.mutable.ArrayBuffer.empty[ClausificationProofStep]
+    def emit(step: ClausificationProofStep): Int =
+      steps += step
+      steps.size - 1
+
+    val (screenedHyps, hypRefs) = problem.hypotheses.iterator.zipWithIndex.map { case (source, i) =>
+      val renamed = applyTo(source, sigma)
+      val screened = etaExpandSequent(renamed)
+      val premise = problem.hypIndex(i)
+      val renamedRef = if renamed == source then premise else emit(InstSchema(renamed, premise, sigma))
+      val screenedRef = if screened == renamed then renamedRef else emit(Restate(screened, renamedRef))
+      (screened, screenedRef)
+    }.toVector.unzip
+    val renamedConj = problem.conjecture.map(applyTo(_, sigma))
+    val screenedConj = renamedConj.map(etaExpandSequent)
+    if renaming.isEmpty && steps.isEmpty && screenedConj == problem.conjecture then prover(problem, goal)
     else
       val transformed = Problem(screenedHyps, screenedConj, problem.frozen.map(v => renaming.getOrElse(v, v)))
       val downstream = prover(transformed, goal)
       require(sameImportList(downstream.imports, transformed.imports ++ libImports), "Downstream imports must match transformed problem imports")
 
-      // One step per hypothesis, deducting its screened form with instantiation (or `Restate` if there is no renaming)
-      val instSteps: IndexedSeq[ClausificationProofStep] =
-        screenedHyps.toIndexedSeq.zipWithIndex.map { case (h, i) =>
-          if sigma.isEmpty then Restate(h, problem.hypIndex(i)) else InstSchema(h, problem.hypIndex(i), sigma)
-        }
-      val subproof = ClausificationSubproof(downstream, instSteps.indices.toIndexedSeq ++ libRefs(problem.imports.size))
-      // Restore the caller's names. `σ⁻¹` may α-rename a binder that shadows one of the canonical targets, so
-      // prefer the caller's own conjecture sequent when it is the same up to α (callers compare the produced
-      // conclusion to their goal structurally)
-      val computed = applyTo(subproof.bot, sigmaInv)
-      val restored = problem.conjecture.filter(c => isSameSequent(c, computed)).getOrElse(computed)
-      val steps =
-        if restored == subproof.bot then instSteps :+ subproof
-        else
-          instSteps :+ subproof :+
-            (if sigmaInv.isEmpty then Restate(restored, instSteps.size) else InstSchema(restored, instSteps.size, sigmaInv))
-      ClausificationProof(steps, problem.imports ++ libImports)
+      val subproof = ClausificationSubproof(downstream, hypRefs ++ libRefs(problem.imports.size))
+      val subRef = emit(subproof)
+      // Undo the two entry transformations in reverse order. Use the caller's original binders
+      // when undoing the renaming, since capture avoidance may have freshened them.
+      (problem.conjecture, renamedConj, screenedConj) match
+        case (Some(original), Some(renamed), Some(screened)) if subproof.bot == screened =>
+          val renamedRef = if renamed == screened then subRef else emit(Restate(renamed, subRef))
+          if original != renamed then emit(InstSchema(original, renamedRef, sigmaInv))
+        case _ =>
+          val restored = applyTo(subproof.bot, sigmaInv)
+          if restored != subproof.bot then emit(InstSchema(restored, subRef, sigmaInv))
+      ClausificationProof(steps.toIndexedSeq, problem.imports ++ libImports)
 
   /**
    * η-expand every quantifier on both sides of `s`. See the class doc for why this is the pipeline's entry
@@ -83,4 +87,4 @@ private[clausification] object ScreenPhase:
       ++ canonical(funs, GeneratedNames.inputFun)).filter((v, w) => v != w).toMap
 
   private def applyTo(s: Sequent, m: Map[Variable, Expression]): Sequent =
-    Sequent(s.left.map(substituteVariablesOpti(_, m)), s.right.map(substituteVariablesOpti(_, m)))
+    if m.isEmpty then s else Sequent(s.left.map(substituteVariablesOpti(_, m)), s.right.map(substituteVariablesOpti(_, m)))

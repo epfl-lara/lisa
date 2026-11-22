@@ -33,11 +33,29 @@ private[clausification] object NamingPhase:
      * the site's polarity actually uses (Plaisted-Greenbaum).
      */
     def directional: Expression =
-      val body =
-        if pol > 0 then implies(nmApp)(subst) //      positive occurrence: d ⇒ subst
-        else if pol < 0 then implies(subst)(nmApp) // negative occurrence: subst ⇒ d
-        else subst <=> nmApp //                       both (under `⇔`): the full definition
-      NamingSupport.quantifyAll(body, freeVars)
+      if pol == 0 then quantified else NamingSupport.quantifyAll(implication, freeVars)
+
+    private def implication: Expression =
+      if pol > 0 then implies(nmApp)(subst) else implies(subst)(nmApp)
+
+    /** Derive the selected implication from the imported, universally closed biconditional. */
+    def proveDirectional: ProofCertificate =
+      require(pol != 0, "Neutral naming sites use their full definition directly")
+      var left = subst <=> nmApp
+      var right = implication
+      val steps = scala.collection.mutable.ArrayBuffer.empty[CertificateStep]
+      steps += Hypothesis((implies(subst)(nmApp), implies(nmApp)(subst)) |- right, right)
+      steps += LeftIff(left |- right, 0, subst, nmApp)
+      // Bind each variable on the left first, so it is fresh in the conclusion of RightForall.
+      for v <- freeVars.reverseIterator do
+        val nextLeft = forall(v, left)
+        val nextRight = forall(v, right)
+        steps += LeftForall(nextLeft |- right, steps.size - 1, left, v, v)
+        steps += RightForall(nextLeft |- nextRight, steps.size - 1, right, v)
+        left = nextLeft
+        right = nextRight
+      steps += Cut(() |- right, -1, steps.size - 1, quantified)
+      ProofCertificate(steps.toIndexedSeq, IndexedSeq(() |- quantified))
 
   // `Est` / `capMul` / `capAdd` (the capped clause-count arithmetic) are shared with UncertifiedClausifier: see `Clausification`.
 
@@ -132,10 +150,9 @@ private[clausification] object NamingPhase:
       // Substituting `p -> nm` through `phiBody` would give the same formula by walking all of it.
       val named = site.rebuild(nmApp)
       val steps = IndexedSeq(
-        Hypothesis(f |- f, f), //                                                                              0
+        Hypothesis(f |- f, f),
         RightSubstIff(Sequent(Set(f, quantified), Set(named)), 0, Seq((substLambda, nmAppLambda)), (Seq(site.p), site.phiBody)),
-        Restate(() |- quantified, -1), //                                                                      2
-        Cut(f |- named, 2, 1, quantified)
+        Cut(f |- named, -1, 1, quantified)
       )
       NamingStep(named, nm, freeVars, nmApp, site.subst, site.pol, quantified, ProofCertificate(steps, IndexedSeq(() |- quantified)))
     }
@@ -206,14 +223,16 @@ private[clausification] object NamingPhase:
         prevFormula = st.named
       namedRefs += prevRef
 
-    // Weaken each `⇔` assumption to the directional half the downstream problem declares. One `Weakening` per
-    // definition: the kernel's rule is `isImplyingSequent`, an ortholattice *entailment*, and the checker takes
-    // `∀x̄.(a ⇔ b) ⊢ ∀x̄.(a ⇒ b)`, reaching under the binder. At polarity 0 the two coincide and the
-    // assumption import is cited directly.
-    val defRefs: IndexedSeq[Int] = (0 until Q).map { j =>
-      if directionals(j) == quantifieds(j) then innerDefRef(j)
+    // A neutral site passes its full definition downstream. At either single polarity,
+    // certify the selected implication with the configured clausification rules.
+    val defRefs: IndexedSeq[Int] = flatSteps.indices.map { j =>
+      val step = flatSteps(j)
+      val premise = innerDefRef(j)
+      if step.pol == 0 then premise
       else
-        innerSteps += Weakening(() |- directionals(j), innerDefRef(j))
+        o.distribute match
+          case Distribute.Weakening => innerSteps += Weakening(() |- directionals(j), premise)
+          case Distribute.Primitive => innerSteps += Subproof(step.proveDirectional, IndexedSeq(premise))
         innerSteps.size - 1
     }
 

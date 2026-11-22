@@ -49,7 +49,9 @@ object Reconstruction:
     private val dischargeById: Map[K.Identifier, K.Expression] = discharge.map((v, e) => v.id -> e)
 
     def reconstructProof(empty: Clause): K.ProofCertificate =
-      refOf(empty)
+      val result = refOf(empty)
+      // An imported empty clause already concludes the refutation. Give the certificate a final step.
+      if result.ref < 0 then addStep(K.Weakening(result.seq, result.ref))
       K.ProofCertificate(steps.toIndexedSeq, imports.toIndexedSeq)
 
     /**
@@ -73,7 +75,7 @@ object Reconstruction:
       case Justification.Input => buildInput(c)
       case Justification.Canonicalization(p) => refOf(p) // sort/dedup are no-ops on a set-sequent
       case Justification.Factoring(p, i, j) => buildFactoring(p, i, j)
-      case Justification.Resolution(l, i, r, j) => buildResolution(l, i, r, j)
+      case Justification.Resolution(l, i, r, j) => buildResolution(c, l, i, r, j)
       case Justification.Superposition(from, fi, fs, into, ii, pos) => buildSuperposition(from, fi, fs, into, ii, pos)
       case Justification.Demodulation(target, ti, pos, rule, rs) => buildDemodulation(target, ti, pos, rule, rs)
       case Justification.EqualityResolution(p, i) => buildEqualityResolution(p, i)
@@ -109,7 +111,7 @@ object Reconstruction:
       val (ref, seq) = instStep(p, subst, bot)
       Recon(ref, seq)
 
-    private def buildResolution(left: Clause, i: Int, right: Clause, j: Int): Recon =
+    private def buildResolution(derived: Clause, left: Clause, i: Int, right: Clause, j: Int): Recon =
       val pl = refOf(left); val pr = refOf(right)
       val saved = trail.save()
       trail.unify(bank.atomOf(left.literals(i)), 0, bank.atomOf(right.literals(j)), 1)
@@ -122,12 +124,13 @@ object Reconstruction:
       val botR = substSeq(pr.seq, substR)
       val phi = K.substituteVariables(kernelize(bank.atomOf(left.literals(i))), substL)
       trail.restore(saved)
-      val (refL, seqL) = instStep(pl, substL, botL)
-      val (refR, seqR) = instStep(pr, substR, botR)
+      val (refL, _) = instStep(pl, substL, botL)
+      val (refR, _) = instStep(pr, substR, botR)
       // the positive side carries φ on the right (Cut's t1); the negative side carries it on the left (t2)
-      val (t1ref, t1seq, t2ref, t2seq) =
-        if bank.isPositive(left.literals(i)) then (refL, seqL, refR, seqR) else (refR, seqR, refL, seqL)
-      val resolvent = K.Sequent(t1seq.left ++ (t2seq.left - phi), (t1seq.right - phi) ++ t2seq.right)
+      val (t1ref, t2ref) = if bank.isPositive(left.literals(i)) then (refL, refR) else (refR, refL)
+      // Another literal can instantiate to the pivot. Resolution removes just the selected occurrences.
+      val (positive, negative) = derived.literals.partition(bank.isPositive)
+      val resolvent = K.Sequent(negative.iterator.map(l => kernelize(bank.atomOf(l))).toSet, positive.iterator.map(l => kernelize(bank.atomOf(l))).toSet)
       Recon(addStep(K.Cut(resolvent, t1ref, t2ref, phi)), resolvent)
 
     // --- equality inferences ------------------------------------------------------------------------------
@@ -201,14 +204,17 @@ object Reconstruction:
       val (refFrom0, seqFrom0) = instStep(pFrom, substFrom, botFrom)
       // orient the `from` instance's equation to `sK=tK` (its stored order is a0=a1; flip when rewriting side 1)
       val (refFrom, seqFrom) = if fromSide == 0 then (refFrom0, seqFrom0) else flipEqRight(refFrom0, seqFrom0, a0, a1)
-      val (refSubst, seqSubst) =
-        if bank.isPositive(intoLit) then
-          val bot = K.Sequent(seqInto.left + eq, (seqInto.right - phiOfS) + phiOfT)
-          (addStep(K.RightSubstEq(bot, refInto, Seq((sK, tK)), (Seq(hole), phiBody))), bot)
-        else
-          val bot = K.Sequent((seqInto.left - phiOfS) + eq + phiOfT, seqInto.right)
-          (addStep(K.LeftSubstEq(bot, refInto, Seq((sK, tK)), (Seq(hole), phiBody))), bot)
-      val concl = K.Sequent(seqFrom.left ++ (seqSubst.left - eq), (seqFrom.right - eq) ++ seqSubst.right)
+      val positive = bank.isPositive(intoLit)
+      val rewritten =
+        if positive then seqInto.copy(right = (seqInto.right - phiOfS) + phiOfT)
+        else seqInto.copy(left = (seqInto.left - phiOfS) + phiOfT)
+      // The cut discharges the rewrite assumption. The same equation can also be a surviving target literal.
+      val withEquation = rewritten.copy(left = rewritten.left + eq)
+      val refSubst = addStep(
+        if positive then K.RightSubstEq(withEquation, refInto, Seq((sK, tK)), (Seq(hole), phiBody))
+        else K.LeftSubstEq(withEquation, refInto, Seq((sK, tK)), (Seq(hole), phiBody))
+      )
+      val concl = K.Sequent(seqFrom.left ++ rewritten.left, (seqFrom.right - eq) ++ rewritten.right)
       Recon(addStep(K.Cut(concl, refFrom, refSubst, eq)), concl)
 
     private def buildEqualityResolution(parent: Clause, i: Int): Recon =

@@ -197,7 +197,7 @@ private[clausification] object PrenexPhase:
       val substIdx = emit(RightSubstIff(Sequent(Set(iff), Set(lifted)), srcIdx, Seq((lhsIff, rhsIff)), (Seq(hole), rewriteAt(src, pathToOuter, _ => hole))))
       (emit(Cut(() |- lifted, iffIdx, substIdx, iff)), lifted)
 
-    var refIdx = emit(Restate(() |- phi, -1))
+    var refIdx = -1 // The imported prenex source.
     var current = phi
     // Lift the leftmost `∀` to the root one layer at a time, strip it there, and repeat.
     while locate(current).isDefined do
@@ -216,6 +216,8 @@ private[clausification] object PrenexPhase:
       refIdx = emit(Cut(() |- instantiated, refIdx, lfIdx, current))
       current = instantiated
 
+    // A standalone subproof still needs a concluding step when its input has no quantifiers.
+    if refIdx == -1 then emit(Weakening(imported, -1))
     val innerImports = IndexedSeq(imported, forallAndLeftStatement, forallAndRightStatement, forallOrLeftStatement, forallOrRightStatement)
     val outerRefs = IndexedSeq(premise) ++
       Seq(libForallAndLeftIdx, libForallAndRightIdx, libForallOrLeftIdx, libForallOrRightIdx).map(libRef(nonLibSize, _))

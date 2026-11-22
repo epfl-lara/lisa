@@ -304,24 +304,28 @@ object Clausal:
 
   /**
    * Present `base`, whose imports are the working-form abstracted clauses and whose conclusion is `∅ ⊢`, as a
-   * proof over the **original** clausifier clauses `orig`: each import `base` actually used becomes a `Restate`
-   * of the original clause it came from, and `base` itself becomes a subproof over those.
-   *
-   * The `Restate` is what bridges the two forms, which differ only propositionally (see [[toWorkingSequent]]).
+   * proof over the original clausifier clauses. Reuse identical imports directly. A clause whose
+   * negative literals moved across the turnstile needs a `Restate` (see [[toWorkingSequent]]).
    */
   private[superposition] def composeProof(base: K.ProofCertificate, orig: IndexedSeq[K.Sequent]): K.ProofCertificate =
-    // Slot of each working clause, first occurrence winning (duplicate inputs are equal sequents, so either
-    // would do). Built once, so composition is linear rather than a structural `Sequent` scan per import.
+    // Prefer an exact import when two different presentations give the same working clause.
     val slotOf = mutable.HashMap.empty[K.Sequent, Int]
     var k = 0
-    while k < orig.length do { slotOf.getOrElseUpdate(toWorkingSequent(orig(k)), k); k += 1 }
+    while k < orig.length do
+      val working = toWorkingSequent(orig(k))
+      val first = slotOf.getOrElseUpdate(working, k)
+      if orig(k) == working && orig(first) != working then slotOf(working) = k
+      k += 1
     val steps = mutable.ArrayBuffer.empty[K.CertificateStep]
     val premises: Seq[Int] = base.imports.map { w =>
       // A miss means reconstruction imported a clause the clausifier never produced, impossible unless the
       // abstraction round-trip stops being exact; failing loudly beats silently referencing step 0.
       val i = slotOf.getOrElse(w, throw new IllegalStateException(s"reconstructed proof imports a clause absent from the clausifier's clause set: $w"))
-      steps += K.Restate(w, -(i + 1))
-      steps.length - 1
+      val ref = -(i + 1)
+      if w == orig(i) then ref
+      else
+        steps += K.Restate(w, ref)
+        steps.length - 1
     }
     steps += K.Subproof(base, premises) // conclusion ∅ ⊢, over the working imports
     K.ProofCertificate(steps.toIndexedSeq, orig) //   imports = the original clausifier clauses

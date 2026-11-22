@@ -14,7 +14,7 @@ import lisa.automation.{ProofSyntax => K}
 //   - threading each assumed formula onto the LHS of the step bots of
 //     the inner proof that need it, namely those whose premise cone reaches an
 //     import, and
-//   - introducing a `RestateTrue(… ⊢ φ)` step at the start of the converted
+//   - introducing a `Hypothesis(…, φ ⊢ φ, φ)` step at the start of the converted
 //     subproof to represent the corresponding assumption.
 // A certificate `Subproof` step follows the same path, as the case where the list
 // of local assumptions is empty.
@@ -49,7 +49,7 @@ private[clausification] def assumedFormula(sequent: Sequent): Expression = seque
 /**
  * A subproof that is itself a [[ClausificationProof]], converted to an [[Subproof]] by
  * [[clausificationProofToProofCertificate]]. Its inner imports split in two: the positions named by [[assumptions]], each
- * materialised inside the converted subproof by a `RestateTrue(... |- φ)` and added to the left of every conclusion
+ * materialised inside the converted subproof by a `Hypothesis` step and added to the left of every conclusion
  * depending on it, and all other positions, supplied by reference from the parent certificate.
  * From outside, this step's bot is the inner conclusion plus the assumed formulas
  * (see [[bot]]). Construction checks that each assumption names an import of the form `() |- φ`.
@@ -205,7 +205,7 @@ private[clausification] def clausificationProofToProofCertificate(
   // and keep the step that the citations of its import must be redirected to.
   val localAssumptionSteps = localAssumptions.map { i =>
     val phi = assumedFormula(proof.imports(i))
-    scSteps += RestateTrue(addAssumptionsLeftSet(() |- phi, assumptionSet))
+    scSteps += Hypothesis(addAssumptionsLeftSet(() |- phi, assumptionSet), phi)
     scSteps.size - 1
   }
   val localAssumptionMap = localAssumptions.zip(localAssumptionSteps).toMap
