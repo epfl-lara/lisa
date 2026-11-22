@@ -88,17 +88,17 @@ val tptpSettings = Seq(
   libraryDependencies += "com.github.SC-TPTP" % "scala-tptp-parser_2.13" % "0b4ffa55c71415e925080608707c78ada1d750e5"
 )
 
-// Compile the sibling checkout against Lisa's parser without loading scala-utils' sbt 1.x plugins.
+lazy val scTptpUpstream = RootProject(uri("https://github.com/SC-TPTP/sc-tptp.git#fbfbb29aaf89ca82a050718ea5554022ebb73d84"))
+scTptpUpstream / scalaVersion := scala3
+
+// The aggregate reference makes sbt fetch the repository. This project runs the tasks using Lisa's Scala and TPTP parser.
 lazy val scTptpUtils = project.in(file("target/sc-tptp-utils"))
+  .aggregate(scTptpUpstream)
   .settings(tptpSettings)
   .settings(
+    aggregate := false,
     scalaVersion := scala3,
-    Compile / sourceDirectory := {
-      val checkout = (LocalRootProject / baseDirectory).value.getParentFile / "sc-tptp"
-      val sources = checkout / "scala-utils" / "src" / "main"
-      require(sources.isDirectory, s"Expected the SC-TPTP checkout at $checkout")
-      sources
-    },
+    Compile / sourceDirectory := (scTptpUpstream / baseDirectory).value / "scala-utils" / "src" / "main",
     scalacOptions += "-language:implicitConversions",
     libraryDependencies += "com.lihaoyi" %% "mainargs" % "0.7.6"
   )

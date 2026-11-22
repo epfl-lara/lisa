@@ -7,6 +7,8 @@ import lisa.tptp.KernelParser.strictMapAtom
 import lisa.tptp.KernelParser.strictMapTerm
 import lisa.tptp.KernelParser.strictMapVariable
 import org.scalatest.funsuite.AnyFunSuite
+import sctptp.{Parser, SequentCalculus as SC}
+import sctptp.LVL2.RightSubstIffForall
 
 import java.io.File
 import java.nio.file.Files
@@ -23,9 +25,9 @@ class ProofExportTest extends AnyFunSuite:
 
   private def tempDir(): File = Files.createTempDirectory("proof-export").toFile
 
-  private def problemFile(): File =
+  private def problemFile(text: String = problemText): File =
     val f = new File(tempDir(), "EXP001+1.p")
-    Files.writeString(f.toPath, problemText)
+    Files.writeString(f.toPath, text)
     f
 
   private def assertValid(proof: K.ProofCertificate): Unit =
@@ -47,10 +49,9 @@ class ProofExportTest extends AnyFunSuite:
     assertValid(back)
   }
 
-  test("the Lisa TSTP and SC-TPTP exports are not implemented yet") {
+  test("the Lisa TSTP export is not implemented yet") {
     val proof = K.ProofCertificate(IndexedSeq(K.RestateTrue(K.Sequent(Set.empty, Set(K.top)))))
     intercept[NotImplementedError](ProofExport.writeKernel(ProofFormat.LisaTstp, "x", proof, tempDir()))
-    intercept[NotImplementedError](ProofExport.writeKernel(ProofFormat.ScTptp, "x", proof, tempDir()))
   }
 
   test("Harness one writes a serialized proof that check accepts") {
@@ -61,6 +62,28 @@ class ProofExportTest extends AnyFunSuite:
     val report = new java.io.ByteArrayOutputStream()
     Console.withOut(report)(FofEvaluation.main(Array("check", out.getPath)))
     assert(report.toString.contains("1 of 1 proofs valid"), report.toString)
+  }
+
+  test("Harness one writes a checked SC-TPTP refutation with quantified naming") {
+    val input = problemFile(
+      """fof(witness, axiom, ? [X] : ((p(X) & q(X)) | (q(X) & p(X)))).
+        |fof(no_p, axiom, ! [Y] : ~p(Y)).
+        |""".stripMargin
+    )
+    val out = tempDir()
+    FofEvaluation.main(Array("one", input.getPath, out.getPath, "proof=sc-tptp", "threshold=2", "timeout=20000"))
+    val proof = Parser.reconstructProof(new File(out, "proof.p"))
+    assert(SC.checkProof(proof) == SC.StepCheckOK)
+    assert(proof.conclusion == SC.Sequent(Nil, Nil))
+    assert(proof.steps.exists(_.isInstanceOf[RightSubstIffForall]))
+  }
+
+  test("the batch worker writes a checked SC-TPTP proof to the per-problem directory") {
+    val input = problemFile()
+    val out = tempDir()
+    FofEvaluation.main(Array("solve1", input.getPath, s"proofDir=$out", "proof=sc-tptp", "timeout=20000"))
+    val proof = Parser.reconstructProof(new File(out, "EXP001+1/proof.p"))
+    assert(SC.checkProof(proof) == SC.StepCheckOK)
   }
 
   test("Harness one writes the CASC derivation to proof.p") {
@@ -75,4 +98,6 @@ class ProofExportTest extends AnyFunSuite:
     val out = tempDir().getPath
     intercept[RuntimeException](FofEvaluation.main(Array("one", problemFile().getPath, out, "mode=uncert", "proof=serialized")))
     intercept[RuntimeException](FofEvaluation.main(Array("one", problemFile().getPath, out, "proof=casc-tstp")))
+    val error = intercept[RuntimeException](FofEvaluation.main(Array("one", problemFile().getPath, out, "orthologic=on", "proof=sc-tptp")))
+    assert(error.getMessage.contains("orthologic=off"))
   }

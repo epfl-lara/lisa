@@ -2,6 +2,7 @@ package lisa.automation.superposition
 
 import lisa.automation.{ProofSyntax => K}
 import lisa.utils.Serialization
+import sctptp.SequentCalculus as SC
 
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
@@ -34,8 +35,7 @@ object ProofFormat:
     values.find(_.name == s).getOrElse(sys.error(s"unknown proof format '$s'; have ${values.map(_.name).mkString(", ")}"))
 
 /**
- * Writes refutations to files, under fixed names in a given directory: `proof.p` for a TSTP derivation,
- * `proof.trees` and `proof.proof` for a serialized kernel proof.
+ * Writes TSTP and SC-TPTP proofs to `proof.p` and serialized kernel proofs to `proof.trees` and `proof.proof`.
  */
 object ProofExport:
 
@@ -48,11 +48,13 @@ object ProofExport:
     format match
       case ProofFormat.Serialized => writeSerialized(name, proof, dir)
       case ProofFormat.LisaTstp => ???
-      case ProofFormat.ScTptp => ???
+      case ProofFormat.ScTptp =>
+        val exported = Sctptp.fromKernel(proof, name).fold(error => throw new IllegalArgumentException(s"SC-TPTP export of $name failed: $error"), identity)
+        writeTstp(SC.ProofToString(exported), dir)
       case _ => ()
 
   /**
-   * Write a TSTP derivation, as [[Tstp.printRefutation]] prints it, to `dir/proof.p`.
+   * Write the rendered proof to `dir/proof.p` in UTF-8.
    */
   def writeTstp(tstp: String, dir: File): Unit =
     dir.mkdirs()

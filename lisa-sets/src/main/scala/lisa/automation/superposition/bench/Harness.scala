@@ -6,6 +6,7 @@ import lisa.automation.clausification.CertifiedClausifier
 import lisa.automation.clausification.Clausification.ClausifierOptions
 import lisa.automation.clausification.Clausification.Distribute
 import lisa.automation.clausification.Clausification.GeneratedNames
+import lisa.automation.clausification.Clausification.Nnf
 import lisa.automation.clausification.Clausification.Prenex
 import lisa.automation.clausification.UncertifiedClausifier
 import lisa.automation.{ProofSyntax => K}
@@ -112,12 +113,15 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
         Some(if proofPerProblem then new File(dir, name.stripSuffix(".p")) else dir)
 
     /**
-     * This configuration, or an error if its proof format cannot be produced by its pipeline.
+     * Select the proof rules required by the output format and validate the pipeline options.
      */
     def validated: Config =
       if proof.fromKernel && (!certified || clausifyOnly) then sys.error(s"proof=${proof.name} needs mode=cert and a search")
       if proof == ProofFormat.CascTstp && certified then sys.error("proof=casc-tstp needs mode=uncert")
-      this
+      if proof == ProofFormat.ScTptp then
+        if opts.orthologic then sys.error("proof=sc-tptp needs orthologic=off")
+        copy(clausifier = clausifier.copy(nnf = Nnf.Primitive, distribute = Distribute.Primitive))
+      else this
 
     /**
      * The default proof directory of a list run: beside its CSV.
@@ -178,7 +182,7 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
         case "proof" => c.copy(proof = ProofFormat.parse(value))
         case "proofDir" => c.copy(proofDir = Some(value))
         case _ => c.copy(opts = withFlag(c.opts, key, flag))
-    }
+    }.validated
 
   /**
    * The search flags the command line can set by name. Everything else keeps its [[SearchOptions]] default.
@@ -208,9 +212,9 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
       sample(rest.lift(0).map(_.toInt).getOrElse(100), rest.lift(1).map(_.toLong).getOrElse(42L)).foreach(println)
     case "verify" +: rest => rest.foreach(verifyOne)
     case "check" +: dirs => checkProofs(dirs)
-    case "one" +: file +: outDir +: rest => runOne(file, outDir, parse(rest).validated)
-    case "files" +: list +: rest => runFiles(list, parse(rest).validated.withListProofDir)
-    case rest => benchmark(parse(rest).validated.withListProofDir)
+    case "one" +: file +: outDir +: rest => runOne(file, outDir, parse(rest))
+    case "files" +: list +: rest => runFiles(list, parse(rest).withListProofDir)
+    case rest => benchmark(parse(rest).withListProofDir)
 
   /**
    * Kernel-check the serialized proofs in each directory, or in its subdirectories for a list run, and print one
