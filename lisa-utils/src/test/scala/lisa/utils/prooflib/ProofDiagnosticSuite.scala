@@ -9,6 +9,7 @@ import java.nio.file.Path
 class ProofDiagnosticSuite extends AnyFunSuite:
   private val p = variable[Prop]
   private val goal = () |- p
+  private val sourceDirectory = Files.createDirectories(Path.of("target"))
 
   private def frame(name: String, file: String, line: Int): StackTraceElement =
     new StackTraceElement(name, "apply", file, line)
@@ -17,7 +18,7 @@ class ProofDiagnosticSuite extends AnyFunSuite:
     ProofDiagnostic(error, sourcecode.File(file), sourcecode.Line(line), goal)
 
   test("Lisa exceptions show the cause line while retaining recovery metadata internally"):
-    val path = Files.createTempFile(Path.of("target"), "proof-diagnostic-", ".scala")
+    val path = Files.createTempFile(sourceDirectory, "proof-diagnostic-", ".scala")
     try
       Files.writeString(path, "object Example:\n  have(p) by tactic\n")
       val error = new TacticFailureException("cannot prove goal")(using sourcecode.Line(2), sourcecode.File(path.toString))
@@ -33,7 +34,7 @@ class ProofDiagnosticSuite extends AnyFunSuite:
     finally Files.deleteIfExists(path)
 
   test("ordinary exceptions use the first proof-source frame before recovery"):
-    val path = Files.createTempFile(Path.of("target"), "proof-diagnostic-", ".scala")
+    val path = Files.createTempFile(sourceDirectory, "proof-diagnostic-", ".scala")
     try
       Files.writeString(path, "object Example:\n  throw new IllegalStateException(\"broken\")\n")
       val error = new IllegalStateException("broken")
@@ -111,7 +112,7 @@ class ProofDiagnosticSuite extends AnyFunSuite:
       assert(rendered.contains("original error"))
 
   test("source line numbers beyond the end of a file are harmless"):
-    val path = Files.createTempFile(Path.of("target"), "proof-diagnostic-", ".scala")
+    val path = Files.createTempFile(sourceDirectory, "proof-diagnostic-", ".scala")
     try
       Files.writeString(path, "short file\n")
       val error = new TacticFailureException("original error")(using sourcecode.Line(20), sourcecode.File(path.toString))
