@@ -563,6 +563,7 @@ object Import extends lisa.HOL:
         have(HOLSteps.Clean.all(have(judgement)))
 
       if theorem.errors.nonEmpty then throw FailedTheoremException(index, name, theorem.errors.toSeq.map(_.message))
+      if theorem.thm.usesSorry then throw FailedTheoremException(index, name, Seq("The imported theorem depends on Sorry."))
 
       theorem.thm
 
