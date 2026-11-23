@@ -1,19 +1,26 @@
 package lisa.automation.superposition
 
-import lisa.automation.{ProofSyntax as K}
-import sctptp.{FOL as F, SequentCalculus as SC}
-import sctptp.LVL2.{LVL2Proof, LVL2ProofStep as Step, RightSubstIffForall, StrictLVL2ProofStep}
+import lisa.automation.{ProofSyntax => K}
+import sctptp.LVL2.LVL2Proof
+import sctptp.LVL2.RightSubstIffForall
+import sctptp.LVL2.StrictLVL2ProofStep
+import sctptp.LVL2.{LVL2ProofStep => Step}
+import sctptp.{FOL => F}
+import sctptp.{SequentCalculus => SC}
 
 import scala.collection.mutable
 import scala.util.control.NonFatal
 
-/** Export the strict first-order fragment of Lisa's sequent calculus. Certificate imports become SC-TPTP axioms. */
+/**
+ * Export the strict first-order fragment of Lisa's sequent calculus. Certificate imports become SC-TPTP axioms.
+ */
 object Sctptp:
-  /** Flatten nested certificates and translate each inference. An error names the import or linear step that failed.
-    * The only accepted RestateTrue statements are the two nullary logical rules, ⊢ ⊤ and ⊥ ⊢.
-    * A single pointwise predicate rewrite on the right uses the Level 2 rightSubstIffForall rule.
-    * Weakening uses structural inclusion of the original Lisa sequents on both sides.
-    */
+  /**
+   * Flatten nested certificates and translate each inference. An error names the import or linear step that failed.
+   * The only accepted RestateTrue statements are the two nullary logical rules, ⊢ ⊤ and ⊥ ⊢.
+   * A single pointwise predicate rewrite on the right uses the Level 2 rightSubstIffForall rule.
+   * Weakening uses structural inclusion of the original Lisa sequents on both sides.
+   */
   def fromKernel(certificate: K.ProofCertificate, name: String = "proof"): Either[String, SC.SCProof[?]] =
     try Right(new Translation().run(certificate.toLinearProof, name))
     catch case NonFatal(e) => Left(e.getMessage)
@@ -29,8 +36,7 @@ object Sctptp:
   private def identifier(id: K.Identifier, prefix: String): F.Identifier =
     val plain = id.name.matches("[a-zA-Z][a-zA-Z0-9]*") && !id.name.startsWith("lisa")
     val base =
-      if plain then
-        if prefix.isEmpty && id.name.head.isUpper then "lisaC" + id.name else prefix + id.name
+      if plain then if prefix.isEmpty && id.name.head.isUpper then "lisaC" + id.name else prefix + id.name
       else
         val encoded = id.name.iterator.map(c => f"${c.toInt}%04x").mkString
         s"${prefix}lisaU$encoded"
@@ -131,19 +137,22 @@ object Sctptp:
 
     def run(proof: K.LinearProof, name: String): SC.SCProof[?] =
       require(proof.steps.nonEmpty, "Empty proof certificate")
-      for (s, i) <- proof.imports.iterator.zipWithIndex do
-        refs(-i - 1) = at(s"import $i")(emit(SC.Axiom(s"input$i", sequent(s))))
+      for (s, i) <- proof.imports.iterator.zipWithIndex do refs(-i - 1) = at(s"import $i")(emit(SC.Axiom(s"input$i", sequent(s))))
       def source(p: Int) = if p < 0 then proof.imports(-p - 1) else proof.steps(p).statement
-      for (step, i) <- proof.steps.iterator.zipWithIndex do
-        refs(i) = at(s"step $i (${step.getClass.getSimpleName})")(translate(step, source))
+      for (step, i) <- proof.steps.iterator.zipWithIndex do refs(i) = at(s"step $i (${step.getClass.getSimpleName})")(translate(step, source))
       // If the final certificate step aliases an earlier line, the intervening suffix is unused.
       val last = refs(proof.steps.length - 1)
       val needed = mutable.Set(last.name)
-      val kept = steps.take(steps.lastIndexOf(last) + 1).reverseIterator.filter { step =>
-        val keep = !inlined(step.name) || needed(step.name)
-        if keep then needed ++= step.premises
-        keep
-      }.toVector.reverse
+      val kept = steps
+        .take(steps.lastIndexOf(last) + 1)
+        .reverseIterator
+        .filter { step =>
+          val keep = !inlined(step.name) || needed(step.name)
+          if keep then needed ++= step.premises
+          keep
+        }
+        .toVector
+        .reverse
       if kept.exists(_.isInstanceOf[StrictLVL2ProofStep]) then LVL2Proof(kept, name)
       else SC.LVL1Proof(kept.collect { case s: SC.LVL1ProofStep => s }, name)
 
@@ -252,8 +261,7 @@ object Sctptp:
         val joined = F.ConnectorFormula(if onLeft then F.Or else F.And, Seq(operand, b))
         val bot =
           if i == ps.length - 1 then goal
-          else if onLeft then
-            SC.Sequent((line.bot.left.diff(Seq(operand)) ++ other.bot.left.diff(Seq(b)) :+ joined).distinct, (line.bot.right ++ other.bot.right).distinct)
+          else if onLeft then SC.Sequent((line.bot.left.diff(Seq(operand)) ++ other.bot.left.diff(Seq(b)) :+ joined).distinct, (line.bot.right ++ other.bot.right).distinct)
           else SC.Sequent((line.bot.left ++ other.bot.left).distinct, (line.bot.right.diff(Seq(operand)) ++ other.bot.right.diff(Seq(b)) :+ joined).distinct)
         line =
           if onLeft then emit(SC.LeftOr(next, bot, index(bot.left, joined), line.name, other.name))
@@ -264,7 +272,9 @@ object Sctptp:
         weaken(line, goal)
       else line
 
-    /** Expand a simultaneous schema instantiation without substituting inside another replacement. */
+    /**
+     * Expand a simultaneous schema instantiation without substituting inside another replacement.
+     */
     private def instantiate(start: Step, source: K.Sequent, subst: Map[K.Variable, K.Expression], goal: SC.Sequent): Step =
       val used = mutable.Set.from((source.left ++ source.right ++ subst.values ++ subst.keys).flatMap(_.allVariables))
       def newVariable(sort: K.Sort): K.Variable =
@@ -309,8 +319,7 @@ object Sctptp:
 
     private def pointwisePredicate(v: K.Variable): Boolean = v.sort.isPredicate && v.sort.depth > 0
 
-    private def quantifiedRewrite(start: Step, comparison: Step, i: Int, pair: (K.Expression, K.Expression),
-        hole: K.Variable, body: K.Expression, goal: SC.Sequent): RightSubstIffForall =
+    private def quantifiedRewrite(start: Step, comparison: Step, i: Int, pair: (K.Expression, K.Expression), hole: K.Variable, body: K.Expression, goal: SC.Sequent): RightSubstIffForall =
       require(pair._1.sort == hole.sort && pair._2.sort == hole.sort, "Expected predicate replacements of the context hole's sort")
       def filled(value: K.Expression) = formula(K.substituteVariables(body, Map(hole -> value)).betaNormalForm)
       index(start.bot.right, filled(pair._1))
@@ -323,21 +332,23 @@ object Sctptp:
 
     private type Context = (Seq[K.Variable], K.Expression)
 
-    private def comparisonSubst(start: Step, ps: Seq[Int], replacements: Seq[(K.Expression, K.Expression, Seq[K.Variable])],
-        ctx: Context, goal: SC.Sequent, onLeft: Boolean): Step =
+    private def comparisonSubst(start: Step, ps: Seq[Int], replacements: Seq[(K.Expression, K.Expression, Seq[K.Variable])], ctx: Context, goal: SC.Sequent, onLeft: Boolean): Step =
       require(ps.size == replacements.size, "Expected one comparison proof per replacement")
       require(replacements.forall(_._3.isEmpty), "Pointwise substitution of function or predicate schemata is outside the strict fragment")
       substitute(start, replacements.map((s, t, _) => (s, t)), ctx, ps.map(refs), goal, onLeft)
 
-    /** Replace one hole at a time, then cut away comparison assumptions supplied as separate proofs. */
-    private def substitute(start: Step, pairs: Seq[(K.Expression, K.Expression)], ctx: Context,
-        comparisons: Seq[Step], goal: SC.Sequent, onLeft: Boolean): Step =
+    /**
+     * Replace one hole at a time, then cut away comparison assumptions supplied as separate proofs.
+     */
+    private def substitute(start: Step, pairs: Seq[(K.Expression, K.Expression)], ctx: Context, comparisons: Seq[Step], goal: SC.Sequent, onLeft: Boolean): Step =
       val (holes, body) = ctx
       require(holes.size == pairs.size && holes.distinct == holes, "Expected one distinct context parameter per replacement")
-      val equations = holes.zip(pairs).map: (v, pair) =>
-        val (s, t) = pair
-        require(v.sort == s.sort && v.sort == t.sort && (v.sort == K.Ind || v.sort == K.Prop), "Expected an individual or propositional substitution")
-        formula(if v.sort == K.Ind then K.equality(s)(t) else K.iff(s)(t))
+      val equations = holes
+        .zip(pairs)
+        .map: (v, pair) =>
+          val (s, t) = pair
+          require(v.sort == s.sort && v.sort == t.sort && (v.sort == K.Ind || v.sort == K.Prop), "Expected an individual or propositional substitution")
+          formula(if v.sort == K.Ind then K.equality(s)(t) else K.iff(s)(t))
       val avoid = (body +: pairs.flatMap((s, t) => Seq(s, t))).flatMap(_.allVariables) ++ holes
       var values = holes.zip(pairs.map(_._1)).toMap
       def filled(m: Map[K.Variable, K.Expression]) = formula(K.substituteVariables(body, m))

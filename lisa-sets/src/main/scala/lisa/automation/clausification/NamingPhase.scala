@@ -38,7 +38,9 @@ private[clausification] object NamingPhase:
     private def implication: Expression =
       if pol > 0 then implies(nmApp)(subst) else implies(subst)(nmApp)
 
-    /** Derive the selected implication from the imported, universally closed biconditional. */
+    /**
+     * Derive the selected implication from the imported, universally closed biconditional.
+     */
     def proveDirectional: ProofCertificate =
       require(pol != 0, "Neutral naming sites use their full definition directly")
       var left = subst <=> nmApp

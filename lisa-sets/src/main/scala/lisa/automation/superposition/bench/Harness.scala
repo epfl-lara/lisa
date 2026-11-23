@@ -6,6 +6,7 @@ import lisa.automation.clausification.CertifiedClausifier
 import lisa.automation.clausification.Clausification.ClausifierOptions
 import lisa.automation.clausification.Clausification.Distribute
 import lisa.automation.clausification.Clausification.GeneratedNames
+import lisa.automation.clausification.Clausification.HeapLimitExceeded
 import lisa.automation.clausification.Clausification.Nnf
 import lisa.automation.clausification.Clausification.Prenex
 import lisa.automation.clausification.UncertifiedClausifier
@@ -16,10 +17,12 @@ import lisa.tptp.KernelParser.strictMapTerm
 import lisa.tptp.KernelParser.strictMapVariable
 
 import java.io.File
+import java.io.IOException
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 import scala.util.Using
+import scala.util.control.NonFatal
 
 import BenchUtil.withTimeout
 import BenchUtil.median
@@ -135,54 +138,56 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
    * `uncert`), `proof` and `proofDir`, and any search flag named by [[withFlag]], each taking `on`/`off`.
    */
   private def parse(args: Seq[String]): Config =
-    args.foldLeft(Config(raw = args)) { (c, arg) =>
-      val (key, value) = arg.span(_ != '=') match { case (k, v) => (k, v.drop(1)) }
-      def flag: Boolean = value.toLowerCase match
-        case "on" | "true" | "1" => true
-        case "off" | "false" | "0" => false
-        case other => sys.error(s"'$key' takes on|off, got '$other'")
-      key match
-        case "seed" => c.copy(seed = value.toLong)
-        case "n" => c.copy(n = value.toInt)
-        case "timeout" => c.copy(timeoutMs = value.toLong)
-        case "given" => c.copy(opts = c.opts.copy(maxGiven = value.toInt))
-        case "size" => c.copy(maxSize = value.toInt)
-        case "limit" => c.copy(limit = value.toInt)
-        case "clausifyOnly" => c.copy(clausifyOnly = flag)
-        case "check" => c.copy(check = flag)
-        case "prenex" =>
-          c.copy(clausifier = c.clausifier.copy(prenex = value.toLowerCase match
-            case "deconstruct" => Prenex.Deconstruct
-            case "rewrite" => Prenex.Rewrite
-            case other => sys.error(s"prenex takes deconstruct|rewrite, got '$other'")))
-        case "threshold" => c.copy(clausifier = c.clausifier.copy(threshold = value.toInt))
-        case "distribute" =>
-          c.copy(clausifier = c.clausifier.copy(distribute = value.toLowerCase match
-            case "weakening" => Distribute.Weakening
-            case "primitive" => Distribute.Primitive
-            case other => sys.error(s"distribute takes weakening|primitive, got '$other'")))
-        case "mode" => c.copy(certified = value.toLowerCase != "uncert")
-        // `strategy` replaces the whole option record, so it must come before any flag meant to override it.
-        case "strategy" =>
-          val s = Strategy.byName(value).getOrElse(sys.error(s"unknown strategy '$value'; have ${Strategy.portfolio.map(_.name).mkString(", ")}"))
-          c.copy(strategy = value, opts = s.opts.copy(maxGiven = c.opts.maxGiven, maxMillis = c.opts.maxMillis))
-        case "orthologic" => c.copy(opts = c.opts.copy(orthologic = flag))
-        case "sine" => c.copy(opts = c.opts.copy(sine = if flag then Some(c.opts.sine.getOrElse(SineConfig())) else None))
-        case "sineTol" => c.copy(opts = c.opts.copy(sine = Some(c.opts.sine.getOrElse(SineConfig()).copy(tolerance = value.toDouble))))
-        case "sineDepth" => c.copy(opts = c.opts.copy(sine = Some(c.opts.sine.getOrElse(SineConfig()).copy(depth = value.toInt))))
-        // The hypothesis count below which SInE keeps everything. Unlike `sineTol` and `sineDepth`, it only
-        // adjusts an existing SInE configuration, so an A/B on it does not also switch selection on.
-        case "sineMin" => c.copy(opts = c.opts.copy(sine = c.opts.sine.map(_.copy(minAxioms = value.toInt))))
-        case "fwdUDIndex" => c.copy(opts = c.opts.copy(forwardUnitDeletionIndexThreshold = value.toInt))
-        case "root" => c.copy(problemRoot = Some(value))
-        case "problem" => c.copy(problemName = value)
-        case "dataset" => c.copy(dataset = value)
-        case "config" => c.copy(configName = value)
-        case "out" => c.copy(csvOut = Some(value))
-        case "proof" => c.copy(proof = ProofFormat.parse(value))
-        case "proofDir" => c.copy(proofDir = Some(value))
-        case _ => c.copy(opts = withFlag(c.opts, key, flag))
-    }.validated
+    args
+      .foldLeft(Config(raw = args)) { (c, arg) =>
+        val (key, value) = arg.span(_ != '=') match { case (k, v) => (k, v.drop(1)) }
+        def flag: Boolean = value.toLowerCase match
+          case "on" | "true" | "1" => true
+          case "off" | "false" | "0" => false
+          case other => sys.error(s"'$key' takes on|off, got '$other'")
+        key match
+          case "seed" => c.copy(seed = value.toLong)
+          case "n" => c.copy(n = value.toInt)
+          case "timeout" => c.copy(timeoutMs = value.toLong)
+          case "given" => c.copy(opts = c.opts.copy(maxGiven = value.toInt))
+          case "size" => c.copy(maxSize = value.toInt)
+          case "limit" => c.copy(limit = value.toInt)
+          case "clausifyOnly" => c.copy(clausifyOnly = flag)
+          case "check" => c.copy(check = flag)
+          case "prenex" =>
+            c.copy(clausifier = c.clausifier.copy(prenex = value.toLowerCase match
+              case "deconstruct" => Prenex.Deconstruct
+              case "rewrite" => Prenex.Rewrite
+              case other => sys.error(s"prenex takes deconstruct|rewrite, got '$other'")))
+          case "threshold" => c.copy(clausifier = c.clausifier.copy(threshold = value.toInt))
+          case "distribute" =>
+            c.copy(clausifier = c.clausifier.copy(distribute = value.toLowerCase match
+              case "weakening" => Distribute.Weakening
+              case "primitive" => Distribute.Primitive
+              case other => sys.error(s"distribute takes weakening|primitive, got '$other'")))
+          case "mode" => c.copy(certified = value.toLowerCase != "uncert")
+          // `strategy` replaces the whole option record, so it must come before any flag meant to override it.
+          case "strategy" =>
+            val s = Strategy.byName(value).getOrElse(sys.error(s"unknown strategy '$value'; have ${Strategy.portfolio.map(_.name).mkString(", ")}"))
+            c.copy(strategy = value, opts = s.opts.copy(maxGiven = c.opts.maxGiven, maxMillis = c.opts.maxMillis))
+          case "orthologic" => c.copy(opts = c.opts.copy(orthologic = flag))
+          case "sine" => c.copy(opts = c.opts.copy(sine = if flag then Some(c.opts.sine.getOrElse(SineConfig())) else None))
+          case "sineTol" => c.copy(opts = c.opts.copy(sine = Some(c.opts.sine.getOrElse(SineConfig()).copy(tolerance = value.toDouble))))
+          case "sineDepth" => c.copy(opts = c.opts.copy(sine = Some(c.opts.sine.getOrElse(SineConfig()).copy(depth = value.toInt))))
+          // The hypothesis count below which SInE keeps everything. Unlike `sineTol` and `sineDepth`, it only
+          // adjusts an existing SInE configuration, so an A/B on it does not also switch selection on.
+          case "sineMin" => c.copy(opts = c.opts.copy(sine = c.opts.sine.map(_.copy(minAxioms = value.toInt))))
+          case "fwdUDIndex" => c.copy(opts = c.opts.copy(forwardUnitDeletionIndexThreshold = value.toInt))
+          case "root" => c.copy(problemRoot = Some(value))
+          case "problem" => c.copy(problemName = value)
+          case "dataset" => c.copy(dataset = value)
+          case "config" => c.copy(configName = value)
+          case "out" => c.copy(csvOut = Some(value))
+          case "proof" => c.copy(proof = ProofFormat.parse(value))
+          case "proofDir" => c.copy(proofDir = Some(value))
+          case _ => c.copy(opts = withFlag(c.opts, key, flag))
+      }
+      .validated
 
   /**
    * The search flags the command line can set by name. Everything else keeps its [[SearchOptions]] default.
@@ -229,13 +234,15 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
     var valid = 0
     for d <- found do
       val verdict =
-        try
-          val (name, proof) = ProofExport.readSerialized(d)
-          proof.check match
-            case Right(theorem) if theorem.usesSorry => s"VALID_WITH_SORRY  $name"
-            case Right(_) => valid += 1; s"VALID  $name"
-            case Left(error) => s"INVALID  $name: $error"
-        catch case e: Throwable => s"UNREADABLE  ${e.getClass.getSimpleName}: ${e.getMessage}"
+        Try(ProofExport.readSerialized(d)) match
+          case Failure(e) => s"UNREADABLE  ${e.getClass.getSimpleName}: ${e.getMessage}"
+          case Success((name, proof)) =>
+            try
+              proof.check match
+                case Right(theorem) if theorem.usesSorry => s"VALID_WITH_SORRY  $name"
+                case Right(_) => valid += 1; s"VALID  $name"
+                case Left(error) => s"INVALID  $name: $error"
+            catch case NonFatal(e) => s"CHECK_ERR  $name: ${e.getClass.getSimpleName}: ${e.getMessage}"
       println(s"$d  $verdict")
     println(s"$valid of ${found.size} proofs valid")
 
@@ -262,30 +269,32 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
     // Write a row even when killed from outside by SIGTERM, so unsolved problems keep their counters. SIGKILL
     // cannot be caught.
     val written = new java.util.concurrent.atomic.AtomicBoolean(false)
-    Runtime.getRuntime.addShutdownHook(
-      new Thread(() =>
-        if written.compareAndSet(false, true) then
-          writeCsv(cfg.csvOut.get, Vector((name, Timing("KILLED", detail = "killed before finishing"))), cfg)
-          println(s"% SZS status Timeout for $name")
-      )
+    val hook = new Thread(() =>
+      if written.compareAndSet(false, true) then
+        writeCsv(cfg.csvOut.get, Vector((name, Timing("KILLED", detail = "killed before finishing"))), cfg)
+        println(s"% SZS status Timeout for $name")
     )
-
-    val (hyps, cj, res) = solveLocal(f, cfg, outerTimeout = true)
-    val timing = res.copy(hypotheses = hyps) // as `solveRow` does
-    val hasConjecture = cj == "y"
-    // Anything that is neither a refutation nor a timeout is `GaveUp`, not a claim we cannot support.
-    val szs = timing.category match
-      case "REFUTED" => if hasConjecture then "Theorem" else "Unsatisfiable"
-      // Never `(Counter)Satisfiable`, as in [[CascProver]]: SInE may have dropped axioms the proof needed.
-      case "SATURATED" => "GaveUp"
-      case "CLAUSIFIED" => "GaveUp" // clausify-only: nothing was proved
-      case "TIMEOUT" | "HARD_TIMEOUT" => "Timeout"
-      case _ => "GaveUp"
-    if written.compareAndSet(false, true) then
-      writeCsv(cfg.csvOut.get, Vector((name, timing)), cfg)
-      println(s"% SZS status $szs for $name")
-      // The derivation follows the status line; only the uncertified path produces one.
-      timing.tstp.foreach(print)
+    Runtime.getRuntime.addShutdownHook(hook)
+    try
+      val (hyps, cj, res) = solveLocal(f, cfg, outerTimeout = true)
+      val timing = res.copy(hypotheses = hyps) // as `solveRow` does
+      val hasConjecture = cj == "y"
+      // Anything that is neither a refutation nor a timeout is `GaveUp`, not a claim we cannot support.
+      val szs = timing.category match
+        case "REFUTED" => if hasConjecture then "Theorem" else "Unsatisfiable"
+        // Never `(Counter)Satisfiable`, as in [[CascProver]]: SInE may have dropped axioms the proof needed.
+        case "SATURATED" => "GaveUp"
+        case "CLAUSIFIED" => "GaveUp" // clausify-only: nothing was proved
+        case "TIMEOUT" | "HARD_TIMEOUT" => "Timeout"
+        case _ => "GaveUp"
+      if written.compareAndSet(false, true) then
+        writeCsv(cfg.csvOut.get, Vector((name, timing)), cfg)
+        println(s"% SZS status $szs for $name")
+        // The derivation follows the status line; only the uncertified path produces one.
+        timing.tstp.foreach(print)
+    finally
+      try Runtime.getRuntime.removeShutdownHook(hook)
+      catch case _: IllegalStateException => () // shutdown is already running the hook
 
   /**
    * Draw a seeded sample and run each problem.
@@ -369,7 +378,7 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
     try
       out.println(CsvHeader.mkString(","))
       rows.foreach { (rel, t) =>
-        val reached = ReachedProver(t.category)
+        val reached = reachedProver(t)
         val m = t.metrics
         val cells = Seq(
           cfg.dataset,
@@ -439,7 +448,11 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
   /**
    * Categories whose problem reached the prover, i.e. clausified without error.
    */
-  private val ReachedProver: Set[String] = Set("REFUTED", "SATURATED", "TIMEOUT", "BAD_PROOF", "EXHAUSTED")
+  private def reachedProver(t: Timing): Boolean =
+    t.category match
+      case "REFUTED" | "SATURATED" | "TIMEOUT" | "BAD_PROOF" => true
+      case "CLAUSIFIED" => false
+      case _ => t.clauses >= 0
 
   /**
    * Solve one problem and print its row, in its own JVM when [[BenchUtil.forkEnabled]], else in-process.
@@ -464,7 +477,12 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
     // The child re-parses `raw`, so the proof directory derived here is passed explicitly; a later key wins.
     val args = Seq("solve1", f.getPath) ++ cfg.raw ++ cfg.proofDir.map("proofDir=" + _)
     val outcome = BenchUtil.runForked(childMainClass, args, cfg.timeoutMs + 5000L)
-    outcome.resultLine.flatMap(decodeRow).getOrElse((-1, "?", Timing(if outcome.timedOut then "HARD_TIMEOUT" else "PROVER_CRASH", detail = outcome.crashDetail)))
+    val row = outcome.resultLine.flatMap(decodeRow)
+    row match
+      case Some((hyps, cj, partial)) if !outcome.timedOut && outcome.exitCode != 0 =>
+        (hyps, cj, partial.copy(category = "PROVER_CRASH", detail = outcome.crashDetail))
+      case Some(result) => result
+      case None => (-1, "?", Timing(if outcome.timedOut then "HARD_TIMEOUT" else "PROVER_CRASH", detail = outcome.crashDetail))
 
   /**
    * Child entry: solve one problem, print one machine-readable line, exit. No outer timeout, since the
@@ -496,7 +514,7 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
       // `-` for absent, since a child that built no proof has no metrics to send.
       t.metrics.fold("-")(m => s"${m.steps} ${m.rawSize} ${m.sharedSize} ${m.maxSequent} ${m.imports}"),
       t.usesSorry.toString,
-      t.detail
+      t.detail.replace('\t', ' ').replace('\r', ' ').replace('\n', ' ')
     ).mkString(BenchUtil.ResultPrefix, "\t", "")
 
   private def decodeRow(line: String): Option[(Int, String, Timing)] =
@@ -538,10 +556,10 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
    */
   private def solveLocal(f: File, cfg0: Config, outerTimeout: Boolean, publish: (Int, String, Timing) => Unit = (_, _, _) => ()): (Int, String, Timing) =
     if !f.exists then return (-1, "?", Timing("MISSING"))
-    // Catch `Throwable`, not just `NonFatal`: the recursive TPTP parser can `StackOverflowError` on very
-    // deeply-nested formulas, which would otherwise kill the whole run.
-    (try Success(problemToKernel(f)(using (strictMapAtom, strictMapTerm, strictMapVariable)))
-    catch { case e: Throwable => Failure(e) }) match
+    val input =
+      try Success(problemToKernel(f)(using (strictMapAtom, strictMapTerm, strictMapVariable)))
+      catch case e @ (_: StackOverflowError | NonFatal(_)) => Failure(e) // deeply nested TPTP input can overflow the parser stack
+    input match
       case Failure(e) => (-1, "?", Timing("PARSE_ERR", detail = e.getClass.getSimpleName))
       case Success(parsed) =>
         // With `wallBudget`, JVM uptime (start-up and parsing) comes out of the budget. Not for batch runs,
@@ -552,22 +570,14 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
         val cj = if cprob.conjecture.isDefined then "y" else "-"
         val size = cprob.size
         if size > cfg.maxSize then (hyps, cj, Timing("SKIPPED", detail = s"|F|=$size > ${cfg.maxSize}"))
-        else if !outerTimeout then
-          (
-            hyps,
-            cj,
-            try solveOne(cprob, cfg, parsed, f.getName, t => publish(hyps, cj, t))
-            catch { case e: Throwable => Timing(s"ERROR(${e.getClass.getSimpleName})") }
-          )
         else
-          (
-            hyps,
-            cj,
-            withTimeout(cfg.timeoutMs + 5000L)(solveOne(cprob, cfg, parsed, f.getName, t => publish(hyps, cj, t))) match
-              case Some(Success(t)) => t
-              case Some(Failure(e)) => Timing(s"ERROR(${e.getClass.getSimpleName})")
-              case None => Timing("HARD_TIMEOUT")
-          )
+          def solve() = solveOne(cprob, cfg, parsed, f.getName, t => publish(hyps, cj, t))
+          val result = if outerTimeout then withTimeout(cfg.timeoutMs + 5000L)(solve()) else Some(Try(solve()))
+          val timing = result match
+            case Some(Success(t)) => t
+            case Some(Failure(e)) => Timing(s"ERROR(${e.getClass.getSimpleName})", detail = e.toString)
+            case None => Timing("HARD_TIMEOUT")
+          (hyps, cj, timing)
 
   /**
    * A non-refutation thrown by the prover to abort the clausification it was called from.
@@ -582,13 +592,12 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
     cfg.proofTarget(name).fold("") { dir =>
       try { write(dir); "" }
       catch
-        case ie: InterruptedException => throw ie
-        case e: Throwable => s"proof not written: ${e.getClass.getSimpleName}"
+        case e @ (_: IOException | _: IllegalArgumentException) => s"proof not written: $e"
+        case e: NotImplementedError if cfg.proof == ProofFormat.LisaTstp => s"proof not written: $e"
     }
 
   /**
-   * A throw from the prover closure, kept distinct from a clausification throw so that it is categorised
-   * `BAD_PROOF` rather than `CLAUSIFY_ERR`.
+   * Identifies a failure in the prover callback invoked by the clausifier.
    */
   private final class ProverError(cause: Throwable) extends RuntimeException(cause)
 
@@ -628,16 +637,14 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
           case Left(Clausal.Outcome.Timeout) => Timing("TIMEOUT", clausifyMs, searchMs)
           case Left(_) => Timing("UNKNOWN", clausifyMs, searchMs)
       catch
-        case _: InterruptedException =>
+        case e: HeapLimitExceeded =>
           val (clausifyMs, searchMs) = split(System.nanoTime())
-          Timing("TIMEOUT", clausifyMs, searchMs)
-        case e: Throwable =>
+          Timing("EXHAUSTED", clausifyMs, searchMs, detail = e.getMessage)
+        case NonFatal(e) =>
           val (clausifyMs, searchMs) = split(System.nanoTime())
           val where = e.getStackTrace.headOption.fold("")(t => s" at ${t.getClassName.split('.').last}.${t.getMethodName}:${t.getLineNumber}")
           val what = s"${e.getClass.getSimpleName}: ${Option(e.getMessage).getOrElse("")}$where"
-          // Running out of heap or stack is a resource limit, not a defect.
-          val cat = if e.isInstanceOf[OutOfMemoryError] || e.isInstanceOf[StackOverflowError] then "EXHAUSTED" else s"ERROR(${e.getClass.getSimpleName})"
-          Timing(cat, clausifyMs, searchMs, detail = what.replace(',', ';').replace('\n', ' ').take(300))
+          Timing(s"ERROR(${e.getClass.getSimpleName})", clausifyMs, searchMs, detail = what.replace(',', ';').replace('\n', ' ').take(300))
     val s = stats.get
     base.copy(givenProcessed = s.givenProcessed, derived = s.passiveEnqueued, peakActive = s.peakActive, peakPassive = s.peakPassive)
 
@@ -681,92 +688,93 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
               finally reconstructNanos.addAndGet(System.nanoTime() - rs)
             case other => throw new NonRefutation(other)
       catch
-        case nr: NonRefutation => throw nr // a decided non-refutation: propagate to the SATURATED/TIMEOUT arm
-        case ie: InterruptedException => throw ie // hard-timeout interrupt: propagate to the TIMEOUT arm
-        case e: Throwable => throw new ProverError(e)
+        case e @ (_: NonRefutation | _: HeapLimitExceeded) => throw e
+        case NonFatal(e) => throw new ProverError(e)
     val t0 = System.nanoTime()
     def clausifyMsSoFar: Double = (System.nanoTime() - t0 - proverNanos) / 1e6
-    val base: Timing =
-      try
-        // Through `preprocessKernel`, so SInE and orthologic normalisation apply as in `Prover.proveKernel`.
-        val proof =
+    def run(): Timing =
+      val proof =
+        try
           if cfg.certified then Prover.preprocessKernel(cprob, cfg.opts)(CertifiedClausifier.certifyClausalGoal(_, prover, cfg.clausifier))
           else UncertifiedClausifier.uncertifyClausal(cprob, p => prover(p, Set.empty))
-        val clausifyMs = clausifyMsSoFar
-        // Written before the check, so a check that outlasts the budget still leaves the proof behind.
-        val written = if cfg.clausifyOnly then "" else writeProof(cfg, name)(ProofExport.writeKernel(cfg.proof, name, proof, _))
-        // Nothing after this is bounded by `timeoutMs`, so publish the proof now as `UNCHECKED`, which must never
-        // count as a checked refutation.
-        if cfg.check && !cfg.clausifyOnly then
-          val sNow = stats.get
-          publish(
-            Timing(
-              "UNCHECKED",
+        catch
+          case nr: NonRefutation =>
+            val category = nr.outcome match
+              case Clausal.Outcome.Saturated => "SATURATED"
+              case Clausal.Outcome.Timeout => "TIMEOUT"
+              case _ => "UNKNOWN"
+            return Timing(category, clausifyMsSoFar, searchNanos.get / 1e6, reconstructNanos.get / 1e6)
+          case e: HeapLimitExceeded =>
+            return Timing("EXHAUSTED", clausifyMsSoFar, searchNanos.get / 1e6, reconstructNanos.get / 1e6, detail = e.getMessage)
+          case e: ProverError =>
+            val cause = e.getCause
+            return Timing(s"PROVER_ERR(${cause.getClass.getSimpleName})", clausifyMsSoFar, searchNanos.get / 1e6, reconstructNanos.get / 1e6, detail = cause.toString)
+          case NonFatal(e) =>
+            return Timing(s"CLAUSIFY_ERR(${e.getClass.getSimpleName})", clausifyMsSoFar, searchNanos.get / 1e6, reconstructNanos.get / 1e6, detail = e.toString)
+      val clausifyMs = clausifyMsSoFar
+      // Written before the check, so a check that outlasts the budget still leaves the proof behind.
+      val written = if cfg.clausifyOnly then "" else writeProof(cfg, name)(ProofExport.writeKernel(cfg.proof, name, proof, _))
+      // Nothing after this is bounded by `timeoutMs`, so publish the proof now as `UNCHECKED`, which must never
+      // count as a checked refutation.
+      if cfg.check && !cfg.clausifyOnly then
+        val sNow = stats.get
+        publish(
+          Timing(
+            "UNCHECKED",
+            clausifyMs,
+            searchNanos.get / 1e6,
+            reconstructNanos.get / 1e6,
+            givenProcessed = sNow.givenProcessed,
+            derived = sNow.passiveEnqueued,
+            peakActive = sNow.peakActive,
+            peakPassive = sNow.peakPassive,
+            clauses = clauseCount.get,
+            freshSymbols = freshCount.get,
+            metrics = Some(ProofMetrics.of(proof))
+          )
+        )
+      val cs = System.nanoTime()
+      val judgement =
+        try Option.when(cfg.check)(proof.check)
+        catch
+          case NonFatal(e) =>
+            return Timing(
+              s"CHECK_ERR(${e.getClass.getSimpleName})",
               clausifyMs,
               searchNanos.get / 1e6,
               reconstructNanos.get / 1e6,
-              givenProcessed = sNow.givenProcessed,
-              derived = sNow.passiveEnqueued,
-              peakActive = sNow.peakActive,
-              peakPassive = sNow.peakPassive,
-              clauses = clauseCount.get,
-              freshSymbols = freshCount.get,
-              metrics = Some(ProofMetrics.of(proof))
+              checkMs = (System.nanoTime() - cs) / 1e6,
+              detail = e.toString
             )
-          )
-        val cs = System.nanoTime()
-        val judgement = if cfg.check then Some(proof.check) else None
-        val checkMs = if cfg.check then (System.nanoTime() - cs) / 1e6 else 0.0
-        val sorry = judgement match
-          case Some(Right(theorem)) => theorem.usesSorry
-          case _ => false
-        // A `Sorry` is expected in clausify-only mode; anywhere else it makes a valid but worthless proof.
-        val verdict =
-          if judgement.exists(_.isLeft) then "BAD_PROOF"
-          else if cfg.clausifyOnly then "CLAUSIFIED"
-          else if sorry then "BAD_PROOF"
-          else "REFUTED"
-        // Keep the checker's message and failing step, so a bug can be located without rerunning the search.
-        val detail = judgement match
-          case Some(Left(error)) =>
-            error.toString.replace(',', ';').replace('\n', ' ').take(300)
-          case _ =>
-            if sorry && !cfg.clausifyOnly then "valid only via Sorry"
-            else if !cfg.check then "unchecked"
-            else written
-        Timing(
-          verdict,
-          clausifyMs,
-          searchNanos.get / 1e6,
-          reconstructNanos.get / 1e6,
-          checkMs,
-          metrics = Some(ProofMetrics.of(proof)),
-          usesSorry = sorry,
-          detail = detail
-        )
-      catch
-        case nr: NonRefutation =>
-          val cat = nr.outcome match
-            case Clausal.Outcome.Saturated => "SATURATED"
-            case Clausal.Outcome.Timeout => "TIMEOUT"
-            case _ => "UNKNOWN"
-          Timing(cat, clausifyMsSoFar, searchNanos.get / 1e6, reconstructNanos.get / 1e6)
-        case _: InterruptedException => Timing("TIMEOUT", clausifyMsSoFar, searchNanos.get / 1e6, reconstructNanos.get / 1e6)
-        // Keep what the prover threw, as for a rejected proof.
-        case pe: ProverError =>
-          val cause = Option(pe.getCause).getOrElse(pe)
-          val where = cause.getStackTrace.headOption.fold("")(t => s" at ${t.getClassName.split('.').last}.${t.getMethodName}:${t.getLineNumber}")
-          val what = s"${cause.getClass.getSimpleName}: ${Option(cause.getMessage).getOrElse("")}$where"
-          // Running out of heap or stack is a resource limit, not a soundness failure, so it is not `BAD_PROOF`.
-          if cause.isInstanceOf[OutOfMemoryError] || cause.isInstanceOf[StackOverflowError] then
-            System.err.println(s"[exhausted] ${cause.getClass.getName}: ${cause.getMessage}")
-            Timing("EXHAUSTED", clausifyMsSoFar, searchNanos.get / 1e6, reconstructNanos.get / 1e6, detail = what.replace(',', ';').replace('\n', ' ').take(300))
-          else
-            // The CSV gets one line, the log the trace.
-            System.err.println(s"[bad-proof] ${cause.getClass.getName}: ${cause.getMessage}")
-            cause.getStackTrace.take(12).foreach(t => System.err.println(s"[bad-proof]   at $t"))
-            Timing("BAD_PROOF", clausifyMsSoFar, searchNanos.get / 1e6, reconstructNanos.get / 1e6, detail = what.replace(',', ';').replace('\n', ' ').take(300))
-        case e: Throwable => Timing(s"CLAUSIFY_ERR(${e.getClass.getSimpleName})", clausifyMsSoFar, searchNanos.get / 1e6, reconstructNanos.get / 1e6)
+      val checkMs = if cfg.check then (System.nanoTime() - cs) / 1e6 else 0.0
+      val sorry = judgement match
+        case Some(Right(theorem)) => theorem.usesSorry
+        case _ => false
+      // A `Sorry` is expected in clausify-only mode; anywhere else it makes a valid but worthless proof.
+      val verdict =
+        if judgement.exists(_.isLeft) then "BAD_PROOF"
+        else if cfg.clausifyOnly then "CLAUSIFIED"
+        else if sorry then "BAD_PROOF"
+        else "REFUTED"
+      // Keep the checker's message and failing step, so a bug can be located without rerunning the search.
+      val checkDetail = judgement match
+        case Some(Left(error)) =>
+          error.toString.replace(',', ';').replace('\n', ' ').take(300)
+        case _ =>
+          if sorry && !cfg.clausifyOnly then "valid only via Sorry"
+          else if !cfg.check then "unchecked"
+          else ""
+      Timing(
+        verdict,
+        clausifyMs,
+        searchNanos.get / 1e6,
+        reconstructNanos.get / 1e6,
+        checkMs,
+        metrics = Some(ProofMetrics.of(proof)),
+        usesSorry = sorry,
+        detail = Seq(checkDetail, written).filter(_.nonEmpty).mkString("; ")
+      )
+    val base = run()
     val s = stats.get
     base.copy(
       givenProcessed = s.givenProcessed,
@@ -814,7 +822,7 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
         r match
           case Left(error) => println(s"    INVALID: $error")
           case _ => ()
-      catch case e: Throwable => println(s"threw ${e.getClass.getSimpleName}: ${e.getMessage}")
+      catch case NonFatal(e) => println(s"threw ${e.getClass.getSimpleName}: ${e.getMessage}")
 
   // ── summary ───────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -824,12 +832,13 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
     println(
       s"\nrefuted=$refuted  saturated=${count(_ == "SATURATED")}  timeout=${count(_ == "TIMEOUT")}  " +
         s"hard_timeout=${count(_ == "HARD_TIMEOUT")}  bad_proof=${count(_ == "BAD_PROOF")}  " +
-        s"exhausted=${count(_ == "EXHAUSTED")}  " +
+        s"exhausted=${count(_ == "EXHAUSTED")}  prover_crash=${count(_ == "PROVER_CRASH")}  " +
+        s"prover_err=${count(_.startsWith("PROVER_ERR"))}  check_err=${count(_.startsWith("CHECK_ERR"))}  " +
         s"clausify_err=${count(_.startsWith("CLAUSIFY_ERR"))}  error=${count(_.startsWith("ERROR"))}  " +
         s"parse_err=${count(_ == "PARSE_ERR")}  skipped=${count(_ == "SKIPPED")}  " +
         (if count(_ == "CLAUSIFIED") > 0 then s"clausified=${count(_ == "CLAUSIFIED")}  " else "") + s"of $total"
     )
-    val ran = rows.filter(r => ReachedProver(r.category))
+    val ran = rows.filter(reachedProver)
     if ran.nonEmpty then
       val givenTotal = ran.map(_.givenProcessed.toLong).sum // one `Long` sum: an `Int` one overflows on big runs
       println(
@@ -848,7 +857,7 @@ final class Harness(listFileName: String, listEnvVar: String, childMainClass: St
       phase("reconstruct", solved.map(_.reconstructMs))
       phase("check", solved.map(_.checkMs))
     // Clausification runs regardless of the prover's verdict, so it is worth summing over every attempt.
-    val attempted = rows.filter(r => ReachedProver(r.category) || r.category.startsWith("CLAUSIFY_ERR"))
+    val attempted = rows.filter(r => reachedProver(r) || r.category == "EXHAUSTED" || r.category.startsWith("CLAUSIFY_ERR"))
     if attempted.nonEmpty then
       println(s"\nclausify time over all ${attempted.size} attempted (any verdict):")
       phase("clausify", attempted.map(_.clausifyMs))

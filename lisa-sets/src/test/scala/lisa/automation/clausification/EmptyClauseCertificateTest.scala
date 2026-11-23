@@ -2,11 +2,13 @@ package lisa.automation.clausification
 
 import lisa.automation.Problem
 import lisa.automation.ProofSyntax.{_, given}
-import lisa.automation.clausification.Clausification.*
-import lisa.automation.superposition.{Clausal, Prover, SctptpTest}
+import lisa.automation.clausification.Clausification._
+import lisa.automation.superposition.Clausal
+import lisa.automation.superposition.Prover
+import lisa.automation.superposition.SctptpTest
 import lisa.kernel.KernelProof
 import org.scalatest.funsuite.AnyFunSuite
-import sctptp.{SequentCalculus as SC}
+import sctptp.{SequentCalculus => SC}
 
 class EmptyClauseCertificateTest extends AnyFunSuite:
   private val empty = () |- ()
@@ -14,11 +16,15 @@ class EmptyClauseCertificateTest extends AnyFunSuite:
   test("primitive distribution drops truth and proves the single empty clause for falsity") {
     given ClausifierOptions = ClausifierOptions(distribute = Distribute.Primitive)
     val problem = Problem(Vector(() |- top, () |- bot), None)
-    val phase = DistributePhase.certifyDistribute(problem, (clauses, goal) => {
-      assert(clauses.imports == Vector(empty))
-      assert(goal == Set(0))
-      ClausificationProof(Vector(Weakening(empty, -1)), clauses.imports ++ libImports)
-    }, goal = Set(1))
+    val phase = DistributePhase.certifyDistribute(
+      problem,
+      (clauses, goal) => {
+        assert(clauses.imports == Vector(empty))
+        assert(goal == Set(0))
+        ClausificationProof(Vector(Weakening(empty, -1)), clauses.imports ++ libImports)
+      },
+      goal = Set(1)
+    )
     val proof = clausificationProofToProofCertificate(phase)
     assert(proof.conclusion == empty)
     KernelProof.assertCorrectProofNoSorry(proof, "distribution of truth and falsity")

@@ -1,12 +1,17 @@
 package lisa.automation.clausification
 
-import lisa.automation.ProofSyntax.{_, given}
 import lisa.automation.Problem
-import lisa.automation.clausification.Clausification.{ClausifierOptions, Nnf, libImports}
-import lisa.automation.superposition.{Prover, Sctptp, SctptpTest}
+import lisa.automation.ProofSyntax.{_, given}
+import lisa.automation.clausification.Clausification.ClausifierOptions
+import lisa.automation.clausification.Clausification.Nnf
+import lisa.automation.clausification.Clausification.libImports
+import lisa.automation.superposition.Prover
+import lisa.automation.superposition.Sctptp
+import lisa.automation.superposition.SctptpTest
 import lisa.kernel.KernelProof
 import org.scalatest.funsuite.AnyFunSuite
-import sctptp.{FOL as F, SequentCalculus as SC}
+import sctptp.{FOL => F}
+import sctptp.{SequentCalculus => SC}
 
 class NnfProofTest extends AnyFunSuite:
   private val p = Constant(Identifier("p"), Prop)
@@ -63,8 +68,7 @@ class NnfProofTest extends AnyFunSuite:
 
   test("only the two exact Boolean sequents are accepted as RestateTrue") {
     for s <- Seq(() |- top, bot |- ()) do SctptpTest.checked(ProofCertificate(RestateTrue(s)))
-    for s <- Seq(p |- top, bot |- p, () |- (p, top), p |- p) do
-      assert(Sctptp.fromKernel(ProofCertificate(RestateTrue(s))).isLeft)
+    for s <- Seq(p |- top, bot |- p, () |- (p, top), p |- p) do assert(Sctptp.fromKernel(ProofCertificate(RestateTrue(s))).isLeft)
 
     val context = SC.Sequent(Nil, Seq(F.AtomicFormula(F.bot, Nil), F.AtomicFormula(F.top, Nil)))
     for i <- Seq(-1, 0, 1, 2) do
@@ -78,12 +82,16 @@ class NnfProofTest extends AnyFunSuite:
     val normals = source.map(NnfPhase.toNNF(_, negated = false))
     for strategy <- Nnf.values do
       given ClausifierOptions = ClausifierOptions(nnf = strategy)
-      val phase = NnfPhase.certifyNnf(problem, (transformed, goals) => {
-        assert(goals == Set(1, 3))
-        assert(transformed.hypotheses == normals.map(f => () |- f))
-        val end = RightAnd(() |- multiand(normals), source.indices.map(problem.hypIndex), normals)
-        ClausificationProof(Vector(end), transformed.imports ++ libImports)
-      }, Set(1, 3))
+      val phase = NnfPhase.certifyNnf(
+        problem,
+        (transformed, goals) => {
+          assert(goals == Set(1, 3))
+          assert(transformed.hypotheses == normals.map(f => () |- f))
+          val end = RightAnd(() |- multiand(normals), source.indices.map(problem.hypIndex), normals)
+          ClausificationProof(Vector(end), transformed.imports ++ libImports)
+        },
+        Set(1, 3)
+      )
       val refs = phase.steps.last.asInstanceOf[ClausificationSubproof].premises
       assert(refs == Vector(-1, 0, -3, 1) ++ Clausification.libRefs(source.size))
       val proof = clausificationProofToProofCertificate(phase)

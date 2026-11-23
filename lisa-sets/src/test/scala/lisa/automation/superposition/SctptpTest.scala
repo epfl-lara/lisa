@@ -1,8 +1,9 @@
 package lisa.automation.superposition
 
-import lisa.automation.{ProofSyntax as K}
+import lisa.automation.{ProofSyntax => K}
 import org.scalatest.funsuite.AnyFunSuite
-import sctptp.{Parser, SequentCalculus as SC}
+import sctptp.Parser
+import sctptp.{SequentCalculus => SC}
 
 import java.nio.file.Files
 

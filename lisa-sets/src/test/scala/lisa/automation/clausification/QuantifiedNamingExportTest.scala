@@ -1,12 +1,14 @@
 package lisa.automation.clausification
 
-import lisa.automation.ProofSyntax.{*, given}
+import lisa.automation.ProofSyntax.{_, given}
 import lisa.automation.clausification.Clausification.Counter
-import lisa.automation.superposition.{Sctptp, SctptpTest}
+import lisa.automation.superposition.Sctptp
+import lisa.automation.superposition.SctptpTest
 import lisa.kernel.KernelProof
 import org.scalatest.funsuite.AnyFunSuite
-import sctptp.LVL2.{LVL2Proof, RightSubstIffForall}
-import sctptp.SequentCalculus as SC
+import sctptp.LVL2.LVL2Proof
+import sctptp.LVL2.RightSubstIffForall
+import sctptp.{SequentCalculus => SC}
 
 class QuantifiedNamingExportTest extends AnyFunSuite:
   private val x = Variable(Identifier("x"), Ind)
@@ -66,8 +68,7 @@ class QuantifiedNamingExportTest extends AnyFunSuite:
     val certificate = Prover.proveKernel(problem, clausifierOptions = options).fold(outcome => fail(outcome.toString), identity)
     KernelProof.assertCorrectProofNoSorry(certificate, "refuting quantified naming")
     val linear = certificate.toLinearProof
-    val redundant = linear.steps.zipWithIndex.collect { case (Restate(goal, ref), i)
-        if goal == (if ref < 0 then linear.imports(-ref - 1) else linear.steps(ref).statement) => i }
+    val redundant = linear.steps.zipWithIndex.collect { case (Restate(goal, ref), i) if goal == (if ref < 0 then linear.imports(-ref - 1) else linear.steps(ref).statement) => i }
     assert(redundant.isEmpty, s"Restatements of identical imports at steps ${redundant.mkString(", ")}")
     val proof = SctptpTest.checked(certificate)
     assert(proof.conclusion == SC.Sequent(Nil, Nil))

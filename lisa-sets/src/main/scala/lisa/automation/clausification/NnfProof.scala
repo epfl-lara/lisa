@@ -4,7 +4,9 @@ import lisa.automation.ProofSyntax.{_, given}
 
 import scala.collection.mutable
 
-/** Derive ⊢ NNF(f) from the single import ⊢ f using the sequent rules for f's connectives. */
+/**
+ * Derive ⊢ NNF(f) from the single import ⊢ f using the sequent rules for f's connectives.
+ */
 private[clausification] object NnfProof:
   def apply(f: Expression): ProofCertificate = new Builder().prove(f)
 
@@ -31,7 +33,9 @@ private[clausification] object NnfProof:
     private def weaken(ref: Int, goal: Sequent): Int =
       if steps(ref).statement == goal then ref else emit(Weakening(goal, ref))
 
-    /** After a right introduction, account for the NNF simplifications involving ⊤ or ⊥. */
+    /**
+     * After a right introduction, account for the NNF simplifications involving ⊤ or ⊥.
+     */
     private def join(context: Sequent, a: Expression, b: Expression, conjunction: Boolean)(intro: Sequent => Int): Result =
       val raw = if conjunction then and(a)(b) else or(a)(b)
       val normal = if conjunction then NnfPhase.mkAnd(a, b) else NnfPhase.mkOr(a, b)
@@ -51,29 +55,31 @@ private[clausification] object NnfProof:
             emit(LeftOr(goal, Seq(branch(a), branch(b)), Seq(a, b)))
         Result(normal, emit(Cut(context +>> normal, rawRef, reduction, raw)))
 
-    private def derive(f: Expression, negative: Boolean): Result = memo.getOrElseUpdate((f, negative), {
-      Clausification.checkInterrupted()
-      f match
-        case Neg(a) =>
-          val child = derive(a, !negative)
-          val ref =
-            if negative then emit(RightNot(() |- (f, child.normal), child.ref, a))
-            else emit(LeftNot(f |- child.normal, child.ref, a))
-          Result(child.normal, ref)
-        case And(a, b) => connective(f, a, b, sourceAnd = true, negative)
-        case Or(a, b) => connective(f, a, b, sourceAnd = false, negative)
-        case Implies(a, b) => implication(a, b, negative, swap = false)
-        case Iff(a, b) => biconditional(f, a, b, negative)
-        case Forall(x, body) => quantifier(f, x, body, universal = true, negative)
-        case Exists(x, body) => quantifier(f, x, body, universal = false, negative)
-        case atom if !negative => Result(atom, emit(Hypothesis(atom |- atom, atom)))
-        case atom if atom == top || atom == bot =>
-          val normal = if atom == top then bot else top
-          Result(normal, weaken(trueRight, () |- (atom, normal)))
-        case atom =>
-          val id = emit(Hypothesis(atom |- atom, atom))
-          Result(neg(atom), emit(RightNot(() |- (atom, neg(atom)), id, atom)))
-    })
+    private def derive(f: Expression, negative: Boolean): Result = memo.getOrElseUpdate(
+      (f, negative), {
+        Clausification.checkInterrupted()
+        f match
+          case Neg(a) =>
+            val child = derive(a, !negative)
+            val ref =
+              if negative then emit(RightNot(() |- (f, child.normal), child.ref, a))
+              else emit(LeftNot(f |- child.normal, child.ref, a))
+            Result(child.normal, ref)
+          case And(a, b) => connective(f, a, b, sourceAnd = true, negative)
+          case Or(a, b) => connective(f, a, b, sourceAnd = false, negative)
+          case Implies(a, b) => implication(a, b, negative, swap = false)
+          case Iff(a, b) => biconditional(f, a, b, negative)
+          case Forall(x, body) => quantifier(f, x, body, universal = true, negative)
+          case Exists(x, body) => quantifier(f, x, body, universal = false, negative)
+          case atom if !negative => Result(atom, emit(Hypothesis(atom |- atom, atom)))
+          case atom if atom == top || atom == bot =>
+            val normal = if atom == top then bot else top
+            Result(normal, weaken(trueRight, () |- (atom, normal)))
+          case atom =>
+            val id = emit(Hypothesis(atom |- atom, atom))
+            Result(neg(atom), emit(RightNot(() |- (atom, neg(atom)), id, atom)))
+      }
+    )
 
     private def connective(f: Expression, a: Expression, b: Expression, sourceAnd: Boolean, negative: Boolean): Result =
       val l = derive(a, negative)
@@ -93,7 +99,9 @@ private[clausification] object NnfProof:
           val pair = emit(RightAnd(() |- (a, b, and(l.normal)(r.normal)), Seq(l.ref, r.ref), Seq(l.normal, r.normal)))
           emit(RightOr(goal, pair, a, b))
 
-    /** The second implication in an iff uses the opposite operand order in the clausifier's NNF. */
+    /**
+     * The second implication in an iff uses the opposite operand order in the clausifier's NNF.
+     */
     private def implication(a: Expression, b: Expression, negative: Boolean, swap: Boolean): Result =
       val l = derive(a, !negative)
       val r = derive(b, negative)

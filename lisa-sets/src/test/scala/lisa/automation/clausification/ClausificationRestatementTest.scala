@@ -2,7 +2,7 @@ package lisa.automation.clausification
 
 import lisa.automation.Problem
 import lisa.automation.ProofSyntax.{_, given}
-import lisa.automation.clausification.Clausification.*
+import lisa.automation.clausification.Clausification._
 import lisa.automation.superposition.SctptpTest
 import lisa.kernel.KernelProof
 import org.scalatest.funsuite.AnyFunSuite
@@ -41,10 +41,14 @@ class ClausificationRestatementTest extends AnyFunSuite:
 
   test("a clausified conjecture with a cut refutation round-trips through SC-TPTP") {
     val problem = Problem(Seq(() |- p), Some(() |- p))
-    val proof = CertifiedClausifier.certifyClausal(problem, clauses => {
-      assert(clauses.hypotheses == Seq(() |- p, p |- ()))
-      ProofCertificate(Vector(Cut(() |- (), -1, -2, p)), clauses.imports)
-    }, ClausifierOptions(nnf = Nnf.Primitive, distribute = Distribute.Primitive))
+    val proof = CertifiedClausifier.certifyClausal(
+      problem,
+      clauses => {
+        assert(clauses.hypotheses == Seq(() |- p, p |- ()))
+        ProofCertificate(Vector(Cut(() |- (), -1, -2, p)), clauses.imports)
+      },
+      ClausifierOptions(nnf = Nnf.Primitive, distribute = Distribute.Primitive)
+    )
     assert(proof.conclusion == problem.conjecture.get)
     checkWithoutRestatements(proof)
     SctptpTest.checked(proof)
@@ -55,10 +59,13 @@ class ClausificationRestatementTest extends AnyFunSuite:
     given ClausifierOptions = ClausifierOptions()
     val goal = () |- second
     val problem = Problem(Seq(() |- p, goal), Some(goal))
-    val phase = ScreenPhase.certifyScreen(problem, (screened, _) => {
-      assert(screened.conjecture.contains(screened.hypotheses(1)))
-      ClausificationProof(Vector(Weakening(screened.hypotheses(1), -2)), screened.imports ++ libImports)
-    })
+    val phase = ScreenPhase.certifyScreen(
+      problem,
+      (screened, _) => {
+        assert(screened.conjecture.contains(screened.hypotheses(1)))
+        ClausificationProof(Vector(Weakening(screened.hypotheses(1), -2)), screened.imports ++ libImports)
+      }
+    )
     val proof = clausificationProofToProofCertificate(phase)
     assert(proof.conclusion == goal)
     KernelProof.assertCorrectProofNoSorry(proof, "screening")

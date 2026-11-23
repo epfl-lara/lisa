@@ -24,19 +24,23 @@ private[clausification] object NnfPhase:
     require(sameImportList(downstream.imports, transformed.imports ++ libImports), "Downstream imports must match transformed problem imports")
 
     val steps = scala.collection.mutable.ArrayBuffer.empty[ClausificationProofStep]
-    val refs = problem.hypotheses.iterator.zip(transformedHyps).zipWithIndex.map { case ((source, target), i) =>
-      val premise = problem.hypIndex(i)
-      if source == target then premise
-      else
-        val bridge = options.nnf match
-          case Nnf.Restate => Restate(target, premise)
-          case Nnf.Primitive =>
-            val proof = NnfProof(source.right.head)
-            require(proof.conclusion == target, "The primitive NNF proof must conclude the exact downstream import")
-            Subproof(proof, Seq(premise))
-        steps += bridge
-        steps.size - 1
-    }.toIndexedSeq
+    val refs = problem.hypotheses.iterator
+      .zip(transformedHyps)
+      .zipWithIndex
+      .map { case ((source, target), i) =>
+        val premise = problem.hypIndex(i)
+        if source == target then premise
+        else
+          val bridge = options.nnf match
+            case Nnf.Restate => Restate(target, premise)
+            case Nnf.Primitive =>
+              val proof = NnfProof(source.right.head)
+              require(proof.conclusion == target, "The primitive NNF proof must conclude the exact downstream import")
+              Subproof(proof, Seq(premise))
+          steps += bridge
+          steps.size - 1
+      }
+      .toIndexedSeq
     steps += ClausificationSubproof(downstream, refs ++ libRefs(problem.imports.size))
     ClausificationProof(steps.toIndexedSeq, problem.imports ++ libImports)
   }

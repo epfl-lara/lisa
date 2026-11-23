@@ -7,8 +7,9 @@ import lisa.tptp.KernelParser.strictMapAtom
 import lisa.tptp.KernelParser.strictMapTerm
 import lisa.tptp.KernelParser.strictMapVariable
 import org.scalatest.funsuite.AnyFunSuite
-import sctptp.{Parser, SequentCalculus as SC}
 import sctptp.LVL2.RightSubstIffForall
+import sctptp.Parser
+import sctptp.{SequentCalculus => SC}
 
 import java.io.File
 import java.nio.file.Files

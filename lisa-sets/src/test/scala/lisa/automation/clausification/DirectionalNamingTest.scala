@@ -2,7 +2,7 @@ package lisa.automation.clausification
 
 import lisa.automation.Problem
 import lisa.automation.ProofSyntax.{_, given}
-import lisa.automation.clausification.Clausification.*
+import lisa.automation.clausification.Clausification._
 import lisa.automation.superposition.SctptpTest
 import lisa.kernel.KernelProof
 import org.scalatest.funsuite.AnyFunSuite
@@ -40,17 +40,22 @@ class DirectionalNamingTest extends AnyFunSuite:
       val step = NamingPhase.nameOne(source, Counter(), 2, Counter(), Set.empty).get
       assert(step.pol == polarity)
       val problem = Problem(Seq(() |- source), None)
-      val phase = NamingPhase.certifyNaming(problem, (named, _) => {
-        assert(named.hypotheses == Seq(() |- step.named, () |- step.directional))
-        ClausificationProof(Vector(Hypothesis(p |- p, p)), named.imports ++ libImports)
-      })
+      val phase = NamingPhase.certifyNaming(
+        problem,
+        (named, _) => {
+          assert(named.hypotheses == Seq(() |- step.named, () |- step.directional))
+          ClausificationProof(Vector(Hypothesis(p |- p, p)), named.imports ++ libImports)
+        }
+      )
       val proof = clausificationProofToProofCertificate(phase)
       KernelProof.assertCorrectProofNoSorry(proof, "directional naming")
       val linear = proof.toLinearProof
-      val nonstructural = linear.steps.collect { case Weakening(to, ref) =>
-        val from = if ref < 0 then linear.imports(-ref - 1) else linear.steps(ref).statement
-        (from, to)
-      }.filterNot((from, to) => from.left.subsetOf(to.left) && from.right.subsetOf(to.right))
+      val nonstructural = linear.steps
+        .collect { case Weakening(to, ref) =>
+          val from = if ref < 0 then linear.imports(-ref - 1) else linear.steps(ref).statement
+          (from, to)
+        }
+        .filterNot((from, to) => from.left.subsetOf(to.left) && from.right.subsetOf(to.right))
       assert(nonstructural.length == (if polarity != 0 && mode == Distribute.Weakening then 1 else 0))
       val projected = linear.steps.count(_.isInstanceOf[LeftIff])
       assert(projected == (if polarity != 0 && mode == Distribute.Primitive then 1 else 0))

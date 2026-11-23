@@ -21,14 +21,17 @@ private[clausification] object ScreenPhase:
       steps += step
       steps.size - 1
 
-    val (screenedHyps, hypRefs) = problem.hypotheses.iterator.zipWithIndex.map { case (source, i) =>
-      val renamed = applyTo(source, sigma)
-      val screened = etaExpandSequent(renamed)
-      val premise = problem.hypIndex(i)
-      val renamedRef = if renamed == source then premise else emit(InstSchema(renamed, premise, sigma))
-      val screenedRef = if screened == renamed then renamedRef else emit(Restate(screened, renamedRef))
-      (screened, screenedRef)
-    }.toVector.unzip
+    val (screenedHyps, hypRefs) = problem.hypotheses.iterator.zipWithIndex
+      .map { case (source, i) =>
+        val renamed = applyTo(source, sigma)
+        val screened = etaExpandSequent(renamed)
+        val premise = problem.hypIndex(i)
+        val renamedRef = if renamed == source then premise else emit(InstSchema(renamed, premise, sigma))
+        val screenedRef = if screened == renamed then renamedRef else emit(Restate(screened, renamedRef))
+        (screened, screenedRef)
+      }
+      .toVector
+      .unzip
     val renamedConj = problem.conjecture.map(applyTo(_, sigma))
     val screenedConj = renamedConj.map(etaExpandSequent)
     if renaming.isEmpty && steps.isEmpty && screenedConj == problem.conjecture then prover(problem, goal)

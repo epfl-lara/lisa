@@ -2,7 +2,7 @@ package lisa.automation.superposition
 
 import lisa.automation.{ProofSyntax => K}
 import lisa.utils.Serialization
-import sctptp.SequentCalculus as SC
+import sctptp.{SequentCalculus => SC}
 
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream

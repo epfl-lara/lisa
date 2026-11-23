@@ -1,6 +1,7 @@
 package lisa.automation.clausification
 
 import lisa.automation.superposition.TptpCorpus
+import lisa.automation.superposition.bench.BenchUtil
 import lisa.automation.superposition.bench.FofEvaluation
 import lisa.automation.superposition.bench.ProblemList
 import lisa.automation.{ProofSyntax => K}
@@ -17,6 +18,7 @@ import java.io.File
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
+import scala.util.control.NonFatal
 
 import Clausification.GeneratedNames
 
@@ -339,24 +341,24 @@ class ClausifierEquivalenceTest extends AnyFunSuite:
             if size(phi) > 8000 then oversize += 1 // `findSite` is superlinear
             else
               val t0 = System.nanoTime()
-              // Catch Throwable: a formula that overflows the stack must not abort the run.
               try
                 // (1) after naming: the certified and uncertified named formulas agree *identically* (same `nm` generator).
                 if !CertifiedClausifier.sameNaming(phi) then namingFails += rel
                 // (2) after Skolem: uncertified (Skolem functions) equals certified (ε-terms, ∀-stripped, ε-abstracted).
                 // The certified side can blow up on nested-∃ ε-terms, so it runs under a 2s budget.
                 val uncertifiedSk = CertifiedClausifier.uncertifiedNamedNnfSkolem(phi) // linear (Skolem functions), always cheap
-                runWithTimeout(2000) { CertifiedClausifier.stripForall(absEps(CertifiedClausifier.namedNnfSkolemEps(phi))) } match
+                BenchUtil.withTimeout(2000) { CertifiedClausifier.stripForall(absEps(CertifiedClausifier.namedNnfSkolemEps(phi))) } match
                   case None => skolemTimeouts += 1; println(f"[timer] TIMEOUT  size=${size(phi)}%6d  $rel")
-                  case Some(certSk) =>
+                  case Some(Failure(e)) => throw e
+                  case Some(Success(certSk)) =>
                     if !isoUpToRenaming(uncertifiedSk, certSk) then skolemFails += ((rel, isoMismatch(uncertifiedSk, certSk)))
                     formulasChecked += 1
               catch
                 // Hitting the heap ceiling (`Clausification.checkInterrupted`) is a skip; anything else fails.
-                case t @ (_: InterruptedException | _: OutOfMemoryError) =>
+                case t: Clausification.HeapLimitExceeded =>
                   overBudget += 1
                   println(f"[timer] RESOURCE size=${size(phi)}%6d  $rel: ${t.getMessage}")
-                case t: Throwable =>
+                case t @ (_: StackOverflowError | NonFatal(_)) =>
                   errors += ((rel, t))
                   println(f"[timer] ERROR    size=${size(phi)}%6d  $rel: $t")
               // `println` (not `info`): sbt buffers `info` to test-end, so it is useless for watching progress live.
