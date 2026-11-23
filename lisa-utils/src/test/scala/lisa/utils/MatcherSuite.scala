@@ -27,6 +27,13 @@ class MatcherSuite extends AnyFunSuite:
     assert(matchExpr(x, x, assigned).isEmpty)
     assert(matchExpr(f(x)(x), f(x)(x), assigned).isEmpty)
 
+  test("identity matching retains the target variable's subtype and metadata"):
+    class AnnotatedVariable(id: Identifier, val annotation: String) extends Variable[Ind](id)
+    val target = new AnnotatedVariable(x.id, "target")
+    val matched = matchExpr(f(x)(x), f(target)(target)).get
+    assert(matched(x).get eq target)
+    assert(matched(x).get.asInstanceOf[AnnotatedVariable].annotation == "target")
+
   test("retain equivalence matching for structurally different formulas"):
     val source = p /\ q
     val target = q /\ p

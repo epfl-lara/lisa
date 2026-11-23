@@ -218,7 +218,8 @@ object UnificationUtils:
     // Only shared assignable variables must stay fixed to preserve this equivalence.
     val equivalent =
       if eq(expr, pattern) then
-        (expr.freeVars intersect pattern.freeVars).filter(ctx.isFree(_)).foldLeft(Option(subst)) { (result, v) =>
+        val referenceVariables = expr.freeVars
+        pattern.freeVars.iterator.filter(v => referenceVariables(v) && ctx.isFree(v)).foldLeft(Option(subst)) { (result, v) =>
           result.flatMap(current => keepFixed(v, current))
         }
       else None
