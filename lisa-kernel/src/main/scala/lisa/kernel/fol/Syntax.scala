@@ -595,7 +595,11 @@ private[fol] trait Syntax {
    * @param m A map from variables to terms.
    * @return `e[m]`, the substitution of `e` under `m`
    */
-  def substituteVariables(e: Expression, m: Map[Variable, Expression]): Expression = e match {
+  def substituteVariables(e: Expression, m: Map[Variable, Expression]): Expression =
+    if m.isEmpty || !m.keysIterator.exists(e.freeVariables.contains) then e
+    else substituteVariablesRec(e, m)
+
+  private def substituteVariablesRec(e: Expression, m: Map[Variable, Expression]): Expression = e match {
     case v: Variable =>
       m.get(v) match {
         case Some(r) =>
@@ -605,8 +609,8 @@ private[fol] trait Syntax {
       }
     case c: Constant => c
     case Application(f, arg) =>
-      val newF = substituteVariables(f, m)
-      val newArg = substituteVariables(arg, m)
+      val newF = substituteVariablesRec(f, m)
+      val newArg = substituteVariablesRec(arg, m)
       if ((newF eq f) && (newArg eq arg)) e else Application(newF, newArg)
     case Lambda(v, t) =>
       val newSubst = m - v
@@ -614,9 +618,9 @@ private[fol] trait Syntax {
       if (fv.contains(v)) {
         val taken = fv.view.map(_.id) ++ t.freeVariables.view.map(_.id) ++ m.keys.view.map(_.id)
         val newBound = Variable(freshId(taken, v.id), v.sort)
-        Lambda(newBound, substituteVariables(t, newSubst + (v -> newBound)))
+        Lambda(newBound, substituteVariablesRec(t, newSubst + (v -> newBound)))
       } else {
-        val newBody = substituteVariables(t, newSubst)
+        val newBody = substituteVariablesRec(t, newSubst)
         if (newBody eq t) e else Lambda(v, newBody)
       }
   }

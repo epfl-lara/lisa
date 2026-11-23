@@ -94,6 +94,20 @@ class NormalizationCacheSuite extends AnyFunSuite:
       assert(substituteVariables(expression, Map(x -> x)) eq expression)
     assert(substituteVariables(abstraction, Map(y -> z)) eq abstraction)
 
+  test("skip disjoint substitutions without freshening irrelevant binders"):
+    val binary = Constant(Identifier("noop-binary"), Ind -> (Ind -> Ind))
+    val closed = Lambda(y, binary(y)(y))
+    assert(substituteVariables(closed, Map(x -> y)) eq closed)
+    assert(substituteVariables(closed, Map(y -> y)) eq closed)
+
+    val otherSort = Variable(x.id, Prop)
+    val application = f(x)
+    assert(substituteVariables(application, Map(otherSort -> top)) eq application)
+
+  test("retain sort checks for substitutions that affect free variables"):
+    intercept[IllegalArgumentException]:
+      substituteVariables(f(x), Map(x -> top))
+
   test("reuse unaffected children when substituting into applications and abstractions"):
     val binary = Constant(Identifier("reuse-binary"), Ind -> (Ind -> Ind))
     val left = binary(x)
