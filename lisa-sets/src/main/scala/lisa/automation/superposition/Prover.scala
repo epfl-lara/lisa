@@ -15,9 +15,9 @@ import scala.collection.mutable
 /**
  * The solver's front end: three entry points, one problem representation, one difference between them.
  *
- * All three take an **unclausified** [[Problem]] — hypotheses plus an optional conjecture — and every parameter
- * beyond it lives in [[SearchOptions]]. What they differ in is the kind of justification asked for, which is
- * also what picks the clausifier:
+ * All three take an **unclausified** [[Problem]] — hypotheses plus an optional conjecture — and [[SearchOptions]].
+ * The kernel path also accepts options for its clausification proof. The kind of justification asked for
+ * picks the clausifier:
  *
  *   - [[solve]] wants none, so it clausifies with [[UncertifiedClausifier]] and returns the verdict;
  *   - [[proveKernel]] wants a Lisa kernel proof, so it clausifies with [[CertifiedClausifier]], which builds
@@ -89,7 +89,11 @@ object Prover:
   /**
    * A Lisa kernel proof of `problem`'s goal, or the verdict that stopped it. See the contract above.
    */
-  def proveKernel(problem: Problem, opts: SearchOptions = SearchOptions()): Either[Clausal.Outcome, K.ProofCertificate] =
+  def proveKernel(
+      problem: Problem,
+      opts: SearchOptions = SearchOptions(),
+      clausifierOptions: Clausification.ClausifierOptions = Clausification.ClausifierOptions()
+  ): Either[Clausal.Outcome, K.ProofCertificate] =
     // `certifyClausal` calls the prover from *inside* the clausification pipeline, so a non-refutation cannot
     // be returned from there; it is thrown and caught here, which is the whole extent of the exception.
     try
@@ -100,7 +104,8 @@ object Prover:
           (clausal, goal) =>
             Clausal.prove(clausal, opts, goal) match
               case Right(proof) => proof
-              case Left(outcome) => throw new NotRefuted(outcome)
+              case Left(outcome) => throw new NotRefuted(outcome),
+          clausifierOptions
         )
       })
     catch case nr: NotRefuted => Left(nr.outcome)

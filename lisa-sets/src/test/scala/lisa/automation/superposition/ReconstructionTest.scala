@@ -40,6 +40,8 @@ class ReconstructionTest extends AnyFunSuite:
     assert(proof.isDefined, s"$name: expected a refutation")
     val p = proof.get
     KernelProof.assertCorrectProofNoSorry(p, name)
+    val exported = SctptpTest.checked(p)
+    assert(exported.conclusion == sctptp.SequentCalculus.Sequent(Nil, Nil))
     assert(p.conclusion == emptySequent, s"$name: conclusion is not the empty sequent: ${p.conclusion}")
     assert(p.imports.toSet.subsetOf(clauses.toSet), s"$name: imports are not among the input clauses")
     // memoisation: a clause reused across the DAG is imported/expanded once, never duplicated
@@ -279,6 +281,7 @@ class ReconstructionTest extends AnyFunSuite:
       assert(proof.isDefined, s"$name: expected a refutation")
       val p = proof.get
       KernelProof.assertCorrectProofNoSorry(p, name)
+      SctptpTest.checked(p)
       assert(p.conclusion == emptySequent, s"$name: conclusion is not the empty sequent: ${p.conclusion}")
       assert(p.imports.distinct.length == p.imports.length, s"$name: an input clause was imported more than once")
     }

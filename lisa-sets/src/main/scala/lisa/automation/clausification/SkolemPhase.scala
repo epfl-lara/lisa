@@ -242,9 +242,7 @@ private[clausification] object SkolemPhase:
       // swap ε → F(x̄) via the defining equality, then cut the defining equality (imported at -2).
       steps += RightSubstEq(Sequent(Set(f, defEq), Set(skoFormulaF)), epsFormRef, Seq((sLambda, tLambda)), (Seq(qMarker), ctxBody))
       val subEqRef = steps.size - 1
-      steps += Restate(() |- defEq, -2)
-      val defEqRef = steps.size - 1
-      steps += Cut(f |- skoFormulaF, defEqRef, subEqRef, defEq)
+      steps += Cut(f |- skoFormulaF, -2, subEqRef, defEq)
 
       SkolemStep(skoFormulaF, mentionedB, fVar, epsWitnessB, defEq, ProofCertificate(steps.toIndexedSeq, IndexedSeq(existsEpsilonIffStatement, () |- defEq)))
     }

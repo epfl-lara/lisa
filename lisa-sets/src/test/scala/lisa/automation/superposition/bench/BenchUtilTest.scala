@@ -3,6 +3,7 @@ package bench
 
 import org.scalatest.funsuite.AnyFunSuite
 
+import scala.util.Failure
 import scala.util.Success
 
 /**
@@ -25,14 +26,27 @@ class BenchUtilTest extends AnyFunSuite:
     assert(BenchUtil.withTimeout(30000L)(6 * 7) == Some(Success(42)))
   }
 
+  test("ordinary worker failures preserve the cause in Failure") {
+    val error = new IllegalStateException("ordinary worker failure")
+    assert(BenchUtil.withTimeout(30000L)(throw error) == Some(Failure(error)))
+  }
+
+  test("a fatal worker error escapes on the caller thread with its original cause") {
+    val error = new LinkageError("incompatible library")
+    assert(intercept[LinkageError](BenchUtil.withTimeout(30000L)(throw error)) eq error)
+  }
+
+  test("a worker interrupted before the deadline propagates its interruption") {
+    val error = new InterruptedException("external cancellation")
+    assert(intercept[InterruptedException](BenchUtil.withTimeout(30000L)(throw error)) eq error)
+  }
+
   test("an overrun returns None whether or not the worker stops") {
     val cooperative = BenchUtil.withTimeout(50L)(Thread.sleep(60000L))
     val stubborn = BenchUtil.withTimeout(50L)(spinIgnoringInterrupts(4000L))
     assert(cooperative.isEmpty && stubborn.isEmpty)
   }
 
-  // A worker unwinding during the grace period stores `Failure(InterruptedException)`. Returning that would
-  // reclassify every `HARD_TIMEOUT` as `ERROR(InterruptedException)` in the harness summaries.
   test("a cooperative overrun is not reported as an error") {
     assert(BenchUtil.withTimeout(50L)(Thread.sleep(60000L)).isEmpty)
   }

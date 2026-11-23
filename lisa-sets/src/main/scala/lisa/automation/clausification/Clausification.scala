@@ -103,13 +103,20 @@ object Clausification {
     case Weakening, Primitive
 
   /**
+   * How to certify negation normal form: by restatement or by explicit sequent rules.
+   */
+  enum Nnf:
+    case Restate, Primitive
+
+  /**
    * Pipeline configuration, supplied by [[CertifiedClausifier.certifyClausal]] and read by the phases as a given.
    * It also fixes the library imports, so unused prenex laws are not imported.
    */
   case class ClausifierOptions(
       threshold: Int = 4, //           name a subformula once its CNF estimate exceeds this
       prenex: Prenex = Prenex.Deconstruct,
-      distribute: Distribute = Distribute.Weakening
+      distribute: Distribute = Distribute.Weakening,
+      nnf: Nnf = Nnf.Restate
   ):
     def libStatements: IndexedSeq[Sequent] = prenex match
       case Prenex.Deconstruct => IndexedSeq(existsEpsilonIffStatement)
@@ -256,6 +263,8 @@ object Clausification {
    */
   private val heapCeiling: Long = (Runtime.getRuntime.maxMemory / 10) * 9
 
+  private[automation] final class HeapLimitExceeded(used: Long, max: Long) extends RuntimeException(s"Memory pressure: heap ${used / (1024 * 1024)}MB / max ${max / (1024 * 1024)}MB")
+
   /**
    * Counts calls to [[checkInterrupted]] so the heap is polled only every [[heapPollInterval]]th one. Not
    * synchronised: it is a heuristic trigger, and a lost increment under concurrent use only shifts *when*
@@ -265,11 +274,8 @@ object Clausification {
   private inline val heapPollInterval = 256
 
   /**
-   * Cooperative cancellation hook: throw `InterruptedException` if the
-   * current thread has been interrupted, OR if the JVM is dangerously close
-   * to OOM (used heap > 90% of max).  The latter is a safety valve so a
-   * runaway problem (e.g. an exponential blow-up that allocates faster than
-   * `Thread.interrupted()` can be polled) cannot crash the whole bench.
+   * Interrupting the worker cancels clausification. Crossing the heap ceiling
+   * raises [[HeapLimitExceeded]] so the benchmark can report resource exhaustion.
    *
    * The interrupt flag is checked every call, being a plain field read. The heap is not: `totalMemory` and
    * `freeMemory` are native calls, and this runs per axiom, per naming step and per distribute step, of
@@ -279,17 +285,18 @@ object Clausification {
   private[clausification] inline def checkInterrupted(): Unit = {
     if (Thread.interrupted()) throw new InterruptedException("Clausification cancelled")
     interruptPolls += 1
-    if ((interruptPolls & (heapPollInterval - 1)) == 0) checkHeadroom()
+    if ((interruptPolls & (heapPollInterval - 1)) == 0) {
+      val rt = Runtime.getRuntime
+      checkHeadroom(rt.totalMemory() - rt.freeMemory())
+    }
   }
 
   /**
    * The out-of-line half of [[checkInterrupted]]: the part worth paying for only occasionally.
    */
-  private def checkHeadroom(): Unit = {
-    val rt = Runtime.getRuntime
-    val used = rt.totalMemory() - rt.freeMemory()
+  private[clausification] def checkHeadroom(used: Long): Unit = {
     if (used > heapCeiling)
-      throw new InterruptedException(s"Memory pressure: heap ${used / (1024 * 1024)}MB / max ${rt.maxMemory() / (1024 * 1024)}MB")
+      throw new HeapLimitExceeded(used, Runtime.getRuntime.maxMemory())
   }
 
   // The top-level certified clausification pipeline lives in [[CertifiedClausifier.certifyClausal]] (it adds a
