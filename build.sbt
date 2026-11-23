@@ -88,7 +88,7 @@ val tptpSettings = Seq(
   libraryDependencies += "com.github.SC-TPTP" % "scala-tptp-parser_2.13" % "0b4ffa55c71415e925080608707c78ada1d750e5"
 )
 
-lazy val scTptpUpstream = RootProject(uri("https://github.com/SC-TPTP/sc-tptp.git#fbfbb29aaf89ca82a050718ea5554022ebb73d84"))
+lazy val scTptpUpstream = RootProject(uri("https://github.com/SC-TPTP/sc-tptp.git#69b4d61e5236daa314bf642722e5a6cfa2af2d9b"))
 scTptpUpstream / scalaVersion := scala3
 
 // The aggregate reference makes sbt fetch the repository. This project runs the tasks using Lisa's Scala and TPTP parser.
