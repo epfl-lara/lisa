@@ -743,7 +743,9 @@ object Import extends lisa.HOL:
           val implication = have((correctness.left + existence) |- existsP) by Weakening(correctness)
           have((witness.left ++ correctness.left) |- existsP) by Cut.withParameters(existence)(witness, implication)
           val discharged = have(Discharge(predicateTyping)(lastStep))
-          have(localNonEmpty |- existsP) by Weakening(discharged)
+          // The existential conclusion no longer needs the concrete witness's free variables.
+          val cleaned = have(HOLSteps.Clean.all(discharged))
+          have(localNonEmpty |- existsP) by Weakening(cleaned)
         .thm
 
         // Define the new carrier as the subset selected by the predicate.

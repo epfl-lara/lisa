@@ -796,13 +796,8 @@ object HOLSteps extends lisa._HOL {
         if ordMap(tt) >= depth then (justMap, ordMap)
         else
           val nextOrd = ordMap.updated(tt, depth)
-          // A known composite can be rediscovered deeper through another root.
-          // Propagate that depth so its dependencies remain ordered after it.
-          term match
-            case a `->:` b => foldIncremental(Seq(a, b), depth + 1, justMap, nextOrd)
-            case Multiapp(f: HOLPolymorphicType[?], args) if f.freeTypeVars.nonEmpty =>
-              foldIncremental(args, depth + 1, justMap, nextOrd)
-            case _ => (justMap, nextOrd)
+          // Cut a witness before the witnesses for the premises it introduces.
+          foldIncremental(justMap(tt).statement.left, depth + 1, justMap, nextOrd)
       else
         term match
           case HOLConstantType(cst) =>
@@ -812,7 +807,7 @@ object HOLSteps extends lisa._HOL {
             val nextJ = justMap + (cst -> just)
             val nextOrd = ordMap + (cst -> depth)
 
-            foldIncremental(just.statement.right, depth + 1, nextJ, nextOrd)
+            foldIncremental(just.statement.left, depth + 1, nextJ, nextOrd)
 
           case a `->:` b =>
             val just = nonEmptyFuncSpace.of(A := a, B := b)
@@ -826,7 +821,7 @@ object HOLSteps extends lisa._HOL {
             val nextJ = justMap + (tt -> just)
             val nextOrd = ordMap + (tt -> depth)
 
-            val preds = just.statement.right.toSeq ++ args
+            val preds = just.statement.left.toSeq ++ args
 
             foldIncremental(preds, depth + 1, nextJ, nextOrd)
 
