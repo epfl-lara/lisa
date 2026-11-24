@@ -206,7 +206,6 @@ object ExtendedHOLSteps extends lisa._HOL {
 
   object _ETA {
     def apply(using proof: Proof)(x: TypedVariable, t: Expr[Ind]): proof.ProofTacticJudgement = TacticSubproof { ip ?=>
-
       if t.freeVars.contains(x) then return proof.InvalidProofTactic(s"Variable $x is free in the Expr[Ind] $t")
       val lxtx = λ(x, t * x)
       val restype = computeType(t * x)

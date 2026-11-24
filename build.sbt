@@ -1,10 +1,10 @@
 version := "0.9.4"
-homepage := Some(url("https://github.com/epfl-lara/lisa"))
+homepage := Some(uri("https://github.com/epfl-lara/lisa"))
 startYear := Some(2021)
 organization := "ch.epfl.lara"
 organizationName := "LARA"
-organizationHomepage := Some(url("https://lara.epfl.ch"))
-licenses := Seq("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0.html"))
+organizationHomepage := Some(uri("https://lara.epfl.ch"))
+licenses := Seq("Apache-2.0" -> uri("https://www.apache.org/licenses/LICENSE-2.0.html"))
 versionScheme := Some("semver-spec")
 scalacOptions ++= Seq(
   "-feature",
@@ -13,24 +13,25 @@ scalacOptions ++= Seq(
 )
 javacOptions ++= Seq("-encoding", "UTF-8")
 semanticdbEnabled := true
-semanticdbVersion := "4.13.6"
+semanticdbVersion := "4.17.4"
 exportJars := false
 resolvers += "jitpack" at "https://jitpack.io"
 
-val scala2Version = "2.13.16"
-val scala3Version = "3.8.4"
+val scala2Version = "2.13.18"
+val scala3Version = "3.10.1"
 val tptpParserCommit = "0b4ffa55c71415e925080608707c78ada1d750e5"
 
 val commonProjectSettings = Seq(
   run / fork := true,
-  libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % Test
+  libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.20" % Test
 )
 
 val scala3ProjectSettings = Seq(
   scalaVersion := scala3Version,
   scalacOptions ++= Seq(
+    // "-Wsafe-init",
     "-language:implicitConversions",
-    "-Wconf:msg=.*trait or object is defined in the compilation unit.*:silent",
+    "-Wconf:msg=.*trait or object is defined in the compilation unit.*:silent"
   ),
   javaOptions += "-Xmx10G",
   libraryDependencies ++= Seq(
@@ -79,7 +80,7 @@ lazy val sets = Project(
   .settings(allowScala2ProjectDependency)
   .settings(
     libraryDependencies += "org.apache.commons" % "commons-math3" % "3.6.1",
-    libraryDependencies += "it.unimi.dsi" % "fastutil-core" % "8.5.15"
+    libraryDependencies += "it.unimi.dsi" % "fastutil-core" % "8.5.19"
   )
   .settings(
     // Executable fat-jar for CASC: `sbt lisa-sets/assembly` builds `casc-prover.jar`, run as
@@ -98,7 +99,7 @@ lazy val utils = Project(
   .settings(allowScala2ProjectDependency)
   .settings(
     libraryDependencies ++= Seq(
-      "com.lihaoyi" %% "mainargs" % "0.7.6",
+      "com.lihaoyi" %% "mainargs" % "0.7.8",
       "com.github.SC-TPTP" % "scala-tptp-parser_2.13" % tptpParserCommit
     )
   )
@@ -140,7 +141,7 @@ lazy val holImport = Project(
     libraryDependencies ++= Seq(
       "com.lihaoyi" %% "upickle" % "4.4.3",
       "com.lihaoyi" %% "fastparse" % "3.1.1",
-      "org.scala-lang.modules" %% "scala-parser-combinators" % "2.4.0" % Test
+      "org.scala-lang.modules" %% "scala-parser-combinators" % "2.5.0" % Test
     )
   )
   .dependsOn(sets, utils)

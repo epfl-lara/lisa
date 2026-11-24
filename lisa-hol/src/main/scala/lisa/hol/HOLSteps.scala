@@ -549,7 +549,6 @@ object HOLSteps extends lisa._HOL {
   // λ(x, t*x) =:= t
   object _ETA extends ProofTactic {
     def apply(using proof: Proof)(x: TypedVariable, t: Expr[Ind]): proof.ProofTacticJudgement = TacticSubproof { ip ?=>
-
       if t.freeVars.contains(x) then return proof.InvalidProofTactic(s"Variable $x is free in the Expr[Ind] $t")
       val lxtx = λ(x, t * x)
       val ttype_step = HOLProofType(t)
