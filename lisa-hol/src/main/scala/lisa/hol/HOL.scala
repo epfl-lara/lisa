@@ -64,11 +64,8 @@ trait _HOL extends BasicMain {
 
 trait HOL extends _HOL {
   // export lisa.hol.HOLSteps.*
-  export SetTheoryLibrary.{library => _, Theorem => _, given, _}
-  // An explicit initializer also initializes exported object fields on Scala 3.10.
-  val Theorem: SetTheoryLibrary.Theorem.type = SetTheoryLibrary.Theorem
-  export lisa.utils.prooflib.BasicStepTactic.*
-  export lisa.utils.prooflib.SimpleDeducedSteps.*
+  export SetTheoryLibrary.{library => _, given, _}
+  export lisa.utils.prooflib.Exports.*
 
   export lisa.automation.Tautology
   export lisa.automation.Substitution
