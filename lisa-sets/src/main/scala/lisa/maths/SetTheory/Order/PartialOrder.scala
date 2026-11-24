@@ -3,7 +3,8 @@ package lisa.maths.SetTheory.Order
 import lisa.maths.SetTheory.Base
 import lisa.maths.SetTheory.Base.Predef.{_, given}
 import lisa.maths.SetTheory.Relations
-import lisa.maths.SetTheory.Relations.Predef._
+import lisa.maths.SetTheory.Relations.Properties.{antisymmetric, irreflexive, reflexive, transitive}
+import lisa.maths.SetTheory.Relations.Relation.{R, relation}
 
 /**
  * A partial order `(A, <=)` is a binary relation that is [[transitive]],
