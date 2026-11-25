@@ -26,5 +26,3 @@ fof(f8, plain, [![X] : q(g(F(f(c)), F(F(X))))] --> [], inference(instFun, [statu
 
 fof(a9, axiom, [![X] : q(G(X, f(c)))] --> [?[Y] : q(G(b, f(Y)))]).
 fof(f9, plain, [![X] : q(g(F(f(c)), F(F(X))))] --> [?[Y] : q(g(F(f(Y)), F(F(b))))], inference(instFun, [status(thm), 'G', $fot(g(F(Y), F(F(X)))), ['X', 'Y']], [a9])).
-
-

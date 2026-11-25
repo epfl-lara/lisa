@@ -17,5 +17,3 @@ fof(f4, plain, [R & r(f(g(X, Y))), R] --> [P(X), Q(X) & (R & Q(X))], inference(r
 fof(a5_1, axiom, [(t(X) & u(Z)), v(f(c))] --> [![X]: (p(X) & q(X)), A]).
 fof(a5_2, axiom, [(t(X) & u(Z))] --> [(r(X) | s(X))]).
 fof(f5, plain, [(t(X) & u(Z)), v(f(c))] --> [A, ![X]: (p(X) & q(X)) & (r(X) | s(X))], inference(rightAnd, [status(thm), 1], [a5_1, a5_2])).
-
-

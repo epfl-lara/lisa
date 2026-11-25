@@ -1,8 +1,8 @@
 package lisa.automation.superposition
 
-import lisa.utils.K
-import lisa.utils.KernelHelpers.flattenProof
+import lisa.automation.{ProofSyntax => K}
 import lisa.utils.Serialization
+import sctptp.{SequentCalculus => SC}
 
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
@@ -35,25 +35,26 @@ object ProofFormat:
     values.find(_.name == s).getOrElse(sys.error(s"unknown proof format '$s'; have ${values.map(_.name).mkString(", ")}"))
 
 /**
- * Writes refutations to files, under fixed names in a given directory: `proof.p` for a TSTP derivation,
- * `proof.trees` and `proof.proof` for a serialized kernel proof.
+ * Writes TSTP and SC-TPTP proofs to `proof.p` and serialized kernel proofs to `proof.trees` and `proof.proof`.
  */
 object ProofExport:
 
   /**
    * Write the kernel proof `proof` of problem `name` into `dir` in `format`.
    */
-  def writeKernel(format: ProofFormat, name: String, proof: K.SCProof, dir: File): Unit =
+  def writeKernel(format: ProofFormat, name: String, proof: K.ProofCertificate, dir: File): Unit =
     require(format.fromKernel, s"${format.name} is not a kernel proof format")
     dir.mkdirs()
     format match
       case ProofFormat.Serialized => writeSerialized(name, proof, dir)
       case ProofFormat.LisaTstp => ???
-      case ProofFormat.ScTptp => ???
+      case ProofFormat.ScTptp =>
+        val exported = Sctptp.fromKernel(proof, name).fold(error => throw new IllegalArgumentException(s"SC-TPTP export of $name failed: $error"), identity)
+        writeTstp(SC.ProofToString(exported), dir)
       case _ => ()
 
   /**
-   * Write a TSTP derivation, as [[Tstp.printRefutation]] prints it, to `dir/proof.p`.
+   * Write the rendered proof to `dir/proof.p` in UTF-8.
    */
   def writeTstp(tstp: String, dir: File): Unit =
     dir.mkdirs()
@@ -67,21 +68,21 @@ object ProofExport:
   /**
    * The proof name and kernel proof serialized in `dir`.
    */
-  def readSerialized(dir: File): (String, K.SCProof) =
+  def readSerialized(dir: File): (String, K.ProofCertificate) =
     val trees = new DataInputStream(new BufferedInputStream(new FileInputStream(new File(dir, "proof.trees"))))
     val proofs = new DataInputStream(new BufferedInputStream(new FileInputStream(new File(dir, "proof.proof"))))
     try
       val (name, proof, _) = Serialization.proofsFromDataStream(trees, proofs).head
-      (name, proof)
+      (name, K.ProofCertificate.fromLinearProof(proof))
     finally
       trees.close()
       proofs.close()
 
   // The serializer does not support subproofs, so the proof is flattened first.
-  private def writeSerialized(name: String, proof: K.SCProof, dir: File): Unit =
+  private def writeSerialized(name: String, proof: K.ProofCertificate, dir: File): Unit =
     val trees = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(new File(dir, "proof.trees"))))
     val proofs = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(new File(dir, "proof.proof"))))
-    try Serialization.proofsToDataStream(trees, proofs, Seq((name, flattenProof(proof), Nil)))
+    try Serialization.proofsToDataStream(trees, proofs, Seq((name, proof.toLinearProof, Nil)))
     finally
       trees.close()
       proofs.close()

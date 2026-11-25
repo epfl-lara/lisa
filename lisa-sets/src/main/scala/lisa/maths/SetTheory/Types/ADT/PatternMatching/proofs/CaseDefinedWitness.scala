@@ -1,0 +1,44 @@
+package lisa.maths.SetTheory.Types.ADT.PatternMatching.proofs
+
+import lisa.maths.SetTheory.SetTheory._
+import lisa.maths.SetTheory.Types.ADT.PatternMatching.semantics.Clause
+import lisa.maths.SetTheory.Types.ADT.PatternMatching.semantics.PatternSystem
+import lisa.maths.SetTheory.Types.ADT.encoding._
+import lisa.utils.prooflib.Thm
+
+/**
+ * Shared semantic witness construction for ADT functions.
+ *
+ * A case-defined witness is a relation `W ⊆ A × T` described by semantic branches.
+ * This class factors the common proof layer used by ordinary semantic
+ * functions and recursive witness relations:
+ *   - branch-wise witness membership
+ *   - relation-betweenness
+ *   - totality and single-valuedness
+ *   - uniqueness of outputs
+ *   - function typing
+ *   - witness application equations on branch inputs
+ *
+ * Clients provide the ADT-specific ingredients:
+ *   - the witness term and its `DEF` equation
+ *   - the branch bodies and the `caseMembership` predicate
+ *   - return-type checks for each branch body
+ *   - optional ambient assumptions required to type the branch bodies
+ *
+ * When `contextPremises` is empty, exported theorems are plain formulas. When it is
+ * non-empty, theorems are wrapped under the conjunction of these premises.
+ */
+final class CaseDefinedWitness(
+    protected val adt: SemanticADT,
+    protected val argType: Expr[Ind],
+    protected val patternMatching: PatternSystem[Expr[Ind]],
+    protected val returnType: Expr[Ind],
+    protected val typ: Expr[Ind],
+    protected val witness: Expr[Ind],
+    protected val witnessDef: Thm,
+    protected val witnessBound: Expr[Ind],
+    protected val pairWitness: Variable[Ind],
+    protected val caseMembership: Expr[Ind] => Expr[Prop],
+    protected val checkReturnType: Map[Clause[Expr[Ind]], Thm],
+    protected val contextPremises: Seq[Expr[Prop]] = Seq.empty
+) extends WitnessApplicationProofs

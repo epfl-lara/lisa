@@ -2,7 +2,8 @@ package lisa.automation.superposition
 package bench
 
 import java.io.File
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.FutureTask
 import scala.util.Try
 import scala.util.Using
 
@@ -82,20 +83,27 @@ object BenchUtil:
   private val interruptGraceMs: Long = 2000L
 
   /**
-   * Run `body` on a daemon thread; return its outcome, or `None` if it doesn't finish within `ms`. On a
+   * Return ordinary worker results as a `Try` and propagate interruption or fatal errors to the caller.
+   * Return `None` when the worker is still running after `ms`. On a
    *  timeout the worker is interrupted and given [[interruptGraceMs]] to unwind; one still alive after that
    *  cannot be stopped at all, hence one forked JVM per problem.
    */
   def withTimeout[T](ms: Long)(body: => T): Option[Try[T]] =
-    val box = new AtomicReference[Option[Try[T]]](None)
-    val th = new Thread(() => box.set(Some(Try(body))))
-    th.setDaemon(true); th.start(); th.join(ms)
-    if !th.isAlive then box.get()
+    val task = new FutureTask[Try[T]](() => Try(body))
+    val worker = new Thread(task)
+    worker.setDaemon(true)
+    worker.start()
+    try worker.join(ms)
+    catch
+      case e: InterruptedException =>
+        worker.interrupt()
+        throw e
+    if !worker.isAlive then
+      try Some(task.get())
+      catch case e: ExecutionException => throw e.getCause
     else
-      th.interrupt()
-      th.join(interruptGraceMs) // give the cooperative poll points a chance to fire
-      // `None` even if the worker unwound in the grace period and stored a `Failure(InterruptedException)`:
-      // the budget was exceeded, and returning that would reclassify every `HARD_TIMEOUT` as an `ERROR`.
+      worker.interrupt()
+      worker.join(interruptGraceMs)
       None
 
   // ── running one problem in its own JVM ──────────────────────────────────────────────────────────────────
@@ -129,7 +137,9 @@ object BenchUtil:
      */
     def crashDetail: String =
       if timedOut then ""
-      else s"exit=$exitCode${stderr.reverseIterator.find(_.trim.nonEmpty).map(l => s", ${l.trim}").getOrElse("")}"
+      else
+        val reason = stderr.find(_.startsWith("Exception in thread \"main\"")).orElse(stderr.reverseIterator.find(_.trim.nonEmpty))
+        s"exit=$exitCode${reason.map(l => s", ${l.trim}").getOrElse("")}"
 
   val ResultPrefix: String = "RESULT\t"
 
@@ -151,7 +161,12 @@ object BenchUtil:
     try
       val p = new ProcessBuilder(cmd*).redirectOutput(out).redirectError(err).start()
       p.getOutputStream.close() // the child never reads stdin; leaving it open can wedge one that tries
-      val finished = p.waitFor(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+      val finished =
+        try p.waitFor(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+        catch
+          case e: InterruptedException =>
+            p.destroyForcibly()
+            throw e
       if !finished then
         p.destroyForcibly()
         p.waitFor(10, java.util.concurrent.TimeUnit.SECONDS) // reap it; SIGKILL, so this returns at once

@@ -1,7 +1,7 @@
 package lisa.automation.clausification
 
 import lisa.automation.Problem
-import lisa.utils.K.{_, given}
+import lisa.automation.ProofSyntax.{_, given}
 
 import Clausification._
 
@@ -255,5 +255,5 @@ object UncertifiedClausifier:
    * swap one for the other, but the clausification is **not** certified: nothing links the clauses back to the
    * original conjecture, and the returned proof refutes the clause set only.
    */
-  def uncertifyClausal(problem: Problem, prover: Problem => SCProof): SCProof =
+  def uncertifyClausal(problem: Problem, prover: Problem => ProofCertificate): ProofCertificate =
     prover(clausalForm(problem))

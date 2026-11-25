@@ -31,3 +31,30 @@ object Extensions:
         val next = iter.next()
         if next.isDefined then res = res.map(_ += next.get) else res = None
       res.map(_.result())
+
+  extension [A, B](prod: Either[A, B])
+
+    /**
+     * Keep a `Right`, or lazily evaluate the alternative for a `Left`. Unlike
+     * `Either.orElse`, replace the left type instead of widening it. The cast
+     * _only_ changes a `Right`'s unused _left type_.
+     */
+    inline def orElseCasting[C, D >: B](alternative: => Either[C, D]): Either[C, D] = prod match
+      case Left(_) => alternative
+      case right: Right[A, B] => right.asInstanceOf[Right[C, B]]
+
+    /**
+     * Map the left value of an Either, if it exists. Otherwise, return the right
+     * value.
+     */
+    inline def mapLeft[C](f: A => C): Either[C, B] = prod match
+      case Left(a) => Left(f(a))
+      case Right(b) => Right(b)
+
+    /**
+     * Map the right value of an Either, if it exists. Otherwise, return the left
+     * value.
+     */
+    inline def mapRight[C](f: B => C): Either[A, C] = prod match
+      case Left(a) => Left(a)
+      case Right(b) => Right(f(b))

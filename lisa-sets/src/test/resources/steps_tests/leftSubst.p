@@ -12,4 +12,3 @@ fof(f3, plain, [q(g(b, f(b))), a = b] --> [], inference(leftSubst, [status(thm),
 
 fof(a4, axiom, [![X] : q(g(X, f(c)))] --> []).
 fof(f4, plain, [f(c) = g(c, c), ![X] : q(g(X, g(c, c)))] --> [], inference(leftSubst, [status(thm), 0, 0, $fof(![Z] : q(g(Z, X))), 'X'], [a4])).
-

@@ -193,7 +193,7 @@ justification asked for. That difference is what picks the clausifier.
 | entry point | result | clausifier |
 |---|---|---|
 | `Prover.solve(problem, opts)` | the verdict alone, no proof built | uncertified |
-| `Prover.proveKernel(problem, opts)` | a kernel `SCProof` of the goal | certified |
+| `Prover.proveKernel(problem, opts)` | a `ProofCertificate` of the goal, flattened for the LCF checker | certified |
 | `Prover.proveTstp(problem, opts)` | a TSTP derivation, which needs no kernel justification | uncertified |
 
 Both proving entry points return a proof of the problem's goal — its conjecture, or `⊢` when it has none —
@@ -434,7 +434,18 @@ named strategies and the command line prover are specific to competition use.
 | [bench/ProofMetrics.scala](bench/ProofMetrics.scala) | the size of a reconstructed kernel proof, as the benchmarks report it |
 | [bench/BenchUtil.scala](bench/BenchUtil.scala) | the shared parts, including the problem lists and the seeded sampling |
 
-With `proof=<format>`, the harness also writes each refutation to a file, in one of the formats of [ProofExport.scala](ProofExport.scala): `casc-tstp` (the prover's TSTP derivation, uncertified pipeline) or `serialized` (the kernel proof, certified pipeline); `lisa-tstp` and `sc-tptp` are not implemented yet. The harness's `check` command kernel-checks serialized proofs.
+In certified mode, `proof=sc-tptp` writes the clausification and superposition proof to `proof.p`.
+It selects primitive NNF and distribution and requires `orthologic=off` (the default).
+These commands prove a single problem and check the resulting file with scala-utils.
+
+```sh
+sbt 'lisa-sets/runMain lisa.automation.superposition.bench.FofEvaluation one problem.p out proof=sc-tptp'
+sbt 'scTptpUtils/runMain sctptp.Main check --input out/proof.p'
+```
+
+Batch runs write each proof to `<proofDir>/<problem>/proof.p`.
+The harness also supports `proof=casc-tstp` in uncertified mode and `proof=serialized` in certified mode.
+The harness's `check` command kernel-checks serialized proofs. The `lisa-tstp` format is still a placeholder.
 
 One point about the results is recorded here because it invalidates whole runs. A
 problem is solved on its own thread under a time limit, and a thread that does not stop when asked cannot be

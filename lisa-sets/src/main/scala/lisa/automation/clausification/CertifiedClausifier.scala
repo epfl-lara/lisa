@@ -1,7 +1,7 @@
 package lisa.automation.clausification
 
 import lisa.automation.Problem
-import lisa.utils.K.{_, given}
+import lisa.automation.ProofSyntax.{_, given}
 
 import Clausification._
 
@@ -18,14 +18,14 @@ object CertifiedClausifier:
    * library statements ([[libImports]]) in fixed order at the end, for a wrapping tactic to discharge.
    *
    * ==Contract on `prover`==
-   * It is called on a conjecture-free clausal [[Problem]] and must return an [[SCProof]] whose '''imports''' are
+   * It is called on a conjecture-free clausal [[Problem]] and must return an [[ProofCertificate]] whose '''imports''' are
    * `problem.imports` pointwise and in order, every clause declared even if the refutation does not use it, and
    * whose '''conclusion''' is the empty sequent. Not `{all clause literals} ⊢`: [[NegatedPhase]]'s closing `Cut`
    * lifts only `¬φ` to the left, so it needs the prover proper to derive `⊢`. Each clause it receives is
    * `a₁, …, aₘ ⊢ b₁, …, bₙ` for `¬a₁ ∨ … ∨ ¬aₘ ∨ b₁ ∨ … ∨ bₙ` (README §1.2), with no
    * disjunctions, quantifiers, or right-hand negations left to unpack.
    */
-  def certifyClausal(problem: Problem, prover: Problem => SCProof, options: ClausifierOptions = ClausifierOptions()): SCProof =
+  def certifyClausal(problem: Problem, prover: Problem => ProofCertificate, options: ClausifierOptions = ClausifierOptions()): ProofCertificate =
     certifyClausalGoal(problem, (p, _) => prover(p), options)
 
   /**
@@ -33,10 +33,10 @@ object CertifiedClausifier:
    * uncertified path does. The set indexes the clausal problem's hypotheses and is empty without a conjecture;
    * see [[Clausification.ClausificationProver]].
    */
-  def certifyClausalGoal(problem: Problem, prover: (Problem, Set[Int]) => SCProof, options: ClausifierOptions = ClausifierOptions()): SCProof =
+  def certifyClausalGoal(problem: Problem, prover: (Problem, Set[Int]) => ProofCertificate, options: ClausifierOptions = ClausifierOptions()): ProofCertificate =
     given ClausifierOptions = options
     val wrappedProver: ClausificationProver = (p, goal) =>
-      val downstream = ClausificationProof.fromSCProof(prover(p, goal))
+      val downstream = ClausificationProof.fromProofCertificate(prover(p, goal))
       ClausificationProof(downstream.steps, downstream.imports ++ libImports)
     val distributeProver: ClausificationProver = DistributePhase.certifyDistribute(_, wrappedProver, _)
     val prenexProver: ClausificationProver = PrenexPhase.certifyPrenex(_, distributeProver, _)
@@ -45,7 +45,7 @@ object CertifiedClausifier:
     val namingProver: ClausificationProver = NamingPhase.certifyNaming(_, nnfProver, _)
     val negatedProver: ClausificationProver = NegatedPhase.certifyNegated(_, namingProver, _)
     val fullProver: ClausificationProver = ScreenPhase.certifyScreen(_, negatedProver, _)
-    clausificationProofToSCProof(fullProver(problem, Set.empty))
+    clausificationProofToProofCertificate(fullProver(problem, Set.empty))
 
   // ── oracles for the uncertified/certified equivalence test ─────────────────────────────────────
   //

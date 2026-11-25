@@ -1,46 +1,33 @@
 package lisa.utils.prooflib
 
-import lisa.utils.KernelHelpers._
-import lisa.utils._
-
-import java.io.PrintWriter
 import java.io.StringWriter
 
-abstract class OutputManager {
-
+trait OutputManager:
   given OutputManager = this
 
-  def output(s: String): Unit = stringWriter.write(s + "\n")
-  def output(s: String, color: String): Unit = stringWriter.write(Console.RESET + color + s + "\n" + Console.RESET)
-  val stringWriter: StringWriter
+  def output(message: String): Unit
 
-  def finishOutput(exception: Exception): Nothing
+  /**
+   * Reports an error, using the ordinary output destination unless overridden.
+   */
+  def error(message: String): Unit = output(message)
 
-  def lisaThrow(le: LisaException): Nothing =
-    le match {
-      case ule: UserLisaException =>
-        ule.fixTrace()
-        output(ule.showError)
-        finishOutput(ule)
+  def section(index: Int, name: String, file: String): Unit =
+    output(OutputManager.BLUE(s"Section $index: $name"))
 
-      case e: LisaException.InvalidKernelJustificationComputation =>
-        e.proof match {
-          case Some(value) => output(lisa.utils.prooflib.ProofPrinter.prettyProof(value))
-          case None => ()
-        }
-        output(e.underlying.repr)
-        finishOutput(e)
+final class StringOutputManager extends OutputManager:
+  val writer: StringWriter = StringWriter()
 
-    }
+  def output(message: String): Unit =
+    writer.write(message)
+    writer.write("\n")
 
-  def log(e: Exception): Unit = {
-    stringWriter.write("\n[" + Console.RED + "Error" + Console.RESET + "] ")
-    e.printStackTrace(PrintWriter(stringWriter))
-    output(Console.RESET)
-  }
+  override def toString: String =
+    writer.toString
 
-}
-object OutputManager {
+object OutputManager:
+  def stdout: OutputManager = message => println(message)
+
   def RED(s: String): String = Console.RED + s + Console.RESET
   def GREEN(s: String): String = Console.GREEN + s + Console.RESET
   def BLUE(s: String): String = Console.BLUE + s + Console.RESET
@@ -48,5 +35,4 @@ object OutputManager {
   def CYAN(s: String): String = Console.CYAN + s + Console.RESET
   def MAGENTA(s: String): String = Console.MAGENTA + s + Console.RESET
 
-  def WARNING(s: String): String = Console.YELLOW + "⚠ " + s + Console.RESET
-}
+  def WARNING(s: String): String = YELLOW("Warning: " + s)

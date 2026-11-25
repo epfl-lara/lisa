@@ -48,7 +48,7 @@ object Pi extends lisa.Main {
     ty2 match
       case Abs(v, body) =>
         if body.freeVars.contains(v) then s"Π($v: $ty1). $body"
-        else s"$ty1 ->: $body"
+        else s"($ty1 ->: $body)"
       case _ => s"Π(_: $ty1). $ty2(_)"
   )
 
@@ -58,7 +58,7 @@ object Pi extends lisa.Main {
    */
   extension (a: Expr[Ind]) {
     infix def ->:(b: Expr[Ind]): Expr[Ind] =
-      Pi(a)(λ(x, b))
+      Pi(a)(λ(x.freshRename(Seq(b)), b))
   }
   object `->:`:
     def unapply(e: Expr[?]): Option[(Expr[Ind], Expr[Ind])] =

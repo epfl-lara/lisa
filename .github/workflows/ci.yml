@@ -8,12 +8,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Set up JDK 
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: 17
+          java-version: 25
       - name: Set up sbt
         uses: sbt/setup-sbt@v1
       - name: Compile
@@ -24,7 +24,7 @@ jobs:
         run: sbt "scalafixAll --check"
       - name: Check format
         run: sbt scalafmtCheckAll
-      - name: Compile sets
-        run: sbt "lisa-sets / compile"
+      - name: Run library developments
+        run: sbt runAll
       - name: Compile examples
         run: sbt "lisa-examples / compile"

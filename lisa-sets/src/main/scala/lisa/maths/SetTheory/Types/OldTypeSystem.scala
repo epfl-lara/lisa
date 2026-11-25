@@ -207,7 +207,7 @@ object TypeSystem  {
 
 
   class TypedConstant[A <: Class]
-    (id: Identifier, val typ: A, val justif: JUSTIFICATION) extends Constant(id) with LisaObject[TypedConstant[A]]  {
+    (id: Identifier, val typ: A, val justif: Thm) extends Constant(id) with LisaObject[TypedConstant[A]]  {
     val formula = TypeAssignment(this, typ)
     assert(justif.statement.left.isEmpty && (justif.statement.right.head == formula))
 
@@ -224,7 +224,7 @@ object TypeSystem  {
     id : Identifier,
     arity: N,
     val typ: FunctionalClass,
-    val justif: JUSTIFICATION
+    val justif: Thm
   ) extends ConstantFunctionLabel[N](id, arity) with LisaObject[TypedConstantFunctional[N]] {
 
     override def substituteUnsafe(map: Map[lisa.utils.fol.FOL.SchematicLabel[?], lisa.utils.fol.FOL.LisaObject[?]]): TypedConstantFunctional[N] = this
@@ -262,7 +262,7 @@ object TypeSystem  {
   class TypedSimpleConstantDefinition[A <: Class](using om: OutputManager)(fullName: String, line: Int, file: String)(
       val expression: Expr[Ind],
       out: Variable,
-      j: JUSTIFICATION,
+      j: Thm,
       val typ:A
   ) extends SimpleFunctionDefinition[0](fullName, line, file)(lambda[Expr[Ind], Expr[Ind]](Seq[Variable](), expression).asInstanceOf, out, j) {
     val typingName = "typing_" + fullName
@@ -295,7 +295,7 @@ object TypeSystem  {
 
 
   extension (c: Constant) {
-    def typedWith[A <: Class](typ:A)(justif: JUSTIFICATION) : TypedConstant[A] =
+    def typedWith[A <: Class](typ:A)(justif: Thm) : TypedConstant[A] =
       if justif.statement.right.size != 1  || justif.statement.left.size != 0 || !K.isSame((c `is` typ).asFormula.underlying, justif.statement.right.head.underlying) then
         throw new IllegalArgumentException(s"A proof of typing of $c must be of the form ${c :: typ}, but the given justification shows ${justif.statement}.")
       else TypedConstant(c.id, typ, justif)
@@ -317,7 +317,7 @@ object TypeSystem  {
 
     class TypingException(val msg: String) extends Exception(msg)
 
-    def prove(using proof: SetTheoryLibrary.Proof)(bot:lisa.utils.fol.FOL.Sequent): proof.ProofTacticJudgement =
+    def prove(using proof: SetTheoryLibrary.ProofBuilder)(bot:lisa.utils.fol.FOL.Sequent): proof.ProofTacticJudgement =
       val context = bot.left
       var success: proof.ProofTacticJudgement = null
       var typingError: proof.ProofTacticJudgement = null
@@ -340,7 +340,7 @@ object TypeSystem  {
       case f => Seq(f)
     }
 
-    def typecheck(using lib: SetTheoryLibrary.type, proof: lib.Proof)(context: Seq[Expr[Prop]], term:Expr[Ind], typ: Option[Class]): proof.ProofTacticJudgement =
+    def typecheck(using lib: SetTheoryLibrary.type, proof: lib.ProofBuilder)(context: Seq[Expr[Prop]], term:Expr[Ind], typ: Option[Class]): proof.ProofTacticJudgement =
       val typingAssumptions: Map[Expr[Ind], Seq[Class]] = fullFlat(context).collect{
         case TypeAssignment(term, typ) => (term, typ)
       }.groupBy(_._1).map((t, l) => (t, l.map(_._2)))

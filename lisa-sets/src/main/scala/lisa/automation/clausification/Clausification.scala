@@ -1,13 +1,13 @@
 package lisa.automation.clausification
 import lisa.automation.Problem
-import lisa.utils.K
-import lisa.utils.K.{_, given}
+import lisa.automation.ProofSyntax.{_, given}
+import lisa.automation.{ProofSyntax => K}
 
 /**
  * Certified clausification for Lisa, following the SC-TPTP pipeline structure.
  *
  * The reusable proof IR (`ClausificationProof`, `ClausificationSubproof`,
- * conversion to `SCProof`, etc.) lives in [[ProofIR]] (same package). This module hosts the
+ * conversion to `ProofCertificate`, etc.) lives in [[ProofIR]] (same package). This module hosts the
  * clausification-specific certification pipeline.
  */
 object Clausification {
@@ -103,13 +103,20 @@ object Clausification {
     case Weakening, Primitive
 
   /**
+   * How to certify negation normal form: by restatement or by explicit sequent rules.
+   */
+  enum Nnf:
+    case Restate, Primitive
+
+  /**
    * Pipeline configuration, supplied by [[CertifiedClausifier.certifyClausal]] and read by the phases as a given.
    * It also fixes the library imports, so unused prenex laws are not imported.
    */
   case class ClausifierOptions(
       threshold: Int = 4, //           name a subformula once its CNF estimate exceeds this
       prenex: Prenex = Prenex.Deconstruct,
-      distribute: Distribute = Distribute.Weakening
+      distribute: Distribute = Distribute.Weakening,
+      nnf: Nnf = Nnf.Restate
   ):
     def libStatements: IndexedSeq[Sequent] = prenex match
       case Prenex.Deconstruct => IndexedSeq(existsEpsilonIffStatement)
@@ -137,9 +144,9 @@ object Clausification {
    * result concludes `() ⊢ ∀x̄. body`. The shared tail of the two closed proofs that discharge a definition,
    * [[NamingSupport.proveQuantifiedReflIff]] and [[SkolemPhase.proveQuantifiedReflEq]].
    */
-  private[clausification] def quantifyProof(base: IndexedSeq[SCProofStep], body: Expression, vars: Seq[Variable]): SCProof =
+  private[clausification] def quantifyProof(base: IndexedSeq[CertificateStep], body: Expression, vars: Seq[Variable]): ProofCertificate =
     val n = vars.size
-    val steps = new Array[SCProofStep](base.size + n)
+    val steps = new Array[CertificateStep](base.size + n)
     base.copyToArray(steps)
     var current = body
     var ref = base.size - 1
@@ -149,7 +156,7 @@ object Clausification {
       steps(base.size + k) = RightForall(() |- next, ref, current, v)
       ref = base.size + k
       current = next
-    SCProof(steps.toIndexedSeq, IndexedSeq.empty)
+    ProofCertificate(steps.toIndexedSeq, IndexedSeq.empty)
 
   private[clausification] def sameImportList(left: Seq[Sequent], right: Seq[Sequent]): Boolean =
     left.size == right.size && left.zip(right).forall((l, r) => l == r || isSameSequent(l, r))
@@ -230,7 +237,7 @@ object Clausification {
       csub: ClausificationSubproof,
       count: Int,
       outerImports: IndexedSeq[Sequent],
-      perStep: Int => (Map[Variable, Expression], Expression, SCProof)
+      perStep: Int => (Map[Variable, Expression], Expression, ProofCertificate)
   ): ClausificationProof =
     val outerSteps = scala.collection.mutable.ArrayBuffer.empty[ClausificationProofStep]
     outerSteps += csub
@@ -243,7 +250,7 @@ object Clausification {
       mutableLhs -= oldLhs; mutableLhs += reflexive
       outerSteps += InstSchema(Sequent(mutableLhs.toSet, rhs), prevBotRef, schemaSubst)
       val instRef = outerSteps.size - 1
-      outerSteps += SCSubproof(reflProof, IndexedSeq.empty)
+      outerSteps += Subproof(reflProof, IndexedSeq.empty)
       val reflRef = outerSteps.size - 1
       mutableLhs -= reflexive
       outerSteps += Cut(Sequent(mutableLhs.toSet, rhs), reflRef, instRef, reflexive)
@@ -256,6 +263,8 @@ object Clausification {
    */
   private val heapCeiling: Long = (Runtime.getRuntime.maxMemory / 10) * 9
 
+  private[automation] final class HeapLimitExceeded(used: Long, max: Long) extends RuntimeException(s"Memory pressure: heap ${used / (1024 * 1024)}MB / max ${max / (1024 * 1024)}MB")
+
   /**
    * Counts calls to [[checkInterrupted]] so the heap is polled only every [[heapPollInterval]]th one. Not
    * synchronised: it is a heuristic trigger, and a lost increment under concurrent use only shifts *when*
@@ -265,11 +274,8 @@ object Clausification {
   private inline val heapPollInterval = 256
 
   /**
-   * Cooperative cancellation hook: throw `InterruptedException` if the
-   * current thread has been interrupted, OR if the JVM is dangerously close
-   * to OOM (used heap > 90% of max).  The latter is a safety valve so a
-   * runaway problem (e.g. an exponential blow-up that allocates faster than
-   * `Thread.interrupted()` can be polled) cannot crash the whole bench.
+   * Interrupting the worker cancels clausification. Crossing the heap ceiling
+   * raises [[HeapLimitExceeded]] so the benchmark can report resource exhaustion.
    *
    * The interrupt flag is checked every call, being a plain field read. The heap is not: `totalMemory` and
    * `freeMemory` are native calls, and this runs per axiom, per naming step and per distribute step, of
@@ -279,22 +285,23 @@ object Clausification {
   private[clausification] inline def checkInterrupted(): Unit = {
     if (Thread.interrupted()) throw new InterruptedException("Clausification cancelled")
     interruptPolls += 1
-    if ((interruptPolls & (heapPollInterval - 1)) == 0) checkHeadroom()
+    if ((interruptPolls & (heapPollInterval - 1)) == 0) {
+      val rt = Runtime.getRuntime
+      checkHeadroom(rt.totalMemory() - rt.freeMemory())
+    }
   }
 
   /**
    * The out-of-line half of [[checkInterrupted]]: the part worth paying for only occasionally.
    */
-  private def checkHeadroom(): Unit = {
-    val rt = Runtime.getRuntime
-    val used = rt.totalMemory() - rt.freeMemory()
+  private[clausification] def checkHeadroom(used: Long): Unit = {
     if (used > heapCeiling)
-      throw new InterruptedException(s"Memory pressure: heap ${used / (1024 * 1024)}MB / max ${rt.maxMemory() / (1024 * 1024)}MB")
+      throw new HeapLimitExceeded(used, Runtime.getRuntime.maxMemory())
   }
 
   // The top-level certified clausification pipeline lives in [[CertifiedClausifier.certifyClausal]] (it adds a
   // threshold-gated naming pass before NNF to cap CNF blow-up). The per-phase certifiers and the shared helpers
-  // (libImports, clausificationProofToSCProof, ClausificationProof) below are what it composes.
+  // (libImports, clausificationProofToProofCertificate, ClausificationProof) below are what it composes.
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Pure (uncertified) formula transformations  (helpers for the pipeline)

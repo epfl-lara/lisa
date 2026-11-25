@@ -1,7 +1,7 @@
 package lisa.automation.clausification
 
 import lisa.automation.Problem
-import lisa.utils.K.{_, given}
+import lisa.automation.ProofSyntax.{_, given}
 
 import Clausification._
 
@@ -98,7 +98,7 @@ private[clausification] object DistributePhase:
       steps: scala.collection.mutable.ArrayBuffer[ClausificationProofStep]
   ): Seq[(Set[Expression], Set[Expression], Int)] =
     checkInterrupted()
-    def emit(step: SCProofStep): Int = { steps += step; steps.size - 1 }
+    def emit(step: CertificateStep): Int = { steps += step; steps.size - 1 }
     phi match
       case And(a, b) =>
         val conjunction = and(a)(b)
@@ -114,6 +114,8 @@ private[clausification] object DistributePhase:
           val negative = negA ++ negB
           val positive = posA ++ posB
           (negative, positive, emit(LeftOr(Sequent(negative + disjunction, positive), Seq(rA, rB), Seq(a, b))))
+      case `top` => Seq.empty
+      case `bot` => Seq((Set.empty[Expression], Set.empty[Expression], emit(RestateTrue(bot |- ()))))
       case lit =>
         require(isLeaf(lit), s"byPrimitiveRules: non-literal leaf in the NNF matrix. Got: $lit")
         lit match

@@ -27,5 +27,3 @@ fof(f8, plain, [![A] : p(A, Z)] --> [], inference(instMult, [status(thm), [tuple
 
 fof(a9, axiom, [![X] : P(Y, X)] --> []).
 fof(f9, plain, [![A] : p(A, f(X))] --> [], inference(instMult, [status(thm), [tuple3('P', $fof(p(Y, X)), ['X', 'Y']), tuple3('Y', $fot(f(X)), [])]], [a9])).
-
-

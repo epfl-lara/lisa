@@ -1,8 +1,8 @@
 package lisa.automation.superposition
 
 import it.unimi.dsi.fastutil.ints.IntArrayList
+import lisa.automation.{ProofSyntax => K}
 import lisa.kernel.KernelProof
-import lisa.utils.K
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.mutable
@@ -65,6 +65,7 @@ class EqualityReconstructionTest extends AnyFunSuite:
       val inputs = parents.iterator.map(p => p.id -> (seqOf(p), vmOf(p))).toMap
       val proof = Reconstruction.reconstruct(derived, bank, inputs)
       KernelProof.assertCorrectProofNoSorry(proof, "reconstruction")
+      SctptpTest.checked(proof)
       assert(proof.conclusion == seqOf(derived), s"conclusion ${proof.conclusion} != expected ${seqOf(derived)}")
       assert(proof.imports.toSet.subsetOf(parents.iterator.map(seqOf).toSet), "imports are not among the parents")
 
@@ -106,6 +107,7 @@ class EqualityReconstructionTest extends AnyFunSuite:
     assert(vmOf(r).size == 2, s"expected two surviving variables, got ${vmOf(r).keys}")
     val proof = Reconstruction.reconstruct(r, bank, Seq(from, into).map(p => p.id -> (seqOf(p), vmOf(p))).toMap)
     KernelProof.assertCorrectProofNoSorry(proof, "reconstruction")
+    SctptpTest.checked(proof)
     assert(proof.conclusion == canonSeqOf(r), s"conclusion ${proof.conclusion} != expected ${canonSeqOf(r)}")
   }
 

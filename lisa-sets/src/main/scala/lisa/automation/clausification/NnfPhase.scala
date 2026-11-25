@@ -1,17 +1,17 @@
 package lisa.automation.clausification
 
 import lisa.automation.Problem
-import lisa.utils.K.{_, given}
+import lisa.automation.ProofSyntax.{_, given}
 
 import Clausification._
 
 /**
  * Negation normal form: push negations down to the atoms and eliminate `⇒` and `⇔`, so that below here `Neg`
- * wraps only atoms. One `Restate` bridges each hypothesis to its NNF.
+ * wraps only atoms. Changed hypotheses are justified using the selected NNF proof strategy.
  */
 private[clausification] object NnfPhase:
 
-  def certifyNnf(problem: Problem, prover: ClausificationProver, goal: Set[Int] = Set.empty)(using ClausifierOptions): ClausificationProof = {
+  def certifyNnf(problem: Problem, prover: ClausificationProver, goal: Set[Int] = Set.empty)(using options: ClausifierOptions): ClausificationProof = {
     require(
       problem.hypotheses.forall(h => h.left.isEmpty && h.right.size == 1),
       s"certifyNnf expects each hypothesis to have an empty left-hand side and a single formula on the " +
@@ -23,21 +23,32 @@ private[clausification] object NnfPhase:
     val downstream = prover(transformed, goal)
     require(sameImportList(downstream.imports, transformed.imports ++ libImports), "Downstream imports must match transformed problem imports")
 
-    val restateSteps: IndexedSeq[ClausificationProofStep] =
-      transformedHyps.zipWithIndex.map { case (nnfHyp, i) =>
-        Restate(nnfHyp, problem.hypIndex(i))
-      }.toIndexedSeq
-    val subproof = ClausificationSubproof(
-      downstream,
-      restateSteps.indices.toIndexedSeq ++ libRefs(problem.imports.size)
-    )
-    ClausificationProof(restateSteps :+ subproof, problem.imports ++ libImports)
+    val steps = scala.collection.mutable.ArrayBuffer.empty[ClausificationProofStep]
+    val refs = problem.hypotheses.iterator
+      .zip(transformedHyps)
+      .zipWithIndex
+      .map { case ((source, target), i) =>
+        val premise = problem.hypIndex(i)
+        if source == target then premise
+        else
+          val bridge = options.nnf match
+            case Nnf.Restate => Restate(target, premise)
+            case Nnf.Primitive =>
+              val proof = NnfProof(source.right.head)
+              require(proof.conclusion == target, "The primitive NNF proof must conclude the exact downstream import")
+              Subproof(proof, Seq(premise))
+          steps += bridge
+          steps.size - 1
+      }
+      .toIndexedSeq
+    steps += ClausificationSubproof(downstream, refs ++ libRefs(problem.imports.size))
+    ClausificationProof(steps.toIndexedSeq, problem.imports ++ libImports)
   }
 
   /**
    * Smart `∧` applying the boolean-constant absorption laws `⊥∧_ = ⊥`, `⊤∧a = a`.
    */
-  private def mkAnd(a: Expression, b: Expression): Expression =
+  private[clausification] def mkAnd(a: Expression, b: Expression): Expression =
     if a == bot || b == bot then bot
     else if a == top then b
     else if b == top then a
@@ -46,7 +57,7 @@ private[clausification] object NnfPhase:
   /**
    * Smart `∨` applying the boolean-constant absorption laws `⊤∨_ = ⊤`, `⊥∨a = a`.
    */
-  private def mkOr(a: Expression, b: Expression): Expression =
+  private[clausification] def mkOr(a: Expression, b: Expression): Expression =
     if a == top || b == top then top
     else if a == bot then b
     else if b == bot then a
@@ -56,8 +67,7 @@ private[clausification] object NnfPhase:
    * Convert a formula to negation normal form, simplifying away the boolean constants `⊤`/`⊥` via the
    * absorption laws (`mkAnd`/`mkOr`). This keeps `$true`/`$false` (which TPTP problems use as padding, e.g.
    * the modal encodings in `LCL`) out of the clauses, where they would otherwise survive as uninterpreted
-   * 0-ary atoms and block resolution. Every simplification is a propositional equivalence, so the `Restate`
-   * bridging the original hypothesis to its NNF in [[certifyNnf]] still discharges it, at no cost in proof steps.
+   * 0-ary atoms and block resolution. [[NnfProof]] uses the same smart constructors to certify these simplifications.
    */
   def toNNF(f: Expression, negated: Boolean): Expression = f match
     case `top` => if negated then bot else top

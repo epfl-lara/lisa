@@ -1,7 +1,7 @@
 package lisa.automation.clausification
 
 import lisa.automation.Problem
-import lisa.utils.K.{_, given}
+import lisa.automation.ProofSyntax.{_, given}
 
 import Clausification._
 
@@ -36,12 +36,13 @@ private[clausification] object NegatedPhase:
         // `csub` lifts `negPhi` to its LHS and carries the prover's conclusion otherwise unchanged, so for the
         // cut (pivot `negPhi`) to yield `⊢ φ`, `csub` must be exactly `¬φ ⊢`.
         val steps = scala.collection.mutable.ArrayBuffer.empty[ClausificationProofStep]
-        steps += RestateTrue(() |- (phi, negPhi)) //                                    0: ⊢ φ, ¬φ
-        steps += ClausificationSubproof( //                                             1: ¬φ ⊢
+        steps += Hypothesis(phi |- phi, phi)
+        steps += RightNot(() |- (phi, negPhi), 0, phi)
+        steps += ClausificationSubproof(
           downstream,
           problem.hypotheses.indices.map(problem.hypIndex).toIndexedSeq ++ libRefs(problem.imports.size),
           IndexedSeq(problem.hypotheses.size)
         )
-        steps += Cut(() |- phi, 0, 1, negPhi) //                                        2: ⊢ φ (the original goal)
+        steps += Cut(() |- phi, 1, 2, negPhi)
 
         ClausificationProof(steps.toIndexedSeq, problem.imports ++ libImports)

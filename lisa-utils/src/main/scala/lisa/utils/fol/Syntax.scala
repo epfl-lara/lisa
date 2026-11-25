@@ -2,8 +2,8 @@ package lisa.utils.fol
 
 import lisa.utils.K
 import lisa.utils.K.Identifier
+import lisa.utils.K.freshId
 import lisa.utils.K.given_Conversion_String_Identifier
-import lisa.utils.KernelHelpers.freshId
 
 import scala.annotation.showAsInfix
 import scala.annotation.targetName
@@ -18,9 +18,9 @@ trait Syntax {
    *
    * Sorts are used to classify expressions and are either [[Ind]], [[Prop]], or _ [[Arrow]] _.
    */
-  trait Sort[T] {
+  trait Sort:
+    type Self
     val underlying: K.Sort
-  }
 
   /**
    * The sort of individuals, i.e. sets, numbers, etc. Corresponds to [[K.Ind]]
@@ -40,29 +40,28 @@ trait Syntax {
   /**
    * Typeclass asserting that [[Ind]] is a sort
    */
-  given given_TermType: Sort[Ind] with
+  given given_TermType: Ind is Sort with
     val underlying = K.Ind
 
   /**
    * Typeclass asserting that [[Prop]] is a sort
    */
-  given given_FormulaType: Sort[Prop] with
+  given given_FormulaType: Prop is Sort with
     val underlying = K.Prop
 
   /**
    * Typeclass asserting that [[Arrow]][_, _] is a sort
    */
-  given given_ArrowType[A: Sort as ta, B: Sort as tb]: (Sort[Arrow[A, B]]) with
+  given given_ArrowType[A: Sort as ta, B: Sort as tb]: (Arrow[A, B] is Sort) with
     val underlying = K.Arrow(ta.underlying, tb.underlying)
 
   /**
    * A pair of a variable and an expression of matching Sort. Used for substitution.
    */
-  sealed trait SubstPair extends Product {
-    type S
+  sealed trait SubstPair extends Product:
+    type S // S is existentially quantified
     val _1: Variable[S]
     val _2: Expr[S]
-  }
 
   /**
    * Concrete implementation of the [[SubstPair]] trait. Done this way to havee a type membeer instead of a type parameter.
@@ -85,7 +84,7 @@ trait Syntax {
    * Used to cast expressions to a specific sort, without checking.
    * Useful when the type is not known at compile time.
    */
-  def unsafeSortEvidence[S](sort: K.Sort): Sort[S] = new Sort { type Self = S; val underlying = sort }
+  def unsafeSortEvidence[S](sort: K.Sort): S is Sort = new Sort { type Self = S; val underlying = sort }
 
   /**
    * Converts a (Variable, Expr) pair to a SubstPair
@@ -173,6 +172,13 @@ trait Syntax {
    */
   sealed trait Expr[S] extends LisaObject {
 
+    protected final def underlyingEquals(other: Any): Boolean = other match
+      case that: Expr[?] =>
+        (this eq that) || underlying.uniqueNumber == that.underlying.uniqueNumber || underlying == that.underlying
+      case _ => false
+
+    protected final def underlyingHashCode: Int = underlying.hashCode
+
     /**
      * The sort of the expression
      */
@@ -222,12 +228,16 @@ trait Syntax {
     /**
      * String representation of the expression, with potential arguments. Can be updated.
      */
-    var mkString: Seq[Expr[?]] => String = defaultMkString
+    private var customMkString: Option[Seq[Expr[?]] => String] = None
+    def mkString: Seq[Expr[?]] => String = customMkString.getOrElse(defaultMkString)
+    def mkString_=(printer: Seq[Expr[?]] => String): Unit = customMkString = Some(printer)
 
     /**
      * String representation of the expression, with potential arguments, encapsulated by parenthesis if necessary. Can be updated.
      */
-    var mkStringSeparated: Seq[Expr[?]] => String = defaultMkStringSeparated
+    private var customMkStringSeparated: Option[Seq[Expr[?]] => String] = None
+    def mkStringSeparated: Seq[Expr[?]] => String = customMkStringSeparated.getOrElse(defaultMkStringSeparated)
+    def mkStringSeparated_=(printer: Seq[Expr[?]] => String): Unit = customMkStringSeparated = Some(printer)
 
     /**
      * Construct an unsafe application. If the sorts don't match, will throw an exception.
@@ -238,7 +248,8 @@ trait Syntax {
       App.unsafe(this, arg).asInstanceOf
 
     /**
-     * Iteratively construct an unsafe application. If the sorts don't match, will throw an exception.
+     * Infix syntax for [[Multiapp.unsafe]]. Iteratively construct an unsafe
+     * application. If the sorts don't match, will throw an exception.
      * @param args The arguments to apply to `this`.
      * @throws IllegalArgumentException if the sorts don't match.
      */
@@ -278,7 +289,7 @@ trait Syntax {
   /**
    * Well-sorted application constructor. Used when sorts are known at compile time.
    */
-  extension [S, T](f: Expr[Arrow[S, T]]) def apply(using Sort[S], Sort[T])(arg: Expr[S]): Expr[T] = App(f, arg)
+  extension [S: Sort, T: Sort](f: Expr[Arrow[S, T]]) def apply(arg: Expr[S]): Expr[T] = App(f, arg)
 
   /**
    * match type computing the return sort of an arrow sort.
@@ -337,6 +348,9 @@ trait Syntax {
    * @tparam S The sort of the variable.
    */
   case class Variable[S: Sort as sortEv](id: K.Identifier) extends Expr[S] {
+
+    override def equals(other: Any): Boolean = underlyingEquals(other)
+    override def hashCode(): Int = underlyingHashCode
 
     /**
      * The runtime sort of the variable
@@ -398,10 +412,25 @@ trait Syntax {
    * Constants are leaf [[Expr]]essions that cannot be bound or instantiated. They are usually user-defined, or fixed by a theory.
    */
   case class Constant[S: Sort as sortEv](id: K.Identifier) extends Expr[S] {
+    override def equals(other: Any): Boolean = underlyingEquals(other)
+    override def hashCode(): Int = underlyingHashCode
+
     val sort: K.Sort = sortEv.underlying
     private var infix: Boolean = false
     var customPrinter: Option[Seq[Expr[?]] => String] = None
-    var infixRepr: String = this.toString()
+
+    /**
+     * Complete identifier used by the front end.
+     */
+    val fullName: String = id.toString
+
+    /**
+     * Unqualified identifier for printing.
+     */
+    val shortName: String =
+      val separator = id.name.lastIndexOf('.')
+      val base = if separator < 0 then id.name else id.name.substring(separator + 1)
+      K.Identifier(base, id.no).toString
 
     /**
      * Set the variable to be printed infix.
@@ -410,16 +439,6 @@ trait Syntax {
      */
     def printInfix(): Constant[S] =
       infix = true
-      infixRepr = this.toString()
-      this
-
-    def printInfix(symbol: String): Constant[S] =
-      infix = true
-      infixRepr = symbol
-      this
-
-    def disableInfix(): Constant[S] =
-      infix = false
       this
 
     /**
@@ -445,7 +464,7 @@ trait Syntax {
      */
     def rename(newId: K.Identifier): Constant[S] = Constant(newId)
     // Special handling for inxfix constants
-    override def toString(): String = id.toString
+    override def toString(): String = shortName
     mkString = (args: Seq[Expr[?]]) =>
       if infix && args.size == 2 then s"${args(0)} $this ${args(1)}"
       else if infix & args.size > 2 then s"(${args(0)} $this ${args(1)})${args.drop(2).map(_.mkStringSeparated).mkString})"
@@ -473,6 +492,7 @@ trait Syntax {
      * Constructs a constant with the given identifier and sort.
      */
     def unsafe(id: String, sort: K.Sort): Constant[?] = Constant(id)(using unsafeSortEvidence(sort))
+    def unsafe(id: Identifier, sort: K.Sort): Constant[?] = Constant(id)(using unsafeSortEvidence(sort))
   }
 
   /**
@@ -504,12 +524,12 @@ trait Syntax {
       if args.size == 0 then toString
       else
         args(0) match {
-          case Abs(v, e) => s"$id($v, $e)${args.drop(1).map(_.mkStringSeparated).mkString}"
+          case Abs(v, e) => s"$shortName($v, $e)${args.drop(1).map(_.mkStringSeparated).mkString}"
           case _ => defaultMkString(args)
         }
     mkStringSeparated = (args: Seq[Expr[?]]) =>
       args match {
-        case Seq(Abs(v, e)) => s"($id($v, $e))"
+        case Seq(Abs(v, e)) => s"($shortName($v, $e))"
         case _ => defaultMkStringSeparated(args)
       }
   }
@@ -520,12 +540,19 @@ trait Syntax {
    * The sorts must match: `f.sort` must be of the form `A >>: B` and `arg.sort` must be `A`.
    */
   case class App[S, T](f: Expr[Arrow[S, T]], arg: Expr[S]) extends Expr[T] {
+    override def equals(other: Any): Boolean = underlyingEquals(other)
+    override def hashCode(): Int = underlyingHashCode
+
     val sort: K.Sort = f.sort match
       case K.Arrow(from, to) if from == arg.sort => to
       case _ => throw new IllegalArgumentException("Sort mismatch. f: " + f.sort + ", arg: " + arg.sort)
 
     val underlying: K.Application = K.Application(f.underlying, arg.underlying)
-    def substituteUnsafe(m: Map[Variable[?], Expr[?]]): App[S, T] = App[S, T](f.substituteUnsafe(m), arg.substituteUnsafe(m))
+    def substituteUnsafe(m: Map[Variable[?], Expr[?]]): App[S, T] =
+      val newF = f.substituteUnsafe(m)
+      val newArg = arg.substituteUnsafe(m)
+      // check if we can keep the old tree
+      if (newF eq f) && (newArg eq arg) then this else App[S, T](newF, newArg)
     override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): App[S, T] =
       super.substituteWithCheck(m).asInstanceOf[App[S, T]]
     override def substitute(pairs: SubstPair*): App[S, T] =
@@ -562,16 +589,21 @@ trait Syntax {
    * The sort of the variable must match the sort of the body.
    */
   case class Abs[S, T](v: Variable[S], body: Expr[T]) extends Expr[Arrow[S, T]] {
+    override def equals(other: Any): Boolean = underlyingEquals(other)
+    override def hashCode(): Int = underlyingHashCode
+
     val sort: K.Sort = K.Arrow(v.sort, body.sort)
     val underlying: K.Lambda = K.Lambda(v.underlying, body.underlying)
     def substituteUnsafe(m: Map[Variable[?], Expr[?]]): Abs[S, T] =
-      lazy val frees = m.values.flatMap(_.freeVars).toSet
-      if m.keySet.contains(v) || frees.contains(v) then
-        // rename
-        val v1 = v.freshRename(frees)
-        // val v1: Variable[S] = Variable.unsafe(freshId(frees.map(_.id), v.id), v.sort).asInstanceOf
+      if m.contains(v) || m.valuesIterator.exists(_.underlying.freeVariables.contains(v.underlying)) then
+        // rename to fresh
+        val taken = m.values.flatMap(_.underlying.freeVariables.map(_.id)) ++
+          body.underlying.freeVariables.view.map(_.id) ++ m.keys.view.map(_.id)
+        val v1 = v.rename(K.freshId(taken, v.id))
         new Abs(v1, body.substituteUnsafe(Map(v -> v1))).substituteUnsafe(m)
-      else new Abs(v, body.substituteUnsafe(m))
+      else
+        val newBody = body.substituteUnsafe(m)
+        if newBody eq body then this else new Abs(v, newBody)
     override def substituteWithCheck(m: Map[Variable[?], Expr[?]]): Abs[S, T] =
       super.substituteWithCheck(m).asInstanceOf[Abs[S, T]]
     override def substitute(pairs: SubstPair*): Abs[S, T] =

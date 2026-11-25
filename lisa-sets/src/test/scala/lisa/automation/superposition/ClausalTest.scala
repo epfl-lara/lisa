@@ -3,8 +3,8 @@ package lisa.automation.superposition
 import lisa.automation.Problem
 import lisa.automation.clausification.CertifiedClausifier
 import lisa.automation.superposition.bench.FofEvaluation
+import lisa.automation.{ProofSyntax => K}
 import lisa.kernel.KernelProof
-import lisa.utils.K
 import org.scalatest.funsuite.AnyFunSuite
 
 /**
@@ -15,7 +15,7 @@ import org.scalatest.funsuite.AnyFunSuite
  *     alone; reconstruction substitutes the discharge map back.
  *   - **clause-slot composition**: every clause the refutation uses maps to its own import slot, including
  *     when two hypotheses clausify to the *same* sequent.
- *   - **the prover contract**: `Clausal.prove`, folded into the `Problem => SCProof` that `certifyClausal`
+ *   - **the prover contract**: `Clausal.prove`, folded into the `Problem => ProofCertificate` that `certifyClausal`
  *     requires, produces a proof that satisfies it.
  *   - the harnesses' seeded sampling, which must be reproducible for any benchmark number to mean anything.
  *
@@ -28,7 +28,7 @@ class ClausalTest extends AnyFunSuite:
   /**
    * The clausal prover as `certifyClausal` wants it; see [[Clausal.prove]], which reports a non-refutation.
    */
-  private def prover(p: Problem): K.SCProof =
+  private def prover(p: Problem): K.ProofCertificate =
     Clausal.prove(p).fold(o => fail(s"the clausal prover did not refute: $o"), identity)
 
   private def vr(n: String): K.Variable = K.Variable(K.Identifier(n), K.Ind)
@@ -112,7 +112,7 @@ class ClausalTest extends AnyFunSuite:
    * Refute the two complementary clauses `() ⊢ {atom}` and `{atom} ⊢` (after abstraction) and return the
    *  reconstructed proof, asserting it is kernel-valid and concludes the empty sequent.
    */
-  private def refuteComplementary(abs: Clausal.Abstraction, atom: K.Expression): K.SCProof =
+  private def refuteComplementary(abs: Clausal.Abstraction, atom: K.Expression): K.ProofCertificate =
     val a = abs(atom)
     val out = Clausal.refute(Seq(K.Sequent(Set.empty, Set(a)), K.Sequent(Set(a), Set.empty)), symbolVars = abs.dischargeSubst.keySet)
     assert(out.isInstanceOf[Clausal.Outcome.Success], s"expected a refutation, got $out")

@@ -64,11 +64,7 @@ logic, and formalisation of proofs through sequent calculus.
 
 ### Utils
 
-The `lisa-utils` package contains a set of utilities to interact with the
-kernel. Syntactic sugar, a parser and printer for proofs and formulas,
-unification algorithms, among others. The package also contains LISA's DSL to
-write proofs, tactics, and mathematical developments.
-
+The `lisa-utils` package contains the front syntax, proof helpers, and tactics.
 Most user-developed tactics, syntax, and auxiliary utilities go here.
 
 ## Interacting with the project
@@ -81,6 +77,8 @@ with `sbt command` or `sbt "command; command; ..."`.
 * `run` to execute a LISA file, prompting which file to run
 * `runMain classPath` to run a specific main file at `classPath` without prompt.
   * For example: `runMain lisa.mathematics.settheory.SetTheory`
+* `runDraft classPath` to check a development while admitting proofs outside it.
+  * For example: `runDraft lisa.maths.SetTheory.Ordinals.TransfiniteRecursion`
 * `test` to compile and execute the test suite
 * `assembly` to package LISA as a library
 * `doc` to generate the Scala documentation

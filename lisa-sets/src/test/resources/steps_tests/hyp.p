@@ -10,4 +10,3 @@ fof(f10, plain, [![X] :( p(X, c) => q(X))] --> [![X] : (p(X, c) => q(X))], infer
 fof(f11, plain, [![X] : (p(X, c) => q(X))] --> [![Y] : (p(Y, c) => q(Y))], inference(hyp, [status(thm), 0], [])).
 fof(f12, plain, [?[Y] : ![X] : (p(X, c) => q(X))] --> [?[X] : ![Y] : (p(Y, c) => q(Y))], inference(hyp, [status(thm), 0], [])).
 fof(f13, plain, [?[Y] : ![X] : (p(X, c) => q(Y))] --> [?[X] : ![Y] : (p(Y, c) => q(X))], inference(hyp, [status(thm), 0], [])).
-

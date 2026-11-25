@@ -8,29 +8,11 @@ import lisa.utils.fol.Syntax
 trait ExprOps extends Syntax {
   extension [A](e: Expr[A])
     /**
-     * Apply a function to the expression tree. The function is applied to a
-     * node before traversing its (now new) children.
-     *
-     * @param f the function to apply
-     * @return the transformed expression
-     */
-    def preMap(f: Expr[?] => Expr[?]): Expr[?] = ???
-
-    /**
-     * Apply a function to the expression tree. The function is applied to a
-     * node after traversing its children.
-     *
-     * @param f the function to apply
-     * @return the transformed expression
-     */
-    def postMap(f: Expr[?] => Expr[?]): Expr[?] = ???
-
-    /**
      * All subexpressions of this expression, including itself, in depth-first
      * order.
      */
     def subexpressions: Iterator[Expr[?]] =
-      e match
+      (e: @unchecked) match
         case Abs(v, body) => Iterator(e) ++ body.subexpressions
         case Variable(id) => Iterator(e)
         case Constant(id) => Iterator(e)
@@ -55,4 +37,11 @@ trait ExprOps extends Syntax {
      */
     def collect[B](f: PartialFunction[Expr[?], Expr[B]]): Seq[Expr[B]] =
       e.subexpressions.collect(f).toVector
+
+  extension [A, B, C: Sort](op: Expr[A >>: B >>: C])
+    /**
+     * Extractor for binary function applications. In particular, the
+     * compiler can reduce these to infix notation as well.
+     */
+    def unapply(e: Expr[C]): Option[ArgsTo[A >>: B >>: C, C]] = op.unapply2(e)
 }

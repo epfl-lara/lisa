@@ -128,8 +128,8 @@ object TypingRules extends lisa.Main:
     ∀(x ∈ T1, e(x) ∈ T2(x))
       |- abs(T1)(e) ∈ Pi(T1)(T2)
   ) {
-    assume(∀(x ∈ T1, e(x) ∈ T2(x)))
-    val premise = have(x ∈ T1 ==> e(x) ∈ T2(x)) by InstantiateForall
+    val quantified = assume(∀(x ∈ T1, e(x) ∈ T2(x)))
+    val premise = have(x ∈ T1 ==> e(x) ∈ T2(x)) by InstantiateForall(x)(quantified)
     // Set boundary checking
     have(abs(T1)(e) ⊆ (T1 × ⋃({ T2(a) | a ∈ T1 }))) subproof {
       have(z ∈ abs(T1)(e) |- z ∈ abs(T1)(e)) by Hypothesis
@@ -186,6 +186,22 @@ object TypingRules extends lisa.Main:
         (∀(x ∈ T1, ∃!(y, (x, y) ∈ f))) /\ (∀(a, ∀(b, (a, b) ∈ f ==> (b ∈ T2(a)))))
     }) by Substitute(piExpansion of (e1 := abs(T1)(e)))
     thenHave(thesis) by Substitute(Pi.definition)
+  }
+
+  /**
+   * A function space is inhabited if its domain being inhabited implies its codomain is inhabited.
+   */
+  val functionSpaceInhabited = Theorem(
+    ∀(x ∈ A, ∃(y, y ∈ B)) |- ∃(f, f ∈ (A ->: B))
+  ) {
+    val value = ε(y, y ∈ B)
+    val seed = abs(A)(λ(x, value))
+    val inhabited = assume(∀(x ∈ A, ∃(y, y ∈ B)))
+    have(x ∈ A ==> ∃(y, y ∈ B)) by InstantiateForall(x)(inhabited)
+    thenHave(x ∈ A ==> value ∈ B) by Tautology.fromLastStep(existsEpsilon of (x := y, P := λ(y, y ∈ B)))
+    thenHave(∀(x ∈ A, value ∈ B)) by RightForall
+    thenHave(seed ∈ (A ->: B)) by Tautology.fromLastStep(TAbs of (T1 := A, T2 := λ(x, B), e := λ(x, value)))
+    thenHave(thesis) by RightExists
   }
 
   /**

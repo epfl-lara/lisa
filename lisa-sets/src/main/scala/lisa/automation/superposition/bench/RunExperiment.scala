@@ -7,6 +7,7 @@ import java.nio.file.Files
 import scala.io.Source
 import scala.sys.process._
 import scala.util.Using
+import scala.util.control.NonFatal
 
 /**
  * Runs every configuration of an experiment file, writing one CSV per configuration, a combined CSV, a provenance
@@ -103,7 +104,7 @@ object RunExperiment:
               harness(Seq("files", list.getPath) ++ args ++ Seq(s"dataset=$dataset", s"config=$name", s"out=${out.getPath}") ++ passthrough)
               out.isFile
             catch
-              case e: Throwable =>
+              case NonFatal(e) =>
                 Console.err.println(s"!!! $experiment / $name failed: ${e.getClass.getSimpleName}: ${e.getMessage}")
                 false
 

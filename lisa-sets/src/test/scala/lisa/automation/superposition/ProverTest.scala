@@ -1,9 +1,9 @@
 package lisa.automation.superposition
 
 import lisa.automation.Problem
+import lisa.automation.ProofSyntax.{_, given}
 import lisa.automation.clausification.Clausification
-import lisa.utils.K
-import lisa.utils.K.{_, given}
+import lisa.automation.{ProofSyntax => K}
 import org.scalatest.funsuite.AnyFunSuite
 
 /**
@@ -32,9 +32,10 @@ class ProverTest extends AnyFunSuite:
    * Every proving entry point owes this: kernel-valid, concluding the goal, importing the hypotheses in order
    * and then the library statements.
    */
-  private def checkContract(proof: K.SCProof, problem: Problem): Unit =
-    K.SCProofChecker.checkSCProof(proof) match
-      case K.SCProofCheckerJudgement.SCValidProof(_, usesSorry) =>
+  private def checkContract(proof: K.ProofCertificate, problem: Problem): Unit =
+    proof.check match
+      case Right(theorem) =>
+        val usesSorry = theorem.usesSorry
         // `Sorry` proves anything, so a valid proof using it proves nothing.
         assert(!usesSorry, s"proof is valid only because it uses Sorry:\n${proof.toString}")
       case bad => fail(s"proof is not kernel-valid: $bad\n${proof.toString}")
@@ -81,11 +82,11 @@ class ProverTest extends AnyFunSuite:
     val lib = Clausification.libImports
     val innerImports = keep.map(all) ++ lib
     // a one-step inner proof restating its first import, so the conclusion is traceable to a known slot
-    val inner = K.SCProof(IndexedSeq(K.Restate(innerImports(0), -1)), innerImports)
+    val inner = K.ProofCertificate(IndexedSeq(K.Restate(innerImports(0), -1)), innerImports)
     val outer = Prover.widenImports(inner, all, keep)
 
     assert(outer.imports == all ++ lib, "the widened proof must import every caller hypothesis, then the library ones")
-    assert(K.SCProofChecker.checkSCProof(outer).isValid, s"widened proof is not kernel-valid:\n${outer.toString}")
+    assert(outer.check.isRight, s"widened proof is not kernel-valid:\n${outer.toString}")
     assert(K.isSameSequent(outer.conclusion, inner.conclusion), "widening must not change what is concluded")
     // and the conclusion is the hypothesis that was at slot 1, not at slot 0
     assert(K.isSameSequent(outer.conclusion, all(1)), "the premise must be the kept hypothesis, at its original slot")
@@ -95,7 +96,7 @@ class ProverTest extends AnyFunSuite:
     // A `Sorry` of the goal is kernel-valid and proves nothing.
     val problem = Problem(hypotheses = Seq(hyp(p)), conjecture = Some(hyp(q)))
     val goal = problem.conjecture.get
-    val fabricated = K.SCProof(IndexedSeq(K.Sorry(goal)), problem.hypotheses.toIndexedSeq ++ Clausification.libImports)
-    assert(K.SCProofChecker.checkSCProof(fabricated).isValid, "the fabricated proof should still be kernel-valid")
+    val fabricated = K.ProofCertificate(IndexedSeq(K.Sorry(goal)), problem.hypotheses.toIndexedSeq ++ Clausification.libImports)
+    assert(fabricated.check.isRight, "the fabricated proof should still be kernel-valid")
     intercept[org.scalatest.exceptions.TestFailedException](checkContract(fabricated, problem))
   }
