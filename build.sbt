@@ -1,3 +1,5 @@
+import RunDraft.runDraft
+
 version := "0.9.4"
 homepage := Some(uri("https://github.com/epfl-lara/lisa"))
 startYear := Some(2021)
@@ -50,7 +52,10 @@ lazy val root = Project(
   .dependsOn(kernel, utils, sets)
   .aggregate(utils, sets)
 
+RunDraft.settings
+
 LocalRootProject / Compile / run := (sets / Compile / run).evaluated
+LocalRootProject / runDraft := (sets / runDraft).evaluated
 
 lazy val runAll = taskKey[Unit]("Run all mathematical developments in name order.")
 

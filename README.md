@@ -77,12 +77,13 @@ with `sbt command` or `sbt "command; command; ..."`.
 * `run` to execute a LISA file, prompting which file to run
 * `runMain classPath` to run a specific main file at `classPath` without prompt.
   * For example: `runMain lisa.mathematics.settheory.SetTheory`
+* `runDraft classPath` to check a development while admitting proofs outside it.
+  * For example: `runDraft lisa.maths.SetTheory.Ordinals.TransfiniteRecursion`
 * `test` to compile and execute the test suite
 * `assembly` to package LISA as a library
 * `doc` to generate the Scala documentation
 * `scalafix` to lint the whole project
 * `scalafmt` to format the whole project
-
 
 ## License and Distribution
 
