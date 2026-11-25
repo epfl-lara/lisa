@@ -8,6 +8,20 @@ import scala.collection.View
 import scala.collection.mutable
 
 class Library:
+  /**
+   * Check only theorem names under this prefix, admitting the others with Sorry.
+   * Set `-Dlisa.draft.target=<module-or-package>` before starting the JVM; definitions
+   * are unaffected. Read once, before dependent modules can initialize.
+   */
+  val draftTarget: Option[String] = sys.props
+    .get("lisa.draft.target")
+    .map: target =>
+      require(target.nonEmpty, "lisa.draft.target requires a module or package name")
+      target
+
+  private[prooflib] def shouldDraft(fullName: String): Boolean =
+    draftTarget.exists(target => fullName != target && !fullName.startsWith(target + "."))
+
   val theory: K.Theory = K.Theory.empty
   given K.Theory = theory
 

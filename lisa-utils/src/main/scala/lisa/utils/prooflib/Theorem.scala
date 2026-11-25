@@ -62,27 +62,41 @@ final class Theorem(theoremKind: TheoremKind)(using library: Library, output: Ou
   val shortName: String =
     fullName.value.split('.').lastOption.getOrElse(name.value)
 
+  /**
+   * Whether draft mode omitted this proof, rather than merely one of its dependencies.
+   */
+  val isDraft: Boolean = library.shouldDraft(fullName.value)
+
   private val proof = ProofBuilder.withGoal(statement, isTactic = false)
 
-  val judgement: ProofJudgement =
-    proof.recover(statement) {
-      computeProof(using proof).flatMap { (_, theorem) =>
-        if theorem.kernel.assumptions.nonEmpty then
-          ProofCarrier.Failure(
-            withParams(
-              "The proof has unresolved kernel assumptions.",
-              "Unresolved proof assumptions" -> theorem.kernel.assumptions.iterator.map(Thm.liftSequent).map(_.toString).toSeq.sorted.mkString("\n")
-            )
+  /**
+   * Actually use `computeProof` to attempt constructing the proof, possibly
+   * checking for weakening the final statement to match the goal.
+   */
+  private def attemptConstruction(computeProof: ProofBuilder ?=> ProofCarrier[?]): ProofJudgement =
+    computeProof(using proof).flatMap { (_, theorem) =>
+      if theorem.kernel.assumptions.nonEmpty then
+        ProofCarrier.Failure(
+          withParams(
+            "The proof has unresolved kernel assumptions.",
+            "Unresolved proof assumptions" -> theorem.kernel.assumptions.iterator.map(Thm.liftSequent).map(_.toString).toSeq.sorted.mkString("\n")
           )
-        else if theorem.statement.underlying == statement.underlying then ProofJudgement(Thm(statement, theorem.kernel))
-        else
-          K.Weakening(using library.theory)(statement.underlying, theorem.kernel)
-            .fold(
-              _ => ProofCarrier.Failure(withParams("The proven statement is not the same as the goal and cannot be weakened to it.", "Proven" -> theorem.statement, "Goal" -> statement)),
-              kernel => ProofJudgement(Thm(statement, kernel))
-            )
-      }
-    }(using file, line)
+        )
+      else if theorem.statement.underlying == statement.underlying then ProofJudgement(Thm(statement, theorem.kernel))
+      else
+        K.Weakening(using library.theory)(statement.underlying, theorem.kernel)
+          .fold(
+            _ => ProofCarrier.Failure(withParams("The proven statement is not the same as the goal and cannot be weakened to it.", "Proven" -> theorem.statement, "Goal" -> statement)),
+            kernel => ProofJudgement(Thm(statement, kernel))
+          )
+    }
+
+  val judgement: ProofJudgement =
+    if isDraft then BasicStep.Sorry(using file, line)(using library)(statement)
+    else
+      proof.recover(statement) {
+        attemptConstruction(computeProof)
+      }(using file, line)
 
   val innerThm: Thm = judgement.destruct._1
   def thm: Thm = innerThm
